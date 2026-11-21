@@ -945,8 +945,7 @@ void main() {
         expect(storeInterface, contains(' createAccountWithHttpInfo('));
         expect(storeInterface, contains(' deleteOrder('));
         expect(storeInterface, contains(' deleteOrderWithHttpInfo('));
-        expect(storeInterface, contains(' exportOrders('));
-        expect(storeInterface, contains(' exportOrdersWithHttpInfo('));
+        expect(storeInterface, contains(' exportOrdersStream('));
         expect(storeInterface, contains(' getAuditTrail('));
         expect(storeInterface, contains(' getAuditTrailWithHttpInfo('));
         expect(storeInterface, contains(' getBySwatch('));
@@ -983,10 +982,8 @@ void main() {
         expect(storeInterface, contains(' reserveStockWithHttpInfo('));
         expect(storeInterface, contains(' searchStore('));
         expect(storeInterface, contains(' searchStoreWithHttpInfo('));
-        expect(storeInterface, contains(' watchNotices('));
-        expect(storeInterface, contains(' watchNoticesWithHttpInfo('));
-        expect(storeInterface, contains(' watchOrders('));
-        expect(storeInterface, contains(' watchOrdersWithHttpInfo('));
+        expect(storeInterface, contains(' watchNoticesStream('));
+        expect(storeInterface, contains(' watchOrdersStream('));
       },
     );
 

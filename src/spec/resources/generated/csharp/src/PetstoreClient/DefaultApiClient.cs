@@ -105,6 +105,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// <summary>Set once the transport the SDK created has been released, so it is released once.</summary>
     private bool _transportReleased;
 
+    /// <summary>The streams handed out and not yet ended; closing the client cancels them.</summary>
+    private readonly HashSet<HttpBodyStream> _openStreams = [];
+
     /// <summary>The one error every request issued after the client was closed fails with.</summary>
     private const string ClosedMessage =
         "ApiClient has been closed and can no longer send requests";
@@ -470,31 +473,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 continue;
             }
-            string value = entry.Value.Trim();
-            if (
-                double.TryParse(
-                    value,
-                    System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out double seconds
-                )
-                && double.IsFinite(seconds)
-                && seconds >= 0
-            )
+            if (ParseRetryAfter(entry.Value, now) is { } waited)
             {
-                return TimeSpan.FromSeconds(Math.Min(seconds, MaxRetryAfterSeconds));
-            }
-            if (
-                DateTimeOffset.TryParse(
-                    value,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.AssumeUniversal,
-                    out DateTimeOffset date
-                )
-            )
-            {
-                double until = (date - now).TotalSeconds;
-                return TimeSpan.FromSeconds(Math.Clamp(until, 0, MaxRetryAfterSeconds));
+                return waited;
             }
         }
         double backoff = Math.Min(
@@ -504,8 +485,43 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         return TimeSpan.FromSeconds(backoff * (1 - 0.25 * jitter));
     }
 
+    /// <summary>
+    /// A <c>Retry-After</c> value (seconds or an HTTP date, capped at 60 s) as a wait, or null
+    /// when it is not usable.
+    /// </summary>
+    internal static TimeSpan? ParseRetryAfter(string header, DateTimeOffset now)
+    {
+        string value = header.Trim();
+        if (
+            double.TryParse(
+                value,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out double seconds
+            )
+            && double.IsFinite(seconds)
+            && seconds >= 0
+        )
+        {
+            return TimeSpan.FromSeconds(Math.Min(seconds, MaxRetryAfterSeconds));
+        }
+        if (
+            DateTimeOffset.TryParse(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal,
+                out DateTimeOffset date
+            )
+        )
+        {
+            double until = (date - now).TotalSeconds;
+            return TimeSpan.FromSeconds(Math.Clamp(until, 0, MaxRetryAfterSeconds));
+        }
+        return null;
+    }
+
     /// <summary>A random sample in [0, 1) for the backoff jitter.</summary>
-    private static double Jitter()
+    internal static double Jitter()
     {
         return System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1000) / 1000d;
     }
@@ -592,14 +608,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         /* A request is counted in before it starts, so closing the client lets
            it finish; a request that arrives after closing fails with the one
            closed error and never reaches the transport. */
-        lock (_lifecycle)
-        {
-            if (_closed)
-            {
-                throw new InvalidOperationException(ClosedMessage);
-            }
-            _inFlight++;
-        }
+        EnterCall();
         try
         {
             return await SendCountedAsync(
@@ -617,21 +626,40 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         }
         finally
         {
-            bool release;
-            lock (_lifecycle)
-            {
-                _inFlight--;
-                release = _closed && _inFlight == 0 && !_transportReleased;
-                _transportReleased |= release;
-            }
-            if (release && _ownsHttpClient)
-            {
-                _httpClient.Dispose();
-            }
+            ExitCall();
         }
     }
 
-    private async Task<ApiHttpResponse> SendCountedAsync(
+    /// <summary>Counts a call in, or refuses it with the one closed error when the client was closed.</summary>
+    private void EnterCall()
+    {
+        lock (_lifecycle)
+        {
+            if (_closed)
+            {
+                throw new InvalidOperationException(ClosedMessage);
+            }
+            _inFlight++;
+        }
+    }
+
+    /// <summary>Counts a call out; the last one out of a closed client releases the transport.</summary>
+    private void ExitCall()
+    {
+        bool release;
+        lock (_lifecycle)
+        {
+            _inFlight--;
+            release = _closed && _inFlight == 0 && !_transportReleased;
+            _transportReleased |= release;
+        }
+        if (release && _ownsHttpClient)
+        {
+            _httpClient.Dispose();
+        }
+    }
+
+    private Task<ApiHttpResponse> SendCountedAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,
@@ -640,6 +668,59 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         Func<Task<Dictionary<string, string>>>? refreshHeaders,
         int? timeout,
         int? maxRetries,
+        CancellationToken cancellationToken
+    )
+    {
+        return SendWithRetriesAsync(
+            method,
+            url,
+            headers,
+            body,
+            refreshHeaders,
+            timeout,
+            maxRetries,
+            (attemptHeaders, timeoutSource, state, timeoutToken) =>
+                SendAttemptAsync(
+                    method,
+                    url,
+                    attemptHeaders,
+                    body,
+                    noRedirect,
+                    timeoutSource,
+                    state,
+                    timeoutToken
+                ),
+            result => result.StatusCode,
+            result => result.Headers,
+            _ => { },
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// The one retry loop of a buffered and of a streaming call: the attempts, the
+    /// backoff and the single timeout budget are the same, and only what one attempt
+    /// returns differs. <paramref name="discard"/> releases a retryable response
+    /// that is not returned because another attempt follows.
+    /// </summary>
+    private async Task<T> SendWithRetriesAsync<T>(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        Func<
+            Dictionary<string, string>,
+            CancellationTokenSource?,
+            AttemptState,
+            CancellationToken,
+            Task<T>
+        > send,
+        Func<T, int> statusOf,
+        Func<T, IReadOnlyDictionary<string, string>> headersOf,
+        Action<T> discard,
         CancellationToken cancellationToken
     )
     {
@@ -681,30 +762,22 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             TimeSpan delay;
             try
             {
-                ApiHttpResponse result = await SendAttemptAsync(
-                        method,
-                        url,
-                        attemptHeaders,
-                        body,
-                        noRedirect,
-                        timeoutSource,
-                        state,
-                        timeoutToken
-                    )
+                T result = await send(attemptHeaders, timeoutSource, state, timeoutToken)
                     .ConfigureAwait(false);
                 if (
                     !canRetry
                     || attempt >= effectiveMaxRetries
-                    || !IsRetryableStatus(result.StatusCode)
+                    || !IsRetryableStatus(statusOf(result))
                 )
                 {
                     return result;
                 }
-                delay = RetryDelay(attempt, result.Headers, DateTimeOffset.UtcNow, Jitter());
+                delay = RetryDelay(attempt, headersOf(result), DateTimeOffset.UtcNow, Jitter());
                 if (!FitsBudget(elapsed, delay, effectiveTimeout))
                 {
                     return result;
                 }
+                discard(result);
             }
             catch (Errors.NetworkException ex)
                 when (canRetry
@@ -757,12 +830,19 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             || elapsed.Elapsed + delay < TimeSpan.FromMilliseconds(effectiveTimeout.Value);
     }
 
-    private async Task<ApiHttpResponse> SendAttemptAsync(
+    /// <summary>
+    /// Sends one attempt, follows its redirects and returns the response as soon as
+    /// the final headers are in. With <see cref="HttpCompletionOption.ResponseContentRead"/>
+    /// the body has been read as well; with
+    /// <see cref="HttpCompletionOption.ResponseHeadersRead"/> it is still open.
+    /// </summary>
+    private async Task<HttpResponseMessage> OpenResponseAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,
         object? body,
         bool noRedirect,
+        HttpCompletionOption completion,
         CancellationTokenSource? timeoutSource,
         AttemptState state,
         CancellationToken timeoutToken
@@ -921,7 +1001,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.SendAsync(request, timeoutToken).ConfigureAwait(false);
+            response = await _httpClient
+                .SendAsync(request, completion, timeoutToken)
+                .ConfigureAwait(false);
             state.ResponseReceived = true;
 
             /* Gap BH: manual redirect loop with cross-origin sensitive-header strip.
@@ -1116,7 +1198,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     currentMethod = nextMethod;
                     currentBody = nextBody;
                     response = await _httpClient
-                        .SendAsync(next, timeoutToken)
+                        .SendAsync(next, completion, timeoutToken)
                         .ConfigureAwait(false);
                     next.Dispose();
                     hops++;
@@ -1157,6 +1239,33 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         {
             throw new Errors.NetworkTimeoutException("Request timed out", ex);
         }
+
+        return response;
+    }
+
+    private async Task<ApiHttpResponse> SendAttemptAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        CancellationTokenSource? timeoutSource,
+        AttemptState state,
+        CancellationToken timeoutToken
+    )
+    {
+        HttpResponseMessage response = await OpenResponseAsync(
+                method,
+                url,
+                headers,
+                body,
+                noRedirect,
+                HttpCompletionOption.ResponseContentRead,
+                timeoutSource,
+                state,
+                timeoutToken
+            )
+            .ConfigureAwait(false);
 
         /* A post-headers body-read failure (connection reset, read timeout,
            truncated chunked transfer, decompression error) must surface as the
@@ -1283,6 +1392,246 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             responseBody,
             CollectHeaders(response)
         );
+    }
+
+    /// <inheritdoc/>
+    public async Task<ApiStreamResponse> SendStreamingAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        int? idleTimeout,
+        CancellationToken cancellationToken
+    )
+    {
+        ArgumentNullException.ThrowIfNull(method);
+        ArgumentNullException.ThrowIfNull(url);
+        ArgumentNullException.ThrowIfNull(headers);
+        if (idleTimeout is < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(idleTimeout),
+                "IdleTimeout must not be negative"
+            );
+        }
+
+        /* The call is counted in until the stream it returns ends, so the
+           transport outlives the body; closing the client cancels the stream
+           instead of waiting for it. */
+        EnterCall();
+        bool kept = false;
+        try
+        {
+            ApiStreamResponse response = await SendWithRetriesAsync(
+                    method,
+                    url,
+                    headers,
+                    body,
+                    refreshHeaders,
+                    timeout,
+                    maxRetries,
+                    (attemptHeaders, timeoutSource, state, timeoutToken) =>
+                        OpenStreamAttemptAsync(
+                            method,
+                            url,
+                            attemptHeaders,
+                            body,
+                            idleTimeout,
+                            timeoutSource,
+                            state,
+                            timeoutToken
+                        ),
+                    result => result.StatusCode,
+                    result => result.Headers,
+                    result => result.Dispose(),
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+            HttpBodyStream stream = (HttpBodyStream)response.Body;
+            /* From here the caller's token cancels the open body as well. */
+            stream.Bind(cancellationToken);
+            bool closedMeanwhile;
+            lock (_lifecycle)
+            {
+                /* A stream that ended while it was being handed over (its call was
+                   cancelled) has already counted itself out of the registry. */
+                kept = !stream.Ended;
+                if (kept)
+                {
+                    _ = _openStreams.Add(stream);
+                }
+                closedMeanwhile = kept && _closed;
+            }
+            if (closedMeanwhile)
+            {
+                stream.CloseByClient();
+            }
+            return response;
+        }
+        finally
+        {
+            if (!kept)
+            {
+                ExitCall();
+            }
+        }
+    }
+
+    /// <summary>Counts a stream out of the registry and out of the calls in flight, once.</summary>
+    private void StreamEnded(HttpBodyStream stream)
+    {
+        bool registered;
+        lock (_lifecycle)
+        {
+            registered = _openStreams.Remove(stream);
+        }
+        if (registered)
+        {
+            ExitCall();
+        }
+    }
+
+    /// <summary>
+    /// One attempt of a streaming call: everything up to the response headers is the
+    /// buffered attempt, and the open body is handed back unread, decoded when the
+    /// server compressed it.
+    /// </summary>
+    private async Task<ApiStreamResponse> OpenStreamAttemptAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        int? idleTimeout,
+        CancellationTokenSource? timeoutSource,
+        AttemptState state,
+        CancellationToken timeoutToken
+    )
+    {
+        HttpResponseMessage response = await OpenResponseAsync(
+                method,
+                url,
+                headers,
+                body,
+                false,
+                HttpCompletionOption.ResponseHeadersRead,
+                timeoutSource,
+                state,
+                timeoutToken
+            )
+            .ConfigureAwait(false);
+        bool handedOver = false;
+        try
+        {
+            int status = (int)response.StatusCode;
+            Dictionary<string, string> responseHeaders = CollectHeaders(response);
+            Stream raw = await response
+                .Content.ReadAsStreamAsync(timeoutToken)
+                .ConfigureAwait(false);
+            Stream decoded = raw;
+            long? expected = response.Content.Headers.ContentLength;
+            if (
+                string.Equals(method, "HEAD", StringComparison.OrdinalIgnoreCase)
+                || status is 204 or 304
+            )
+            {
+                expected = null;
+            }
+            if (response.Content.Headers.ContentEncoding.Count > 0)
+            {
+                decoded = DecodeContentEncodingStream(
+                    raw,
+                    response.Content.Headers.ContentEncoding
+                );
+                /* D92: the decoded body no longer matches the wire encoding. */
+                _ = responseHeaders.Remove("content-encoding");
+                _ = responseHeaders.Remove("content-length");
+                expected = null;
+            }
+            int? effectiveIdle = idleTimeout ?? _transportOptions.IdleTimeout;
+            HttpBodyStream stream = new(
+                StreamEnded,
+                response,
+                raw,
+                decoded,
+                status,
+                responseHeaders,
+                method,
+                url.AbsolutePath,
+                string.Join(", ", response.Content.Headers.ContentEncoding),
+                effectiveIdle is 0 ? null : effectiveIdle,
+                expected,
+                _transportOptions.CancellationToken
+            );
+            handedOver = true;
+            return new ApiStreamResponse(status, responseHeaders, stream);
+        }
+        catch (Exception ex) when (ex is NotSupportedException or InvalidDataException)
+        {
+            throw ApiException.ForUnusableResponse(
+                (int)response.StatusCode,
+                $"Failed to decompress {string.Join(", ", response.Content.Headers.ContentEncoding)} response body: {ex.Message}",
+                ex,
+                CollectHeaders(response)
+            );
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException)
+        {
+            throw new Errors.NetworkException(ex.Message, ex);
+        }
+        catch (OperationCanceledException ex)
+            when (timeoutSource?.IsCancellationRequested == true
+                || ex.InnerException is TimeoutException
+            )
+        {
+            throw new Errors.NetworkTimeoutException("Request timed out", ex);
+        }
+        finally
+        {
+            if (!handedOver)
+            {
+                response.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Wraps a response body in the decoder of its <c>Content-Encoding</c>, so a
+    /// compressed stream is decoded as it arrives. The decoder leaves the body open:
+    /// the stream ends the connection itself, which never waits for the rest of it.
+    /// </summary>
+    private static Stream DecodeContentEncodingStream(Stream source, IEnumerable<string> encodings)
+    {
+        List<string> codings = [];
+        foreach (string encoding in encodings)
+        {
+            string coding = encoding.Trim();
+            if (coding.Length > 0 && !coding.Equals("identity", StringComparison.OrdinalIgnoreCase))
+            {
+                codings.Add(coding);
+            }
+        }
+        if (codings.Count > 1)
+        {
+            throw new NotSupportedException("chained Content-Encoding is not supported");
+        }
+        if (codings.Count == 0)
+        {
+            return source;
+        }
+        return codings[0].ToUpperInvariant() switch
+        {
+            "GZIP" or "X-GZIP" => new GZipStream(
+                source,
+                CompressionMode.Decompress,
+                leaveOpen: true
+            ),
+            "DEFLATE" => new ZLibStream(source, CompressionMode.Decompress, leaveOpen: true),
+            "BR" => new BrotliStream(source, CompressionMode.Decompress, leaveOpen: true),
+            _ => throw new NotSupportedException($"Unsupported Content-Encoding '{codings[0]}'"),
+        };
     }
 
     /// <summary>The response and content headers as a lower-cased map with comma-joined values.</summary>
@@ -1798,7 +2147,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// <param name="body">The raw body, sniffed for a byte order mark when the charset is a bare utf-16.</param>
     /// <param name="preambleLength">The number of leading body bytes that are a byte order mark to skip.</param>
     /// <returns>The resolved encoding, never null.</returns>
-    private static Encoding GetEncodingFromContentType(
+    internal static Encoding GetEncodingFromContentType(
         string? contentType,
         byte[] body,
         out int preambleLength
@@ -1861,7 +2210,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// </summary>
     /// <param name="mediaType">The Content-Type media type, or null.</param>
     /// <returns><c>true</c> for text-like content types, <c>false</c> otherwise.</returns>
-    private static bool IsTextContentType(string? mediaType)
+    internal static bool IsTextContentType(string? mediaType)
     {
         return string.IsNullOrEmpty(mediaType)
             || mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
@@ -1879,10 +2228,23 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
            returns; requests already running finish, and the last one releases
            the transport. Only a transport the SDK created is released, never a
            client the caller supplied. */
-        bool release;
+        List<HttpBodyStream> open;
         lock (_lifecycle)
         {
             _closed = true;
+            open = [.. _openStreams];
+        }
+        /* An open stream may never end (an endless feed), so closing cancels it
+           instead of waiting for it: its next read raises the closed error. Each
+           cancelled stream counts itself out, and the last one releases the
+           transport. */
+        foreach (HttpBodyStream stream in open)
+        {
+            stream.CloseByClient();
+        }
+        bool release;
+        lock (_lifecycle)
+        {
             release = _inFlight == 0 && !_transportReleased;
             _transportReleased |= release;
         }
@@ -1899,6 +2261,318 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private static bool HasHeader(Dictionary<string, string> headers, string name)
     {
         return headers.Keys.Any(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// The open body of a streaming response. A read is bounded by the idle timeout
+    /// and by the cancellation of the call, a failure after the headers is raised as
+    /// the SDK's own error, and disposing it drops the connection instead of
+    /// draining the rest of the body.
+    /// </summary>
+    private sealed class HttpBodyStream : Stream
+    {
+        private readonly Action<HttpBodyStream> _onEnded;
+        private readonly HttpResponseMessage _response;
+        private readonly Stream _raw;
+        private readonly Stream _body;
+        private readonly int _statusCode;
+        private readonly Dictionary<string, string> _headers;
+        private readonly string _method;
+        private readonly string _path;
+        private readonly string _encoding;
+        private readonly int? _idleMilliseconds;
+        private readonly long? _expectedLength;
+        private readonly CancellationTokenSource _cancel;
+        private readonly CancellationTokenRegistration _registration;
+        private CancellationTokenRegistration _callRegistration;
+        private long _delivered;
+        private int _disposed;
+        private int _aborted;
+        private int _ended;
+        private volatile bool _clientClosed;
+
+        public HttpBodyStream(
+            Action<HttpBodyStream> onEnded,
+            HttpResponseMessage response,
+            Stream raw,
+            Stream body,
+            int statusCode,
+            Dictionary<string, string> headers,
+            string method,
+            string path,
+            string encoding,
+            int? idleMilliseconds,
+            long? expectedLength,
+            CancellationToken clientToken
+        )
+        {
+            _encoding = encoding;
+            _onEnded = onEnded;
+            _response = response;
+            _raw = raw;
+            _body = body;
+            _statusCode = statusCode;
+            _headers = headers;
+            _method = method;
+            _path = path;
+            _idleMilliseconds = idleMilliseconds;
+            _expectedLength = expectedLength;
+            _cancel = CancellationTokenSource.CreateLinkedTokenSource(clientToken);
+            /* Last, because a token that is cancelled already runs this at once. */
+            _registration = _cancel.Token.Register(
+                static state => ((HttpBodyStream)state!).AbortConnection(),
+                this
+            );
+        }
+
+        /// <summary>Lets the cancellation token of the call cancel the open body too.</summary>
+        public void Bind(CancellationToken callToken)
+        {
+            _callRegistration = callToken.Register(
+                static state => ((HttpBodyStream)state!)._cancel.Cancel(),
+                this
+            );
+        }
+
+        /// <summary>Whether the stream has ended and counted itself out of its client.</summary>
+        public bool Ended => Volatile.Read(ref _ended) != 0;
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            return ReadAsync(buffer.AsMemory(offset, count), CancellationToken.None)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default
+        )
+        {
+            ThrowIfUnusable();
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(
+                _cancel.Token,
+                cancellationToken
+            );
+            if (_idleMilliseconds is int idle)
+            {
+                linked.CancelAfter(idle);
+            }
+            try
+            {
+                int count = await _body.ReadAsync(buffer, linked.Token).ConfigureAwait(false);
+                if (count > 0)
+                {
+                    _delivered += count;
+                    return count;
+                }
+                if (
+                    _expectedLength is long expected
+                    && ReferenceEquals(_body, _raw)
+                    && _delivered < expected
+                )
+                {
+                    throw Recorded(
+                        new Errors.StreamException(
+                            $"The response body ended after {_delivered} of {expected} bytes"
+                        )
+                    );
+                }
+                End();
+                return 0;
+            }
+            catch (Exception ex)
+                when (ex
+                        is OperationCanceledException
+                            or IOException
+                            or HttpRequestException
+                            or ObjectDisposedException
+                            or InvalidDataException
+                )
+            {
+                throw Translate(ex, cancellationToken);
+            }
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+
+        /// <summary>Cancels the stream because its client was closed: the next read raises the closed error.</summary>
+        public void CloseByClient()
+        {
+            _clientClosed = true;
+            AbortConnection();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                AbortConnection();
+                _registration.Dispose();
+                _callRegistration.Dispose();
+                _raw.Dispose();
+                _cancel.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        private void ThrowIfUnusable()
+        {
+            if (_clientClosed)
+            {
+                throw new InvalidOperationException(ClosedMessage);
+            }
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        }
+
+        /// <summary>The error a failed read raises: the caller's own cancellation stays one, and nothing else is raw.</summary>
+        private Exception Translate(Exception failure, CancellationToken readToken)
+        {
+            if (_clientClosed)
+            {
+                return new InvalidOperationException(ClosedMessage);
+            }
+            if (Volatile.Read(ref _disposed) != 0)
+            {
+                return new ObjectDisposedException(nameof(HttpBodyStream));
+            }
+            if (readToken.IsCancellationRequested || _cancel.IsCancellationRequested)
+            {
+                /* The caller cancelled: never raised as a timeout. */
+                return failure as OperationCanceledException
+                    ?? new OperationCanceledException(
+                        readToken.IsCancellationRequested ? readToken : _cancel.Token
+                    );
+            }
+            if (failure is OperationCanceledException)
+            {
+                AbortConnection();
+                return Recorded(
+                    new Errors.NetworkTimeoutException(
+                        $"The response body was silent for {_idleMilliseconds} ms",
+                        failure
+                    )
+                );
+            }
+            AbortConnection();
+            if (failure is InvalidDataException)
+            {
+                return ApiException.ForUnusableResponse(
+                    _statusCode,
+                    $"Failed to decompress {_encoding} response body: {failure.Message}",
+                    failure,
+                    _headers
+                );
+            }
+            return Recorded(new Errors.StreamException(failure.Message, failure));
+        }
+
+        private Errors.NetworkException Recorded(Errors.NetworkException failure)
+        {
+            failure.RecordRequest(_method, _path);
+            return failure;
+        }
+
+        /// <summary>Counts the stream out of its client once, when it ends or is aborted.</summary>
+        private void End()
+        {
+            if (Interlocked.Exchange(ref _ended, 1) == 0)
+            {
+                _onEnded(this);
+            }
+        }
+
+        /// <summary>Drops the connection and ends the stream; later calls do nothing.</summary>
+        private void AbortConnection()
+        {
+            if (Interlocked.Exchange(ref _aborted, 1) != 0)
+            {
+                return;
+            }
+            try
+            {
+                /* A read that waits on the connection is cancelled, which drops it. */
+                _cancel.Cancel();
+                DropConnection();
+            }
+            catch (Exception ex)
+                when (ex
+                        is IOException
+                            or HttpRequestException
+                            or ObjectDisposedException
+                            or InvalidOperationException
+                            or NotSupportedException
+                            or InvalidDataException
+                            or AggregateException
+                )
+            {
+                /* Aborting: the connection is being dropped either way. */
+            }
+            finally
+            {
+                if (!ReferenceEquals(_body, _raw))
+                {
+                    _body.Dispose();
+                }
+                _response.Dispose();
+                End();
+            }
+        }
+
+        /// <summary>
+        /// Disposing the response of a body that is not read to the end drains up to
+        /// 1 MiB, for up to two seconds, before it closes the connection, so an
+        /// endless feed would not be dropped at once. A read that is cancelled while
+        /// it waits drops the connection immediately, so one is started and cancelled
+        /// first; a byte that was already there is read away and the next read waits.
+        /// </summary>
+        private void DropConnection()
+        {
+            byte[] probe = new byte[1];
+            for (int tries = 0; tries < 8; tries++)
+            {
+                using CancellationTokenSource cut = new();
+                ValueTask<int> pending = _raw.ReadAsync(probe, cut.Token);
+                if (pending.IsCompleted)
+                {
+                    if (pending.GetAwaiter().GetResult() == 0)
+                    {
+                        return;
+                    }
+                    continue;
+                }
+                cut.Cancel();
+                try
+                {
+                    _ = pending.AsTask().GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException) { }
+                return;
+            }
+        }
     }
 
     /// <summary>

@@ -524,7 +524,7 @@ class TestEveryOperationTakesOptions:
         (
             '{{apiPackage}}.{{classFilename}}',
             '{{classname}}',
-            '{{operationId}}',
+            '{{operationId}}{{#vendorExtensions.op.streamOnly}}_stream{{/vendorExtensions.op.streamOnly}}',
             '{{vendorExtensions.op.optionsClassName}}',
             {{#vendorExtensions.op.optionsCallSettingsOnly}}True{{/vendorExtensions.op.optionsCallSettingsOnly}}{{^vendorExtensions.op.optionsCallSettingsOnly}}False{{/vendorExtensions.op.optionsCallSettingsOnly}},
         ),

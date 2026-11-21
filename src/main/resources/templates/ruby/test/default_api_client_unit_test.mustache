@@ -4240,4 +4240,122 @@ describe 'DefaultApiClientUnit' do
   ensure
     server&.close
   end
+
+  # What an operation does for an event stream: one request per connection,
+  # over the transport.
+  def event_opener(server, options = {{moduleName}}::TransportOptions.builder.build)
+    client = {{moduleName}}::DefaultApiClient.new(options)
+    lambda do |last_event_id|
+      headers = {}
+      headers['Last-Event-ID'] = last_event_id unless last_event_id.empty?
+      response = client.send_streaming(:GET, server.url('/items/events'), headers, nil, max_retries: 0)
+      byte_stream_of(response)
+    end
+  end
+
+  def events_head(socket)
+    RawHttp.head(socket, 200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked')
+  end
+
+  def open_events(opener, options, has_body: false)
+    {{moduleName}}::SseStream.open(opener: opener, decoder: nil, terminator: nil, options: options,
+                                    has_body: has_body, method: 'GET', path: '/items/events')
+  end
+
+  it 'bhv_streaming_006 a gzip encoded stream is decoded incrementally so the first item arrives before the body ends' do
+    deflater = Zlib::Deflate.new(Zlib::DEFAULT_COMPRESSION, Zlib::MAX_WBITS + 16)
+    first = deflater.deflate("first\n", Zlib::SYNC_FLUSH)
+    rest = deflater.deflate("second\n", Zlib::FINISH)
+    server = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Encoding: gzip', 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, first)
+      self_server.await_release
+      RawHttp.chunk(socket, rest)
+      RawHttp.finish(socket)
+    end
+    items = {{moduleName}}::JsonLinesStream.new(source: byte_stream_of(stream_of(server, '/items/export')), decoder: nil,
+                                                 max_line_bytes: 1024, method: 'GET', path: '/items/export').each
+    _(items.next).must_equal 'first'
+    _(server.released?).must_equal false
+    server.release!
+    _(items.next).must_equal 'second'
+    assert_raises(StopIteration) { items.next }
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_007 a corrupt compressed stream raises an API error with the status and the decoder error and is not retried' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Encoding: gzip', 'Content-Length: 8')
+      socket.write('notgzip!')
+    end
+    items = {{moduleName}}::JsonLinesStream.new(source: byte_stream_of(stream_of(server, '/items/export')), decoder: nil,
+                                                 max_line_bytes: 1024, method: 'GET', path: '/items/export')
+    failure = assert_raises({{moduleName}}::Errors::ApiError) { items.to_a }
+    _(failure).wont_be_kind_of {{moduleName}}::Errors::NetworkError
+    _(failure.status_code).must_equal 200
+    _(failure.cause).wont_be_nil
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_sse_007 an SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID' do
+    server = RawServer.serve do |_self_server, socket, hit, _head|
+      if hit >= 3
+        RawHttp.head(socket, 204, 'Content-Length: 0')
+      else
+        events_head(socket)
+        RawHttp.chunk(socket, hit == 1 ? "id: 1\ndata: a\n\nid: 2\ndata: b\n\n" : "id: 3\ndata: c\n\n")
+        RawHttp.finish(socket)
+      end
+    end
+    stream = open_events(event_opener(server), {{moduleName}}::StreamOptions.new(reconnect_delay: 1))
+    _(stream.map(&:data)).must_equal %w[a b c]
+    heads = server.heads.map(&:downcase)
+    _(heads[0]).wont_include 'last-event-id'
+    _(heads[1]).must_include 'last-event-id: 2'
+    _(heads[2]).must_include 'last-event-id: 3'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_sse_015 an idle timeout on an SSE stream counts as a lost connection and reconnects' do
+    server = RawServer.serve do |self_server, socket, hit, _head|
+      events_head(socket)
+      if hit == 1
+        RawHttp.chunk(socket, "id: 1\ndata: a\n\n")
+        self_server.await_release
+      else
+        RawHttp.chunk(socket, "id: 2\ndata: b\n\n")
+        RawHttp.finish(socket)
+      end
+    end
+    options = {{moduleName}}::TransportOptions.builder.idle_timeout(300).build
+    stream = open_events(event_opener(server, options), {{moduleName}}::StreamOptions.new(reconnect_delay: 1, max_reconnects: 1))
+    events = stream.each
+    _(events.next.data).must_equal 'a'
+    _(events.next.data).must_equal 'b'
+    _(server.heads[1].downcase).must_include 'last-event-id: 1'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_sse_018 an SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      events_head(socket)
+      8.times do
+        RawHttp.chunk(socket, ": heartbeat\n\n")
+        sleep 0.1
+      end
+      RawHttp.chunk(socket, "data: late\n\n")
+      RawHttp.finish(socket)
+    end
+    options = {{moduleName}}::TransportOptions.builder.idle_timeout(400).build
+    stream = open_events(event_opener(server, options), {{moduleName}}::StreamOptions.new(reconnect_delay: 1, max_reconnects: 0))
+    _(stream.first.data).must_equal 'late'
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
 end

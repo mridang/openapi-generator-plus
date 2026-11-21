@@ -17,7 +17,10 @@ import (
 	"os"
 	"petstore/pkg/auth"
 	"petstore/pkg/models"
+	"reflect"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -495,5 +498,167 @@ func TestBhvStreaming017_BaseApi_InvokeApiForStream_AStreamingCallSendsTheSameHe
 	}
 	if streamed["x-request-id"] == "" || streamed["x-request-id"] == buffered["x-request-id"] {
 		t.Errorf("expected each call to have its own request id, got %q and %q", buffered["x-request-id"], streamed["x-request-id"])
+	}
+}
+
+// eventStreamClient answers each event stream call with the next scripted body
+// (an empty one is a 204) and keeps the headers it was sent.
+type eventStreamClient struct {
+	mu     sync.Mutex
+	sent   []map[string]string
+	bodies []string
+}
+
+func (c *eventStreamClient) SendRequest(method, url string, headers map[string]string, body any) (*ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *eventStreamClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
+	return nil, errors.New("buffered calls are not used")
+}
+
+func (c *eventStreamClient) Close() error { return nil }
+
+func (c *eventStreamClient) SendStreaming(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiStreamResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	text := c.bodies[min(len(c.sent), len(c.bodies)-1)]
+	sent := map[string]string{}
+	for name, value := range headers {
+		sent[strings.ToLower(name)] = value
+	}
+	c.sent = append(c.sent, sent)
+	if text == "" {
+		return NewApiStreamResponse(204, map[string]string{}, io.NopCloser(strings.NewReader(""))), nil
+	}
+	return eventsResponse(text), nil
+}
+
+// rotatingAuth hands out a new bearer token every time it is asked.
+type rotatingAuth struct{ counter int }
+
+func (a *rotatingAuth) Host() string { return "" }
+func (a *rotatingAuth) AuthHeaders() map[string]string {
+	a.counter++
+	return map[string]string{"Authorization": "Bearer t" + strconv.Itoa(a.counter)}
+}
+func (a *rotatingAuth) QueryParams() map[string]string  { return nil }
+func (a *rotatingAuth) CookieParams() map[string]string { return nil }
+
+// eventsOf runs an event stream call through a baseApi over the client and
+// drains it.
+func eventsOf(t *testing.T, client *eventStreamClient, config *Configuration, authenticator Authenticator, headers map[string]string, options ...RequestOption) {
+	t.Helper()
+	settings, err := newCallSettings(options)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	base := newBaseApi(client, config, authenticator)
+	stream, err := invokeSse(base, invokeApiParams{
+		method:       "GET",
+		path:         "/items/events",
+		headerParams: headers,
+		accepts:      []string{"text/event-stream"},
+		contentType:  "application/json",
+		settings:     settings,
+	}, decodeText, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, err := range stream.All() {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+}
+
+func plainConfig(defaults map[string]string) *Configuration {
+	builder := NewConfigurationBuilder().BaseURL("http://localhost")
+	for name, value := range defaults {
+		builder.DefaultHeader(name, value)
+	}
+	return builder.Build()
+}
+
+func TestBhvSse006_BaseApi_InvokeSse_AnSseRequestSendsTheEventStreamHeadersUnlessTheCallerSetThem(t *testing.T) {
+	t.Parallel()
+	client := &eventStreamClient{bodies: []string{"data: a\n\n", ""}}
+	eventsOf(t, client, plainConfig(nil), nil, map[string]string{}, WithReconnectDelay(time.Millisecond))
+	sent := client.sent[0]
+	if sent["accept"] != "text/event-stream" || sent["cache-control"] != "no-cache" || sent["accept-encoding"] != "identity" {
+		t.Errorf("expected the event stream headers, got %v", sent)
+	}
+
+	own := &eventStreamClient{bodies: []string{"data: a\n\n", ""}}
+	eventsOf(t, own, plainConfig(map[string]string{"accept-encoding": "gzip"}), nil, map[string]string{}, WithHeaders(map[string]string{"cache-control": "max-age=0"}), WithReconnectDelay(time.Millisecond))
+	chosen := own.sent[0]
+	if chosen["cache-control"] != "max-age=0" || chosen["accept-encoding"] != "gzip" {
+		t.Errorf("expected the caller's own headers to be kept, got %v", chosen)
+	}
+}
+
+func TestBhvSse012_BaseApi_InvokeSse_AnSseStreamSendsTheInitialLastEventIdOnItsFirstRequest(t *testing.T) {
+	t.Parallel()
+	client := &eventStreamClient{bodies: []string{"data: a\n\n", ""}}
+
+	eventsOf(t, client, plainConfig(nil), nil, map[string]string{}, WithLastEventID("42"), WithReconnectDelay(time.Millisecond))
+
+	if got := client.sent[0]["last-event-id"]; got != "42" {
+		t.Errorf("expected Last-Event-ID 42 on the first request, got %q", got)
+	}
+}
+
+func TestBhvSse013_BaseApi_InvokeSse_AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent(t *testing.T) {
+	t.Parallel()
+	client := &eventStreamClient{bodies: []string{"data: a\n\n", ""}}
+
+	eventsOf(t, client, plainConfig(nil), &rotatingAuth{}, map[string]string{}, WithReconnectDelay(time.Millisecond))
+
+	if len(client.sent) != 2 {
+		t.Fatalf("expected 2 requests, got %d", len(client.sent))
+	}
+	if client.sent[0]["authorization"] != "Bearer t1" || client.sent[1]["authorization"] != "Bearer t2" {
+		t.Errorf("expected a fresh token on the reconnect, got %q and %q", client.sent[0]["authorization"], client.sent[1]["authorization"])
+	}
+}
+
+func TestBhvSse020_BaseApi_InvokeSse_AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty(t *testing.T) {
+	t.Parallel()
+	client := &eventStreamClient{bodies: []string{"data: a\n\n", "id: 5\ndata: b\n\n", ""}}
+
+	eventsOf(t, client, plainConfig(nil), nil, map[string]string{}, WithReconnectDelay(time.Millisecond))
+
+	if len(client.sent) != 3 {
+		t.Fatalf("expected 3 requests, got %d", len(client.sent))
+	}
+	if _, ok := client.sent[0]["last-event-id"]; ok {
+		t.Error("expected no Last-Event-ID on the first request")
+	}
+	if _, ok := client.sent[1]["last-event-id"]; ok {
+		t.Error("expected no Last-Event-ID while there is no id")
+	}
+	if client.sent[2]["last-event-id"] != "5" {
+		t.Errorf("expected Last-Event-ID 5, got %q", client.sent[2]["last-event-id"])
+	}
+}
+
+func TestBhvStreaming028_BaseApi_AnOperationWithAStreamingMediaTypeGetsAStreamMethodAndAnSseOrJsonLinesOnlyOperationGetsNoBufferedMethod(t *testing.T) {
+	t.Parallel()
+	api := reflect.TypeOf((*StoreApiInterface)(nil)).Elem()
+	for _, operation := range []string{"ExportOrders", "WatchOrders", "WatchNotices"} {
+		if _, ok := api.MethodByName(operation + "Stream"); !ok {
+			t.Errorf("expected %sStream", operation)
+		}
+		if _, ok := api.MethodByName(operation); ok {
+			t.Errorf("expected no buffered %s", operation)
+		}
+		if _, ok := api.MethodByName(operation + "WithHTTPInfo"); ok {
+			t.Errorf("expected no raw %s", operation)
+		}
+	}
+	export, _ := api.MethodByName("ExportOrdersStream")
+	notices, _ := api.MethodByName("WatchNoticesStream")
+	if !strings.Contains(export.Type.Out(0).String(), "JsonLinesStream") || !strings.Contains(notices.Type.Out(0).String(), "SseStream") {
+		t.Errorf("expected the carriers, got %v and %v", export.Type.Out(0), notices.Type.Out(0))
 	}
 }

@@ -714,7 +714,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet
-
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -806,7 +805,6 @@ class PetApi(BaseApi):
             body["files"] = options.files
         if options is not None:
             body["metadata"] = options.metadata
-
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -890,7 +888,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet_treatment
-
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -975,7 +972,6 @@ class PetApi(BaseApi):
             body["file"] = options.file
         if options is not None and options.caption is not None:
             body["caption"] = options.caption
-
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -1066,7 +1062,6 @@ class PetApi(BaseApi):
         if cookie_parts:
             header_params["Cookie"] = "; ".join(cookie_parts)
         body = None
-
         return await self._invoke_api_for_result(
             "DELETE",
             path,
@@ -1168,7 +1163,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_stream(
             "GET",
             path,
@@ -1241,7 +1235,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1378,7 +1371,6 @@ class PetApi(BaseApi):
                 )
             )
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1459,7 +1451,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1540,7 +1531,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1618,7 +1608,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_stream(
             "GET",
             path,
@@ -1695,7 +1684,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1794,7 +1782,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1912,7 +1899,6 @@ class PetApi(BaseApi):
                 )
             )
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -2018,7 +2004,6 @@ class PetApi(BaseApi):
             )
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -2096,7 +2081,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -2192,7 +2176,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_stream(
             "GET",
             path,
@@ -2337,7 +2320,6 @@ class PetApi(BaseApi):
         if cookie_parts:
             header_params["Cookie"] = "; ".join(cookie_parts)
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -2585,7 +2567,6 @@ class PetApi(BaseApi):
                 )
             )
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -2666,7 +2647,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -2763,7 +2743,6 @@ class PetApi(BaseApi):
                 f"Unsupported request content-type '{request_content_type}' for "
                 f"set_pet_avatar; declared types are [{', '.join(_declared_consumes)}]"
             )
-
         return await self._invoke_api_for_result(
             "PUT",
             path,
@@ -2840,7 +2819,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = set_pet_avatar_thumbnail_request
-
         return await self._invoke_api_for_result(
             "PUT",
             path,
@@ -2941,7 +2919,6 @@ class PetApi(BaseApi):
             body["urgent"] = options.urgent
         if options is not None and options.snooze is not None:
             body["snooze"] = options.snooze
-
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -3029,7 +3006,6 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet
-
         return await self._invoke_api_for_result(
             "PUT",
             path,
@@ -3114,7 +3090,6 @@ class PetApi(BaseApi):
         body: Dict[str, Any] = {}
         if options is not None:
             body["file"] = options.file
-
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -3232,7 +3207,6 @@ class PetApi(BaseApi):
                 f"Unsupported request content-type '{request_content_type}' for "
                 f"upload_pet_document; declared types are [{', '.join(_declared_consumes)}]"
             )
-
         return await self._invoke_api_for_result(
             "POST",
             path,

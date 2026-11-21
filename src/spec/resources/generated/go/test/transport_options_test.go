@@ -881,34 +881,6 @@ func TestBhvOptions064_TransportOptions_StringShowsTheMaxRetries(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_IdleTimeoutDefaultsToSixtySecondsAndZeroOrNilDisablesItAndNegativeIsRefused(t *testing.T) {
-	t.Parallel()
-	defaults, err := petstore.NewTransportOptionsBuilder().Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := defaults.IdleTimeout(); got == nil || *got != 60000 {
-		t.Errorf("expected an idle timeout of 60000 ms by default, got %v", got)
-	}
-	zero, negative, set := 0, -1, 250
-	for name, value := range map[string]*int{"zero": &zero, "nil": nil} {
-		opts, err := petstore.NewTransportOptionsBuilder().IdleTimeout(value).Build()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if opts.IdleTimeout() != nil {
-			t.Errorf("expected %s to disable the idle timeout, got %d", name, *opts.IdleTimeout())
-		}
-	}
-	opts, err := petstore.NewTransportOptionsBuilder().IdleTimeout(&set).Build()
-	if err != nil || opts.IdleTimeout() == nil || *opts.IdleTimeout() != 250 {
-		t.Errorf("expected the idle timeout to be 250 ms, got %v (%v)", opts.IdleTimeout(), err)
-	}
-	if _, err := petstore.NewTransportOptionsBuilder().IdleTimeout(&negative).Build(); !errors.Is(err, petstore.ErrInvalidTimeout) {
-		t.Errorf("expected ErrInvalidTimeout for a negative idle timeout, got %v", err)
-	}
-}
-
 // secretHookTripper is a caller-supplied transport whose printed form carries a secret.
 type secretHookTripper struct{}
 

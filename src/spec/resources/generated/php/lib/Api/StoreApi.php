@@ -16,6 +16,8 @@ namespace PetstoreClient\Api;
 use PetstoreClient\ApiClient;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\ApiResult;
+use PetstoreClient\SseStream;
+use PetstoreClient\StreamOptions;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
@@ -206,37 +208,12 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Exports every order as JSON Lines
      * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @param StreamOptions|null $streamOptions The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults
+     * @return \Generator<int, \PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
-    public function exportOrders(?ExportOrdersOptions $options = null): \PetstoreClient\Models\Order
-    {
-        $apiResult = $this->exportOrdersWithHttpInfo($options);
-        if ($apiResult->data === null) {
-            /* This operation declares a non-void return type, so an empty /
-             * undecodable response body is a contract violation. Surface it
-             * as the SDK's typed ApiException (with the status, body and
-             * headers) instead of returning a silent null, matching the
-             * throwing SDKs. */
-            throw new \PetstoreClient\Errors\ApiException(
-                $apiResult->statusCode,
-                'Expected a response body for exportOrders but received none',
-                $apiResult->headers,
-                $apiResult->rawBody
-            );
-        }
-        /** @var \PetstoreClient\Models\Order $result */
-        $result = $apiResult->data;
-        return $result;
-    }
-
-    /**
-     * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<\PetstoreClient\Models\Order>
-     * @throws \PetstoreClient\Errors\ApiException
-     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
-     */
-    public function exportOrdersWithHttpInfo(?ExportOrdersOptions $options = null): ApiResult
+    public function exportOrdersStream(?ExportOrdersOptions $options = null, ?StreamOptions $streamOptions = null): \Generator
     {
         $path = '/store/orders/export';
         $queryParams = [];
@@ -250,8 +227,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
-        $result = $this->invokeApiForResult(
+        /** @var \Generator<int, \PetstoreClient\Models\Order> $stream */
+        $stream = $this->invokeApiForJsonLines(
             'GET',
             $path,
             $queryParams,
@@ -259,10 +236,6 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/x-ndjson'],
             'application/json',
-            \PetstoreClient\Models\Order::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
             timeout: $options?->timeout,
@@ -271,8 +244,11 @@ class StoreApi extends BaseApi implements StoreApiInterface
             securityRequirements: [],
             operationId: 'exportOrders',
             urlTemplate: '/store/orders/export',
+            itemType: \PetstoreClient\Models\Order::class,
+            streamOptions: $streamOptions,
         );
-        return $result;
+
+        return $stream;
     }
 
     /**
@@ -1760,37 +1736,12 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Streams plain text notices as server-sent events
      * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @param StreamOptions|null $streamOptions The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults
+     * @return SseStream<string>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
-    public function watchNotices(?WatchNoticesOptions $options = null): string
-    {
-        $apiResult = $this->watchNoticesWithHttpInfo($options);
-        if ($apiResult->data === null) {
-            /* This operation declares a non-void return type, so an empty /
-             * undecodable response body is a contract violation. Surface it
-             * as the SDK's typed ApiException (with the status, body and
-             * headers) instead of returning a silent null, matching the
-             * throwing SDKs. */
-            throw new \PetstoreClient\Errors\ApiException(
-                $apiResult->statusCode,
-                'Expected a response body for watchNotices but received none',
-                $apiResult->headers,
-                $apiResult->rawBody
-            );
-        }
-        /** @var string $result */
-        $result = $apiResult->data;
-        return $result;
-    }
-
-    /**
-     * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<string>
-     * @throws \PetstoreClient\Errors\ApiException
-     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
-     */
-    public function watchNoticesWithHttpInfo(?WatchNoticesOptions $options = null): ApiResult
+    public function watchNoticesStream(?WatchNoticesOptions $options = null, ?StreamOptions $streamOptions = null): SseStream
     {
         $path = '/store/notices';
         $queryParams = [];
@@ -1804,8 +1755,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<string> $result */
-        $result = $this->invokeApiForResult(
+        /** @var SseStream<string> $stream */
+        $stream = $this->invokeApiForSse(
             'GET',
             $path,
             $queryParams,
@@ -1813,10 +1764,6 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['text/event-stream'],
             'application/json',
-            'string',
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
             timeout: $options?->timeout,
@@ -1825,44 +1772,21 @@ class StoreApi extends BaseApi implements StoreApiInterface
             securityRequirements: [],
             operationId: 'watchNotices',
             urlTemplate: '/store/notices',
+            streamOptions: $streamOptions,
         );
-        return $result;
+
+        return $stream;
     }
 
     /**
      * Streams order changes as server-sent events
      * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
+     * @param StreamOptions|null $streamOptions The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults
+     * @return SseStream<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
-    public function watchOrders(?WatchOrdersOptions $options = null): \PetstoreClient\Models\Order
-    {
-        $apiResult = $this->watchOrdersWithHttpInfo($options);
-        if ($apiResult->data === null) {
-            /* This operation declares a non-void return type, so an empty /
-             * undecodable response body is a contract violation. Surface it
-             * as the SDK's typed ApiException (with the status, body and
-             * headers) instead of returning a silent null, matching the
-             * throwing SDKs. */
-            throw new \PetstoreClient\Errors\ApiException(
-                $apiResult->statusCode,
-                'Expected a response body for watchOrders but received none',
-                $apiResult->headers,
-                $apiResult->rawBody
-            );
-        }
-        /** @var \PetstoreClient\Models\Order $result */
-        $result = $apiResult->data;
-        return $result;
-    }
-
-    /**
-     * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
-     * @return ApiResult<\PetstoreClient\Models\Order>
-     * @throws \PetstoreClient\Errors\ApiException
-     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
-     */
-    public function watchOrdersWithHttpInfo(?WatchOrdersOptions $options = null): ApiResult
+    public function watchOrdersStream(?WatchOrdersOptions $options = null, ?StreamOptions $streamOptions = null): SseStream
     {
         $path = '/store/orders/events';
         $queryParams = [];
@@ -1887,8 +1811,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
-        $result = $this->invokeApiForResult(
+        /** @var SseStream<\PetstoreClient\Models\Order> $stream */
+        $stream = $this->invokeApiForSse(
             'GET',
             $path,
             $queryParams,
@@ -1896,10 +1820,6 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['text/event-stream'],
             'application/json',
-            \PetstoreClient\Models\Order::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
             NoAuth::instance(),
             $allowReservedKeys,
             timeout: $options?->timeout,
@@ -1908,7 +1828,10 @@ class StoreApi extends BaseApi implements StoreApiInterface
             securityRequirements: [],
             operationId: 'watchOrders',
             urlTemplate: '/store/orders/events',
+            itemType: \PetstoreClient\Models\Order::class,
+            streamOptions: $streamOptions,
         );
-        return $result;
+
+        return $stream;
     }
 }

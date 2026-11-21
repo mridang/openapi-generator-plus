@@ -49,6 +49,37 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public async Task BhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "tick");
+                _ = await self.AwaitReleaseAsync();
+            }
+        );
+        var client = new {{clientClassName}}(new BearerAuthenticator(server.Url(""), "test-token"));
+        await using ByteStream open = await client.Pet.GetPetAvatarAsync(1L);
+        byte[] first = new byte[4];
+        await open.ReadExactlyAsync(first);
+        Assert.Equal("tick", System.Text.Encoding.UTF8.GetString(first));
+
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        client.Dispose();
+
+        Assert.True(
+            System.Diagnostics.Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5),
+            "closing did not wait for the endless stream");
+        var cancelled = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            _ = await open.ReadAsync(new byte[1]);
+        });
+        Assert.Equal("ApiClient has been closed and can no longer send requests", cancelled.Message);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => client.Pet.GetPetAvatarAsync(1L));
+    }
+
+    [Fact]
     public async Task BhvLifecycle007CloseOnAClientWithASuppliedTransportLeavesThatTransportUsable()
     {
         using var handler = new RecordingHandler();
@@ -483,8 +514,13 @@ public sealed class ClientTest : IDisposable
         Assert.True(typeof(I{{classname}}).IsAssignableFrom(typeof({{classname}})));
         var {{clientPropertyName}}Listed = typeof(I{{classname}}).GetMethods().Select(m => m.Name).ToHashSet();
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        Assert.Contains("{{operationId}}StreamAsync", {{clientPropertyName}}Listed);
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
         Assert.Contains("{{operationId}}Async", {{clientPropertyName}}Listed);
         Assert.Contains("{{operationId}}WithHttpInfoAsync", {{clientPropertyName}}Listed);
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

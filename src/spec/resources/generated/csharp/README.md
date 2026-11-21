@@ -37,7 +37,7 @@ Console.WriteLine(result);
 ```
 
 The client is `IDisposable`: dispose it to release its connections. A disposed
-client throws `InvalidOperationException`. Errors derive from
+client throws `InvalidOperationException`. Streams that are still open are cancelled. Errors derive from
 `OpenAPIException`; `ApiException` carries an HTTP response or a transport
 failure, `NetworkException` and `NetworkTimeoutException` mean no HTTP response
 arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md)
@@ -215,11 +215,6 @@ loudly with `SerializationException`.
 A header the server repeats (`Link`, `Set-Cookie`) is joined into one value with `, ` in the
 order it arrived, so a `Set-Cookie` value is not parsed for you.
 
-### Streaming
-
-Request and response bodies are read and sent whole; there is no streaming of a response body.
-Implement `IApiClient` and inject it when you need to stream.
-
 ### Configuration and transport options
 
 `Configuration` holds what belongs to the API (the base URL and default headers) and
@@ -263,6 +258,67 @@ public static class Cancellation
     }
 }
 ```
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `Dispose()` that aborts the connection instead of draining it, so close it when you stop early (`await using`). `ReadAllAsync()` reads the rest into memory and leaves the stream closed.
+
+```csharp file
+using PetstoreClient;
+using PetstoreClient.Api.Options;
+
+public static class Download
+{
+    public static async Task SaveToAsync(Client client, long petId, long documentId, DownloadPetDocumentOptions? options, string target)
+    {
+        await using ByteStream stream = await client.Pet.DownloadPetDocumentAsync(petId, documentId, options);
+        Console.WriteLine(stream.StatusCode);
+        await using FileStream file = File.Create(target);
+        await stream.CopyToAsync(file);
+    }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `IdleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.Dispose()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `SendStreamingAsync` fails a stream call with `NotSupportedException` naming it, and its buffered calls keep working.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<Operation>StreamAsync` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`Id`, `Event`, `Data`, `Retry` and the raw data text as `Raw`; `T` is the schema of the `data`, or a string). Iterate it (`await foreach`), and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `MaxEventBytes` (1 MiB), raise `SerializationException` and end the stream.
+
+```csharp file
+using PetstoreClient;
+using PetstoreClient.Models;
+using PetstoreClient.Api.Options;
+
+public static class JsonLinesFeed
+{
+    public static async Task ReadAsync(Client client, ExportOrdersOptions? options)
+    {
+        await using JsonLinesStream<Order> feed = await client.Store.ExportOrdersStreamAsync(options);
+        await foreach (Order item in feed)
+        {
+            Console.WriteLine(item);
+        }
+    }
+}
+```
+
+```csharp file
+using PetstoreClient;
+using PetstoreClient.Api.Options;
+
+public static class SseFeed
+{
+    public static async Task ReadAsync(Client client, WatchNoticesOptions? options)
+    {
+        await using SseStream<string> feed = await client.Store.WatchNoticesStreamAsync(options);
+        await foreach (ServerSentEvent<string> item in feed)
+        {
+            Console.WriteLine(item.Data);
+        }
+    }
+}
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `ReconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `MaxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.Dispose()`. An event named `error` raises `ApiException` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `IdleTimeout` and `LastEventId`.
 
 ### Custom HTTP transport
 

@@ -346,6 +346,56 @@ class _ServerApi extends BaseApi {
   Future<void> sleepBeforeRetry(Duration delay) async {}
 }
 
+/// Answers each event stream call with the next scripted body (an empty body is
+/// a 204) and keeps the headers it was sent.
+class _EventStreamClient implements StreamingApiClient {
+  _EventStreamClient(this.bodies);
+
+  final List<String> bodies;
+  final List<Map<String, String>> sentHeaders = [];
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+  }) => throw UnsupportedError('buffered');
+
+  @override
+  Future<ApiStreamResponse> sendStreaming(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+    int? idleTimeout,
+  }) async {
+    final index = sentHeaders.length < bodies.length
+        ? sentHeaders.length
+        : bodies.length - 1;
+    sentHeaders.add(Map<String, String>.from(headers));
+    final text = bodies[index];
+    if (text.isEmpty) {
+      return ApiStreamResponse(
+        statusCode: 204,
+        headers: const {},
+        body: const Stream<List<int>>.empty(),
+      );
+    }
+    return ApiStreamResponse(
+      statusCode: 200,
+      headers: {'content-type': 'text/event-stream'},
+      body: Stream<List<int>>.value(utf8.encode(text)),
+    );
+  }
+}
+
 PetApi _chasmApi({Map<String, Authenticator>? schemes}) {
   final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
   return PetApi(
@@ -7220,6 +7270,129 @@ void main() {
           endsWith('/items'),
           reason: 'the buffered call still works',
         );
+      },
+    );
+  });
+
+  group('BaseApi event streams', () {
+    Future<SseStream<String>> events(
+      ApiClient client, {
+      Map<String, String>? headerParams,
+      StreamOptions? streamOptions,
+      Authenticator? authenticator,
+      Map<String, String> defaultHeaders = const {},
+    }) =>
+        BaseApi(
+          apiClient: client,
+          config: ConfigurationBuilder()
+              .baseUrl('http://localhost')
+              .defaultHeaders(defaultHeaders)
+              .build(),
+          authenticator: authenticator,
+        ).invokeApiForSse<String>(
+          method: 'GET',
+          path: '/items/events',
+          headerParams: headerParams,
+          accepts: ['text/event-stream'],
+          contentType: 'application/json',
+          streamOptions: streamOptions,
+        );
+
+    String? headerOf(Map<String, String> headers, String name) {
+      for (final entry in headers.entries) {
+        if (entry.key.toLowerCase() == name.toLowerCase()) return entry.value;
+      }
+      return null;
+    }
+
+    int count(Map<String, String> headers, String name) => headers.keys
+        .where((key) => key.toLowerCase() == name.toLowerCase())
+        .length;
+
+    test(
+      'bhv sse 006 an SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them',
+      () async {
+        final client = _EventStreamClient(['data: a\n\n', '']);
+        await (await events(client)).drain<void>();
+        final sent = client.sentHeaders.first;
+        expect(headerOf(sent, 'Accept'), equals('text/event-stream'));
+        expect(headerOf(sent, 'Cache-Control'), equals('no-cache'));
+        expect(headerOf(sent, 'Accept-Encoding'), equals('identity'));
+
+        final own = _EventStreamClient(['data: a\n\n', '']);
+        await (await events(
+          own,
+          headerParams: {'cache-control': 'max-age=0'},
+          defaultHeaders: {'accept-encoding': 'gzip'},
+        )).drain<void>();
+        final chosen = own.sentHeaders.first;
+        expect(headerOf(chosen, 'Cache-Control'), equals('max-age=0'));
+        expect(count(chosen, 'Cache-Control'), equals(1));
+        expect(
+          headerOf(chosen, 'Accept-Encoding'),
+          equals('gzip'),
+          reason: "the caller's own encoding is kept",
+        );
+        expect(count(chosen, 'Accept-Encoding'), equals(1));
+      },
+    );
+
+    test(
+      'bhv sse 012 an SSE stream sends the initial last event id of the call on its first request',
+      () async {
+        final client = _EventStreamClient(['data: a\n\n', '']);
+        await (await events(
+          client,
+          streamOptions: const StreamOptions(lastEventId: '42'),
+        )).drain<void>();
+        expect(
+          headerOf(client.sentHeaders.first, 'Last-Event-ID'),
+          equals('42'),
+        );
+      },
+    );
+
+    test(
+      'bhv sse 013 an SSE reconnect rebuilds the headers so a refreshed token is the one sent',
+      () async {
+        final client = _EventStreamClient(['data: a\n\n', '']);
+        await (await events(
+          client,
+          authenticator: _CountingAuth(),
+          streamOptions: const StreamOptions(reconnectDelay: 1),
+        )).drain<void>();
+        expect(client.sentHeaders, hasLength(2));
+        expect(
+          headerOf(client.sentHeaders[0], 'Authorization'),
+          equals('Bearer n1'),
+        );
+        expect(
+          headerOf(client.sentHeaders[1], 'Authorization'),
+          equals('Bearer n2'),
+        );
+      },
+    );
+
+    test(
+      'bhv sse 020 an SSE reconnect sends Last-Event-ID only when the last event id is not empty',
+      () async {
+        final client = _EventStreamClient([
+          'data: a\n\n',
+          'id: 5\ndata: b\n\n',
+          '',
+        ]);
+        await (await events(
+          client,
+          streamOptions: const StreamOptions(reconnectDelay: 1),
+        )).drain<void>();
+        expect(client.sentHeaders, hasLength(3));
+        expect(headerOf(client.sentHeaders[0], 'Last-Event-ID'), isNull);
+        expect(
+          headerOf(client.sentHeaders[1], 'Last-Event-ID'),
+          isNull,
+          reason: 'no id yet, so none is sent',
+        );
+        expect(headerOf(client.sentHeaders[2], 'Last-Event-ID'), equals('5'));
       },
     );
   });

@@ -6158,4 +6158,185 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert_received {:sent, url}
     assert String.ends_with?(url, "/items/blob"), "the buffered call still works"
   end
+
+  # ---------------------------------------------------------------------------
+  # Event streams over the call pipeline: every connection, the first and each
+  # reconnect, runs the whole call again
+  # ---------------------------------------------------------------------------
+
+  defp sse_call(state, request_opts) do
+    call =
+      request_opts
+      |> Keyword.take([:headers, :timeout, :max_retries, :idle_timeout])
+      |> Keyword.put(:stream, true)
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      state,
+      :get,
+      "/items/events",
+      [],
+      %{},
+      nil,
+      ["text/event-stream"],
+      "application/json",
+      nil,
+      nil,
+      call,
+      %{}
+    )
+  end
+
+  defp sse_over(state, opts \\ [reconnect_delay: 1]) do
+    PetstoreClient.SseStream.open(fn request_opts -> sse_call(state, request_opts) end, opts, [])
+  end
+
+  defp event_head(socket, extra \\ []) do
+    RawServer.head(
+      socket,
+      200,
+      ["Content-Type: text/event-stream", "Transfer-Encoding: chunked"] ++ extra
+    )
+  end
+
+  defp lowered(head), do: String.downcase(head)
+
+  test "bhv sse006 an SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Type: text/event-stream", "Content-Length: 9"])
+        RawServer.body(socket, "data: a\n\n")
+      end)
+
+    assert {:ok, stream} =
+             server
+             |> raw_state(max_retries: 0)
+             |> sse_over(reconnect_delay: 1, max_reconnects: 0)
+
+    assert Enum.map(stream, & &1.data) == ["a"]
+
+    assert {:ok, set} =
+             server
+             |> raw_state(max_retries: 0)
+             |> sse_over(
+               reconnect_delay: 1,
+               max_reconnects: 0,
+               headers: %{"cache-control" => "no-store", "Accept-Encoding" => "gzip"}
+             )
+
+    assert Enum.map(set, & &1.data) == ["a"]
+
+    [plain, overridden] = server |> RawServer.heads() |> Enum.map(&lowered/1)
+    assert plain =~ "accept: text/event-stream"
+    assert plain =~ "cache-control: no-cache"
+    assert plain =~ "accept-encoding: identity"
+    assert overridden =~ "cache-control: no-store"
+    assert overridden =~ "accept-encoding: gzip"
+    refute overridden =~ "no-cache"
+    refute overridden =~ "identity"
+  end
+
+  test "bhv sse007 an SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID" do
+    server =
+      RawServer.start(fn _server, socket, hit, _head ->
+        case hit do
+          1 ->
+            event_head(socket)
+            RawServer.chunk(socket, "id: 5\ndata: a\n\n")
+            Process.sleep(50)
+            RawServer.reset(socket)
+
+          2 ->
+            event_head(socket)
+            RawServer.chunk(socket, "data: b\n\n")
+            RawServer.finish(socket)
+
+          _ ->
+            RawServer.head(socket, 204, [])
+        end
+      end)
+
+    assert {:ok, stream} = server |> raw_state(max_retries: 0) |> sse_over()
+
+    assert Enum.map(stream, & &1.data) == ["a", "b"]
+    [first, second | _] = server |> RawServer.heads() |> Enum.map(&lowered/1)
+    refute first =~ "last-event-id"
+    assert second =~ "last-event-id: 5"
+  end
+
+  test "bhv sse013 an SSE reconnect rebuilds the headers so a refreshed token is the one sent" do
+    {:ok, counter} = Agent.start_link(fn -> 0 end)
+    authenticator = %CountingAuthenticator{counter: counter}
+
+    server =
+      RawServer.start(fn _server, socket, hit, _head ->
+        if hit == 1 do
+          event_head(socket)
+          RawServer.chunk(socket, "data: a\n\n")
+          RawServer.finish(socket)
+        else
+          RawServer.head(socket, 204, [])
+        end
+      end)
+
+    assert {:ok, stream} = server |> raw_state([max_retries: 0], authenticator) |> sse_over()
+
+    assert Enum.map(stream, & &1.data) == ["a"]
+    [first, second] = server |> RawServer.heads() |> Enum.map(&lowered/1)
+    assert first =~ "x-attempt: n1"
+    assert second =~ "x-attempt: n2"
+  end
+
+  test "bhv sse015 an idle timeout on an SSE stream counts as a lost connection and reconnects" do
+    server =
+      RawServer.start(fn server, socket, hit, _head ->
+        case hit do
+          1 ->
+            event_head(socket)
+            RawServer.chunk(socket, "data: a\n\n")
+            RawServer.hold(server)
+
+          2 ->
+            event_head(socket)
+            RawServer.chunk(socket, "data: b\n\n")
+            RawServer.finish(socket)
+
+          _ ->
+            RawServer.head(socket, 204, [])
+        end
+      end)
+
+    assert {:ok, stream} =
+             server
+             |> raw_state(max_retries: 0)
+             |> sse_over(reconnect_delay: 1, idle_timeout: 200)
+
+    assert Enum.map(stream, & &1.data) == ["a", "b"]
+    assert RawServer.hits(server) >= 2
+    RawServer.release(server)
+  end
+
+  test "bhv sse018 an SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        event_head(socket)
+
+        for _beat <- 1..4 do
+          RawServer.chunk(socket, ": heartbeat\n")
+          Process.sleep(150)
+        end
+
+        RawServer.chunk(socket, "data: x\n\n")
+        RawServer.finish(socket)
+      end)
+
+    assert {:ok, stream} =
+             server
+             |> raw_state(max_retries: 0)
+             |> sse_over(reconnect_delay: 1, idle_timeout: 400, max_reconnects: 0)
+
+    assert Enum.map(stream, & &1.data) == ["x"],
+           "the quiet stretches were shorter than the idle timeout"
+
+    assert RawServer.hits(server) == 1
+  end
 end

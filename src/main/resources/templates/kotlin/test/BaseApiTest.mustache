@@ -3387,6 +3387,16 @@ class BaseApiTest {
                 "application/json", auth,
             )
 
+        suspend fun events(
+            headerParams: MutableMap<String, String>,
+            streamOptions: StreamOptions?,
+            auth: Authenticator? = null,
+        ): SseStream<String> =
+            invokeApiForSse<String>(
+                "GET", "/items/events", mutableMapOf(), headerParams, null, arrayOf("text/event-stream"),
+                "application/json", auth, streamOptions = streamOptions,
+            )
+
         suspend fun buffered(path: String, auth: Authenticator? = null): ApiHttpResponse =
             invokeApi(
                 "GET", path, mutableMapOf(), mutableMapOf(), null, arrayOf("application/octet-stream"),
@@ -3485,6 +3495,130 @@ class BaseApiTest {
 
             runBlocking { TestableStreamApi(transport, "http://localhost").buffered("/items/blob") }
             assertTrue(transport.sentUrl.endsWith("/items/blob"), "the buffered call still works")
+        }
+    }
+
+    /** Answers each event stream call with the next scripted body and keeps the headers it was sent. */
+    class EventStreamClient(
+        private vararg val bodies: String,
+    ) : ApiClient {
+        val sentHeaders = mutableListOf<Map<String, String>>()
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean,
+        ): ApiHttpResponse = throw UnsupportedOperationException()
+
+        override suspend fun sendStreaming(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+        ): ApiStreamResponse {
+            val index = minOf(sentHeaders.size, bodies.size - 1)
+            sentHeaders.add(headers.toMap())
+            val text = bodies[index]
+            if (text.isEmpty()) {
+                return ApiStreamResponse(204, emptyMap(), CloseTrackingBody(ByteArray(0)))
+            }
+            return ApiStreamResponse(
+                200,
+                mapOf("content-type" to "text/event-stream"),
+                CloseTrackingBody(text.toByteArray(Charsets.UTF_8)),
+            )
+        }
+    }
+
+    private fun headerOf(
+        headers: Map<String, String>,
+        name: String,
+    ): String? = headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
+
+    private fun drain(
+        client: ApiClient,
+        headerParams: MutableMap<String, String> = mutableMapOf(),
+        streamOptions: StreamOptions? = null,
+        auth: Authenticator? = null,
+        config: Configuration = Configuration.builder().baseUrl("http://localhost").build(),
+    ) {
+        runBlocking { TestableStreamApi(client, config).events(headerParams, streamOptions, auth).events().collect { } }
+    }
+
+    @Nested
+    @DisplayName("event streams")
+    inner class EventStreams {
+
+        @Test
+        @DisplayName("bhvStreaming028 an operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method")
+        fun bhvStreaming028AStreamingOperationGetsAStreamMethodAndNoBufferedMethod() {
+            val names = {{apiPackage}}.StoreApiInterface::class.java.methods.map { it.name }.toSet()
+            for (operation in listOf("exportOrders", "watchOrders", "watchNotices")) {
+                assertTrue("${operation}Stream" in names, "${operation}Stream")
+                assertFalse(operation in names, "no buffered $operation")
+                assertFalse("${operation}WithHttpInfo" in names, "no raw $operation")
+            }
+            val exported: suspend ({{apiPackage}}.StoreApiInterface, {{apiPackage}}.options.ExportOrdersOptions?, StreamOptions?) -> JsonLinesStream<{{modelPackage}}.Order> =
+                {{apiPackage}}.StoreApiInterface::exportOrdersStream
+            val noticed: suspend ({{apiPackage}}.StoreApiInterface, {{apiPackage}}.options.WatchNoticesOptions?, StreamOptions?) -> SseStream<String> =
+                {{apiPackage}}.StoreApiInterface::watchNoticesStream
+            assertNotNull(exported)
+            assertNotNull(noticed)
+        }
+
+        @Test
+        @DisplayName("bhvSse006 an SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them")
+        fun bhvSse006AnSseRequestSendsTheEventStreamHeadersUnlessTheCallerSetThem() {
+            val client = EventStreamClient("data: a\n\n", "")
+            drain(client)
+            val sent = client.sentHeaders[0]
+            assertEquals("text/event-stream", headerOf(sent, "Accept"))
+            assertEquals("no-cache", headerOf(sent, "Cache-Control"))
+            assertEquals("identity", headerOf(sent, "Accept-Encoding"))
+
+            val own = EventStreamClient("data: a\n\n", "")
+            drain(
+                own,
+                mutableMapOf("cache-control" to "max-age=0"),
+                config = Configuration.builder().baseUrl("http://localhost").defaultHeaders(mapOf("accept-encoding" to "gzip")).build(),
+            )
+            val chosen = own.sentHeaders[0]
+            assertEquals("max-age=0", headerOf(chosen, "Cache-Control"))
+            assertEquals(1, chosen.keys.count { it.equals("cache-control", ignoreCase = true) })
+            assertEquals("gzip", headerOf(chosen, "Accept-Encoding"), "the caller's own encoding is kept")
+            assertEquals(1, chosen.keys.count { it.equals("accept-encoding", ignoreCase = true) })
+        }
+
+        @Test
+        @DisplayName("bhvSse012 an SSE stream sends the initial last event id of the call on its first request")
+        fun bhvSse012AnSseStreamSendsTheInitialLastEventIdOnItsFirstRequest() {
+            val client = EventStreamClient("data: a\n\n", "")
+            drain(client, streamOptions = StreamOptions(lastEventId = "42"))
+            assertEquals("42", headerOf(client.sentHeaders[0], "Last-Event-ID"))
+        }
+
+        @Test
+        @DisplayName("bhvSse013 an SSE reconnect rebuilds the headers so a refreshed token is the one sent")
+        fun bhvSse013AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent() {
+            val client = EventStreamClient("data: a\n\n", "")
+            val rotating = RotatingOAuthAuthenticator()
+            drain(client, streamOptions = StreamOptions(reconnectDelay = 1), auth = rotating)
+            assertEquals(2, client.sentHeaders.size)
+            assertEquals("Bearer t1", headerOf(client.sentHeaders[0], "Authorization"))
+            assertEquals("Bearer t2", headerOf(client.sentHeaders[1], "Authorization"))
+        }
+
+        @Test
+        @DisplayName("bhvSse020 an SSE reconnect sends Last-Event-ID only when the last event id is not empty")
+        fun bhvSse020AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty() {
+            val client = EventStreamClient("data: a\n\n", "id: 5\ndata: b\n\n", "")
+            drain(client, streamOptions = StreamOptions(reconnectDelay = 1))
+            assertEquals(3, client.sentHeaders.size)
+            assertNull(headerOf(client.sentHeaders[0], "Last-Event-ID"))
+            assertNull(headerOf(client.sentHeaders[1], "Last-Event-ID"), "no id yet, so none is sent")
+            assertEquals("5", headerOf(client.sentHeaders[2], "Last-Event-ID"))
         }
     }
 }

@@ -806,19 +806,26 @@ export abstract class AbstractApiClient implements ApiClient {
    * @returns the delay in milliseconds
    */
   private static retryDelayMs(attempt: number, headers: Readonly<Record<string, string>> | undefined): number {
-    const retryAfter = headers?.['retry-after']?.trim();
-    if (retryAfter != null && retryAfter.length > 0) {
-      let waitMs: number;
-      if (/^\d+(\.\d+)?$/.test(retryAfter)) {
-        waitMs = Number(retryAfter) * 1000;
-      } else {
-        waitMs = Date.parse(retryAfter) - Date.now();
-      }
-      if (Number.isFinite(waitMs)) {
-        return Math.min(Math.max(waitMs, 0), 60_000);
-      }
+    const asked = AbstractApiClient.retryAfterMillis(headers?.['retry-after']);
+    if (asked !== null) {
+      return asked;
     }
     return Math.min(500 * 2 ** attempt, 8000) * (1 - 0.25 * Math.random());
+  }
+
+  /**
+   * The wait a `Retry-After` header asks for (seconds or an HTTP date), capped at 60 s.
+   *
+   * @param value the header value, if any
+   * @returns the wait in milliseconds, or null when there is no usable value
+   */
+  static retryAfterMillis(value: string | undefined): number | null {
+    const retryAfter = value?.trim();
+    if (retryAfter == null || retryAfter.length === 0) {
+      return null;
+    }
+    const waitMs = /^\d+(\.\d+)?$/.test(retryAfter) ? Number(retryAfter) * 1000 : Date.parse(retryAfter) - Date.now();
+    return Number.isFinite(waitMs) ? Math.min(Math.max(waitMs, 0), 60_000) : null;
   }
 
   /**

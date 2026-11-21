@@ -20,6 +20,7 @@
 | `templates/go/auth/` and `auth/oauth/` | `Authenticator` interface, API key, basic, bearer, per-scheme wrappers, OAuth2 token manager and flows, OpenID Connect | authentication |
 | `default_api_client.mustache`, `transport_options.mustache` | `net/http` client build, redirect policy, timeout budget, proxy, TLS, decompression, `Close`, injected `HttpDoer` and `RoundTripper` | transport options and their validation |
 | `byte_stream.mustache`, `api_stream_response.mustache`, `api_client.mustache` (`StreamingApiClient`) | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), the second transport interface | streaming types |
+| `event_stream.mustache`, `sse_stream.mustache`, `json_lines_stream.mustache`, `server_sent_event.mustache`, `request_option.mustache` (the stream options), `api/operation_prelude.mustache` | the line reader and SSE parser, `SseStream[T]` and `JsonLinesStream[T]` (both with `All() iter.Seq2`), `ServerSentEvent[T]`, the stream call options, and the request preparation shared by a buffered and a stream operation method | `<Op>Stream` methods |
 | `base_api.mustache`, `api/api.mustache`, `api/options.mustache` | request assembly, response decoding, per-operation methods and `opts.*Options` structs | an operation signature or request/response handling |
 | `object_serializer.mustache`, `value_serializer.mustache`, `header_selector.mustache`, `path_utils.mustache`, `models/` | JSON and parameter encoding, models, `Set`, `DateTime`, `Duration` | models and wire encoding |
 | `configuration.mustache`, `client.mustache`, `servers.mustache`, `server_configuration.mustache` | `Configuration` and builder, `Client` facade, server tables | client construction |
@@ -439,6 +440,24 @@ Test: `client_test.mustache` (`bhvStreaming021`).
 Rule: `BetterGoCodegen.markBinaryStream` sets `streamsBinary` on `vendorExtensions.op` and rewrites `returnType` to `ByteStream` (by pointer) for an operation whose `streamKind` is `binary`, so the interface, the method and `...WithHTTPInfo` (`*ApiResult[ByteStream]`, empty `RawBody`) say so and `api/api.mustache` calls `invokeApiForStream`. `ByteStream` has `StatusCode()`, `Headers()`, `Read`, `ReadAll()` (reads, closes), an idempotent `Close()` and a `String()` of the status and the bytes delivered. A `format: byte` return is not binary and stays `[]byte`. `postProcessSupportingFileData` hands the README and SKILLS the first such operation (`binaryStreamOperation`) for the Streaming example.
 Where: `BetterGoCodegen`, `api/api.mustache`, `byte_stream.mustache`, `readme.mustache`, `skills.mustache`.
 Test: `bhvStreaming009`, `bhvStreaming029`, the avatar, document and photo rows of `api/pet_api_test.mustache` (they close their stream).
+
+## Streaming: JSON Lines and server-sent events (capability 2 of #114, D120 to D122)
+
+### Operations
+Rule: for `streamOnly` operations `BetterGoCodegen.markBinaryStream` sets `streamsSse` or `streamsJsonLines`, `streamTyped` (decode the line or data as the schema; a text SSE feed hands the raw string over) and `streamData` (the Go item type, `string` when untyped), and rewrites `returnType` to `SseStream[T]` or `JsonLinesStream[T]`. `api/api.mustache` then emits only `<streamMethodName>(ctx, ...args, callOptions ...RequestOption) (*Carrier, error)` in the group interface and the struct: no buffered method and no `WithHTTPInfo`. The request preparation (validation, path, query, headers, body) is the partial `api/operation_prelude.mustache`, shared with the buffered method, and the method ends in `invokeSse` or `invokeJsonLines` with `decodeItem[T]` or `decodeText`. The stream settings are `RequestOption`s (`WithIdleTimeout`, `WithMaxReconnects`, `WithReconnectDelay`, `WithLastEventID`, `WithMaxEventBytes`) held in `callSettings`; an invalid one fails the call before any request.
+Why: iter.Seq2 cannot carry a status, headers and an idempotent close, so the carriers are structs whose `All()` is the sequence; stream settings follow the existing call-option style (D-row: design 6.2 lists them as `RequestOption`s).
+Where: `BetterGoCodegen`, `api/api.mustache`, `api/operation_prelude.mustache`, `request_option.mustache`.
+Test: `base_api_unit_test.mustache` (`bhvStreaming028`).
+
+### Parser and carriers
+Rule: `lineReader` splits at LF, CR or CRLF (a CR sets a skip-LF flag) and drops one leading BOM; a last line without a line end is returned and flagged, so JSON Lines decodes it and the SSE parser discards it. `sseParser` follows the WHATWG grammar and returns nil at a clean end. `JsonLinesStream` skips blank lines, numbers lines from 1, and ends on the first decode failure with a `*SerializationError` ("line N ..."); a line or event over `maxEventBytes` (1 MiB) is a `*SerializationError` too. `All()` closes the stream when the loop ends or breaks.
+Where: `event_stream.mustache`, `json_lines_stream.mustache`.
+Test: `test/event_stream_test.mustache` (the new mirror test file of `event_stream.go`: `bhvStreaming002` to `005`, `bhvSse001` to `005`, `008` to `011`, `014`, `016`, `017`, `019`, `021` to `023`), `default_api_client_unit_test.mustache` (`bhvStreaming006`, `007`).
+
+### Reconnect
+Rule: `invokeSse` builds the opener: every connection is `invokeApiForStream` with a copy of the headers (plus `Last-Event-ID` when the id is not empty) and, after the first, a fresh `callState`, so the hook, the headers and the authentication are rebuilt and the retries apply. The first connection is made by the operation call. `SseStream.reconnect` runs after a clean end (it counts as a failure against `maxReconnects`; a clean end with no reconnects left is a `*StreamError`, and `0` ends quietly), a `*NetworkError` (a `*StreamError` or an idle `*NetworkTimeoutError`) and a 408, 429 or 5xx on the new connection; every other failure, a cancellation and `ErrClientClosed` end the stream. The wait (`reconnectWait`, tested without sleeping) is the server's `retry`, else `Retry-After` on 429, 502, 503 and 504, else the delay doubling to 30 s minus up to 25% jitter. An event named `error` is a `*ApiError`; the `sseTerminator` data ends the stream undelivered.
+Where: `sse_stream.mustache`, `base_api.mustache` (`invokeSse`, `invokeJsonLines`).
+Test: `default_api_client_unit_test.mustache` (`bhvSse007`, `015`, `018`), `base_api_unit_test.mustache` (`bhvSse006`, `012`, `013`, `020`).
 
 ## Gate lessons (what broke the gate and how to avoid it)
 

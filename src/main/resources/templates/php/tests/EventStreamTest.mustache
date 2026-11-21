@@ -1,0 +1,363 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\ByteStream;
+use {{invokerPackage}}\Errors\ApiException;
+use {{invokerPackage}}\Errors\NetworkException;
+use {{invokerPackage}}\Errors\SerializationException;
+use {{invokerPackage}}\EventStream;
+use {{invokerPackage}}\ServerSentEvent;
+use {{invokerPackage}}\SseStream;
+use {{invokerPackage}}\StreamOptions;
+
+/** A stream over canned bytes, delivered one chunk per string given. */
+function eventBytes(string ...$chunks): ByteStream
+{
+    $pending = array_values($chunks);
+
+    return new ByteStream(
+        200,
+        ['content-type' => 'text/event-stream'],
+        static function () use (&$pending): ?string {
+            return array_shift($pending);
+        },
+        static function (): void {
+        }
+    );
+}
+
+/**
+ * Every event the parser dispatches over the given chunks.
+ *
+ * @return list<ServerSentEvent<string>>
+ */
+function parseEvents(string ...$chunks): array
+{
+    $parser = new EventStream(eventBytes(...$chunks), 1024);
+    $events = [];
+    while (($event = $parser->nextEvent()) !== null) {
+        $events[] = $event;
+    }
+
+    return $events;
+}
+
+/**
+ * The items of a JSON Lines body over the given text, each line handed over as it is.
+ *
+ * @return list<mixed>
+ */
+function lineItems(string ...$chunks): array
+{
+    return iterator_to_array(EventStream::jsonLines(eventBytes(...$chunks), null, 1024, 'GET', '/items'), false);
+}
+
+/**
+ * An opener whose n-th connection (from 1) is the n-th scripted entry: a body, a ready stream or an
+ * exception to throw; the last entry answers every later connection.
+ *
+ * @param list<ByteStream|\Throwable|string> $connections
+ * @param list<string>                       $lastIds    receives the last event id of every connection asked for
+ *
+ * @return \Closure(string): ByteStream
+ */
+function scriptedOpener(array $connections, array &$lastIds): \Closure
+{
+    return function (string $lastEventId) use ($connections, &$lastIds): ByteStream {
+        $lastIds[] = $lastEventId;
+        $next = $connections[min(count($lastIds), count($connections)) - 1];
+        if ($next instanceof \Throwable) {
+            throw $next;
+        }
+        if ($next instanceof ByteStream) {
+            return $next;
+        }
+
+        return eventBytes($next);
+    };
+}
+
+/** A stream that answers 204 No Content. */
+function noContentStream(): ByteStream
+{
+    return new ByteStream(204, [], static fn (): ?string => null, static function (): void {
+    });
+}
+
+/**
+ * Opens an event stream with no waiting between reconnects.
+ *
+ * @param \Closure(string): ByteStream $opener
+ * @param \Closure(string): mixed|null $decoder
+ *
+ * @return SseStream<mixed>
+ */
+function openEvents(\Closure $opener, ?StreamOptions $options = null, ?\Closure $decoder = null, ?string $terminator = null, bool $hasBody = false): SseStream
+{
+    return SseStream::open(
+        $opener,
+        $decoder,
+        $terminator,
+        $options ?? new StreamOptions(reconnectDelay: 1),
+        $hasBody,
+        $hasBody ? 'POST' : 'GET',
+        '/events',
+        static function (int $millis): void {
+        }
+    );
+}
+
+/**
+ * The data of every event the stream delivers.
+ *
+ * @param SseStream<mixed> $stream
+ *
+ * @return list<mixed>
+ */
+function eventData(SseStream $stream): array
+{
+    $data = [];
+    foreach ($stream as $event) {
+        $data[] = $event->data;
+    }
+
+    return $data;
+}
+
+/** Decodes a line or data as a number, raising the SDK serialization error when it is not one. */
+function numberDecoder(): \Closure
+{
+    return static function (string $text): int {
+        if (!ctype_digit($text)) {
+            throw new SerializationException('not a number');
+        }
+
+        return (int) $text;
+    };
+}
+
+test('bhv streaming 002 a json lines stream yields one decoded item per line and skips blank lines', function (): void {
+    expect(lineItems("a\n\n  \nb\nc\n"))->toBe(['a', 'b', 'c']);
+});
+
+test('bhv streaming 003 a json lines stream accepts crlf line ends and a last line without a newline', function (): void {
+    expect(lineItems("a\r\nb\r\nc"))->toBe(['a', 'b', 'c']);
+    expect(lineItems("a\r", "\nb\r\nc"))->toBe(['a', 'b', 'c']);
+});
+
+test('bhv streaming 004 a json lines line that does not decode names its line and ends the stream', function (): void {
+    $stream = EventStream::jsonLines(eventBytes("1\n2\nnope\n4\n"), numberDecoder(), 1024, 'GET', '/items');
+    $seen = [];
+
+    try {
+        foreach ($stream as $item) {
+            $seen[] = $item;
+        }
+        test()->fail('Expected the bad line to raise');
+    } catch (SerializationException $failure) {
+        expect($failure->getMessage())->toContain('Line 3');
+    }
+
+    expect($seen)->toBe([1, 2]);
+    expect($stream->valid())->toBeFalse();
+});
+
+test('bhv streaming 005 a line or event longer than the limit raises a serialization error and ends the stream', function (): void {
+    $lines = EventStream::jsonLines(eventBytes("ok\n" . str_repeat('x', 50) . "\nlater\n"), null, 10, 'GET', '/items');
+    expect($lines->current())->toBe('ok');
+    expect(function () use ($lines): void {
+        $lines->next();
+    })->toThrow(SerializationException::class);
+    expect($lines->valid())->toBeFalse();
+
+    $ids = [];
+    $events = openEvents(scriptedOpener(["data: " . str_repeat('y', 50) . "\n\n"], $ids), new StreamOptions(reconnectDelay: 1, maxEventBytes: 10));
+    expect(fn (): array => eventData($events))->toThrow(SerializationException::class);
+});
+
+test('bhv sse 001 an sse stream yields the id, event, data and retry fields of each event with message as the default', function (): void {
+    $events = parseEvents("id: 7\nevent: tick\nretry: 250\ndata: one\n\ndata: two\n\n");
+
+    expect($events)->toHaveCount(2);
+    expect([$events[0]->id, $events[0]->event, $events[0]->data, $events[0]->retry])->toBe(['7', 'tick', 'one', 250]);
+    expect($events[1]->event)->toBe('message');
+    expect($events[1]->data)->toBe('two');
+    expect($events[1]->id)->toBe('7');
+
+    $ids = [];
+    $stream = openEvents(scriptedOpener(["id: 7\nevent: tick\nretry: 250\ndata: one\n\n"], $ids));
+    $event = $stream->getIterator()->current();
+    expect($event)->toBeInstanceOf(ServerSentEvent::class);
+    expect([$event->id, $event->event, $event->data, $event->retry, $event->raw])->toBe(['7', 'tick', 'one', 250, 'one']);
+});
+
+test('bhv sse 002 an sse stream joins consecutive data lines with a newline and skips comment lines', function (): void {
+    $events = parseEvents(": a comment\ndata: one\n: another\ndata: two\n\n");
+
+    expect($events)->toHaveCount(1);
+    expect($events[0]->data)->toBe("one\ntwo");
+});
+
+test('bhv sse 003 an sse stream drops a byte order mark, accepts cr, lf and crlf and removes one space after the colon', function (): void {
+    foreach (["\n", "\r", "\r\n"] as $end) {
+        $events = parseEvents("\xEF\xBB\xBFdata: a" . $end . 'data:  b' . $end . $end);
+
+        expect($events)->toHaveCount(1);
+        expect($events[0]->data)->toBe("a\n b");
+    }
+    expect(parseEvents("data:x\n\n")[0]->data)->toBe('x');
+});
+
+test('bhv sse 004 an sse event with an empty data buffer is not delivered but its id is kept', function (): void {
+    $parser = new EventStream(eventBytes("id: 9\n\n"), 1024);
+
+    expect($parser->nextEvent())->toBeNull();
+    expect($parser->lastEventId())->toBe('9');
+});
+
+test('bhv sse 005 an sse data payload is decoded and a payload that does not decode raises a serialization error and ends the stream', function (): void {
+    $ids = [];
+    $stream = openEvents(scriptedOpener(["data: 1\n\ndata: oops\n\ndata: 3\n\n"], $ids), null, numberDecoder());
+    $iterator = $stream->getIterator();
+
+    expect($iterator->current()->data)->toBe(1);
+    expect(function () use ($iterator): void {
+        $iterator->next();
+    })->toThrow(SerializationException::class);
+    expect($iterator->valid())->toBeFalse();
+});
+
+test('bhv sse 008 an sse reconnect waits the server retry value else the reconnect delay doubling to a cap', function (): void {
+    expect(SseStream::reconnectWaitMillis(3, 1000, 250, null, 0.0))->toBe(250);
+    expect(SseStream::reconnectWaitMillis(1, 1000, null, null, 0.0))->toBe(1000);
+    expect(SseStream::reconnectWaitMillis(2, 1000, null, null, 0.0))->toBe(2000);
+    expect(SseStream::reconnectWaitMillis(3, 1000, null, null, 0.0))->toBe(4000);
+    expect(SseStream::reconnectWaitMillis(10, 1000, null, null, 0.0))->toBe(30000);
+    expect(SseStream::reconnectWaitMillis(1, 1000, null, null, 1.0))->toBe(750);
+    expect(SseStream::reconnectWaitMillis(1, 1000, null, 5000, 0.0))->toBe(5000);
+});
+
+test('bhv sse 009 an sse get stream stops after five failed reconnects by default and raises the last failure', function (): void {
+    $ids = [];
+    $stream = openEvents(scriptedOpener([''], $ids));
+
+    expect(fn (): array => eventData($stream))->toThrow(NetworkException::class);
+    expect($ids)->toHaveCount(6);
+});
+
+test('bhv sse 010 an sse reconnect counter resets after an event is received', function (): void {
+    $ids = [];
+    $stream = openEvents(
+        scriptedOpener(["data: a\n\n", "data: b\n\n", "data: c\n\n", ''], $ids),
+        new StreamOptions(reconnectDelay: 1, maxReconnects: 1)
+    );
+    $seen = [];
+
+    try {
+        foreach ($stream as $event) {
+            $seen[] = $event->data;
+        }
+        test()->fail('Expected the last failure');
+    } catch (NetworkException) {
+    }
+
+    expect($seen)->toBe(['a', 'b', 'c']);
+});
+
+test('bhv sse 011 an sse stream does not reconnect after a 204, a 4xx status or a response that is not an event stream', function (): void {
+    $none = [];
+    expect(eventData(openEvents(scriptedOpener([noContentStream()], $none))))->toBe([]);
+    expect($none)->toHaveCount(1);
+
+    $refused = [];
+    $stream = openEvents(scriptedOpener(["data: a\n\n", new ApiException(404, 'missing', [], '{}')], $refused));
+    try {
+        $delivered = eventData($stream);
+        test()->fail('Expected the 404 but got ' . count($delivered) . ' events');
+    } catch (ApiException $failure) {
+        expect($failure->getStatusCode())->toBe(404);
+    }
+
+    $wrongType = [];
+    $html = new ByteStream(200, ['content-type' => 'text/html'], static fn (): ?string => null, static function (): void {
+    });
+    $stream = openEvents(scriptedOpener(["data: a\n\n", $html], $wrongType));
+    expect(fn (): array => eventData($stream))->toThrow(SerializationException::class);
+    expect($wrongType)->toHaveCount(2);
+});
+
+test('bhv sse 014 an sse retry field that is not digits and an id containing nul are ignored', function (): void {
+    $parser = new EventStream(eventBytes("retry: 12x\nid: a\0b\ndata: x\n\n"), 1024);
+
+    $event = $parser->nextEvent();
+
+    expect($event?->data)->toBe('x');
+    expect($event?->id)->toBeNull();
+    expect($parser->retry())->toBeNull();
+});
+
+test('bhv sse 016 an sse request with a body is not reconnected unless the caller turns reconnect on', function (): void {
+    $off = [];
+    $noReconnect = openEvents(scriptedOpener(["data: a\n\n", "data: b\n\n"], $off), null, null, null, true);
+    expect(eventData($noReconnect))->toBe(['a']);
+    expect($off)->toHaveCount(1);
+
+    $on = [];
+    $reconnect = openEvents(
+        scriptedOpener(["data: a\n\n", "data: b\n\n", noContentStream()], $on),
+        new StreamOptions(reconnectDelay: 1, maxReconnects: 2),
+        null,
+        null,
+        true
+    );
+    expect(eventData($reconnect))->toBe(['a', 'b']);
+});
+
+test('bhv sse 017 an sse event with an id and no data is not dispatched but updates the last event id and a reconnect resumes from it', function (): void {
+    $ids = [];
+    $stream = openEvents(scriptedOpener(["data: a\nid: 1\n\nid: 2\n\n", "data: b\nid: 3\n\n", noContentStream()], $ids));
+
+    expect(eventData($stream))->toBe(['a', 'b']);
+    expect(array_slice($ids, 0, 2))->toBe(['', '2']);
+});
+
+test('bhv sse 019 an sse event cut off by the end of the connection is discarded', function (): void {
+    $events = parseEvents("data: whole\n\ndata: cut off\n");
+
+    expect($events)->toHaveCount(1);
+    expect($events[0]->data)->toBe('whole');
+    expect(parseEvents('data: no newline at all'))->toBe([]);
+});
+
+test('bhv sse 021 the configured sse terminator ends the stream and is not delivered', function (): void {
+    $ids = [];
+    $stream = openEvents(scriptedOpener(["data: a\n\ndata: [DONE]\n\ndata: b\n\n"], $ids), null, null, '[DONE]');
+
+    expect(eventData($stream))->toBe(['a']);
+});
+
+test('bhv sse 022 an sse event named error raises the api error with the status and data and any other name is an item', function (): void {
+    $ids = [];
+    $stream = openEvents(scriptedOpener(["event: update\ndata: fine\n\nevent: error\ndata: {\"why\":\"bad\"}\n\n", "data: again\n\n"], $ids));
+    $iterator = $stream->getIterator();
+
+    expect($iterator->current()->event)->toBe('update');
+    try {
+        $iterator->next();
+        test()->fail('Expected the error event to raise');
+    } catch (ApiException $failure) {
+        expect($failure->getStatusCode())->toBe(200);
+        expect($failure->getResponseBody())->toBe('{"why":"bad"}');
+    }
+    expect($ids)->toHaveCount(1);
+});
+
+test('bhv sse 023 an unknown sse field is ignored', function (): void {
+    $events = parseEvents("mystery: 1\ndata: x\nanother\n\n");
+
+    expect($events)->toHaveCount(1);
+    expect($events[0]->data)->toBe('x');
+});

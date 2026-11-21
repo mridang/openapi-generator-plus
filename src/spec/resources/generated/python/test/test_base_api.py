@@ -65,6 +65,8 @@ from petstore_client.api_http_response import ApiHttpResponse
 from petstore_client.api_result import ApiResult
 from petstore_client.api_stream_response import ApiStreamResponse
 from petstore_client.byte_stream import ByteStream
+from petstore_client.sse_stream import SseStream
+from petstore_client.stream_options import StreamOptions
 from petstore_client.errors.serialization_exception import SerializationException
 from petstore_client.models import Category
 from petstore_client import servers as Servers
@@ -5569,6 +5571,24 @@ class _StreamApi(BaseApi):
             **extra,
         )
 
+    async def events(
+        self,
+        header_params: dict[str, str],
+        stream_options: Optional[StreamOptions] = None,
+        auth: Union[Authenticator, _NoAuth, None] = None,
+    ) -> SseStream[Any]:
+        return await self._invoke_api_for_sse(
+            "GET",
+            "/items/events",
+            {},
+            header_params,
+            None,
+            ["text/event-stream"],
+            "application/json",
+            auth,
+            stream_options=stream_options,
+        )
+
     async def buffered(
         self, method: str, path: str, auth: Union[Authenticator, _NoAuth, None] = None
     ) -> Any:
@@ -5885,3 +5905,148 @@ class TestBinaryStreams:
         assert transport.sent_url.endswith("/items/blob"), (
             "the buffered call still works"
         )
+
+
+class _EventStreamClient:
+    """Answers each event stream call with the next scripted body and keeps the headers it was sent."""
+
+    def __init__(self, *bodies: str) -> None:
+        self.sent_headers: list[dict[str, str]] = []
+        self._bodies = bodies
+
+    def send_request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+    ) -> ApiHttpResponse:
+        raise NotImplementedError
+
+    def send_streaming(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        body: Any = None,
+        idle_timeout: Optional[int] = None,
+    ) -> ApiStreamResponse:
+        text = self._bodies[min(len(self.sent_headers), len(self._bodies) - 1)]
+        self.sent_headers.append(dict(headers))
+        if not text:
+            return ApiStreamResponse(204, {}, _CloseTrackingBody(b""))
+        return ApiStreamResponse(
+            200,
+            {"content-type": "text/event-stream"},
+            _CloseTrackingBody(text.encode("utf-8")),
+        )
+
+    def close(self) -> None:
+        return None
+
+
+def _header_of(headers: dict[str, str], name: str) -> Optional[str]:
+    return next(
+        (value for key, value in headers.items() if key.lower() == name.lower()), None
+    )
+
+
+async def _drain(stream: SseStream[Any]) -> None:
+    async for _ in stream:
+        pass
+
+
+class TestEventStreams:
+    async def test_bhv_streaming_028_an_operation_with_a_streaming_media_type_gets_a_stream_method_and_an_sse_or_json_lines_only_operation_gets_no_buffered_method(
+        self,
+    ) -> None:
+        import inspect
+
+        names = {name for name, _ in inspect.getmembers(StoreApi, inspect.isfunction)}
+        for operation in ("export_orders", "watch_orders", "watch_notices"):
+            assert f"{operation}_stream" in names, operation
+            assert operation not in names, f"no buffered {operation}"
+            assert f"{operation}_with_http_info" not in names, f"no raw {operation}"
+        assert "JsonLinesStream" in str(
+            inspect.signature(StoreApi.export_orders_stream).return_annotation
+        )
+        assert "SseStream" in str(
+            inspect.signature(StoreApi.watch_notices_stream).return_annotation
+        )
+
+    async def test_bhv_sse_006_an_sse_request_sends_accept_text_event_stream_cache_control_no_cache_and_identity_encoding_unless_the_caller_set_them(
+        self,
+    ) -> None:
+        client = _EventStreamClient("data: a\n\n", "")
+        await _drain(
+            await _StreamApi(
+                api_client=client, config=Configuration(base_url="http://localhost")
+            ).events({})
+        )
+        sent = client.sent_headers[0]
+        assert _header_of(sent, "Accept") == "text/event-stream"
+        assert _header_of(sent, "Cache-Control") == "no-cache"
+        assert _header_of(sent, "Accept-Encoding") == "identity"
+
+        own = _EventStreamClient("data: a\n\n", "")
+        configured = Configuration(
+            base_url="http://localhost", default_headers={"accept-encoding": "gzip"}
+        )
+        await _drain(
+            await _StreamApi(api_client=own, config=configured).events(
+                {"cache-control": "max-age=0"}
+            )
+        )
+        chosen = own.sent_headers[0]
+        assert _header_of(chosen, "Cache-Control") == "max-age=0"
+        assert [key for key in chosen if key.lower() == "cache-control"] == [
+            "cache-control"
+        ]
+        assert _header_of(chosen, "Accept-Encoding") == "gzip", (
+            "the caller's own encoding is kept"
+        )
+
+    async def test_bhv_sse_012_an_sse_stream_sends_the_initial_last_event_id_of_the_call_on_its_first_request(
+        self,
+    ) -> None:
+        client = _EventStreamClient("data: a\n\n", "")
+        api = _StreamApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await _drain(await api.events({}, StreamOptions(last_event_id="42")))
+        assert _header_of(client.sent_headers[0], "Last-Event-ID") == "42"
+
+    async def test_bhv_sse_013_an_sse_reconnect_rebuilds_the_headers_so_a_refreshed_token_is_the_one_sent(
+        self,
+    ) -> None:
+        client = _EventStreamClient("data: a\n\n", "")
+        counter = {"calls": 0}
+
+        class Rotating(StubAuthenticator):
+            def get_auth_headers(self) -> dict[str, str]:
+                counter["calls"] += 1
+                return {"Authorization": f"Bearer t{counter['calls']}"}
+
+        api = _StreamApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await _drain(await api.events({}, StreamOptions(reconnect_delay=1), Rotating()))
+        assert len(client.sent_headers) == 2
+        assert _header_of(client.sent_headers[0], "Authorization") == "Bearer t1"
+        assert _header_of(client.sent_headers[1], "Authorization") == "Bearer t2"
+
+    async def test_bhv_sse_020_an_sse_reconnect_sends_last_event_id_only_when_the_last_event_id_is_not_empty(
+        self,
+    ) -> None:
+        client = _EventStreamClient("data: a\n\n", "id: 5\ndata: b\n\n", "")
+        api = _StreamApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await _drain(await api.events({}, StreamOptions(reconnect_delay=1)))
+        assert len(client.sent_headers) == 3
+        assert _header_of(client.sent_headers[0], "Last-Event-ID") is None
+        assert _header_of(client.sent_headers[1], "Last-Event-ID") is None, (
+            "no id yet, so none is sent"
+        )
+        assert _header_of(client.sent_headers[2], "Last-Event-ID") == "5"

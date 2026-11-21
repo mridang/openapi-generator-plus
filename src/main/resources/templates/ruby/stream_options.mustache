@@ -1,0 +1,73 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # The settings of one stream call, passed last to a +<operation>_stream+
+  # method. A member left +nil+ takes its default. The value is frozen.
+  #
+  # - +idle_timeout+: the longest silence in the body, in milliseconds
+  #   (default: the transport's, 60 seconds; +0+ disables it).
+  # - +max_reconnects+: how many failed reconnects in a row an event stream
+  #   tolerates before it raises the last failure (default +5+, +0+ for a
+  #   request that has a body, +-1+ for no limit). Ignored by a JSON Lines stream.
+  # - +reconnect_delay+: the first wait before a reconnect, in milliseconds
+  #   (default +1000+); it doubles up to 30 seconds, with up to 25% jitter.
+  # - +last_event_id+: the +Last-Event-ID+ the first request sends.
+  # - +max_event_bytes+: the longest line or event, in bytes (default 1 MiB).
+  class StreamOptions
+    # @return [Integer, nil]
+    attr_reader :idle_timeout
+
+    # @return [Integer, nil]
+    attr_reader :max_reconnects
+
+    # @return [Integer, nil]
+    attr_reader :reconnect_delay
+
+    # @return [String, nil]
+    attr_reader :last_event_id
+
+    # @return [Integer, nil]
+    attr_reader :max_event_bytes
+
+    # @param idle_timeout [Integer, nil] the longest silence in the body, in milliseconds
+    # @param max_reconnects [Integer, nil] the failed reconnects in a row to tolerate
+    # @param reconnect_delay [Integer, nil] the first reconnect wait, in milliseconds
+    # @param last_event_id [String, nil] the Last-Event-ID of the first request
+    # @param max_event_bytes [Integer, nil] the longest line or event, in bytes
+    # @raise [ArgumentError] if a number is negative (+max_reconnects+ may be +-1+)
+    def initialize(idle_timeout: nil, max_reconnects: nil, reconnect_delay: nil, last_event_id: nil,
+                   max_event_bytes: nil)
+      @idle_timeout = TransportOptions.validate_idle_timeout!(idle_timeout)
+      @max_reconnects = max_reconnects
+      @reconnect_delay = non_negative!(:reconnect_delay, reconnect_delay)
+      @last_event_id = last_event_id
+      @max_event_bytes = non_negative!(:max_event_bytes, max_event_bytes)
+      if max_reconnects && (!max_reconnects.is_a?(Integer) || max_reconnects < -1)
+        raise ArgumentError, "Invalid max_reconnects: must be -1 or a non-negative integer (got #{max_reconnects.inspect})"
+      end
+
+      freeze
+    end
+
+    # A readable form of the settings.
+    #
+    # @return [String]
+    def inspect
+      "#<#{self.class.name} idle_timeout=#{@idle_timeout.inspect} max_reconnects=#{@max_reconnects.inspect} " \
+        "reconnect_delay=#{@reconnect_delay.inspect} last_event_id=#{@last_event_id.inspect} " \
+        "max_event_bytes=#{@max_event_bytes.inspect}>"
+    end
+    alias to_s inspect
+
+    private
+
+    def non_negative!(name, value)
+      return nil if value.nil?
+      return value if value.is_a?(Integer) && value >= 0
+
+      raise ArgumentError, "Invalid #{name}: must be a non-negative integer (got #{value.inspect})"
+    end
+  end
+end

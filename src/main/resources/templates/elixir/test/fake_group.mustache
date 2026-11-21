@@ -7,6 +7,7 @@ defmodule Fake{{classname}} do
 
   defp failure, do: {{moduleName}}.Errors.NotFoundError.exception("missing")
 {{#operation}}
+{{^vendorExtensions.op.streamOnly}}
 
   @impl true
   def {{operationId}}(_api{{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}, {{paramName}}{{/isPath}}{{#isBody}}, _{{paramName}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}, _{{paramName}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, _opts \\ []) do
@@ -25,5 +26,19 @@ defmodule Fake{{classname}} do
     send(self(), {:called, :{{operationId}}_with_http_info, [{{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgsNoServer}}]})
     {:error, failure()}
   end
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.streamOnly}}
+  @impl true
+  def {{operationId}}_stream(_api{{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}, {{paramName}}{{/isPath}}{{#isBody}}, _{{paramName}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}, _{{paramName}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, _opts \\ []) do
+    send(self(), {:called, :{{operationId}}_stream, []})
+    {:error, failure()}
+  end
+
+  @impl true
+  def {{operationId}}_stream!(_api{{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}, {{paramName}}{{/isPath}}{{#isBody}}, _{{paramName}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}, _{{paramName}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, _opts \\ []) do
+    send(self(), {:called, :{{operationId}}_stream!, []})
+    raise failure()
+  end
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 end

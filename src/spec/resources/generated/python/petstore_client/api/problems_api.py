@@ -210,7 +210,6 @@ class ProblemsApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         from .. import errors as _errors
 
         return await self._invoke_api_for_result(
@@ -291,7 +290,6 @@ class ProblemsApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         from .. import errors as _errors
 
         return await self._invoke_api_for_result(
@@ -372,7 +370,6 @@ class ProblemsApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         from .. import errors as _errors
 
         return await self._invoke_api_for_result(
@@ -453,7 +450,6 @@ class ProblemsApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         from .. import errors as _errors
 
         return await self._invoke_api_for_result(
@@ -540,7 +536,6 @@ class ProblemsApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         from .. import errors as _errors
 
         return await self._invoke_api_for_result(
@@ -623,7 +618,6 @@ class ProblemsApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         from .. import errors as _errors
 
         return await self._invoke_api_for_result(

@@ -153,9 +153,60 @@ public interface IApiClient : IDisposable
         SendRequestAsync(method, url, headers, body, noRedirect, refreshHeaders, cancellationToken);
 
     /// <summary>
+    /// Send an HTTP request and return as soon as the response headers are
+    /// accepted, with the body not read yet.
+    ///
+    /// The retry, redirect, authentication and header rules are those of the
+    /// buffered <c>SendRequestAsync</c>, up to the headers; <paramref name="timeout"/>
+    /// stops at the headers, and <paramref name="idleTimeout"/> bounds the gap
+    /// between two reads of the body. A request is never retried after the first
+    /// body byte has been handed to the caller. A non-2xx response is returned
+    /// like any other, with its body open. The caller owns the body and must
+    /// dispose it; disposing aborts the connection instead of draining it.
+    ///
+    /// The default implementation fails with <see cref="NotSupportedException"/>:
+    /// a transport that was written before streaming keeps working for every
+    /// buffered call, and a call that needs a stream fails clearly instead of
+    /// falling back to buffering (a buffered fallback would never end on an
+    /// endless feed).
+    /// </summary>
+    /// <param name="method">HTTP method</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (may be null)</param>
+    /// <param name="refreshHeaders">Rebuilds the request headers for a retry, or null to reuse them.</param>
+    /// <param name="timeout">Timeout in milliseconds up to the response headers, or null for the transport's.</param>
+    /// <param name="maxRetries">Maximum number of retries for this call, or null for the transport's.</param>
+    /// <param name="idleTimeout">The longest silence in the body in milliseconds, 0 to disable it, or null for the transport's.</param>
+    /// <param name="cancellationToken">Token that cancels the request and the open body.</param>
+    /// <returns>The status, the lower-cased headers and the open body.</returns>
+    /// <exception cref="NotSupportedException">This transport cannot stream.</exception>
+    Task<ApiStreamResponse> SendStreamingAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        int? idleTimeout,
+        CancellationToken cancellationToken
+    )
+    {
+        return Task.FromException<ApiStreamResponse>(
+            new NotSupportedException(
+                GetType().FullName
+                    + " cannot stream: it does not implement SendStreamingAsync, so an operation"
+                    + " that returns a stream cannot be called through it"
+            )
+        );
+    }
+
+    /// <summary>
     /// Releases any resources held by this client (connection pool, sockets).
     /// The default implementation is a no-op; implementations that own a
-    /// pooled HTTP client should dispose of it.
+    /// pooled HTTP client should dispose of it. A transport that hands out
+    /// streams should cancel the ones still open.
     /// </summary>
     void IDisposable.Dispose()
     {

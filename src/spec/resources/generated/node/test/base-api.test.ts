@@ -36,6 +36,9 @@ import type {
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 import { ApiStreamResponse } from "../src/api-stream-response.js";
 import type { ByteStream } from "../src/byte-stream.js";
+import { JsonLinesStream } from "../src/json-lines-stream.js";
+import { SseStream } from "../src/sse-stream.js";
+import type { StreamOptions } from "../src/stream-options.js";
 import type { ApiResult } from "../src/api-result.js";
 import { PetApi } from "../src/api/pet-api.js";
 import { StoreApi } from "../src/api/store-api.js";
@@ -4599,5 +4602,189 @@ describe("BaseApi binary streams", () => {
       null,
     );
     expect(transport.sentUrl).toBe("http://localhost/items/blob");
+  });
+});
+
+describe("BaseApi event streams", () => {
+  class EventApi extends TestableApi {
+    events(
+      headerParams: Record<string, string>,
+      streamOptions?: StreamOptions,
+    ): Promise<SseStream<string>> {
+      return this.invokeApiForSse<string>(
+        "GET",
+        "/items/events",
+        {},
+        headerParams,
+        null,
+        ["text/event-stream"],
+        "application/json",
+        undefined,
+        false,
+        null,
+        null,
+        streamOptions,
+        undefined,
+        "watchEvents",
+        "watch_events",
+        "/items/events",
+      );
+    }
+  }
+
+  /** Answers each event stream call with the next scripted body and keeps the headers it was sent. */
+  class EventStreamClient implements ApiClient {
+    readonly sentHeaders: Array<Record<string, string>> = [];
+    private readonly bodies: string[];
+    constructor(...bodies: string[]) {
+      this.bodies = bodies;
+    }
+    async sendRequest(): Promise<ApiHttpResponse> {
+      throw new Error("not buffered");
+    }
+    async sendStreaming(
+      _method: string,
+      _url: string,
+      headers: Record<string, string>,
+    ): Promise<ApiStreamResponse> {
+      const index = Math.min(this.sentHeaders.length, this.bodies.length - 1);
+      this.sentHeaders.push({ ...headers });
+      const text = this.bodies[index]!;
+      const body = new ReadableStream<Uint8Array>({
+        start(controller): void {
+          controller.enqueue(Buffer.from(text, "utf8"));
+          controller.close();
+        },
+      });
+      return text === ""
+        ? new ApiStreamResponse(204, {}, body)
+        : new ApiStreamResponse(
+            200,
+            { "content-type": "text/event-stream" },
+            body,
+          );
+    }
+  }
+
+  const headerOf = (
+    headers: Record<string, string>,
+    name: string,
+  ): string | undefined =>
+    Object.entries(headers).find(
+      ([key]) => key.toLowerCase() === name.toLowerCase(),
+    )?.[1];
+
+  const drain = async (stream: SseStream<string>): Promise<void> => {
+    for await (const event of stream) {
+      expect(event).toBeDefined();
+    }
+  };
+
+  const apiFor = (
+    client: ApiClient,
+    config?: Configuration,
+    authenticator?: Authenticator,
+  ): EventApi =>
+    new EventApi(
+      client,
+      config ?? new Configuration({ baseUrl: "http://localhost" }),
+      authenticator ?? null,
+    );
+
+  test("bhv streaming 028 an operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method", async () => {
+    const names = Object.getOwnPropertyNames(StoreApi.prototype);
+    for (const operation of ["exportOrders", "watchOrders", "watchNotices"]) {
+      expect(names).toContain(`${operation}Stream`);
+      expect(names).not.toContain(operation);
+      expect(names).not.toContain(`${operation}WithHttpInfo`);
+    }
+    const client = new EventStreamClient("data: a\n\n");
+    const store = new StoreApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    const notices = await store.watchNoticesStream();
+    expect(notices).toBeInstanceOf(SseStream);
+    await notices.close();
+    const orders = await store.exportOrdersStream();
+    expect(orders).toBeInstanceOf(JsonLinesStream);
+    await orders.close();
+  });
+
+  test("bhv sse 006 an SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them", async () => {
+    const client = new EventStreamClient("data: a\n\n", "");
+    await drain(await apiFor(client).events({}));
+    const sent = client.sentHeaders[0]!;
+    expect(headerOf(sent, "Accept")).toBe("text/event-stream");
+    expect(headerOf(sent, "Cache-Control")).toBe("no-cache");
+    expect(headerOf(sent, "Accept-Encoding")).toBe("identity");
+
+    const own = new EventStreamClient("data: a\n\n", "");
+    await drain(
+      await apiFor(
+        own,
+        new Configuration({
+          baseUrl: "http://localhost",
+          defaultHeaders: { "accept-encoding": "gzip" },
+        }),
+      ).events({
+        "cache-control": "max-age=0",
+      }),
+    );
+    const chosen = own.sentHeaders[0]!;
+    expect(headerOf(chosen, "Cache-Control")).toBe("max-age=0");
+    expect(
+      Object.keys(chosen).filter(
+        (name) => name.toLowerCase() === "cache-control",
+      ),
+    ).toHaveLength(1);
+    expect(headerOf(chosen, "Accept-Encoding")).toBe("gzip");
+    expect(
+      Object.keys(chosen).filter(
+        (name) => name.toLowerCase() === "accept-encoding",
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("bhv sse 012 an SSE stream sends the initial last event id of the call on its first request", async () => {
+    const client = new EventStreamClient("data: a\n\n", "");
+
+    await drain(await apiFor(client).events({}, { lastEventId: "42" }));
+
+    expect(headerOf(client.sentHeaders[0]!, "Last-Event-ID")).toBe("42");
+  });
+
+  test("bhv sse 013 an SSE reconnect rebuilds the headers so a refreshed token is the one sent", async () => {
+    const client = new EventStreamClient("data: a\n\n", "");
+    let counter = 0;
+    const rotating = new TestAuthenticator();
+    rotating.getAuthHeadersAsync = (): Promise<Record<string, string>> =>
+      Promise.resolve({ Authorization: `Bearer t${++counter}` });
+
+    await drain(
+      await apiFor(client, undefined, rotating).events(
+        {},
+        { reconnectDelay: 1 },
+      ),
+    );
+
+    expect(client.sentHeaders).toHaveLength(2);
+    expect(headerOf(client.sentHeaders[0]!, "Authorization")).toBe("Bearer t1");
+    expect(headerOf(client.sentHeaders[1]!, "Authorization")).toBe("Bearer t2");
+  });
+
+  test("bhv sse 020 an SSE reconnect sends Last-Event-ID only when the last event id is not empty", async () => {
+    const client = new EventStreamClient(
+      "data: a\n\n",
+      "id: 5\ndata: b\n\n",
+      "",
+    );
+
+    await drain(await apiFor(client).events({}, { reconnectDelay: 1 }));
+
+    expect(client.sentHeaders).toHaveLength(3);
+    expect(headerOf(client.sentHeaders[0]!, "Last-Event-ID")).toBeUndefined();
+    expect(headerOf(client.sentHeaders[1]!, "Last-Event-ID")).toBeUndefined();
+    expect(headerOf(client.sentHeaders[2]!, "Last-Event-ID")).toBe("5");
   });
 });

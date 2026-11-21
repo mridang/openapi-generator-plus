@@ -7,6 +7,7 @@
 #nullable enable
 
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json.Nodes;
 using PetstoreClient;
 using PetstoreClient.Api;
@@ -43,6 +44,42 @@ public class BaseApiTest
 
         public TestableApi(IApiClient apiClient, string baseUrl, IAuthenticator? authenticator)
             : base(apiClient, new Configuration(baseUrl), authenticator) { }
+
+        public Task<SseStream<string>> EventsAsync(
+            Dictionary<string, string> headerParams,
+            StreamOptions? streamOptions
+        )
+        {
+            return InvokeApiForSseAsync<string>(
+                "GET",
+                "/items/events",
+                new Dictionary<string, object?>(),
+                headerParams,
+                null,
+                ["text/event-stream"],
+                "application/json",
+                text: true,
+                streamOptions: streamOptions
+            );
+        }
+
+        public Task<ApiResult<ByteStream>> StreamAsync(
+            string method,
+            string path,
+            IAuthenticator? auth = null
+        )
+        {
+            return InvokeApiForStreamAsync(
+                method,
+                path,
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/octet-stream"],
+                "application/json",
+                auth
+            );
+        }
 
         public Task<ApiResult<T>> CallWithTimeoutAsync<T>(
             IAuthenticator auth,
@@ -1541,6 +1578,451 @@ public class BaseApiTest
             );
 
         public void InvalidateAccessToken() => Invalidations++;
+    }
+
+    /// <summary>Answers a stream call from a script of statuses and keeps what each call was sent.</summary>
+    private sealed class ScriptedStreamingClient(
+        string contentType,
+        byte[] body,
+        params int[] statuses
+    ) : IApiClient
+    {
+        public List<Dictionary<string, string>> StreamHeaders { get; } = [];
+        public List<CloseTrackingStream> Opened { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? requestBody
+        )
+        {
+            return Task.FromResult(
+                new ApiHttpResponse(
+                    200,
+                    "{}",
+                    new Dictionary<string, string> { { "content-type", "application/json" } }
+                )
+            );
+        }
+
+        public Task<ApiStreamResponse> SendStreamingAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? requestBody,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            int? idleTimeout,
+            CancellationToken cancellationToken
+        )
+        {
+            int index = Math.Min(StreamHeaders.Count, statuses.Length - 1);
+            StreamHeaders.Add(new Dictionary<string, string>(headers));
+            CloseTrackingStream opening = new(body);
+            Opened.Add(opening);
+            return Task.FromResult(
+                new ApiStreamResponse(
+                    statuses[index],
+                    new Dictionary<string, string> { { "content-type", contentType } },
+                    opening
+                )
+            );
+        }
+    }
+
+    /// <summary>A response body that remembers whether it was disposed.</summary>
+    private sealed class CloseTrackingStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        public bool Closed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            Closed = true;
+            base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>A transport written before streaming existed: it implements the buffered call only.</summary>
+    private sealed class BufferedOnlyApiClient : IApiClient
+    {
+        public Uri? SentUrl { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            SentUrl = url;
+            return Task.FromResult(
+                new ApiHttpResponse(
+                    200,
+                    "{}",
+                    new Dictionary<string, string> { { "content-type", "application/json" } }
+                )
+            );
+        }
+    }
+
+    [Fact]
+    public async Task BhvStreaming008ANon2xxStreamingCallRaisesTheTypedErrorAndNeverReturnsAStream()
+    {
+        var client = new ScriptedStreamingClient(
+            "application/json",
+            Encoding.UTF8.GetBytes("{\"message\":\"gone\"}"),
+            404
+        );
+
+        var failure = await Assert.ThrowsAsync<NotFoundException>(() =>
+            new TestableApi(client, "http://localhost").StreamAsync("GET", "/items/blob")
+        );
+
+        Assert.Equal(404, failure.StatusCode);
+        Assert.Contains("gone", failure.ResponseBody, StringComparison.Ordinal);
+        Assert.Equal("/items/blob", failure.RequestPath);
+        Assert.True(client.Opened[0].Closed, "the connection was closed after the error body");
+
+        var large = new ScriptedStreamingClient("text/plain", new byte[200_000], 502);
+        var bounded = await Assert.ThrowsAnyAsync<ServerException>(() =>
+            new TestableApi(large, "http://localhost").StreamAsync("GET", "/items/blob")
+        );
+        Assert.Equal(64 * 1024, bounded.ResponseBody!.Length);
+    }
+
+    [Fact]
+    public async Task BhvStreaming017AStreamingCallSendsTheSameHeadersAsABufferedCall()
+    {
+        using var listener = RecordAllActivities();
+        using var source = new ActivitySource("test.base.api.stream");
+        using var activity = source.StartActivity("caller");
+        Assert.NotNull(activity);
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(
+                    socket,
+                    200,
+                    "Content-Type: text/plain",
+                    "Content-Length: 2"
+                );
+                await RawServer.WriteAsync(socket, "ok");
+            }
+        );
+        var api = new TestableApi(
+            new DefaultApiClient(
+                TransportOptions.Builder().InjectRequestId(true).MaxRetries(0).Build()
+            ),
+            server.Url(""),
+            new ApiKeyAuthenticator(server.Url(""), "X-Api-Key", "k-123", ApiKeyLocation.Header)
+        );
+
+        _ = await api.CallForResultAsync<string>(
+            "GET",
+            "/items/blob",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/octet-stream"],
+            "application/json"
+        );
+        await using ByteStream streamed = (await api.StreamAsync("GET", "/items/blob")).Data!;
+
+        var bufferedHeaders = HeadersOf(server.Heads[0]);
+        var streamedHeaders = HeadersOf(server.Heads[1]);
+        Assert.Equal(bufferedHeaders.Keys, streamedHeaders.Keys);
+        foreach (
+            string name in new[]
+            {
+                "User-Agent",
+                "X-Api-Key",
+                "traceparent",
+                "Accept",
+                "Accept-Encoding",
+            }
+        )
+        {
+            Assert.True(streamedHeaders.ContainsKey(name), name);
+            Assert.Equal(bufferedHeaders[name], streamedHeaders[name]);
+        }
+        Assert.True(streamedHeaders.ContainsKey("X-Request-ID"));
+        Assert.NotEqual(bufferedHeaders["X-Request-ID"], streamedHeaders["X-Request-ID"]);
+    }
+
+    private static SortedDictionary<string, string> HeadersOf(string head)
+    {
+        SortedDictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string line in head.Split("\r\n"))
+        {
+            int colon = line.IndexOf(':', StringComparison.Ordinal);
+            if (colon > 0 && !line.StartsWith("GET ", StringComparison.Ordinal))
+            {
+                headers[line[..colon]] = line[(colon + 1)..].Trim();
+            }
+        }
+        return headers;
+    }
+
+    [Fact]
+    public async Task BhvStreaming018A401OnAStreamingCallRefreshesTheTokenAndReplaysOnce()
+    {
+        var client = new ScriptedStreamingClient(
+            "application/octet-stream",
+            Encoding.UTF8.GetBytes("ok"),
+            401,
+            200
+        );
+        var auth = new RefreshableAuthenticator();
+
+        await using ByteStream stream = (
+            await new TestableApi(client, "http://localhost", auth).StreamAsync(
+                "GET",
+                "/items/blob"
+            )
+        ).Data!;
+
+        Assert.Equal(2, client.StreamHeaders.Count);
+        Assert.Equal("Bearer t1", client.StreamHeaders[0]["Authorization"]);
+        Assert.Equal("Bearer t2", client.StreamHeaders[1]["Authorization"]);
+        Assert.Equal(1, auth.Invalidations);
+        Assert.True(client.Opened[0].Closed, "the refused response was closed unread");
+        Assert.Equal("ok", Encoding.UTF8.GetString(await stream.ReadAllAsync()));
+
+        var refused = new ScriptedStreamingClient("application/octet-stream", [], 401);
+        _ = await Assert.ThrowsAsync<UnauthorizedException>(() =>
+            new TestableApi(
+                refused,
+                "http://localhost",
+                new RefreshableAuthenticator()
+            ).StreamAsync("GET", "/items/blob")
+        );
+        Assert.Equal(2, refused.StreamHeaders.Count);
+    }
+
+    [Fact]
+    public async Task BhvStreaming030ATransportThatCannotStreamFailsAStreamCallAndStillServesBufferedCalls()
+    {
+        var transport = new BufferedOnlyApiClient();
+        var api = new TestableApi(transport, "http://localhost");
+
+        var refused = await Assert.ThrowsAsync<NotSupportedException>(() =>
+            api.StreamAsync("GET", "/items/blob")
+        );
+
+        Assert.Contains(
+            typeof(BufferedOnlyApiClient).FullName!,
+            refused.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("cannot stream", refused.Message, StringComparison.Ordinal);
+        Assert.Null(transport.SentUrl);
+
+        _ = await api.CallAsync<object>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+        Assert.EndsWith("/test/echo", transport.SentUrl!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    /// <summary>Answers each event stream call with the next scripted body and keeps the headers it was sent.</summary>
+    private sealed class EventStreamClient(params string[] bodies) : IApiClient
+    {
+        public List<Dictionary<string, string>> SentHeaders { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ApiStreamResponse> SendStreamingAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            int? idleTimeout,
+            CancellationToken cancellationToken
+        )
+        {
+            int index = Math.Min(SentHeaders.Count, bodies.Length - 1);
+            SentHeaders.Add(new Dictionary<string, string>(headers));
+            string text = bodies[index];
+            if (text.Length == 0)
+            {
+                return Task.FromResult(
+                    new ApiStreamResponse(204, new Dictionary<string, string>(), new MemoryStream())
+                );
+            }
+            return Task.FromResult(
+                new ApiStreamResponse(
+                    200,
+                    new Dictionary<string, string> { { "content-type", "text/event-stream" } },
+                    new MemoryStream(Encoding.UTF8.GetBytes(text))
+                )
+            );
+        }
+    }
+
+    private sealed class RotatingAuthenticator : IAuthenticator
+    {
+        private int _counter;
+
+        public string GetHost() => "";
+
+        public Dictionary<string, string> GetAuthHeaders() =>
+            new() { ["Authorization"] = "Bearer t" + Interlocked.Increment(ref _counter) };
+
+        public Dictionary<string, string> GetQueryParams() => [];
+
+        public Dictionary<string, string> GetCookieParams() => [];
+    }
+
+    private static string? HeaderOf(Dictionary<string, string> headers, string name)
+    {
+        foreach (KeyValuePair<string, string> entry in headers)
+        {
+            if (string.Equals(entry.Key, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return entry.Value;
+            }
+        }
+        return null;
+    }
+
+    private static async Task DrainAsync(SseStream<string> stream)
+    {
+        await foreach (ServerSentEvent<string> item in stream)
+        {
+            Assert.NotNull(item);
+        }
+    }
+
+    [Fact]
+    public void BhvStreaming028AStreamingOperationGetsAStreamMethodAndNoBufferedMethod()
+    {
+        var names = typeof(StoreApi).GetMethods().Select(m => m.Name).ToHashSet();
+        foreach (string operation in new[] { "ExportOrders", "WatchOrders", "WatchNotices" })
+        {
+            Assert.Contains(operation + "StreamAsync", names);
+            Assert.DoesNotContain(operation + "Async", names);
+            Assert.DoesNotContain(operation + "WithHttpInfoAsync", names);
+        }
+        Type Item(string method) =>
+            typeof(StoreApi).GetMethod(method)!.ReturnType.GetGenericArguments()[0];
+        Assert.Equal(
+            typeof(JsonLinesStream<>),
+            Item("ExportOrdersStreamAsync").GetGenericTypeDefinition()
+        );
+        Assert.Equal(
+            typeof(SseStream<>),
+            Item("WatchNoticesStreamAsync").GetGenericTypeDefinition()
+        );
+    }
+
+    [Fact]
+    public async Task BhvSse006AnSseRequestSendsTheEventStreamHeadersUnlessTheCallerSetThem()
+    {
+        var client = new EventStreamClient("data: a\n\n", "");
+        await DrainAsync(await new TestableApi(client, "http://localhost").EventsAsync([], null));
+        Dictionary<string, string> sent = client.SentHeaders[0];
+        Assert.Equal("text/event-stream", HeaderOf(sent, "Accept"));
+        Assert.Equal("no-cache", HeaderOf(sent, "Cache-Control"));
+        Assert.Equal("identity", HeaderOf(sent, "Accept-Encoding"));
+
+        var own = new EventStreamClient("data: a\n\n", "");
+        var configured = new TestableApi(
+            own,
+            new Configuration(
+                "http://localhost",
+                new Dictionary<string, string> { ["accept-encoding"] = "gzip" }
+            )
+        );
+        await DrainAsync(
+            await configured.EventsAsync(
+                new Dictionary<string, string> { ["cache-control"] = "max-age=0" },
+                null
+            )
+        );
+        Dictionary<string, string> chosen = own.SentHeaders[0];
+        Assert.Equal("max-age=0", HeaderOf(chosen, "Cache-Control"));
+        Assert.Equal(
+            1,
+            chosen.Keys.Count(k =>
+                string.Equals(k, "cache-control", StringComparison.OrdinalIgnoreCase)
+            )
+        );
+        Assert.Equal("gzip", HeaderOf(chosen, "Accept-Encoding"));
+        Assert.Equal(
+            1,
+            chosen.Keys.Count(k =>
+                string.Equals(k, "accept-encoding", StringComparison.OrdinalIgnoreCase)
+            )
+        );
+    }
+
+    [Fact]
+    public async Task BhvSse012AnSseStreamSendsTheInitialLastEventIdOnItsFirstRequest()
+    {
+        var client = new EventStreamClient("data: a\n\n", "");
+
+        await DrainAsync(
+            await new TestableApi(client, "http://localhost").EventsAsync(
+                [],
+                new StreamOptions { LastEventId = "42" }
+            )
+        );
+
+        Assert.Equal("42", HeaderOf(client.SentHeaders[0], "Last-Event-ID"));
+    }
+
+    [Fact]
+    public async Task BhvSse013AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent()
+    {
+        var client = new EventStreamClient("data: a\n\n", "");
+
+        await DrainAsync(
+            await new TestableApi(
+                client,
+                "http://localhost",
+                new RotatingAuthenticator()
+            ).EventsAsync([], new StreamOptions { ReconnectDelay = 1 })
+        );
+
+        Assert.Equal(2, client.SentHeaders.Count);
+        Assert.Equal("Bearer t1", HeaderOf(client.SentHeaders[0], "Authorization"));
+        Assert.Equal("Bearer t2", HeaderOf(client.SentHeaders[1], "Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvSse020AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty()
+    {
+        var client = new EventStreamClient("data: a\n\n", "id: 5\ndata: b\n\n", "");
+
+        await DrainAsync(
+            await new TestableApi(client, "http://localhost").EventsAsync(
+                [],
+                new StreamOptions { ReconnectDelay = 1 }
+            )
+        );
+
+        Assert.Equal(3, client.SentHeaders.Count);
+        Assert.Null(HeaderOf(client.SentHeaders[0], "Last-Event-ID"));
+        Assert.Null(HeaderOf(client.SentHeaders[1], "Last-Event-ID"));
+        Assert.Equal("5", HeaderOf(client.SentHeaders[2], "Last-Event-ID"));
     }
 
     private sealed class StatusSequenceApiClient(params int[] statuses) : IApiClient

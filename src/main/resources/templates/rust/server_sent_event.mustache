@@ -1,0 +1,34 @@
+{{>api_info}}
+
+use std::fmt;
+
+/// One server-sent event: the fields of the standard envelope, with the data
+/// decoded.
+///
+/// The `Debug` form shows the event name and the id, never the data.
+#[derive(Clone, PartialEq)]
+pub struct ServerSentEvent<T> {
+    /// The event id, or `None` when the stream has none.
+    pub id: Option<String>,
+    /// The event name, `"message"` when the server sent none.
+    pub event: String,
+    /// The decoded `data` field (a `String` for a plain payload).
+    pub data: T,
+    /// The reconnection time in milliseconds the server named, or `None`.
+    pub retry: Option<u64>,
+    /// The `data` field exactly as it arrived, lines joined with a line feed.
+    pub raw: String,
+}
+
+impl<T> ServerSentEvent<T> {
+    /// Creates an event.
+    pub fn new(id: Option<String>, event: String, data: T, retry: Option<u64>, raw: String) -> Self {
+        Self { id, event, data, retry, raw }
+    }
+}
+
+impl<T> fmt::Debug for ServerSentEvent<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ServerSentEvent(event={}, id={:?})", self.event, self.id)
+    }
+}

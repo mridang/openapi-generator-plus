@@ -120,6 +120,58 @@ func saveTo(ctx context.Context, client *petstore.Client, petId int64, documentI
 
 The call `timeout` covers the wait for the response headers and stops there. `IdleTimeout` (on `TransportOptionsBuilder`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.Close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `SendStreaming` fails a stream call with `ErrStreamingUnsupported` naming it, and its buffered calls keep working.
 
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and the call options, and returns a `*JsonLinesStream[T]` of the schema type or a `*SseStream[T]` of `ServerSentEvent[T]` (`ID`, `Event`, `Data`, `Retry` and the `Raw` data text; `T` is the schema of the `data`, or a string). Range over its `All()` method, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `WithMaxEventBytes` (1 MiB), raise `SerializationError` and end the stream.
+
+```go file
+import (
+	"context"
+	"fmt"
+
+	"petstore/pkg"
+)
+
+func readItems(ctx context.Context, client *petstore.Client) error {
+	feed, err := client.Store.ExportOrdersStream(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = feed.Close() }()
+	for item, err := range feed.All() {
+		if err != nil {
+			return err
+		}
+		fmt.Println(item)
+	}
+	return nil
+}
+```
+
+```go file
+import (
+	"context"
+	"fmt"
+
+	"petstore/pkg"
+)
+
+func readEvents(ctx context.Context, client *petstore.Client) error {
+	feed, err := client.Store.WatchNoticesStream(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = feed.Close() }()
+	for event, err := range feed.All() {
+		if err != nil {
+			return err
+		}
+		fmt.Println(event.Data)
+	}
+	return nil
+}
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `WithReconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `WithMaxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.Close()`. An event named `error` raises `ApiError` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. The call options `WithIdleTimeout` and `WithLastEventID` also apply.
+
 ### Custom HTTP client
 
 `TransportOptionsBuilder.HttpClient(doer)` accepts anything with a

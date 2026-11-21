@@ -20,6 +20,10 @@ __all__ = [
     "ClientProtocol",
     "ApiClient",
     "ByteStream",
+    "JsonLinesStream",
+    "ServerSentEvent",
+    "SseStream",
+    "StreamOptions",
     "Configuration",
     "CallHook",
     "CallObserver",
@@ -137,6 +141,10 @@ from petstore_client.api.store_api import StoreApiProtocol as StoreApiProtocol
 # import ApiClient
 from petstore_client.api_client import ApiClient as ApiClient
 from petstore_client.byte_stream import ByteStream as ByteStream
+from petstore_client.json_lines_stream import JsonLinesStream as JsonLinesStream
+from petstore_client.server_sent_event import ServerSentEvent as ServerSentEvent
+from petstore_client.sse_stream import SseStream as SseStream
+from petstore_client.stream_options import StreamOptions as StreamOptions
 from petstore_client.auth.authenticator import Authenticator as Authenticator
 from petstore_client.client import Client as Client
 from petstore_client.client import ClientProtocol as ClientProtocol

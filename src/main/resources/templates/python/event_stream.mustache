@@ -1,0 +1,160 @@
+{{>api_info}}
+
+import re
+from dataclasses import dataclass
+from typing import Optional, Protocol
+
+_LINE_END = re.compile(rb'[\r\n]')
+_READ_SIZE = 65536
+_BOM = '﻿'
+
+
+class _Source(Protocol):
+    """Anything that hands out bytes as they arrive and ``b''`` at the end (a :class:`ByteStream`)."""
+
+    async def read(self, size: int = -1) -> bytes: ...
+
+
+class TooLongError(Exception):
+    """A line or event that is longer than the configured limit."""
+
+
+class LineReader:
+    """Splits a byte source into lines on CRLF, LF or a lone CR, decoding UTF-8.
+
+    A leading byte order mark is dropped. ``terminated`` says whether the line last returned ended
+    with a line terminator; a last line cut off by the end of the source does not.
+    """
+
+    def __init__(self, source: _Source, max_bytes: int) -> None:
+        self._source = source
+        self._max_bytes = max_bytes
+        self._buffer = bytearray()
+        self._skip_line_feed = False
+        self._first = True
+        self._eof = False
+        self.terminated = True
+
+    async def read_line(self) -> Optional[str]:
+        """Read the next line without its terminator.
+
+        Returns:
+            The line, or ``None`` at the end of the source.
+
+        Raises:
+            TooLongError: If a line is longer than the limit.
+        """
+        while True:
+            if self._skip_line_feed and self._buffer:
+                if self._buffer[0] == 0x0A:
+                    del self._buffer[0]
+                self._skip_line_feed = False
+            match = _LINE_END.search(self._buffer) if self._buffer else None
+            if match is not None:
+                end = match.start()
+                if end > self._max_bytes:
+                    raise TooLongError(f'A line is longer than {self._max_bytes} bytes')
+                raw = bytes(self._buffer[:end])
+                self._skip_line_feed = self._buffer[end] == 0x0D
+                del self._buffer[: end + 1]
+                self.terminated = True
+                return self._decode(raw)
+            if len(self._buffer) > self._max_bytes:
+                raise TooLongError(f'A line is longer than {self._max_bytes} bytes')
+            if self._eof:
+                if not self._buffer:
+                    return None
+                raw = bytes(self._buffer)
+                self._buffer.clear()
+                self.terminated = False
+                return self._decode(raw)
+            chunk = await self._source.read(_READ_SIZE)
+            if chunk:
+                self._buffer.extend(chunk)
+            else:
+                self._eof = True
+
+    def _decode(self, raw: bytes) -> str:
+        text = raw.decode('utf-8', errors='replace')
+        if self._first:
+            self._first = False
+            if text.startswith(_BOM):
+                text = text[1:]
+        return text
+
+
+@dataclass(frozen=True)
+class RawEvent:
+    """One dispatched event, before its data is decoded."""
+
+    id: Optional[str]
+    event: str
+    data: str
+    retry: Optional[int]
+
+
+class SseParser:
+    """Reads events from a byte source.
+
+    The grammar is the one of the WHATWG HTML standard, "Server-sent events": UTF-8, a leading byte
+    order mark dropped, lines ended by CRLF, LF or CR, a blank line dispatches, an empty data buffer
+    is not dispatched but its id is kept, a line that starts with a colon is a comment, one space
+    after the colon is removed, unknown fields are ignored, data lines are joined with a line feed,
+    an id with a NUL is ignored, a retry value only counts when it is digits, and an event cut off by
+    the end of the source is discarded.
+    """
+
+    def __init__(self, source: _Source, max_event_bytes: int, last_event_id: Optional[str] = None) -> None:
+        self._lines = LineReader(source, max_event_bytes)
+        self._max_event_bytes = max_event_bytes
+        self.last_event_id = last_event_id or ''
+        """The last event id seen, which a reconnect sends; empty when none."""
+        self.retry: Optional[int] = None
+        """The reconnection time the server last named, in milliseconds."""
+
+    async def next(self) -> Optional[RawEvent]:
+        """Read up to the next event that carries data.
+
+        Returns:
+            The event, or ``None`` at the end of the source (a cut-off event is dropped).
+
+        Raises:
+            TooLongError: If a line or an event is longer than the limit.
+        """
+        data: list[str] = []
+        size = 0
+        name = ''
+        id_buffer = self.last_event_id
+        while True:
+            line = await self._lines.read_line()
+            if line is None or not self._lines.terminated:
+                return None
+            if not line:
+                self.last_event_id = id_buffer
+                if not data:
+                    name = ''
+                    continue
+                return RawEvent(
+                    id=self.last_event_id or None,
+                    event=name or 'message',
+                    data='\n'.join(data),
+                    retry=self.retry,
+                )
+            if line.startswith(':'):
+                continue
+            field, separator, value = line.partition(':')
+            if separator and value.startswith(' '):
+                value = value[1:]
+            if field == 'data':
+                size += len(value) + 1
+                if size > self._max_event_bytes:
+                    raise TooLongError(f'An event is longer than {self._max_event_bytes} bytes')
+                data.append(value)
+            elif field == 'event':
+                name = value
+            elif field == 'id':
+                if '\0' not in value:
+                    id_buffer = value
+            elif field == 'retry':
+                if value.isascii() and value.isdigit() and len(value) < 18:
+                    self.retry = int(value)

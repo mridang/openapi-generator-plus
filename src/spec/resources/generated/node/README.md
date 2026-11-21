@@ -284,6 +284,46 @@ async function saveTo(
 
 The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `TypeError` naming it, and its buffered calls keep working.
 
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Iterate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationError` and end the stream.
+
+```typescript file
+import { Client } from "petstore-client";
+
+async function readFeed(
+  client: Client,
+  ...args: Parameters<Client["store"]["exportOrdersStream"]>
+): Promise<void> {
+  const feed = await client.store.exportOrdersStream(...args);
+  try {
+    for await (const item of feed) {
+      console.log(item);
+    }
+  } finally {
+    await feed.close();
+  }
+}
+```
+
+```typescript file
+import { Client } from "petstore-client";
+
+async function readEvents(
+  client: Client,
+  ...args: Parameters<Client["store"]["watchNoticesStream"]>
+): Promise<void> {
+  const feed = await client.store.watchNoticesStream(...args);
+  try {
+    for await (const event of feed) {
+      console.log(event.data);
+    }
+  } finally {
+    await feed.close();
+  }
+}
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `maxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close()`. An event named `error` raises `ApiError` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idleTimeout` and `lastEventId`.
+
 ### Custom HTTP client
 
 The transport is `fetch`: `TransportOptions.builder().fetch(myFetch).fetchOptions({ ... })` routes every

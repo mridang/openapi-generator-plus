@@ -691,6 +691,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec(
                         "api_stream_response.mustache", "src", "api_stream_response.rs"),
                 new SupportingFileSpec("byte_stream.mustache", "src", "byte_stream.rs"),
+                new SupportingFileSpec("event_stream.mustache", "src", "event_stream.rs"),
+                new SupportingFileSpec(
+                        "server_sent_event.mustache", "src", "server_sent_event.rs"),
+                new SupportingFileSpec("stream_options.mustache", "src", "stream_options.rs"),
+                new SupportingFileSpec(
+                        "json_lines_stream.mustache", "src", "json_lines_stream.rs"),
+                new SupportingFileSpec("sse_stream.mustache", "src", "sse_stream.rs"),
                 new SupportingFileSpec(
                         "errors/stream_error.mustache", "src/errors", "stream_error.rs"),
                 new SupportingFileSpec("api_client.mustache", "src", "api_client.rs"),
@@ -1207,6 +1214,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
         final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
         boolean anyBinaryStream = false;
+        boolean anyEventStream = false;
+        boolean anyJsonLines = false;
         if (operations != null) {
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
@@ -1239,9 +1248,20 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     op.vendorExtensions.put("op", opDecorators);
                     reorderAuthMethodsToSpecOrder(op);
                     anyBinaryStream |= markBinaryStream(op);
+                    final Object marked = op.vendorExtensions.get("op");
+                    anyEventStream |=
+                            marked instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) marked).get("streamsSse"));
+                    anyJsonLines |=
+                            marked instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) marked).get("streamsJsonLines"));
                 }
             }
             result.put("hasBinaryStream", anyBinaryStream);
+            result.put("hasSseStream", anyEventStream);
+            result.put("hasJsonLinesStream", anyJsonLines);
+            result.put("hasEventStream", anyEventStream || anyJsonLines);
             sanitizeServerEnumNames(operations.get("serverTypeDefs"));
         }
         return result;
@@ -1871,7 +1891,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        putFirstBinaryStreamOperation(objs);
+        putFirstStreamOperation(objs, "streamsBinary", "binaryStream");
+        putFirstStreamOperation(objs, "streamsSse", "sseStream");
+        putFirstStreamOperation(objs, "streamsJsonLines", "jsonLinesStream");
+        objs.put(
+                "hasEventStreamOperation",
+                Boolean.TRUE.equals(objs.get("hasSseStreamOperation"))
+                        || Boolean.TRUE.equals(objs.get("hasJsonLinesStreamOperation")));
         final Object schemas = objs.get("errorSchemas");
         if (schemas instanceof List) {
             for (final Object schema : (List<Object>) schemas) {
@@ -1900,23 +1926,40 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             return false;
         }
         final Map<String, Object> d = (Map<String, Object>) decorators;
-        final boolean binary = "binary".equals(d.get("streamKind"));
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
         d.put("streamsBinary", binary);
         if (binary) {
             op.returnType = "ByteStream";
             op.returnBaseType = "ByteStream";
         }
+        final boolean streamOnly = Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && streamOnly;
+        final boolean jsonLines = "jsonlines".equals(kind) && streamOnly;
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            d.put("streamTyped", !"String".equals(item));
+            d.put("streamItemRust", item);
+            d.put("streamMethodName", op.operationId + "_stream");
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
         return binary;
     }
 
     /**
-     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
-     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
-     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
-     * spec under generation. Nothing is rendered when the spec has none.
+     * Hands the README and SKILLS the first operation whose decorator {@code flag} is set, as
+     * {@code <name>Operation} (with {@code <name>Group}, its operations map, and
+     * {@code has<Name>Operation}), so a Streaming example calls a real operation of the spec under
+     * generation. Nothing is rendered when the spec has none.
      */
     @SuppressWarnings("unchecked")
-    private static void putFirstBinaryStreamOperation(final Map<String, Object> objs) {
+    private static void putFirstStreamOperation(
+            final Map<String, Object> objs, final String flag, final String name) {
         CodegenOperation found = null;
         Object group = null;
         final Object apiInfo = objs.get("apiInfo");
@@ -1938,8 +1981,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                 op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
                         if (found == null
                                 && decorators instanceof Map
-                                && Boolean.TRUE.equals(
-                                        ((Map<String, Object>) decorators).get("streamsBinary"))) {
+                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flag))) {
                             found = op;
                             group = operations;
                         }
@@ -1947,10 +1989,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 }
             }
         }
-        objs.put("hasBinaryStreamOperation", found != null);
+        objs.put(
+                "has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation",
+                found != null);
         if (found != null) {
-            objs.put("binaryStreamOperation", found);
-            objs.put("binaryStreamGroup", group);
+            objs.put(name + "Operation", found);
+            objs.put(name + "Group", group);
         }
     }
 

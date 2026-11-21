@@ -72,6 +72,32 @@ module {{moduleName}}
       finish_read(data.empty? ? nil : data, outbuf)
     end
 
+    # Reads what has arrived: between one and +max+ bytes, waiting only until
+    # there is at least one, or +nil+ at the end of the body. Unlike {#read} it
+    # never waits for +max+ bytes, so it is the call for a feed that delivers a
+    # little at a time.
+    #
+    # @param max [Integer] the most bytes to return
+    # @return [String, nil] the bytes, or nil at the end of the body
+    # @raise [IOError] if the stream was closed
+    def read_partial(max = CHUNK_SIZE)
+      ensure_open
+      data = @buffer.slice!(0, max)
+      if data.nil? || data.empty?
+        return nil if @ended
+
+        chunk = @source.read(max)
+        if chunk.nil?
+          @ended = true
+          return nil
+        end
+        data = chunk.b
+        @buffer = data.slice!(max..) || ''.b if data.bytesize > max
+      end
+      @bytes_delivered += data.bytesize
+      data
+    end
+
     # Yields the body in chunks as it arrives, until its end.
     #
     # @param chunk_size [Integer] the largest chunk to yield
@@ -81,7 +107,7 @@ module {{moduleName}}
       return enum_for(:each, chunk_size) unless block_given?
 
       loop do
-        chunk = read(chunk_size)
+        chunk = read_partial(chunk_size)
         break if chunk.nil?
 
         yield chunk

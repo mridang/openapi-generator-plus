@@ -10,6 +10,10 @@ __all__ = [
     '{{clientClassName}}Protocol',
     'ApiClient',
     'ByteStream',
+    'JsonLinesStream',
+    'ServerSentEvent',
+    'SseStream',
+    'StreamOptions',
     'Configuration',
     'CallHook',
     'CallObserver',
@@ -60,6 +64,10 @@ from {{apiPackage}}.{{classFilename}} import {{classname}}Protocol as {{classnam
 # import ApiClient
 from {{packageName}}.api_client import ApiClient as ApiClient
 from {{packageName}}.byte_stream import ByteStream as ByteStream
+from {{packageName}}.json_lines_stream import JsonLinesStream as JsonLinesStream
+from {{packageName}}.server_sent_event import ServerSentEvent as ServerSentEvent
+from {{packageName}}.sse_stream import SseStream as SseStream
+from {{packageName}}.stream_options import StreamOptions as StreamOptions
 from {{packageName}}.auth.authenticator import Authenticator as Authenticator
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}} as {{clientClassName}}
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}}Protocol as {{clientClassName}}Protocol

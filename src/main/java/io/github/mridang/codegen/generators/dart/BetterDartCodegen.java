@@ -466,6 +466,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("api_result.mustache", srcDir, "api_result.dart"),
             new SupportingFileSpec("api_stream_response.mustache", srcDir, "api_stream_response.dart"),
             new SupportingFileSpec("byte_stream.mustache", srcDir, "byte_stream.dart"),
+            new SupportingFileSpec("event_stream.mustache", srcDir, "event_stream.dart"),
+            new SupportingFileSpec("server_sent_event.mustache", srcDir, "server_sent_event.dart"),
+            new SupportingFileSpec("stream_options.mustache", srcDir, "stream_options.dart"),
+            new SupportingFileSpec("json_lines_stream.mustache", srcDir, "json_lines_stream.dart"),
+            new SupportingFileSpec("sse_stream.mustache", srcDir, "sse_stream.dart"),
+            new SupportingFileSpec("retry_after.mustache", srcDir, "retry_after.dart"),
             new SupportingFileSpec("api_client.mustache", srcDir, "api_client.dart"),
             new SupportingFileSpec("abstract_api_client.mustache", srcDir, "abstract_api_client.dart"),
             new SupportingFileSpec("default_api_client.mustache", srcDir, "default_api_client.dart"),
@@ -623,6 +629,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/api_result_test.mustache",
                             "test",
                             "api_result_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/event_stream_test.mustache",
+                            "test",
+                            "event_stream_test.dart"));
         }
     }
 
@@ -1419,11 +1430,28 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
      * {@code streamsBinary} tells the API template to call {@code invokeApiForStream}.
      */
     static void markBinaryStream(final CodegenOperation op, final Map<String, Object> decorators) {
-        final boolean binary = "binary".equals(decorators.get("streamKind"));
+        final Object kind = decorators.get("streamKind");
+        final boolean binary = "binary".equals(kind);
         decorators.put("streamsBinary", binary);
         if (binary) {
             op.returnType = "ByteStream";
             op.returnBaseType = "ByteStream";
+        }
+        final boolean streamOnly = Boolean.TRUE.equals(decorators.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && streamOnly;
+        final boolean jsonLines = "jsonlines".equals(kind) && streamOnly;
+        decorators.put("streamsSse", sse);
+        decorators.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(decorators.get("streamEventIsText"));
+            final Object declared = decorators.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            decorators.put("streamTyped", !"String".equals(item));
+            decorators.put("streamItemDart", item);
+            decorators.put("streamItemIsModel", item.matches("[A-Z][A-Za-z0-9_]*")
+                    && !Set.of("String", "Object", "DateTime", "Duration", "Uint8List", "UuidValue").contains(item));
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
         }
     }
 
@@ -1436,39 +1464,44 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        CodegenOperation found = null;
-        Object group = null;
-        final Object apiInfo = objs.get("apiInfo");
-        if (apiInfo instanceof Map) {
-            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
-            if (apis instanceof List) {
-                for (final Object api : (List<Object>) apis) {
-                    final Object operations = ((Map<String, Object>) api).get("operations");
-                    if (!(operations instanceof Map)) {
-                        continue;
-                    }
-                    final Object list = ((Map<String, Object>) operations).get("operation");
-                    if (!(list instanceof List)) {
-                        continue;
-                    }
-                    for (final Object candidate : (List<Object>) list) {
-                        final CodegenOperation op = (CodegenOperation) candidate;
-                        final Object decorators =
-                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-                        if (found == null
-                                && decorators instanceof Map
-                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
-                            found = op;
-                            group = operations;
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
                         }
                     }
                 }
             }
-        }
-        objs.put("hasBinaryStreamOperation", found != null);
-        if (found != null) {
-            objs.put("binaryStreamOperation", found);
-            objs.put("binaryStreamGroup", group);
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
         }
         return super.postProcessSupportingFileData(objs);
     }

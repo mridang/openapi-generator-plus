@@ -469,6 +469,16 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         if (hasBinaryStream(operations)) {
             scalarImports.add("from " + packageName + ".byte_stream import ByteStream");
         }
+        if (hasStream(operations, "streamsSse")) {
+            scalarImports.add("from " + packageName + ".sse_stream import SseStream");
+        }
+        if (hasStream(operations, "streamsJsonLines")) {
+            scalarImports.add("from " + packageName + ".json_lines_stream import JsonLinesStream");
+        }
+        if (hasStream(operations, "streamsSse") || hasStream(operations, "streamsJsonLines")) {
+            scalarImports.add("from " + packageName + ".stream_options import StreamOptions");
+            addStreamItemImports(operations, scalarImports);
+        }
         // A format:date parameter (query, header, path, or form) types the
         // method signature as `date`, but openapi-generator only collects
         // model imports from body/response schemas, never from scalar
@@ -508,23 +518,74 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             return;
         }
         final Map<String, Object> d = (Map<String, Object>) decorators;
-        final boolean binary = "binary".equals(d.get("streamKind"));
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        final boolean sse = "sse".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean jsonLines = "jsonlines".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
         d.put("streamsBinary", binary);
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
         if (binary) {
             op.returnType = "ByteStream";
             op.returnBaseType = "ByteStream";
+        }
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = text || declared == null ? "str" : declared.toString();
+            final boolean typed = !"str".equals(item) && !"StrictStr".equals(item);
+            d.put("streamTyped", typed);
+            d.put("streamItemPython", typed ? item : "str");
+            d.put("streamMethodPython", op.operationId + "_stream");
+            op.returnType = (sse ? "SseStream[" : "JsonLinesStream[") + (typed ? item : "str") + "]";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void addStreamItemImports(
+            @Nullable final Map<String, Object> operations, final Set<String> imports) {
+        if (operations == null || !(operations.get("operation") instanceof List)) {
+            return;
+        }
+        for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+            final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (decorators instanceof Map
+                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamTyped"))) {
+                final String item = (String) ((Map<String, Object>) decorators).get("streamItemPython");
+                final java.util.regex.Matcher names = TYPE_NAME_TOKEN.matcher(item);
+                while (names.find()) {
+                    final String token = names.group();
+                    if (TYPING_NAMES.contains(token)) {
+                        imports.add("from typing import " + token);
+                    } else if (TYPE_IMPORTS.containsKey(token)) {
+                        imports.add(TYPE_IMPORTS.get(token));
+                    } else if (Character.isUpperCase(token.charAt(0))
+                            && token.indexOf('.') < 0
+                            && !languageSpecificPrimitives.contains(token)) {
+                        imports.add(
+                                "from " + modelPackage + "." + toModelFilename(token) + " import " + token);
+                    }
+                }
+            }
         }
     }
 
     @SuppressWarnings("unchecked")
     private static boolean hasBinaryStream(@Nullable final Map<String, Object> operations) {
+        return hasStream(operations, "streamsBinary");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean hasStream(
+            @Nullable final Map<String, Object> operations, final String flag) {
         if (operations == null || !(operations.get("operation") instanceof List)) {
             return false;
         }
         for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
             final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
             if (decorators instanceof Map
-                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
+                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flag))) {
                 return true;
             }
         }
@@ -541,41 +602,47 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        CodegenOperation found = null;
-        Object group = null;
-        final Object apiInfo = objs.get("apiInfo");
-        if (apiInfo instanceof Map) {
-            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
-            if (apis instanceof List) {
-                for (final Object api : (List<Object>) apis) {
-                    final Object operations = ((Map<String, Object>) api).get("operations");
-                    if (!(operations instanceof Map)) {
-                        continue;
-                    }
-                    final Object list = ((Map<String, Object>) operations).get("operation");
-                    if (!(list instanceof List)) {
-                        continue;
-                    }
-                    for (final Object candidate : (List<Object>) list) {
-                        final CodegenOperation op = (CodegenOperation) candidate;
-                        final Object decorators =
-                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-                        if (found == null
-                                && decorators instanceof Map
-                                && Boolean.TRUE.equals(
-                                        ((Map<String, Object>) decorators).get("streamsBinary"))) {
-                            found = op;
-                            group = operations;
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
                         }
                     }
                 }
             }
-        }
-        objs.put("hasBinaryStreamOperation", found != null);
-        if (found != null) {
-            objs.put("binaryStreamOperation", found);
-            objs.put("binaryStreamGroup", group);
-            objs.put("binaryStreamExample", binaryStreamExample(found));
+            final String name = names[kind];
+            final String cap = Character.toUpperCase(name.charAt(0)) + name.substring(1);
+            objs.put("has" + cap + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+                objs.put(name + "Example", binaryStreamExample(found));
+            }
         }
         return super.postProcessSupportingFileData(objs);
     }
@@ -778,6 +845,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("api_result.mustache", packagePath, "api_result.py"),
             new SupportingFileSpec("api_stream_response.mustache", packagePath, "api_stream_response.py"),
             new SupportingFileSpec("byte_stream.mustache", packagePath, "byte_stream.py"),
+            new SupportingFileSpec("event_stream.mustache", packagePath, "event_stream.py"),
+            new SupportingFileSpec("server_sent_event.mustache", packagePath, "server_sent_event.py"),
+            new SupportingFileSpec("stream_options.mustache", packagePath, "stream_options.py"),
+            new SupportingFileSpec("json_lines_stream.mustache", packagePath, "json_lines_stream.py"),
+            new SupportingFileSpec("sse_stream.mustache", packagePath, "sse_stream.py"),
             new SupportingFileSpec("base_api.mustache", apiPath, "base_api.py"),
             new SupportingFileSpec("configuration.mustache", packagePath, "configuration.py"),
             new SupportingFileSpec("errors.mustache", errorsPath, "__init__.py"),
@@ -914,6 +986,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test/test_default_api_client_unit.mustache",
                             "test",
                             "test_default_api_client_unit.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_event_stream.mustache", "test", "test_event_stream.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_transport_options.mustache",

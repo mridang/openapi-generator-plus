@@ -60,6 +60,13 @@ impl Conn {
         self.write(framed.as_bytes())
     }
 
+    /// Writes one chunk of a chunked body from raw bytes, such as a compressed piece.
+    pub fn chunk_bytes(&mut self, data: &[u8]) -> std::io::Result<()> {
+        self.write(format!("{:x}\r\n", data.len()).as_bytes())?;
+        self.write(data)?;
+        self.write(b"\r\n")
+    }
+
     /// Writes the last chunk of a chunked body.
     pub fn end(&mut self) -> std::io::Result<()> {
         self.write(b"0\r\n\r\n")

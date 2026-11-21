@@ -816,4 +816,14 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
   end
+
+  it 'bhv_streaming_028 an operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method' do
+    names = Petstore::Client::Api::StoreApi.public_instance_methods(false).map(&:to_s)
+    %w[export_orders watch_orders watch_notices].each_case do |operation|
+      _(names).must_include "#{operation}_stream"
+      _(names).wont_include operation
+      _(names).wont_include "#{operation}_with_http_info"
+    end
+    _(Petstore::Client::Api::StoreApi.instance_method(:export_orders_stream).parameters.map(&:last)).must_include :stream_options
+  end
 end

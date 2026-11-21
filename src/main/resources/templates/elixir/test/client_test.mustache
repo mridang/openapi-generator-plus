@@ -707,9 +707,15 @@ defmodule {{moduleName}}.ClientTest do
     {{clientPropertyName}}_listed =
       {{moduleName}}.Api.{{classname}}Behaviour.behaviour_info(:callbacks) |> Enum.map(&elem(&1, 0))
 {{#operation}}
+{{^vendorExtensions.op.streamOnly}}
     assert :{{operationId}} in {{clientPropertyName}}_listed
     assert :{{operationId}}! in {{clientPropertyName}}_listed
     assert :{{operationId}}_with_http_info in {{clientPropertyName}}_listed
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.streamOnly}}
+    assert :{{operationId}}_stream in {{clientPropertyName}}_listed
+    assert :{{operationId}}_stream! in {{clientPropertyName}}_listed
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

@@ -8,6 +8,9 @@
 import type { ApiClient, RequestOptions } from "../api-client.js";
 import { ApiError } from "../errors/api-error.js";
 import type { ApiResult } from "../api-result.js";
+import type { JsonLinesStream } from "../json-lines-stream.js";
+import type { SseStream } from "../sse-stream.js";
+import type { StreamOptions } from "../stream-options.js";
 import type { Authenticator } from "../auth/authenticator.js";
 import { NO_AUTH } from "../auth/authenticator.js";
 import { BaseApi } from "./base-api.js";
@@ -56,10 +59,9 @@ export interface StoreApiInterface {
     orderId: number,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<void>>;
-  exportOrders(requestOptions?: RequestOptions): Promise<Order>;
-  exportOrdersWithHttpInfo(
-    requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Order>>;
+  exportOrdersStream(
+    streamOptions?: StreamOptions,
+  ): Promise<JsonLinesStream<Order>>;
   getAuditTrail(requestOptions?: RequestOptions): Promise<ApiResponse>;
   getAuditTrailWithHttpInfo(
     requestOptions?: RequestOptions,
@@ -170,18 +172,11 @@ export interface StoreApiInterface {
     options?: SearchStoreOptions,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<Array<Order>>>;
-  watchNotices(requestOptions?: RequestOptions): Promise<string>;
-  watchNoticesWithHttpInfo(
-    requestOptions?: RequestOptions,
-  ): Promise<ApiResult<string>>;
-  watchOrders(
+  watchNoticesStream(streamOptions?: StreamOptions): Promise<SseStream<string>>;
+  watchOrdersStream(
     options?: WatchOrdersOptions,
-    requestOptions?: RequestOptions,
-  ): Promise<Order>;
-  watchOrdersWithHttpInfo(
-    options?: WatchOrdersOptions,
-    requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Order>>;
+    streamOptions?: StreamOptions,
+  ): Promise<SseStream<Order>>;
 }
 
 /**
@@ -334,40 +329,17 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
 
   /**
    * Exports every order as JSON Lines
-   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
-   * @return Order
+   * @param streamOptions optional stream settings: the per-call `signal`, `timeout`, `maxRetries` and `headers`, and `idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId` and `maxEventBytes`
+   * @return JsonLinesStream<Order> the open stream; close it when you stop early
    * @throws {ApiError} if fails to make API call
    */
-  async exportOrders(requestOptions?: RequestOptions): Promise<Order> {
-    const exportOrdersResult =
-      await this.exportOrdersWithHttpInfo(requestOptions);
-    /* convenience-empty-body-handling: a body-returning operation that
-     * receives no decodable body (204 / empty / null) must surface a
-     * typed ApiError, never a silently-cast `undefined`. */
-    if (exportOrdersResult.data == null) {
-      throw new ApiError(
-        exportOrdersResult.statusCode,
-        "Expected a response body for exportOrders but received none",
-        exportOrdersResult.headers,
-        exportOrdersResult.rawBody,
-        null,
-      );
-    }
-    return exportOrdersResult.data as Order;
-  }
-
-  /**
-   * Exports every order as JSON Lines (with HTTP info)
-   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
-   * @throws {ApiError} if fails to make API call
-   */
-  async exportOrdersWithHttpInfo(
-    requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Order>> {
+  async exportOrdersStream(
+    streamOptions?: StreamOptions,
+  ): Promise<JsonLinesStream<Order>> {
     const path = `/store/orders/export`;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return await this.invokeApiForResult(
+    return await this.invokeApiForJsonLines<Order>(
       "GET",
       path,
       queryParams,
@@ -375,13 +347,12 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       null,
       ["application/x-ndjson"],
       "application/json",
-      (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
       NO_AUTH,
       false,
-      "model",
-      "exportOrders",
-      requestOptions,
+      (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
+      streamOptions,
       undefined,
+      "exportOrders",
       "exportOrders",
       "/store/orders/export",
     );
@@ -1694,40 +1665,17 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
 
   /**
    * Streams plain text notices as server-sent events
-   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
-   * @return string
+   * @param streamOptions optional stream settings: the per-call `signal`, `timeout`, `maxRetries` and `headers`, and `idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId` and `maxEventBytes`
+   * @return SseStream<string> the open stream; close it when you stop early
    * @throws {ApiError} if fails to make API call
    */
-  async watchNotices(requestOptions?: RequestOptions): Promise<string> {
-    const watchNoticesResult =
-      await this.watchNoticesWithHttpInfo(requestOptions);
-    /* convenience-empty-body-handling: a body-returning operation that
-     * receives no decodable body (204 / empty / null) must surface a
-     * typed ApiError, never a silently-cast `undefined`. */
-    if (watchNoticesResult.data == null) {
-      throw new ApiError(
-        watchNoticesResult.statusCode,
-        "Expected a response body for watchNotices but received none",
-        watchNoticesResult.headers,
-        watchNoticesResult.rawBody,
-        null,
-      );
-    }
-    return watchNoticesResult.data as string;
-  }
-
-  /**
-   * Streams plain text notices as server-sent events (with HTTP info)
-   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
-   * @throws {ApiError} if fails to make API call
-   */
-  async watchNoticesWithHttpInfo(
-    requestOptions?: RequestOptions,
-  ): Promise<ApiResult<string>> {
+  async watchNoticesStream(
+    streamOptions?: StreamOptions,
+  ): Promise<SseStream<string>> {
     const path = `/store/notices`;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return await this.invokeApiForResult(
+    return await this.invokeApiForSse<string>(
       "GET",
       path,
       queryParams,
@@ -1735,13 +1683,13 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       null,
       ["text/event-stream"],
       "application/json",
-      (json: unknown) => json as string,
       NO_AUTH,
       false,
-      "string",
-      "watchNotices",
-      requestOptions,
+      null,
+      null,
+      streamOptions,
       undefined,
+      "watchNotices",
       "watchNotices",
       "/store/notices",
     );
@@ -1751,42 +1699,14 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
    * Streams order changes as server-sent events
    * @param options options for query, header, form, and cookie parameters
    * @param options.status  (optional)
-   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
-   * @return Order
+   * @param streamOptions optional stream settings: the per-call `signal`, `timeout`, `maxRetries` and `headers`, and `idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId` and `maxEventBytes`
+   * @return SseStream<Order> the open stream; close it when you stop early
    * @throws {ApiError} if fails to make API call
    */
-  async watchOrders(
+  async watchOrdersStream(
     options?: WatchOrdersOptions,
-    requestOptions?: RequestOptions,
-  ): Promise<Order> {
-    const watchOrdersResult = await this.watchOrdersWithHttpInfo(
-      options,
-      requestOptions,
-    );
-    /* convenience-empty-body-handling: a body-returning operation that
-     * receives no decodable body (204 / empty / null) must surface a
-     * typed ApiError, never a silently-cast `undefined`. */
-    if (watchOrdersResult.data == null) {
-      throw new ApiError(
-        watchOrdersResult.statusCode,
-        "Expected a response body for watchOrders but received none",
-        watchOrdersResult.headers,
-        watchOrdersResult.rawBody,
-        null,
-      );
-    }
-    return watchOrdersResult.data as Order;
-  }
-
-  /**
-   * Streams order changes as server-sent events (with HTTP info)
-   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
-   * @throws {ApiError} if fails to make API call
-   */
-  async watchOrdersWithHttpInfo(
-    options?: WatchOrdersOptions,
-    requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Order>> {
+    streamOptions?: StreamOptions,
+  ): Promise<SseStream<Order>> {
     const path = `/store/orders/events`;
     const queryParams: Record<string, unknown> = {};
     if (options?.status != null) {
@@ -1804,7 +1724,7 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       );
     }
     const headerParams: Record<string, string> = {};
-    return await this.invokeApiForResult(
+    return await this.invokeApiForSse<Order>(
       "GET",
       path,
       queryParams,
@@ -1812,13 +1732,13 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       null,
       ["text/event-stream"],
       "application/json",
-      (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
       NO_AUTH,
       false,
-      "model",
-      "watchOrders",
-      requestOptions,
+      (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
+      null,
+      streamOptions,
       undefined,
+      "watchOrders",
       "watchOrders",
       "/store/orders/events",
     );

@@ -117,6 +117,7 @@ public class {{classname}} : BaseApi, I{{classname}}
     )
         : base(apiClient, config, authenticator, schemeAuthenticators) { }
     {{#operation}}
+{{^vendorExtensions.op.streamOnly}}
 
     /// <summary>
     /// {{#lambda.escapeXml}}{{{summary}}}{{/lambda.escapeXml}}
@@ -202,6 +203,7 @@ public class {{classname}} : BaseApi, I{{classname}}
          * JSON null payload is an absent body too: its raw text is non-empty
          * but it decodes to a null reference, so reference-type returns also
          * check the decoded value (boxed, so a value-type return compiles). */
+{{^vendorExtensions.op.streamsBinary}}
         if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
@@ -210,6 +212,7 @@ public class {{classname}} : BaseApi, I{{classname}}
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody);
         }
+{{/vendorExtensions.op.streamsBinary}}
         return result.Data!;
         {{/returnType}}
         {{^returnType}}
@@ -218,8 +221,10 @@ public class {{classname}} : BaseApi, I{{classname}}
         {{/returnType}}
     }
 
+{{/vendorExtensions.op.streamOnly}}
+
     /// <summary>
-    /// {{#lambda.escapeXml}}{{{summary}}}{{/lambda.escapeXml}} (with HTTP info)
+    /// {{#lambda.escapeXml}}{{{summary}}}{{/lambda.escapeXml}}{{^vendorExtensions.op.streamOnly}} (with HTTP info){{/vendorExtensions.op.streamOnly}}
     /// </summary>
 {{#notes}}
     /// <remarks>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</remarks>
@@ -258,8 +263,16 @@ public class {{classname}} : BaseApi, I{{classname}}
 {{#consumes}}{{#-last}}{{^-first}}
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type when null.</param>
 {{/-first}}{{/-last}}{{/consumes}}
+{{#vendorExtensions.op.streamOnly}}
+    /// <param name="streamOptions">The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults.</param>
+{{/vendorExtensions.op.streamOnly}}
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+{{#vendorExtensions.op.streamOnly}}
+    /// <returns>The open stream; dispose it (<c>await using</c>) when you stop early.</returns>
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+{{/vendorExtensions.op.streamOnly}}
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
 {{#vendorExtensions.op.errorResponses}}
     /// <exception cref="{{#hasSchema}}{{{schemaClassName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}}">Thrown on HTTP {{status}}{{#hasSchema}} with a <see cref="{{{schemaName}}}"/> body{{/hasSchema}}.</exception>
@@ -267,7 +280,7 @@ public class {{classname}} : BaseApi, I{{classname}}
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
-    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}CancellationToken cancellationToken = default)
+    public async {{#vendorExtensions.op.streamOnly}}Task<{{{returnType}}}> {{operationId}}StreamAsync({{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{/vendorExtensions.op.streamOnly}}{{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}{{#vendorExtensions.op.streamOnly}}StreamOptions? streamOptions = null, {{/vendorExtensions.op.streamOnly}}CancellationToken cancellationToken = default)
     {
 {{! L10: only guard `options` against null when the Options arg is non-nullable
     (i.e. the operation has at least one REQUIRED query/header/form/cookie
@@ -589,7 +602,7 @@ public class {{classname}} : BaseApi, I{{classname}}
             effectiveRequestContentType = requestContentType;
         }
 {{/-first}}{{/-last}}{{/consumes}}
-        return await InvokeApiForResultAsync<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>(
+        return await {{#vendorExtensions.op.streamsBinary}}InvokeApiForStreamAsync({{/vendorExtensions.op.streamsBinary}}{{#vendorExtensions.op.streamsSse}}InvokeApiForSseAsync<{{{vendorExtensions.op.streamItemCs}}}>({{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}InvokeApiForJsonLinesAsync<{{{vendorExtensions.op.streamItemCs}}}>({{/vendorExtensions.op.streamsJsonLines}}{{^vendorExtensions.op.isStreamCall}}InvokeApiForResultAsync<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>({{/vendorExtensions.op.isStreamCall}}
                 "{{httpMethod}}",
                 path,
                 queryParams,
@@ -602,7 +615,9 @@ public class {{classname}} : BaseApi, I{{classname}}
     Single-consume operations keep the plain literal. The not-first gate on
     the last consume fires once only for two-or-more declared types. }}
 {{#consumes}}{{#-last}}{{^-first}}                effectiveRequestContentType,{{/-first}}{{#-first}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/consumes}}
+{{^vendorExtensions.op.isStreamCall}}
                 {{#returnType}}typeof({{{returnType}}}){{/returnType}}{{^returnType}}null{{/returnType}},
+{{/vendorExtensions.op.isStreamCall}}
 {{! Auth argument (F857). A secured operation uses the credential the client
     holds for the scheme its spec requires (ResolveSchemeAuth over the scheme
     names the operation lists); there is no per-call scheme override. When
@@ -616,7 +631,7 @@ public class {{classname}} : BaseApi, I{{classname}}
                 cancellationToken: cancellationToken,
                 operationName: "{{classname}}.{{operationId}}",
                 operationId: "{{#lambda.stringLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.stringLiteral}}",
-                urlTemplate: "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}"{{#vendorExtensions.op.hasMultiple2xx}},
+                urlTemplate: "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}"{{^vendorExtensions.op.isStreamCall}}{{#vendorExtensions.op.hasMultiple2xx}},
                 decodeByStatus: (status, body) =>
                 {
 {{#vendorExtensions.op.successResponses}}
@@ -646,7 +661,10 @@ public class {{classname}} : BaseApi, I{{classname}}
                     return lastVariant is null ? null : new {{{vendorExtensions.op.successUnionType}}}(lastVariant);
 {{/isLast}}
 {{/vendorExtensions.op.successResponses}}
-                }{{/vendorExtensions.op.hasMultiple2xx}},
+                }{{/vendorExtensions.op.hasMultiple2xx}}{{/vendorExtensions.op.isStreamCall}}{{#vendorExtensions.op.streamsSse}},
+                terminator: {{#hasSseTerminator}}"{{sseTerminator}}"{{/hasSseTerminator}}{{^hasSseTerminator}}null{{/hasSseTerminator}}{{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamTyped}},
+                text: true{{/vendorExtensions.op.streamTyped}},
+                streamOptions: streamOptions{{/vendorExtensions.op.streamOnly}},
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries{{#vendorExtensions.op.hasErrorSchemaResponses}},

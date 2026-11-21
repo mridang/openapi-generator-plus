@@ -8,6 +8,15 @@ use {{packageName}}::ApiResult;
 {{#hasBinaryStreamOperation}}
 use {{packageName}}::ByteStream;
 {{/hasBinaryStreamOperation}}
+{{#hasJsonLinesStreamOperation}}
+use {{packageName}}::JsonLinesStream;
+{{/hasJsonLinesStreamOperation}}
+{{#hasSseStreamOperation}}
+use {{packageName}}::SseStream;
+{{/hasSseStreamOperation}}
+{{#hasEventStreamOperation}}
+use {{packageName}}::StreamOptions;
+{{/hasEventStreamOperation}}
 use {{packageName}}::api::*;
 use {{packageName}}::api::options::*;
 use {{packageName}}::models::*;
@@ -446,8 +455,13 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     is_{{clientPropertyName}}_group(&client.{{clientPropertyName}});
     let ({{clientPropertyName}}_listed, _) = read_group("src/api/{{classFilename}}.rs", "{{classname}}Trait");
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+    assert!({{clientPropertyName}}_listed.contains(&"{{vendorExtensions.op.streamMethodName}}".to_string()));
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
     assert!({{clientPropertyName}}_listed.contains(&"{{operationId}}".to_string()));
     assert!({{clientPropertyName}}_listed.contains(&"{{operationId}}_with_http_info".to_string()));
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

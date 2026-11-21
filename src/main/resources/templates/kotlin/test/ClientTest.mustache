@@ -550,8 +550,13 @@ class ClientTest {
         assertTrue({{apiPackage}}.{{classname}}Interface::class.java.isAssignableFrom({{apiPackage}}.{{classname}}::class.java))
         val {{clientPropertyName}}Listed = {{apiPackage}}.{{classname}}Interface::class.java.methods.map { it.name }.toSet()
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        assertTrue("{{vendorExtensions.op.streamMethodName}}" in {{clientPropertyName}}Listed)
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
         assertTrue("{{operationId}}" in {{clientPropertyName}}Listed)
         assertTrue("{{operationId}}WithHttpInfo" in {{clientPropertyName}}Listed)
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

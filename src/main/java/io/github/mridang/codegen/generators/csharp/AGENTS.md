@@ -23,6 +23,8 @@ This generator (`csharp-plus`, class `BetterCSharpCodegen`) emits a NuGet packag
 | `models/model.mustache`, `integer_enum.mustache` | Models, enums, oneOf/anyOf unions | Models and unions |
 | `configuration.mustache`, `servers.mustache`, `server_configuration.mustache`, `client.mustache` | Builder, servers, facade | Public entry surface |
 | `csproj.mustache`, `editorconfig.mustache`, `illink_descriptors.mustache`, `dotnet_tools.mustache`, `makefile.mustache`, `docfx*.mustache` | Project file, analyzer policy, trimmer keep-list, tool manifest, make targets, docs | Dependencies, analyzer rules, build |
+| `byte_stream.mustache`, `api_stream_response.mustache`, `errors/StreamException.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), `StreamException` | Streaming types |
+| `event_stream.mustache`, `sse_stream.mustache`, `json_lines_stream.mustache`, `server_sent_event.mustache`, `stream_options.mustache`, `test/EventStreamTest.mustache` | the line splitter and SSE parser, `SseStream<T>`, `JsonLinesStream<T>`, `ServerSentEvent<T>`, `StreamOptions`, and the parser table | Event and JSON Lines streams |
 | `readme.mustache`, `skills.mustache` | README and SKILLS.md | Docs |
 | `test/*.mustache`, `test/Api/` | The generated xunit suite (extend these, never add a new file); `test/tests_csproj.mustache` is the test project | Tests |
 | `src/main/java/.../generators/csharp/BetterCSharpCodegen.java` | Type mapping, naming, enum and default literals, supporting files, formatter commands | Type mapping, escaping, file layout |
@@ -37,7 +39,7 @@ This generator (`csharp-plus`, class `BetterCSharpCodegen`) emits a NuGet packag
 | Names | PascalCase members, camelCase parameters, `[JsonPropertyName]` keeps the wire name, keywords are not escaped in PascalCase | `Class` is a legal identifier; `_Class` would trip CA1707 |
 | Exceptions | `(message, innerException)` constructor on every exception, `serializationerror.cause` is `InnerException` | CA1032 and the .NET base class carry the cause |
 | Union wrappers | No `ActualInstance`: the deserialized value is the variant (polymorphic base class) | Same as java |
-| Types | `decimal` for bare `number`, `DateOnly`, `DateTimeOffset`, `TimeOnly`, `TimeSpan`, `Guid`, `Uri`, `HashSet<T>` for `uniqueItems`, `byte[]` for `format: byte`, `System.IO.Stream` for `format: binary` | BCL has each type; `decimal` keeps full precision (D83) |
+| Types | `decimal` for bare `number`, `DateOnly`, `DateTimeOffset`, `TimeOnly`, `TimeSpan`, `Guid`, `Uri`, `HashSet<T>` for `uniqueItems`, `byte[]` for `format: byte`, `System.IO.Stream` for a `format: binary` request body and `ByteStream` (a `Stream`) for a binary response (D119) | BCL has each type; `decimal` keeps full precision (D83) |
 | `params` | Token manager arguments are named `parameters` | `params` is a C# keyword |
 | `ServerVariable` | Optional description and values come from overloaded constructors | Record parameter defaults must be compile-time constants |
 | Trace context | `System.Diagnostics.DistributedContextPropagator` (W3C), not OpenTelemetry | In the BCL; no-ops when `Activity.Current` is null |
@@ -292,7 +294,7 @@ Rule: every API group has an interface and the client has one where the language
 - A non-JSON success Content-Type on a model-returning operation (D32) and the Model prefix for colliding model names (D45) are open.
 - Object-valued query and header parameters (D47), `format: time` stringify (D81), a default on a `$ref` enum (D60), an absent required discriminator and integer-enum member casing, which come out as `NUMBER_1`, are parked.
 - Model `ToString` appends collections raw, so it prints the collection type name (parked); `uniqueItems` order is deliberately unspecified (S6).
-- `format: binary` responses are `System.IO.Stream` (a `MemoryStream`), where nine SDKs return bytes; changing it is a public API change and a cross-language decision (too big).
+- A `format: binary` response is a `ByteStream` (D119), not bytes; a request body stays `System.IO.Stream`.
 - Multipart and Stream request bodies are buffered whole in memory when redirects are followed (too big).
 - The docfx build is not run by any spec, and the Makefile target vocabulary is not yet agreed across the twelve.
 - A required-property check before dispatch for models missing required fields is deferred (D68).
@@ -425,3 +427,47 @@ Forced or recorded: F1087: the floor moved from `net8.0` to `net10.0` (owner dec
 - CA2007 (`ConfigureAwait`) fires on the quickstart's top-level `await`. `.editorconfig` scopes it to libraries for `examples/**.cs` with `dotnet_code_quality.CA2007.output_kind = DynamicallyLinkedLibrary`, the analyzer's own option, under `{{#generateExamples}}`; the SDK keeps the rule.
 - CSharpier formats the quickstart at generation and not the README, so `langcsharp077` compares the statements with whitespace removed. `make examples` is `dotnet build examples/Quickstart/Quickstart.csproj`; `make examples-run` maps `API_BASE_URL` to `{PREFIX}_HOST`, passes a placeholder `{PREFIX}_TOKEN` and runs `dotnet run --no-build`.
 - `CSharpExamplesSpec` writes every fence to `.out/fences/<file>_<nn>.cs` in one project `.out/fences/Fences.csproj` (nullable, implicit usings, warnings as errors, default analyzers) and builds it. Each fence gets `namespace Fences.<file>_<nn>;` after its hoisted `using` directives (a `using var` declaration is not hoisted); a `statements` fence goes in `internal static class Fence`, in `RunAsync()` when it awaits and `Run()` otherwise. Operation fences are static methods taking the client and the operation's `signatureArgsNoServer`; the models fence copies one property with `with` instead of building a model; the fake authenticator fence is one `file` fence. Behaviours `langcsharp075` to `langcsharp080` are in `test/MetadataTest.mustache`, under `{{#generateExamples}}`.
+
+## Streaming: binary responses (capability 1 of #114, D118 to D122)
+
+### The transport returns an unread body
+Rule: `IApiClient.SendStreamingAsync(method, url, headers, body, refreshHeaders, timeout, maxRetries, idleTimeout, cancellationToken)` returns an `ApiStreamResponse` (status, lower-cased headers, the open `Body`, `ReadBoundedAsync(maxBytes)`, `Dispose`, a `ToString()` of the status only). It is a default interface method that returns a faulted task with `NotSupportedException` whose message is `<transport type name> cannot stream: it does not implement SendStreamingAsync, ...`, so an injected transport keeps working for buffered calls and never falls back to buffering. A non-2xx response is returned like any other (open body); `BaseApi` reads up to 64 KiB of it, disposes it and raises the typed error of a buffered call, so a caller never receives a stream for a non-2xx status.
+Where: `api_client.mustache`, `api_stream_response.mustache`, `base_api.mustache` (`InvokeApiForStreamAsync` shares the one `InvokeCallAsync` with `InvokeApiForResultAsync`, so the hook, the headers, the authentication and the 401 replay are the buffered code), `default_api_client.mustache`.
+Test: `DefaultApiClientUnitTest` (`BhvStreaming001` and the rest), `BaseApiTest` (008, 017, 018, 030), `ClientTest` (021), golden `PetApiTest` (009).
+
+### One header phase for both paths
+Rule: `DefaultApiClient.SendWithRetriesAsync<T>` is the one retry loop (the attempts, the backoff and the single timeout budget); the buffered call and the stream call differ only in what one attempt returns. `OpenResponseAsync` sends the request and follows the redirects with a `HttpCompletionOption`: `ResponseContentRead` for the buffered attempt, `ResponseHeadersRead` for the stream. A retryable stream response is disposed before the wait. The call `timeout` token is disposed when the headers are accepted, so it never reaches the body.
+Where: `default_api_client.mustache`.
+Test: every existing `DefaultApiClientUnitTest` row, `BhvStreaming010`, `014`, `016`.
+
+### The body: idle timeout, truncation, decoding, cancellation
+Rule: the body is a private `HttpBodyStream`. A read links the call and client tokens with a per-read idle timer (`IdleTimeout`, default 60 s, `0` or `null` disables it); expiry aborts the connection and raises `NetworkTimeoutException`; a cancelled call token raises `OperationCanceledException` and is never a timeout. A reset, an I/O failure or a body that ends before its declared `Content-Length` is a `StreamException` (a `NetworkException`, status 0, request method and path recorded); a decoder failure is an `ApiException` with the real status and the cause. A compressed body is decoded as it arrives (`GZipStream`, `ZLibStream`, `BrotliStream`, `leaveOpen`), and `content-encoding` and `content-length` are dropped from the stream's headers (D92). Disposing the stream drops the connection instead of draining it: `HttpResponseMessage.Dispose` drains up to 1 MiB for two seconds first, so `DropConnection` starts a one-byte read and cancels it, which closes the socket at once. A body that was read to its end is released to the pool as usual.
+Where: `default_api_client.mustache`, `transport_options.mustache` (`IdleTimeout`), `errors/StreamException.mustache`, `byte_stream.mustache`.
+Test: `DefaultApiClientUnitTest` (`BhvStreaming011`, `012`, `013`, `015`, `019`, `020`, `031`, `032`, `033`), `TransportOptionsTest` (constructor row).
+
+### Closing the client cancels open streams
+Rule: `DefaultApiClient` counts an open stream as a call in flight until the stream ends, and tracks it. `Dispose()` marks the client closed, cancels every open stream (each counts itself out, and the last one releases the transport) and returns; requests in flight that are not streams finish as before. The next read of a cancelled stream raises `InvalidOperationException("ApiClient has been closed and can no longer send requests")`.
+Where: `default_api_client.mustache`.
+Test: `ClientTest` (`BhvStreaming021`).
+
+### Binary operations return `ByteStream`
+Rule: `BetterCSharpCodegen.markBinaryStream` sets `streamsBinary` on `vendorExtensions.op` and rewrites `returnType` to `ByteStream` for an operation whose `streamKind` is `binary`, so every template (operation, interface, docs, `WithHttpInfoAsync`) says `ByteStream` and `api.mustache` calls `InvokeApiForStreamAsync` with no return type and no status decoder, and skips the empty-body check. `ByteStream` is a `sealed` class extending `Stream` (`StatusCode`, `Headers`, `ReadAllAsync()` that reads everything and disposes, an idempotent `Dispose`, a `ToString()` of status and bytes delivered); `ApiResult<ByteStream>` has an empty `RawBody`. `postProcessSupportingFileData` hands the README and SKILLS the first such operation (`binaryStreamOperation`, `binaryStreamGroup`, `hasBinaryStreamOperation`) for the Streaming example, which is rendered only when the spec has one.
+Where: `BetterCSharpCodegen`, `api/api.mustache`, `byte_stream.mustache`, `readme.mustache`, `skills.mustache`.
+Test: golden `PetApiTest` (`BhvStreaming009`, the existing avatar, document and photo rows now dispose their stream), `DefaultApiClientUnitTest` (`BhvStreaming029`).
+
+## Streaming: JSON Lines and server-sent events (capability 2 of #114)
+
+### Stream-only operations
+Rule: an operation whose `streamOnly` decorator is set (a JSON Lines or SSE success response) has no buffered method, no `WithHttpInfoAsync` variant and no entry for them in `I<Group>Api`. It has `<Operation>StreamAsync(args, options, StreamOptions? streamOptions = null, cancellationToken)` returning `Task<JsonLinesStream<T>>` or `Task<SseStream<T>>`; `T` is the `streamItemType` schema, or `string` when the event data is text. `BetterCSharpCodegen.markBinaryStream` sets `streamsSse`, `streamsJsonLines`, `isStreamCall`, `streamTyped` and `streamItemCs` and rewrites `returnType`; the one `WithHttpInfoAsync` body of `api.mustache` is the stream method for these operations, so the parameter, query, header and auth prelude is shared. The `sseTerminator` generator option reaches the template as `sseTerminator`. The README and SKILLS fences use the first operation of each kind (`jsonLinesStreamOperation`, `sseStreamOperation`).
+Where: `BetterCSharpCodegen`, `api/api.mustache`, `api/api_interface.mustache`, `base_api.mustache` (`InvokeApiForJsonLinesAsync`, `InvokeApiForSseAsync`), `readme.mustache`, `skills.mustache`.
+Test: `BaseApiTest` (`BhvStreaming028`, `BhvSse006`, `012`, `013`, `020`), `ClientTest` (`BhvMocking001`).
+
+### One parser, two streams
+Rule: `EventStream.LineReader` splits UTF-8 bytes on CRLF, LF and a lone CR (a skip-LF flag, so a CR at a buffer edge is handled) and drops a leading BOM; `EventStream.SseParser` is the WHATWG grammar (blank line dispatches, empty data is not dispatched but its id is kept, comments skipped, one space after the colon removed, unknown fields ignored, data lines joined by LF, an `id` with NUL ignored, `retry` only digits, a cut-off last line dropped). `JsonLinesStream<T>` reads the same lines, skips blank ones, decodes a cut-off last line, and raises `SerializationException` naming the 1-based line for one that does not decode or is too long. Both end on the first failure. They are `IAsyncEnumerable` and dispose the connection when the loop ends early.
+Where: `event_stream.mustache`, `json_lines_stream.mustache`, `sse_stream.mustache`.
+Test: `EventStreamTest` (the shared parser table, `BhvStreaming002` to `005`, `BhvSse001` to `023` as in the catalogue), `DefaultApiClientUnitTest` (`BhvStreaming006`, `007`, `BhvSse007`, `015`, `018`).
+
+### Reconnect
+Rule: the first request is opened by the operation call. A clean end counts as a failure against `MaxReconnects` (a `StreamException` once exhausted; `0` ends quietly). Every reconnect runs the whole call pipeline again through `InvokeCallAsync` (call hook, headers, authentication) with `Last-Event-ID` only when it is not empty. The wait is the last `retry` value, else `Retry-After` (429, 502, 503, 504), else `ReconnectDelay` doubling to 30 s with up to 25% jitter (`ReconnectWaitMilliseconds`, a pure function tested without sleeping). A 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation and the disposal of the client end the stream without a reconnect; an event named `error` raises `ApiException` with the response status and the data as body.
+Where: `sse_stream.mustache`, `default_api_client.mustache` (`ParseRetryAfter`, shared with the retry loop).
+Test: `EventStreamTest` (`BhvSse008` to `011`, `016`, `017`, `021`, `022`), `DefaultApiClientUnitTest` (`BhvSse007`, `015`).
