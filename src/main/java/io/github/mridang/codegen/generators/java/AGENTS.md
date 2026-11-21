@@ -571,6 +571,23 @@ Rule: `SseStream.open` has an overload with `singleUseBody`; when it is true `ma
 Where: `sse_stream.mustache`, `base_api.mustache`.
 Test: `EventStreamTest` (`bhvSse016`).
 
+## Pagination (#163, D123, D124)
+
+### The detector is shared, the Java templates only render it
+Rule: `AbstractBetterCodegen.populatePaginationDecorators` computes `vendorExtensions.op.pagination` (`style`, `isToken`, `isLink`, `source`, `requestParam`, `requestParamName`, `cursorType`, `responseProperty`, `responsePropertyName`, `itemsProperty`, `itemsPropertyName`, `itemsFromBody`, `itemType`, `itemModel`) and `hasPagesMethod`/`pagesMethodName`; Java adds `javaPaginatorType` (`Paginator<Item, Cursor>`, `Void` for a `Link` list). Model properties are public fields in Java, so the templates read `page.<propertyName>`, never a getter. It runs twice, once before the Options file is written (so a paged operation's Options object gets `copy()`) and once in the decorator pass; both agree because it is a pure function of the operation.
+Where: `AbstractBetterCodegen`, `BetterJavaCodegen.populateOperationDecorators` and `generateOptionsFileContent`.
+Test: `OperationDecoratorTest`.
+
+### `Paginator<T, C>`, `Page<T, C>`, `PaginationException`
+Rule: `Paginator` (`paginator.mustache`) is a `final` class implementing `Iterable<T>` with `stream()` and `pages()`; `ofCursor(start, fetch, items, next, path)` and `ofLink(baseUrl, fetch, items, path)` are the two factories the generated `...Pages` methods call. Each iteration gets a new page iterator, so nothing is read before the first `hasNext`/`next`, one request is made per page and there is no read-ahead. An end is an absent, `null` or empty cursor, or no `rel="next"`. A cursor equal to the one just sent (or a `Link` to the page just read, or a foreign origin) is held back: the page it arrived with is delivered and the next read raises `PaginationException`. Any failure of a fetch ends the iteration. `Page` is a record (`items` copied unmodifiable, `nextCursor`, `result`). `PaginationException` (`errors/PaginationException.mustache`) extends the root exception directly and carries the path without the query.
+Where: `paginator.mustache`, `page.mustache`, `errors/PaginationException.mustache`, `api/operation_pages.mustache`, `api/operation_pages_interface.mustache`.
+Test: `BaseApiTest$PagedLists` (`bhvPagination001` to `032`).
+
+### Each page is an ordinary call; a `Link` page replaces the path
+Rule: a token page calls `<op>WithHttpInfo` with `pageOptions.copy().<cursor>(token)`, so retries, timeouts, redirects, authentication, redaction and per-call options apply to every page. A `Link` operation's `WithHttpInfo` delegates to a private `<op>Page(...args, @Nullable String pageUrl)` whose body is the buffered call; when `pageUrl` is set it replaces `path` and clears the query, and `invokeCall` joins an authentication query to a URL that already has one with `&`. The origin of a next URL is checked against `config.getBaseUrl()`; an operation with a server of its own is not paged.
+Where: `api/api.mustache`, `base_api.mustache`, `paginator.mustache`, `link_header.mustache`.
+Test: `BaseApiTest$PagedLists` (`bhvPagination007`, `008`, `023`, `027`).
+
 ### Build lesson: the JDK 25 Unsafe notice
 Rule: NullAway runs data-flow analysis for some constructs (a local assigned `null`, a nullable field read after a check), which loads Guava's cache and makes the forked javac print a `sun.misc.Unsafe` notice that `failOnWarning` counts. The generated pom passes `-J--sun-misc-unsafe-memory-access=allow` to the forked compiler, so such code no longer fails the build; a real warning hidden behind that notice (an unused field, for example) shows once the flag is set.
 Where: `pom.mustache`.

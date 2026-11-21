@@ -800,7 +800,7 @@ public abstract class BaseApi {
     final String urlWithoutQuery = url;
     String query = buildQueryString(queryParams);
     if (!query.isEmpty()) {
-      url += "?" + query;
+      url += (url.contains("?") ? "&" : "?") + query;
     }
 
     boolean isMultipart = "multipart/form-data".equals(contentType);

@@ -3301,7 +3301,7 @@ pagination017 | The per-call timeout, headers and retry count apply to each page
 pagination018 | Stopping early sends no further request and leaves nothing to close
 pagination019 | Cancelling mid-iteration aborts the in-flight page request and is not reported as a timeout
 pagination020 | Iterating a second time starts again from the starting position
-pagination021 | An unknown enum value on a later page fails with the serialization error
+pagination021 | A page that does not decode on a later page fails with the serialization error after the earlier items were delivered
 pagination022 | A refreshed credential is used for the next page
 pagination023 | An error from a Link-driven page request carries the path without the query
 pagination024 | An operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method

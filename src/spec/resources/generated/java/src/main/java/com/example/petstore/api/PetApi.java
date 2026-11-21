@@ -13,6 +13,7 @@ import com.example.petstore.ApiResult;
 import com.example.petstore.BodySource;
 import com.example.petstore.ByteStream;
 import com.example.petstore.Configuration;
+import com.example.petstore.Paginator;
 import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.AddPetTreatmentOptions;
@@ -33,6 +34,12 @@ import com.example.petstore.api.options.GetPetPhotoOptions;
 import com.example.petstore.api.options.GetPetSummaryOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.api.options.GetStagingPetInfoOptions;
+import com.example.petstore.api.options.ListPetArchiveOptions;
+import com.example.petstore.api.options.ListPetCatalogOptions;
+import com.example.petstore.api.options.ListPetEventsOptions;
+import com.example.petstore.api.options.ListPetFeedOptions;
+import com.example.petstore.api.options.ListPetMatchesOptions;
+import com.example.petstore.api.options.ListPetNotesOptions;
 import com.example.petstore.api.options.SetPetAvatarOptions;
 import com.example.petstore.api.options.SetPetAvatarThumbnailOptions;
 import com.example.petstore.api.options.SetPetPreferencesOptions;
@@ -43,6 +50,11 @@ import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Pet;
+import com.example.petstore.models.PetArchivePage;
+import com.example.petstore.models.PetCatalogPage;
+import com.example.petstore.models.PetEventPage;
+import com.example.petstore.models.PetMatchPage;
+import com.example.petstore.models.PetNotePage;
 import com.example.petstore.models.PetPassport;
 import com.example.petstore.models.PetTreatment;
 import com.example.petstore.models.Photo;
@@ -110,6 +122,24 @@ public class PetApi extends BaseApi implements PetApiInterface {
 
   private static final java.lang.reflect.Type getStagingPetInfoTypeRef =
       new TypeReference<Pet>() {}.getType();
+
+  private static final java.lang.reflect.Type listPetArchiveTypeRef =
+      new TypeReference<PetArchivePage>() {}.getType();
+
+  private static final java.lang.reflect.Type listPetCatalogTypeRef =
+      new TypeReference<PetCatalogPage>() {}.getType();
+
+  private static final java.lang.reflect.Type listPetEventsTypeRef =
+      new TypeReference<PetEventPage>() {}.getType();
+
+  private static final java.lang.reflect.Type listPetFeedTypeRef =
+      new TypeReference<List<Pet>>() {}.getType();
+
+  private static final java.lang.reflect.Type listPetMatchesTypeRef =
+      new TypeReference<PetMatchPage>() {}.getType();
+
+  private static final java.lang.reflect.Type listPetNotesTypeRef =
+      new TypeReference<PetNotePage>() {}.getType();
 
   private static final java.lang.reflect.Type setPetPreferencesTypeRef =
       new TypeReference<ApiResponse>() {}.getType();
@@ -2660,6 +2690,692 @@ public class PetApi extends BaseApi implements PetApiInterface {
         null,
         "getStagingPetInfo",
         "/pet/{petId}/staging");
+  }
+
+  /**
+   * Lists archived pets; it looks paged, and the generator option says it is not
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetArchivePage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetArchivePage listPetArchive() {
+    return listPetArchive(null);
+  }
+
+  /**
+   * Lists archived pets; it looks paged, and the generator option says it is not
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetArchivePage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetArchivePage> listPetArchiveWithHttpInfo() {
+    return listPetArchiveWithHttpInfo(null);
+  }
+
+  /**
+   * Lists archived pets; it looks paged, and the generator option says it is not
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetArchivePage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetArchivePage listPetArchive(@Nullable ListPetArchiveOptions options) {
+    return requireBody(listPetArchiveWithHttpInfo(options), "listPetArchive");
+  }
+
+  /**
+   * Lists archived pets; it looks paged, and the generator option says it is not
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetArchivePage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetArchivePage> listPetArchiveWithHttpInfo(
+      @Nullable ListPetArchiveOptions options) {
+    String path = "/pet/archive";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.cursor() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "cursor",
+          ValueSerializer.serializeStyled(
+              "cursor", options.cursor(), "query", "String", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "listPetArchive",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetArchiveTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetArchive",
+        "/pet/archive");
+  }
+
+  /**
+   * Lists the pet catalog one page at a time with a next-cursor token
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetCatalogPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetCatalogPage listPetCatalog() {
+    return listPetCatalog(null);
+  }
+
+  /**
+   * Lists the pet catalog one page at a time with a next-cursor token
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetCatalogPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetCatalogPage> listPetCatalogWithHttpInfo() {
+    return listPetCatalogWithHttpInfo(null);
+  }
+
+  /**
+   * Lists the pet catalog one page at a time with a next-cursor token
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetCatalogPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetCatalogPage listPetCatalog(@Nullable ListPetCatalogOptions options) {
+    return requireBody(listPetCatalogWithHttpInfo(options), "listPetCatalog");
+  }
+
+  /**
+   * Lists the pet catalog one page at a time with a next-cursor token
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetCatalogPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetCatalogPage> listPetCatalogWithHttpInfo(
+      @Nullable ListPetCatalogOptions options) {
+    String path = "/pet/catalog";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.limit() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "limit",
+          ValueSerializer.serializeStyled(
+              "limit", options.limit(), "query", "Integer", null, "form", true),
+          false);
+    }
+    if (options != null && options.cursor() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "cursor",
+          ValueSerializer.serializeStyled(
+              "cursor", options.cursor(), "query", "String", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "listPetCatalog",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetCatalogTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetCatalog",
+        "/pet/catalog");
+  }
+
+  /**
+   * Lists the pet catalog one page at a time with a next-cursor token
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetCatalogWithHttpInfo}, with the same options on each page. The
+   * value of the {@code cursor} option is where the list starts, and the page after each one is
+   * requested with the {@code next_cursor} it returned.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, String> listPetCatalogPages(@Nullable ListPetCatalogOptions options) {
+    final ListPetCatalogOptions pageOptions =
+        options == null ? new ListPetCatalogOptions() : options.copy();
+    return Paginator.<Pet, String, PetCatalogPage>ofCursor(
+        pageOptions.cursor(),
+        pageCursor -> listPetCatalogWithHttpInfo(pageOptions.copy().cursor(pageCursor)),
+        page -> page.items,
+        page -> page.nextCursor,
+        "/pet/catalog");
+  }
+
+  /**
+   * Lists the pet catalog one page at a time with a next-cursor token
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, String> listPetCatalogPages() {
+    return listPetCatalogPages(null);
+  }
+
+  /**
+   * Lists pet events; only the generator option says it is paged
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetEventPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetEventPage listPetEvents() {
+    return listPetEvents(null);
+  }
+
+  /**
+   * Lists pet events; only the generator option says it is paged
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetEventPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetEventPage> listPetEventsWithHttpInfo() {
+    return listPetEventsWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pet events; only the generator option says it is paged
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetEventPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetEventPage listPetEvents(@Nullable ListPetEventsOptions options) {
+    return requireBody(listPetEventsWithHttpInfo(options), "listPetEvents");
+  }
+
+  /**
+   * Lists pet events; only the generator option says it is paged
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetEventPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetEventPage> listPetEventsWithHttpInfo(@Nullable ListPetEventsOptions options) {
+    String path = "/pet/events";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.since() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "since",
+          ValueSerializer.serializeStyled(
+              "since", options.since(), "query", "String", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "listPetEvents",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetEventsTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetEvents",
+        "/pet/events");
+  }
+
+  /**
+   * Lists pet events; only the generator option says it is paged
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetEventsWithHttpInfo}, with the same options on each page. The
+   * value of the {@code since} option is where the list starts, and the page after each one is
+   * requested with the {@code upto} it returned.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<String, String> listPetEventsPages(@Nullable ListPetEventsOptions options) {
+    final ListPetEventsOptions pageOptions =
+        options == null ? new ListPetEventsOptions() : options.copy();
+    return Paginator.<String, String, PetEventPage>ofCursor(
+        pageOptions.since(),
+        pageCursor -> listPetEventsWithHttpInfo(pageOptions.copy().since(pageCursor)),
+        page -> page.events,
+        page -> page.upto,
+        "/pet/events");
+  }
+
+  /**
+   * Lists pet events; only the generator option says it is paged
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<String, String> listPetEventsPages() {
+    return listPetEventsPages(null);
+  }
+
+  /**
+   * Lists the pet feed one page at a time with a Link header
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public List<Pet> listPetFeed() {
+    return listPetFeed(null);
+  }
+
+  /**
+   * Lists the pet feed one page at a time with a Link header
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<List<Pet>> listPetFeedWithHttpInfo() {
+    return listPetFeedWithHttpInfo(null);
+  }
+
+  /**
+   * Lists the pet feed one page at a time with a Link header
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public List<Pet> listPetFeed(@Nullable ListPetFeedOptions options) {
+    return requireBody(listPetFeedWithHttpInfo(options), "listPetFeed");
+  }
+
+  /**
+   * Lists the pet feed one page at a time with a Link header
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<List<Pet>> listPetFeedWithHttpInfo(@Nullable ListPetFeedOptions options) {
+    return listPetFeedPage(options, null);
+  }
+
+  /* One page of the list: the first when pageUrl is null, else the URL the Link header named. */
+  private ApiResult<List<Pet>> listPetFeedPage(
+      @Nullable ListPetFeedOptions options, @Nullable String pageUrl) {
+    String path = "/pet/feed";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.limit() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "limit",
+          ValueSerializer.serializeStyled(
+              "limit", options.limit(), "query", "Integer", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    if (pageUrl != null) {
+      path = pageUrl;
+      queryParams.clear();
+    }
+    return invokeApiForResult(
+        "listPetFeed",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetFeedTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetFeed",
+        "/pet/feed");
+  }
+
+  /**
+   * Lists the pet feed one page at a time with a Link header
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetFeedWithHttpInfo}, with the same options on each page. The page
+   * after each one is the {@code rel="next"} link of its {@code Link} header, followed only within
+   * the origin of the client.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, Void> listPetFeedPages(@Nullable ListPetFeedOptions options) {
+    final ListPetFeedOptions pageOptions =
+        options == null ? new ListPetFeedOptions() : options.copy();
+    return Paginator.<Pet, List<Pet>>ofLink(
+        config.getBaseUrl(),
+        pageUrl -> listPetFeedPage(pageOptions, pageUrl),
+        page -> page,
+        "/pet/feed");
+  }
+
+  /**
+   * Lists the pet feed one page at a time with a Link header
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, Void> listPetFeedPages() {
+    return listPetFeedPages(null);
+  }
+
+  /**
+   * Finds pets and their owners; two lists make it ambiguous, so it is not paged
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetMatchPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetMatchPage listPetMatches() {
+    return listPetMatches(null);
+  }
+
+  /**
+   * Finds pets and their owners; two lists make it ambiguous, so it is not paged
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetMatchPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetMatchPage> listPetMatchesWithHttpInfo() {
+    return listPetMatchesWithHttpInfo(null);
+  }
+
+  /**
+   * Finds pets and their owners; two lists make it ambiguous, so it is not paged
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetMatchPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetMatchPage listPetMatches(@Nullable ListPetMatchesOptions options) {
+    return requireBody(listPetMatchesWithHttpInfo(options), "listPetMatches");
+  }
+
+  /**
+   * Finds pets and their owners; two lists make it ambiguous, so it is not paged
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetMatchPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetMatchPage> listPetMatchesWithHttpInfo(
+      @Nullable ListPetMatchesOptions options) {
+    String path = "/pet/matches";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.cursor() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "cursor",
+          ValueSerializer.serializeStyled(
+              "cursor", options.cursor(), "query", "String", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "listPetMatches",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetMatchesTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetMatches",
+        "/pet/matches");
+  }
+
+  /**
+   * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetNotePage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetNotePage listPetNotes() {
+    return listPetNotes(null);
+  }
+
+  /**
+   * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetNotePage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetNotePage> listPetNotesWithHttpInfo() {
+    return listPetNotesWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetNotePage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetNotePage listPetNotes(@Nullable ListPetNotesOptions options) {
+    return requireBody(listPetNotesWithHttpInfo(options), "listPetNotes");
+  }
+
+  /**
+   * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetNotePage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetNotePage> listPetNotesWithHttpInfo(@Nullable ListPetNotesOptions options) {
+    String path = "/pet/notes";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.pos() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "pos",
+          ValueSerializer.serializeStyled(
+              "pos", options.pos(), "query", "String", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "listPetNotes",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetNotesTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetNotes",
+        "/pet/notes");
+  }
+
+  /**
+   * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetNotesWithHttpInfo}, with the same options on each page. The
+   * value of the {@code pos} option is where the list starts, and the page after each one is
+   * requested with the {@code following} it returned.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<String, String> listPetNotesPages(@Nullable ListPetNotesOptions options) {
+    final ListPetNotesOptions pageOptions =
+        options == null ? new ListPetNotesOptions() : options.copy();
+    return Paginator.<String, String, PetNotePage>ofCursor(
+        pageOptions.pos(),
+        pageCursor -> listPetNotesWithHttpInfo(pageOptions.copy().pos(pageCursor)),
+        page -> page.rows,
+        page -> page.following,
+        "/pet/notes");
+  }
+
+  /**
+   * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<String, String> listPetNotesPages() {
+    return listPetNotesPages(null);
   }
 
   /**

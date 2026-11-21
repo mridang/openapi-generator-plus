@@ -258,13 +258,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
      * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
      * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
      * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
-     * spec under generation. Nothing is rendered when the spec has none.
+     * spec under generation. The first paged operation is handed over the same way, as
+     * {@code pagedOperation}. Nothing is rendered when the spec has none.
      */
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
-        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
         for (int kind = 0; kind < flags.length; kind++) {
             CodegenOperation found = null;
             Object group = null;
@@ -393,6 +394,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             return;
         }
         final Map<String, Object> d = (Map<String, Object>) decorators;
+        final Object pagination = d.get("pagination");
+        if (pagination instanceof Map) {
+            final Map<String, Object> p = (Map<String, Object>) pagination;
+            p.put(
+                    "javaPaginatorType",
+                    "Paginator<" + p.get("itemType") + ", "
+                            + (Boolean.TRUE.equals(p.get("isLink")) ? "Void" : p.get("cursorType")) + ">");
+        }
         for (final String key : new String[] {"signatureArgs", "signatureArgsNoOptions"}) {
             final Object list = d.get(key);
             if (list instanceof List) {
@@ -656,6 +665,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.java"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.java"),
             new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.java"),
+            new SupportingFileSpec("errors/PaginationException.mustache", errorsFolder, "PaginationException.java"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.java"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.java"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.java"),
@@ -671,6 +681,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec(
                 "json_lines_stream.mustache", invokerFolder, "JsonLinesStream.java"),
             new SupportingFileSpec("sse_stream.mustache", invokerFolder, "SseStream.java"),
+            new SupportingFileSpec("paginator.mustache", invokerFolder, "Paginator.java"),
+            new SupportingFileSpec("page.mustache", invokerFolder, "Page.java"),
+            new SupportingFileSpec("link_header.mustache", invokerFolder, "LinkHeader.java"),
             new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.java"),
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.java"),
             new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.java"),
@@ -1787,6 +1800,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         context.put("modelPackage", modelPackage());
         context.put("className", className);
         context.put("operationId", op.operationId);
+        // A paged operation's Options object can copy itself, so every page is sent with its own cursor.
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        context.put(
+                "hasCopy",
+                opDecorators instanceof Map
+                        && Boolean.TRUE.equals(((Map<?, ?>) opDecorators).get("hasPagesMethod")));
         context.put("params", params);
         context.put("requiredParams", requiredParams);
         context.put("modelImports", new ArrayList<>(modelTypes));
