@@ -1,0 +1,164 @@
+{{>api_info}}
+
+using {{packageName}}.Errors;
+
+namespace {{packageName}};
+
+/// <summary>
+/// The items of a JSON Lines response, decoded one per line as they arrive. Iterate it
+/// with <c>await foreach</c>; leaving the loop early disposes the stream, which aborts
+/// the connection instead of draining it, and so does <see cref="Dispose"/>.
+///
+/// A blank line is skipped, a line may end in CRLF, and a last line without a newline
+/// is decoded. A line that does not decode raises <see cref="SerializationException"/>
+/// naming its 1-based line number and ends the stream; so does a line longer than the
+/// limit. A failure after the headers is a <see cref="StreamException"/> and a stall
+/// longer than the idle timeout a <see cref="NetworkTimeoutException"/>.
+///
+/// <see cref="ToString"/> shows the status code and the lines read, never the data.
+/// </summary>
+/// <typeparam name="T">The type each line is decoded into, or a string.</typeparam>
+public sealed class JsonLinesStream<T> : IAsyncEnumerable<T>, IAsyncDisposable, IDisposable
+{
+    private readonly ByteStream _source;
+    private readonly EventStream.LineReader _lines;
+    private readonly Func<string, T?> _decoder;
+    private readonly string _method;
+    private readonly string _path;
+    private long _lineNumber;
+    private int _done;
+    private T? _current;
+
+    /// <summary>The item the last successful <c>MoveNextAsync</c> read.</summary>
+    internal T? Current => _current;
+
+    internal JsonLinesStream(
+        ByteStream source,
+        Func<string, T?> decoder,
+        int maxLineBytes,
+        string method,
+        string path
+    )
+    {
+        _source = source;
+        _lines = new EventStream.LineReader(source, maxLineBytes);
+        _decoder = decoder;
+        _method = method;
+        _path = path;
+    }
+
+    /// <summary>The HTTP status code of the response.</summary>
+    public int StatusCode => _source.StatusCode;
+
+    /// <summary>The response headers, with lower-cased names.</summary>
+    public IReadOnlyDictionary<string, string> Headers => _source.Headers;
+
+    /// <summary>Iterates the items; the stream ends when the response does.</summary>
+    /// <param name="cancellationToken">Token that cancels the read.</param>
+    /// <returns>The enumerator.</returns>
+    public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            while (true)
+            {
+                if (!await MoveNextAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    yield break;
+                }
+                yield return _current!;
+            }
+        }
+        finally
+        {
+            await DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Reads the next item into <c>_current</c>; false at the end of the stream.</summary>
+    internal async ValueTask<bool> MoveNextAsync(CancellationToken cancellationToken)
+    {
+        if (Volatile.Read(ref _done) != 0)
+        {
+            return false;
+        }
+        try
+        {
+            while (true)
+            {
+                string? line = await _lines.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                if (line is null)
+                {
+                    await DisposeAsync().ConfigureAwait(false);
+                    return false;
+                }
+                _lineNumber++;
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+                _current = Decode(line);
+                return true;
+            }
+        }
+        catch (EventStream.TooLongException tooLong)
+        {
+            await DisposeAsync().ConfigureAwait(false);
+            throw Attach(new SerializationException(
+                $"Line {_lineNumber + 1} of the JSON Lines response is too long: {tooLong.Message}", tooLong));
+        }
+        catch (ObjectDisposedException) when (Volatile.Read(ref _done) != 0)
+        {
+            return false;
+        }
+        catch (Exception)
+        {
+            await DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private T Decode(string line)
+    {
+        try
+        {
+            return _decoder(line)
+                ?? throw new SerializationException($"Line {_lineNumber} of the JSON Lines response is null");
+        }
+        catch (SerializationException failure)
+        {
+            throw Attach(new SerializationException(
+                $"Line {_lineNumber} of the JSON Lines response does not decode: {failure.Message}", failure));
+        }
+    }
+
+    private SerializationException Attach(SerializationException failure)
+    {
+        failure.AttachResponse(_source.StatusCode, _source.Headers, null, _method, _path);
+        return failure;
+    }
+
+    /// <summary>Disposes the stream and aborts the connection; later calls do nothing.</summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _done, 1) == 0)
+        {
+            _source.Dispose();
+        }
+    }
+
+    /// <summary>Disposes the stream and aborts the connection; later calls do nothing.</summary>
+    /// <returns>A task that completes when the stream is disposed.</returns>
+    public ValueTask DisposeAsync()
+    {
+        Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>Describes the stream by its status code and the lines read; the data is never shown.</summary>
+    /// <returns>The redacted description.</returns>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(StatusCode={StatusCode}, LinesRead={Interlocked.Read(ref _lineNumber)})";
+    }
+}
