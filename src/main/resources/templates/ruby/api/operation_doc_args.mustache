@@ -1,0 +1,20 @@
+{{#pathParams}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+{{/vendorExtensions.pluralExamples}}
+{{/pathParams}}
+{{#bodyParam}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#vendorExtensions.pluralExamples}}
+      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
+{{/vendorExtensions.pluralExamples}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+      # @param options [{{{dataType}}}] per-call options: the optional timeout, headers and max_retries{{#vendorExtensions.op.hasOptionsParam}}, plus the query, header, form and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.hasMultipleConsumes}}
+      # @param request_content_type [String, nil] selects the request Content-Type among the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to '{{vendorExtensions.op.effectiveConsumes}}' when nil
+{{/vendorExtensions.hasMultipleConsumes}}

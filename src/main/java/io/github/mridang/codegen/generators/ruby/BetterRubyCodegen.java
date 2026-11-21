@@ -360,6 +360,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("api_stream_response.mustache", libPath, "api_stream_response.rb"),
             new SupportingFileSpec("byte_stream.mustache", libPath, "byte_stream.rb"),
             new SupportingFileSpec("stream_body.mustache", libPath, "stream_body.rb"),
+            new SupportingFileSpec("event_stream.mustache", libPath, "event_stream.rb"),
+            new SupportingFileSpec("server_sent_event.mustache", libPath, "server_sent_event.rb"),
+            new SupportingFileSpec("stream_options.mustache", libPath, "stream_options.rb"),
+            new SupportingFileSpec("json_lines_stream.mustache", libPath, "json_lines_stream.rb"),
+            new SupportingFileSpec("sse_stream.mustache", libPath, "sse_stream.rb"),
             new SupportingFileSpec("api_client.mustache", libPath, "api_client.rb"),
             new SupportingFileSpec("default_api_client.mustache", libPath, "default_api_client.rb"),
             new SupportingFileSpec("base_api.mustache", Path.of(libPath, "api").toString(), "base_api.rb"),
@@ -712,6 +717,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "api_error_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/event_stream_test.mustache",
+                            "test",
+                            "event_stream_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/api_result_test.mustache",
                             "test",
                             "api_result_test.rb"));
@@ -844,6 +854,25 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             op.returnBaseType = "ByteStream";
             op.isResponseFile = false;
         }
+        final boolean sse = "sse".equals(kindOf(d)) && Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean jsonLines = "jsonlines".equals(kindOf(d)) && Boolean.TRUE.equals(d.get("streamOnly"));
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            d.put("streamTyped", !"String".equals(item));
+            d.put("streamItemRuby", item);
+            op.returnType = sse ? "SseStream" : "JsonLinesStream";
+            op.returnBaseType = op.returnType;
+            op.isResponseFile = false;
+        }
+    }
+
+    @Nullable
+    private static Object kindOf(final Map<String, Object> decorators) {
+        return decorators.get("streamKind");
     }
 
     /**
@@ -855,39 +884,44 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(final Map<String, Object> objs) {
-        CodegenOperation found = null;
-        Object group = null;
-        final Object apiInfo = objs.get("apiInfo");
-        if (apiInfo instanceof Map) {
-            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
-            if (apis instanceof List) {
-                for (final Object api : (List<Object>) apis) {
-                    final Object operations = ((Map<String, Object>) api).get("operations");
-                    if (!(operations instanceof Map)) {
-                        continue;
-                    }
-                    final Object list = ((Map<String, Object>) operations).get("operation");
-                    if (!(list instanceof List)) {
-                        continue;
-                    }
-                    for (final Object candidate : (List<Object>) list) {
-                        final CodegenOperation op = (CodegenOperation) candidate;
-                        final Object decorators =
-                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-                        if (found == null
-                                && decorators instanceof Map
-                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
-                            found = op;
-                            group = operations;
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
                         }
                     }
                 }
             }
-        }
-        objs.put("hasBinaryStreamOperation", found != null);
-        if (found != null) {
-            objs.put("binaryStreamOperation", found);
-            objs.put("binaryStreamGroup", group);
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
         }
         return super.postProcessSupportingFileData(objs);
     }

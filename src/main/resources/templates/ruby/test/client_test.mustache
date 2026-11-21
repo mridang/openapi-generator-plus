@@ -481,10 +481,16 @@ describe 'Client' do
     listed = interface_methods(source, '_{{classname}}Interface')
     group = {{moduleName}}::Api::{{classname}}.new(nil, TEST_CONFIGURATION)
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+    _(listed).must_include '{{vendorExtensions.op.streamMethodName}}'
+    _(group).must_respond_to :{{vendorExtensions.op.streamMethodName}}
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
     _(listed).must_include '{{operationId}}'
     _(listed).must_include '{{operationId}}_with_http_info'
     _(group).must_respond_to :{{operationId}}
     _(group).must_respond_to :{{operationId}}_with_http_info
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}
