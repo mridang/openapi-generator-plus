@@ -473,6 +473,28 @@ describe Petstore::Client::Api::PetApi do
       result = @api.get_pet_avatar(1)
 
       _(result).wont_be_nil
+      result.close
+    end
+
+    it 'bhv_streaming_009 a binary stream exposes the status and the lower-cased response headers' do
+      stream = @api.get_pet_avatar(1)
+      begin
+        _(stream.status_code).must_equal 200
+        _(stream.headers).must_include 'content-type'
+        _(stream.headers.keys).must_equal(stream.headers.keys.map(&:downcase))
+      ensure
+        stream.close
+      end
+
+      result = @api.get_pet_avatar_with_http_info(1)
+      begin
+        _(result.data).must_be_kind_of Petstore::Client::ByteStream
+        _(result.status_code).must_equal result.data.status_code
+        _(result.headers).must_equal result.data.headers
+        _(result.raw_body).must_be_empty
+      ensure
+        result.data.close
+      end
     end
   end
 
@@ -766,6 +788,7 @@ describe Petstore::Client::Api::PetApi do
       result = @api.download_pet_document(1, 1)
 
       _(result).wont_be_nil
+      result.close
     end
   end
 
@@ -774,6 +797,7 @@ describe Petstore::Client::Api::PetApi do
       result = @api.get_pet_photo(1, 1)
 
       _(result).wont_be_nil
+      result.close
     end
   end
 
@@ -1128,7 +1152,7 @@ describe Petstore::Client::Api::PetApi do
       api, server, thread = new_pet_api_for_mock(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
       begin
         result = api.get_pet_avatar(1)
-        _(result).wont_be_nil
+        _(result.read_all).must_equal 'FAKE_BINARY_DATA'
       ensure
         server.close
         thread.join(2)
@@ -1784,20 +1808,21 @@ describe Petstore::Client::Api::PetApi do
       _(doc_block('delete_pet')).wont_include 'authenticator'
     end
 
-    # Binary downloads are returned as the in-memory StringIO that BaseApi
-    # builds, never a File, so the YARD tag and the RBS signature say so.
-    it 'bhv_langruby_008 declares the StringIO a binary download returns in YARD' do
+    # Binary downloads are returned as a ByteStream, never a File, so the YARD
+    # tag and the RBS signature say so.
+    it 'bhv_langruby_008 declares the ByteStream a binary download returns in YARD' do
       %w[get_pet_avatar download_pet_document get_pet_photo].each do |name|
-        _(doc_block(name)).must_include '# @return [StringIO]'
+        _(doc_block(name)).must_include '# @return [ByteStream]'
       end
     end
 
-    it 'bhv_langruby_009 declares the StringIO a binary download returns in RBS' do
+    it 'bhv_langruby_009 declares the ByteStream a binary download returns in RBS' do
       root = File.expand_path('../..', File.dirname(__FILE__))
       rbs = File.read(File.join(root, 'sig', 'petstore/client', 'api', 'pet_api.rbs'))
-      _(rbs).must_include 'def get_pet_avatar: (Integer pet_id, ?Options::GetPetAvatarOptions? options) -> ::StringIO'
+      _(rbs).must_include 'def get_pet_avatar: (Integer pet_id, ?Options::GetPetAvatarOptions? options) ' \
+                          '-> ::Petstore::Client::ByteStream'
       _(rbs).must_include 'def get_pet_avatar_with_http_info: (Integer pet_id, ?Options::GetPetAvatarOptions? options) ' \
-                          '-> ::Petstore::Client::ApiResult[::StringIO]'
+                          '-> ::Petstore::Client::ApiResult[::Petstore::Client::ByteStream]'
       _(rbs).wont_include '-> File'
       _(rbs).wont_include 'ApiResult[File]'
     end
