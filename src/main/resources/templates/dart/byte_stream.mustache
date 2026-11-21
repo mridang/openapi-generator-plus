@@ -1,0 +1,137 @@
+{{>api_info}}
+import 'dart:async';
+import 'dart:typed_data';
+
+/// The body of a binary response, read as it arrives. An operation whose
+/// success response is binary returns one instead of buffering the bytes, so a
+/// large download never has to fit in memory.
+///
+/// It is a single-subscription `Stream<List<int>>`: listen to it with
+/// `await for`, copy it with `IOSink.addStream`, or take every byte with
+/// [readAll]. It also carries the [statusCode] and the lower-cased [headers].
+///
+/// [close] is idempotent and aborts the connection instead of draining the rest
+/// of the body, so close the stream (`try`/`finally`) when you stop early;
+/// cancelling a subscription closes it too. A failure after the headers
+/// surfaces from the stream as a `StreamException`; a stall longer than the
+/// transport's `idleTimeout` is a `NetworkTimeoutException`. Closing the client
+/// cancels the streams still open: their next read raises a `StateError`.
+///
+/// [toString] shows the status code and the number of bytes delivered, never
+/// the headers, the URL or the content.
+final class ByteStream extends Stream<List<int>> {
+  /// Wraps an open response body. This stream owns [source] and closes it.
+  ByteStream({
+    required this.statusCode,
+    required Map<String, String> headers,
+    required Stream<List<int>> source,
+  })  : headers = Map.unmodifiable(headers),
+        _source = source {
+    _controller = StreamController<List<int>>(
+      onListen: _start,
+      onPause: () => _subscription?.pause(),
+      onResume: () => _subscription?.resume(),
+      onCancel: _stop,
+    );
+  }
+
+  /// The HTTP status code of the response.
+  final int statusCode;
+
+  /// The response headers, with lower-cased names and repeated values joined by
+  /// `, `.
+  final Map<String, String> headers;
+
+  final Stream<List<int>> _source;
+  late final StreamController<List<int>> _controller;
+  StreamSubscription<List<int>>? _subscription;
+  int _delivered = 0;
+  bool _closed = false;
+
+  /// How many bytes have been handed to the listener so far.
+  int get bytesDelivered => _delivered;
+
+  /// Whether the stream was closed, by [close], by [readAll] or by the end of
+  /// the body.
+  bool get isClosed => _closed;
+
+  @override
+  StreamSubscription<List<int>> listen(
+    void Function(List<int> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    if (_closed) {
+      throw StateError('ByteStream is closed');
+    }
+    return _controller.stream.listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  void _start() {
+    _subscription = _source.listen(
+      (chunk) {
+        _delivered += chunk.length;
+        _controller.add(chunk);
+      },
+      onError: (Object error, StackTrace stack) {
+        _closed = true;
+        _controller.addError(error, stack);
+        unawaited(_controller.close());
+      },
+      onDone: () {
+        _closed = true;
+        unawaited(_controller.close());
+      },
+      cancelOnError: true,
+    );
+  }
+
+  Future<void> _stop() {
+    _closed = true;
+    return _subscription?.cancel() ?? Future<void>.value();
+  }
+
+  /// Reads every remaining byte and closes the stream, so the call leaves
+  /// nothing open. Throws a [StateError] when the stream was closed before.
+  Future<Uint8List> readAll() async {
+    final builder = BytesBuilder(copy: false);
+    try {
+      await for (final chunk in this) {
+        builder.add(chunk);
+      }
+    } finally {
+      await close();
+    }
+    return builder.takeBytes();
+  }
+
+  /// Closes the stream and aborts the connection; later calls do nothing. A
+  /// listener that is still reading sees the stream end.
+  Future<void> close() async {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
+    final subscription = _subscription;
+    if (subscription != null) {
+      await subscription.cancel();
+    } else {
+      await _source.listen(null).cancel();
+    }
+    if (!_controller.isClosed) {
+      /* Not awaited: the done event waits for a listener that may be paused. */
+      unawaited(_controller.close());
+    }
+  }
+
+  /// Describes the stream by its status code and the bytes delivered so far.
+  @override
+  String toString() =>
+      'ByteStream(statusCode: $statusCode, bytesDelivered: $_delivered)';
+}

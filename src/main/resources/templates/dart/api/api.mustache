@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../api_client.dart';
 import '../api_result.dart';
 import '../auth/authenticator.dart';
+import '../byte_stream.dart';
 import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
@@ -130,6 +131,10 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#externalDocs}}
   /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/externalDocs}}
+{{#vendorExtensions.op.streamsBinary}}
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
+{{/vendorExtensions.op.streamsBinary}}
 {{>api/operation_doc_throws}}
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
@@ -160,6 +165,10 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
   }
 
   /// Performs the {{operationId}} operation and returns the full API result.
+{{#vendorExtensions.op.streamsBinary}}
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
+{{/vendorExtensions.op.streamsBinary}}
 {{>api/operation_doc_throws}}
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
@@ -521,7 +530,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
     }
 {{/vendorExtensions.op.hasMultipleConsumes}}
 
-    return invokeApiForResult{{#returnType}}<{{{.}}}>{{/returnType}}{{^returnType}}<void>{{/returnType}}(
+    return {{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{#returnType}}<{{{.}}}>{{/returnType}}{{^returnType}}<void>{{/returnType}}{{/vendorExtensions.op.streamsBinary}}(
       method: '{{httpMethod}}',
       operation: '{{classname}}.{{operationId}}',
       operationId: '{{#lambda.dartString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.dartString}}',
@@ -543,7 +552,9 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{^vendorExtensions.op.hasMultipleConsumes}}
       contentType: '{{vendorExtensions.op.effectiveConsumes}}',
 {{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.streamsBinary}}
       returnType: '{{#returnType}}{{{.}}}{{/returnType}}',
+{{/vendorExtensions.op.streamsBinary}}
 {{#bodyParam}}
 {{#isBinary}}
       rawBody: true,
@@ -570,6 +581,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/vendorExtensions.op.errorSchemaResponses}}
       },
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{^vendorExtensions.op.streamsBinary}}
 {{#vendorExtensions.op.hasMultiple2xx}}
 {{! Several distinct 2xx schemas: a status a row declares is decoded by that row. }}
 {{! A success status no row names decodes as the first declared success type the }}
@@ -646,6 +658,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/returnTypeIsPrimitive}}
 {{/returnType}}
 {{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
     );
   }
 {{/operation}}

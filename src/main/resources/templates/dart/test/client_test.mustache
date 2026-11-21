@@ -1,11 +1,15 @@
 {{>api_info}}
 {{#generateTests}}
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
+
+import 'testcontainers_helper.dart';
 
 class _CloseTrackingClient extends http.BaseClient {
   _CloseTrackingClient(this._inner);
@@ -437,6 +441,41 @@ void main() {
 
         final pet = await pending;
         expect(pet.name, equals('Fido'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv streaming 021 closing the client cancels the streams that are open, the next read of each raises the closed-client error, and new calls are refused', () async {
+      final server = await RawServer.serve(oneChunkThenHold);
+      try {
+        final client = {{clientClassName}}.withToken(
+          host: server.url(''),
+          accessToken: 'tok',
+        );
+        final transport = client.pet.apiClient as StreamingApiClient;
+        final open = await transport.sendStreaming(
+            'GET', server.url('/items/events'), {}, null);
+        final reader = StreamIterator(open.body);
+        expect(await reader.moveNext(), isTrue);
+        expect(utf8.decode(reader.current), equals('tick'));
+
+        final clock = Stopwatch()..start();
+        client.close();
+        expect(clock.elapsed, lessThan(const Duration(seconds: 5)),
+            reason: 'closing did not wait for the endless stream');
+
+        await expectLater(
+          reader.moveNext(),
+          throwsA(isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              equals('ApiClient has been closed and can no longer send requests'))),
+        );
+        await expectLater(
+          transport.sendStreaming('GET', server.url('/items/events'), {}, null),
+          throwsA(isA<StateError>()),
+        );
       } finally {
         await server.close();
       }

@@ -1,0 +1,17 @@
+{{>api_info}}
+import 'network_exception.dart';
+
+/// Exception for a failure after the response headers arrived: a connection
+/// reset in the middle of the body, or a body that ends before its declared
+/// `Content-Length`. The status code is always 0 and the underlying transport
+/// error is kept as [cause]. It is a [NetworkException], so a handler of
+/// network failures catches it too. A stall longer than the idle timeout is a
+/// `NetworkTimeoutException` instead.
+class StreamException extends NetworkException {
+  const StreamException({
+    required super.message,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  });
+}
