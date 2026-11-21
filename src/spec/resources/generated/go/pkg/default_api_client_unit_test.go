@@ -28,6 +28,7 @@ import (
 	"math/big"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -4309,4 +4310,587 @@ func TestBhvMisc224_DefaultApiClientUnit_TransportDefaultHeadersAreNotSentAfterA
 	if leaked.Load() {
 		t.Error("expected the transport default header not to reach the other origin")
 	}
+}
+
+// rawScript is what a scripted raw server does with one connection: the hit
+// number and the request head.
+type rawScript func(server *rawServer, conn net.Conn, hit int, head string)
+
+// rawServer is an in-process HTTP/1.1 server on a raw socket, so a test can stall
+// a body, cut it short or reset the connection, which httptest's server cannot do.
+type rawServer struct {
+	listener    net.Listener
+	hits        atomic.Int32
+	mu          sync.Mutex
+	heads       []string
+	release     chan struct{}
+	releaseOnce sync.Once
+	gone        chan struct{}
+	goneOnce    sync.Once
+}
+
+// serveRaw starts a server that runs script for every connection it accepts.
+func serveRaw(t *testing.T, script rawScript) *rawServer {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	server := &rawServer{listener: listener, release: make(chan struct{}), gone: make(chan struct{})}
+	go server.acceptLoop(script)
+	t.Cleanup(server.close)
+	return server
+}
+
+func (s *rawServer) acceptLoop(script rawScript) {
+	for {
+		conn, err := s.listener.Accept()
+		if err != nil {
+			return
+		}
+		go s.handle(conn, script)
+	}
+}
+
+func (s *rawServer) handle(conn net.Conn, script rawScript) {
+	defer func() { _ = conn.Close() }()
+	head := readRawHead(conn)
+	hit := int(s.hits.Add(1))
+	s.mu.Lock()
+	s.heads = append(s.heads, head)
+	s.mu.Unlock()
+	script(s, conn, hit, head)
+}
+
+func readRawHead(conn net.Conn) string {
+	var head []byte
+	one := make([]byte, 1)
+	for {
+		if _, err := conn.Read(one); err != nil {
+			return string(head)
+		}
+		head = append(head, one[0])
+		if len(head) >= 4 && string(head[len(head)-4:]) == "\r\n\r\n" {
+			return string(head)
+		}
+	}
+}
+
+// url is the address of path on the server.
+func (s *rawServer) url(path string) string {
+	return "http://" + s.listener.Addr().String() + path
+}
+
+// headOf is the request head of the n-th request, counted from zero.
+func (s *rawServer) headOf(n int) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.heads[n]
+}
+
+// awaitRelease waits until the test lets the script go on; it reports whether it did.
+func (s *rawServer) awaitRelease() bool {
+	select {
+	case <-s.release:
+		return true
+	case <-time.After(20 * time.Second):
+		return false
+	}
+}
+
+// letGo lets every script that waits on awaitRelease carry on.
+func (s *rawServer) letGo() { s.releaseOnce.Do(func() { close(s.release) }) }
+
+// clientDropped is called by a script whose write failed because the client
+// dropped the connection.
+func (s *rawServer) clientDropped() { s.goneOnce.Do(func() { close(s.gone) }) }
+
+// awaitClientGone fails the test unless a script saw the client drop the connection.
+func (s *rawServer) awaitClientGone(t *testing.T, why string) {
+	t.Helper()
+	select {
+	case <-s.gone:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("the server never saw the connection dropped: %s", why)
+	}
+}
+
+func (s *rawServer) close() {
+	s.letGo()
+	_ = s.listener.Close()
+}
+
+func rawHead(conn net.Conn, status int, headers ...string) {
+	head := fmt.Sprintf("HTTP/1.1 %d Test\r\n", status)
+	for _, header := range headers {
+		head += header + "\r\n"
+	}
+	_, _ = conn.Write([]byte(head + "Connection: close\r\n\r\n"))
+}
+
+func rawChunk(conn net.Conn, data string) error {
+	_, err := fmt.Fprintf(conn, "%x\r\n%s\r\n", len(data), data)
+	return err
+}
+
+func rawEnd(conn net.Conn) { _, _ = conn.Write([]byte("0\r\n\r\n")) }
+
+// rawReset makes the close of the connection reset it instead of ending it cleanly.
+func rawReset(conn net.Conn) {
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		_ = tcp.SetLinger(0)
+	}
+}
+
+// rawOneChunkThenHold sends one chunk and then stays silent until the test lets go.
+func rawOneChunkThenHold(server *rawServer, conn net.Conn, hit int, head string) {
+	rawHead(conn, 200, "Transfer-Encoding: chunked")
+	_ = rawChunk(conn, "tick")
+	server.awaitRelease()
+}
+
+// rawEndlessChunks sends chunks until the client drops the connection.
+func rawEndlessChunks(server *rawServer, conn net.Conn, hit int, head string) {
+	rawHead(conn, 200, "Transfer-Encoding: chunked")
+	for {
+		if err := rawChunk(conn, strings.Repeat("x", 4096)); err != nil {
+			server.clientDropped()
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// rawResetAfterTwoBytes sends two bytes of a chunked body and then resets the connection.
+func rawResetAfterTwoBytes(server *rawServer, conn net.Conn, hit int, head string) {
+	rawHead(conn, 200, "Transfer-Encoding: chunked")
+	_ = rawChunk(conn, "ab")
+	time.Sleep(100 * time.Millisecond)
+	rawReset(conn)
+}
+
+// rawTruncatedBody declares ten bytes, sends four and ends the connection.
+func rawTruncatedBody(server *rawServer, conn net.Conn, hit int, head string) {
+	rawHead(conn, 200, "Content-Length: 10")
+	_, _ = conn.Write([]byte("abcd"))
+}
+
+// streamOf sends a streaming request to the server through a default client and
+// closes the response and the client when the test ends.
+func streamOf(t *testing.T, server *rawServer, path string) *ApiStreamResponse {
+	t.Helper()
+	client := NewDefaultApiClient(nil)
+	t.Cleanup(func() { _ = client.Close() })
+	response, err := client.SendStreaming("GET", server.url(path), map[string]string{}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+	return response
+}
+
+// readExactly reads n bytes of r and returns them as text.
+func readExactly(t *testing.T, r io.Reader, n int) string {
+	t.Helper()
+	buffer := make([]byte, n)
+	if _, err := io.ReadFull(r, buffer); err != nil {
+		t.Fatalf("unexpected error reading %d bytes: %v", n, err)
+	}
+	return string(buffer)
+}
+
+func TestBhvStreaming001_DefaultApiClientUnit_ABinaryStreamDeliversTheBytesInOrderAndReturnsBeforeTheBodyHasEnded(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Content-Type: application/octet-stream", "Transfer-Encoding: chunked")
+		_ = rawChunk(conn, "first-")
+		s.awaitRelease()
+		_ = rawChunk(conn, "second")
+		rawEnd(conn)
+	})
+
+	response := streamOf(t, server, "/items/blob")
+
+	if response.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", response.StatusCode)
+	}
+	select {
+	case <-server.release:
+		t.Fatal("the call returned only after the body had ended")
+	default:
+	}
+	if got := readExactly(t, response.Body, 6); got != "first-" {
+		t.Errorf("expected the first chunk first, got %q", got)
+	}
+	server.letGo()
+	rest, err := io.ReadAll(response.Body)
+	if err != nil || string(rest) != "second" {
+		t.Errorf("expected the rest in order, got %q (%v)", rest, err)
+	}
+}
+
+func TestBhvStreaming010_DefaultApiClientUnit_TheCallTimeoutBoundsOnlyTheWaitForTheHeadersNotTheBody(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Transfer-Encoding: chunked")
+		_ = rawChunk(conn, "ab")
+		time.Sleep(1200 * time.Millisecond)
+		_ = rawChunk(conn, "cd")
+		rawEnd(conn)
+	})
+	client := NewDefaultApiClient(nil)
+	t.Cleanup(func() { _ = client.Close() })
+	timeout := 400 * time.Millisecond
+
+	response, err := client.SendStreaming("GET", server.url("/items/blob"), map[string]string{}, nil, &RequestOptions{Timeout: &timeout})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+
+	all, err := io.ReadAll(response.Body)
+	if err != nil || string(all) != "abcd" {
+		t.Errorf("expected the body to outlive the 400 ms timeout, got %q (%v)", all, err)
+	}
+
+	silent := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) { s.awaitRelease() })
+	_, err = client.SendStreaming("GET", silent.url("/items/blob"), map[string]string{}, nil, &RequestOptions{Timeout: &timeout})
+	var timedOut *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timedOut) {
+		t.Errorf("expected *NetworkTimeoutError while the headers are awaited, got %T: %v", err, err)
+	}
+}
+
+func TestBhvStreaming011_DefaultApiClientUnit_TheIdleTimeoutRaisesANetworkTimeoutErrorWhenTheServerStallsInTheBody(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, rawOneChunkThenHold)
+	idle := 300
+	transport, err := NewTransportOptionsBuilder().IdleTimeout(&idle).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	t.Cleanup(func() { _ = client.Close() })
+	response, err := client.SendStreaming("GET", server.url("/items/blob"), map[string]string{}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+	if got := readExactly(t, response.Body, 4); got != "tick" {
+		t.Fatalf("expected the first chunk, got %q", got)
+	}
+
+	started := time.Now()
+	_, err = response.Body.Read(make([]byte, 1))
+
+	var timedOut *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timedOut) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
+	}
+	if timedOut.StatusCode() != 0 {
+		t.Errorf("expected status 0, got %d", timedOut.StatusCode())
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Errorf("expected the idle timeout to end the stall, it took %s", elapsed)
+	}
+	if got := server.hits.Load(); got != 1 {
+		t.Errorf("expected a stalled body not to be retried, got %d requests", got)
+	}
+}
+
+func TestBhvStreaming013_DefaultApiClientUnit_ABodyShorterThanItsContentLengthRaisesANetworkErrorAndNeverAShortSuccess(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, rawTruncatedBody)
+	response := streamOf(t, server, "/items/blob")
+
+	got, err := io.ReadAll(response.Body)
+
+	var network *pkgerrors.NetworkError
+	if !errors.As(err, &network) {
+		t.Fatalf("expected *NetworkError for a short body, got %T: %v (read %q)", err, err, got)
+	}
+}
+
+func TestBhvStreaming016_DefaultApiClientUnit_AStreamingCallFollowsARedirectBeforeTheBodyAndStripsCredentialsAcrossOrigins(t *testing.T) {
+	t.Parallel()
+	target := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Content-Length: 6")
+		_, _ = conn.Write([]byte("landed"))
+	})
+	origin := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 302, "Location: "+target.url("/items/final"), "Content-Length: 0")
+	})
+	client := NewDefaultApiClient(nil)
+	t.Cleanup(func() { _ = client.Close() })
+
+	response, err := client.SendStreaming("GET", origin.url("/items/blob"), map[string]string{
+		"Authorization": "Bearer secret-token",
+		"Cookie":        "session=abc",
+		"X-Trace":       "kept",
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+
+	if all, _ := io.ReadAll(response.Body); string(all) != "landed" {
+		t.Errorf("expected the redirected body, got %q", all)
+	}
+	sentToOrigin := strings.ToLower(origin.headOf(0))
+	sentToTarget := strings.ToLower(target.headOf(0))
+	if !strings.Contains(sentToOrigin, "authorization: bearer secret-token") {
+		t.Errorf("expected the credential to go to its own origin, got %q", sentToOrigin)
+	}
+	if strings.Contains(sentToTarget, "authorization") || strings.Contains(sentToTarget, "cookie") {
+		t.Errorf("expected the credential and the cookie to stay on their origin, got %q", sentToTarget)
+	}
+	if !strings.Contains(sentToTarget, "x-trace: kept") {
+		t.Errorf("expected other headers to go with the redirect, got %q", sentToTarget)
+	}
+}
+
+func TestBhvStreaming019_DefaultApiClientUnit_ClosingAStreamTwiceIsSafeAndAbortsTheConnection(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, rawEndlessChunks)
+	response := streamOf(t, server, "/items/blob")
+	stream := NewByteStream(response.StatusCode, response.Headers, response.Body)
+	if got := readExactly(t, stream, 4); got != "xxxx" {
+		t.Fatalf("expected the first bytes, got %q", got)
+	}
+
+	if err := stream.Close(); err != nil {
+		t.Errorf("unexpected error on the first close: %v", err)
+	}
+	if err := stream.Close(); err != nil {
+		t.Errorf("unexpected error on the second close: %v", err)
+	}
+	if err := response.Body.Close(); err != nil {
+		t.Errorf("unexpected error closing the body again: %v", err)
+	}
+
+	server.awaitClientGone(t, "the body was not made to finish")
+	if _, err := stream.Read(make([]byte, 1)); err == nil {
+		t.Error("expected a read of a closed stream to fail")
+	}
+}
+
+func TestBhvStreaming020_DefaultApiClientUnit_CancellingTheCallAbortsTheStreamAndIsNeverRaisedAsATimeout(t *testing.T) {
+	t.Parallel()
+	silent := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) { s.awaitRelease() })
+	stalled := serveRaw(t, rawOneChunkThenHold)
+	client := NewDefaultApiClient(nil)
+	t.Cleanup(func() { _ = client.Close() })
+
+	beforeHeaders, cancelBefore := context.WithCancel(context.Background())
+	failed := make(chan error, 1)
+	go func() {
+		_, err := client.SendStreaming("GET", silent.url("/items/blob"), map[string]string{}, nil, &RequestOptions{Context: beforeHeaders})
+		failed <- err
+	}()
+	for silent.hits.Load() == 0 {
+		time.Sleep(10 * time.Millisecond)
+	}
+	cancelBefore()
+	var err error
+	select {
+	case err = <-failed:
+	case <-time.After(10 * time.Second):
+		t.Fatal("cancelling the context did not end the wait for the headers")
+	}
+	var timedOut *pkgerrors.NetworkTimeoutError
+	if !errors.Is(err, context.Canceled) || errors.As(err, &timedOut) {
+		t.Errorf("expected a cancellation and not a timeout before the headers, got %T: %v", err, err)
+	}
+
+	inBody, cancelBody := context.WithCancel(context.Background())
+	response, err := client.SendStreaming("GET", stalled.url("/items/events"), map[string]string{}, nil, &RequestOptions{Context: inBody})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+	if got := readExactly(t, response.Body, 4); got != "tick" {
+		t.Fatalf("expected the first chunk, got %q", got)
+	}
+	read := make(chan error, 1)
+	go func() {
+		_, err := response.Body.Read(make([]byte, 1))
+		read <- err
+	}()
+	time.Sleep(300 * time.Millisecond)
+	cancelBody()
+	select {
+	case err = <-read:
+	case <-time.After(10 * time.Second):
+		t.Fatal("cancelling the context did not end the read of the body")
+	}
+	if !errors.Is(err, context.Canceled) || errors.As(err, &timedOut) {
+		t.Errorf("expected a cancellation and not a timeout in the body, got %T: %v", err, err)
+	}
+}
+
+func TestBhvStreaming022_DefaultApiClientUnit_TheStringFormOfAStreamHidesCredentialsTheQueryAndTheData(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Content-Length: 7", "Set-Cookie: sid=secret-cookie")
+		_, _ = conn.Write([]byte("payload"))
+	})
+	client := NewDefaultApiClient(nil)
+	t.Cleanup(func() { _ = client.Close() })
+	response, err := client.SendStreaming("GET", server.url("/items/blob?token=secret-query"), map[string]string{"Authorization": "Bearer secret-token"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	stream := NewByteStream(response.StatusCode, response.Headers, response.Body)
+	t.Cleanup(func() { _ = stream.Close() })
+	if got := readExactly(t, stream, 7); got != "payload" {
+		t.Fatalf("expected the body, got %q", got)
+	}
+
+	for _, shown := range []string{
+		stream.String(), response.String(),
+		fmt.Sprintf("%v %+v %#v", stream, stream, stream),
+		fmt.Sprintf("%v %+v %#v", response, response, response),
+	} {
+		for _, hidden := range []string{"secret", "payload", "token", "items", "cookie"} {
+			if strings.Contains(shown, hidden) {
+				t.Errorf("expected %q to be hidden, got %q", hidden, shown)
+			}
+		}
+	}
+	if got, want := stream.String(), "ByteStream{statusCode=200, bytesDelivered=7}"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBhvStreaming029_DefaultApiClientUnit_TheReadAllHelperOfAByteStreamReturnsEveryByteInOrderAndLeavesItClosed(t *testing.T) {
+	t.Parallel()
+	payload := make([]byte, 100000)
+	for i := range payload {
+		payload[i] = byte(i * 31)
+	}
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, fmt.Sprintf("Content-Length: %d", len(payload)))
+		_, _ = conn.Write(payload)
+	})
+	response := streamOf(t, server, "/items/blob")
+	stream := NewByteStream(response.StatusCode, response.Headers, response.Body)
+
+	all, err := stream.ReadAll()
+
+	if err != nil || !bytes.Equal(all, payload) {
+		t.Errorf("expected every byte in order, got %d bytes (%v)", len(all), err)
+	}
+	if got, want := stream.String(), "ByteStream{statusCode=200, bytesDelivered=100000}"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+	if _, err := stream.Read(make([]byte, 1)); err == nil {
+		t.Error("expected the helper to leave the stream closed")
+	}
+}
+
+// drainingTripper answers with an endless body whose Close reads on until the
+// body ends, as Close of an HTTP/1 body does in Go 1.27. Only cancelling the
+// request context ends it, so Close of the stream must cancel before it closes.
+type drainingTripper struct{}
+
+func (drainingTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{StatusCode: 200, Header: http.Header{}, Body: &drainingBody{ctx: req.Context()}, Request: req}, nil
+}
+
+type drainingBody struct{ ctx context.Context }
+
+func (b *drainingBody) Read(p []byte) (int, error) {
+	select {
+	case <-b.ctx.Done():
+		return 0, b.ctx.Err()
+	case <-time.After(5 * time.Millisecond):
+		p[0] = 'x'
+		return 1, nil
+	}
+}
+
+func (b *drainingBody) Close() error {
+	for {
+		if _, err := b.Read(make([]byte, 1)); err != nil {
+			return nil
+		}
+	}
+}
+
+func TestBhvStreaming031_DefaultApiClientUnit_ClosingALiveEndlessStreamReturnsPromptlyAndDoesNotWaitForTheServer(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, rawOneChunkThenHold)
+	response := streamOf(t, server, "/items/events")
+	if got := readExactly(t, response.Body, 4); got != "tick" {
+		t.Fatalf("expected the first chunk, got %q", got)
+	}
+
+	started := time.Now()
+	_ = response.Body.Close()
+
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Errorf("expected close to abort the connection instead of waiting for the endless body, it took %s", elapsed)
+	}
+
+	transport, err := NewTransportOptionsBuilder().RoundTripper(drainingTripper{}).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	t.Cleanup(func() { _ = client.Close() })
+	draining, err := client.SendStreaming("GET", "http://127.0.0.1:1/items/events", map[string]string{}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := readExactly(t, draining.Body, 3); got != "xxx" {
+		t.Fatalf("expected the first bytes, got %q", got)
+	}
+	closed := make(chan struct{})
+	go func() {
+		_ = draining.Body.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected Close to cancel the request first, so a body that drains on Close ends, but it kept reading")
+	}
+}
+
+func TestBhvStreaming032_DefaultApiClientUnit_AResetOrTruncationAfterTheHeadersRaisesAStreamErrorThatIsANetworkError(t *testing.T) {
+	t.Parallel()
+	for name, script := range map[string]rawScript{"reset": rawResetAfterTwoBytes, "cut": rawTruncatedBody} {
+		server := serveRaw(t, script)
+		response := streamOf(t, server, "/items/blob")
+		stream := NewByteStream(response.StatusCode, response.Headers, response.Body)
+
+		_, err := stream.ReadAll()
+
+		var failure *pkgerrors.StreamError
+		if !errors.As(err, &failure) {
+			t.Fatalf("%s: expected *StreamError, got %T: %v", name, err, err)
+		}
+		var network *pkgerrors.NetworkError
+		if !errors.As(err, &network) {
+			t.Errorf("%s: expected a *StreamError to be a *NetworkError", name)
+		}
+		var api *pkgerrors.ApiError
+		if !errors.As(err, &api) || api.StatusCode() != 0 {
+			t.Errorf("%s: expected an *ApiError with status 0, got %v", name, err)
+		}
+	}
+}
+
+func TestBhvStreaming033_DefaultApiClientUnit_StoppingAStreamEarlyWithoutReadingItToTheEndReleasesTheConnection(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, rawEndlessChunks)
+	func() {
+		response := streamOf(t, server, "/items/events")
+		defer func() { _ = response.Body.Close() }()
+		if got := readExactly(t, response.Body, 10); got != "xxxxxxxxxx" {
+			t.Fatalf("expected the first bytes, got %q", got)
+		}
+	}()
+
+	server.awaitClientGone(t, "leaving the scope dropped the connection")
 }

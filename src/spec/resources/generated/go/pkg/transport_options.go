@@ -102,9 +102,14 @@ type TransportOptions struct {
 	defaultHeaders  map[string]string
 	injectRequestID bool
 	maxRetries      int
+	idleTimeout     *int
 	httpClient      HttpDoer
 	roundTripper    http.RoundTripper
 }
+
+// DefaultIdleTimeout is the longest, in milliseconds, a streamed response body
+// may stay silent when the builder does not set IdleTimeout.
+const DefaultIdleTimeout = 60000
 
 // NewTransportOptionsBuilder creates a new builder for constructing TransportOptions
 // instances, with sensible defaults.
@@ -116,11 +121,14 @@ type TransportOptions struct {
 //   - maxRetries: 2 (DefaultMaxRetries); call MaxRetries(0) to disable retries
 //   - timeout: 10000 (10 seconds); call Timeout with an explicit value to
 //     override it, or with nil for no timeout
+//   - idleTimeout: 60000 (60 seconds); call IdleTimeout with an explicit value
+//     to override it, or with nil or a pointer to 0 for none
 //   - userAgent: "petstore/1.0.0 (go)"; call UserAgent to override it or pass
 //     nil to omit it
 //   - all other fields: nil or empty
 func NewTransportOptionsBuilder() *TransportOptionsBuilder {
 	defaultTimeout := 10000
+	defaultIdleTimeout := DefaultIdleTimeout
 	defaultUserAgent := "petstore/1.0.0 (go)"
 	return &TransportOptionsBuilder{
 		verifySsl:       true,
@@ -129,6 +137,7 @@ func NewTransportOptionsBuilder() *TransportOptionsBuilder {
 		defaultHeaders:  make(map[string]string),
 		timeout:         &defaultTimeout,
 		maxRetries:      DefaultMaxRetries,
+		idleTimeout:     &defaultIdleTimeout,
 	}
 }
 
@@ -210,6 +219,16 @@ func (t *TransportOptions) InjectRequestID() bool { return t.injectRequestID }
 // retries.
 func (t *TransportOptions) MaxRetries() int { return t.maxRetries }
 
+// IdleTimeout returns the longest a streamed response body may stay silent, in
+// milliseconds.
+//
+// It applies only to a call that returns a stream (a binary operation): the
+// Timeout stops at the response headers, and this value bounds the gap between
+// two reads of the body. A stalled body fails with a *NetworkTimeoutError. A
+// buffered call is unaffected. Defaults to 60000 ms (60 seconds); returns nil
+// when it is disabled, and a set value is always positive.
+func (t *TransportOptions) IdleTimeout() *int { return t.idleTimeout }
+
 // TransportOptionsBuilder builds immutable TransportOptions instances.
 type TransportOptionsBuilder struct {
 	verifySsl       bool
@@ -223,6 +242,7 @@ type TransportOptionsBuilder struct {
 	defaultHeaders  map[string]string
 	injectRequestID bool
 	maxRetries      int
+	idleTimeout     *int
 	httpClient      HttpDoer
 	roundTripper    http.RoundTripper
 }
@@ -381,6 +401,16 @@ func (b *TransportOptionsBuilder) MaxRetries(val int) *TransportOptionsBuilder {
 	return b
 }
 
+// IdleTimeout sets the longest a streamed response body may stay silent, in
+// milliseconds (see TransportOptions.IdleTimeout).
+//
+// Pass nil or a pointer to 0 to disable it. Build rejects a negative value with
+// ErrInvalidTimeout.
+func (b *TransportOptionsBuilder) IdleTimeout(val *int) *TransportOptionsBuilder {
+	b.idleTimeout = val
+	return b
+}
+
 // Build builds and returns an immutable TransportOptions instance.
 //
 // It returns ErrInvalidProxyURL when the proxy URL is invalid, and
@@ -396,6 +426,9 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	}
 	if b.maxRetries < 0 {
 		return nil, fmt.Errorf("%w: must not be negative (got %d)", ErrInvalidMaxRetries, b.maxRetries)
+	}
+	if b.idleTimeout != nil && *b.idleTimeout < 0 {
+		return nil, fmt.Errorf("%w: idle timeout must not be negative (got %d)", ErrInvalidTimeout, *b.idleTimeout)
 	}
 	if b.maxRedirects != nil && *b.maxRedirects < 0 {
 		return nil, fmt.Errorf("%w: must not be negative (got %d)", ErrInvalidMaxRedirects, *b.maxRedirects)
@@ -432,6 +465,11 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	for k, v := range b.defaultHeaders {
 		headers[k] = v
 	}
+	var idleTimeout *int
+	if b.idleTimeout != nil && *b.idleTimeout > 0 {
+		value := *b.idleTimeout
+		idleTimeout = &value
+	}
 	return &TransportOptions{
 		verifySsl:       b.verifySsl,
 		caCertPath:      b.caCertPath,
@@ -444,6 +482,7 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 		defaultHeaders:  headers,
 		injectRequestID: b.injectRequestID,
 		maxRetries:      b.maxRetries,
+		idleTimeout:     idleTimeout,
 		httpClient:      b.httpClient,
 		roundTripper:    b.roundTripper,
 	}, nil

@@ -708,6 +708,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "pkg/errors",
                         "network_timeout_error.go"),
                 new SupportingFileSpec(
+                        "errors/stream_error.mustache", "pkg/errors", "stream_error.go"),
+                new SupportingFileSpec(
                         "errors/serialization_error.mustache",
                         "pkg/errors",
                         "serialization_error.go"),
@@ -731,6 +733,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("otelhook.mustache", "pkg/otelhook", "otelhook.go"),
                 new SupportingFileSpec("api_response.mustache", "pkg", "api_http_response.go"),
                 new SupportingFileSpec("api_result.mustache", "pkg", "api_result.go"),
+                new SupportingFileSpec(
+                        "api_stream_response.mustache", "pkg", "api_stream_response.go"),
+                new SupportingFileSpec("byte_stream.mustache", "pkg", "byte_stream.go"),
                 new SupportingFileSpec("api_client.mustache", "pkg", "api_client.go"),
                 new SupportingFileSpec(
                         "default_api_client.mustache", "pkg", "default_api_client.go"),
@@ -1650,7 +1655,104 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         final OperationsMap processed = super.postProcessOperationsWithModels(objs, allModels);
         reorderServerBeforeOptions(processed);
+        markBinaryStreams(processed);
         return processed;
+    }
+
+    /**
+     * A binary success response is returned as a {@code *ByteStream} by the one operation method
+     * (D119), so after the shared pass has computed {@code streamKind} the return type becomes
+     * {@code ByteStream} and the decorator {@code streamsBinary} tells the api template to call
+     * {@code invokeApiForStream}.
+     *
+     * @param objs the processed operations map
+     */
+    @SuppressWarnings("unchecked")
+    private static void markBinaryStreams(final OperationsMap objs) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null) {
+            return;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        for (final CodegenOperation op : ops) {
+            markBinaryStream(op);
+        }
+    }
+
+    /**
+     * Rewrites one operation whose {@code streamKind} is {@code binary}.
+     *
+     * @param op the operation
+     */
+    @SuppressWarnings("unchecked")
+    static void markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final boolean binary = "binary".equals(d.get("streamKind"));
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+            op.returnContainer = null;
+            op.isArray = false;
+            op.vendorExtensions.put("returnByValue", false);
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. Nothing is rendered when the spec has none.
+     *
+     * @param objs the supporting file data
+     * @return the data with the stream operation added
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(final Map<String, Object> objs) {
+        CodegenOperation found = null;
+        Object group = null;
+        final Object apiInfo = objs.get("apiInfo");
+        if (apiInfo instanceof Map) {
+            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+            if (apis instanceof List) {
+                for (final Object api : (List<Object>) apis) {
+                    final Object operations = ((Map<String, Object>) api).get("operations");
+                    if (!(operations instanceof Map)) {
+                        continue;
+                    }
+                    final Object list = ((Map<String, Object>) operations).get("operation");
+                    if (!(list instanceof List)) {
+                        continue;
+                    }
+                    for (final Object candidate : (List<Object>) list) {
+                        final CodegenOperation op = (CodegenOperation) candidate;
+                        final Object decorators =
+                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                        if (found == null
+                                && decorators instanceof Map
+                                && Boolean.TRUE.equals(
+                                        ((Map<String, Object>) decorators).get("streamsBinary"))) {
+                            found = op;
+                            group = operations;
+                        }
+                    }
+                }
+            }
+        }
+        objs.put("hasBinaryStreamOperation", found != null);
+        if (found != null) {
+            objs.put("binaryStreamOperation", found);
+            objs.put("binaryStreamGroup", group);
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**

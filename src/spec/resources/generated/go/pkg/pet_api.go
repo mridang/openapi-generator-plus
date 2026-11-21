@@ -215,8 +215,8 @@ type PetApiInterface interface {
 	AttachPetFilesWithHTTPInfo(ctx context.Context, petId int64, options *opts.AttachPetFilesOptions, callOptions ...RequestOption) (*ApiResult[ApiResponse], error)
 	DeletePet(ctx context.Context, petId int64, options *opts.DeletePetOptions, callOptions ...RequestOption) error
 	DeletePetWithHTTPInfo(ctx context.Context, petId int64, options *opts.DeletePetOptions, callOptions ...RequestOption) (*ApiResult[any], error)
-	DownloadPetDocument(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) ([]byte, error)
-	DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (*ApiResult[[]byte], error)
+	DownloadPetDocument(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (*ByteStream, error)
+	DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (*ApiResult[ByteStream], error)
 	FindPetsBornOn(ctx context.Context, bornOn string, callOptions ...RequestOption) ([]Pet, error)
 	FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, callOptions ...RequestOption) (*ApiResult[[]Pet], error)
 	FindPetsByStatus(ctx context.Context, options *opts.FindPetsByStatusOptions, callOptions ...RequestOption) ([]Pet, error)
@@ -225,8 +225,8 @@ type PetApiInterface interface {
 	GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetExternalPetInfoServer, callOptions ...RequestOption) (*ApiResult[Pet], error)
 	GetMultiServerPetInfo(ctx context.Context, petId int64, server GetMultiServerPetInfoServer, callOptions ...RequestOption) (*Pet, error)
 	GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetMultiServerPetInfoServer, callOptions ...RequestOption) (*ApiResult[Pet], error)
-	GetPetAvatar(ctx context.Context, petId int64, callOptions ...RequestOption) ([]byte, error)
-	GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (*ApiResult[[]byte], error)
+	GetPetAvatar(ctx context.Context, petId int64, callOptions ...RequestOption) (*ByteStream, error)
+	GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (*ApiResult[ByteStream], error)
 	GetPetAvatarThumbnail(ctx context.Context, petId int64, callOptions ...RequestOption) ([]byte, error)
 	GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (*ApiResult[[]byte], error)
 	GetPetById(ctx context.Context, petId int64, server GetPetByIdServer, callOptions ...RequestOption) (*Pet, error)
@@ -237,8 +237,8 @@ type PetApiInterface interface {
 	GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.GetPetByNoteOptions, callOptions ...RequestOption) (*ApiResult[Pet], error)
 	GetPetPassport(ctx context.Context, petId int64, callOptions ...RequestOption) (*PetPassport, error)
 	GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (*ApiResult[PetPassport], error)
-	GetPetPhoto(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) ([]byte, error)
-	GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (*ApiResult[[]byte], error)
+	GetPetPhoto(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (*ByteStream, error)
+	GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (*ApiResult[ByteStream], error)
 	GetPetSummary(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (string, error)
 	GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asOf string, options *opts.GetPetSummaryOptions, callOptions ...RequestOption) (*ApiResult[string], error)
 	GetPetTag(ctx context.Context, petId int64, tagName string, options *opts.GetPetTagOptions, callOptions ...RequestOption) (*Pet, error)
@@ -987,24 +987,26 @@ func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options
 // Declared errors:
 //   - HTTP 404: *NotFoundError
 //
+// The response body is returned unread as a *ByteStream: read it, then Close it
+// (Close aborts the connection, so close it when you stop early too).
+//
 // GET /pet/{petId}/documents/{documentId}
-func (a *PetApi) DownloadPetDocument(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) ([]byte, error) {
-	var empty []byte
+func (a *PetApi) DownloadPetDocument(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (*ByteStream, error) {
 	result, err := a.DownloadPetDocumentWithHTTPInfo(ctx, petId, documentId, callOptions...)
 	if err != nil {
-		return empty, err
+		return nil, err
 	}
 	/* A body-returning operation that receives no decodable body must surface
 	 * a typed ApiError rather than hand back a silent nil / zero-value,
 	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
-		return empty, newEmptyBodyError("DownloadPetDocument", result.StatusCode, result.RawBody, result.Headers)
+		return nil, newEmptyBodyError("DownloadPetDocument", result.StatusCode, result.RawBody, result.Headers)
 	}
-	return *result.Data, nil
+	return result.Data, nil
 }
 
 // DownloadPetDocumentWithHTTPInfo performs the DownloadPetDocument operation and returns the full API result.
-func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (_ *ApiResult[[]byte], callErr error) {
+func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) (_ *ApiResult[ByteStream], callErr error) {
 	/* The call hook follows the call to its end, the decoding of the response
 	 * included: it is told how the call ended when this method returns. */
 	call := &callState{}
@@ -1050,7 +1052,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 
 	var requestBody any
 
-	response, err := a.invokeApi(invokeApiParams{
+	streamed, err := a.invokeApiForStream(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
 		operationID:  "downloadPetDocument",
@@ -1064,7 +1066,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 		body:         requestBody,
 		accepts:      []string{"application/octet-stream"},
 		contentType:  "application/json",
-		returnType:   "[]byte",
+		returnType:   "ByteStream",
 		auth:         nil,
 		schemes:      []string{},
 		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
@@ -1073,74 +1075,14 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 		return nil, err
 	}
 
-	var data []byte
-	/* dataPtr stays nil when the response carried no body, so the convenience
-	 * method can distinguish "no content" from a zero-valued struct and raise
-	 * the typed empty-body ApiError (convenience-empty-body-handling). */
-	var dataPtr *[]byte
-	if response.Body != "" {
-		respContentType := ""
-		// Response header keys are normalised to lowercase by the transport.
-		if ct, ok := response.Headers["content-type"]; ok {
-			respContentType = ct
-		}
-		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
-		if isJSON {
-			/* A bare JSON null is an absent body, not a value to decode: decoding
-			 * it would fabricate a default-valued model (or trip the model's
-			 * required-field check). Leave dataPtr nil so the convenience method
-			 * raises the empty-body ApiError like the other SDKs. */
-			if isJSONNull([]byte(response.Body)) {
-				return &ApiResult[[]byte]{
-					StatusCode: response.StatusCode,
-					Data:       nil,
-					RawBody:    response.Body,
-					Headers:    response.Headers,
-				}, nil
-			}
-			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
-				/* A binary operation answered with a JSON document (content
-				 * negotiation): the caller gets its raw bytes. */
-				*bytesPtr = []byte(response.Body)
-			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, attachResponseContext(err, response, "GET", path)
-			}
-		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
-			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in ApiHttpResponse.Body (a string); decode it back
-			 * to the original raw bytes for the caller. */
-			decoded, decErr := decodeBinaryResponse(response.Body)
-			if decErr != nil {
-				return nil, attachResponseContext(decErr, response, "GET", path)
-			}
-			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
-			/* A string return type with a text-class Content-Type (for example
-			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim. */
-			*strPtr = response.Body
-		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
-			/* A string return type under a binary Content-Type: the transport
-			 * carried the body as base64 text, which is an internal detail (D107);
-			 * the caller gets the decoded body. */
-			decoded, decErr := decodeBinaryResponse(response.Body)
-			if decErr != nil {
-				return nil, attachResponseContext(decErr, response, "GET", path)
-			}
-			*strPtr = string(decoded)
-		} else {
-			/* Any other non-JSON Content-Type on a non-binary return type is a
-			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.DownloadPetDocument: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
-		}
-		dataPtr = &data
-	}
-
-	return &ApiResult[[]byte]{
-		StatusCode: response.StatusCode,
-		Data:       dataPtr,
-		RawBody:    response.Body,
-		Headers:    response.Headers,
+	/* The success response is binary: the body is handed over unread, as a
+	 * ByteStream the caller reads and closes, never buffered here. */
+	data := NewByteStream(streamed.StatusCode, streamed.Headers, streamed.Body)
+	return &ApiResult[ByteStream]{
+		StatusCode: streamed.StatusCode,
+		Data:       data,
+		RawBody:    "",
+		Headers:    data.Headers(),
 	}, nil
 }
 
@@ -1801,24 +1743,26 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 // Declared errors:
 //   - HTTP 404: *NotFoundError
 //
+// The response body is returned unread as a *ByteStream: read it, then Close it
+// (Close aborts the connection, so close it when you stop early too).
+//
 // GET /pet/{petId}/avatar
-func (a *PetApi) GetPetAvatar(ctx context.Context, petId int64, callOptions ...RequestOption) ([]byte, error) {
-	var empty []byte
+func (a *PetApi) GetPetAvatar(ctx context.Context, petId int64, callOptions ...RequestOption) (*ByteStream, error) {
 	result, err := a.GetPetAvatarWithHTTPInfo(ctx, petId, callOptions...)
 	if err != nil {
-		return empty, err
+		return nil, err
 	}
 	/* A body-returning operation that receives no decodable body must surface
 	 * a typed ApiError rather than hand back a silent nil / zero-value,
 	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
-		return empty, newEmptyBodyError("GetPetAvatar", result.StatusCode, result.RawBody, result.Headers)
+		return nil, newEmptyBodyError("GetPetAvatar", result.StatusCode, result.RawBody, result.Headers)
 	}
-	return *result.Data, nil
+	return result.Data, nil
 }
 
 // GetPetAvatarWithHTTPInfo performs the GetPetAvatar operation and returns the full API result.
-func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (_ *ApiResult[[]byte], callErr error) {
+func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, callOptions ...RequestOption) (_ *ApiResult[ByteStream], callErr error) {
 	/* The call hook follows the call to its end, the decoding of the response
 	 * included: it is told how the call ended when this method returns. */
 	call := &callState{}
@@ -1850,7 +1794,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 
 	var requestBody any
 
-	response, err := a.invokeApi(invokeApiParams{
+	streamed, err := a.invokeApiForStream(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
 		operationID:  "getPetAvatar",
@@ -1864,7 +1808,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 		body:         requestBody,
 		accepts:      []string{"image/jpeg", "image/png"},
 		contentType:  "application/json",
-		returnType:   "[]byte",
+		returnType:   "ByteStream",
 		auth:         nil,
 		schemes:      []string{},
 		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
@@ -1873,74 +1817,14 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 		return nil, err
 	}
 
-	var data []byte
-	/* dataPtr stays nil when the response carried no body, so the convenience
-	 * method can distinguish "no content" from a zero-valued struct and raise
-	 * the typed empty-body ApiError (convenience-empty-body-handling). */
-	var dataPtr *[]byte
-	if response.Body != "" {
-		respContentType := ""
-		// Response header keys are normalised to lowercase by the transport.
-		if ct, ok := response.Headers["content-type"]; ok {
-			respContentType = ct
-		}
-		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
-		if isJSON {
-			/* A bare JSON null is an absent body, not a value to decode: decoding
-			 * it would fabricate a default-valued model (or trip the model's
-			 * required-field check). Leave dataPtr nil so the convenience method
-			 * raises the empty-body ApiError like the other SDKs. */
-			if isJSONNull([]byte(response.Body)) {
-				return &ApiResult[[]byte]{
-					StatusCode: response.StatusCode,
-					Data:       nil,
-					RawBody:    response.Body,
-					Headers:    response.Headers,
-				}, nil
-			}
-			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
-				/* A binary operation answered with a JSON document (content
-				 * negotiation): the caller gets its raw bytes. */
-				*bytesPtr = []byte(response.Body)
-			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, attachResponseContext(err, response, "GET", path)
-			}
-		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
-			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in ApiHttpResponse.Body (a string); decode it back
-			 * to the original raw bytes for the caller. */
-			decoded, decErr := decodeBinaryResponse(response.Body)
-			if decErr != nil {
-				return nil, attachResponseContext(decErr, response, "GET", path)
-			}
-			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
-			/* A string return type with a text-class Content-Type (for example
-			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim. */
-			*strPtr = response.Body
-		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
-			/* A string return type under a binary Content-Type: the transport
-			 * carried the body as base64 text, which is an internal detail (D107);
-			 * the caller gets the decoded body. */
-			decoded, decErr := decodeBinaryResponse(response.Body)
-			if decErr != nil {
-				return nil, attachResponseContext(decErr, response, "GET", path)
-			}
-			*strPtr = string(decoded)
-		} else {
-			/* Any other non-JSON Content-Type on a non-binary return type is a
-			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetAvatar: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
-		}
-		dataPtr = &data
-	}
-
-	return &ApiResult[[]byte]{
-		StatusCode: response.StatusCode,
-		Data:       dataPtr,
-		RawBody:    response.Body,
-		Headers:    response.Headers,
+	/* The success response is binary: the body is handed over unread, as a
+	 * ByteStream the caller reads and closes, never buffered here. */
+	data := NewByteStream(streamed.StatusCode, streamed.Headers, streamed.Body)
+	return &ApiResult[ByteStream]{
+		StatusCode: streamed.StatusCode,
+		Data:       data,
+		RawBody:    "",
+		Headers:    data.Headers(),
 	}, nil
 }
 
@@ -2763,24 +2647,26 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 // Declared errors:
 //   - HTTP 404: *NotFoundError
 //
+// The response body is returned unread as a *ByteStream: read it, then Close it
+// (Close aborts the connection, so close it when you stop early too).
+//
 // GET /pet/{petId}/photos/{photoId}
-func (a *PetApi) GetPetPhoto(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) ([]byte, error) {
-	var empty []byte
+func (a *PetApi) GetPetPhoto(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (*ByteStream, error) {
 	result, err := a.GetPetPhotoWithHTTPInfo(ctx, petId, photoId, callOptions...)
 	if err != nil {
-		return empty, err
+		return nil, err
 	}
 	/* A body-returning operation that receives no decodable body must surface
 	 * a typed ApiError rather than hand back a silent nil / zero-value,
 	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
-		return empty, newEmptyBodyError("GetPetPhoto", result.StatusCode, result.RawBody, result.Headers)
+		return nil, newEmptyBodyError("GetPetPhoto", result.StatusCode, result.RawBody, result.Headers)
 	}
-	return *result.Data, nil
+	return result.Data, nil
 }
 
 // GetPetPhotoWithHTTPInfo performs the GetPetPhoto operation and returns the full API result.
-func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (_ *ApiResult[[]byte], callErr error) {
+func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photoId int64, callOptions ...RequestOption) (_ *ApiResult[ByteStream], callErr error) {
 	/* The call hook follows the call to its end, the decoding of the response
 	 * included: it is told how the call ended when this method returns. */
 	call := &callState{}
@@ -2826,7 +2712,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 
 	var requestBody any
 
-	response, err := a.invokeApi(invokeApiParams{
+	streamed, err := a.invokeApiForStream(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
 		operationID:  "getPetPhoto",
@@ -2840,7 +2726,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 		body:         requestBody,
 		accepts:      []string{"image/jpeg", "image/png", "application/json"},
 		contentType:  "application/json",
-		returnType:   "[]byte",
+		returnType:   "ByteStream",
 		auth:         nil,
 		schemes:      []string{},
 		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
@@ -2849,74 +2735,14 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 		return nil, err
 	}
 
-	var data []byte
-	/* dataPtr stays nil when the response carried no body, so the convenience
-	 * method can distinguish "no content" from a zero-valued struct and raise
-	 * the typed empty-body ApiError (convenience-empty-body-handling). */
-	var dataPtr *[]byte
-	if response.Body != "" {
-		respContentType := ""
-		// Response header keys are normalised to lowercase by the transport.
-		if ct, ok := response.Headers["content-type"]; ok {
-			respContentType = ct
-		}
-		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
-		if isJSON {
-			/* A bare JSON null is an absent body, not a value to decode: decoding
-			 * it would fabricate a default-valued model (or trip the model's
-			 * required-field check). Leave dataPtr nil so the convenience method
-			 * raises the empty-body ApiError like the other SDKs. */
-			if isJSONNull([]byte(response.Body)) {
-				return &ApiResult[[]byte]{
-					StatusCode: response.StatusCode,
-					Data:       nil,
-					RawBody:    response.Body,
-					Headers:    response.Headers,
-				}, nil
-			}
-			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
-				/* A binary operation answered with a JSON document (content
-				 * negotiation): the caller gets its raw bytes. */
-				*bytesPtr = []byte(response.Body)
-			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, attachResponseContext(err, response, "GET", path)
-			}
-		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
-			/* Binary return type: the transport base64-encoded the body so it
-			 * could be carried in ApiHttpResponse.Body (a string); decode it back
-			 * to the original raw bytes for the caller. */
-			decoded, decErr := decodeBinaryResponse(response.Body)
-			if decErr != nil {
-				return nil, attachResponseContext(decErr, response, "GET", path)
-			}
-			*bytesPtr = decoded
-		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
-			/* A string return type with a text-class Content-Type (for example
-			 * text/plain): the transport kept the text as-is, so hand it back
-			 * verbatim. */
-			*strPtr = response.Body
-		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
-			/* A string return type under a binary Content-Type: the transport
-			 * carried the body as base64 text, which is an internal detail (D107);
-			 * the caller gets the decoded body. */
-			decoded, decErr := decodeBinaryResponse(response.Body)
-			if decErr != nil {
-				return nil, attachResponseContext(decErr, response, "GET", path)
-			}
-			*strPtr = string(decoded)
-		} else {
-			/* Any other non-JSON Content-Type on a non-binary return type is a
-			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.GetPetPhoto: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
-		}
-		dataPtr = &data
-	}
-
-	return &ApiResult[[]byte]{
-		StatusCode: response.StatusCode,
-		Data:       dataPtr,
-		RawBody:    response.Body,
-		Headers:    response.Headers,
+	/* The success response is binary: the body is handed over unread, as a
+	 * ByteStream the caller reads and closes, never buffered here. */
+	data := NewByteStream(streamed.StatusCode, streamed.Headers, streamed.Body)
+	return &ApiResult[ByteStream]{
+		StatusCode: streamed.StatusCode,
+		Data:       data,
+		RawBody:    "",
+		Headers:    data.Headers(),
 	}, nil
 }
 

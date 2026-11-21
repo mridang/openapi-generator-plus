@@ -337,6 +337,39 @@ func newTransport() (*petstore.TransportOptions, error) {
 
 A 401 on an OAuth2 or OpenID Connect request calls `InvalidateAccessToken` on the authenticator (the refresh token is kept) and replays the request once; a second 401 is an `UnauthorizedError`.
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `Close()` that aborts the connection instead of draining it, so close it when you stop early (`defer stream.Close()`). `ReadAll()` reads the rest into memory and leaves the stream closed.
+
+```go file
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+
+	"petstore/pkg"
+)
+
+func saveTo(ctx context.Context, client *petstore.Client, petId int64, documentId int64, target string) error {
+	stream, err := client.Pet.DownloadPetDocument(ctx, petId, documentId)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stream.Close() }()
+	fmt.Println(stream.StatusCode())
+	file, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = file.Close() }()
+	_, err = io.Copy(file, stream)
+	return err
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `IdleTimeout` (on `TransportOptionsBuilder`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.Close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `SendStreaming` fails a stream call with `ErrStreamingUnsupported` naming it, and its buffered calls keep working.
+
 ### Custom HTTP client
 
 ```go file
@@ -434,7 +467,7 @@ One optional hook runs around every call: `petstore.NewClientWithToken(host, tok
 
 ## API Methods
 
-Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request (`errors.Is(err, context.Canceled)`), and `client.Close()` is graceful and idempotent: requests in flight finish and new ones return `ErrClientClosed`. Each API group is exposed as a typed field on the client (e.g., `client.Pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request (`errors.Is(err, context.Canceled)`), and `client.Close()` is graceful and idempotent: requests in flight finish and new ones return `ErrClientClosed`. Streams that are still open are cancelled. Each API group is exposed as a typed field on the client (e.g., `client.Pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
 ## Models
 
@@ -450,7 +483,7 @@ func accept(m models.Account) models.Account {
 
 ## Binary / File Uploads
 
-File upload parameters and binary request bodies are typed as `io.Reader`; an `*os.File` satisfies it, and so does `bytes.NewReader` or `strings.NewReader`. Binary response bodies are returned as `[]byte`.
+File upload parameters and binary request bodies are typed as `io.Reader`; an `*os.File` satisfies it, and so does `bytes.NewReader` or `strings.NewReader`. A binary response body is returned as a `*ByteStream`, which is an `io.ReadCloser` (see Streaming).
 
 ## Comment Style
 

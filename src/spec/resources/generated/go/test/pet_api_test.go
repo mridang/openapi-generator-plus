@@ -669,9 +669,41 @@ func TestBhvOperations045_PetApi_GetPetAvatar(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	_, err := api.GetPetAvatar(context.Background(), int64(1))
+	stream, err := api.GetPetAvatar(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetAvatar failed: %v", err)
+	}
+	defer func() { _ = stream.Close() }()
+}
+
+func TestBhvStreaming009_PetApi_ABinaryStreamExposesTheStatusAndTheLowerCasedResponseHeaders(t *testing.T) {
+	t.Parallel()
+	api := newPetApiForIntegration(t)
+
+	stream, err := api.GetPetAvatar(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatar failed: %v", err)
+	}
+	defer func() { _ = stream.Close() }()
+	if stream.StatusCode() != 200 {
+		t.Errorf("expected status 200, got %d", stream.StatusCode())
+	}
+	if _, ok := stream.Headers()["content-type"]; !ok {
+		t.Errorf("expected a content-type header, got %v", stream.Headers())
+	}
+	for name := range stream.Headers() {
+		if name != strings.ToLower(name) {
+			t.Errorf("expected lower-cased header names, got %q", name)
+		}
+	}
+
+	result, err := api.GetPetAvatarWithHTTPInfo(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarWithHTTPInfo failed: %v", err)
+	}
+	defer func() { _ = result.Data.Close() }()
+	if result.StatusCode != result.Data.StatusCode() || result.RawBody != "" || !reflect.DeepEqual(result.Headers, result.Data.Headers()) {
+		t.Errorf("expected the result to repeat the stream's status and headers with an empty raw body, got %d %v %q", result.StatusCode, result.Headers, result.RawBody)
 	}
 }
 
@@ -892,10 +924,11 @@ func TestBhvOperations035_PetApi_DownloadPetDocument(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	_, err := api.DownloadPetDocument(context.Background(), int64(1), int64(1))
+	stream, err := api.DownloadPetDocument(context.Background(), int64(1), int64(1))
 	if err != nil {
 		t.Fatalf("DownloadPetDocument failed: %v", err)
 	}
+	defer func() { _ = stream.Close() }()
 }
 
 func TestBhvOperations055_PetApi_GetPetPhoto(t *testing.T) {
@@ -906,6 +939,7 @@ func TestBhvOperations055_PetApi_GetPetPhoto(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPetPhoto failed: %v", err)
 	}
+	defer func() { _ = result.Close() }()
 	if result == nil {
 		t.Fatal("expected non-nil result from GetPetPhoto")
 	}
@@ -1320,7 +1354,15 @@ func TestBhvOperations034_PetApi_DownloadBinaryMock(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, _ = api.GetPetAvatarWithHTTPInfo(context.Background(), int64(1))
+	result, err := api.GetPetAvatarWithHTTPInfo(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarWithHTTPInfo failed: %v", err)
+	}
+	defer func() { _ = result.Data.Close() }()
+	got, err := result.Data.ReadAll()
+	if err != nil || !bytes.Equal(got, binaryData) {
+		t.Errorf("expected the binary bytes as the server sent them, got %v (%v)", got, err)
+	}
 }
 
 func TestBhvOperations089_PetApi_UploadMultipartMock(t *testing.T) {
