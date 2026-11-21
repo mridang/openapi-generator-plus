@@ -345,7 +345,7 @@ Test: `ApiExceptionTest.mustache`, `DefaultApiClientTest.mustache` (`CustomCaCer
 ### Batch 7 follow-up: fixture tests and pagination
 Rule: the object-valued `getPetTag` parameters, the `addPetTreatment` anyOf body, the non-string `uploadPetDocument` parts, `getDepartment` and `getStockItem`, the four hostile `Availability` members, U+2028, U+2029 and DEL written literally, the `contentEncoding` byte property, the `Pet.location` tuple, last-wins duplicate keys, the `Error` and `Result` schemas and the typed `/test/status/{code}` routes through `getPetById` are all pinned. C# does not prefix the colliding schemas `Error` and `Result` (a namespace separates them from the BCL), so F131 and F173 need no csharp change. `/test/response-headers` stays uncalled until multi-value response headers are decided.
 
-Rule (proposal taken as the default): pagination, when added, is a separate additively named method per operation (`<Operation>PagesAsync` returning `IAsyncEnumerable<T>`), never a change to the return type of the existing data method.
+Rule (D123, which supersedes the earlier default): pagination, when added, is a separate additively named method per operation (`<Operation>PagesAsync`) returning a `Paginator<T>` that implements `IAsyncEnumerable<T>` and has `Items()` and `Pages()`, never a change to the return type of the existing data method.
 
 Test: `ObjectSerializerTest.mustache` (`FixtureEdgeCaseTests`), `Test/Api/PetApiTest.mustache`, `Test/Api/StoreApiTest.mustache`.
 

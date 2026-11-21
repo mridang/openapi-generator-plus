@@ -34,7 +34,7 @@ A response header that the server sends on several lines, such as `Link` or `Set
 
 ## Streaming is not supported
 
-The SDKs read a response body in full before decoding it, and send a request body whole. There is no API for server-sent events, chunked downloads or streaming uploads. When you need to stream, every client accepts your own HTTP client or transport and sends its requests through it: `java.net.http.HttpClient` in Java, a `urllib3.PoolManager` in Python, a `Faraday::Connection` in Ruby, an `ApiClient` or `http.RoundTripper` in Go, and the standard client object of each other language. The SDK keeps its defaults on top of the client you supply and never closes it. Streaming support is under review (issue #114, below).
+The SDKs read a response body in full before decoding it, and send a request body whole. There is no API for server-sent events, chunked downloads or streaming uploads. When you need to stream, every client accepts your own HTTP client or transport and sends its requests through it: `java.net.http.HttpClient` in Java, a `urllib3.PoolManager` in Python, a `Faraday::Connection` in Ruby, an `ApiClient` or `http.RoundTripper` in Go, and the standard client object of each other language. The SDK keeps its defaults on top of the client you supply and never closes it. Streaming support is decided and not built yet: decisions D118 to D122 below give the shape (binary responses become streams, JSON Lines and server-sent events get a `Stream` method), and issue #114 stays open until it ships.
 
 ## Options for a single call
 
@@ -158,6 +158,90 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** An operation whose requirement names two schemes now sends both credentials in all twelve languages, with a tagged test per language (misc074). The exceptions for misc074 are removed.
 
+## D118: Streaming goes through one transport method that returns an unread body
+
+**Context.** The transport contract of all twelve SDKs (`sendRequest` returning a response whose body is a string) reads every response in full before it returns, so it cannot carry a server-sent event feed, a JSON Lines export or a large download, and the finding F837 deferred streaming for that reason ([#114](https://github.com/mridang/openapi-generator-plus/issues/114)). The injected transport is the only escape hatch and it makes every user rebuild signing, error mapping and decoding.
+
+**Options considered.** (1) Keep the buffered contract and document the injected transport as the only way to stream. (2) Replace the buffered method with a streaming one everywhere. (3) Add one method next to the buffered one that returns the response with its body not read yet, with a default implementation that throws. (4) A callback or reactive style (the AWS Java event stream handlers).
+
+**What was compared.** The Swift OpenAPI runtime makes every body an `HTTPBody` (an `AsyncSequence` of chunks) and says transports need no extra support, and progenitor makes the stream the only form: option 2 would break every custom transport in twelve languages. Guzzle says streaming "must be implemented by the HTTP handler used by a client" and PSR-18 cannot express it, so a transport has to opt in. The AWS Java handlers are a reactive adapter, not a base. The full table of about two dozen SDKs and generators, with sources, is in [docs/design/streaming.md](design/streaming.md).
+
+**Decision.** The transport gets one new method, `sendStreaming` in the language's casing, that returns the status, the headers and a body that has not been read. Its default implementation throws the language's built-in unsupported error with a message that names the transport, so a transport someone injected keeps working for buffered calls and a streaming call on it fails clearly instead of falling back to buffering. A language whose interfaces cannot carry a default method (Go, PHP) reaches the same behaviour with a second interface that the SDK checks at call time. The buffered `sendRequest` is unchanged.
+
+**Consequences.** Retries before the first body byte, redirects, authentication refresh, redaction and the error contract run in the SDK on top of the new method, so a caller keeps them. A transport that does not implement the method fails binary operations too (D119). Supersedes the part of F837 that deferred the transport contract. Nothing is built yet.
+
+## D119: Binary responses are streams in all twelve SDKs
+
+**Context.** Today the shape of a binary response differs: java, csharp and ruby return an object that looks like a stream but is memory-backed, and the other nine return bytes in memory. Either way the whole body is read before the caller sees it, so a large download can exhaust the memory of the caller's process ([#114](https://github.com/mridang/openapi-generator-plus/issues/114), findings F837 and F332).
+
+**Options considered.** (1) Bytes in the base method and a stream only in a separate method. (2) A stream in the base method in all twelve, with a helper to read it all. (3) Leave the three different shapes.
+
+**What was compared.** Stainless-generated OpenAI and Anthropic SDKs return a buffered result and offer a separate streaming call; the Swift runtime and progenitor make the stream the only form; Go's `net/http` hands out a `Body` the caller must close. The earlier proposals recommended option 1 because it matches the Stainless pattern and breaks three languages instead of nine. The owner weighed that against memory safety: with option 1 the easy call is the unsafe one.
+
+**Decision.** Option 2. An operation whose success response is binary (`application/octet-stream`, an image, `type: string, format: binary`, any binary media type) returns a byte-stream carrier (`ByteStream`) in every language. The carrier has the status code, the lower-cased headers, an idempotent `close()` and a read-all helper for the caller who wants the bytes in memory. There is no second `Stream` method for a binary operation. JSON and text responses stay buffered. The carrier per language is in [docs/design/streaming.md](design/streaming.md) section 6.1.
+
+**Consequences.** A breaking change for all twelve, which is allowed before the first release: java, csharp and ruby change the type they return and the other nine change from bytes to a stream. A caller that wants the old behaviour calls the read-all helper. A transport that does not implement the streaming method (D118) fails binary operations with the clear unsupported error. This replaces the recommendation of the earlier drafts (bytes in the base method). Nothing is built yet.
+
+## D120: JSON Lines and server-sent events get a `<op>Stream` method that returns a typed sequence of items
+
+**Context.** Specifications that describe an endless or very long response (`text/event-stream`, `application/x-ndjson`, `application/jsonl`) are generated as an operation that reads the whole body, which never ends for an event feed ([#114](https://github.com/mridang/openapi-generator-plus/issues/114), [#71](https://github.com/mridang/openapi-generator-plus/issues/71), [#72](https://github.com/mridang/openapi-generator-plus/issues/72)).
+
+**Options considered.** (1) A generator option or a vendor extension that switches streaming on. (2) A method chosen by a request parameter such as `stream: true` (Speakeasy fragments, Fern `stream-condition`). (3) A method generated from the response media type alone.
+
+**What was compared.** The content type is the signal in ogen, the Swift runtime, Speakeasy, Fern (auto-detected since February 2026), liblab and APIMatic; no vendor needs a switch except for a mixed endpoint. OpenAPI 3.2 added `itemSchema` for sequential types. Stock openapi-generator has no streaming support at all. The existing decision to decline opt-in feature flags (#131) points at option 3.
+
+**Decision.** Option 3, with no rollout flag. For a JSON Lines or SSE success response the generator adds `<op>Stream`, which returns the language's lazy sequence of items: the schema type `T` for JSON Lines and `ServerSentEvent<T>` (with `id`, `event`, `data`, `retry`) for SSE. Such an operation has no buffered method. TypeScript returns `SseStream<T> extends AsyncIterable<ServerSentEvent<T>>` with an idempotent `close()`; Java returns `SseStream<T> extends Iterator<ServerSentEvent<T>>, AutoCloseable` with an idempotent `close()` and `asPublisher()`; the carriers of the other ten are in [docs/design/streaming.md](design/streaming.md) section 6.1. The schema is read per version: in OpenAPI 3.0 and 3.1 `schema` is the item (JSON Lines) or the `data` payload (SSE), in 3.2 `itemSchema` is the item (for SSE the event envelope with `contentSchema` on `data`), and the registered extension `x-oai-itemSchema` is accepted as an input by the Java detector and never by a template. `application/json-seq` stays excluded. An operation that is streamed is never also given a paged method (D123).
+
+**Consequences.** The surface of every SDK grows by a small family of stream types and `ServerSentEvent`. `OnlyAllowJsonRule` must keep the streaming media types. An endpoint that returns JSON or a stream depending on a request parameter is not covered in v1. Nothing is built yet.
+
+## D121: Streams share one set of lifecycle rules
+
+**Context.** A stream outlives the call that opened it, so the buffered rules for timeouts, retries, closing and uploads do not carry over unchanged.
+
+**Options considered.** For the timeout: keep the end-to-end timeout over the body, or split it. For errors: reuse the network error or add a class. For closing the client: wait for open streams or cancel them. For uploads: native stream types with a native replay rule, or one small wrapper.
+
+**What was compared.** Go's `Client.Timeout` "will interrupt reading of the Response.Body", .NET's `ResponseHeadersRead` bounds only the headers, Anthropic exposes a per-read timeout, Guzzle has `read_timeout` and APIMatic has a 60 second stream read timeout: an end-to-end timeout cannot apply to a body. Stainless, Anthropic, ogen and Speakeasy close the response when the consumer stops early. The Swift runtime's `HTTPBody` has the same replayable-or-single-use pair this design adopts for uploads. Go 1.27 drains an HTTP/1 body on `Close()`, which an endless feed would never finish.
+
+**Decision.** (1) Stopping early releases the connection, even when the consumer never reads to the end. (2) `close()` is idempotent in every language. (3) There is one `StreamError`, a subclass of the SDK's network error, for a failure after the headers (a reset, a body that ends short); an idle timeout stays the network timeout error and a decode failure stays the serialization error. (4) The call timeout covers dial, TLS, send, the wait for the headers, redirects and retry waits and stops at the headers; an idle timeout bounds the gap between two reads of the body, 60 seconds by default for every kind, `0` or none turns it off, and an SSE comment line counts as activity. (5) Nothing is retried after the first body byte has been handed to the caller. (6) An upload takes a `BodySource`, replayable (bytes, a file or path, a factory that opens a fresh stream) or single use (a stream handed over); a single-use body is never buffered and never retried, and a 307 or 308 is refused for it. (7) `client.close()` cancels the streams that are open, where it used to finish what is running; requests in flight that are not streams still finish, and the Go stream `Close()` cancels the context before it closes the body.
+
+**Consequences.** The sentence about closing a client in [Closing a client finishes what is running](#closing-a-client-finishes-what-is-running) gains an exception for open streams when this is built. `StreamError` is one new public class in each SDK. A 60 second idle default means a quiet feed needs a heartbeat or a larger setting. Nothing is built yet.
+
+## D122: Server-sent events reconnect on a GET, end on a terminator, and raise in-band errors
+
+**Context.** A server-sent event feed can drop, can end with a marker value, and can report a failure as an event after the status line already said 200.
+
+**Options considered.** For reconnect: automatic by default (browsers, ogen, go-sse), opt-in (Fern `resumable`, Ktor), never (OpenAI, Anthropic, httpx-sse, the .NET parser, the Swift runtime). For the end marker: hard-coded (OpenAI's `[DONE]`), a spec setting (Speakeasy, Fern, APIMatic), a generator option, nothing. For an error event: deliver it as an item (Anthropic's wire design) or raise it (the OpenAI Python SDK raises on an `error` payload).
+
+**What was compared.** The WHATWG text reconnects on a network error, sends `Last-Event-ID` when the last id is not empty and stops on a 204 or a non-`text/event-stream` response. Replaying a request that has a body is the hazard, which is why Fern's switch is off by default. The 2025 and 2026 releases add parser cases: a comment line must not crash the stream, LF, CR and CRLF all end a line, an event with an id and no data is not dispatched but records the id. Details and sources: [docs/design/streaming.md](design/streaming.md) sections 11, 12 and 16.
+
+**Decision.** Reconnect is off for a request that has a body, and for a GET it gives up after five consecutive failures without an event; both can be changed by the caller. Each reconnect is a fresh request that sends `Last-Event-ID`. The terminator is a generator option, default none, and the terminator value ends the stream and is not delivered. An in-band event named `error` raises the SDK's API error (the response status, the event data as the body) and is not reconnected; any other event is an item. The parser follows the WHATWG grammar and the test table includes comments and heartbeats, the three line endings and the id-only event.
+
+**Consequences.** The GET default is the more eager end of the field (Fern ships it off), which the owner may revisit. A feed that sends no heartbeat is cut by the 60 second idle timeout (D121) and reconnects. Nothing is built yet.
+
+## D123: A paged operation gets a `<op>Pages` method that returns a paginator
+
+**Context.** None of the twelve SDKs helps with a paged list: the caller reads the next-page token, offset or `Link` header from each response and writes the loop again ([#163](https://github.com/mridang/openapi-generator-plus/issues/163)). F1100 (java) and the C# note already say that pagination, when added, is a separate additive method and never a change to the return type of the existing one.
+
+**Options considered.** (A) The existing method returns a page object. (B) A new method returns only an item sequence. (C) A new method returns a paginator with an item view and a page view. (D) An explicit cursor object. (E) Callbacks. (F) Reactive publishers. (G) Eager collect-all.
+
+**What was compared.** Mature SDKs split into two families that both offer both views: AWS makes the page primary with item helpers, and Stripe, OpenAI, Anthropic, Azure, Octokit and Fern make the item primary with a page escape hatch; Google does both through one object. Each one uses the language's own sequence protocol, makes laziness free and treats page size and a total cap as different knobs; Stripe forces a limit on its collect-all. AWS Go and Soto stop on a repeated token, silently. The table of about two dozen SDKs and generators with sources is in [docs/design/pagination.md](design/pagination.md).
+
+**Decision.** Option C. For each paged operation the generator adds `<operation>Pages` (C# `<Operation>PagesAsync`) with the same parameters in the same order as the base method; it returns a paginator with `items()` and `pages()` and no page wrapper as the primary type, and `pages()` yields a `Page<T>` value (items, next cursor, the same result `...WithHttpInfo` returns). The method makes no request until the first read, and each page is an ordinary buffered call with every retry, timeout, redirect, authentication and redaction rule. The cursor type follows the request parameter. A failed page raises the SDK error after the earlier items were delivered. A cursor equal to the one just sent, or an offset that did not advance, raises a new `PaginationError`, a direct child of the SDK's root error. There is no `maxItems` and no collect-all in v1. Iterating again restarts from the starting position. Elixir raises on a failed page instead of returning a tuple. Supersedes F1100 in its first form and the C# "Batch 7 follow-up" note.
+
+**Consequences.** The base methods and the transport do not change, so this is additive. Each SDK gains `Paginator`, `Page` and `PaginationError`. Resuming is passing the next cursor as the starting parameter, with no separate resume API. Nothing is built yet.
+
+## D124: Pagination is detected conservatively, with vendor extensions as hints and an override
+
+**Context.** An OpenAPI document has no pagination keyword, and the repository forbids a template to read a spec-sourced `x-*` key, forbids client-side validation and says an ambiguous spec must leave the manual call ([#163](https://github.com/mridang/openapi-generator-plus/issues/163)).
+
+**Options considered.** A vendor extension read by the generator (Speakeasy, Fern, Stainless, Kiota), a service-model trait (Smithy), a structural convention (Google AIP-158), the run-time `Link` header (Octokit), conservative inference with an override (the Spring option `autoXSpringPaginated` is the only precedent in openapi-generator).
+
+**What was compared.** Nobody infers freely: Stainless, Speakeasy, Fern, liblab and APIMatic all need a declaration, and Stainless's id cursor silently ends when the last item has no `id`, which is the failure #163 forbids. OpenAPI 3.2 added no pagination keyword. In 2026 Fern and Speakeasy added next-URL pagination, HTTP QUERY became RFC 10008, and nobody added inference. See [docs/design/pagination.md](design/pagination.md) sections 4, 7 and 9.
+
+**Decision.** Detection is a Java rule in the shared generator that computes a generator-owned model; templates never read an `x-*` key. An operation is eligible only when it is a GET with one 2xx JSON response, exactly one array property, exactly one matching style and exactly one candidate each for the request and the response parameter; otherwise it gets no paged method and the generation log says why. Tiers 1 (token cursor) and 3 (`Link` header, RFC 8288, same origin only) ship first. Tiers 2 (id cursor with `has_more`), 4 (offset or page number) and 5 (next URL in the body) come later behind the explicit override. The Java generator reads `x-ms-pageable`, `x-fern-pagination`, `x-speakeasy-pagination`, `x-stainless-pagination-property`, `x-liblab-pagination`, APIMatic `x-pagination` and `x-dropshot-pagination` as hints, and a generator option overrides a hint and inference, for one operation or for the whole feature. A cursor in a POST body and a cursor in a response header other than `Link` are out of v1; HTTP QUERY (RFC 10008) is the later path for a read-only search with a body.
+
+**Consequences.** Inference leaves some real paged operations manual, and the override and the hints exist for them. The generation log names every operation that was skipped. Link-header support needs an RFC 8288 parser and an origin check. A paged test fixture is an open item: whether the Chasm mock can answer a different page per cursor is not settled, and Go can use the in-memory test server of Go 1.27. Nothing is built yet.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -235,7 +319,7 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#111](https://github.com/mridang/openapi-generator-plus/issues/111): compile the README and `SKILLS.md` code fences and test the minimum supported runtimes.
 * [#112](https://github.com/mridang/openapi-generator-plus/issues/112): add a maximum response size transport option.
 * [#113](https://github.com/mridang/openapi-generator-plus/issues/113): return a typed error from Rust operations instead of `Box<dyn Error>`.
-* [#114](https://github.com/mridang/openapi-generator-plus/issues/114): support streaming responses and uploads in the generated clients.
+* [#114](https://github.com/mridang/openapi-generator-plus/issues/114): support streaming responses and uploads in the generated clients (shape decided in D118 to D122, not built).
 * [#115](https://github.com/mridang/openapi-generator-plus/issues/115): cover the Dart browser client and derive the keyword lists from the toolchains.
 * [#116](https://github.com/mridang/openapi-generator-plus/issues/116): add a per-call timeout and make the end-to-end timeout hold while the body is read.
 * [#117](https://github.com/mridang/openapi-generator-plus/issues/117): decode error bodies against the operation's declared error schema.
@@ -245,6 +329,7 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#122](https://github.com/mridang/openapi-generator-plus/issues/122): guard the public API surface of every SDK and stop internals from leaking.
 * [#123](https://github.com/mridang/openapi-generator-plus/issues/123): generate a typed error hierarchy per status and per declared error schema.
 * [#124](https://github.com/mridang/openapi-generator-plus/issues/124): sweep the build, lint, format, test and docs logs of every SDK for warnings.
+* [#163](https://github.com/mridang/openapi-generator-plus/issues/163): generate a paged method for every paged operation (shape decided in D123 and D124, not built).
 * [#126](https://github.com/mridang/openapi-generator-plus/issues/126): type `format: date` values in the Go SDK.
 * [#127](https://github.com/mridang/openapi-generator-plus/issues/127): keep connections alive in the Ruby client.
 * [#128](https://github.com/mridang/openapi-generator-plus/issues/128): stop escaping reserved property names that need no escape in the Swift and Elixir SDKs.
