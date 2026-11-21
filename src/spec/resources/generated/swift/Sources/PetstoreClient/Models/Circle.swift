@@ -9,60 +9,65 @@ import Foundation
 
 /// Circle is a model class generated from the OpenAPI schema.
 public struct Circle: Codable, Sendable, Equatable, Hashable {
-    public let shapeType: String
-    public let label: String?
-    public let radius: Double
+  public let shapeType: String
+  public let label: String?
+  public let radius: Double
 
-    enum CodingKeys: String, CodingKey, CaseIterable {
-        case shapeType = "shapeType"
-        case label = "label"
-        case radius = "radius"
-    }
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case shapeType = "shapeType"
+    case label = "label"
+    case radius = "radius"
+  }
 
-    /// Creates a new Circle instance.
-    public init(shapeType: String = "Circle", radius: Double, label: String? = nil) {
-        self.shapeType = shapeType
-        self.radius = radius
-        self.label = label
-    }
+  /// Creates a new Circle instance.
+  public init(shapeType: String = "Circle", radius: Double, label: String? = nil) {
+    self.shapeType = shapeType
+    self.radius = radius
+    self.label = label
+  }
 
-    /// Returns a copy of this instance with the given properties replaced. A
-    /// property left out keeps its value; to clear an optional property pass
-    /// `.some(nil)`, since a bare `nil` also means "keep".
-    public func copy(shapeType: String? = nil, radius: Double? = nil, label: String?? = .none) -> Circle {
-        return Circle(shapeType: shapeType ?? self.shapeType, radius: radius ?? self.radius, label: label ?? self.label)
-    }
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(shapeType: String? = nil, radius: Double? = nil, label: String?? = .none)
+    -> Circle
+  {
+    return Circle(
+      shapeType: shapeType ?? self.shapeType, radius: radius ?? self.radius,
+      label: label ?? self.label)
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-    /// payload but the schema declares a `default`, that default is applied —
-    /// matching the cross-language "apply schema default on deserialise"
-    /// expectation. An explicit JSON `null` is a provided value and is
-    /// preserved as `nil` rather than replaced by the default.
-    /// Unknown JSON keys are silently ignored — matching the cross-language
-    /// "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        /* A required property that carries a default (a discriminator value, for
-           one) is filled with that default when the key is absent. */
-        self.shapeType = container.contains(.shapeType)
-            ? try container.decode(String.self, forKey: .shapeType)
-            : "Circle"
-        self.label = try container.decodeIfPresent(String.self, forKey: .label)
-        self.radius = try container.decode(Double.self, forKey: .radius)
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+  /// payload but the schema declares a `default`, that default is applied —
+  /// matching the cross-language "apply schema default on deserialise"
+  /// expectation. An explicit JSON `null` is a provided value and is
+  /// preserved as `nil` rather than replaced by the default.
+  /// Unknown JSON keys are silently ignored — matching the cross-language
+  /// "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    /* A required property that carries a default (a discriminator value, for
+       one) is filled with that default when the key is absent. */
+    self.shapeType =
+      container.contains(.shapeType)
+      ? try container.decode(String.self, forKey: .shapeType)
+      : "Circle"
+    self.label = try container.decodeIfPresent(String.self, forKey: .label)
+    self.radius = try container.decode(Double.self, forKey: .radius)
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(ObjectSerializer.ordered(shapeType), forKey: .shapeType)
-        try container.encodeIfPresent(ObjectSerializer.ordered(label), forKey: .label)
-        try container.encode(ObjectSerializer.ordered(radius), forKey: .radius)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(ObjectSerializer.ordered(shapeType), forKey: .shapeType)
+    try container.encodeIfPresent(ObjectSerializer.ordered(label), forKey: .label)
+    try container.encode(ObjectSerializer.ordered(radius), forKey: .radius)
+  }
 }

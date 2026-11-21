@@ -16,43 +16,43 @@
 /// (`node.child` is still a `TreeNode?`).
 @propertyWrapper
 public struct Indirect<Wrapped> {
-    private final class Storage {
-        let value: Wrapped
-        init(_ value: Wrapped) { self.value = value }
-    }
+  private final class Storage {
+    let value: Wrapped
+    init(_ value: Wrapped) { self.value = value }
+  }
 
-    private var storage: Storage
+  private var storage: Storage
 
-    public var wrappedValue: Wrapped {
-        get { storage.value }
-        set { storage = Storage(newValue) }
-    }
+  public var wrappedValue: Wrapped {
+    get { storage.value }
+    set { storage = Storage(newValue) }
+  }
 
-    public init(wrappedValue: Wrapped) {
-        self.storage = Storage(wrappedValue)
-    }
+  public init(wrappedValue: Wrapped) {
+    self.storage = Storage(wrappedValue)
+  }
 }
 
 extension Indirect: Codable where Wrapped: Codable {
-    public init(from decoder: Decoder) throws {
-        self.init(wrappedValue: try Wrapped(from: decoder))
-    }
+  public init(from decoder: Decoder) throws {
+    self.init(wrappedValue: try Wrapped(from: decoder))
+  }
 
-    public func encode(to encoder: Encoder) throws {
-        try wrappedValue.encode(to: encoder)
-    }
+  public func encode(to encoder: Encoder) throws {
+    try wrappedValue.encode(to: encoder)
+  }
 }
 
 extension Indirect: Equatable where Wrapped: Equatable {
-    public static func == (lhs: Indirect, rhs: Indirect) -> Bool {
-        lhs.wrappedValue == rhs.wrappedValue
-    }
+  public static func == (lhs: Indirect, rhs: Indirect) -> Bool {
+    lhs.wrappedValue == rhs.wrappedValue
+  }
 }
 
 extension Indirect: Hashable where Wrapped: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(wrappedValue)
-    }
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(wrappedValue)
+  }
 }
 
 /// The storage class holds a single immutable, Sendable value, so the box is

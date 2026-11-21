@@ -13,24 +13,24 @@ import Foundation
 /// nothing. Each group is an associated type so that ``Client`` keeps its concrete
 /// group classes.
 public protocol ClientProtocol: Sendable {
-    /// The type of the PetApi group.
-    associatedtype PetApiType: PetApiProtocol
+  /// The type of the PetApi group.
+  associatedtype PetApiType: PetApiProtocol
 
-    /// The type of the ProblemsApi group.
-    associatedtype ProblemsApiType: ProblemsApiProtocol
+  /// The type of the ProblemsApi group.
+  associatedtype ProblemsApiType: ProblemsApiProtocol
 
-    /// The type of the StoreApi group.
-    associatedtype StoreApiType: StoreApiProtocol
+  /// The type of the StoreApi group.
+  associatedtype StoreApiType: StoreApiProtocol
 
-    /// API operations for the PetApi group.
-    var pet: PetApiType { get }
+  /// API operations for the PetApi group.
+  var pet: PetApiType { get }
 
-    /// API operations for the ProblemsApi group.
-    var problems: ProblemsApiType { get }
+  /// API operations for the ProblemsApi group.
+  var problems: ProblemsApiType { get }
 
-    /// API operations for the StoreApi group.
-    var store: StoreApiType { get }
+  /// API operations for the StoreApi group.
+  var store: StoreApiType { get }
 
-    /// Closes the client; a fake client has nothing to release.
-    func close()
+  /// Closes the client; a fake client has nothing to release.
+  func close()
 }

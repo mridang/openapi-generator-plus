@@ -16,65 +16,67 @@ import Foundation
 /// ``serverAddress`` is the lower-case host of ``url``, without a port and
 /// without the brackets of an IPv6 literal.
 public struct CallInfo: Sendable {
-    /// The operation id exactly as written in the spec.
-    public let operationId: String
+  /// The operation id exactly as written in the spec.
+  public let operationId: String
 
-    /// The upper-case HTTP method.
-    public let method: String
+  /// The upper-case HTTP method.
+  public let method: String
 
-    /// The spec path template of the operation, for example `/items/{id}`.
-    public let urlTemplate: String
+  /// The spec path template of the operation, for example `/items/{id}`.
+  public let urlTemplate: String
 
-    /// The request URL without its query string and fragment.
-    public let url: String
+  /// The request URL without its query string and fragment.
+  public let url: String
 
-    /// The host of ``url``, lower-case, without a port.
-    public let serverAddress: String
+  /// The host of ``url``, lower-case, without a port.
+  public let serverAddress: String
 
-    /// Creates the description of one call.
-    public init(operationId: String, method: String, urlTemplate: String, url: String, serverAddress: String) {
-        self.operationId = operationId
-        self.method = method
-        self.urlTemplate = urlTemplate
-        self.url = url
-        self.serverAddress = serverAddress
+  /// Creates the description of one call.
+  public init(
+    operationId: String, method: String, urlTemplate: String, url: String, serverAddress: String
+  ) {
+    self.operationId = operationId
+    self.method = method
+    self.urlTemplate = urlTemplate
+    self.url = url
+    self.serverAddress = serverAddress
+  }
+
+  /// Builds the description of a call from the target of its request.
+  ///
+  /// A query string and a fragment are dropped from `target` before it is
+  /// stored, and a `target` that is not a URL has an empty ``serverAddress``.
+  init(operationId: String, method: String, urlTemplate: String, target: String) {
+    var url = Substring(target)
+    for cut in ["?", "#"] {
+      if let index = url.range(of: cut)?.lowerBound {
+        url = url[..<index]
+      }
     }
+    self.init(
+      operationId: operationId, method: method.uppercased(), urlTemplate: urlTemplate,
+      url: String(url), serverAddress: CallInfo.host(of: url))
+  }
 
-    /// Builds the description of a call from the target of its request.
-    ///
-    /// A query string and a fragment are dropped from `target` before it is
-    /// stored, and a `target` that is not a URL has an empty ``serverAddress``.
-    init(operationId: String, method: String, urlTemplate: String, target: String) {
-        var url = Substring(target)
-        for cut in ["?", "#"] {
-            if let index = url.range(of: cut)?.lowerBound {
-                url = url[..<index]
-            }
-        }
-        self.init(
-            operationId: operationId, method: method.uppercased(), urlTemplate: urlTemplate,
-            url: String(url), serverAddress: CallInfo.host(of: url))
+  /// The lower-case host of an absolute URL, without a port, userinfo or the
+  /// brackets of an IPv6 literal; empty when `url` has no authority.
+  private static func host(of url: Substring) -> String {
+    guard let scheme = url.range(of: "://") else {
+      return ""
     }
-
-    /// The lower-case host of an absolute URL, without a port, userinfo or the
-    /// brackets of an IPv6 literal; empty when `url` has no authority.
-    private static func host(of url: Substring) -> String {
-        guard let scheme = url.range(of: "://") else {
-            return ""
-        }
-        var authority = url[scheme.upperBound...]
-        if let slash = authority.firstIndex(of: "/") {
-            authority = authority[..<slash]
-        }
-        if let at = authority.lastIndex(of: "@") {
-            authority = authority[authority.index(after: at)...]
-        }
-        if authority.hasPrefix("["), let close = authority.firstIndex(of: "]") {
-            return authority[authority.index(after: authority.startIndex)..<close].lowercased()
-        }
-        if let colon = authority.firstIndex(of: ":") {
-            authority = authority[..<colon]
-        }
-        return authority.lowercased()
+    var authority = url[scheme.upperBound...]
+    if let slash = authority.firstIndex(of: "/") {
+      authority = authority[..<slash]
     }
+    if let at = authority.lastIndex(of: "@") {
+      authority = authority[authority.index(after: at)...]
+    }
+    if authority.hasPrefix("["), let close = authority.firstIndex(of: "]") {
+      return authority[authority.index(after: authority.startIndex)..<close].lowercased()
+    }
+    if let colon = authority.firstIndex(of: ":") {
+      authority = authority[..<colon]
+    }
+    return authority.lowercased()
+  }
 }

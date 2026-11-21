@@ -20,53 +20,55 @@ import Foundation
 /// `Error` and is deliberately not part of the SDK error hierarchy rooted at
 /// ``OpenAPIError``.
 public enum ConfigurationError: Error, LocalizedError, Equatable {
-    /// The proxy URL does not parse, is not http(s), has no host, or the
-    /// platform cannot route through a proxy. The value is the complete
-    /// message, with any `user:password@` shown as `***@`.
-    case invalidProxy(String)
-    /// A server variable override is not one of the variable's enum values.
-    case invalidServerVariable(variable: String, value: String, allowed: [String])
-    /// The CA certificate file cannot be read or parsed, or the platform
-    /// cannot apply a CA certificate or the disabling of TLS verification. The
-    /// value is the complete message.
-    case invalidCACertificate(String)
-    /// The timeout is not a positive number of milliseconds.
-    case invalidTimeout(Int)
-    /// An argument is malformed: bad credentials, a missing required
-    /// parameter, a malformed URL, or a header, cookie or multipart value
-    /// holding characters that would corrupt the HTTP message.
-    case invalidArgument(String)
-    /// The call was made in the wrong state: the client was closed, or an
-    /// authenticator was used before its API client or access token was set.
-    case invalidState(String)
+  /// The proxy URL does not parse, is not http(s), has no host, or the
+  /// platform cannot route through a proxy. The value is the complete
+  /// message, with any `user:password@` shown as `***@`.
+  case invalidProxy(String)
+  /// A server variable override is not one of the variable's enum values.
+  case invalidServerVariable(variable: String, value: String, allowed: [String])
+  /// The CA certificate file cannot be read or parsed, or the platform
+  /// cannot apply a CA certificate or the disabling of TLS verification. The
+  /// value is the complete message.
+  case invalidCACertificate(String)
+  /// The timeout is not a positive number of milliseconds.
+  case invalidTimeout(Int)
+  /// An argument is malformed: bad credentials, a missing required
+  /// parameter, a malformed URL, or a header, cookie or multipart value
+  /// holding characters that would corrupt the HTTP message.
+  case invalidArgument(String)
+  /// The call was made in the wrong state: the client was closed, or an
+  /// authenticator was used before its API client or access token was set.
+  case invalidState(String)
 
-    public var errorDescription: String? {
-        switch self {
-        case .invalidProxy(let message):
-            return message
-        case .invalidServerVariable(let variable, let value, let allowed):
-            return "Invalid value '\(value)' for server variable '\(variable)'. Allowed values: [\(allowed.joined(separator: ", "))]"
-        case .invalidCACertificate(let message):
-            return message
-        case .invalidTimeout(let value):
-            return "Invalid timeout: must be a positive number of milliseconds (got \(value))"
-        case .invalidArgument(let reason):
-            return "Invalid argument: \(reason)"
-        case .invalidState(let reason):
-            return "Invalid state: \(reason)"
-        }
+  public var errorDescription: String? {
+    switch self {
+    case .invalidProxy(let message):
+      return message
+    case .invalidServerVariable(let variable, let value, let allowed):
+      return
+        "Invalid value '\(value)' for server variable '\(variable)'. Allowed values: [\(allowed.joined(separator: ", "))]"
+    case .invalidCACertificate(let message):
+      return message
+    case .invalidTimeout(let value):
+      return "Invalid timeout: must be a positive number of milliseconds (got \(value))"
+    case .invalidArgument(let reason):
+      return "Invalid argument: \(reason)"
+    case .invalidState(let reason):
+      return "Invalid state: \(reason)"
     }
+  }
 
-    /// The message for a proxy URL that does not parse. Only the scheme, host,
-    /// port and path are kept: the query string and fragment are dropped, and
-    /// any `user:password@` in `url` is shown as `***@`, so a credential never
-    /// reaches a log.
-    static func invalidProxyURL(_ url: String, reason: String? = nil) -> ConfigurationError {
-        let withoutQueryOrFragment = url.firstIndex(where: { $0 == "?" || $0 == "#" })
-            .map { String(url[..<$0]) } ?? url
-        let masked = withoutQueryOrFragment.replacingOccurrences(
-            of: "^([A-Za-z][A-Za-z0-9+.-]*://)?[^/?#]*@", with: "$1***@", options: .regularExpression)
-        let qualifier = reason.map { " (\($0))" } ?? ""
-        return .invalidProxy("Invalid proxy URL\(qualifier): \(masked)")
-    }
+  /// The message for a proxy URL that does not parse. Only the scheme, host,
+  /// port and path are kept: the query string and fragment are dropped, and
+  /// any `user:password@` in `url` is shown as `***@`, so a credential never
+  /// reaches a log.
+  static func invalidProxyURL(_ url: String, reason: String? = nil) -> ConfigurationError {
+    let withoutQueryOrFragment =
+      url.firstIndex(where: { $0 == "?" || $0 == "#" })
+      .map { String(url[..<$0]) } ?? url
+    let masked = withoutQueryOrFragment.replacingOccurrences(
+      of: "^([A-Za-z][A-Za-z0-9+.-]*://)?[^/?#]*@", with: "$1***@", options: .regularExpression)
+    let qualifier = reason.map { " (\($0))" } ?? ""
+    return .invalidProxy("Invalid proxy URL\(qualifier): \(masked)")
+  }
 }

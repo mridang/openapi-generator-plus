@@ -29,27 +29,27 @@ import Foundation
 /// ```
 public enum TraceContextUtil {
 
-    /// The propagator function used to inject trace context headers.
-    ///
-    /// Set this at application startup to enable trace context propagation.
-    /// When nil (the default), ``injectTraceContext(headers:)`` is a no-op.
-    public static var propagator: ((_ headers: inout [String: String]) -> Void)?
+  /// The propagator function used to inject trace context headers.
+  ///
+  /// Set this at application startup to enable trace context propagation.
+  /// When nil (the default), ``injectTraceContext(headers:)`` is a no-op.
+  public static var propagator: ((_ headers: inout [String: String]) -> Void)?
 
-    /// Inject the current OpenTelemetry trace context into the given headers map.
-    ///
-    /// The propagator writes into a scratch map, and only its non-empty entries
-    /// reach `headers`. The W3C propagator always writes `tracestate`, empty or
-    /// not, and an empty `tracestate` header is not what the other SDKs send.
-    ///
-    /// - Parameter headers: Mutable map of request headers.
-    public static func injectTraceContext(headers: inout [String: String]) {
-        guard let propagator else {
-            return
-        }
-        var injected: [String: String] = [:]
-        propagator(&injected)
-        for (key, value) in injected where !value.isEmpty {
-            headers[key] = value
-        }
+  /// Inject the current OpenTelemetry trace context into the given headers map.
+  ///
+  /// The propagator writes into a scratch map, and only its non-empty entries
+  /// reach `headers`. The W3C propagator always writes `tracestate`, empty or
+  /// not, and an empty `tracestate` header is not what the other SDKs send.
+  ///
+  /// - Parameter headers: Mutable map of request headers.
+  public static func injectTraceContext(headers: inout [String: String]) {
+    guard let propagator else {
+      return
     }
+    var injected: [String: String] = [:]
+    propagator(&injected)
+    for (key, value) in injected where !value.isEmpty {
+      headers[key] = value
+    }
+  }
 }

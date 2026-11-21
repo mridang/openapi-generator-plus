@@ -8,571 +8,590 @@
 import Foundation
 import Testing
 
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 @testable import PetstoreClient
+
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
 
 @Suite final class TransportOptionsTests {
 
-    @Test func testBhvOptions043VerifySslDefaultsToTrue() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(opts.verifySsl)
+  @Test func testBhvOptions043VerifySslDefaultsToTrue() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.verifySsl)
+  }
+
+  @Test func testBhvOptions018CaCertPathDefaultsToNull() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.caCertPath == nil)
+  }
+
+  @Test func testBhvOptions032ProxyDefaultsToNull() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.proxy == nil)
+  }
+
+  @Test func testBhvOptions038TimeoutDefaultsTo10Seconds() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.timeout == 10000)
+  }
+
+  @Test func testBhvOptions020FollowRedirectsDefaultsToTrue() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.followRedirects)
+  }
+
+  @Test func testBhvOptions025MaxRedirectsDefaultsToNull() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.maxRedirects == nil)
+  }
+
+  @Test func testBhvOptions041UserAgentDefaultsToNonEmptyString() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(!(opts.userAgent?.isEmpty ?? true))
+  }
+
+  /* D22: the default is '<registry name>/<version> (<language>)'. */
+  @Test func testBhvOptions042UserAgentDefaultIsTheRegistryNameVersionAndLanguage() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.userAgent == "PetstoreClient/1.0.0 (swift)")
+  }
+
+  @Test func testBhvOptions019DefaultHeadersDefaultsToEmpty() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.defaultHeaders.isEmpty)
+  }
+
+  @Test func testBhvOptions022InjectRequestIdDefaultsToFalse() throws {
+    let opts = try TransportOptionsBuilder().build()
+    #expect(!(opts.injectRequestID))
+  }
+
+  @Test func testBhvOptions026MaxRetriesDefaultsToTwo() throws {
+    #expect(try TransportOptionsBuilder().build().maxRetries == 2)
+  }
+
+  @Test func testBhvOptions027MaxRetriesCanBeSetAndDisabled() throws {
+    #expect(try TransportOptionsBuilder().maxRetries(5).build().maxRetries == 5)
+    #expect(try TransportOptionsBuilder().maxRetries(0).build().maxRetries == 0)
+  }
+
+  @Test func testBhvOptions007NegativeMaxRetriesIsRejected() throws {
+    #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().maxRetries(-1).build()
     }
+  }
 
-    @Test func testBhvOptions018CaCertPathDefaultsToNull() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(opts.caCertPath == nil)
+  @Test func testBhvOptions045NegativeMaxRedirectsIsRejectedAtConfiguration() throws {
+    #expect(throws: ConfigurationError.invalidArgument("maxRedirects must not be negative: -1")) {
+      try TransportOptionsBuilder().maxRedirects(-1).build()
     }
+  }
 
-    @Test func testBhvOptions032ProxyDefaultsToNull() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(opts.proxy == nil)
+  @Test func testBhvOptions047NegativeTimeoutIsRejectedAtConfiguration() throws {
+    #expect(throws: ConfigurationError.invalidTimeout(-1)) {
+      try TransportOptionsBuilder().timeout(-1).build()
     }
+  }
 
-    @Test func testBhvOptions038TimeoutDefaultsTo10Seconds() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(opts.timeout == 10000)
+  @Test func testBhvOptions051ProxyWithAnFtpSchemeIsRejected() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy("ftp://proxy.example.com:3128").build()
     }
+    #expect(error?.errorDescription?.contains("must use http or https scheme") == true)
+  }
 
-    @Test func testBhvOptions020FollowRedirectsDefaultsToTrue() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(opts.followRedirects)
+  /* Transport options are only built through the builder, which rejects a proxy that is not http or https. */
+  @Test func testBhvOptions046TransportOptionsWithANonHttpProxySchemeCannotBeBuilt() {
+    #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy("socks5://proxy.example.com:1080").build()
     }
+  }
 
-    @Test func testBhvOptions025MaxRedirectsDefaultsToNull() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(opts.maxRedirects == nil)
+  /* A ready-made session combined with a CA bundle setting is rejected when the options are built. */
+  @Test func testBhvMisc186ASuppliedSessionWithACaBundleIsRejectedAtBuild() {
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().session(session).caCertPath("/tmp/ca.pem").build()
     }
+  }
 
-    @Test func testBhvOptions041UserAgentDefaultsToNonEmptyString() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(!(opts.userAgent?.isEmpty ?? true))
+  @Test func testBhvOptions058SessionDefaultsToNil() throws {
+    #expect(try TransportOptionsBuilder().build().session == nil)
+  }
+
+  @Test func testBhvLangswift071SessionIsKept() throws {
+    let session = URLSession(configuration: .ephemeral)
+    let opts = try TransportOptionsBuilder().session(session).build()
+    #expect(opts.session === session)
+  }
+
+  /* A supplied session is refused with the SDK's own TLS settings, and the
+     message names each conflicting setting. */
+  @Test func testBhvLifecycle024SuppliedSessionConflictsWithTlsSettings() throws {
+    let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
+    builder.caCertPath("/path/to/ca.pem")
+    builder.verifySsl(false)
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "a supplied URLSession conflicts with the SDK's own settings: caCertPath, verifySsl(false); configure them on the session instead"
+      )
+    ) {
+      _ = try builder.build()
     }
+  }
 
-    /* D22: the default is '<registry name>/<version> (<language>)'. */
-    @Test func testBhvOptions042UserAgentDefaultIsTheRegistryNameVersionAndLanguage() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(opts.userAgent == "PetstoreClient/1.0.0 (swift)")
+  /* A supplied session refused with the SDK's own redirect setting fails with a configuration error. */
+  @Test func testBhvLifecycle041SuppliedSessionConflictsWithRedirectSettings() throws {
+    let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
+    builder.followRedirects(false)
+    #expect(throws: ConfigurationError.self) {
+      _ = try builder.build()
     }
+  }
 
-    @Test func testBhvOptions019DefaultHeadersDefaultsToEmpty() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(opts.defaultHeaders.isEmpty)
+  /* A supplied session cannot be combined with the SDK's own proxy, TLS or
+     redirect settings: build() fails fast. */
+  @Test(arguments: ["proxy", "caCertPath", "verifySsl", "followRedirects", "maxRedirects"])
+  func testBhvTransport078SessionConflictsWithOwnSettings(setting: String) {
+    let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
+    switch setting {
+    case "proxy": builder.proxy("http://proxy.example.com:8080")
+    case "caCertPath": builder.caCertPath("/path/to/ca.pem")
+    case "verifySsl": builder.verifySsl(false)
+    case "followRedirects": builder.followRedirects(false)
+    default: builder.maxRedirects(3)
     }
-
-    @Test func testBhvOptions022InjectRequestIdDefaultsToFalse() throws {
-        let opts = try TransportOptionsBuilder().build()
-        #expect(!(opts.injectRequestID))
+    #expect(throws: ConfigurationError.self) {
+      _ = try builder.build()
     }
+  }
 
-    @Test func testBhvOptions026MaxRetriesDefaultsToTwo() throws {
-        #expect(try TransportOptionsBuilder().build().maxRetries == 2)
+  @Test func testBhvOptions017BuilderSetsAllFields() throws {
+    let opts = try TransportOptionsBuilder()
+      .verifySsl(false)
+      .caCertPath("/path/to/ca.pem")
+      .proxy("http://proxy.example.com:8080")
+      .timeout(30000)
+      .followRedirects(false)
+      .maxRedirects(5)
+      .userAgent("CustomAgent/2.0")
+      .defaultHeader(name: "X-Custom", value: "value")
+      .injectRequestID(true)
+      .build()
+
+    #expect(!(opts.verifySsl))
+    #expect(opts.caCertPath == "/path/to/ca.pem")
+    #expect(opts.proxy != nil)
+    #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
+    #expect(opts.timeout == 30000)
+    #expect(!(opts.followRedirects))
+    #expect(opts.maxRedirects == 5)
+    #expect(opts.userAgent == "CustomAgent/2.0")
+    #expect(opts.defaultHeaders["X-Custom"] == "value")
+    #expect(opts.injectRequestID)
+  }
+
+  @Test func testBhvOptions021FollowRedirectsDefaultsToTrueWithNullMaxRedirects() throws {
+    let opts = try TransportOptionsBuilder()
+      .followRedirects(true)
+      .build()
+
+    #expect(opts.followRedirects)
+    #expect(opts.maxRedirects == nil)
+  }
+
+  @Test func testBhvOptions024InvalidProxyUrlThrowsException() throws {
+    #expect(throws: ConfigurationError.invalidProxy("Invalid proxy URL: not a valid url")) {
+      try TransportOptionsBuilder().proxy("not a valid url").build()
     }
+  }
 
-    @Test func testBhvOptions027MaxRetriesCanBeSetAndDisabled() throws {
-        #expect(try TransportOptionsBuilder().maxRetries(5).build().maxRetries == 5)
-        #expect(try TransportOptionsBuilder().maxRetries(0).build().maxRetries == 0)
+  /* The proxy URL is validated when the options are built, not when the
+   * setter runs, so the setter never throws. */
+  @Test func testBhvOptions013InvalidProxyIsReportedByBuildNotBySetter() {
+    let builder = TransportOptionsBuilder().proxy("ftp://proxy.example.com:21")
+    #expect(throws: ConfigurationError.self) {
+      _ = try builder.build()
     }
+  }
 
-    @Test func testBhvOptions007NegativeMaxRetriesIsRejected() throws {
-        #expect(throws: ConfigurationError.self) {
-            try TransportOptionsBuilder().maxRetries(-1).build()
-        }
+  /* Anything that is not an http(s) URL with a host is refused with the
+   * canonical message for its reason, the offending text echoed back. */
+  @Test(arguments: [
+    (
+      "ftp://proxy.example.com:21",
+      "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21"
+    ),
+    ("file:///tmp/proxy", "Invalid proxy URL (must use http or https scheme): file:///tmp/proxy"),
+    (
+      "ws://proxy.example.com:8080",
+      "Invalid proxy URL (must use http or https scheme): ws://proxy.example.com:8080"
+    ),
+    ("http://", "Invalid proxy URL (missing host): http://"),
+    ("http:///only-a-path", "Invalid proxy URL (missing host): http:///only-a-path"),
+  ])
+  func testBhvOptions011ProxyWithoutHttpSchemeOrHostIsRejected(url: String, message: String) throws
+  {
+    #expect(throws: ConfigurationError.invalidProxy(message)) {
+      try TransportOptionsBuilder().proxy(url).build()
     }
+  }
 
-    @Test func testBhvOptions045NegativeMaxRedirectsIsRejectedAtConfiguration() throws {
-        #expect(throws: ConfigurationError.invalidArgument("maxRedirects must not be negative: -1")) {
-            try TransportOptionsBuilder().maxRedirects(-1).build()
-        }
+  /* A proxy without a scheme is refused, whichever way the platform parses
+   * it, and the message names the offending text. */
+  @Test func testBhvOptions031ProxyWithoutSchemeIsRejected() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy("proxy.example.com:8080").build()
     }
+    let message = error?.errorDescription ?? ""
+    #expect(message.hasPrefix("Invalid proxy URL"))
+    #expect(message.hasSuffix(": proxy.example.com:8080"))
+  }
 
-    @Test func testBhvOptions047NegativeTimeoutIsRejectedAtConfiguration() throws {
-        #expect(throws: ConfigurationError.invalidTimeout(-1)) {
-            try TransportOptionsBuilder().timeout(-1).build()
-        }
+  /* The proxy URL goes into the message, so its userinfo never does:
+   * `user:password@` is shown as `***@`. */
+  @Test(arguments: [
+    (
+      "socks5://svc:s3cret@proxy.example.com:1080",
+      "Invalid proxy URL (must use http or https scheme): socks5://***@proxy.example.com:1080"
+    ),
+    (
+      "ftp://svc:s3cret@proxy.example.com:21",
+      "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21"
+    ),
+  ])
+  func testBhvOptions008ProxyErrorMasksTheUserinfo(url: String, message: String) throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy(url).build()
     }
+    #expect(error == ConfigurationError.invalidProxy(message))
+    let description = error?.errorDescription ?? ""
+    #expect(description.range(of: "s3cret") == nil)
+  }
 
-    @Test func testBhvOptions051ProxyWithAnFtpSchemeIsRejected() throws {
-        let error = #expect(throws: ConfigurationError.self) {
-            try TransportOptionsBuilder().proxy("ftp://proxy.example.com:3128").build()
-        }
-        #expect(error?.errorDescription?.contains("must use http or https scheme") == true)
+  /* A URL written into the message keeps its scheme, host, port and path, and drops its query string, userinfo and fragment. */
+  @Test func testBhvErrors077ProxyErrorKeepsOnlySchemeHostPortAndPath() throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy(
+        "socks5://svc:s3cret@proxy.example.com:1080/relay?token=abc123#part"
+      ).build()
     }
+    let description = error?.errorDescription ?? ""
+    #expect(description.hasSuffix("socks5://***@proxy.example.com:1080/relay"))
+    #expect(description.range(of: "token=abc123") == nil)
+    #expect(description.range(of: "#part") == nil)
+    #expect(description.range(of: "s3cret") == nil)
+  }
 
-    /* Transport options are only built through the builder, which rejects a proxy that is not http or https. */
-    @Test func testBhvOptions046TransportOptionsWithANonHttpProxySchemeCannotBeBuilt() {
-        #expect(throws: ConfigurationError.self) {
-            try TransportOptionsBuilder().proxy("socks5://proxy.example.com:1080").build()
-        }
+  /* D77: the timeout is nil or a positive number of milliseconds; zero and
+   * negative values are refused when the options are built. */
+  @Test(arguments: [0, -1, -5000])
+  func testBhvOptions033NonPositiveTimeoutIsRejectedWithTheCanonicalMessage(timeout: Int) throws {
+    let error = #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().timeout(timeout).build()
     }
+    #expect(error == ConfigurationError.invalidTimeout(timeout))
+    #expect(
+      error?.errorDescription
+        == "Invalid timeout: must be a positive number of milliseconds (got \(timeout))")
+  }
 
-    /* A ready-made session combined with a CA bundle setting is rejected when the options are built. */
-    @Test func testBhvMisc186ASuppliedSessionWithACaBundleIsRejectedAtBuild() {
-        let session = URLSession(configuration: .ephemeral)
-        defer { session.invalidateAndCancel() }
-        #expect(throws: ConfigurationError.self) {
-            try TransportOptionsBuilder().session(session).caCertPath("/tmp/ca.pem").build()
-        }
+  @Test func testBhvOptions014ProxySchemeIsMatchedCaseInsensitively() throws {
+    let opts = try TransportOptionsBuilder().proxy("HTTP://proxy.example.com:8080").build()
+    #expect(opts.proxy?.host == "proxy.example.com")
+    #expect(opts.proxy?.port == 8080)
+  }
+
+  /* An IPv6 literal host is accepted bracketed, and an unterminated one is
+   * refused. */
+  @Test func testBhvOptions009ProxyWithAnIpv6LiteralHostIsAccepted() throws {
+    let opts = try TransportOptionsBuilder().proxy("http://[::1]:3128").build()
+    #expect(opts.proxy?.host == "::1")
+    #expect(opts.proxy?.port == 3128)
+  }
+
+  @Test(arguments: ["http://[::1:3128", "http://user@[::1:3128"])
+  func testBhvOptions010ProxyWithAnUnterminatedIpv6LiteralIsRejected(url: String) {
+    #expect(throws: ConfigurationError.self) {
+      _ = try TransportOptionsBuilder().proxy(url).build()
     }
+  }
 
-    @Test func testBhvOptions058SessionDefaultsToNil() throws {
-        #expect(try TransportOptionsBuilder().build().session == nil)
+  @Test func testBhvLangswift072NilProxyClearsTheProxyAndAnEmptyStringIsRejected() throws {
+    let opts = try TransportOptionsBuilder()
+      .proxy("http://proxy.example.com:8080")
+      .proxy(nil)
+      .build()
+    #expect(opts.proxy == nil)
+    #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy("").build()
     }
+  }
 
-    @Test func testBhvLangswift071SessionIsKept() throws {
-        let session = URLSession(configuration: .ephemeral)
-        let opts = try TransportOptionsBuilder().session(session).build()
-        #expect(opts.session === session)
+  @Test func testBhvOptions068SocksProxySchemesAreRejectedWhenTheProxyIsSet() throws {
+    let urls = [
+      "socks://proxy.example.com:1080",
+      "socks4://proxy.example.com:1080",
+      "socks5://proxy.example.com:1080",
+    ]
+    for url in urls {
+      #expect(
+        throws: ConfigurationError.invalidProxy(
+          "Invalid proxy URL (must use http or https scheme): \(url)")
+      ) {
+        try TransportOptionsBuilder().proxy(url).build()
+      }
     }
+  }
 
-    /* A supplied session is refused with the SDK's own TLS settings, and the
-       message names each conflicting setting. */
-    @Test func testBhvLifecycle024SuppliedSessionConflictsWithTlsSettings() throws {
-        let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
-        builder.caCertPath("/path/to/ca.pem")
-        builder.verifySsl(false)
-        #expect(throws: ConfigurationError.invalidArgument(
-            "a supplied URLSession conflicts with the SDK's own settings: caCertPath, verifySsl(false); configure them on the session instead")
-        ) {
-            _ = try builder.build()
-        }
-    }
+  /* The README names the real setter, `TransportOptionsBuilder.proxy(_:)`,
+     and not another language's accessor. */
+  @Test func testBhvOptions044ReadmeSocksSectionNamesTheSwiftSetter() throws {
+    let readme = try String(
+      contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("README.md"),
+      encoding: .utf8)
+    #expect(
+      readme.contains(
+        "`TransportOptionsBuilder.proxy(_:)` accepts only `http://` and `https://` URLs."))
+    #expect(readme.contains("`ConfigurationError.invalidProxy`"))
+    #expect(!(readme.contains("`TransportOptions.proxy()`")))
+  }
 
-    /* A supplied session refused with the SDK's own redirect setting fails with a configuration error. */
-    @Test func testBhvLifecycle041SuppliedSessionConflictsWithRedirectSettings() throws {
-        let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
-        builder.followRedirects(false)
-        #expect(throws: ConfigurationError.self) {
-            _ = try builder.build()
-        }
-    }
+  @Test func testBhvOptions030NullProxyUrlIsAccepted() throws {
+    let opts = try TransportOptionsBuilder()
+      .proxy(nil)
+      .build()
 
-    /* A supplied session cannot be combined with the SDK's own proxy, TLS or
-       redirect settings: build() fails fast. */
-    @Test(arguments: ["proxy", "caCertPath", "verifySsl", "followRedirects", "maxRedirects"])
-    func testBhvTransport078SessionConflictsWithOwnSettings(setting: String) {
-        let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
-        switch setting {
-        case "proxy": builder.proxy("http://proxy.example.com:8080")
-        case "caCertPath": builder.caCertPath("/path/to/ca.pem")
-        case "verifySsl": builder.verifySsl(false)
-        case "followRedirects": builder.followRedirects(false)
-        default: builder.maxRedirects(3)
-        }
-        #expect(throws: ConfigurationError.self) {
-            _ = try builder.build()
-        }
-    }
+    #expect(opts.proxy == nil)
+  }
 
-    @Test func testBhvOptions017BuilderSetsAllFields() throws {
-        let opts = try TransportOptionsBuilder()
-            .verifySsl(false)
-            .caCertPath("/path/to/ca.pem")
-            .proxy("http://proxy.example.com:8080")
-            .timeout(30000)
-            .followRedirects(false)
-            .maxRedirects(5)
-            .userAgent("CustomAgent/2.0")
-            .defaultHeader(name: "X-Custom", value: "value")
-            .injectRequestID(true)
-            .build()
+  @Test func testBhvOptions015BuilderMethodsReturnSameInstance() throws {
+    let opts = try TransportOptionsBuilder()
+      .verifySsl(true)
+      .userAgent("Test/1.0")
+      .timeout(10000)
+      .build()
 
-        #expect(!(opts.verifySsl))
-        #expect(opts.caCertPath == "/path/to/ca.pem")
-        #expect(opts.proxy != nil)
-        #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
-        #expect(opts.timeout == 30000)
-        #expect(!(opts.followRedirects))
-        #expect(opts.maxRedirects == 5)
-        #expect(opts.userAgent == "CustomAgent/2.0")
-        #expect(opts.defaultHeaders["X-Custom"] == "value")
-        #expect(opts.injectRequestID)
-    }
+    #expect(opts.userAgent == "Test/1.0")
+    #expect(opts.timeout == 10000)
+  }
 
-    @Test func testBhvOptions021FollowRedirectsDefaultsToTrueWithNullMaxRedirects() throws {
-        let opts = try TransportOptionsBuilder()
-            .followRedirects(true)
-            .build()
+  @Test func testBhvOptions012AccumulatesHeadersFromDefaultHeaderCalls() throws {
+    let opts = try TransportOptionsBuilder()
+      .defaultHeader(name: "X-First", value: "one")
+      .defaultHeader(name: "X-Second", value: "two")
+      .build()
 
-        #expect(opts.followRedirects)
-        #expect(opts.maxRedirects == nil)
-    }
+    #expect(opts.defaultHeaders.count == 2)
+    #expect(opts.defaultHeaders["X-First"] == "one")
+    #expect(opts.defaultHeaders["X-Second"] == "two")
+  }
 
-    @Test func testBhvOptions024InvalidProxyUrlThrowsException() throws {
-        #expect(throws: ConfigurationError.invalidProxy("Invalid proxy URL: not a valid url")) {
-            try TransportOptionsBuilder().proxy("not a valid url").build()
-        }
-    }
+  @Test func testBhvOptions028MergesHeadersFromDefaultHeadersCall() throws {
+    let opts = try TransportOptionsBuilder()
+      .defaultHeader(name: "X-First", value: "one")
+      .defaultHeaders([
+        "X-Second": "two",
+        "X-Third": "three",
+      ])
+      .build()
 
-    /* The proxy URL is validated when the options are built, not when the
-     * setter runs, so the setter never throws. */
-    @Test func testBhvOptions013InvalidProxyIsReportedByBuildNotBySetter() {
-        let builder = TransportOptionsBuilder().proxy("ftp://proxy.example.com:21")
-        #expect(throws: ConfigurationError.self) {
-            _ = try builder.build()
-        }
-    }
+    #expect(opts.defaultHeaders.count == 3)
+    #expect(opts.defaultHeaders["X-First"] == "one")
+    #expect(opts.defaultHeaders["X-Second"] == "two")
+    #expect(opts.defaultHeaders["X-Third"] == "three")
+  }
 
-    /* Anything that is not an http(s) URL with a host is refused with the
-     * canonical message for its reason, the offending text echoed back. */
-    @Test(arguments: [
-        ("ftp://proxy.example.com:21", "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21"),
-        ("file:///tmp/proxy", "Invalid proxy URL (must use http or https scheme): file:///tmp/proxy"),
-        ("ws://proxy.example.com:8080", "Invalid proxy URL (must use http or https scheme): ws://proxy.example.com:8080"),
-        ("http://", "Invalid proxy URL (missing host): http://"),
-        ("http:///only-a-path", "Invalid proxy URL (missing host): http:///only-a-path"),
-    ])
-    func testBhvOptions011ProxyWithoutHttpSchemeOrHostIsRejected(url: String, message: String) throws {
-        #expect(throws: ConfigurationError.invalidProxy(message)) {
-            try TransportOptionsBuilder().proxy(url).build()
-        }
-    }
+  @Test func testBhvOptions029ModifyingSourceMapDoesNotAffectBuiltOptions() throws {
+    let opts = try TransportOptionsBuilder()
+      .defaultHeader(name: "X-Test", value: "value")
+      .build()
 
-    /* A proxy without a scheme is refused, whichever way the platform parses
-     * it, and the message names the offending text. */
-    @Test func testBhvOptions031ProxyWithoutSchemeIsRejected() throws {
-        let error = #expect(throws: ConfigurationError.self) {
-            try TransportOptionsBuilder().proxy("proxy.example.com:8080").build()
-        }
-        let message = error?.errorDescription ?? ""
-        #expect(message.hasPrefix("Invalid proxy URL"))
-        #expect(message.hasSuffix(": proxy.example.com:8080"))
-    }
+    var headers = opts.defaultHeaders
+    headers["X-Mutated"] = "should-not-affect-options"
 
-    /* The proxy URL goes into the message, so its userinfo never does:
-     * `user:password@` is shown as `***@`. */
-    @Test(arguments: [
-        ("socks5://svc:s3cret@proxy.example.com:1080",
-         "Invalid proxy URL (must use http or https scheme): socks5://***@proxy.example.com:1080"),
-        ("ftp://svc:s3cret@proxy.example.com:21",
-         "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21"),
-    ])
-    func testBhvOptions008ProxyErrorMasksTheUserinfo(url: String, message: String) throws {
-        let error = #expect(throws: ConfigurationError.self) {
-            try TransportOptionsBuilder().proxy(url).build()
-        }
-        #expect(error == ConfigurationError.invalidProxy(message))
-        let description = error?.errorDescription ?? ""
-        #expect(description.range(of: "s3cret") == nil)
-    }
+    #expect(
+      opts.defaultHeaders["X-Mutated"] == nil,
+      "Modifying returned headers should not affect the transport options")
+  }
 
-    /* A URL written into the message keeps its scheme, host, port and path, and drops its query string, userinfo and fragment. */
-    @Test func testBhvErrors077ProxyErrorKeepsOnlySchemeHostPortAndPath() throws {
-        let error = #expect(throws: ConfigurationError.self) {
-            try TransportOptionsBuilder().proxy("socks5://svc:s3cret@proxy.example.com:1080/relay?token=abc123#part").build()
-        }
-        let description = error?.errorDescription ?? ""
-        #expect(description.hasSuffix("socks5://***@proxy.example.com:1080/relay"))
-        #expect(description.range(of: "token=abc123") == nil)
-        #expect(description.range(of: "#part") == nil)
-        #expect(description.range(of: "s3cret") == nil)
-    }
+  @Test func testBhvOptions016BuilderProducesIndependentInstances() throws {
+    let builder = TransportOptionsBuilder()
+      .verifySsl(false)
+    let first = try builder.build()
+    let second = try builder.build()
 
-    /* D77: the timeout is nil or a positive number of milliseconds; zero and
-     * negative values are refused when the options are built. */
-    @Test(arguments: [0, -1, -5000])
-    func testBhvOptions033NonPositiveTimeoutIsRejectedWithTheCanonicalMessage(timeout: Int) throws {
-        let error = #expect(throws: ConfigurationError.self) {
-            try TransportOptionsBuilder().timeout(timeout).build()
-        }
-        #expect(error == ConfigurationError.invalidTimeout(timeout))
-        #expect(
-            error?.errorDescription
-                == "Invalid timeout: must be a positive number of milliseconds (got \(timeout))")
-    }
+    #expect(first.verifySsl == second.verifySsl)
+    #expect(!(first === second))
+  }
 
-    @Test func testBhvOptions014ProxySchemeIsMatchedCaseInsensitively() throws {
-        let opts = try TransportOptionsBuilder().proxy("HTTP://proxy.example.com:8080").build()
-        #expect(opts.proxy?.host == "proxy.example.com")
-        #expect(opts.proxy?.port == 8080)
-    }
+  // TimeoutConfigTests
 
-    /* An IPv6 literal host is accepted bracketed, and an unterminated one is
-     * refused. */
-    @Test func testBhvOptions009ProxyWithAnIpv6LiteralHostIsAccepted() throws {
-        let opts = try TransportOptionsBuilder().proxy("http://[::1]:3128").build()
-        #expect(opts.proxy?.host == "::1")
-        #expect(opts.proxy?.port == 3128)
-    }
+  @Test func testBhvOptions039TimeoutDefaultsTo10000ms() throws {
+    // Default TransportOptions applies a 10-second (10000 ms) request timeout
+    // so that no SDK call blocks forever when the server stalls.
+    let opts = try TransportOptionsBuilder().build()
+    #expect(opts.timeout == 10000)
+  }
 
-    @Test(arguments: ["http://[::1:3128", "http://user@[::1:3128"])
-    func testBhvOptions010ProxyWithAnUnterminatedIpv6LiteralIsRejected(url: String) {
-        #expect(throws: ConfigurationError.self) {
-            _ = try TransportOptionsBuilder().proxy(url).build()
-        }
-    }
+  @Test func testBhvOptions036SettingTimeoutIsAccessible() throws {
+    let opts = try TransportOptionsBuilder().timeout(5000).build()
+    #expect(opts.timeout == 5000)
+  }
 
-    @Test func testBhvLangswift072NilProxyClearsTheProxyAndAnEmptyStringIsRejected() throws {
-        let opts = try TransportOptionsBuilder()
-            .proxy("http://proxy.example.com:8080")
-            .proxy(nil)
-            .build()
-        #expect(opts.proxy == nil)
-        #expect(throws: ConfigurationError.self) {
-            try TransportOptionsBuilder().proxy("").build()
-        }
-    }
+  @Test func testBhvOptions040TimeoutFieldIsNamedTimeout() throws {
+    // Verify via the property that the field is named 'timeout'
+    // (not e.g. 'timeoutIntervalForRequest' or 'timeoutIntervalForResource').
+    let opts = try TransportOptionsBuilder().timeout(1000).build()
+    #expect(opts.timeout != nil)
+    #expect(opts.timeout == 1000)
+  }
 
-    @Test func testBhvOptions068SocksProxySchemesAreRejectedWhenTheProxyIsSet() throws {
-        let urls = [
-            "socks://proxy.example.com:1080",
-            "socks4://proxy.example.com:1080",
-            "socks5://proxy.example.com:1080",
-        ]
-        for url in urls {
-            #expect(throws: ConfigurationError.invalidProxy(
-                "Invalid proxy URL (must use http or https scheme): \(url)")) {
-                try TransportOptionsBuilder().proxy(url).build()
-            }
-        }
-    }
+  @Test func testBhvOptions037TimeoutCanBeExplicitlyDisabled() throws {
+    // Passing nil explicitly disables the timeout (no end-to-end deadline).
+    let opts = try TransportOptionsBuilder().timeout(nil).build()
+    #expect(opts.timeout == nil)
+  }
 
-    /* The README names the real setter, `TransportOptionsBuilder.proxy(_:)`,
-       and not another language's accessor. */
-    @Test func testBhvOptions044ReadmeSocksSectionNamesTheSwiftSetter() throws {
-        let readme = try String(
-            contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-                .appendingPathComponent("README.md"),
-            encoding: .utf8)
-        #expect(
-            readme.contains(
-                "`TransportOptionsBuilder.proxy(_:)` accepts only `http://` and `https://` URLs."))
-        #expect(readme.contains("`ConfigurationError.invalidProxy`"))
-        #expect(!(readme.contains("`TransportOptions.proxy()`")))
-    }
+  // ProxyConfigTests
 
-    @Test func testBhvOptions030NullProxyUrlIsAccepted() throws {
-        let opts = try TransportOptionsBuilder()
-            .proxy(nil)
-            .build()
+  @Test func testBhvOptions035ProxyUrlIsPreservedOnReadBack() throws {
+    let opts = try TransportOptionsBuilder()
+      .proxy("http://proxy.example.com:8080")
+      .build()
+    #expect(opts.proxy != nil)
+    #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
+  }
 
-        #expect(opts.proxy == nil)
-    }
+  /* Inspecting the options hides the proxy password and a credential-bearing
+   * default header; the rest of the text stays readable. */
+  @Test func testBhvOptions023InspectMasksTheProxyPasswordAndSensitiveDefaultHeaders() throws {
+    let password = "pass" + "-" + "value"
+    let token = "tok" + "-" + "value"
+    let opts = try TransportOptionsBuilder()
+      .proxy("http://user:\(password)@proxy.example.com:8080")
+      .defaultHeader(name: "Authorization", value: "Bearer \(token)")
+      .build()
+    let shown = String(reflecting: opts)
+    #expect(!shown.contains(password))
+    #expect(!shown.contains(token))
+    #expect(shown.contains("user:***@proxy.example.com:8080"))
+    #expect(shown.contains("***"))
+  }
 
-    @Test func testBhvOptions015BuilderMethodsReturnSameInstance() throws {
-        let opts = try TransportOptionsBuilder()
-            .verifySsl(true)
-            .userAgent("Test/1.0")
-            .timeout(10000)
-            .build()
-
-        #expect(opts.userAgent == "Test/1.0")
-        #expect(opts.timeout == 10000)
-    }
-
-    @Test func testBhvOptions012AccumulatesHeadersFromDefaultHeaderCalls() throws {
-        let opts = try TransportOptionsBuilder()
-            .defaultHeader(name: "X-First", value: "one")
-            .defaultHeader(name: "X-Second", value: "two")
-            .build()
-
-        #expect(opts.defaultHeaders.count == 2)
-        #expect(opts.defaultHeaders["X-First"] == "one")
-        #expect(opts.defaultHeaders["X-Second"] == "two")
-    }
-
-    @Test func testBhvOptions028MergesHeadersFromDefaultHeadersCall() throws {
-        let opts = try TransportOptionsBuilder()
-            .defaultHeader(name: "X-First", value: "one")
-            .defaultHeaders([
-                "X-Second": "two",
-                "X-Third": "three"
-            ])
-            .build()
-
-        #expect(opts.defaultHeaders.count == 3)
-        #expect(opts.defaultHeaders["X-First"] == "one")
-        #expect(opts.defaultHeaders["X-Second"] == "two")
-        #expect(opts.defaultHeaders["X-Third"] == "three")
-    }
-
-    @Test func testBhvOptions029ModifyingSourceMapDoesNotAffectBuiltOptions() throws {
-        let opts = try TransportOptionsBuilder()
-            .defaultHeader(name: "X-Test", value: "value")
-            .build()
-
-        var headers = opts.defaultHeaders
-        headers["X-Mutated"] = "should-not-affect-options"
-
-        #expect(opts.defaultHeaders["X-Mutated"] == nil,
-            "Modifying returned headers should not affect the transport options")
-    }
-
-    @Test func testBhvOptions016BuilderProducesIndependentInstances() throws {
-        let builder = TransportOptionsBuilder()
-            .verifySsl(false)
-        let first = try builder.build()
-        let second = try builder.build()
-
-        #expect(first.verifySsl == second.verifySsl)
-        #expect(!(first === second))
-    }
-
-    // TimeoutConfigTests
-
-    @Test func testBhvOptions039TimeoutDefaultsTo10000ms() throws {
-        // Default TransportOptions applies a 10-second (10000 ms) request timeout
-        // so that no SDK call blocks forever when the server stalls.
-        let opts = try TransportOptionsBuilder().build()
-        #expect(opts.timeout == 10000)
-    }
-
-    @Test func testBhvOptions036SettingTimeoutIsAccessible() throws {
-        let opts = try TransportOptionsBuilder().timeout(5000).build()
-        #expect(opts.timeout == 5000)
-    }
-
-    @Test func testBhvOptions040TimeoutFieldIsNamedTimeout() throws {
-        // Verify via the property that the field is named 'timeout'
-        // (not e.g. 'timeoutIntervalForRequest' or 'timeoutIntervalForResource').
-        let opts = try TransportOptionsBuilder().timeout(1000).build()
-        #expect(opts.timeout != nil)
-        #expect(opts.timeout == 1000)
-    }
-
-    @Test func testBhvOptions037TimeoutCanBeExplicitlyDisabled() throws {
-        // Passing nil explicitly disables the timeout (no end-to-end deadline).
-        let opts = try TransportOptionsBuilder().timeout(nil).build()
-        #expect(opts.timeout == nil)
-    }
-
-    // ProxyConfigTests
-
-    @Test func testBhvOptions035ProxyUrlIsPreservedOnReadBack() throws {
-        let opts = try TransportOptionsBuilder()
-            .proxy("http://proxy.example.com:8080")
-            .build()
-        #expect(opts.proxy != nil)
-        #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
-    }
-
-    /* Inspecting the options hides the proxy password and a credential-bearing
-     * default header; the rest of the text stays readable. */
-    @Test func testBhvOptions023InspectMasksTheProxyPasswordAndSensitiveDefaultHeaders() throws {
-        let password = "pass" + "-" + "value"
-        let token = "tok" + "-" + "value"
-        let opts = try TransportOptionsBuilder()
-            .proxy("http://user:\(password)@proxy.example.com:8080")
-            .defaultHeader(name: "Authorization", value: "Bearer \(token)")
-            .build()
-        let shown = String(reflecting: opts)
-        #expect(!shown.contains(password))
-        #expect(!shown.contains(token))
-        #expect(shown.contains("user:***@proxy.example.com:8080"))
-        #expect(shown.contains("***"))
-    }
-
-#if os(Linux)
+  #if os(Linux)
     @Test func testBhvTransport080SettingProxyRaisesOnLinux() throws {
-        // On Linux, URLSession does not support proxy configuration.
-        // TransportOptions accepts the proxy value; DefaultApiClient's init
-        // rejects it with ConfigurationError.invalidProxy rather than
-        // silently ignoring the proxy setting.
-        let opts = try TransportOptionsBuilder()
-            .proxy("http://proxy.example.com:8080")
-            .build()
-        #expect(opts.proxy != nil)
-        #expect(throws: ConfigurationError.invalidProxy(DefaultApiClient.proxyUnsupportedMessage)) {
-            _ = try DefaultApiClient(transportOptions: opts)
-        }
+      // On Linux, URLSession does not support proxy configuration.
+      // TransportOptions accepts the proxy value; DefaultApiClient's init
+      // rejects it with ConfigurationError.invalidProxy rather than
+      // silently ignoring the proxy setting.
+      let opts = try TransportOptionsBuilder()
+        .proxy("http://proxy.example.com:8080")
+        .build()
+      #expect(opts.proxy != nil)
+      #expect(throws: ConfigurationError.invalidProxy(DefaultApiClient.proxyUnsupportedMessage)) {
+        _ = try DefaultApiClient(transportOptions: opts)
+      }
     }
-#else
+  #else
     @Test func testBhvOptions034SettingProxyIsSupportedOnNonLinux() throws {
-        // Proxy configuration must not throw on Apple platforms.
-        let opts = try TransportOptionsBuilder()
-            .proxy("http://proxy.example.com:8080")
-            .build()
-        #expect(opts.proxy != nil)
+      // Proxy configuration must not throw on Apple platforms.
+      let opts = try TransportOptionsBuilder()
+        .proxy("http://proxy.example.com:8080")
+        .build()
+      #expect(opts.proxy != nil)
     }
-#endif
-    // MARK: - Behaviour catalogue: transport option defaults and printable form
+  #endif
+  // MARK: - Behaviour catalogue: transport option defaults and printable form
 
-    /* A caller-supplied session is unset unless given, and a supplied one is kept unchanged. */
-    @Test func testBhvOptions059SuppliedSessionIsKeptUnchangedAndUnsetByDefault() throws {
-        #expect(try TransportOptionsBuilder().build().session == nil)
-        let session = URLSession(configuration: .ephemeral)
-        let opts = try TransportOptionsBuilder().session(session).build()
-        #expect(opts.session === session)
-    }
+  /* A caller-supplied session is unset unless given, and a supplied one is kept unchanged. */
+  @Test func testBhvOptions059SuppliedSessionIsKeptUnchangedAndUnsetByDefault() throws {
+    #expect(try TransportOptionsBuilder().build().session == nil)
+    let session = URLSession(configuration: .ephemeral)
+    let opts = try TransportOptionsBuilder().session(session).build()
+    #expect(opts.session === session)
+  }
 
-    /* The static builder entry point carries the values set on it and the direct build's defaults. */
-    @Test func testBhvOptions060StaticBuilderCarriesTheValuesAndTheSameDefaults() throws {
-        let viaStatic = try TransportOptions.builder().timeout(5000).build()
-        #expect(viaStatic.timeout == 5000)
-        let direct = try TransportOptionsBuilder().build()
-        #expect(viaStatic.maxRetries == direct.maxRetries)
-        #expect(viaStatic.followRedirects == direct.followRedirects)
-        #expect(viaStatic.userAgent == direct.userAgent)
-    }
+  /* The static builder entry point carries the values set on it and the direct build's defaults. */
+  @Test func testBhvOptions060StaticBuilderCarriesTheValuesAndTheSameDefaults() throws {
+    let viaStatic = try TransportOptions.builder().timeout(5000).build()
+    #expect(viaStatic.timeout == 5000)
+    let direct = try TransportOptionsBuilder().build()
+    #expect(viaStatic.maxRetries == direct.maxRetries)
+    #expect(viaStatic.followRedirects == direct.followRedirects)
+    #expect(viaStatic.userAgent == direct.userAgent)
+  }
 
-    /* A user agent is kept as given, and setting it to none sends no User-Agent header. */
-    @Test func testBhvOptions061UserAgentIsKeptAsGivenOrUnsetWhenNone() throws {
-        let named = try TransportOptionsBuilder().userAgent("example-agent/1.0").build()
-        #expect(named.userAgent == "example-agent/1.0")
-        let none = try TransportOptionsBuilder().userAgent(nil).build()
-        #expect(none.userAgent == nil)
-    }
+  /* A user agent is kept as given, and setting it to none sends no User-Agent header. */
+  @Test func testBhvOptions061UserAgentIsKeptAsGivenOrUnsetWhenNone() throws {
+    let named = try TransportOptionsBuilder().userAgent("example-agent/1.0").build()
+    #expect(named.userAgent == "example-agent/1.0")
+    let none = try TransportOptionsBuilder().userAgent(nil).build()
+    #expect(none.userAgent == nil)
+  }
 
-    /* The printable form shows the configured maximum number of retries. */
-    @Test func testBhvOptions064PrintableFormShowsTheMaxRetries() throws {
-        let opts = try TransportOptionsBuilder().maxRetries(5).build()
-        #expect(opts.description.contains("maxRetries: 5"))
-    }
+  /* The printable form shows the configured maximum number of retries. */
+  @Test func testBhvOptions064PrintableFormShowsTheMaxRetries() throws {
+    let opts = try TransportOptionsBuilder().maxRetries(5).build()
+    #expect(opts.description.contains("maxRetries: 5"))
+  }
 
-    /* The printable form never shows a proxy password or a caller-supplied default header secret. */
-    @Test func testBhvOptions065PrintableFormNeverShowsAProxyPasswordOrSecretHeader() throws {
-        let opts = try TransportOptionsBuilder()
-            .proxy("http://alice:proxy-secret-pass@proxy.example.com:8080")
-            .defaultHeader(name: "Authorization", value: "Bearer header-secret-token")
-            .build()
-        #expect(!opts.description.contains("proxy-secret-pass"))
-        #expect(!opts.description.contains("header-secret-token"))
-        #expect(!opts.debugDescription.contains("proxy-secret-pass"))
-    }
+  /* The printable form never shows a proxy password or a caller-supplied default header secret. */
+  @Test func testBhvOptions065PrintableFormNeverShowsAProxyPasswordOrSecretHeader() throws {
+    let opts = try TransportOptionsBuilder()
+      .proxy("http://alice:proxy-secret-pass@proxy.example.com:8080")
+      .defaultHeader(name: "Authorization", value: "Bearer header-secret-token")
+      .build()
+    #expect(!opts.description.contains("proxy-secret-pass"))
+    #expect(!opts.description.contains("header-secret-token"))
+    #expect(!opts.debugDescription.contains("proxy-secret-pass"))
+  }
 
-    /* The printable form shows a proxy URL with no credentials exactly as configured. */
-    @Test func testBhvOptions066PrintableFormShowsAProxyUrlWithoutCredentialsAsConfigured() throws {
-        let opts = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
-        #expect(opts.description.contains("proxy: http://proxy.example.com:8080,"))
-    }
+  /* The printable form shows a proxy URL with no credentials exactly as configured. */
+  @Test func testBhvOptions066PrintableFormShowsAProxyUrlWithoutCredentialsAsConfigured() throws {
+    let opts = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
+    #expect(opts.description.contains("proxy: http://proxy.example.com:8080,"))
+  }
 
-    /* A valid proxy URL is kept on directly built options, and no proxy leaves it unset. */
-    @Test func testBhvOptions067ValidProxyIsKeptAndNoProxyLeavesItUnset() throws {
-        let proxied = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
-        #expect(proxied.proxy?.absoluteString == "http://proxy.example.com:8080")
-        #expect(try TransportOptionsBuilder().build().proxy == nil)
-    }
+  /* A valid proxy URL is kept on directly built options, and no proxy leaves it unset. */
+  @Test func testBhvOptions067ValidProxyIsKeptAndNoProxyLeavesItUnset() throws {
+    let proxied = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
+    #expect(proxied.proxy?.absoluteString == "http://proxy.example.com:8080")
+    #expect(try TransportOptionsBuilder().build().proxy == nil)
+  }
 
-    /* A caller HTTP session cannot be combined with a transport setting the session cannot take; the build refuses it. */
-    @Test func testBhvMisc034ACallerSessionAndATransportSettingAreRefusedTogether() {
-        #expect(throws: ConfigurationError.self) {
-            _ = try TransportOptionsBuilder()
-                .session(URLSession(configuration: .ephemeral))
-                .proxy("http://127.0.0.1:8080")
-                .build()
-        }
+  /* A caller HTTP session cannot be combined with a transport setting the session cannot take; the build refuses it. */
+  @Test func testBhvMisc034ACallerSessionAndATransportSettingAreRefusedTogether() {
+    #expect(throws: ConfigurationError.self) {
+      _ = try TransportOptionsBuilder()
+        .session(URLSession(configuration: .ephemeral))
+        .proxy("http://127.0.0.1:8080")
+        .build()
     }
+  }
 
-    /* Disabled TLS verification with a caller session is refused at build, and the error names the setting. */
-    @Test func testBhvMisc042DisabledVerificationWithASessionIsRefusedNamingTheSetting() {
-        let error = #expect(throws: ConfigurationError.self) {
-            _ = try TransportOptionsBuilder()
-                .session(URLSession(configuration: .ephemeral))
-                .verifySsl(false)
-                .build()
-        }
-        guard case .invalidArgument(let message)? = error else {
-            Issue.record("expected an invalidArgument error, got \(String(describing: error))")
-            return
-        }
-        #expect(message.contains("verifySsl(false)"))
+  /* Disabled TLS verification with a caller session is refused at build, and the error names the setting. */
+  @Test func testBhvMisc042DisabledVerificationWithASessionIsRefusedNamingTheSetting() {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try TransportOptionsBuilder()
+        .session(URLSession(configuration: .ephemeral))
+        .verifySsl(false)
+        .build()
     }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected an invalidArgument error, got \(String(describing: error))")
+      return
+    }
+    #expect(message.contains("verifySsl(false)"))
+  }
 
-    /* A zero timeout is refused when the options are built, with a configuration error rather than a request error. */
-    @Test func testBhvMisc134AZeroTimeoutIsRefusedAtBuildWithAConfigurationError() {
-        #expect(throws: ConfigurationError.self) {
-            _ = try TransportOptionsBuilder().timeout(0).build()
-        }
+  /* A zero timeout is refused when the options are built, with a configuration error rather than a request error. */
+  @Test func testBhvMisc134AZeroTimeoutIsRefusedAtBuildWithAConfigurationError() {
+    #expect(throws: ConfigurationError.self) {
+      _ = try TransportOptionsBuilder().timeout(0).build()
     }
+  }
 }

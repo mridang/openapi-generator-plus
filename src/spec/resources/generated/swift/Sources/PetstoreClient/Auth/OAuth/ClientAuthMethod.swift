@@ -10,8 +10,8 @@ import Foundation
 /// How OAuth2 client credentials (client_id / client_secret) are transmitted
 /// to the token endpoint per RFC 6749 §2.3.1.
 public enum ClientAuthMethod: Sendable {
-    /// Send credentials as form parameters in the request body (default).
-    case body
-    /// Send credentials via HTTP Basic Authorization header.
-    case basic
+  /// Send credentials as form parameters in the request body (default).
+  case body
+  /// Send credentials via HTTP Basic Authorization header.
+  case basic
 }

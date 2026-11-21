@@ -12,11 +12,11 @@ import Foundation
 /// Returned by ``CallHook/start(info:headers:)``; ``finish(_:)`` is called
 /// exactly once when the call has ended, however it ended.
 public protocol CallObserver: Sendable {
-    /// Called once when the call has ended, with its `outcome`.
-    ///
-    /// An error thrown here is swallowed: the call still returns its result or
-    /// its own error.
-    func finish(_ outcome: CallOutcome) throws
+  /// Called once when the call has ended, with its `outcome`.
+  ///
+  /// An error thrown here is swallowed: the call still returns its result or
+  /// its own error.
+  func finish(_ outcome: CallOutcome) throws
 }
 
 /// One small hook around every call of the SDK.
@@ -34,61 +34,61 @@ public protocol CallObserver: Sendable {
 /// name. An error thrown by ``start(info:headers:)`` reaches the caller
 /// unchanged, nothing is sent and ``CallObserver/finish(_:)`` is not called.
 public protocol CallHook: Sendable {
-    /// Called once before the call is sent.
-    ///
-    /// Returns the ``CallObserver`` that is told how the call ended, or nil
-    /// when the hook has nothing to observe.
-    func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)?
+  /// Called once before the call is sent.
+  ///
+  /// Returns the ``CallObserver`` that is told how the call ended, or nil
+  /// when the hook has nothing to observe.
+  func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)?
 }
 
 /// Combines hooks.
 public enum CallHooks {
-    /// Returns a hook that starts `hooks` in the order given and finishes their
-    /// observers in the reverse order. A hook that returns no observer is
-    /// skipped.
-    public static func chain(_ hooks: [any CallHook]) -> any CallHook {
-        return ChainedCallHook(hooks: hooks)
-    }
+  /// Returns a hook that starts `hooks` in the order given and finishes their
+  /// observers in the reverse order. A hook that returns no observer is
+  /// skipped.
+  public static func chain(_ hooks: [any CallHook]) -> any CallHook {
+    return ChainedCallHook(hooks: hooks)
+  }
 
-    /// Returns a hook that starts `hooks` in the order given and finishes their
-    /// observers in the reverse order. A hook that returns no observer is
-    /// skipped.
-    public static func chain(_ hooks: any CallHook...) -> any CallHook {
-        return ChainedCallHook(hooks: hooks)
-    }
+  /// Returns a hook that starts `hooks` in the order given and finishes their
+  /// observers in the reverse order. A hook that returns no observer is
+  /// skipped.
+  public static func chain(_ hooks: any CallHook...) -> any CallHook {
+    return ChainedCallHook(hooks: hooks)
+  }
 }
 
 private struct ChainedCallHook: CallHook {
-    let hooks: [any CallHook]
+  let hooks: [any CallHook]
 
-    func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
-        var observers: [any CallObserver] = []
-        for hook in hooks {
-            if let observer = try hook.start(info: info, headers: &headers) {
-                observers.append(observer)
-            }
-        }
-        if observers.isEmpty {
-            return nil
-        }
-        return ChainedCallObserver(observers: Array(observers.reversed()))
+  func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+    var observers: [any CallObserver] = []
+    for hook in hooks {
+      if let observer = try hook.start(info: info, headers: &headers) {
+        observers.append(observer)
+      }
     }
+    if observers.isEmpty {
+      return nil
+    }
+    return ChainedCallObserver(observers: Array(observers.reversed()))
+  }
 }
 
 private struct ChainedCallObserver: CallObserver {
-    let observers: [any CallObserver]
+  let observers: [any CallObserver]
 
-    func finish(_ outcome: CallOutcome) throws {
-        var failure: (any Error)?
-        for observer in observers {
-            do {
-                try observer.finish(outcome)
-            } catch {
-                failure = failure ?? error
-            }
-        }
-        if let failure {
-            throw failure
-        }
+  func finish(_ outcome: CallOutcome) throws {
+    var failure: (any Error)?
+    for observer in observers {
+      do {
+        try observer.finish(outcome)
+      } catch {
+        failure = failure ?? error
+      }
     }
+    if let failure {
+      throw failure
+    }
+  }
 }

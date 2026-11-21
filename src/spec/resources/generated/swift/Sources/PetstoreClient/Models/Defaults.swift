@@ -10,146 +10,171 @@ import Foundation
 /// Defaults is a model class generated from the OpenAPI schema.
 /// Typed enum for Defaults.mode.
 public enum DefaultsModeEnum: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
-    case low = "low"
-    case medium = "medium"
-    case high = "high"
-    /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
-    case unknownDefaultOpenApi = "__unknown_default_open_api__"
+  case low = "low"
+  case medium = "medium"
+  case high = "high"
+  /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
+  case unknownDefaultOpenApi = "__unknown_default_open_api__"
 
-    /// The declared cases; the catch-all case is not one of them.
-    public static var allCases: [DefaultsModeEnum] {
-        return [
-            .low,
-            .medium,
-            .high,
-        ]
-    }
+  /// The declared cases; the catch-all case is not one of them.
+  public static var allCases: [DefaultsModeEnum] {
+    return [
+      .low,
+      .medium,
+      .high,
+    ]
+  }
 
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let raw = try container.decode(RawValue.self)
-        self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
-    }
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let raw = try container.decode(RawValue.self)
+    self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
+  }
 
-    public func encode(to encoder: Encoder) throws {
-        if self == .unknownDefaultOpenApi {
-            throw EncodingError.invalidValue(
-                self,
-                EncodingError.Context(
-                    codingPath: encoder.codingPath,
-                    debugDescription: "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written"))
-        }
-        var container = encoder.singleValueContainer()
-        try container.encode(rawValue)
+  public func encode(to encoder: Encoder) throws {
+    if self == .unknownDefaultOpenApi {
+      throw EncodingError.invalidValue(
+        self,
+        EncodingError.Context(
+          codingPath: encoder.codingPath,
+          debugDescription:
+            "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written")
+      )
     }
+    var container = encoder.singleValueContainer()
+    try container.encode(rawValue)
+  }
 
-    /// The wire value (`"active"`, `2`), not the case name, so interpolating
-    /// the enum prints what the server sees.
-    public var description: String {
-        return "\(rawValue)"
-    }
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }
 
 public struct Defaults: Codable, Sendable, Equatable, Hashable {
-    public let retries: Int?
-    public let mode: DefaultsModeEnum?
-    public let label: String?
-    public let greeting: String?
-    public let swatch: Swatch?
-    public let ratio: Double?
-    public let scale: Float?
-    public let weight: Double?
-    public let ceiling: Int64?
+  public let retries: Int?
+  public let mode: DefaultsModeEnum?
+  public let label: String?
+  public let greeting: String?
+  public let swatch: Swatch?
+  public let ratio: Double?
+  public let scale: Float?
+  public let weight: Double?
+  public let ceiling: Int64?
 
-    enum CodingKeys: String, CodingKey, CaseIterable {
-        case retries = "retries"
-        case mode = "mode"
-        case label = "label"
-        case greeting = "greeting"
-        case swatch = "swatch"
-        case ratio = "ratio"
-        case scale = "scale"
-        case weight = "weight"
-        case ceiling = "ceiling"
-    }
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case retries = "retries"
+    case mode = "mode"
+    case label = "label"
+    case greeting = "greeting"
+    case swatch = "swatch"
+    case ratio = "ratio"
+    case scale = "scale"
+    case weight = "weight"
+    case ceiling = "ceiling"
+  }
 
-    /// Creates a new Defaults instance.
-    public init(retries: Int? = 3, mode: DefaultsModeEnum? = DefaultsModeEnum(rawValue: "medium"), label: String? = "untitled", greeting: String? = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b", swatch: Swatch? = Swatch(rawValue: "green"), ratio: Double? = 1.5, scale: Float? = 0.25, weight: Double? = 2, ceiling: Int64? = 9000000000) {
-        self.retries = retries
-        self.mode = mode
-        self.label = label
-        self.greeting = greeting
-        self.swatch = swatch
-        self.ratio = ratio
-        self.scale = scale
-        self.weight = weight
-        self.ceiling = ceiling
-    }
+  /// Creates a new Defaults instance.
+  public init(
+    retries: Int? = 3, mode: DefaultsModeEnum? = DefaultsModeEnum(rawValue: "medium"),
+    label: String? = "untitled",
+    greeting: String? = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b",
+    swatch: Swatch? = Swatch(rawValue: "green"), ratio: Double? = 1.5, scale: Float? = 0.25,
+    weight: Double? = 2, ceiling: Int64? = 9_000_000_000
+  ) {
+    self.retries = retries
+    self.mode = mode
+    self.label = label
+    self.greeting = greeting
+    self.swatch = swatch
+    self.ratio = ratio
+    self.scale = scale
+    self.weight = weight
+    self.ceiling = ceiling
+  }
 
-    /// Returns a copy of this instance with the given properties replaced. A
-    /// property left out keeps its value; to clear an optional property pass
-    /// `.some(nil)`, since a bare `nil` also means "keep".
-    public func copy(retries: Int?? = .none, mode: DefaultsModeEnum?? = .none, label: String?? = .none, greeting: String?? = .none, swatch: Swatch?? = .none, ratio: Double?? = .none, scale: Float?? = .none, weight: Double?? = .none, ceiling: Int64?? = .none) -> Defaults {
-        return Defaults(retries: retries ?? self.retries, mode: mode ?? self.mode, label: label ?? self.label, greeting: greeting ?? self.greeting, swatch: swatch ?? self.swatch, ratio: ratio ?? self.ratio, scale: scale ?? self.scale, weight: weight ?? self.weight, ceiling: ceiling ?? self.ceiling)
-    }
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    retries: Int?? = .none, mode: DefaultsModeEnum?? = .none, label: String?? = .none,
+    greeting: String?? = .none, swatch: Swatch?? = .none, ratio: Double?? = .none,
+    scale: Float?? = .none, weight: Double?? = .none, ceiling: Int64?? = .none
+  ) -> Defaults {
+    return Defaults(
+      retries: retries ?? self.retries, mode: mode ?? self.mode, label: label ?? self.label,
+      greeting: greeting ?? self.greeting, swatch: swatch ?? self.swatch,
+      ratio: ratio ?? self.ratio, scale: scale ?? self.scale, weight: weight ?? self.weight,
+      ceiling: ceiling ?? self.ceiling)
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-    /// payload but the schema declares a `default`, that default is applied —
-    /// matching the cross-language "apply schema default on deserialise"
-    /// expectation. An explicit JSON `null` is a provided value and is
-    /// preserved as `nil` rather than replaced by the default.
-    /// Unknown JSON keys are silently ignored — matching the cross-language
-    /// "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
-        self.retries = container.contains(.retries)
-            ? try container.decodeInt32IfPresent(forKey: .retries)
-            : 3
-        self.mode = container.contains(.mode)
-            ? try container.decodeIfPresent(DefaultsModeEnum.self, forKey: .mode)
-            : DefaultsModeEnum(rawValue: "medium")
-        self.label = container.contains(.label)
-            ? try container.decodeIfPresent(String.self, forKey: .label)
-            : "untitled"
-        self.greeting = container.contains(.greeting)
-            ? try container.decodeIfPresent(String.self, forKey: .greeting)
-            : "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
-        self.swatch = container.contains(.swatch)
-            ? try container.decodeIfPresent(Swatch.self, forKey: .swatch)
-            : Swatch(rawValue: "green")
-        self.ratio = container.contains(.ratio)
-            ? try container.decodeIfPresent(Double.self, forKey: .ratio)
-            : 1.5
-        self.scale = container.contains(.scale)
-            ? try container.decodeIfPresent(Float.self, forKey: .scale)
-            : 0.25
-        self.weight = container.contains(.weight)
-            ? try container.decodeIfPresent(Double.self, forKey: .weight)
-            : 2
-        self.ceiling = container.contains(.ceiling)
-            ? try container.decodeIfPresent(Int64.self, forKey: .ceiling)
-            : 9000000000
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+  /// payload but the schema declares a `default`, that default is applied —
+  /// matching the cross-language "apply schema default on deserialise"
+  /// expectation. An explicit JSON `null` is a provided value and is
+  /// preserved as `nil` rather than replaced by the default.
+  /// Unknown JSON keys are silently ignored — matching the cross-language
+  /// "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.retries =
+      container.contains(.retries)
+      ? try container.decodeInt32IfPresent(forKey: .retries)
+      : 3
+    self.mode =
+      container.contains(.mode)
+      ? try container.decodeIfPresent(DefaultsModeEnum.self, forKey: .mode)
+      : DefaultsModeEnum(rawValue: "medium")
+    self.label =
+      container.contains(.label)
+      ? try container.decodeIfPresent(String.self, forKey: .label)
+      : "untitled"
+    self.greeting =
+      container.contains(.greeting)
+      ? try container.decodeIfPresent(String.self, forKey: .greeting)
+      : "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
+    self.swatch =
+      container.contains(.swatch)
+      ? try container.decodeIfPresent(Swatch.self, forKey: .swatch)
+      : Swatch(rawValue: "green")
+    self.ratio =
+      container.contains(.ratio)
+      ? try container.decodeIfPresent(Double.self, forKey: .ratio)
+      : 1.5
+    self.scale =
+      container.contains(.scale)
+      ? try container.decodeIfPresent(Float.self, forKey: .scale)
+      : 0.25
+    self.weight =
+      container.contains(.weight)
+      ? try container.decodeIfPresent(Double.self, forKey: .weight)
+      : 2
+    self.ceiling =
+      container.contains(.ceiling)
+      ? try container.decodeIfPresent(Int64.self, forKey: .ceiling)
+      : 9_000_000_000
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(ObjectSerializer.ordered(retries), forKey: .retries)
-        try container.encodeIfPresent(ObjectSerializer.ordered(mode), forKey: .mode)
-        try container.encodeIfPresent(ObjectSerializer.ordered(label), forKey: .label)
-        try container.encodeIfPresent(ObjectSerializer.ordered(greeting), forKey: .greeting)
-        try container.encodeIfPresent(ObjectSerializer.ordered(swatch), forKey: .swatch)
-        try container.encodeIfPresent(ObjectSerializer.ordered(ratio), forKey: .ratio)
-        try container.encodeIfPresent(ObjectSerializer.ordered(scale), forKey: .scale)
-        try container.encodeIfPresent(ObjectSerializer.ordered(weight), forKey: .weight)
-        try container.encodeIfPresent(ObjectSerializer.ordered(ceiling), forKey: .ceiling)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(ObjectSerializer.ordered(retries), forKey: .retries)
+    try container.encodeIfPresent(ObjectSerializer.ordered(mode), forKey: .mode)
+    try container.encodeIfPresent(ObjectSerializer.ordered(label), forKey: .label)
+    try container.encodeIfPresent(ObjectSerializer.ordered(greeting), forKey: .greeting)
+    try container.encodeIfPresent(ObjectSerializer.ordered(swatch), forKey: .swatch)
+    try container.encodeIfPresent(ObjectSerializer.ordered(ratio), forKey: .ratio)
+    try container.encodeIfPresent(ObjectSerializer.ordered(scale), forKey: .scale)
+    try container.encodeIfPresent(ObjectSerializer.ordered(weight), forKey: .weight)
+    try container.encodeIfPresent(ObjectSerializer.ordered(ceiling), forKey: .ceiling)
+  }
 }

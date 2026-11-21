@@ -15,16 +15,22 @@ import Foundation
 /// ``ConfigurationError/invalidArgument(_:)`` there, before any request.
 ///
 /// - `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID`
-public final class BrowserAuthImplicitAuthenticator: OAuth2ImplicitAuthenticator, @unchecked Sendable {
-    /// Creates the authenticator from explicit credentials and the process environment.
-    public convenience init(host: String, clientId: String? = nil) throws {
-        try self.init(host: host, clientId: clientId, environment: ProcessInfo.processInfo.environment)
-    }
+public final class BrowserAuthImplicitAuthenticator: OAuth2ImplicitAuthenticator,
+  @unchecked Sendable
+{
+  /// Creates the authenticator from explicit credentials and the process environment.
+  public convenience init(host: String, clientId: String? = nil) throws {
+    try self.init(host: host, clientId: clientId, environment: ProcessInfo.processInfo.environment)
+  }
 
-    /// The same over a given environment, so the lookup can be exercised without touching
-    /// the process's own.
-    init(host: String, clientId: String?, environment: [String: String]) throws {
-        let clientId = try BaseAuthenticator.credential(clientId, name: "clientId", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID", environment: environment)
-        super.init(host: host, clientID: clientId, authorizationURL: "https://auth.example.com/authorize", scopes: ["read"])
-    }
+  /// The same over a given environment, so the lookup can be exercised without touching
+  /// the process's own.
+  init(host: String, clientId: String?, environment: [String: String]) throws {
+    let clientId = try BaseAuthenticator.credential(
+      clientId, name: "clientId", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID",
+      environment: environment)
+    super.init(
+      host: host, clientID: clientId, authorizationURL: "https://auth.example.com/authorize",
+      scopes: ["read"])
+  }
 }

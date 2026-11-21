@@ -9,61 +9,68 @@ import Foundation
 
 /// StockItem is a model class generated from the OpenAPI schema.
 public struct StockItem: Codable, Sendable, Equatable, Hashable {
-    public let priority: Priority
-    public let availability: Availability?
-    /// Quantity grid as an array of integer arrays
-    public let matrix: [[Int]]?
+  public let priority: Priority
+  public let availability: Availability?
+  /// Quantity grid as an array of integer arrays
+  public let matrix: [[Int]]?
 
-    enum CodingKeys: String, CodingKey, CaseIterable {
-        case priority = "priority"
-        case availability = "availability"
-        case matrix = "matrix"
-    }
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case priority = "priority"
+    case availability = "availability"
+    case matrix = "matrix"
+  }
 
-    /// Creates a new StockItem instance.
-    public init(priority: Priority, availability: Availability? = Availability.onHold, matrix: [[Int]]? = nil) {
-        self.priority = priority
-        self.availability = availability
-        self.matrix = matrix
-    }
+  /// Creates a new StockItem instance.
+  public init(
+    priority: Priority, availability: Availability? = Availability.onHold, matrix: [[Int]]? = nil
+  ) {
+    self.priority = priority
+    self.availability = availability
+    self.matrix = matrix
+  }
 
-    /// Returns a copy of this instance with the given properties replaced. A
-    /// property left out keeps its value; to clear an optional property pass
-    /// `.some(nil)`, since a bare `nil` also means "keep".
-    public func copy(priority: Priority? = nil, availability: Availability?? = .none, matrix: [[Int]]?? = .none) -> StockItem {
-        return StockItem(priority: priority ?? self.priority, availability: availability ?? self.availability, matrix: matrix ?? self.matrix)
-    }
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    priority: Priority? = nil, availability: Availability?? = .none, matrix: [[Int]]?? = .none
+  ) -> StockItem {
+    return StockItem(
+      priority: priority ?? self.priority, availability: availability ?? self.availability,
+      matrix: matrix ?? self.matrix)
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-    /// payload but the schema declares a `default`, that default is applied —
-    /// matching the cross-language "apply schema default on deserialise"
-    /// expectation. An explicit JSON `null` is a provided value and is
-    /// preserved as `nil` rather than replaced by the default.
-    /// Unknown JSON keys are silently ignored — matching the cross-language
-    /// "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.priority = try container.decode(Priority.self, forKey: .priority)
-        /* A default written next to the $ref of an enum applies when the key is
-           absent; an explicit null stays nil. */
-        self.availability = container.contains(.availability)
-            ? try container.decodeIfPresent(Availability.self, forKey: .availability)
-            : Availability.onHold
-        self.matrix = try container.decodeIfPresent([[Int]].self, forKey: .matrix)
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+  /// payload but the schema declares a `default`, that default is applied —
+  /// matching the cross-language "apply schema default on deserialise"
+  /// expectation. An explicit JSON `null` is a provided value and is
+  /// preserved as `nil` rather than replaced by the default.
+  /// Unknown JSON keys are silently ignored — matching the cross-language
+  /// "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.priority = try container.decode(Priority.self, forKey: .priority)
+    /* A default written next to the $ref of an enum applies when the key is
+       absent; an explicit null stays nil. */
+    self.availability =
+      container.contains(.availability)
+      ? try container.decodeIfPresent(Availability.self, forKey: .availability)
+      : Availability.onHold
+    self.matrix = try container.decodeIfPresent([[Int]].self, forKey: .matrix)
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(ObjectSerializer.ordered(priority), forKey: .priority)
-        try container.encodeIfPresent(ObjectSerializer.ordered(availability), forKey: .availability)
-        try container.encodeIfPresent(ObjectSerializer.ordered(matrix), forKey: .matrix)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(ObjectSerializer.ordered(priority), forKey: .priority)
+    try container.encodeIfPresent(ObjectSerializer.ordered(availability), forKey: .availability)
+    try container.encodeIfPresent(ObjectSerializer.ordered(matrix), forKey: .matrix)
+  }
 }

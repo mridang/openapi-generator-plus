@@ -9,107 +9,120 @@ import Foundation
 
 /// Subscription is a model class generated from the OpenAPI schema.
 /// Typed enum for Subscription.interval.
-public enum SubscriptionIntervalEnum: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
-    /// Billed every month.
-    case monthly = "month"
-    /// Billed every year.
-    case yearly = "year"
-    /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
-    case unknownDefaultOpenApi = "__unknown_default_open_api__"
+public enum SubscriptionIntervalEnum: String, Codable, Sendable, CaseIterable,
+  CustomStringConvertible
+{
+  /// Billed every month.
+  case monthly = "month"
+  /// Billed every year.
+  case yearly = "year"
+  /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
+  case unknownDefaultOpenApi = "__unknown_default_open_api__"
 
-    /// The declared cases; the catch-all case is not one of them.
-    public static var allCases: [SubscriptionIntervalEnum] {
-        return [
-            .monthly,
-            .yearly,
-        ]
-    }
+  /// The declared cases; the catch-all case is not one of them.
+  public static var allCases: [SubscriptionIntervalEnum] {
+    return [
+      .monthly,
+      .yearly,
+    ]
+  }
 
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let raw = try container.decode(RawValue.self)
-        self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
-    }
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let raw = try container.decode(RawValue.self)
+    self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
+  }
 
-    public func encode(to encoder: Encoder) throws {
-        if self == .unknownDefaultOpenApi {
-            throw EncodingError.invalidValue(
-                self,
-                EncodingError.Context(
-                    codingPath: encoder.codingPath,
-                    debugDescription: "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written"))
-        }
-        var container = encoder.singleValueContainer()
-        try container.encode(rawValue)
+  public func encode(to encoder: Encoder) throws {
+    if self == .unknownDefaultOpenApi {
+      throw EncodingError.invalidValue(
+        self,
+        EncodingError.Context(
+          codingPath: encoder.codingPath,
+          debugDescription:
+            "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written")
+      )
     }
+    var container = encoder.singleValueContainer()
+    try container.encode(rawValue)
+  }
 
-    /// The wire value (`"active"`, `2`), not the case name, so interpolating
-    /// the enum prints what the server sees.
-    public var description: String {
-        return "\(rawValue)"
-    }
+  /// The wire value (`"active"`, `2`), not the case name, so interpolating
+  /// the enum prints what the server sees.
+  public var description: String {
+    return "\(rawValue)"
+  }
 }
 
 public struct Subscription: Codable, Sendable, Equatable, Hashable {
-    public let tier: Tier?
-    public let rank: Rank
-    public let stage: Stage?
-    public let interval: SubscriptionIntervalEnum?
+  public let tier: Tier?
+  public let rank: Rank
+  public let stage: Stage?
+  public let interval: SubscriptionIntervalEnum?
 
-    enum CodingKeys: String, CodingKey, CaseIterable {
-        case tier = "tier"
-        case rank = "rank"
-        case stage = "stage"
-        case interval = "interval"
-    }
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case tier = "tier"
+    case rank = "rank"
+    case stage = "stage"
+    case interval = "interval"
+  }
 
-    /// Creates a new Subscription instance.
-    public init(rank: Rank, tier: Tier? = Tier.medium, stage: Stage? = nil, interval: SubscriptionIntervalEnum? = nil) {
-        self.rank = rank
-        self.tier = tier
-        self.stage = stage
-        self.interval = interval
-    }
+  /// Creates a new Subscription instance.
+  public init(
+    rank: Rank, tier: Tier? = Tier.medium, stage: Stage? = nil,
+    interval: SubscriptionIntervalEnum? = nil
+  ) {
+    self.rank = rank
+    self.tier = tier
+    self.stage = stage
+    self.interval = interval
+  }
 
-    /// Returns a copy of this instance with the given properties replaced. A
-    /// property left out keeps its value; to clear an optional property pass
-    /// `.some(nil)`, since a bare `nil` also means "keep".
-    public func copy(rank: Rank? = nil, tier: Tier?? = .none, stage: Stage?? = .none, interval: SubscriptionIntervalEnum?? = .none) -> Subscription {
-        return Subscription(rank: rank ?? self.rank, tier: tier ?? self.tier, stage: stage ?? self.stage, interval: interval ?? self.interval)
-    }
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    rank: Rank? = nil, tier: Tier?? = .none, stage: Stage?? = .none,
+    interval: SubscriptionIntervalEnum?? = .none
+  ) -> Subscription {
+    return Subscription(
+      rank: rank ?? self.rank, tier: tier ?? self.tier, stage: stage ?? self.stage,
+      interval: interval ?? self.interval)
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-    /// payload but the schema declares a `default`, that default is applied —
-    /// matching the cross-language "apply schema default on deserialise"
-    /// expectation. An explicit JSON `null` is a provided value and is
-    /// preserved as `nil` rather than replaced by the default.
-    /// Unknown JSON keys are silently ignored — matching the cross-language
-    /// "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        /* A default written next to the $ref of an enum applies when the key is
-           absent; an explicit null stays nil. */
-        self.tier = container.contains(.tier)
-            ? try container.decodeIfPresent(Tier.self, forKey: .tier)
-            : Tier.medium
-        self.rank = try container.decode(Rank.self, forKey: .rank)
-        self.stage = try container.decodeIfPresent(Stage.self, forKey: .stage)
-        self.interval = try container.decodeIfPresent(SubscriptionIntervalEnum.self, forKey: .interval)
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+  /// payload but the schema declares a `default`, that default is applied —
+  /// matching the cross-language "apply schema default on deserialise"
+  /// expectation. An explicit JSON `null` is a provided value and is
+  /// preserved as `nil` rather than replaced by the default.
+  /// Unknown JSON keys are silently ignored — matching the cross-language
+  /// "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    /* A default written next to the $ref of an enum applies when the key is
+       absent; an explicit null stays nil. */
+    self.tier =
+      container.contains(.tier)
+      ? try container.decodeIfPresent(Tier.self, forKey: .tier)
+      : Tier.medium
+    self.rank = try container.decode(Rank.self, forKey: .rank)
+    self.stage = try container.decodeIfPresent(Stage.self, forKey: .stage)
+    self.interval = try container.decodeIfPresent(SubscriptionIntervalEnum.self, forKey: .interval)
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(ObjectSerializer.ordered(tier), forKey: .tier)
-        try container.encode(ObjectSerializer.ordered(rank), forKey: .rank)
-        try container.encodeIfPresent(ObjectSerializer.ordered(stage), forKey: .stage)
-        try container.encodeIfPresent(ObjectSerializer.ordered(interval), forKey: .interval)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(ObjectSerializer.ordered(tier), forKey: .tier)
+    try container.encode(ObjectSerializer.ordered(rank), forKey: .rank)
+    try container.encodeIfPresent(ObjectSerializer.ordered(stage), forKey: .stage)
+    try container.encodeIfPresent(ObjectSerializer.ordered(interval), forKey: .interval)
+  }
 }

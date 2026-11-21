@@ -15,335 +15,341 @@ import Foundation
 /// Conforms to ``HttpAwareAuthenticator`` so that both the discovery request and
 /// subsequent token exchange requests use the shared ``ApiClient`` with the same
 /// transport configuration (proxy, TLS, timeouts) as regular API calls.
-public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, AccessTokenInvalidating, @unchecked Sendable {
-    private let _host: String
-    private let openIDConnectURL: String
-    private let clientID: String
-    private let clientSecret: String
-    private let redirectURI: String
-    private let scopes: [String]
-    private var apiClient: ApiClient?
-    private var delegate: OAuth2AuthorizationCodeAuthenticator?
-    private var discoveredEndpoints: String?
-    private var discoveryExpiry: TimeInterval = -.infinity
-    private var discoveryInFlight: Task<OAuth2AuthorizationCodeAuthenticator, Error>?
-    private let lock = NSLock()
+public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
+  AccessTokenInvalidating, @unchecked Sendable
+{
+  private let _host: String
+  private let openIDConnectURL: String
+  private let clientID: String
+  private let clientSecret: String
+  private let redirectURI: String
+  private let scopes: [String]
+  private var apiClient: ApiClient?
+  private var delegate: OAuth2AuthorizationCodeAuthenticator?
+  private var discoveredEndpoints: String?
+  private var discoveryExpiry: TimeInterval = -.infinity
+  private var discoveryInFlight: Task<OAuth2AuthorizationCodeAuthenticator, Error>?
+  private let lock = NSLock()
 
-    /// Creates a new OpenID Connect authenticator.
-    public init(
-        host: String,
-        openIDConnectURL: String,
-        clientID: String,
-        clientSecret: String,
-        redirectURI: String,
-        scopes: [String] = []
-    ) {
-        self._host = host
-        self.openIDConnectURL = openIDConnectURL
-        self.clientID = clientID
-        self.clientSecret = clientSecret
-        self.redirectURI = redirectURI
-        /* OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid". */
-        self.scopes = ["openid"] + scopes.filter { $0 != "openid" }
-        super.init()
+  /// Creates a new OpenID Connect authenticator.
+  public init(
+    host: String,
+    openIDConnectURL: String,
+    clientID: String,
+    clientSecret: String,
+    redirectURI: String,
+    scopes: [String] = []
+  ) {
+    self._host = host
+    self.openIDConnectURL = openIDConnectURL
+    self.clientID = clientID
+    self.clientSecret = clientSecret
+    self.redirectURI = redirectURI
+    /* OpenID Connect Core 3.1.2.1: the scope parameter must contain "openid". */
+    self.scopes = ["openid"] + scopes.filter { $0 != "openid" }
+    super.init()
+  }
+
+  /// Drops the cached access token so that the next call fetches a fresh one
+  /// (a refresh grant first when a refresh token is held). The SDK calls this
+  /// itself when the API answers 401.
+  public func invalidateAccessToken() {
+    lock.withLock { delegate }?.invalidateAccessToken()
+  }
+
+  /// Returns the API base URL.
+  override public func host() -> String {
+    return _host
+  }
+
+  /// Injects the shared ``ApiClient`` for making discovery and token requests.
+  public func setApiClient(_ client: ApiClient) {
+    lock.withLock {
+      self.apiClient = client
     }
+  }
 
-    /// Drops the cached access token so that the next call fetches a fresh one
-    /// (a refresh grant first when a refresh token is held). The SDK calls this
-    /// itself when the API answers 401.
-    public func invalidateAccessToken() {
-        lock.withLock { delegate }?.invalidateAccessToken()
-    }
+  /// Builds the authorization URL using the discovered authorization endpoint.
+  public func buildAuthorizationURL(state: String = "") async throws -> String {
+    let delegate = try await resolveDelegate()
+    return try delegate.buildAuthorizationURL(state: state)
+  }
 
-    /// Returns the API base URL.
-    override public func host() -> String {
-        return _host
-    }
+  /// Exchanges an authorization code for tokens using the discovered token endpoint.
+  public func exchangeCode(_ code: String) async throws {
+    let delegate = try await resolveDelegate()
+    try await delegate.exchangeCode(code)
+  }
 
-    /// Injects the shared ``ApiClient`` for making discovery and token requests.
-    public func setApiClient(_ client: ApiClient) {
-        lock.withLock {
-            self.apiClient = client
-        }
-    }
+  /// Returns the Bearer authentication header.
+  ///
+  /// Surfaces any discovery or token-exchange failure to the caller rather
+  /// than collapsing it into an empty header map that would send the
+  /// request unauthenticated.
+  override public func authHeaders() async throws -> [String: String] {
+    let delegate = try await resolveDelegate()
+    return try await delegate.authHeaders()
+  }
 
-    /// Builds the authorization URL using the discovered authorization endpoint.
-    public func buildAuthorizationURL(state: String = "") async throws -> String {
-        let delegate = try await resolveDelegate()
-        return try delegate.buildAuthorizationURL(state: state)
-    }
-
-    /// Exchanges an authorization code for tokens using the discovered token endpoint.
-    public func exchangeCode(_ code: String) async throws {
-        let delegate = try await resolveDelegate()
-        try await delegate.exchangeCode(code)
-    }
-
-    /// Returns the Bearer authentication header.
-    ///
-    /// Surfaces any discovery or token-exchange failure to the caller rather
-    /// than collapsing it into an empty header map that would send the
-    /// request unauthenticated.
-    override public func authHeaders() async throws -> [String: String] {
-        let delegate = try await resolveDelegate()
-        return try await delegate.authHeaders()
-    }
-
-    /// Lazily resolves the delegate by fetching the OIDC discovery document
-    /// using the injected ``ApiClient``. Honors the `Cache-Control: max-age=<seconds>`
-    /// header from the discovery response; falls back to the RFC 8414
-    /// recommended default of 86400 seconds when absent.
-    private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
-        /* Concurrent callers on a cold authenticator share one discovery request: the
-         * first caller starts it, and every caller that arrives while it runs waits for
-         * the same task. A failed discovery is not kept, so the next call tries again. */
-        let step: DiscoveryStep = lock.withLock {
-            if let d = delegate, MonotonicClock.now() < discoveryExpiry {
-                return .ready(d)
-            }
-            if let pending = discoveryInFlight {
-                return .pending(pending)
-            }
-            let task = Task { () -> OAuth2AuthorizationCodeAuthenticator in
-                let outcome: Result<OAuth2AuthorizationCodeAuthenticator, Error>
-                do {
-                    outcome = .success(try await self.discoverDelegate())
-                } catch {
-                    outcome = .failure(error)
-                }
-                self.lock.withLock { self.discoveryInFlight = nil }
-                return try outcome.get()
-            }
-            discoveryInFlight = task
-            return .pending(task)
-        }
-        switch step {
-        case .ready(let d):
-            return d
-        case .pending(let task):
-            return try await task.value
-        }
-    }
-
-    private enum DiscoveryStep {
-        case ready(OAuth2AuthorizationCodeAuthenticator)
-        case pending(Task<OAuth2AuthorizationCodeAuthenticator, Error>)
-    }
-
-    /// Fetches and validates the discovery document and caches the delegate it names.
-    private func discoverDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
-        let client: ApiClient = try lock.withLock {
-            guard let client = apiClient else {
-                throw ConfigurationError.invalidState(
-                    "ApiClient has not been injected. "
-                        + "Ensure the Client constructor calls setApiClient "
-                        + "on HttpAwareAuthenticator before making API requests"
-                )
-            }
-            return client
-        }
-
-        /* Discovery is an HTTP call like any other: a transport failure is
-         * already a NetworkError or NetworkTimeoutError and passes through. */
-        let headers = ["Accept": "application/json"]
-        /* The identity provider is another origin: the API's default headers (an
-         * Authorization or API key meant for the API) are not sent to it. A
-         * client that is not the SDK's own has no such headers to hold back. */
-        let response: ApiHttpResponse
-        if let sdkClient = client as? DefaultApiClient {
-            response = try await sdkClient.sendRequest(
-                method: "GET", url: openIDConnectURL, headers: headers, body: nil,
-                noRedirect: false, refreshHeaders: nil, sendDefaultHeaders: false)
-        } else {
-            response = try await client.sendRequest(
-                method: "GET", url: openIDConnectURL, headers: headers, body: nil)
-        }
-
-        /* Guard on the HTTP status before attempting to JSON-decode the
-         * discovery document. A 5xx HTML error page or a 404 surfaces as the
-         * typed ApiError for its status rather than a misleading "invalid
-         * JSON" decode failure. */
-        guard response.statusCode >= 200 && response.statusCode < 300 else {
-            throw ApiError.fromResponse(
-                statusCode: response.statusCode,
-                headers: response.headers,
-                body: response.body,
-                requestMethod: "GET",
-                requestPath: ApiError.pathOfRequestURL(openIDConnectURL)
-            )
-        }
-
-        guard let data = response.body.data(using: .utf8) else {
-            throw SerializationError(message: "OIDC discovery document is not valid JSON")
-        }
-
-        struct DiscoveryDocument: Decodable {
-            /* Optional so a MISSING endpoint decodes to nil and the explicit
-             * guard below reports it as "missing" (matching the other SDKs),
-             * rather than JSONDecoder throwing a keyNotFound that would surface
-             * as the generic "not a JSON object" message. */
-            let issuer: String?
-            let authorizationEndpoint: String?
-            let tokenEndpoint: String?
-
-            enum CodingKeys: String, CodingKey {
-                case issuer
-                case authorizationEndpoint = "authorization_endpoint"
-                case tokenEndpoint = "token_endpoint"
-            }
-        }
-
-        let discovery: DiscoveryDocument
+  /// Lazily resolves the delegate by fetching the OIDC discovery document
+  /// using the injected ``ApiClient``. Honors the `Cache-Control: max-age=<seconds>`
+  /// header from the discovery response; falls back to the RFC 8414
+  /// recommended default of 86400 seconds when absent.
+  private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
+    /* Concurrent callers on a cold authenticator share one discovery request: the
+     * first caller starts it, and every caller that arrives while it runs waits for
+     * the same task. A failed discovery is not kept, so the next call tries again. */
+    let step: DiscoveryStep = lock.withLock {
+      if let d = delegate, MonotonicClock.now() < discoveryExpiry {
+        return .ready(d)
+      }
+      if let pending = discoveryInFlight {
+        return .pending(pending)
+      }
+      let task = Task { () -> OAuth2AuthorizationCodeAuthenticator in
+        let outcome: Result<OAuth2AuthorizationCodeAuthenticator, Error>
         do {
-            discovery = try JSONDecoder().decode(DiscoveryDocument.self, from: data)
+          outcome = .success(try await self.discoverDelegate())
         } catch {
-            throw SerializationError(message: "OIDC discovery document is not a JSON object", cause: nil)
+          outcome = .failure(error)
         }
-        /* A document naming an empty endpoint is as incomplete as one that
-         * omits it. */
-        guard let authorizationEndpoint = discovery.authorizationEndpoint,
-            !authorizationEndpoint.trimmingCharacters(in: .whitespaces).isEmpty
-        else {
-            throw SerializationError(message: "OIDC discovery document is missing 'authorization_endpoint'")
-        }
-        guard let tokenEndpoint = discovery.tokenEndpoint,
-            !tokenEndpoint.trimmingCharacters(in: .whitespaces).isEmpty
-        else {
-            throw SerializationError(message: "OIDC discovery document is missing 'token_endpoint'")
-        }
+        self.lock.withLock { self.discoveryInFlight = nil }
+        return try outcome.get()
+      }
+      discoveryInFlight = task
+      return .pending(task)
+    }
+    switch step {
+    case .ready(let d):
+      return d
+    case .pending(let task):
+      return try await task.value
+    }
+  }
 
-        /* OpenID Connect Discovery 1.0 section 4.3: the issuer must equal the
-         * URL the document was fetched from, minus the well-known suffix, which
-         * is the defence against a document served for another issuer. A
-         * document that carries no issuer is not rejected here. */
-        let wellKnown = "/.well-known/openid-configuration"
-        if let issuer = discovery.issuer, openIDConnectURL.hasSuffix(wellKnown) {
-            let expected = Self.withoutTrailingSlashes(String(openIDConnectURL.dropLast(wellKnown.count)))
-            if Self.withoutTrailingSlashes(issuer) != expected {
-                throw SerializationError(
-                    message: "OIDC discovery issuer '\(issuer)' does not match '\(expected)'")
-            }
-        }
-        /* The authorization code and the client secret travel to these
-         * endpoints: refuse clear text unless the host is a loopback address
-         * (RFC 8252 section 8.3). */
-        try Self.requireSecureEndpoint("authorization_endpoint", authorizationEndpoint)
-        try Self.requireSecureEndpoint("token_endpoint", tokenEndpoint)
+  private enum DiscoveryStep {
+    case ready(OAuth2AuthorizationCodeAuthenticator)
+    case pending(Task<OAuth2AuthorizationCodeAuthenticator, Error>)
+  }
 
-        /* The session (tokens and the exchanged flag) lives in the token manager,
-         * which outlives discovery: a document that names the same endpoints keeps
-         * the delegate, and one that names new endpoints gets a delegate built
-         * around the previous token manager, so refreshing the discovery cache
-         * never discards the code exchange. */
-        let endpoints = authorizationEndpoint + "\n" + tokenEndpoint
-        let maxAge = Self.parseMaxAge(response.headers)
-        let resolved: OAuth2AuthorizationCodeAuthenticator = lock.withLock {
-            let current: OAuth2AuthorizationCodeAuthenticator
-            if let previous = self.delegate {
-                if endpoints == self.discoveredEndpoints {
-                    current = previous
-                } else {
-                    current = OAuth2AuthorizationCodeAuthenticator(
-                        host: _host,
-                        clientID: clientID,
-                        clientSecret: clientSecret,
-                        authorizationURL: authorizationEndpoint,
-                        tokenURL: tokenEndpoint,
-                        redirectURI: redirectURI,
-                        scopes: scopes,
-                        refreshURL: "",
-                        tokenManager: previous.tokenManager
-                    )
-                }
-            } else {
-                current = OAuth2AuthorizationCodeAuthenticator(
-                    host: _host,
-                    clientID: clientID,
-                    clientSecret: clientSecret,
-                    authorizationURL: authorizationEndpoint,
-                    tokenURL: tokenEndpoint,
-                    redirectURI: redirectURI,
-                    scopes: scopes
-                )
-            }
-            self.delegate = current
-            self.discoveredEndpoints = endpoints
-            self.discoveryExpiry = MonotonicClock.now() + TimeInterval(maxAge)
-            return current
-        }
-        resolved.setApiClient(client)
-        return resolved
+  /// Fetches and validates the discovery document and caches the delegate it names.
+  private func discoverDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
+    let client: ApiClient = try lock.withLock {
+      guard let client = apiClient else {
+        throw ConfigurationError.invalidState(
+          "ApiClient has not been injected. "
+            + "Ensure the Client constructor calls setApiClient "
+            + "on HttpAwareAuthenticator before making API requests"
+        )
+      }
+      return client
     }
 
-    private static func withoutTrailingSlashes(_ value: String) -> String {
-        var result = value
-        while result.hasSuffix("/") {
-            result.removeLast()
-        }
-        return result
+    /* Discovery is an HTTP call like any other: a transport failure is
+     * already a NetworkError or NetworkTimeoutError and passes through. */
+    let headers = ["Accept": "application/json"]
+    /* The identity provider is another origin: the API's default headers (an
+     * Authorization or API key meant for the API) are not sent to it. A
+     * client that is not the SDK's own has no such headers to hold back. */
+    let response: ApiHttpResponse
+    if let sdkClient = client as? DefaultApiClient {
+      response = try await sdkClient.sendRequest(
+        method: "GET", url: openIDConnectURL, headers: headers, body: nil,
+        noRedirect: false, refreshHeaders: nil, sendDefaultHeaders: false)
+    } else {
+      response = try await client.sendRequest(
+        method: "GET", url: openIDConnectURL, headers: headers, body: nil)
     }
 
-    /// Rejects a discovered endpoint that is not https, unless it is http on a
-    /// loopback host.
-    static func requireSecureEndpoint(_ name: String, _ endpoint: String) throws {
-        let components = URLComponents(string: endpoint)
-        let scheme = components?.scheme?.lowercased() ?? ""
-        let host = (components?.host ?? "").lowercased()
-        if scheme == "https" {
-            return
-        }
-        let loopback = host == "localhost" || host == "::1" || host == "[::1]" || host.hasPrefix("127.")
-        if scheme == "http" && loopback {
-            return
-        }
+    /* Guard on the HTTP status before attempting to JSON-decode the
+     * discovery document. A 5xx HTML error page or a 404 surfaces as the
+     * typed ApiError for its status rather than a misleading "invalid
+     * JSON" decode failure. */
+    guard response.statusCode >= 200 && response.statusCode < 300 else {
+      throw ApiError.fromResponse(
+        statusCode: response.statusCode,
+        headers: response.headers,
+        body: response.body,
+        requestMethod: "GET",
+        requestPath: ApiError.pathOfRequestURL(openIDConnectURL)
+      )
+    }
+
+    guard let data = response.body.data(using: .utf8) else {
+      throw SerializationError(message: "OIDC discovery document is not valid JSON")
+    }
+
+    struct DiscoveryDocument: Decodable {
+      /* Optional so a MISSING endpoint decodes to nil and the explicit
+       * guard below reports it as "missing" (matching the other SDKs),
+       * rather than JSONDecoder throwing a keyNotFound that would surface
+       * as the generic "not a JSON object" message. */
+      let issuer: String?
+      let authorizationEndpoint: String?
+      let tokenEndpoint: String?
+
+      enum CodingKeys: String, CodingKey {
+        case issuer
+        case authorizationEndpoint = "authorization_endpoint"
+        case tokenEndpoint = "token_endpoint"
+      }
+    }
+
+    let discovery: DiscoveryDocument
+    do {
+      discovery = try JSONDecoder().decode(DiscoveryDocument.self, from: data)
+    } catch {
+      throw SerializationError(message: "OIDC discovery document is not a JSON object", cause: nil)
+    }
+    /* A document naming an empty endpoint is as incomplete as one that
+     * omits it. */
+    guard let authorizationEndpoint = discovery.authorizationEndpoint,
+      !authorizationEndpoint.trimmingCharacters(in: .whitespaces).isEmpty
+    else {
+      throw SerializationError(
+        message: "OIDC discovery document is missing 'authorization_endpoint'")
+    }
+    guard let tokenEndpoint = discovery.tokenEndpoint,
+      !tokenEndpoint.trimmingCharacters(in: .whitespaces).isEmpty
+    else {
+      throw SerializationError(message: "OIDC discovery document is missing 'token_endpoint'")
+    }
+
+    /* OpenID Connect Discovery 1.0 section 4.3: the issuer must equal the
+     * URL the document was fetched from, minus the well-known suffix, which
+     * is the defence against a document served for another issuer. A
+     * document that carries no issuer is not rejected here. */
+    let wellKnown = "/.well-known/openid-configuration"
+    if let issuer = discovery.issuer, openIDConnectURL.hasSuffix(wellKnown) {
+      let expected = Self.withoutTrailingSlashes(String(openIDConnectURL.dropLast(wellKnown.count)))
+      if Self.withoutTrailingSlashes(issuer) != expected {
         throw SerializationError(
-            message: "OIDC discovery document '\(name)' must be an https URL (got '\(endpoint)')")
+          message: "OIDC discovery issuer '\(issuer)' does not match '\(expected)'")
+      }
     }
+    /* The authorization code and the client secret travel to these
+     * endpoints: refuse clear text unless the host is a loopback address
+     * (RFC 8252 section 8.3). */
+    try Self.requireSecureEndpoint("authorization_endpoint", authorizationEndpoint)
+    try Self.requireSecureEndpoint("token_endpoint", tokenEndpoint)
 
-    /// Longest time a discovery document is cached: one year. A larger
-    /// `max-age` is clamped to it, matching the token `expires_in` ceiling.
-    static let maxDiscoveryAgeSeconds = 31_536_000
-
-    /// Parse `Cache-Control: max-age=<seconds>` from response headers.
-    ///
-    /// Returns 86400 (RFC 8414 default) if the header is absent or does not
-    /// contain a `max-age` directive, and clamps a larger value to
-    /// ``maxDiscoveryAgeSeconds``.
-    static func parseMaxAge(_ headers: [String: String]) -> Int {
-        let defaultMaxAge = 86400
-        for (key, value) in headers where key.lowercased() == "cache-control" {
-            guard let regex = try? NSRegularExpression(
-                pattern: "max-age=(\\d+)", options: [.caseInsensitive]
-            ) else {
-                return defaultMaxAge
-            }
-            let range = NSRange(value.startIndex..., in: value)
-            guard let match = regex.firstMatch(in: value, options: [], range: range),
-                  match.numberOfRanges >= 2,
-                  let group = Range(match.range(at: 1), in: value) else {
-                return defaultMaxAge
-            }
-            /* The pattern matched digits only, so a failed Int parse means a
-               value too large for Int: clamp it like any other over-large age. */
-            guard let seconds = Int(value[group]) else {
-                return maxDiscoveryAgeSeconds
-            }
-            return min(seconds, maxDiscoveryAgeSeconds)
+    /* The session (tokens and the exchanged flag) lives in the token manager,
+     * which outlives discovery: a document that names the same endpoints keeps
+     * the delegate, and one that names new endpoints gets a delegate built
+     * around the previous token manager, so refreshing the discovery cache
+     * never discards the code exchange. */
+    let endpoints = authorizationEndpoint + "\n" + tokenEndpoint
+    let maxAge = Self.parseMaxAge(response.headers)
+    let resolved: OAuth2AuthorizationCodeAuthenticator = lock.withLock {
+      let current: OAuth2AuthorizationCodeAuthenticator
+      if let previous = self.delegate {
+        if endpoints == self.discoveredEndpoints {
+          current = previous
+        } else {
+          current = OAuth2AuthorizationCodeAuthenticator(
+            host: _host,
+            clientID: clientID,
+            clientSecret: clientSecret,
+            authorizationURL: authorizationEndpoint,
+            tokenURL: tokenEndpoint,
+            redirectURI: redirectURI,
+            scopes: scopes,
+            refreshURL: "",
+            tokenManager: previous.tokenManager
+          )
         }
-        return defaultMaxAge
+      } else {
+        current = OAuth2AuthorizationCodeAuthenticator(
+          host: _host,
+          clientID: clientID,
+          clientSecret: clientSecret,
+          authorizationURL: authorizationEndpoint,
+          tokenURL: tokenEndpoint,
+          redirectURI: redirectURI,
+          scopes: scopes
+        )
+      }
+      self.delegate = current
+      self.discoveredEndpoints = endpoints
+      self.discoveryExpiry = MonotonicClock.now() + TimeInterval(maxAge)
+      return current
     }
+    resolved.setApiClient(client)
+    return resolved
+  }
+
+  private static func withoutTrailingSlashes(_ value: String) -> String {
+    var result = value
+    while result.hasSuffix("/") {
+      result.removeLast()
+    }
+    return result
+  }
+
+  /// Rejects a discovered endpoint that is not https, unless it is http on a
+  /// loopback host.
+  static func requireSecureEndpoint(_ name: String, _ endpoint: String) throws {
+    let components = URLComponents(string: endpoint)
+    let scheme = components?.scheme?.lowercased() ?? ""
+    let host = (components?.host ?? "").lowercased()
+    if scheme == "https" {
+      return
+    }
+    let loopback = host == "localhost" || host == "::1" || host == "[::1]" || host.hasPrefix("127.")
+    if scheme == "http" && loopback {
+      return
+    }
+    throw SerializationError(
+      message: "OIDC discovery document '\(name)' must be an https URL (got '\(endpoint)')")
+  }
+
+  /// Longest time a discovery document is cached: one year. A larger
+  /// `max-age` is clamped to it, matching the token `expires_in` ceiling.
+  static let maxDiscoveryAgeSeconds = 31_536_000
+
+  /// Parse `Cache-Control: max-age=<seconds>` from response headers.
+  ///
+  /// Returns 86400 (RFC 8414 default) if the header is absent or does not
+  /// contain a `max-age` directive, and clamps a larger value to
+  /// ``maxDiscoveryAgeSeconds``.
+  static func parseMaxAge(_ headers: [String: String]) -> Int {
+    let defaultMaxAge = 86400
+    for (key, value) in headers where key.lowercased() == "cache-control" {
+      guard
+        let regex = try? NSRegularExpression(
+          pattern: "max-age=(\\d+)", options: [.caseInsensitive]
+        )
+      else {
+        return defaultMaxAge
+      }
+      let range = NSRange(value.startIndex..., in: value)
+      guard let match = regex.firstMatch(in: value, options: [], range: range),
+        match.numberOfRanges >= 2,
+        let group = Range(match.range(at: 1), in: value)
+      else {
+        return defaultMaxAge
+      }
+      /* The pattern matched digits only, so a failed Int parse means a
+         value too large for Int: clamp it like any other over-large age. */
+      guard let seconds = Int(value[group]) else {
+        return maxDiscoveryAgeSeconds
+      }
+      return min(seconds, maxDiscoveryAgeSeconds)
+    }
+    return defaultMaxAge
+  }
 }
 
 extension OpenIdConnectAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
-    /// A description that redacts the client secret so it never leaks through
-    /// string interpolation, logging, or debugging output.
-    public var description: String {
-        "\(type(of: self))(host: \(_host), openIDConnectURL: \(openIDConnectURL), clientID: \(clientID), clientSecret: ***, redirectURI: \(redirectURI), scopes: \(scopes))"
-    }
+  /// A description that redacts the client secret so it never leaks through
+  /// string interpolation, logging, or debugging output.
+  public var description: String {
+    "\(type(of: self))(host: \(_host), openIDConnectURL: \(openIDConnectURL), clientID: \(clientID), clientSecret: ***, redirectURI: \(redirectURI), scopes: \(scopes))"
+  }
 
-    /// A debug description that redacts the client secret so it never leaks
-    /// through string interpolation, logging, or debugging output.
-    public var debugDescription: String {
-        description
-    }
+  /// A debug description that redacts the client secret so it never leaks
+  /// through string interpolation, logging, or debugging output.
+  public var debugDescription: String {
+    description
+  }
 }

@@ -9,105 +9,123 @@ import Foundation
 
 /// NativeValues is a model class generated from the OpenAPI schema.
 public struct NativeValues: Codable, Sendable, Equatable, Hashable {
-    /// Example: 192.0.2.1
-    public let address4: String?
-    /// Example: 2001:db8::1
-    public let address6: String?
-    public let addresses: [String]?
-    /// Example: https://example.com/a
-    public let homepage: String?
-    /// Example: 12.345678901234567
-    public let amount: Decimal?
-    /// Example: 12.50
-    public let ledger: Decimal?
-    /// Example: 3600s
-    public let wait: TimeInterval?
-    /// Example: 2024-02-29
-    public let since: String?
-    /// Example: example.com
-    public let host: String?
-    /// Example: a@example.com
-    public let contact: String?
+  /// Example: 192.0.2.1
+  public let address4: String?
+  /// Example: 2001:db8::1
+  public let address6: String?
+  public let addresses: [String]?
+  /// Example: https://example.com/a
+  public let homepage: String?
+  /// Example: 12.345678901234567
+  public let amount: Decimal?
+  /// Example: 12.50
+  public let ledger: Decimal?
+  /// Example: 3600s
+  public let wait: TimeInterval?
+  /// Example: 2024-02-29
+  public let since: String?
+  /// Example: example.com
+  public let host: String?
+  /// Example: a@example.com
+  public let contact: String?
 
-    enum CodingKeys: String, CodingKey, CaseIterable {
-        case address4 = "address4"
-        case address6 = "address6"
-        case addresses = "addresses"
-        case homepage = "homepage"
-        case amount = "amount"
-        case ledger = "ledger"
-        case wait = "wait"
-        case since = "since"
-        case host = "host"
-        case contact = "contact"
-    }
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case address4 = "address4"
+    case address6 = "address6"
+    case addresses = "addresses"
+    case homepage = "homepage"
+    case amount = "amount"
+    case ledger = "ledger"
+    case wait = "wait"
+    case since = "since"
+    case host = "host"
+    case contact = "contact"
+  }
 
-    /// Creates a new NativeValues instance.
-    public init(address4: String? = nil, address6: String? = nil, addresses: [String]? = nil, homepage: String? = nil, amount: Decimal? = nil, ledger: Decimal? = nil, wait: TimeInterval? = nil, since: String? = nil, host: String? = nil, contact: String? = nil) {
-        self.address4 = address4
-        self.address6 = address6
-        self.addresses = addresses
-        self.homepage = homepage
-        self.amount = amount
-        self.ledger = ledger
-        self.wait = wait
-        self.since = since
-        self.host = host
-        self.contact = contact
-    }
+  /// Creates a new NativeValues instance.
+  public init(
+    address4: String? = nil, address6: String? = nil, addresses: [String]? = nil,
+    homepage: String? = nil, amount: Decimal? = nil, ledger: Decimal? = nil,
+    wait: TimeInterval? = nil, since: String? = nil, host: String? = nil, contact: String? = nil
+  ) {
+    self.address4 = address4
+    self.address6 = address6
+    self.addresses = addresses
+    self.homepage = homepage
+    self.amount = amount
+    self.ledger = ledger
+    self.wait = wait
+    self.since = since
+    self.host = host
+    self.contact = contact
+  }
 
-    /// Returns a copy of this instance with the given properties replaced. A
-    /// property left out keeps its value; to clear an optional property pass
-    /// `.some(nil)`, since a bare `nil` also means "keep".
-    public func copy(address4: String?? = .none, address6: String?? = .none, addresses: [String]?? = .none, homepage: String?? = .none, amount: Decimal?? = .none, ledger: Decimal?? = .none, wait: TimeInterval?? = .none, since: String?? = .none, host: String?? = .none, contact: String?? = .none) -> NativeValues {
-        return NativeValues(address4: address4 ?? self.address4, address6: address6 ?? self.address6, addresses: addresses ?? self.addresses, homepage: homepage ?? self.homepage, amount: amount ?? self.amount, ledger: ledger ?? self.ledger, wait: wait ?? self.wait, since: since ?? self.since, host: host ?? self.host, contact: contact ?? self.contact)
-    }
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(
+    address4: String?? = .none, address6: String?? = .none, addresses: [String]?? = .none,
+    homepage: String?? = .none, amount: Decimal?? = .none, ledger: Decimal?? = .none,
+    wait: TimeInterval?? = .none, since: String?? = .none, host: String?? = .none,
+    contact: String?? = .none
+  ) -> NativeValues {
+    return NativeValues(
+      address4: address4 ?? self.address4, address6: address6 ?? self.address6,
+      addresses: addresses ?? self.addresses, homepage: homepage ?? self.homepage,
+      amount: amount ?? self.amount, ledger: ledger ?? self.ledger, wait: wait ?? self.wait,
+      since: since ?? self.since, host: host ?? self.host, contact: contact ?? self.contact)
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-    /// payload but the schema declares a `default`, that default is applied —
-    /// matching the cross-language "apply schema default on deserialise"
-    /// expectation. An explicit JSON `null` is a provided value and is
-    /// preserved as `nil` rather than replaced by the default.
-    /// Unknown JSON keys are silently ignored — matching the cross-language
-    /// "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.address4 = try container.decodeIfPresent(String.self, forKey: .address4)
-        self.address6 = try container.decodeIfPresent(String.self, forKey: .address6)
-        self.addresses = try container.decodeIfPresent([String].self, forKey: .addresses)
-        self.homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
-        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
-        self.amount = try container.decodeDecimalNumberIfPresent(forKey: .amount)
-        self.ledger = try container.decodeIfPresent(String.self, forKey: .ledger).map { try ObjectSerializer.decodeDecimalString($0) }
-        self.wait = try container.decodeIfPresent(String.self, forKey: .wait).map { try ObjectSerializer.decodeDuration($0) }
-        self.since = try container.decodeIfPresent(String.self, forKey: .since)
-        self.host = try container.decodeIfPresent(String.self, forKey: .host)
-        self.contact = try container.decodeIfPresent(String.self, forKey: .contact)
-        try ObjectSerializer.requireIpAddress(self.address4, format: "ipv4", property: "address4")
-        try ObjectSerializer.requireIpAddress(self.address6, format: "ipv6", property: "address6")
-        try ObjectSerializer.requireIpAddress(self.addresses, format: "ipv6", property: "addresses")
-        try ObjectSerializer.requireAbsoluteUri(self.homepage, property: "homepage")
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+  /// payload but the schema declares a `default`, that default is applied —
+  /// matching the cross-language "apply schema default on deserialise"
+  /// expectation. An explicit JSON `null` is a provided value and is
+  /// preserved as `nil` rather than replaced by the default.
+  /// Unknown JSON keys are silently ignored — matching the cross-language
+  /// "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.address4 = try container.decodeIfPresent(String.self, forKey: .address4)
+    self.address6 = try container.decodeIfPresent(String.self, forKey: .address6)
+    self.addresses = try container.decodeIfPresent([String].self, forKey: .addresses)
+    self.homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.amount = try container.decodeDecimalNumberIfPresent(forKey: .amount)
+    self.ledger = try container.decodeIfPresent(String.self, forKey: .ledger).map {
+      try ObjectSerializer.decodeDecimalString($0)
     }
+    self.wait = try container.decodeIfPresent(String.self, forKey: .wait).map {
+      try ObjectSerializer.decodeDuration($0)
+    }
+    self.since = try container.decodeIfPresent(String.self, forKey: .since)
+    self.host = try container.decodeIfPresent(String.self, forKey: .host)
+    self.contact = try container.decodeIfPresent(String.self, forKey: .contact)
+    try ObjectSerializer.requireIpAddress(self.address4, format: "ipv4", property: "address4")
+    try ObjectSerializer.requireIpAddress(self.address6, format: "ipv6", property: "address6")
+    try ObjectSerializer.requireIpAddress(self.addresses, format: "ipv6", property: "addresses")
+    try ObjectSerializer.requireAbsoluteUri(self.homepage, property: "homepage")
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(ObjectSerializer.ordered(address4), forKey: .address4)
-        try container.encodeIfPresent(ObjectSerializer.ordered(address6), forKey: .address6)
-        try container.encodeIfPresent(ObjectSerializer.ordered(addresses), forKey: .addresses)
-        try container.encodeIfPresent(ObjectSerializer.ordered(homepage), forKey: .homepage)
-        try container.encodeIfPresent(ObjectSerializer.ordered(amount), forKey: .amount)
-        try container.encodeIfPresent(ledger.map { $0.description }, forKey: .ledger)
-        try container.encodeIfPresent(try wait.map { try ObjectSerializer.encodeDuration($0) }, forKey: .wait)
-        try container.encodeIfPresent(ObjectSerializer.ordered(since), forKey: .since)
-        try container.encodeIfPresent(ObjectSerializer.ordered(host), forKey: .host)
-        try container.encodeIfPresent(ObjectSerializer.ordered(contact), forKey: .contact)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(ObjectSerializer.ordered(address4), forKey: .address4)
+    try container.encodeIfPresent(ObjectSerializer.ordered(address6), forKey: .address6)
+    try container.encodeIfPresent(ObjectSerializer.ordered(addresses), forKey: .addresses)
+    try container.encodeIfPresent(ObjectSerializer.ordered(homepage), forKey: .homepage)
+    try container.encodeIfPresent(ObjectSerializer.ordered(amount), forKey: .amount)
+    try container.encodeIfPresent(ledger.map { $0.description }, forKey: .ledger)
+    try container.encodeIfPresent(
+      try wait.map { try ObjectSerializer.encodeDuration($0) }, forKey: .wait)
+    try container.encodeIfPresent(ObjectSerializer.ordered(since), forKey: .since)
+    try container.encodeIfPresent(ObjectSerializer.ordered(host), forKey: .host)
+    try container.encodeIfPresent(ObjectSerializer.ordered(contact), forKey: .contact)
+  }
 }

@@ -9,79 +9,81 @@ import Foundation
 
 /// Blobs is a model class generated from the OpenAPI schema.
 public struct Blobs: Codable, Sendable, Equatable, Hashable {
-    public let label: String?
+  public let label: String?
 
-    /// Additional properties not defined in the schema.
-    public let additionalProperties: [String: Data]
+  /// Additional properties not defined in the schema.
+  public let additionalProperties: [String: Data]
 
-    enum CodingKeys: String, CodingKey {
-        case label = "label"
+  enum CodingKeys: String, CodingKey {
+    case label = "label"
+  }
+
+  /// Creates a new Blobs instance.
+  public init(label: String? = nil, additionalProperties: [String: Data] = [:]) {
+    self.label = label
+    self.additionalProperties = additionalProperties
+  }
+
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(label: String?? = .none, additionalProperties: [String: Data]? = nil) -> Blobs {
+    return Blobs(
+      label: label ?? self.label,
+      additionalProperties: additionalProperties ?? self.additionalProperties)
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.label = try container.decodeIfPresent(String.self, forKey: .label)
+
+    /* Decode additional properties */
+    let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
+    let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
+    var additionalProperties = [String: Data]()
+    for key in dynamicContainer.allKeys {
+      if !knownKeys.contains(key.stringValue) {
+        let value = try dynamicContainer.decode(Data.self, forKey: key)
+        additionalProperties[key.stringValue] = value
+      }
     }
+    self.additionalProperties = additionalProperties
+  }
 
-    /// Creates a new Blobs instance.
-    public init(label: String? = nil, additionalProperties: [String: Data] = [:]) {
-        self.label = label
-        self.additionalProperties = additionalProperties
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(ObjectSerializer.ordered(label), forKey: .label)
+
+    /* Encode additional properties */
+    var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
+    let declaredKeys = Set(CodingKeys.allCases.map { $0.rawValue })
+    for (key, value) in additionalProperties where !declaredKeys.contains(key) {
+      let codingKey = DynamicCodingKey(stringValue: key)
+      try dynamicContainer.encode(value, forKey: codingKey)
     }
-
-    /// Returns a copy of this instance with the given properties replaced. A
-    /// property left out keeps its value; to clear an optional property pass
-    /// `.some(nil)`, since a bare `nil` also means "keep".
-    public func copy(label: String?? = .none, additionalProperties: [String: Data]? = nil) -> Blobs {
-        return Blobs(label: label ?? self.label, additionalProperties: additionalProperties ?? self.additionalProperties)
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.label = try container.decodeIfPresent(String.self, forKey: .label)
-
-        /* Decode additional properties */
-        let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
-        let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
-        var additionalProperties = [String: Data]()
-        for key in dynamicContainer.allKeys {
-            if !knownKeys.contains(key.stringValue) {
-                let value = try dynamicContainer.decode(Data.self, forKey: key)
-                additionalProperties[key.stringValue] = value
-            }
-        }
-        self.additionalProperties = additionalProperties
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(ObjectSerializer.ordered(label), forKey: .label)
-
-        /* Encode additional properties */
-        var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
-        let declaredKeys = Set(CodingKeys.allCases.map { $0.rawValue })
-        for (key, value) in additionalProperties where !declaredKeys.contains(key) {
-            let codingKey = DynamicCodingKey(stringValue: key)
-            try dynamicContainer.encode(value, forKey: codingKey)
-        }
-    }
+  }
 }
 
 extension Blobs.CodingKeys: CaseIterable {
-    static var allCases: [Blobs.CodingKeys] {
-        return [
-            .label,
-        ]
-    }
+  static var allCases: [Blobs.CodingKeys] {
+    return [
+      .label
+    ]
+  }
 }
 
 /// A coding key that can represent any string value.
 private struct DynamicCodingKey: CodingKey {
-    var stringValue: String
-    var intValue: Int?
+  var stringValue: String
+  var intValue: Int?
 
-    init(stringValue: String) {
-        self.stringValue = stringValue
-        self.intValue = nil
-    }
+  init(stringValue: String) {
+    self.stringValue = stringValue
+    self.intValue = nil
+  }
 
-    init?(intValue: Int) {
-        self.stringValue = String(intValue)
-        self.intValue = intValue
-    }
+  init?(intValue: Int) {
+    self.stringValue = String(intValue)
+    self.intValue = intValue
+  }
 }

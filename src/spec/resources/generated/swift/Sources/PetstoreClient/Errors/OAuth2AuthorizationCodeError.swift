@@ -16,17 +16,17 @@ import Foundation
 /// ``ConfigurationError`` it conforms to plain `Error` and is deliberately not
 /// part of the SDK error hierarchy rooted at ``OpenAPIError``.
 public enum OAuth2AuthorizationCodeError: Error, Equatable, LocalizedError {
-    /// Auth headers were requested before `exchangeCode(_:)`.
-    case codeNotExchanged
-    /// `exchangeCode(_:)` was called with an empty or whitespace-only code.
-    case emptyCode
+  /// Auth headers were requested before `exchangeCode(_:)`.
+  case codeNotExchanged
+  /// `exchangeCode(_:)` was called with an empty or whitespace-only code.
+  case emptyCode
 
-    public var errorDescription: String? {
-        switch self {
-        case .codeNotExchanged:
-            return "Must call exchangeCode() before making API requests"
-        case .emptyCode:
-            return "Authorization code must not be empty"
-        }
+  public var errorDescription: String? {
+    switch self {
+    case .codeNotExchanged:
+      return "Must call exchangeCode() before making API requests"
+    case .emptyCode:
+      return "Authorization code must not be empty"
     }
+  }
 }

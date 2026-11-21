@@ -10,448 +10,451 @@ import Foundation
 /// Error raised when an API call fails, including the HTTP status code,
 /// response headers, and response body.
 public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
-    /// The HTTP status code.
-    public let statusCode: Int
+  /// The HTTP status code.
+  public let statusCode: Int
 
-    /// The detail message. For a failure of a request made through an API
-    /// method it names the request: `API returned status code 404 for GET /items/7`.
-    public internal(set) var message: String
+  /// The detail message. For a failure of a request made through an API
+  /// method it names the request: `API returned status code 404 for GET /items/7`.
+  public internal(set) var message: String
 
-    /// The raw HTTP response body, if available (nil if the transport failed
-    /// before producing one).
-    public let responseBody: String?
+  /// The raw HTTP response body, if available (nil if the transport failed
+  /// before producing one).
+  public let responseBody: String?
 
-    /// The HTTP response headers, if available (nil if the transport failed
-    /// before producing them).
-    public let responseHeaders: [String: String]?
+  /// The HTTP response headers, if available (nil if the transport failed
+  /// before producing them).
+  public let responseHeaders: [String: String]?
 
-    /// The deserialized error body, if available (nil if the body is not JSON).
-    public let errorBody: Any?
+  /// The deserialized error body, if available (nil if the body is not JSON).
+  public let errorBody: Any?
 
-    /// The underlying error that caused this ApiError, if any.
-    ///
-    /// Set when wrapping a transport failure (connection reset, read timeout,
-    /// DNS failure) so callers can inspect the root error rather than only a
-    /// stringified message.
-    public internal(set) var underlyingError: Error?
+  /// The underlying error that caused this ApiError, if any.
+  ///
+  /// Set when wrapping a transport failure (connection reset, read timeout,
+  /// DNS failure) so callers can inspect the root error rather than only a
+  /// stringified message.
+  public internal(set) var underlyingError: Error?
 
-    /// The HTTP method of the request that failed (`GET`), or nil when the
-    /// error did not come from a request made through an API method.
-    public internal(set) var requestMethod: String?
+  /// The HTTP method of the request that failed (`GET`), or nil when the
+  /// error did not come from a request made through an API method.
+  public internal(set) var requestMethod: String?
 
-    /// The path of the request that failed, base path included and the query
-    /// string left out so a key or token sent in it never reaches a log, or
-    /// nil when the error did not come from a request.
-    public internal(set) var requestPath: String?
+  /// The path of the request that failed, base path included and the query
+  /// string left out so a key or token sent in it never reaches a log, or
+  /// nil when the error did not come from a request.
+  public internal(set) var requestPath: String?
 
-    /// Creates an error with the given response context. Every argument is
-    /// optional: a transport failure carries no status, headers or body.
-    public init(
-        statusCode: Int = 0,
-        message: String = "",
-        responseBody: String? = nil,
-        responseHeaders: [String: String]? = nil,
-        errorBody: Any? = nil,
-        underlyingError: Error? = nil,
-        requestMethod: String? = nil,
-        requestPath: String? = nil
-    ) {
-        self.statusCode = statusCode
-        self.message = message
-        self.responseBody = responseBody
-        self.responseHeaders = responseHeaders
-        self.errorBody = errorBody
-        self.underlyingError = underlyingError
-        self.requestMethod = requestMethod
-        self.requestPath = requestPath.map { ApiError.pathWithoutQuery($0) }
+  /// Creates an error with the given response context. Every argument is
+  /// optional: a transport failure carries no status, headers or body.
+  public init(
+    statusCode: Int = 0,
+    message: String = "",
+    responseBody: String? = nil,
+    responseHeaders: [String: String]? = nil,
+    errorBody: Any? = nil,
+    underlyingError: Error? = nil,
+    requestMethod: String? = nil,
+    requestPath: String? = nil
+  ) {
+    self.statusCode = statusCode
+    self.message = message
+    self.responseBody = responseBody
+    self.responseHeaders = responseHeaders
+    self.errorBody = errorBody
+    self.underlyingError = underlyingError
+    self.requestMethod = requestMethod
+    self.requestPath = requestPath.map { ApiError.pathWithoutQuery($0) }
+  }
+
+  /// The path without its query string or fragment.
+  static func pathWithoutQuery(_ path: String) -> String {
+    if let cut = path.firstIndex(where: { $0 == "?" || $0 == "#" }) {
+      return String(path[path.startIndex..<cut])
+    }
+    return path
+  }
+
+  /// The path of a request URL (base path included) without its query
+  /// string: `https://host/v1/items/7?key=x` is `/v1/items/7`.
+  static func pathOfRequestURL(_ url: String) -> String {
+    var rest = Substring(ApiError.pathWithoutQuery(url))
+    if let scheme = rest.range(of: "://") {
+      rest = rest[scheme.upperBound...]
+      if let slash = rest.firstIndex(of: "/") {
+        rest = rest[slash...]
+      } else {
+        rest = "/"
+      }
+    }
+    return String(rest)
+  }
+
+  /// Records the request this error came from and names it in the message
+  /// (`... for GET /items/7`). An error that already names its request keeps
+  /// it, so a request is never named twice.
+  func attachRequest(method: String, path: String) {
+    guard requestMethod == nil, !method.isEmpty, !path.isEmpty else { return }
+    let shown = ApiError.pathWithoutQuery(path)
+    requestMethod = method
+    requestPath = shown
+    message =
+      message.isEmpty
+      ? "Request failed for \(method) \(shown)" : message + " for \(method) \(shown)"
+  }
+
+  /// Whether repeating the request can succeed: the status is 408, 409, 429
+  /// or a 5xx other than 501, the statuses the client itself retries. It
+  /// looks at the status only, never at the body.
+  public var isRetryable: Bool {
+    return DefaultApiClient.isRetryableStatus(statusCode)
+  }
+
+  /// The request id the server sent in the `x-request-id` response header
+  /// (any letter case), or nil when the header is absent or there was no
+  /// response.
+  public var requestId: String? {
+    guard let headers = responseHeaders else { return nil }
+    return headers.first(where: { $0.key.caseInsensitiveCompare("x-request-id") == .orderedSame })?
+      .value
+  }
+
+  public var errorDescription: String? {
+    var msg = message.isEmpty ? "Error message: the server returns an error" : message
+    if statusCode != 0 {
+      msg += "\nHTTP status code: \(statusCode)"
+    }
+    if let headers = responseHeaders, !headers.isEmpty {
+      msg += "\nResponse headers: \(Self.compactJson(Self.maskingSecrets(headers)))"
+    }
+    if let body = responseBody, !body.isEmpty {
+      msg += "\nResponse body: \(Self.renderedBody(body))"
+    }
+    return msg
+  }
+
+  /// Most response-body bytes shown by ``errorDescription``; the whole body
+  /// stays on ``responseBody``.
+  static let maxRenderedBodyBytes = 1024
+
+  /// The body as shown in ``errorDescription``: at most
+  /// ``maxRenderedBodyBytes`` bytes followed by `... (N more bytes)`, with
+  /// control characters shown as `\xNN`, so a hostile server can neither fill
+  /// a log nor forge a line in it.
+  static func renderedBody(_ body: String) -> String {
+    let bytes = Array(body.utf8)
+    /* Cut back to the start of a character: a continuation byte (0b10xxxxxx)
+     * at the cut means the cut would split a multi-byte character. */
+    var cut = min(maxRenderedBodyBytes, bytes.count)
+    if cut < bytes.count {
+      while cut > 0 && (bytes[cut] & 0xC0) == 0x80 { cut -= 1 }
+    }
+    let omitted = bytes.count - cut
+    let shown = omitted > 0 ? String(decoding: bytes.prefix(cut), as: UTF8.self) : body
+    var out = ""
+    for scalar in shown.unicodeScalars {
+      if scalar.value < 0x20 || scalar.value == 0x7F {
+        out += String(format: "\\x%02X", scalar.value)
+      } else {
+        out.unicodeScalars.append(scalar)
+      }
+    }
+    if omitted > 0 {
+      out += "... (\(omitted) more bytes)"
+    }
+    return out
+  }
+
+  /// The headers with every credential-bearing value shown as `***`:
+  /// authorization, cookie and challenge headers and any name containing
+  /// `key`, `token` or `secret`.
+  static func maskingSecrets(_ headers: [String: String]) -> [String: String] {
+    let secretNames: Set<String> = [
+      "authorization", "proxy-authorization", "cookie", "set-cookie",
+      "www-authenticate", "proxy-authenticate",
+    ]
+    var shown: [String: String] = [:]
+    for (name, value) in headers {
+      let lower = name.lowercased()
+      let secret =
+        secretNames.contains(lower) || lower.contains("key") || lower.contains("token")
+        || lower.contains("secret")
+      shown[name] = secret ? "***" : value
+    }
+    return shown
+  }
+
+  /// The headers as compact JSON with the keys sorted and `/` left as it is
+  /// (`{"a":"b"}`), so the rendered text is the same on every run.
+  static func compactJson(_ headers: [String: String]) -> String {
+    guard
+      let data = try? JSONSerialization.data(
+        withJSONObject: headers, options: [.sortedKeys, .withoutEscapingSlashes]),
+      let text = String(data: data, encoding: .utf8)
+    else {
+      return "\(headers)"
+    }
+    return text
+  }
+
+  /// Deserialize the raw response body into the given type.
+  ///
+  /// Useful when the API returns a structured error body that you want to
+  /// access in a strongly-typed way. This is the one accessor for
+  /// spec-declared error schemas. Returns nil if the body is empty.
+  ///
+  /// Routing through `ObjectSerializer` keeps the depth cap in play, so a
+  /// malicious deeply nested error payload cannot stack-overflow the decoder.
+  public func getTypedErrorBody<T: Decodable>(_ type: T.Type) throws -> T? {
+    guard let body = responseBody, !body.isEmpty else {
+      return nil
+    }
+    return try ObjectSerializer.deserialize(body, as: type)
+  }
+
+  /// Map an HTTP response that was not a success to the error for its status.
+  ///
+  /// 400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map
+  /// to their named ``ClientError`` subclasses and any other 4xx to ``ClientError``;
+  /// 500, 501, 502, 503 and 504 map to their named ``ServerError`` subclasses and
+  /// any other 5xx to ``ServerError``; any other
+  /// status maps to ``ApiError`` itself. A JSON body is decoded and exposed
+  /// through ``errorBody``; a body that is not JSON leaves the error body nil.
+  /// This is the one status-to-error mapping in the SDK: the API methods and
+  /// the OpenID Connect discovery call both go through it, so a status always
+  /// produces the same type wherever the response came from.
+  ///
+  /// - Parameters:
+  ///   - statusCode: The HTTP status code of the response.
+  ///   - headers: The HTTP response headers, if available.
+  ///   - body: The raw HTTP response body.
+  ///   - requestMethod: The HTTP method of the request, named in the message
+  ///     when given with `requestPath`.
+  ///   - requestPath: The path of the request; any query string is cut.
+  ///   - errorSchemas: The error factories of the operation by declared
+  ///     status. When one matches the status (the exact status first, then
+  ///     the `4XX` or `5XX` range, then `default`) it builds the error of
+  ///     that schema; a body that does not match the schema never hides the
+  ///     real error, the factory then returns the status error with the raw
+  ///     body and the decoding failure as ``underlyingError``. Without a
+  ///     match the result is the plain status error.
+  /// - Returns: The error for the status; the caller throws it.
+  public static func fromResponse(
+    statusCode: Int,
+    headers: [String: String]?,
+    body: String,
+    requestMethod: String? = nil,
+    requestPath: String? = nil,
+    errorSchemas: [String: ErrorFactory]?
+  ) -> ApiError {
+    if let schemas = errorSchemas {
+      var factory = schemas[String(statusCode)]
+      if factory == nil && statusCode >= 400 && statusCode < 500 {
+        factory = schemas["4XX"]
+      }
+      if factory == nil && statusCode >= 500 && statusCode < 600 {
+        factory = schemas["5XX"]
+      }
+      if factory == nil {
+        factory = schemas["default"]
+      }
+      if let factory = factory {
+        return factory(statusCode, headers, body, requestMethod, requestPath)
+      }
+    }
+    return fromResponse(
+      statusCode: statusCode, headers: headers, body: body,
+      requestMethod: requestMethod, requestPath: requestPath)
+  }
+
+  /// The status error for a response whose body did not match its declared
+  /// schema: the error ``fromResponse(statusCode:headers:body:requestMethod:requestPath:)``
+  /// gives, with the decoding failure as its ``underlyingError``.
+  ///
+  /// - Parameters:
+  ///   - status: The status error built for the response.
+  ///   - cause: Why the body could not be decoded.
+  /// - Returns: The same error, carrying the cause.
+  public static func statusFallback(_ status: ApiError, cause: Error) -> ApiError {
+    if status.underlyingError == nil {
+      status.underlyingError = cause
+    }
+    return status
+  }
+
+  /// Map an HTTP response that was not a success to the error for its status.
+  ///
+  /// This is the overload without the operation's declared error schemas; see
+  /// ``fromResponse(statusCode:headers:body:requestMethod:requestPath:errorSchemas:)``.
+  public static func fromResponse(
+    statusCode: Int,
+    headers: [String: String]?,
+    body: String,
+    requestMethod: String? = nil,
+    requestPath: String? = nil
+  ) -> ApiError {
+    var msg = "API returned status code \(statusCode)"
+    var shownPath: String?
+    if let method = requestMethod, !method.isEmpty, let path = requestPath, !path.isEmpty {
+      let shown = ApiError.pathWithoutQuery(path)
+      shownPath = shown
+      msg += " for \(method) \(shown)"
+    }
+    let method: String? = shownPath == nil ? nil : requestMethod
+
+    var parsed: Any? = nil
+    if !body.isEmpty, let data = body.data(using: .utf8) {
+      /* Depth-cap before invoking JSONSerialization so a deeply-nested
+       * error payload is refused before it can recurse through the call
+       * stack. Skip parsing entirely if the depth exceeds the cap. */
+      if ObjectSerializer.jsonMaxDepth(data) <= ObjectSerializer.maxJsonDepth {
+        /* .fragmentsAllowed so a top-level scalar body (`"Not found"`, `123`,
+         * `true`) populates errorBody like the other SDKs. A bare `null`
+         * stays absent rather than surfacing as an NSNull. */
+        let value = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
+        parsed = value is NSNull ? nil : value
+      }
     }
 
-    /// The path without its query string or fragment.
-    static func pathWithoutQuery(_ path: String) -> String {
-        if let cut = path.firstIndex(where: { $0 == "?" || $0 == "#" }) {
-            return String(path[path.startIndex..<cut])
-        }
-        return path
-    }
-
-    /// The path of a request URL (base path included) without its query
-    /// string: `https://host/v1/items/7?key=x` is `/v1/items/7`.
-    static func pathOfRequestURL(_ url: String) -> String {
-        var rest = Substring(ApiError.pathWithoutQuery(url))
-        if let scheme = rest.range(of: "://") {
-            rest = rest[scheme.upperBound...]
-            if let slash = rest.firstIndex(of: "/") {
-                rest = rest[slash...]
-            } else {
-                rest = "/"
-            }
-        }
-        return String(rest)
-    }
-
-    /// Records the request this error came from and names it in the message
-    /// (`... for GET /items/7`). An error that already names its request keeps
-    /// it, so a request is never named twice.
-    func attachRequest(method: String, path: String) {
-        guard requestMethod == nil, !method.isEmpty, !path.isEmpty else { return }
-        let shown = ApiError.pathWithoutQuery(path)
-        requestMethod = method
-        requestPath = shown
-        message = message.isEmpty ? "Request failed for \(method) \(shown)" : message + " for \(method) \(shown)"
-    }
-
-    /// Whether repeating the request can succeed: the status is 408, 409, 429
-    /// or a 5xx other than 501, the statuses the client itself retries. It
-    /// looks at the status only, never at the body.
-    public var isRetryable: Bool {
-        return DefaultApiClient.isRetryableStatus(statusCode)
-    }
-
-    /// The request id the server sent in the `x-request-id` response header
-    /// (any letter case), or nil when the header is absent or there was no
-    /// response.
-    public var requestId: String? {
-        guard let headers = responseHeaders else { return nil }
-        return headers.first(where: { $0.key.caseInsensitiveCompare("x-request-id") == .orderedSame })?.value
-    }
-
-    public var errorDescription: String? {
-        var msg = message.isEmpty ? "Error message: the server returns an error" : message
-        if statusCode != 0 {
-            msg += "\nHTTP status code: \(statusCode)"
-        }
-        if let headers = responseHeaders, !headers.isEmpty {
-            msg += "\nResponse headers: \(Self.compactJson(Self.maskingSecrets(headers)))"
-        }
-        if let body = responseBody, !body.isEmpty {
-            msg += "\nResponse body: \(Self.renderedBody(body))"
-        }
-        return msg
-    }
-
-    /// Most response-body bytes shown by ``errorDescription``; the whole body
-    /// stays on ``responseBody``.
-    static let maxRenderedBodyBytes = 1024
-
-    /// The body as shown in ``errorDescription``: at most
-    /// ``maxRenderedBodyBytes`` bytes followed by `... (N more bytes)`, with
-    /// control characters shown as `\xNN`, so a hostile server can neither fill
-    /// a log nor forge a line in it.
-    static func renderedBody(_ body: String) -> String {
-        let bytes = Array(body.utf8)
-        /* Cut back to the start of a character: a continuation byte (0b10xxxxxx)
-         * at the cut means the cut would split a multi-byte character. */
-        var cut = min(maxRenderedBodyBytes, bytes.count)
-        if cut < bytes.count {
-            while cut > 0 && (bytes[cut] & 0xC0) == 0x80 { cut -= 1 }
-        }
-        let omitted = bytes.count - cut
-        let shown = omitted > 0 ? String(decoding: bytes.prefix(cut), as: UTF8.self) : body
-        var out = ""
-        for scalar in shown.unicodeScalars {
-            if scalar.value < 0x20 || scalar.value == 0x7F {
-                out += String(format: "\\x%02X", scalar.value)
-            } else {
-                out.unicodeScalars.append(scalar)
-            }
-        }
-        if omitted > 0 {
-            out += "... (\(omitted) more bytes)"
-        }
-        return out
-    }
-
-    /// The headers with every credential-bearing value shown as `***`:
-    /// authorization, cookie and challenge headers and any name containing
-    /// `key`, `token` or `secret`.
-    static func maskingSecrets(_ headers: [String: String]) -> [String: String] {
-        let secretNames: Set<String> = [
-            "authorization", "proxy-authorization", "cookie", "set-cookie",
-            "www-authenticate", "proxy-authenticate",
-        ]
-        var shown: [String: String] = [:]
-        for (name, value) in headers {
-            let lower = name.lowercased()
-            let secret =
-                secretNames.contains(lower) || lower.contains("key") || lower.contains("token")
-                || lower.contains("secret")
-            shown[name] = secret ? "***" : value
-        }
-        return shown
-    }
-
-    /// The headers as compact JSON with the keys sorted and `/` left as it is
-    /// (`{"a":"b"}`), so the rendered text is the same on every run.
-    static func compactJson(_ headers: [String: String]) -> String {
-        guard
-            let data = try? JSONSerialization.data(
-                withJSONObject: headers, options: [.sortedKeys, .withoutEscapingSlashes]),
-            let text = String(data: data, encoding: .utf8)
-        else {
-            return "\(headers)"
-        }
-        return text
-    }
-
-    /// Deserialize the raw response body into the given type.
-    ///
-    /// Useful when the API returns a structured error body that you want to
-    /// access in a strongly-typed way. This is the one accessor for
-    /// spec-declared error schemas. Returns nil if the body is empty.
-    ///
-    /// Routing through `ObjectSerializer` keeps the depth cap in play, so a
-    /// malicious deeply nested error payload cannot stack-overflow the decoder.
-    public func getTypedErrorBody<T: Decodable>(_ type: T.Type) throws -> T? {
-        guard let body = responseBody, !body.isEmpty else {
-            return nil
-        }
-        return try ObjectSerializer.deserialize(body, as: type)
-    }
-
-    /// Map an HTTP response that was not a success to the error for its status.
-    ///
-    /// 400, 401, 402, 403, 404, 405, 408, 409, 410, 413, 415, 422, 423 and 429 map
-    /// to their named ``ClientError`` subclasses and any other 4xx to ``ClientError``;
-    /// 500, 501, 502, 503 and 504 map to their named ``ServerError`` subclasses and
-    /// any other 5xx to ``ServerError``; any other
-    /// status maps to ``ApiError`` itself. A JSON body is decoded and exposed
-    /// through ``errorBody``; a body that is not JSON leaves the error body nil.
-    /// This is the one status-to-error mapping in the SDK: the API methods and
-    /// the OpenID Connect discovery call both go through it, so a status always
-    /// produces the same type wherever the response came from.
-    ///
-    /// - Parameters:
-    ///   - statusCode: The HTTP status code of the response.
-    ///   - headers: The HTTP response headers, if available.
-    ///   - body: The raw HTTP response body.
-    ///   - requestMethod: The HTTP method of the request, named in the message
-    ///     when given with `requestPath`.
-    ///   - requestPath: The path of the request; any query string is cut.
-    ///   - errorSchemas: The error factories of the operation by declared
-    ///     status. When one matches the status (the exact status first, then
-    ///     the `4XX` or `5XX` range, then `default`) it builds the error of
-    ///     that schema; a body that does not match the schema never hides the
-    ///     real error, the factory then returns the status error with the raw
-    ///     body and the decoding failure as ``underlyingError``. Without a
-    ///     match the result is the plain status error.
-    /// - Returns: The error for the status; the caller throws it.
-    public static func fromResponse(
-        statusCode: Int,
-        headers: [String: String]?,
-        body: String,
-        requestMethod: String? = nil,
-        requestPath: String? = nil,
-        errorSchemas: [String: ErrorFactory]?
-    ) -> ApiError {
-        if let schemas = errorSchemas {
-            var factory = schemas[String(statusCode)]
-            if factory == nil && statusCode >= 400 && statusCode < 500 {
-                factory = schemas["4XX"]
-            }
-            if factory == nil && statusCode >= 500 && statusCode < 600 {
-                factory = schemas["5XX"]
-            }
-            if factory == nil {
-                factory = schemas["default"]
-            }
-            if let factory = factory {
-                return factory(statusCode, headers, body, requestMethod, requestPath)
-            }
-        }
-        return fromResponse(
-            statusCode: statusCode, headers: headers, body: body,
-            requestMethod: requestMethod, requestPath: requestPath)
-    }
-
-    /// The status error for a response whose body did not match its declared
-    /// schema: the error ``fromResponse(statusCode:headers:body:requestMethod:requestPath:)``
-    /// gives, with the decoding failure as its ``underlyingError``.
-    ///
-    /// - Parameters:
-    ///   - status: The status error built for the response.
-    ///   - cause: Why the body could not be decoded.
-    /// - Returns: The same error, carrying the cause.
-    public static func statusFallback(_ status: ApiError, cause: Error) -> ApiError {
-        if status.underlyingError == nil {
-            status.underlyingError = cause
-        }
-        return status
-    }
-
-    /// Map an HTTP response that was not a success to the error for its status.
-    ///
-    /// This is the overload without the operation's declared error schemas; see
-    /// ``fromResponse(statusCode:headers:body:requestMethod:requestPath:errorSchemas:)``.
-    public static func fromResponse(
-        statusCode: Int,
-        headers: [String: String]?,
-        body: String,
-        requestMethod: String? = nil,
-        requestPath: String? = nil
-    ) -> ApiError {
-        var msg = "API returned status code \(statusCode)"
-        var shownPath: String?
-        if let method = requestMethod, !method.isEmpty, let path = requestPath, !path.isEmpty {
-            let shown = ApiError.pathWithoutQuery(path)
-            shownPath = shown
-            msg += " for \(method) \(shown)"
-        }
-        let method: String? = shownPath == nil ? nil : requestMethod
-
-        var parsed: Any? = nil
-        if !body.isEmpty, let data = body.data(using: .utf8) {
-            /* Depth-cap before invoking JSONSerialization so a deeply-nested
-             * error payload is refused before it can recurse through the call
-             * stack. Skip parsing entirely if the depth exceeds the cap. */
-            if ObjectSerializer.jsonMaxDepth(data) <= ObjectSerializer.maxJsonDepth {
-                /* .fragmentsAllowed so a top-level scalar body (`"Not found"`, `123`,
-                 * `true`) populates errorBody like the other SDKs. A bare `null`
-                 * stays absent rather than surfacing as an NSNull. */
-                let value = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
-                parsed = value is NSNull ? nil : value
-            }
-        }
-
-        if statusCode >= 400 && statusCode < 500 {
-            switch statusCode {
-            case 400:
-                return BadRequestError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 401:
-                return UnauthorizedError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 403:
-                return ForbiddenError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 404:
-                return NotFoundError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 409:
-                return ConflictError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 422:
-                return UnprocessableEntityError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 429:
-                return TooManyRequestsError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 402:
-                return PaymentRequiredError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 405:
-                return MethodNotAllowedError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 408:
-                return RequestTimeoutError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 410:
-                return GoneError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 413:
-                return PayloadTooLargeError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 415:
-                return UnsupportedMediaTypeError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 423:
-                return LockedError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            default:
-                return ClientError(
-                    statusCode: statusCode, message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            }
-        }
-
-        if statusCode >= 500 && statusCode < 600 {
-            switch statusCode {
-            case 500:
-                return InternalServerError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 501:
-                return NotImplementedError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 502:
-                return BadGatewayError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 503:
-                return ServiceUnavailableError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            case 504:
-                return GatewayTimeoutError(
-                    message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            default:
-                return ServerError(
-                    statusCode: statusCode, message: msg, responseBody: body,
-                    responseHeaders: headers, errorBody: parsed,
-                    requestMethod: method, requestPath: shownPath
-                )
-            }
-        }
-
-        return ApiError(
-            statusCode: statusCode, message: msg, responseBody: body,
-            responseHeaders: headers, errorBody: parsed,
-            requestMethod: method, requestPath: shownPath
+    if statusCode >= 400 && statusCode < 500 {
+      switch statusCode {
+      case 400:
+        return BadRequestError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
         )
+      case 401:
+        return UnauthorizedError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 403:
+        return ForbiddenError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 404:
+        return NotFoundError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 409:
+        return ConflictError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 422:
+        return UnprocessableEntityError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 429:
+        return TooManyRequestsError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 402:
+        return PaymentRequiredError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 405:
+        return MethodNotAllowedError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 408:
+        return RequestTimeoutError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 410:
+        return GoneError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 413:
+        return PayloadTooLargeError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 415:
+        return UnsupportedMediaTypeError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 423:
+        return LockedError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      default:
+        return ClientError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      }
     }
+
+    if statusCode >= 500 && statusCode < 600 {
+      switch statusCode {
+      case 500:
+        return InternalServerError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 501:
+        return NotImplementedError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 502:
+        return BadGatewayError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 503:
+        return ServiceUnavailableError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      case 504:
+        return GatewayTimeoutError(
+          message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      default:
+        return ServerError(
+          statusCode: statusCode, message: msg, responseBody: body,
+          responseHeaders: headers, errorBody: parsed,
+          requestMethod: method, requestPath: shownPath
+        )
+      }
+    }
+
+    return ApiError(
+      statusCode: statusCode, message: msg, responseBody: body,
+      responseHeaders: headers, errorBody: parsed,
+      requestMethod: method, requestPath: shownPath
+    )
+  }
 }

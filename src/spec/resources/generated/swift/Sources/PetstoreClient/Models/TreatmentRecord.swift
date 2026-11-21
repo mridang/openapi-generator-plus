@@ -9,159 +9,162 @@ import Foundation
 
 /// TreatmentRecord Same members as PetTreatment declared in non-alphabetical order
 public struct TreatmentRecord: Codable, @unchecked Sendable {
-    /* anyOf is lossless: EVERY variant that successfully validates is retained,
-       not just the first match. A payload co-satisfying several variants keeps
-       them all so re-encoding emits the union of their fields with no silent
-       drop. `_values` holds each decoded variant in declaration order; `_value`
-       exposes the first for `actualInstance()`. */
-    private let _values: [Any]
-    private var _value: Any { _values[0] }
+  /* anyOf is lossless: EVERY variant that successfully validates is retained,
+     not just the first match. A payload co-satisfying several variants keeps
+     them all so re-encoding emits the union of their fields with no silent
+     drop. `_values` holds each decoded variant in declaration order; `_value`
+     exposes the first for `actualInstance()`. */
+  private let _values: [Any]
+  private var _value: Any { _values[0] }
 
-    /// Wraps every retained variant of this anyOf, in declaration order. Mirrors
-    /// the multi-instance constructors the other SDKs expose (e.g. Java's
-    /// `List<Object>` form and Kotlin's `matchedInstances = …`) so a co-satisfying
-    /// value can be built in code, not only decoded. An empty list wraps no variant,
-    /// so it yields `nil` instead of an instance that traps when it is read.
-    public init?(_ values: [Any]) {
-        guard !values.isEmpty else { return nil }
-        self._values = values
+  /// Wraps every retained variant of this anyOf, in declaration order. Mirrors
+  /// the multi-instance constructors the other SDKs expose (e.g. Java's
+  /// `List<Object>` form and Kotlin's `matchedInstances = …`) so a co-satisfying
+  /// value can be built in code, not only decoded. An empty list wraps no variant,
+  /// so it yields `nil` instead of an instance that traps when it is read.
+  public init?(_ values: [Any]) {
+    guard !values.isEmpty else { return nil }
+    self._values = values
+  }
+
+  /// Whether any retained variant is a `Surgery`.
+  public var isSurgery: Bool {
+    return _values.contains { $0 is Surgery }
+  }
+
+  /// The first retained variant that is a `Surgery`, or nil when none is.
+  public var asSurgery: Surgery? {
+    return _values.lazy.compactMap { $0 as? Surgery }.first
+  }
+
+  /// Whether any retained variant is a `Medication`.
+  public var isMedication: Bool {
+    return _values.contains { $0 is Medication }
+  }
+
+  /// The first retained variant that is a `Medication`, or nil when none is.
+  public var asMedication: Medication? {
+    return _values.lazy.compactMap { $0 as? Medication }.first
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let data = try container.decode(AnyCodable.self)
+    let rawData = try ObjectSerializer.encodeToData(data)
+
+    var matched: [Any] = []
+    /* Try each anyOf type in declaration order and RETAIN every variant that decodes. */
+    if let v = try? ObjectSerializer.decodeFromData(rawData, as: Surgery.self) {
+      matched.append(v)
+    }
+    if let v = try? ObjectSerializer.decodeFromData(rawData, as: Medication.self) {
+      matched.append(v)
+    }
+    if matched.isEmpty {
+      throw DecodingError.dataCorrupted(
+        DecodingError.Context(
+          codingPath: decoder.codingPath,
+          debugDescription: "Data does not match any anyOf schemas for TreatmentRecord"
+        )
+      )
+    }
+    self._values = matched
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    /* A `format: byte` variant is represented as Data (scalar) or [Data]
+       (array). Encoding Data through its own Encodable conformance
+       (encodable.encode(to:)) emits a raw [UInt8] JSON array and BYPASSES the
+       encoder's base64 data strategy. Routing it through the single-value
+       container instead applies the configured .base64 strategy, so a byte
+       variant rides the wire as a base64 string (and an array of byte values
+       as an array of base64 strings), matching the bare format:byte field. */
+    if _values.count == 1 {
+      var container = encoder.singleValueContainer()
+      switch _values[0] {
+      case let bytes as Data:
+        try container.encode(bytes)
+      case let byteArrays as [Data]:
+        try container.encode(byteArrays)
+      case let encodable as Encodable:
+        try encodable.encode(to: encoder)
+      default:
+        try container.encodeNil()
+      }
+      return
     }
 
-    /// Whether any retained variant is a `Surgery`.
-    public var isSurgery: Bool {
-        return _values.contains { $0 is Surgery }
-    }
-
-    /// The first retained variant that is a `Surgery`, or nil when none is.
-    public var asSurgery: Surgery? {
-        return _values.lazy.compactMap { $0 as? Surgery }.first
-    }
-
-    /// Whether any retained variant is a `Medication`.
-    public var isMedication: Bool {
-        return _values.contains { $0 is Medication }
-    }
-
-    /// The first retained variant that is a `Medication`, or nil when none is.
-    public var asMedication: Medication? {
-        return _values.lazy.compactMap { $0 as? Medication }.first
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let data = try container.decode(AnyCodable.self)
-        let rawData = try ObjectSerializer.encodeToData(data)
-
-        var matched: [Any] = []
-        /* Try each anyOf type in declaration order and RETAIN every variant that decodes. */
-        if let v = try? ObjectSerializer.decodeFromData(rawData, as: Surgery.self) {
-            matched.append(v)
+    /* Multiple variants were co-satisfied. Encode each to its own JSON
+       object and MERGE the fields into a single union object so every
+       retained variant's data round-trips losslessly. Later variants
+       clobber earlier shared keys, so a collision resolves to the last
+       member's value and the key is emitted exactly once. Scalar
+       (non-object) variants are kept as a fallback only when no object
+       variant produced a merge. */
+    var merged: [String: AnyCodable] = [:]
+    var scalarFallback: Any?
+    for variant in _values {
+      guard let encodable = variant as? Encodable else { continue }
+      let variantData = try ObjectSerializer.encodeToData(AnyEncodableBox(encodable))
+      if let object = try? ObjectSerializer.decodeFromData(
+        variantData, as: [String: AnyCodable].self)
+      {
+        for (key, value) in object {
+          merged[key] = value
         }
-        if let v = try? ObjectSerializer.decodeFromData(rawData, as: Medication.self) {
-            matched.append(v)
-        }
-        if matched.isEmpty {
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(
-                    codingPath: decoder.codingPath,
-                    debugDescription: "Data does not match any anyOf schemas for TreatmentRecord"
-                )
-            )
-        }
-        self._values = matched
+      } else if let scalar = try? ObjectSerializer.decodeFromData(variantData, as: AnyCodable.self)
+      {
+        scalarFallback = scalar.value
+      }
     }
 
-    public func encode(to encoder: Encoder) throws {
-        /* A `format: byte` variant is represented as Data (scalar) or [Data]
-           (array). Encoding Data through its own Encodable conformance
-           (encodable.encode(to:)) emits a raw [UInt8] JSON array and BYPASSES the
-           encoder's base64 data strategy. Routing it through the single-value
-           container instead applies the configured .base64 strategy, so a byte
-           variant rides the wire as a base64 string (and an array of byte values
-           as an array of base64 strings), matching the bare format:byte field. */
-        if _values.count == 1 {
-            var container = encoder.singleValueContainer()
-            switch _values[0] {
-            case let bytes as Data:
-                try container.encode(bytes)
-            case let byteArrays as [Data]:
-                try container.encode(byteArrays)
-            case let encodable as Encodable:
-                try encodable.encode(to: encoder)
-            default:
-                try container.encodeNil()
-            }
-            return
-        }
-
-        /* Multiple variants were co-satisfied. Encode each to its own JSON
-           object and MERGE the fields into a single union object so every
-           retained variant's data round-trips losslessly. Later variants
-           clobber earlier shared keys, so a collision resolves to the last
-           member's value and the key is emitted exactly once. Scalar
-           (non-object) variants are kept as a fallback only when no object
-           variant produced a merge. */
-        var merged: [String: AnyCodable] = [:]
-        var scalarFallback: Any?
-        for variant in _values {
-            guard let encodable = variant as? Encodable else { continue }
-            let variantData = try ObjectSerializer.encodeToData(AnyEncodableBox(encodable))
-            if let object = try? ObjectSerializer.decodeFromData(variantData, as: [String: AnyCodable].self) {
-                for (key, value) in object {
-                    merged[key] = value
-                }
-            } else if let scalar = try? ObjectSerializer.decodeFromData(variantData, as: AnyCodable.self) {
-                scalarFallback = scalar.value
-            }
-        }
-
-        var container = encoder.singleValueContainer()
-        if !merged.isEmpty {
-            try container.encode(merged)
-        } else if let scalar = scalarFallback {
-            try container.encode(AnyCodable(scalar))
-        } else {
-            try container.encodeNil()
-        }
+    var container = encoder.singleValueContainer()
+    if !merged.isEmpty {
+      try container.encode(merged)
+    } else if let scalar = scalarFallback {
+      try container.encode(AnyCodable(scalar))
+    } else {
+      try container.encodeNil()
     }
+  }
 
-    /// Returns the first retained variant of the union type.
-    public func actualInstance() -> Any {
-        return _value
-    }
+  /// Returns the first retained variant of the union type.
+  public func actualInstance() -> Any {
+    return _value
+  }
 
-    /// Returns every retained variant, in declaration order. A lossless anyOf
-    /// may hold more than one when a payload co-satisfies multiple schemas.
-    public func matchedInstances() -> [Any] {
-        return _values
-    }
+  /// Returns every retained variant, in declaration order. A lossless anyOf
+  /// may hold more than one when a payload co-satisfies multiple schemas.
+  public func matchedInstances() -> [Any] {
+    return _values
+  }
 }
 
 /* Union wrappers compare by value: two wrappers are equal when they encode to
    the same canonical JSON, and hash the same bytes. */
 extension TreatmentRecord: Hashable {
-    private var canonicalJson: Data? {
-        return try? ObjectSerializer.encodeToData(self)
-    }
+  private var canonicalJson: Data? {
+    return try? ObjectSerializer.encodeToData(self)
+  }
 
-    public static func == (lhs: TreatmentRecord, rhs: TreatmentRecord) -> Bool {
-        guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
-        return left == right
-    }
+  public static func == (lhs: TreatmentRecord, rhs: TreatmentRecord) -> Bool {
+    guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+    return left == right
+  }
 
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(canonicalJson)
-    }
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(canonicalJson)
+  }
 }
 
 /* Type-erasing Encodable wrapper used by the lossless anyOf merge so a stored
    `Any`-typed variant can be re-encoded through the serializer. */
 private struct AnyEncodableBox: Encodable {
-    private let _encode: (Encoder) throws -> Void
-    init(_ encodable: Encodable) {
-        self._encode = encodable.encode
-    }
-    func encode(to encoder: Encoder) throws {
-        try _encode(encoder)
-    }
+  private let _encode: (Encoder) throws -> Void
+  init(_ encodable: Encodable) {
+    self._encode = encodable.encode
+  }
+  func encode(to encoder: Encoder) throws {
+    try _encode(encoder)
+  }
 }

@@ -9,19 +9,19 @@ import Foundation
 
 /// Represents an HTTP API response.
 public struct ApiHttpResponse: Sendable {
-    /// The HTTP status code of the response.
-    public let statusCode: Int
+  /// The HTTP status code of the response.
+  public let statusCode: Int
 
-    /// The response body.
-    public let body: String
+  /// The response body.
+  public let body: String
 
-    /// The response headers.
-    public let headers: [String: String]
+  /// The response headers.
+  public let headers: [String: String]
 
-    /// Creates an ApiHttpResponse.
-    public init(statusCode: Int, body: String, headers: [String: String]) {
-        self.statusCode = statusCode
-        self.body = body
-        self.headers = headers
-    }
+  /// Creates an ApiHttpResponse.
+  public init(statusCode: Int, body: String, headers: [String: String]) {
+    self.statusCode = statusCode
+    self.body = body
+    self.headers = headers
+  }
 }

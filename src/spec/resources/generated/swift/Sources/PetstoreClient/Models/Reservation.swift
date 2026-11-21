@@ -9,54 +9,55 @@ import Foundation
 
 /// Reservation is a model class generated from the OpenAPI schema.
 public struct Reservation: Codable, Sendable, Equatable, Hashable {
-    /// Example: 31
-    public let reservationId: Int64
-    /// Example: 4
-    public let quantity: Int
+  /// Example: 31
+  public let reservationId: Int64
+  /// Example: 4
+  public let quantity: Int
 
-    enum CodingKeys: String, CodingKey, CaseIterable {
-        case reservationId = "reservationId"
-        case quantity = "quantity"
-    }
+  enum CodingKeys: String, CodingKey, CaseIterable {
+    case reservationId = "reservationId"
+    case quantity = "quantity"
+  }
 
-    /// Creates a new Reservation instance.
-    public init(reservationId: Int64, quantity: Int) {
-        self.reservationId = reservationId
-        self.quantity = quantity
-    }
+  /// Creates a new Reservation instance.
+  public init(reservationId: Int64, quantity: Int) {
+    self.reservationId = reservationId
+    self.quantity = quantity
+  }
 
-    /// Returns a copy of this instance with the given properties replaced. A
-    /// property left out keeps its value; to clear an optional property pass
-    /// `.some(nil)`, since a bare `nil` also means "keep".
-    public func copy(reservationId: Int64? = nil, quantity: Int? = nil) -> Reservation {
-        return Reservation(reservationId: reservationId ?? self.reservationId, quantity: quantity ?? self.quantity)
-    }
+  /// Returns a copy of this instance with the given properties replaced. A
+  /// property left out keeps its value; to clear an optional property pass
+  /// `.some(nil)`, since a bare `nil` also means "keep".
+  public func copy(reservationId: Int64? = nil, quantity: Int? = nil) -> Reservation {
+    return Reservation(
+      reservationId: reservationId ?? self.reservationId, quantity: quantity ?? self.quantity)
+  }
 
-    /// Decodes this instance from the given decoder.
-    ///
-    /// Required fields use `decode(_:forKey:)`; optional fields use
-    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-    /// payload but the schema declares a `default`, that default is applied —
-    /// matching the cross-language "apply schema default on deserialise"
-    /// expectation. An explicit JSON `null` is a provided value and is
-    /// preserved as `nil` rather than replaced by the default.
-    /// Unknown JSON keys are silently ignored — matching the cross-language
-    /// "discard extras on deserialise" expectation.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.reservationId = try container.decode(Int64.self, forKey: .reservationId)
-        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
-        self.quantity = try container.decodeInt32(forKey: .quantity)
-    }
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+  /// payload but the schema declares a `default`, that default is applied —
+  /// matching the cross-language "apply schema default on deserialise"
+  /// expectation. An explicit JSON `null` is a provided value and is
+  /// preserved as `nil` rather than replaced by the default.
+  /// Unknown JSON keys are silently ignored — matching the cross-language
+  /// "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.reservationId = try container.decode(Int64.self, forKey: .reservationId)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.quantity = try container.decodeInt32(forKey: .quantity)
+  }
 
-    /// Encodes this instance, omitting nil optional fields from the JSON output.
-    ///
-    /// Uses `encodeIfPresent` for every optional property so that unset values
-    /// are dropped from the wire payload rather than emitted as `null` — matching
-    /// the cross-language "discard nulls on serialise" expectation.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(ObjectSerializer.ordered(reservationId), forKey: .reservationId)
-        try container.encode(ObjectSerializer.ordered(quantity), forKey: .quantity)
-    }
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(ObjectSerializer.ordered(reservationId), forKey: .reservationId)
+    try container.encode(ObjectSerializer.ordered(quantity), forKey: .quantity)
+  }
 }
