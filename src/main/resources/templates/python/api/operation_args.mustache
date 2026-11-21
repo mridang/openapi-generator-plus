@@ -1,0 +1,30 @@
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+        {{paramName}}: {{#nullable}}Optional[{{/nullable}}{{{dataType}}}{{#nullable}}] = None{{/nullable}},
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: {{{dataType}}},
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+        {{paramName}}: Optional['{{{dataType}}}'] = None,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{^vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        {{paramName}}: Optional[{{{dataType}}}] = None,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.hasMultipleConsumes}}
+        request_content_type: Optional[str] = None,
+{{/vendorExtensions.hasMultipleConsumes}}

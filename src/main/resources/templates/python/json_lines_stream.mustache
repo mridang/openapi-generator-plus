@@ -1,0 +1,121 @@
+{{>api_info}}
+
+from types import MappingProxyType, TracebackType
+from typing import Callable, Generic, Mapping, Optional, Type, TypeVar
+
+from {{packageName}}.byte_stream import ByteStream
+from {{packageName}}.errors.serialization_exception import SerializationException
+from {{packageName}}.event_stream import LineReader, TooLongError
+
+T = TypeVar('T')
+
+
+class JsonLinesStream(Generic[T]):
+    """The items of a JSON Lines response, decoded one line at a time as they arrive.
+
+    It is an async iterator and an async context manager: ``async for item in stream`` yields one
+    decoded item per non-blank line. :meth:`close` is idempotent and aborts the connection; use
+    ``async with`` (or close the stream) when you stop early. A line that does not decode, and a line
+    longer than the limit, raise :class:`SerializationException` and end the stream; a failure of
+    the connection after the headers is a :class:`StreamException`. Closing the client cancels the
+    streams still open: their next read raises :class:`RuntimeError`.
+
+    ``repr`` shows the status code and the lines read, never the data.
+    """
+
+    def __init__(
+        self,
+        source: ByteStream,
+        decoder: Callable[[str], T],
+        max_line_bytes: int,
+        method: str,
+        path: str,
+    ) -> None:
+        """Wrap an open response body.
+
+        Args:
+            source: The open body; this stream closes it.
+            decoder: Decodes one line into an item, raising :class:`SerializationException`.
+            max_line_bytes: The longest line accepted, in bytes.
+            method: The HTTP method, for errors.
+            path: The request path, for errors.
+        """
+        self._source = source
+        self._lines = LineReader(source, max_line_bytes)
+        self._decoder = decoder
+        self._method = method
+        self._path = path
+        self._line_number = 0
+        self._done = False
+
+    @property
+    def status_code(self) -> int:
+        """The HTTP status code of the response."""
+        return self._source.status_code
+
+    @property
+    def headers(self) -> Mapping[str, str]:
+        """The response headers, with lower-cased names."""
+        return MappingProxyType(dict(self._source.headers))
+
+    def __aiter__(self) -> 'JsonLinesStream[T]':
+        return self
+
+    async def __anext__(self) -> T:
+        if self._done:
+            raise StopAsyncIteration
+        try:
+            while True:
+                try:
+                    line = await self._lines.read_line()
+                except ValueError:
+                    # The caller closed the stream while it was reading.
+                    line = None
+                if line is None:
+                    self.close()
+                    raise StopAsyncIteration
+                self._line_number += 1
+                if not line.strip():
+                    continue
+                try:
+                    return self._decoder(line)
+                except SerializationException as failure:
+                    raise SerializationException(
+                        f'Line {self._line_number} of the JSON Lines response does not decode: {failure.message}',
+                        failure,
+                    )._with_response(
+                        self._source.status_code, self._source.headers, None, self._method, self._path
+                    ) from failure
+        except TooLongError as too_long:
+            self.close()
+            raise SerializationException(
+                f'Line {self._line_number + 1} of the JSON Lines response is too long: {too_long}',
+                too_long,
+            )._with_response(
+                self._source.status_code, self._source.headers, None, self._method, self._path
+            ) from too_long
+        except StopAsyncIteration:
+            raise
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        """Close the stream and abort the connection; later calls do nothing."""
+        self._done = True
+        self._source.close()
+
+    async def __aenter__(self) -> 'JsonLinesStream[T]':
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        self.close()
+
+    def __repr__(self) -> str:
+        """Shows the status code and the lines read so far."""
+        return f'JsonLinesStream(status_code={self._source.status_code}, lines_read={self._line_number})'

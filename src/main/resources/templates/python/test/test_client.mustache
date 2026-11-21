@@ -595,8 +595,13 @@ class TestMocking:
         {{clientPropertyName}}_listed = _public_names({{classname}}Protocol)
         assert {{clientPropertyName}}_group is client.{{clientPropertyName}}
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        assert '{{operationId}}_stream' in {{clientPropertyName}}_listed
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
         assert '{{operationId}}' in {{clientPropertyName}}_listed
         assert '{{operationId}}_with_http_info' in {{clientPropertyName}}_listed
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

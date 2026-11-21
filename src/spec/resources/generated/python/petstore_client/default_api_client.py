@@ -221,6 +221,29 @@ def _is_retryable_status(status: int) -> bool:
     return status in (408, 409, 429) or (500 <= status <= 599 and status != 501)
 
 
+def _retry_after_seconds(
+    retry_after: Optional[str], now: Optional[float] = None
+) -> Optional[float]:
+    """Seconds a ``Retry-After`` header asks to wait (delta seconds or an HTTP date, capped at 60 s).
+
+    ``None`` when the header is absent or unusable.
+    """
+    header = (retry_after or "").strip()
+    if not header:
+        return None
+    if _RETRY_AFTER_SECONDS.fullmatch(header):
+        return min(float(header), _RETRY_AFTER_CAP_S)
+    when: Optional[float]
+    try:
+        when = parsedate_to_datetime(header).timestamp()
+    except (TypeError, ValueError, IndexError):
+        when = None
+    if when is None:
+        return None
+    current = time.time() if now is None else now
+    return min(max(when - current, 0.0), _RETRY_AFTER_CAP_S)
+
+
 def _retry_delay(
     attempt: int,
     retry_after: Optional[str] = None,
@@ -239,18 +262,9 @@ def _retry_delay(
         now: Current wall-clock time in epoch seconds (for tests).
         jitter: A value in ``[0, 1)`` scaling the jitter (for tests).
     """
-    header = (retry_after or "").strip()
-    if header:
-        if _RETRY_AFTER_SECONDS.fullmatch(header):
-            return min(float(header), _RETRY_AFTER_CAP_S)
-        when: Optional[float]
-        try:
-            when = parsedate_to_datetime(header).timestamp()
-        except (TypeError, ValueError, IndexError):
-            when = None
-        if when is not None:
-            current = time.time() if now is None else now
-            return min(max(when - current, 0.0), _RETRY_AFTER_CAP_S)
+    hinted = _retry_after_seconds(retry_after, now)
+    if hinted is not None:
+        return hinted
     base = min(_RETRY_BASE_DELAY_S * 2 ** min(attempt, 10), _RETRY_MAX_DELAY_S)
     return base * (1.0 - 0.25 * (random.random() if jitter is None else jitter))
 
@@ -530,6 +544,17 @@ class _StreamBody:
             if self._aborted:
                 raise ValueError("I/O operation on a closed stream") from error
             self._abort()
+            if isinstance(error, urllib3.exceptions.DecodeError):
+                # The body arrived but its Content-Encoding is corrupt: a response problem with
+                # the real status, as for a buffered call, never a lost connection.
+                encoding = (
+                    self._response.headers.get("content-encoding") or ""
+                ).lower()
+                raise ApiException(
+                    status_code=self._response.status,
+                    message=f"Failed to decompress {encoding} response body: {error}",
+                    response_headers=_lower_headers(self._response.headers),
+                ) from error
             if isinstance(error, (urllib3.exceptions.TimeoutError, TimeoutError)):
                 raise NetworkTimeoutException(message=str(error)) from error
             raise StreamException(message=str(error)) from error

@@ -2,6 +2,7 @@ import asyncio
 import gzip
 import json
 import time
+import zlib
 from email.utils import formatdate
 
 import pytest
@@ -22,6 +23,9 @@ from {{packageName}}.default_api_client import (
     _sanitize_multipart_filename,
 )
 from {{packageName}}.byte_stream import ByteStream
+from {{packageName}}.json_lines_stream import JsonLinesStream
+from {{packageName}}.sse_stream import SseStream
+from {{packageName}}.stream_options import StreamOptions
 from {{packageName}}.errors import ApiException, NetworkException, NetworkTimeoutException, StreamException
 from {{packageName}}.transport_options import TransportOptions
 
@@ -3432,3 +3436,137 @@ class TestByteStreamTransport:
         async with await _open_stream(server, '/items/events') as stream:
             assert len(await _read_exactly(stream, 10)) == 10
         assert await asyncio.to_thread(server.client_gone.wait, 10), 'leaving the scope dropped the connection'
+
+
+def _event_opener(server: Any, **options: Any) -> Any:
+    """What an operation does for an event stream: one request per connection, over the transport."""
+    client = _streaming_client(**options)
+
+    async def opener(last_event_id: str) -> ByteStream:
+        headers = {'Last-Event-ID': last_event_id} if last_event_id else {}
+        response = await asyncio.to_thread(
+            client.send_streaming, 'GET', server.url('/items/events'), headers, None
+        )
+        return ByteStream(response.status_code, response.headers, response.body)
+
+    return opener
+
+
+def _events_head(connection: Any) -> None:
+    connection.head(200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked')
+
+
+class TestEventStreamTransport:
+    async def test_bhv_streaming_006_a_gzip_encoded_stream_is_decoded_incrementally_so_the_first_item_arrives_before_the_body_ends(
+        self, raw_server: Any
+    ) -> None:
+        compressor = zlib.compressobj(wbits=31)
+        head = compressor.compress(b'first\n') + compressor.flush(zlib.Z_SYNC_FLUSH)
+        rest = compressor.compress(b'second\n') + compressor.flush()
+
+        def script(connection: Any) -> None:
+            connection.head(200, 'Content-Encoding: gzip', 'Transfer-Encoding: chunked')
+            connection.chunk(head)
+            connection.hold()
+            connection.chunk(rest)
+            connection.end()
+
+        server = raw_server(script)
+        opened = await _open_stream(server, '/items/export')
+        assert 'content-encoding' not in opened.headers, 'the headers describe the decoded body'
+        items = JsonLinesStream(opened, lambda line: line, 1024, 'GET', '/items/export')
+        assert await asyncio.wait_for(items.__anext__(), 10) == 'first', 'the first item arrived while the body was unfinished'
+        server.release.set()
+        assert await items.__anext__() == 'second'
+        with pytest.raises(StopAsyncIteration):
+            await items.__anext__()
+
+    async def test_bhv_streaming_007_a_corrupt_compressed_stream_raises_an_api_error_with_the_status_and_the_decoder_error_and_is_not_retried(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Content-Encoding: gzip', 'Content-Length: 8')
+            connection.send('notgzip!')
+
+        server = raw_server(script)
+        items = JsonLinesStream(await _open_stream(server, '/items/export'), lambda line: line, 1024, 'GET', '/items/export')
+        with pytest.raises(ApiException) as failure:
+            await items.__anext__()
+        assert not isinstance(failure.value, NetworkException)
+        assert failure.value.status_code == 200
+        assert failure.value.__cause__ is not None
+        assert server.hits == 1
+
+    async def test_bhv_sse_007_an_sse_stream_reconnects_after_the_connection_drops_and_sends_the_last_event_id_in_last_event_id(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            if connection.hit >= 3:
+                connection.head(204, 'Content-Length: 0')
+                return
+            _events_head(connection)
+            connection.chunk('id: 1\ndata: a\n\nid: 2\ndata: b\n\n' if connection.hit == 1 else 'id: 3\ndata: c\n\n')
+            connection.end()
+
+        server = raw_server(script)
+        stream: SseStream[Any] = await SseStream.open(
+            _event_opener(server), None, None, StreamOptions(reconnect_delay=1), False, 'GET', '/items/events'
+        )
+        assert await _data_of(stream) == ['a', 'b', 'c']
+        assert 'last-event-id' not in server.heads[0].lower()
+        assert 'last-event-id: 2' in server.heads[1].lower()
+        assert 'last-event-id: 3' in server.heads[2].lower()
+
+    async def test_bhv_sse_015_an_idle_timeout_on_an_sse_stream_counts_as_a_lost_connection_and_reconnects(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            _events_head(connection)
+            if connection.hit == 1:
+                connection.chunk('id: 1\ndata: a\n\n')
+                connection.hold()
+                return
+            connection.chunk('id: 2\ndata: b\n\n')
+            connection.end()
+
+        server = raw_server(script)
+        stream: SseStream[Any] = await SseStream.open(
+            _event_opener(server, idle_timeout=300),
+            None,
+            None,
+            StreamOptions(reconnect_delay=1, max_reconnects=1),
+            False,
+            'GET',
+            '/items/events',
+        )
+        assert (await stream.__anext__()).data == 'a'
+        assert (await stream.__anext__()).data == 'b', 'the stalled connection was replaced'
+        assert 'last-event-id: 1' in server.heads[1].lower()
+
+    async def test_bhv_sse_018_an_sse_comment_line_such_as_a_heartbeat_is_skipped_and_counts_as_activity_for_the_idle_timeout(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            _events_head(connection)
+            for _ in range(8):
+                connection.chunk(': heartbeat\n\n')
+                time.sleep(0.1)
+            connection.chunk('data: late\n\n')
+            connection.end()
+
+        server = raw_server(script)
+        stream: SseStream[Any] = await SseStream.open(
+            _event_opener(server, idle_timeout=400),
+            None,
+            None,
+            StreamOptions(reconnect_delay=1, max_reconnects=0),
+            False,
+            'GET',
+            '/items/events',
+        )
+        assert (await stream.__anext__()).data == 'late', 'the quiet feed outlived the idle timeout'
+        assert server.hits == 1, 'no reconnect was needed'
+
+
+async def _data_of(stream: Any) -> list[Any]:
+    return [event.data async for event in stream]

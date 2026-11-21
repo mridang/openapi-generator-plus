@@ -888,7 +888,7 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
-            "export_orders",
+            "export_orders_stream",
             "ExportOrdersOptions",
             True,
         ),
@@ -1021,14 +1021,14 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
-            "watch_notices",
+            "watch_notices_stream",
             "WatchNoticesOptions",
             True,
         ),
         (
             "petstore_client.api.store_api",
             "StoreApi",
-            "watch_orders",
+            "watch_orders_stream",
             "WatchOrdersOptions",
             False,
         ),

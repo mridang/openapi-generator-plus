@@ -1,0 +1,27 @@
+{{>api_info}}
+
+from dataclasses import dataclass
+from typing import Generic, Optional, TypeVar
+
+T = TypeVar('T')
+
+
+@dataclass(frozen=True, repr=False)
+class ServerSentEvent(Generic[T]):
+    """One event of a server-sent events response.
+
+    ``event`` is ``'message'`` when the server named none. ``data`` is the ``data`` field decoded as
+    the schema of the operation (or the text itself for a plain payload), and ``raw`` is the ``data``
+    field exactly as it arrived, lines joined with a line feed. ``retry`` is the reconnection time the
+    server last named, in milliseconds.
+    """
+
+    id: Optional[str]
+    event: str
+    data: Optional[T]
+    retry: Optional[int]
+    raw: str
+
+    def __repr__(self) -> str:
+        """Shows the event name and id only, never the data."""
+        return f'ServerSentEvent(event={self.event!r}, id={self.id!r})'

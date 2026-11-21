@@ -2,6 +2,7 @@ import asyncio
 import gzip
 import json
 import time
+import zlib
 from email.utils import formatdate
 
 import pytest
@@ -22,6 +23,9 @@ from petstore_client.default_api_client import (
     _sanitize_multipart_filename,
 )
 from petstore_client.byte_stream import ByteStream
+from petstore_client.json_lines_stream import JsonLinesStream
+from petstore_client.sse_stream import SseStream
+from petstore_client.stream_options import StreamOptions
 from petstore_client.errors import (
     ApiException,
     NetworkException,
@@ -327,7 +331,7 @@ class TestDefaultApiClientUnit:
         Content-Encoding: gzip but is not valid gzip must surface as the
         SDK's ApiException carrying the response's real status, not a
         NetworkException and not a raw gzip.BadGzipFile / OSError."""
-        from petstore_client.errors import NetworkException
+        from petstore_client.errors import ApiException, NetworkException
 
         client = DefaultApiClient()
         with pytest.raises(ApiException) as exc_info:
@@ -341,7 +345,7 @@ class TestDefaultApiClientUnit:
         """An unrecognised Content-Encoding the client cannot decode must
         surface as the SDK's ApiException carrying the response's real status,
         not a NetworkException and not the body handed back still encoded."""
-        from petstore_client.errors import NetworkException
+        from petstore_client.errors import ApiException, NetworkException
 
         client = DefaultApiClient()
         with pytest.raises(ApiException) as exc_info:
@@ -608,6 +612,7 @@ class TestDefaultApiClientUnit:
     def test_bhv_transport_089_a_content_encoding_that_does_not_match_the_body_raises_the_api_error(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         client = DefaultApiClient()
         with pytest.raises(ApiException) as excinfo:
@@ -617,6 +622,7 @@ class TestDefaultApiClientUnit:
     def test_bhv_transport_030_content_encoding_gzip_lie_with_plaintext_body_surfaces_api_exception(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         client = DefaultApiClient()
         with pytest.raises(ApiException) as excinfo:
@@ -1411,6 +1417,7 @@ class TestBodyReplayOnTlsDowngrade:
     credential header path; this guard covers the body itself."""
 
     def test_bhv_retries_051_status_307_downgrade_with_body_raises(self) -> None:
+        from petstore_client.errors import ApiException
 
         class _Pool:
             headers = HTTPHeaderDict()
@@ -1448,6 +1455,7 @@ class TestBodyReplayOnTlsDowngrade:
     def test_bhv_transport_064_refused_downgrade_releases_the_redirect_connection(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         redirect = _FakeResp(307, {"location": "http://example.com/insecure"})
 
@@ -1469,6 +1477,7 @@ class TestBodyReplayOnTlsDowngrade:
         assert redirect.released
 
     def test_bhv_lang_python_065_status_308_downgrade_with_body_raises(self) -> None:
+        from petstore_client.errors import ApiException
 
         class _Pool:
             headers = HTTPHeaderDict()
@@ -1751,6 +1760,7 @@ class TestRedirectRefusals:
     def test_bhv_retries_020_a_non_http_target_is_refused_with_the_canonical_message(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         client = self._client(
             [_FakeResp(302, {"Location": "ftp://example.com/x", "X-Request-Id": "r1"})]
@@ -1768,6 +1778,7 @@ class TestRedirectRefusals:
     def test_bhv_redirects_046_an_exhausted_budget_is_refused_with_the_canonical_message(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         hop = {"Location": "https://example.com/next"}
         client = self._client([_FakeResp(302, dict(hop)) for _ in range(3)])
@@ -1819,6 +1830,7 @@ class TestRedirectBudgetAndOptOut:
     def test_bhv_redirects_026_throws_api_exception_when_max_redirects_is_exceeded(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         class _Pool:
             headers = HTTPHeaderDict()
@@ -1840,6 +1852,7 @@ class TestRedirectMessagesKeepTheQueryOut:
     def test_bhv_redirects_019_the_downgrade_refusal_does_not_quote_a_query_parameter_api_key(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         class _Pool:
             headers = HTTPHeaderDict()
@@ -2074,6 +2087,7 @@ class TestRedirectExhaustion:
     response."""
 
     def test_bhv_redirects_018_exhausting_redirect_budget_raises(self) -> None:
+        from petstore_client.errors import ApiException
 
         class _Pool:
             headers = HTTPHeaderDict()
@@ -2095,6 +2109,7 @@ class TestRedirectExhaustion:
     def test_bhv_retries_019_exhausting_redirect_budget_releases_every_redirect_connection(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         responses: list[_FakeResp] = []
 
@@ -2391,7 +2406,11 @@ class TestNetworkErrors:
         self,
     ) -> None:
         import socket
-        from petstore_client.errors import NetworkException, NetworkTimeoutException
+        from petstore_client.errors import (
+            ApiException,
+            NetworkException,
+            NetworkTimeoutException,
+        )
 
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
@@ -2763,6 +2782,7 @@ class TestRedirectToNonHttpScheme:
     must be refused with a typed ApiException rather than silently returned."""
 
     def test_bhv_redirects_020_non_http_scheme_redirect_raises(self) -> None:
+        from petstore_client.errors import ApiException
 
         class _Pool:
             headers = HTTPHeaderDict()
@@ -2788,6 +2808,7 @@ class TestRedirectToNonHttpScheme:
     def test_bhv_lifecycle_022_refused_scheme_releases_the_redirect_connection(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         redirect = _FakeResp(302, {"location": "file:///etc/passwd"})
 
@@ -2806,7 +2827,7 @@ class TestRedirectToNonHttpScheme:
     def test_bhv_misc_265_a_non_http_redirect_is_an_api_error_not_a_network_error(
         self,
     ) -> None:
-        from petstore_client.errors import NetworkException
+        from petstore_client.errors import ApiException, NetworkException
 
         class _Pool:
             headers = HTTPHeaderDict()
@@ -2833,6 +2854,8 @@ class TestRedirectToNonHttpScheme:
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _FakeResp(200, {"content-encoding": "x-custom"})
+
+        from petstore_client.errors import ApiException
 
         client = DefaultApiClient(
             TransportOptions.builder().build(), pool_manager=_Pool()
@@ -3071,6 +3094,7 @@ class TestRedirectHopsAndStatuses:
     def test_bhv_misc_124_a_301_https_to_http_redirect_refuses_the_body_replay(
         self,
     ) -> None:
+        from petstore_client.errors import ApiException
 
         pool = _ScriptedPool((301, "http://example.com/plain"))
         client = DefaultApiClient(
@@ -3264,7 +3288,7 @@ class TestResponseContentEncoding:
     def test_bhv_transport_049_raw_deflate_without_the_zlib_header_raises_with_the_status(
         self,
     ) -> None:
-        from petstore_client.errors import NetworkException
+        from petstore_client.errors import ApiException, NetworkException
 
         with pytest.raises(ApiException) as excinfo:
             DefaultApiClient().send_request(
@@ -3291,7 +3315,7 @@ class TestResponseContentEncoding:
     def test_bhv_transport_073_a_truncated_compressed_stream_raises_the_api_error_not_raw_bytes(
         self,
     ) -> None:
-        from petstore_client.errors import NetworkException
+        from petstore_client.errors import ApiException, NetworkException
 
         with pytest.raises(ApiException) as excinfo:
             DefaultApiClient().send_request(
@@ -3309,6 +3333,7 @@ class TestResponseContentEncoding:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import petstore_client.default_api_client as client_module
+        from petstore_client.errors import ApiException
 
         monkeypatch.setattr(client_module, "_brotli", None)
 
@@ -4003,3 +4028,163 @@ class TestByteStreamTransport:
         assert await asyncio.to_thread(server.client_gone.wait, 10), (
             "leaving the scope dropped the connection"
         )
+
+
+def _event_opener(server: Any, **options: Any) -> Any:
+    """What an operation does for an event stream: one request per connection, over the transport."""
+    client = _streaming_client(**options)
+
+    async def opener(last_event_id: str) -> ByteStream:
+        headers = {"Last-Event-ID": last_event_id} if last_event_id else {}
+        response = await asyncio.to_thread(
+            client.send_streaming, "GET", server.url("/items/events"), headers, None
+        )
+        return ByteStream(response.status_code, response.headers, response.body)
+
+    return opener
+
+
+def _events_head(connection: Any) -> None:
+    connection.head(
+        200, "Content-Type: text/event-stream", "Transfer-Encoding: chunked"
+    )
+
+
+class TestEventStreamTransport:
+    async def test_bhv_streaming_006_a_gzip_encoded_stream_is_decoded_incrementally_so_the_first_item_arrives_before_the_body_ends(
+        self, raw_server: Any
+    ) -> None:
+        compressor = zlib.compressobj(wbits=31)
+        head = compressor.compress(b"first\n") + compressor.flush(zlib.Z_SYNC_FLUSH)
+        rest = compressor.compress(b"second\n") + compressor.flush()
+
+        def script(connection: Any) -> None:
+            connection.head(200, "Content-Encoding: gzip", "Transfer-Encoding: chunked")
+            connection.chunk(head)
+            connection.hold()
+            connection.chunk(rest)
+            connection.end()
+
+        server = raw_server(script)
+        opened = await _open_stream(server, "/items/export")
+        assert "content-encoding" not in opened.headers, (
+            "the headers describe the decoded body"
+        )
+        items = JsonLinesStream(opened, lambda line: line, 1024, "GET", "/items/export")
+        assert await asyncio.wait_for(items.__anext__(), 10) == "first", (
+            "the first item arrived while the body was unfinished"
+        )
+        server.release.set()
+        assert await items.__anext__() == "second"
+        with pytest.raises(StopAsyncIteration):
+            await items.__anext__()
+
+    async def test_bhv_streaming_007_a_corrupt_compressed_stream_raises_an_api_error_with_the_status_and_the_decoder_error_and_is_not_retried(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, "Content-Encoding: gzip", "Content-Length: 8")
+            connection.send("notgzip!")
+
+        server = raw_server(script)
+        items = JsonLinesStream(
+            await _open_stream(server, "/items/export"),
+            lambda line: line,
+            1024,
+            "GET",
+            "/items/export",
+        )
+        with pytest.raises(ApiException) as failure:
+            await items.__anext__()
+        assert not isinstance(failure.value, NetworkException)
+        assert failure.value.status_code == 200
+        assert failure.value.__cause__ is not None
+        assert server.hits == 1
+
+    async def test_bhv_sse_007_an_sse_stream_reconnects_after_the_connection_drops_and_sends_the_last_event_id_in_last_event_id(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            if connection.hit >= 3:
+                connection.head(204, "Content-Length: 0")
+                return
+            _events_head(connection)
+            connection.chunk(
+                "id: 1\ndata: a\n\nid: 2\ndata: b\n\n"
+                if connection.hit == 1
+                else "id: 3\ndata: c\n\n"
+            )
+            connection.end()
+
+        server = raw_server(script)
+        stream: SseStream[Any] = await SseStream.open(
+            _event_opener(server),
+            None,
+            None,
+            StreamOptions(reconnect_delay=1),
+            False,
+            "GET",
+            "/items/events",
+        )
+        assert await _data_of(stream) == ["a", "b", "c"]
+        assert "last-event-id" not in server.heads[0].lower()
+        assert "last-event-id: 2" in server.heads[1].lower()
+        assert "last-event-id: 3" in server.heads[2].lower()
+
+    async def test_bhv_sse_015_an_idle_timeout_on_an_sse_stream_counts_as_a_lost_connection_and_reconnects(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            _events_head(connection)
+            if connection.hit == 1:
+                connection.chunk("id: 1\ndata: a\n\n")
+                connection.hold()
+                return
+            connection.chunk("id: 2\ndata: b\n\n")
+            connection.end()
+
+        server = raw_server(script)
+        stream: SseStream[Any] = await SseStream.open(
+            _event_opener(server, idle_timeout=300),
+            None,
+            None,
+            StreamOptions(reconnect_delay=1, max_reconnects=1),
+            False,
+            "GET",
+            "/items/events",
+        )
+        assert (await stream.__anext__()).data == "a"
+        assert (await stream.__anext__()).data == "b", (
+            "the stalled connection was replaced"
+        )
+        assert "last-event-id: 1" in server.heads[1].lower()
+
+    async def test_bhv_sse_018_an_sse_comment_line_such_as_a_heartbeat_is_skipped_and_counts_as_activity_for_the_idle_timeout(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            _events_head(connection)
+            for _ in range(8):
+                connection.chunk(": heartbeat\n\n")
+                time.sleep(0.1)
+            connection.chunk("data: late\n\n")
+            connection.end()
+
+        server = raw_server(script)
+        stream: SseStream[Any] = await SseStream.open(
+            _event_opener(server, idle_timeout=400),
+            None,
+            None,
+            StreamOptions(reconnect_delay=1, max_reconnects=0),
+            False,
+            "GET",
+            "/items/events",
+        )
+        assert (await stream.__anext__()).data == "late", (
+            "the quiet feed outlived the idle timeout"
+        )
+        assert server.hits == 1, "no reconnect was needed"
+
+
+async def _data_of(stream: Any) -> list[Any]:
+    return [event.data async for event in stream]
