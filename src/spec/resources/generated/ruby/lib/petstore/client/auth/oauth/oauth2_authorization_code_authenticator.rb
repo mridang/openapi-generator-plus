@@ -10,6 +10,7 @@
 require 'base64'
 require 'cgi'
 require 'digest'
+require 'digest/sha2'
 require 'securerandom'
 
 module Petstore::Client

@@ -2984,6 +2984,7 @@ langruby093 | The README Usage fence and the quickstart hold the same statements
 langruby094 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
 langruby095 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
 langruby096 | The SDK Makefile has an examples target that builds every file under examples
+langruby097 | The SHA-256 implementation is loaded with the authorization code authenticator, because loading it on first use races between threads
 langgo001 | Multipart model part uses wire keys.
 langgo002 | Multipart file part content type from extension.
 langgo003 | Upload field accepts an io reader.

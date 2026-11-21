@@ -506,4 +506,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     err = _(-> { auth.auth_headers }).must_raise RuntimeError
     _(err.message).must_equal 'Must call exchange_code() before making API requests'
   end
+  it 'bhv_langruby_097 the SHA-256 implementation is loaded with the authenticator, not on first use' do
+    source = File.read($LOADED_FEATURES.grep(%r{auth/oauth/oauth2_authorization_code_authenticator\.rb\z}).fetch(0))
+
+    _(source).must_include "require 'digest/sha2'"
+  end
 end
