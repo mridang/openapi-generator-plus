@@ -517,6 +517,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/pet_api_test.mustache", "test", "pet_api_test.go"));
+            /* Golden only: it is written against the fixture's own operations. */
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/paginator_test.mustache", "pkg", "paginator_test.go"));
             supportingFiles.add(
                     new SupportingFile("test/model_test.mustache", "test", "model_test.go"));
             supportingFiles.add(
@@ -618,9 +622,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/event_stream_test.mustache", "pkg", "event_stream_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "test/paginator_test.mustache", "pkg", "paginator_test.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/link_header_test.mustache", "pkg", "link_header_test.go"));
