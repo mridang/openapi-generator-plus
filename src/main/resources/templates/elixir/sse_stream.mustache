@@ -1,0 +1,324 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.SseStream do
+  @moduledoc """
+  The events of a server-sent events response, parsed as they arrive (WHATWG HTML, "Server-sent
+  events"), with automatic reconnecting. It is an `Enumerable` of
+  `#{inspect({{moduleName}}.ServerSentEvent)}` structs; a failure while reading raises.
+
+  `close/1` is idempotent and aborts the connection; call it when you stop without enumerating
+  the stream to its end. Enumerating to the end, or stopping early, closes it.
+
+  When the connection ends, fails or stays silent for the idle timeout, the stream asks again
+  with a fresh request (the whole call pipeline runs again, so a refreshed token is the one sent)
+  that carries the last event id in `Last-Event-ID`. It waits the server's `retry` value, else
+  `Retry-After` (429, 502, 503, 504), else `:reconnect_delay` doubling to 30 seconds with jitter,
+  and gives up after `:max_reconnects` consecutive failures without an event by raising the last
+  failure (a clean end counts as a failure; `#{inspect({{moduleName}}.Errors.StreamError)}` is raised
+  when it was the end). It never reconnects after a 204, a status other than 408, 429 and 5xx, a
+  response that is not `text/event-stream`, a cancellation or the closing of the client. An event
+  named `error` raises `#{inspect({{moduleName}}.Errors.ApiError)}` with the response status and the
+  data as its body.
+
+  The settings are the keys of the `opts` of the operation: `:max_reconnects` (default 5; 0 for
+  a request that has a body, which ends the stream quietly when the connection ends; `-1` is
+  unlimited), `:reconnect_delay` (milliseconds, default 1000), `:last_event_id`,
+  `:max_event_bytes` (default 1 MiB) and `:idle_timeout`.
+
+  `inspect/1` shows the status code, the events delivered and the last event id, never the data.
+  """
+
+  alias {{moduleName}}.ByteStream
+  alias {{moduleName}}.Errors.ApiError
+  alias {{moduleName}}.Errors.NetworkError
+  alias {{moduleName}}.Errors.SerializationError
+  alias {{moduleName}}.Errors.StreamError
+  alias {{moduleName}}.EventStream
+  alias {{moduleName}}.ServerSentEvent
+
+  @type t :: %__MODULE__{
+          status_code: integer(),
+          headers: %{optional(String.t()) => String.t()},
+          cell: term(),
+          counters: :atomics.atomics_ref(),
+          config: map()
+        }
+
+  # `status_code` and `headers` are those of the first connection. `cell` is an ETS table that
+  # holds the current connection, the closed flag and the last event id, so that `close/1` works
+  # from any process; `counters` counts the events delivered.
+  defstruct [:status_code, :headers, :cell, :counters, :config]
+
+  @doc """
+  Opens the first connection of an event stream; a failure of that request is returned.
+
+  `opener` sends one request with the per-call settings it is given and returns what the operation
+  returns (`{:ok, %ApiResult{data: byte_stream}}` or `{:error, exception}`); `opts` are the
+  settings of the call; `settings` holds `:decoder` (a function over the `data` text, or `nil`),
+  `:terminator` (a `data` value that ends the stream, or `nil`) and `:has_body`.
+  """
+  @spec open((keyword() -> {:ok, map()} | {:error, Exception.t()}), keyword(), keyword()) ::
+          {:ok, t()} | {:error, Exception.t()}
+  def open(opener, opts, settings) do
+    config = %{
+      opener: opener,
+      opts: opts,
+      decoder: Keyword.get(settings, :decoder),
+      terminator: Keyword.get(settings, :terminator),
+      max_reconnects: Keyword.get(opts, :max_reconnects) || if(Keyword.get(settings, :has_body, false), do: 0, else: 5),
+      delay: Keyword.get(opts, :reconnect_delay) || 1000,
+      max_bytes: Keyword.get(opts, :max_event_bytes) || 1_048_576
+    }
+
+    last_id = Keyword.get(opts, :last_event_id) || ""
+
+    with {:ok, first} <- connect(config, last_id) do
+      cell = :ets.new(:sse_stream, [:public, :set])
+      :ets.insert(cell, [{:current, first}, {:closed, false}, {:last_id, last_id}])
+
+      {:ok,
+       %__MODULE__{
+         status_code: first.status_code,
+         headers: first.headers,
+         cell: cell,
+         counters: :atomics.new(1, signed: false),
+         config: config
+       }}
+    end
+  end
+
+  # Sends the request and checks that the answer is an event stream.
+  defp connect(config, last_event_id) do
+    extra = if last_event_id == "", do: [], else: [{"Last-Event-ID", last_event_id}]
+    request_opts = EventStream.request_options(config.opts, [{"Cache-Control", "no-cache"}, {"Accept-Encoding", "identity"}], extra)
+
+    case config.opener.(request_opts) do
+      {:ok, %{data: %ByteStream{status_code: 204} = stream}} ->
+        {:ok, stream}
+
+      {:ok, %{data: %ByteStream{} = stream}} ->
+        check_type(stream)
+
+      {:error, _exception} = error ->
+        error
+    end
+  end
+
+  defp check_type(stream) do
+    type = Map.get(stream.headers, "content-type", "")
+
+    if type |> String.downcase() |> String.starts_with?("text/event-stream") do
+      {:ok, stream}
+    else
+      ByteStream.close(stream)
+      bare = type |> String.split(";") |> hd() |> String.trim()
+
+      {:error,
+       SerializationError.exception(
+         message: "Unexpected response Content-Type '#{bare}': expected text/event-stream",
+         status_code: stream.status_code,
+         response_headers: stream.headers
+       )}
+    end
+  end
+
+  @doc "Closes the stream and aborts the connection. Idempotent."
+  @spec close(t()) :: :ok
+  def close(%__MODULE__{cell: cell}) do
+    :ets.insert(cell, {:closed, true})
+    [{:current, current}] = :ets.lookup(cell, :current)
+    ByteStream.close(current)
+  rescue
+    ArgumentError -> :ok
+  end
+
+  @doc false
+  @spec chunks(t()) :: Enumerable.t()
+  def chunks(%__MODULE__{} = stream) do
+    Stream.resource(fn -> start(stream) end, &next(&1, stream), fn _state -> close(stream) end)
+  end
+
+  defp closed?(%__MODULE__{cell: cell}) do
+    match?([{:closed, true}], :ets.lookup(cell, :closed))
+  rescue
+    ArgumentError -> true
+  end
+
+  defp current(%__MODULE__{cell: cell}) do
+    [{:current, current}] = :ets.lookup(cell, :current)
+    current
+  end
+
+  defp start(stream) do
+    if closed?(stream), do: raise(RuntimeError, "SseStream has been closed and can no longer be read")
+
+    [{:last_id, last_id}] = :ets.lookup(stream.cell, :last_id)
+    open_state(stream, current(stream), last_id, 0)
+  end
+
+  defp open_state(stream, connection, last_id, consecutive) do
+    %{
+      connection: connection,
+      cont: &Enumerable.reduce(ByteStream.chunks(connection), &1, fn chunk, _acc -> {:suspend, chunk} end),
+      parser: EventStream.new_parser(stream.config.max_bytes, last_id),
+      queue: [],
+      consecutive: consecutive,
+      finished: connection.status_code == 204
+    }
+  end
+
+  defp next(%{finished: true} = state, _stream), do: {:halt, state}
+
+  defp next(state, stream) do
+    cond do
+      closed?(stream) -> {:halt, state}
+      state.queue != [] -> deliver(state, stream)
+      true -> pull(state, stream)
+    end
+  end
+
+  defp pull(state, stream) do
+    case read_chunk(state) do
+      {:chunk, chunk, cont} ->
+        {parser, events} = EventStream.parse(state.parser, chunk)
+        :ets.insert(stream.cell, {:last_id, EventStream.last_event_id(parser)})
+        consecutive = if events == [], do: state.consecutive, else: 0
+        next(%{state | cont: cont, parser: parser, queue: events, consecutive: consecutive}, stream)
+
+      :eof ->
+        reconnect(state, stream, nil)
+
+      {:lost, exception} ->
+        reconnect(state, stream, exception)
+    end
+  end
+
+  defp read_chunk(state) do
+    case state.cont.({:cont, nil}) do
+      {:suspended, chunk, cont} -> {:chunk, chunk, cont}
+      _finished -> :eof
+    end
+  rescue
+    exception in [NetworkError, {{moduleName}}.Errors.NetworkTimeoutError, StreamError] -> {:lost, exception}
+  end
+
+  defp deliver(%{queue: [{:error, exception} | _rest]}, _stream), do: raise(exception)
+
+  defp deliver(%{queue: [event | rest]} = state, stream) do
+    state = %{state | queue: rest}
+    config = stream.config
+
+    cond do
+      event.event == "error" ->
+        raise ApiError.exception(
+                message: "The server sent an error event",
+                status_code: state.connection.status_code,
+                response_headers: state.connection.headers,
+                response_body: event.data
+              )
+
+      config.terminator != nil and config.terminator == event.data ->
+        {:halt, state}
+
+      true ->
+        :atomics.add(stream.counters, 1, 1)
+        {[to_event(event, config.decoder)], state}
+    end
+  end
+
+  defp to_event(raw, nil), do: %ServerSentEvent{id: raw.id, event: raw.event, data: raw.data, retry: raw.retry, raw: raw.data}
+
+  defp to_event(raw, decoder) do
+    data =
+      try do
+        decoder.(raw.data)
+      rescue
+        error in [SerializationError] ->
+          reraise %{error | message: "The data of an event does not decode: #{error.message}"}, __STACKTRACE__
+      end
+
+    %ServerSentEvent{id: raw.id, event: raw.event, data: data, retry: raw.retry, raw: raw.data}
+  end
+
+  # Re-establishes the connection after it was lost (`cause` is why, or nil for a clean end).
+  defp reconnect(state, stream, cause) do
+    ByteStream.close(state.connection)
+    config = stream.config
+    last_id = EventStream.last_event_id(state.parser)
+
+    cond do
+      config.max_reconnects == 0 ->
+        if cause, do: raise(cause), else: {:halt, state}
+
+      config.max_reconnects > 0 and state.consecutive >= config.max_reconnects ->
+        raise cause || exhausted(config.max_reconnects)
+
+      true ->
+        attempt = state.consecutive + 1
+        wait = EventStream.reconnect_wait(attempt, config.delay, EventStream.retry(state.parser), retry_after(cause), :rand.uniform())
+        if wait > 0, do: Process.sleep(wait)
+        reconnected(state, stream, last_id, attempt)
+    end
+  end
+
+  defp reconnected(state, stream, last_id, attempt) do
+    case connect(stream.config, last_id) do
+      {:ok, connection} ->
+        :ets.insert(stream.cell, {:current, connection})
+        next(%{open_state(stream, connection, last_id, attempt) | parser: resume(state.parser, stream, last_id)}, stream)
+
+      {:error, exception} ->
+        if retryable?(exception) do
+          reconnect(%{state | consecutive: attempt}, stream, exception)
+        else
+          raise exception
+        end
+    end
+  end
+
+  # The new connection starts a new parser that keeps the server's retry value.
+  defp resume(old, stream, last_id), do: %{EventStream.new_parser(stream.config.max_bytes, last_id) | retry: EventStream.retry(old)}
+
+  defp exhausted(count) do
+    StreamError.exception(message: "The event stream ended and was not re-established after #{count} reconnects", status_code: 0)
+  end
+
+  defp retryable?(%{__struct__: _} = exception) do
+    cond do
+      NetworkError.network_error?(exception) -> true
+      ApiError.api_error?(exception) -> exception.status_code in [408, 429] or exception.status_code in 500..599
+      true -> false
+    end
+  end
+
+  defp retry_after(%{status_code: status, response_headers: headers}) when status in [429, 502, 503, 504] and is_map(headers) do
+    {{moduleName}}.Api.BaseApi.retry_after_ms(headers, DateTime.utc_now())
+  end
+
+  defp retry_after(_cause), do: nil
+
+  defimpl Enumerable do
+    def reduce(stream, acc, fun), do: Enumerable.reduce({{moduleName}}.SseStream.chunks(stream), acc, fun)
+
+    def count(_stream), do: {:error, __MODULE__}
+
+    def member?(_stream, _value), do: {:error, __MODULE__}
+
+    def slice(_stream), do: {:error, __MODULE__}
+  end
+
+  # The status, the events delivered and the last event id: the headers, the URL and the data never show.
+  defimpl Inspect do
+    def inspect(%{status_code: status_code, counters: counters, cell: cell}, _opts) do
+      last_id =
+        try do
+          [{:last_id, id}] = :ets.lookup(cell, :last_id)
+          id
+        rescue
+          ArgumentError -> ""
+        end
+
+      "#{{moduleName}}.SseStream<status_code: #{status_code}, events_delivered: #{:atomics.get(counters, 1)}, last_event_id: #{Kernel.inspect(last_id)}>"
+    end
+  end
+end

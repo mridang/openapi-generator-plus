@@ -82,6 +82,7 @@ defmodule {{moduleName}}.Api.{{classname}}Behaviour do
   hand-written fake module in your own tests.
   """
 {{#operation}}
+{{^vendorExtensions.op.streamOnly}}
 
   @callback {{operationId}}({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}} | {:error, Exception.t()}
@@ -91,6 +92,15 @@ defmodule {{moduleName}}.Api.{{classname}}Behaviour do
 
   @callback {{operationId}}_with_http_info({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.streamOnly}}
+
+  @callback {{operationId}}_stream({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{{returnType}}}} | {:error, Exception.t()}
+
+  @callback {{operationId}}_stream!({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{{returnType}}}
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 end
 
@@ -144,6 +154,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     }
   end
 {{#operation}}
+{{^vendorExtensions.op.streamOnly}}
 
   @doc """
   {{{summary}}}
@@ -263,22 +274,27 @@ defmodule {{moduleName}}.Api.{{classname}} do
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
   @impl true
   def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.streamOnly}}
+
+  defp {{operationId}}_open(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}}{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
+{{/vendorExtensions.op.streamOnly}}
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
     # operation-level servers and `:content_type` when it declares more than
     # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries{{#servers}}{{#-first}}, :server{{/-first}}{{/servers}}{{#consumes.1}}, :content_type{{/consumes.1}}])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries{{#vendorExtensions.op.streamsAny}}, :idle_timeout{{/vendorExtensions.op.streamsAny}}{{#servers}}{{#-first}}, :server{{/-first}}{{/servers}}{{#consumes.1}}, :content_type{{/consumes.1}}])
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
     call = {{moduleName}}.Api.BaseApi.call_settings({{#vendorExtensions.op.optionsArgOptional}}options{{/vendorExtensions.op.optionsArgOptional}}{{^vendorExtensions.op.optionsArgOptional}}{{#vendorExtensions.op.optionsParamRequired}}options{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}nil{{/vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsArgOptional}}, opts)
-{{#vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.streamsAny}}
 
     # A binary response is returned as a `ByteStream`, read as it arrives: the
     # call is made as a stream.
     call = Keyword.put(call, :stream, true)
-{{/vendorExtensions.op.streamsBinary}}
+{{/vendorExtensions.op.streamsAny}}
 
 {{#vendorExtensions.op.hasSecuritySchemes}}
     # The credential of the first scheme in this operation's own security
@@ -576,7 +592,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
       api, :{{httpMethod}}, path, query_params, header_params, request_body,
       [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
       {{#consumes.1}}content_type{{/consumes.1}}{{^consumes.1}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes.1}},
-      {{#vendorExtensions.op.streamsBinary}}nil{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}{{#vendorExtensions.op.hasMultiple2xx}}{"{{{returnType}}}", [{{#vendorExtensions.op.successResponses}}{"{{statusCode}}", "{{{returnType}}}"}{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}}]}{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.op.hasMultiple2xx}}{{/vendorExtensions.op.streamsBinary}},
+      {{#vendorExtensions.op.streamsAny}}nil{{/vendorExtensions.op.streamsAny}}{{^vendorExtensions.op.streamsAny}}{{#vendorExtensions.op.hasMultiple2xx}}{"{{{returnType}}}", [{{#vendorExtensions.op.successResponses}}{"{{statusCode}}", "{{{returnType}}}"}{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}}]}{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.op.hasMultiple2xx}}{{/vendorExtensions.op.streamsAny}},
       auth,
       Keyword.put(call, :operation, {"{{#lambda.elixirString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.elixirString}}", "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"}),
       {{#vendorExtensions.op.hasErrorSchemaResponses}}
@@ -591,6 +607,82 @@ defmodule {{moduleName}}.Api.{{classname}} do
       {{/vendorExtensions.op.hasErrorSchemaResponses}}
     )
   end
+
+{{#vendorExtensions.op.streamOnly}}
+  @doc """
+  {{{summary}}}
+  {{#notes}}
+
+  {{{.}}}
+  {{/notes}}
+  {{#isDeprecated}}
+
+  **Deprecated**: This operation is deprecated.
+  {{/isDeprecated}}
+
+  The success response is {{#vendorExtensions.op.streamsSse}}a server-sent events feed: the result is an `Enumerable` of `{{moduleName}}.ServerSentEvent` structs{{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}JSON Lines: the result is an `Enumerable` of the decoded items, one per line{{/vendorExtensions.op.streamsJsonLines}}. The first request is sent by this call and a failure of it is the `{:error, exception}`; a failure while reading raises. Close the stream with `close/1` when you stop early.
+
+  ## Parameters
+  {{#pathParams}}
+    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
+  {{/pathParams}}
+  {{#bodyParam}}
+    * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
+  {{/bodyParam}}
+  {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`){{#vendorExtensions.op.hasOptionsParam}}, the optional parameters (query, header, form, cookie){{/vendorExtensions.op.hasOptionsParam}}.
+  {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
+    * `opts` - Keyword list. The per-call settings `:timeout`, `:headers` and `:max_retries`, and the stream settings `:idle_timeout`{{#vendorExtensions.op.streamsSse}}, `:max_reconnects`, `:reconnect_delay`, `:last_event_id`{{/vendorExtensions.op.streamsSse}}, `:max_event_bytes`.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type`.{{/consumes.1}}
+
+  ## Returns
+
+    * `{:ok, {{{returnType}}}}` on success.
+    * `{:error, exception}` on failure.
+  """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{operationId}}_stream(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {:ok, {{{returnType}}}} | {:error, Exception.t()}
+  @impl true
+  def {{operationId}}_stream(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+    _ =
+      Keyword.validate!(opts, [:timeout, :headers, :max_retries, :idle_timeout, :max_event_bytes{{#vendorExtensions.op.streamsSse}}, :max_reconnects, :reconnect_delay, :last_event_id{{/vendorExtensions.op.streamsSse}}{{#servers}}{{#-first}}, :server{{/-first}}{{/servers}}{{#consumes.1}}, :content_type{{/consumes.1}}])
+
+{{#vendorExtensions.op.streamsSse}}
+    {{moduleName}}.SseStream.open(
+      fn request_opts -> {{operationId}}_open(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, request_opts) end,
+      opts,
+      decoder: {{#vendorExtensions.op.streamTyped}}fn data -> {{moduleName}}.ObjectSerializer.deserialize(data, "{{{vendorExtensions.op.streamItemDecode}}}") end{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}nil{{/vendorExtensions.op.streamTyped}},
+      terminator: {{#hasSseTerminator}}"{{{sseTerminator}}}"{{/hasSseTerminator}}{{^hasSseTerminator}}nil{{/hasSseTerminator}},
+      has_body: {{#bodyParam}}true{{/bodyParam}}{{^bodyParam}}{{#hasFormParams}}true{{/hasFormParams}}{{^hasFormParams}}false{{/hasFormParams}}{{/bodyParam}}
+    )
+{{/vendorExtensions.op.streamsSse}}
+{{#vendorExtensions.op.streamsJsonLines}}
+    {{moduleName}}.JsonLinesStream.open(
+      fn request_opts -> {{operationId}}_open(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, request_opts) end,
+      opts,
+      decoder: {{#vendorExtensions.op.streamTyped}}fn line -> {{moduleName}}.ObjectSerializer.deserialize(line, "{{{vendorExtensions.op.streamItemDecode}}}") end{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}nil{{/vendorExtensions.op.streamTyped}}
+    )
+{{/vendorExtensions.op.streamsJsonLines}}
+  end
+
+  @doc """
+  Bang version of `{{operationId}}_stream`. Raises on error.
+  """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{operationId}}_stream!(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{{returnType}}}
+  @impl true
+  def {{operationId}}_stream!(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+    case {{operationId}}_stream(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
+      {:ok, stream} -> stream
+      {:error, error} -> raise error
+    end
+  end
+{{/vendorExtensions.op.streamOnly}}
 
 {{/operation}}
 end

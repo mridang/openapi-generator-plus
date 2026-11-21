@@ -4049,4 +4049,54 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert [_first] = Enum.take(stream, 1)
     assert_receive :client_gone, 10_000, "leaving the scope dropped the connection"
   end
+
+  test "bhv streaming 006 a gzip encoded stream is decoded incrementally so the first item arrives before the body ends" do
+    zstream = :zlib.open()
+    :ok = :zlib.deflateInit(zstream, :default, :deflated, 31, 8, :default)
+    first = zstream |> :zlib.deflate("line1\n", :sync) |> IO.iodata_to_binary()
+    last = zstream |> :zlib.deflate("line2\n", :finish) |> IO.iodata_to_binary()
+    :ok = :zlib.close(zstream)
+
+    server =
+      RawServer.start(fn server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Encoding: gzip", "Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, first)
+        RawServer.hold(server)
+        RawServer.chunk(socket, last)
+        RawServer.finish(socket)
+      end)
+
+    response = stream_from(server, "/items/export")
+
+    refute Map.has_key?(response.headers, "content-encoding"),
+           "the headers describe the decoded body"
+
+    lines = response |> byte_stream() |> PetstoreClient.JsonLinesStream.from_source(& &1, 1024)
+
+    assert Enum.take(lines, 1) == ["line1"],
+           "the first item arrived while the server still held the body"
+
+    RawServer.release(server)
+  end
+
+  test "bhv streaming 007 a corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Encoding: gzip", "Content-Length: 19"])
+        RawServer.body(socket, "this is not gzip!!")
+      end)
+
+    lines =
+      server
+      |> stream_from("/items/export")
+      |> byte_stream()
+      |> PetstoreClient.JsonLinesStream.from_source(& &1, 1024)
+
+    error = assert_raise PetstoreClient.Errors.ApiError, fn -> Enum.to_list(lines) end
+
+    assert error.status_code == 200
+    assert error.cause != nil
+    Process.sleep(200)
+    assert RawServer.hits(server) == 1
+  end
 end

@@ -94,11 +94,28 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             return;
         }
         final Map<String, Object> d = (Map<String, Object>) decorators;
-        final boolean binary = "binary".equals(d.get("streamKind"));
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
         d.put("streamsBinary", binary);
         if (binary) {
             op.returnType = moduleName + ".ByteStream.t()";
             op.returnBaseType = moduleName + ".ByteStream.t()";
+        }
+        final boolean only = Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && only;
+        final boolean jsonLines = "jsonlines".equals(kind) && only;
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        d.put("streamsAny", binary || sse || jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final boolean typed = !text && declared != null;
+            d.put("streamTyped", typed);
+            d.put("streamItemDecode", typed && declared != null ? declared.toString() : "");
+            final String carrier = moduleName + (sse ? ".SseStream.t()" : ".JsonLinesStream.t()");
+            op.returnType = carrier;
+            op.returnBaseType = carrier;
         }
     }
 
@@ -111,40 +128,45 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        CodegenOperation found = null;
-        Object group = null;
-        final Object apiInfo = objs.get("apiInfo");
-        if (apiInfo instanceof Map) {
-            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
-            if (apis instanceof List) {
-                for (final Object api : (List<Object>) apis) {
-                    final Object operations = ((Map<String, Object>) api).get("operations");
-                    if (!(operations instanceof Map)) {
-                        continue;
-                    }
-                    final Object list = ((Map<String, Object>) operations).get("operation");
-                    if (!(list instanceof List)) {
-                        continue;
-                    }
-                    for (final Object candidate : (List<Object>) list) {
-                        final CodegenOperation op = (CodegenOperation) candidate;
-                        final Object decorators =
-                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-                        if (found == null
-                                && decorators instanceof Map
-                                && Boolean.TRUE.equals(
-                                        ((Map<String, Object>) decorators).get("streamsBinary"))) {
-                            found = op;
-                            group = operations;
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
                         }
                     }
                 }
             }
-        }
-        objs.put("hasBinaryStreamOperation", found != null);
-        if (found != null) {
-            objs.put("binaryStreamOperation", found);
-            objs.put("binaryStreamGroup", group);
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
         }
         return super.postProcessSupportingFileData(objs);
     }
@@ -497,6 +519,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_stream_response.mustache", libDir, "api_stream_response.ex"),
             new SupportingFileSpec("byte_stream.mustache", libDir, "byte_stream.ex"),
             new SupportingFileSpec("stream_body.mustache", libDir, "stream_body.ex"),
+            new SupportingFileSpec("event_stream.mustache", libDir, "event_stream.ex"),
+            new SupportingFileSpec("server_sent_event.mustache", libDir, "server_sent_event.ex"),
+            new SupportingFileSpec("sse_stream.mustache", libDir, "sse_stream.ex"),
+            new SupportingFileSpec("json_lines_stream.mustache", libDir, "json_lines_stream.ex"),
             new SupportingFileSpec("api_client.mustache", libDir, "api_client.ex"),
             new SupportingFileSpec("default_api_client.mustache", libDir, "default_api_client.ex"),
             new SupportingFileSpec("base_api.mustache", Path.of(libDir, "api").toString(), "base_api.ex"),
@@ -556,6 +582,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test/value_serializer_test.mustache",
                             "test",
                             "value_serializer_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/event_stream_test.mustache", "test", "event_stream_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/header_selector_test.mustache",

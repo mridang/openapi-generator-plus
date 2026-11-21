@@ -1796,7 +1796,7 @@ defmodule PetstoreClient.Api.PetApi do
     # operation-level servers and `:content_type` when it declares more than
     # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries, :idle_timeout])
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
@@ -2674,7 +2674,7 @@ defmodule PetstoreClient.Api.PetApi do
     # operation-level servers and `:content_type` when it declares more than
     # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries, :idle_timeout])
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
@@ -3688,7 +3688,7 @@ defmodule PetstoreClient.Api.PetApi do
     # operation-level servers and `:content_type` when it declares more than
     # one request content-type. Any other key (a misspelling, or a key the
     # operation does not support) is rejected rather than silently ignored.
-    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries, :idle_timeout])
 
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.

@@ -1,0 +1,146 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.JsonLinesStream do
+  @moduledoc """
+  The items of a JSON Lines response (`application/x-ndjson`, `application/jsonl`,
+  `application/jsonlines`), decoded as they arrive. It is an `Enumerable` of the items; a
+  failure while reading raises.
+
+  Blank lines are skipped, a line may end in LF, CR or CRLF, and a last line without a line end is
+  decoded. A line that does not decode raises `#{inspect({{moduleName}}.Errors.SerializationError)}` naming
+  its 1-based line number and ends the stream after the items before it; so does a line longer
+  than `:max_event_bytes` (default 1 MiB). A reset after the headers raises
+  `#{inspect({{moduleName}}.Errors.StreamError)}` and a stall longer than `:idle_timeout` raises
+  `#{inspect({{moduleName}}.Errors.NetworkTimeoutError)}`.
+
+  `close/1` is idempotent and aborts the connection; call it when you stop without enumerating
+  the stream to its end. Enumerating to the end, or stopping early, closes it.
+
+  `inspect/1` shows the status code and the items delivered, never the data.
+  """
+
+  alias {{moduleName}}.ByteStream
+  alias {{moduleName}}.Errors.SerializationError
+  alias {{moduleName}}.EventStream
+
+  @type t :: %__MODULE__{
+          status_code: integer(),
+          headers: %{optional(String.t()) => String.t()},
+          source: ByteStream.t(),
+          decoder: (String.t() -> term()) | nil,
+          max_bytes: pos_integer(),
+          counters: :atomics.atomics_ref()
+        }
+
+  defstruct [:status_code, :headers, :source, :decoder, :max_bytes, :counters]
+
+  @doc """
+  Opens a JSON Lines stream; a failure of the request is returned.
+
+  `opener` sends the request with the per-call settings it is given and returns what the operation
+  returns; `opts` are the settings of the call; `settings` holds `:decoder`, a function over one
+  line (`nil` hands the lines over as text).
+  """
+  @spec open((keyword() -> {:ok, map()} | {:error, Exception.t()}), keyword(), keyword()) ::
+          {:ok, t()} | {:error, Exception.t()}
+  def open(opener, opts, settings) do
+    case opener.(EventStream.request_options(opts, [], [])) do
+      {:ok, %{data: %ByteStream{} = source}} ->
+        {:ok, from_source(source, Keyword.get(settings, :decoder), Keyword.get(opts, :max_event_bytes) || 1_048_576)}
+
+      {:error, _exception} = error ->
+        error
+    end
+  end
+
+  @doc "A stream over an open `ByteStream`."
+  @spec from_source(ByteStream.t(), (String.t() -> term()) | nil, pos_integer()) :: t()
+  def from_source(%ByteStream{} = source, decoder, max_bytes) do
+    %__MODULE__{
+      status_code: source.status_code,
+      headers: source.headers,
+      source: source,
+      decoder: decoder,
+      max_bytes: max_bytes,
+      counters: :atomics.new(1, signed: false)
+    }
+  end
+
+  @doc "Closes the stream and aborts the connection. Idempotent."
+  @spec close(t()) :: :ok
+  def close(%__MODULE__{source: source}), do: ByteStream.close(source)
+
+  @doc false
+  @spec items(t()) :: Enumerable.t()
+  def items(%__MODULE__{} = stream) do
+    Stream.resource(fn -> start(stream) end, &next(&1, stream), fn _state -> close(stream) end)
+  end
+
+  defp start(stream) do
+    %{
+      cont: &Enumerable.reduce(ByteStream.chunks(stream.source), &1, fn chunk, _acc -> {:suspend, chunk} end),
+      lines: EventStream.new_lines(stream.max_bytes),
+      line_no: 0,
+      queue: [],
+      eof: false
+    }
+  end
+
+  defp next(%{queue: [{_number, {:error, exception}} | _rest]}, _stream), do: raise(exception)
+
+  defp next(%{queue: [{number, line} | rest]} = state, stream) do
+    state = %{state | queue: rest}
+
+    if String.trim(line) == "" do
+      next(state, stream)
+    else
+      :atomics.add(stream.counters, 1, 1)
+      {[decode(line, number, stream.decoder)], state}
+    end
+  end
+
+  defp next(%{eof: true} = state, _stream), do: {:halt, state}
+
+  defp next(state, stream) do
+    case state.cont.({:cont, nil}) do
+      {:suspended, chunk, cont} ->
+        {lines, completed} = EventStream.split(state.lines, chunk)
+        next(enqueue(%{state | cont: cont, lines: lines}, completed), stream)
+
+      _finished ->
+        last = EventStream.rest(state.lines)
+        next(enqueue(%{state | eof: true}, if(last, do: [last], else: [])), stream)
+    end
+  end
+
+  defp enqueue(state, lines) do
+    {numbered, line_no} = Enum.map_reduce(lines, state.line_no, fn line, count -> {{count + 1, line}, count + 1} end)
+    %{state | queue: state.queue ++ numbered, line_no: line_no}
+  end
+
+  defp decode(line, _number, nil), do: line
+
+  defp decode(line, number, decoder) do
+    decoder.(line)
+  rescue
+    error in [SerializationError] ->
+      reraise %{error | message: "Line #{number} of the stream does not decode: #{error.message}"}, __STACKTRACE__
+  end
+
+  defimpl Enumerable do
+    def reduce(stream, acc, fun), do: Enumerable.reduce({{moduleName}}.JsonLinesStream.items(stream), acc, fun)
+
+    def count(_stream), do: {:error, __MODULE__}
+
+    def member?(_stream, _value), do: {:error, __MODULE__}
+
+    def slice(_stream), do: {:error, __MODULE__}
+  end
+
+  # The status and the items delivered: the headers, the URL and the data never show.
+  defimpl Inspect do
+    def inspect(%{status_code: status_code, counters: counters}, _opts) do
+      "#{{moduleName}}.JsonLinesStream<status_code: #{status_code}, items_delivered: #{:atomics.get(counters, 1)}>"
+    end
+  end
+end
