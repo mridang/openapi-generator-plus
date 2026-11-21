@@ -3,7 +3,6 @@ rust | misc135 | The Rust configuration builder takes a call hook and no cancell
 rust | misc147 | A Rust value owns its nested Box, so a clone always holds its own copy and never shares the nested object; sharing would need Rc, which the models do not use.
 rust | misc149 | Rust copies use typed with_* setters, so an attribute the model does not declare does not compile and cannot reach a copy at run time.
 rust | misc153 | Rust calls and clients take no cancel-signal parameter; cancelling means dropping the future, so a signal shared by the client and a call cannot exist.
-rust | misc163 | The Rust request body is Bytes or Multipart only; there is no one-shot stream body type, so a stream cannot be replayed or refused.
 dart | transport083 | The Dart client returns plain Futures and exposes no cancellation token, so an in-flight request cannot be aborted from outside
 dart | transport084 | The Dart client exposes no call handle, so an in-flight request cannot be cancelled through a handle or by dropping it
 dart | transport085 | The Dart client has no cancellation token or signal to supply, so a timeout is the only way to end a request early
@@ -69,7 +68,6 @@ rust | authbearer026 | BearerAuthenticator takes a fixed token in new(host, toke
 rust | config024 | Rust has no process-wide mutable configuration default: Configuration::default() returns a fresh value and no setter is generated, so there is no call to assert on
 rust | lifecycle030 | rust's with_credentials takes the host as a required argument and its Credentials hold no default authenticator, so there is no second source for the base URL to fall back to
 rust | options045 | max_redirects takes an Option<usize>, so a negative count cannot be passed and the compiler rejects it before the builder runs
-rust | retries032 | RequestBody has only Bytes and Multipart variants and no stream body, so a streamed upload is not a request type here; the one body never sent twice is multipart, pinned by bhv retries 003
 swift | authbearer026 | BearerAuthenticator has a token initializer and a tokenProvider initializer as separate overloads, so passing both at once does not compile and no run-time test can observe it
 csharp | transport065 | The pinned CA is applied inside a private ServerCertificateCustomValidationCallback that no public member exposes, and the offline Chasm host has no certificate chained to a system root, so the replace-not-add rule cannot be observed through the SDK public API
 dart | transport060 | Dart has no cancellation handle: a Future cannot be cancelled and the SDK exposes no cancel token or abort trigger (the readme documents this), so a call is bounded only by its timeout, covered by bhv transport 024
@@ -94,7 +92,6 @@ swift | transport066 | libcurl on Linux takes its CA bundle from fixed system pa
 java | lifecycle026 | Java builds a client with no credential by design (Client.builder sends an operation with no credential when no scheme holds one, pinned by builderWithNoCredentialsBuildsAClientThatClosesLikeAnyOther); the only refusal left is a null Authenticator in the constructor, and NullAway rejects a null literal passed to that non-null parameter in a generated test
 kotlin | config024 | Kotlin keeps no process-wide default configuration by design: defaultConfiguration() returns a fresh instance on every call (bhv config 014 pins it), so there is no setter whose effect a later lookup could return
 php | authoidc029 | PHP serves one request per process and has no lock around OIDC rediscovery, so no two callers ever share a cold discovery (php AGENTS, concurrency)
-rust | transport061 | RequestBody has only Bytes and Multipart variants, so no caller-supplied stream reaches the transport and nothing is left open after the body is sent; streaming request bodies are open work in issue #114
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
 csharp | transport074 | every coding the SDK decodes (gzip, deflate, br) is a .NET runtime decoder, so no codec library can be missing at run time; a coding it cannot decode is refused as bhv errors 042
 csharp | transport075 | .NET ships no zstd decoder and the SDK does not advertise zstd (SupportedEncodings is gzip, deflate, br), so a zstd frame is refused as an unknown coding and never decoded at any expansion ratio

@@ -10,6 +10,10 @@ impl Fake{{classname}} {
     }
 
     fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+        Self::fresh_failure()
+    }
+
+    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
         let api_error = {{packageName}}::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = {{packageName}}::errors::client_error::ClientError::try_from(api_error).expect("a 404 is a client error");
         Box::new({{packageName}}::errors::not_found_error::NotFoundError::try_from(client_error).expect("a 404 is not found"))
@@ -81,6 +85,26 @@ impl {{classname}}Trait for Fake{{classname}} {
         let failure = self.failure();
         async move { Err(failure) }
     }
+{{#vendorExtensions.op.hasPagesMethod}}
+
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{vendorExtensions.op.pagesMethodName}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> {{{vendorExtensions.op.pagination.rustPaginatorType}}} {
+        self.calls.lock().expect("calls lock").push(format!("{{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
+        Paginator::from_pages(|| futures_util::stream::once(std::future::ready(Err(Fake{{classname}}::fresh_failure()))))
+    }
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }

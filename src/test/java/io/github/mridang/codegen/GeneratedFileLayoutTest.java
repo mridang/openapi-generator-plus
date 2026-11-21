@@ -168,6 +168,14 @@ class GeneratedFileLayoutTest {
     allow(ALLOWED_EXTRA, "go", "page", "the struct one page of a paged list is, a type of its own in Go (D123)");
     allow(ALLOWED_EXTRA, "go", "error:pagination", "the error of a list that cannot be followed, satisfying the root error directly (D123)");
     allow(ALLOWED_EXTRA, "go", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a file of its own in Go (D124)");
+    allow(ALLOWED_EXTRA, "rust", "paginator", "the lazy items and pages of a paged list, and the page they hold, a module of its own in Rust (D123)");
+    allow(ALLOWED_EXTRA, "rust", "error:pagination", "the error of a list that cannot be followed, a direct child of the root error (D123)");
+    allow(ALLOWED_EXTRA, "rust", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a module of its own in Rust (D124)");
+    allow(
+        ALLOWED_EXTRA,
+        "rust",
+        "bodysource",
+        "the body of a raw binary upload, replayable or single use, a type of its own in Rust");
     allow(ALLOWED_EXTRA, "java", "paginator", "the lazy sequence a paged operation returns, a class of its own in Java (D123)");
     allow(ALLOWED_EXTRA, "java", "page", "the record one page of a paged list is, a class of its own in Java (D123)");
     allow(ALLOWED_EXTRA, "java", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");

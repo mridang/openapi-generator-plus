@@ -477,7 +477,19 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
             Some(petstore::api_client::RequestBody::Bytes(b)) => Some(b.clone()),
             _ => None,
         };
-        Box::pin(async {
+        let source = match body {
+            Some(petstore::api_client::RequestBody::Source(source)) => Some(source.clone()),
+            _ => None,
+        };
+        Box::pin(async move {
+            if let Some(source) = source {
+                let (mut chunks, _) = source.open().await?;
+                let mut all = Vec::new();
+                while let Some(chunk) = chunks.next().await {
+                    all.extend_from_slice(&chunk?);
+                }
+                *self.captured_body.lock().unwrap() = Some(all);
+            }
             Ok(petstore::api_http_response::ApiHttpResponse::new(
                 200,
                 "{}".to_string(),
@@ -1866,7 +1878,9 @@ async fn test_bhv_operations_014_base_api_passes_a_binary_body_as_is() {
         .build();
     let api = PetApi::new(client.clone(), config, None);
     let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
-    let _ = api.set_pet_avatar(1, image_bytes.clone(), None, None).await;
+    let _ = api
+        .set_pet_avatar(1, BodySource::from(image_bytes.clone()), None, None)
+        .await;
     let body = client.captured_body.lock().unwrap();
     assert_eq!(
         body.as_deref(),
@@ -5372,4 +5386,1309 @@ async fn test_bhv_sse_020_an_sse_reconnect_sends_last_event_id_only_when_the_las
         "no id yet, so none is sent"
     );
     assert_eq!(Some("5".to_string()), client.header(2, "Last-Event-ID"));
+}
+
+/// Serves every request with `status` after reading its whole body, and records what arrived.
+fn upload_server(status: u16, received: &Arc<std::sync::Mutex<Vec<Vec<u8>>>>) -> RawServer {
+    let received = received.clone();
+    RawServer::serve(move |conn| {
+        let body = conn.read_body();
+        received.lock().unwrap().push(body);
+        let _ = conn.head(status, &["Content-Length: 0"]);
+    })
+}
+
+fn chunks_of(
+    parts: &[&'static str],
+) -> impl futures_util::Stream<Item = std::io::Result<bytes::Bytes>> + Send + 'static {
+    futures_util::stream::iter(
+        parts
+            .iter()
+            .map(|part| Ok(bytes::Bytes::from_static(part.as_bytes())))
+            .collect::<Vec<_>>(),
+    )
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_023_a_streamed_upload_of_unknown_length_is_sent_chunked_and_arrives_intact(
+) {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(200, &received);
+    let body = BodySource::once(chunks_of(&["first ", "second ", "third"]));
+
+    raw_server_api(&server, 0)
+        .set_pet_avatar(1, body, None, None)
+        .await
+        .expect("the upload succeeds");
+
+    let head = server.heads()[0].to_ascii_lowercase();
+    assert!(head.contains("transfer-encoding: chunked"), "{head}");
+    assert!(!head.contains("content-length"), "{head}");
+    assert_eq!(
+        vec![b"first second third".to_vec()],
+        *received.lock().unwrap()
+    );
+
+    let factory = BodySource::from_factory(|| chunks_of(&["a", "b"]));
+    raw_server_api(&server, 0)
+        .set_pet_avatar(1, factory, None, None)
+        .await
+        .expect("a factory is sent chunked too");
+    assert!(server.heads()[1]
+        .to_ascii_lowercase()
+        .contains("transfer-encoding: chunked"));
+    assert_eq!(b"ab".to_vec(), received.lock().unwrap()[1]);
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_024_a_streamed_upload_with_a_known_length_sends_content_length() {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(200, &received);
+    let api = raw_server_api(&server, 0);
+    let path = std::env::temp_dir().join(format!("upload-{}.bin", std::process::id()));
+    std::fs::write(&path, b"from a file").expect("a scratch file");
+
+    api.set_pet_avatar(1, BodySource::from(vec![1u8, 2, 3, 4]), None, None)
+        .await
+        .expect("bytes");
+    api.set_pet_avatar(
+        1,
+        BodySource::once(chunks_of(&["abc", "de"])).with_length(5),
+        None,
+        None,
+    )
+    .await
+    .expect("a stream of declared length");
+    api.set_pet_avatar(1, BodySource::from_path(&path), None, None)
+        .await
+        .expect("a file");
+    std::fs::remove_file(&path).expect("remove the scratch file");
+
+    let heads: Vec<String> = server
+        .heads()
+        .iter()
+        .map(|head| head.to_ascii_lowercase())
+        .collect();
+    for (head, length) in heads.iter().zip(["4", "5", "11"]) {
+        assert!(
+            head.contains(&format!("content-length: {length}")),
+            "{head}"
+        );
+        assert!(!head.contains("transfer-encoding"), "{head}");
+    }
+    assert_eq!(
+        vec![
+            vec![1u8, 2, 3, 4],
+            b"abcde".to_vec(),
+            b"from a file".to_vec()
+        ],
+        *received.lock().unwrap()
+    );
+}
+
+/// A handle the caller owns and keeps: the SDK reads through a stream that wraps it, and nothing
+/// but the caller ever closes it.
+struct CallerHandle {
+    closed: std::sync::atomic::AtomicBool,
+    reads: std::sync::atomic::AtomicUsize,
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_025_a_caller_supplied_upload_stream_is_never_closed_by_the_sdk() {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(200, &received);
+    let handle = Arc::new(CallerHandle {
+        closed: std::sync::atomic::AtomicBool::new(false),
+        reads: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let wrapped =
+        futures_util::stream::unfold((handle.clone(), 0usize), |(handle, sent)| async move {
+            if sent == 3 {
+                return None;
+            }
+            handle
+                .reads
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Some((Ok(bytes::Bytes::from_static(b"data")), (handle, sent + 1)))
+        });
+
+    raw_server_api(&server, 0)
+        .set_pet_avatar(1, BodySource::once(wrapped), None, None)
+        .await
+        .expect("the upload succeeds");
+
+    assert_eq!(vec![b"datadatadata".to_vec()], *received.lock().unwrap());
+    assert_eq!(3, handle.reads.load(std::sync::atomic::Ordering::SeqCst));
+    assert!(
+        !handle.closed.load(std::sync::atomic::Ordering::SeqCst),
+        "the SDK never closes what the caller owns"
+    );
+    assert_eq!(
+        1,
+        Arc::strong_count(&handle),
+        "the SDK let go of its end of the stream"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_026_a_replayable_upload_is_rewound_and_retried_after_a_503_and_a_single_use_upload_is_not_retried_and_surfaces_the_original_error(
+) {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let flaky = {
+        let received = received.clone();
+        RawServer::serve(move |conn| {
+            received.lock().unwrap().push(conn.read_body());
+            let _ = conn.head(
+                if conn.hit == 1 { 503 } else { 200 },
+                &["Retry-After: 0", "Content-Length: 0"],
+            );
+        })
+    };
+    let opened = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counted = opened.clone();
+    let body = BodySource::from_factory(move || {
+        counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        chunks_of(&["rewound ", "body"])
+    });
+
+    raw_server_api(&flaky, 2)
+        .set_pet_avatar(1, body, None, None)
+        .await
+        .expect("the retry succeeds");
+
+    assert_eq!(2, flaky.hits());
+    assert_eq!(
+        2,
+        opened.load(std::sync::atomic::Ordering::SeqCst),
+        "the factory was opened again"
+    );
+    assert_eq!(vec![b"rewound body".to_vec(); 2], *received.lock().unwrap());
+
+    let single_received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let refusing = upload_server(503, &single_received);
+    let err = raw_server_api(&refusing, 2)
+        .set_pet_avatar(
+            1,
+            BodySource::once(chunks_of(&["only ", "once"])),
+            None,
+            None,
+        )
+        .await
+        .expect_err("the 503 is the result");
+
+    let unavailable = err
+        .downcast_ref::<ServiceUnavailableError>()
+        .unwrap_or_else(|| panic!("got: {err}"));
+    assert_eq!(503, unavailable.server_error().api_error().status_code());
+    assert_eq!(1, refusing.hits(), "a single use body is never sent again");
+    assert_eq!(
+        vec![b"only once".to_vec()],
+        *single_received.lock().unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_027_a_307_or_308_with_a_single_use_upload_is_refused_and_the_body_is_never_buffered(
+) {
+    for status in [307u16, 308] {
+        let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let server = {
+            let received = received.clone();
+            RawServer::serve(move |conn| {
+                received.lock().unwrap().push(conn.read_body());
+                let _ = conn.head(
+                    if conn.hit == 1 { status } else { 200 },
+                    &["Location: /next", "Content-Length: 0"],
+                );
+            })
+        };
+
+        let err = raw_server_api(&server, 0)
+            .set_pet_avatar(
+                1,
+                BodySource::once(chunks_of(&["single ", "use"])),
+                None,
+                None,
+            )
+            .await
+            .expect_err("the redirect is refused");
+
+        let api_error = err
+            .downcast_ref::<ApiError>()
+            .unwrap_or_else(|| panic!("got: {err}"));
+        assert_eq!(status, api_error.status_code());
+        assert_eq!(
+            "Refusing to replay a streamed request body",
+            api_error.message()
+        );
+        assert_eq!(1, server.hits(), "nothing is sent to the new location");
+
+        let replayable = RawServer::serve({
+            let received = received.clone();
+            move |conn| {
+                received.lock().unwrap().push(conn.read_body());
+                let _ = conn.head(
+                    if conn.hit == 1 { status } else { 200 },
+                    &["Location: /next", "Content-Length: 0"],
+                );
+            }
+        });
+        raw_server_api(&replayable, 0)
+            .set_pet_avatar(
+                1,
+                BodySource::from_factory(|| chunks_of(&["single ", "use"])),
+                None,
+                None,
+            )
+            .await
+            .expect("a replayable body follows the redirect");
+        assert_eq!(2, replayable.hits());
+        assert_eq!(b"single use".to_vec(), received.lock().unwrap()[2]);
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_163_a_request_body_holding_a_one_shot_stream_is_not_replayed_on_retry_while_bytes_and_an_absent_body_remain_replayable(
+) {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let busy = upload_server(503, &received);
+    let _ = raw_server_api(&busy, 2)
+        .set_pet_avatar(
+            1,
+            BodySource::once(chunks_of(&["one ", "shot"])),
+            None,
+            None,
+        )
+        .await
+        .expect_err("a 503");
+    assert_eq!(1, busy.hits(), "a one-shot stream is sent once");
+
+    let bytes_busy = upload_server(503, &received);
+    let _ = raw_server_api(&bytes_busy, 2)
+        .set_pet_avatar(1, BodySource::from(b"bytes".to_vec()), None, None)
+        .await
+        .expect_err("a 503");
+    assert_eq!(3, bytes_busy.hits(), "bytes are sent again for every retry");
+
+    let bodiless = upload_server(503, &received);
+    let _ = raw_server_api(&bodiless, 2)
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a 503");
+    assert_eq!(
+        3,
+        bodiless.hits(),
+        "an absent body is sent again for every retry"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_retries_032_a_stream_body_is_never_retried() {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(503, &received);
+    let err = raw_server_api(&server, 3)
+        .set_pet_avatar(
+            1,
+            BodySource::once(chunks_of(&["stream ", "body"])),
+            None,
+            None,
+        )
+        .await
+        .expect_err("a 503");
+
+    assert!(
+        err.downcast_ref::<ServiceUnavailableError>().is_some(),
+        "the original error: {err}"
+    );
+    assert_eq!(1, server.hits());
+}
+
+#[tokio::test]
+async fn test_bhv_transport_061_a_caller_supplied_stream_is_left_open_after_the_request_body_is_sent(
+) {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(200, &received);
+    let handle = Arc::new(CallerHandle {
+        closed: std::sync::atomic::AtomicBool::new(false),
+        reads: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let wrapped =
+        futures_util::stream::unfold((handle.clone(), 0usize), |(handle, sent)| async move {
+            if sent == 2 {
+                return None;
+            }
+            handle
+                .reads
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Some((Ok(bytes::Bytes::from_static(b"sent")), (handle, sent + 1)))
+        });
+
+    raw_server_api(&server, 0)
+        .set_pet_avatar(1, BodySource::once(wrapped).with_length(8), None, None)
+        .await
+        .expect("the upload succeeds");
+
+    assert_eq!(vec![b"sentsent".to_vec()], *received.lock().unwrap());
+    assert!(
+        !handle.closed.load(std::sync::atomic::Ordering::SeqCst),
+        "the caller's handle is still open"
+    );
+}
+
+// -- Paged lists --
+
+fn request_target(head: &str) -> String {
+    head.lines()
+        .next()
+        .unwrap_or("")
+        .split(' ')
+        .nth(1)
+        .unwrap_or("")
+        .to_string()
+}
+
+fn request_path_of_head(head: &str) -> String {
+    request_target(head)
+        .split('?')
+        .next()
+        .unwrap_or("")
+        .to_string()
+}
+
+fn query_of(head: &str) -> HashMap<String, String> {
+    match request_target(head).split_once('?') {
+        Some((_, query)) => query
+            .split('&')
+            .filter_map(|pair| pair.split_once('='))
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect(),
+        None => HashMap::new(),
+    }
+}
+
+fn cursors_seen(server: &RawServer) -> Vec<Option<String>> {
+    server
+        .heads()
+        .iter()
+        .map(|head| query_of(head).get("cursor").cloned())
+        .collect()
+}
+
+fn reply(conn: &mut raw_server::Conn, status: u16, body: &str, extra: &[&str]) {
+    let length = format!("Content-Length: {}", body.len());
+    let mut headers = vec!["Content-Type: application/json", length.as_str()];
+    headers.extend_from_slice(extra);
+    let _ = conn.head(status, &headers);
+    let _ = conn.write(body.as_bytes());
+}
+
+fn pet_json(name: &str) -> String {
+    format!(r#"{{"id":1,"name":"{name}","photoUrls":[]}}"#)
+}
+
+/// A catalog page: `size` pets of page `page`, and the cursor of the page after it.
+fn catalog_body(page: usize, size: usize, pages: usize) -> String {
+    let items: Vec<String> = (0..size)
+        .map(|i| pet_json(&format!("p{page}-{i}")))
+        .collect();
+    let next = if page + 1 < pages {
+        format!(r#","next_cursor":"c{}""#, page + 1)
+    } else {
+        String::new()
+    };
+    format!(r#"{{"items":[{}]{}}}"#, items.join(","), next)
+}
+
+fn page_of_cursor(head: &str) -> usize {
+    query_of(head)
+        .get("cursor")
+        .map(|cursor| cursor[1..].parse().expect("a cursor c<n>"))
+        .unwrap_or(0)
+}
+
+/// A catalog of `pages` pages of `size` pets; the cursor of page n is "c" followed by n.
+fn catalog_server(pages: usize, size: usize) -> RawServer {
+    RawServer::serve(move |conn| {
+        let body = catalog_body(page_of_cursor(&conn.head), size, pages);
+        reply(conn, 200, &body, &[]);
+    })
+}
+
+fn paged_api(server: &RawServer, retries: u32) -> PetApi {
+    raw_server_api(server, retries)
+}
+
+fn paged_api_with_headers(server: &RawServer, headers: HashMap<String, String>) -> PetApi {
+    let config = ConfigurationBuilder::new()
+        .base_url(&server.url(""))
+        .default_headers(headers)
+        .build();
+    let transport = TransportOptions::builder()
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    PetApi::new(
+        Arc::new(DefaultApiClient::new(Some(transport))),
+        config,
+        None,
+    )
+}
+
+async fn names_of<S>(items: S) -> Vec<String>
+where
+    S: futures_util::Stream<Item = Result<Pet, Box<dyn std::error::Error + Send + Sync>>> + Unpin,
+{
+    items.map(|pet| pet.expect("an item").name).collect().await
+}
+
+/// A feed page: one pet and a Link header that names the next page, or none on the last.
+fn feed_server(pages: usize, absolute: bool) -> RawServer {
+    let origin = Arc::new(Mutex::new(String::new()));
+    let seen = origin.clone();
+    let server = RawServer::serve(move |conn| {
+        let index: usize = query_of(&conn.head)
+            .get("page")
+            .map(|page| page.parse().expect("a page number"))
+            .unwrap_or(0);
+        let prefix = if absolute {
+            seen.lock().unwrap().clone()
+        } else {
+            String::new()
+        };
+        let link = format!(
+            "Link: <{prefix}/pet/feed?page={}&secret=s3>; rel=\"next\"",
+            index + 1
+        );
+        let body = format!("[{}]", pet_json(&format!("f{index}")));
+        if index + 1 < pages {
+            reply(conn, 200, &body, &[link.as_str()]);
+        } else {
+            reply(conn, 200, &body, &[]);
+        }
+    });
+    *origin.lock().unwrap() = server.url("");
+    server
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_001_a_paged_operation_reads_no_page_until_the_first_item_or_page_is_requested(
+) {
+    let server = catalog_server(2, 2);
+    let paginator = paged_api(&server, 0).list_pet_catalog_pages(None);
+    assert_eq!(0, server.hits(), "the method sends nothing");
+
+    let mut items = paginator.items();
+    let pages = paginator.pages();
+    assert_eq!(0, server.hits(), "getting a view sends nothing");
+    drop(pages);
+
+    assert!(items.next().await.is_some());
+    assert_eq!(1, server.hits(), "the first poll sends the first request");
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_002_a_token_cursor_operation_yields_every_item_of_every_page_in_order_and_sends_the_next_pages_cursor(
+) {
+    let server = catalog_server(3, 2);
+
+    let names = names_of(paged_api(&server, 0).list_pet_catalog_pages(None).items()).await;
+
+    assert_eq!(vec!["p0-0", "p0-1", "p1-0", "p1-1", "p2-0", "p2-1"], names);
+    assert_eq!(
+        vec![None, Some("c1".to_string()), Some("c2".to_string())],
+        cursors_seen(&server)
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_003_the_next_request_is_sent_only_when_the_consumer_asks_for_more_items(
+) {
+    let server = catalog_server(3, 2);
+    let mut items = paged_api(&server, 0).list_pet_catalog_pages(None).items();
+
+    items.next().await.expect("an item").expect("decoded");
+    items.next().await.expect("an item").expect("decoded");
+    assert_eq!(
+        1,
+        server.hits(),
+        "both items of the first page came from one request"
+    );
+
+    items.next().await.expect("an item").expect("decoded");
+    assert_eq!(2, server.hits(), "the third item needed the second page");
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_007_a_link_header_operation_follows_rel_next_and_ends_when_it_is_absent(
+) {
+    for absolute in [false, true] {
+        let server = feed_server(3, absolute);
+
+        let names = names_of(paged_api(&server, 0).list_pet_feed_pages(None).items()).await;
+
+        assert_eq!(vec!["f0", "f1", "f2"], names);
+        let pages: Vec<Option<String>> = server
+            .heads()
+            .iter()
+            .map(|head| query_of(head).get("page").cloned())
+            .collect();
+        assert_eq!(
+            vec![None, Some("1".to_string()), Some("2".to_string())],
+            pages
+        );
+        assert_eq!("/pet/feed", request_path_of_head(&server.heads()[2]));
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_008_a_link_next_url_on_another_origin_is_refused_and_no_credentials_are_sent_to_it(
+) {
+    let elsewhere =
+        RawServer::serve(|conn| reply(conn, 200, &format!("[{}]", pet_json("stolen")), &[]));
+    let link = format!(
+        "Link: <{}>; rel=\"next\"",
+        elsewhere.url("/pet/feed?page=1")
+    );
+    let origin = RawServer::serve(move |conn| {
+        reply(
+            conn,
+            200,
+            &format!("[{}]", pet_json("f0")),
+            &[link.as_str()],
+        )
+    });
+    let api = paged_api_with_headers(
+        &origin,
+        HashMap::from([("Authorization".to_string(), "Bearer secret".to_string())]),
+    );
+
+    let mut items = api.list_pet_feed_pages(None).items();
+
+    assert_eq!(
+        "f0",
+        items.next().await.expect("an item").expect("decoded").name,
+        "the page before the foreign link is delivered"
+    );
+    assert_eq!(
+        Some("Bearer secret"),
+        header_names_of(&origin.heads()[0])
+            .get("authorization")
+            .map(String::as_str)
+    );
+    let refused = items
+        .next()
+        .await
+        .expect("the refusal")
+        .expect_err("the link to another origin is refused");
+    let refused = refused
+        .downcast_ref::<PaginationError>()
+        .unwrap_or_else(|| panic!("got: {refused}"));
+    assert!(
+        !refused.message().contains("page=1"),
+        "the message holds no query"
+    );
+    assert_eq!(0, elsewhere.hits(), "nothing was sent to the other origin");
+    assert_eq!(1, origin.hits());
+    assert!(items.next().await.is_none());
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_009_an_empty_page_with_a_next_cursor_continues_and_an_absent_null_or_empty_cursor_ends(
+) {
+    for end in ["", r#","next_cursor":null"#, r#","next_cursor":"""#] {
+        let end_of_list = end.to_string();
+        let server = RawServer::serve(move |conn| {
+            let body = if query_of(&conn.head).contains_key("cursor") {
+                format!(r#"{{"items":[{}]{}}}"#, pet_json("only"), end_of_list)
+            } else {
+                r#"{"items":[],"next_cursor":"c1"}"#.to_string()
+            };
+            reply(conn, 200, &body, &[]);
+        });
+
+        let names = names_of(paged_api(&server, 0).list_pet_catalog_pages(None).items()).await;
+
+        assert_eq!(vec!["only"], names, "{end}");
+        assert_eq!(
+            2,
+            server.hits(),
+            "the empty page continued and the end ended: {end}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_010_pages_yields_one_page_per_response_with_its_items_status_headers_decoded_body_and_next_cursor(
+) {
+    let server = RawServer::serve(|conn| {
+        let page = page_of_cursor(&conn.head);
+        let marker = format!("X-Page: {page}");
+        reply(conn, 200, &catalog_body(page, 2, 2), &[marker.as_str()]);
+    });
+
+    let pages: Vec<_> = paged_api(&server, 0)
+        .list_pet_catalog_pages(None)
+        .pages()
+        .map(|page| page.expect("a page"))
+        .collect()
+        .await;
+
+    assert_eq!(2, pages.len());
+    assert_eq!(2, pages[0].items().len());
+    assert_eq!("p0-0", pages[0].items()[0].name);
+    assert_eq!(200, pages[0].result().status_code());
+    assert_eq!(
+        Some("0"),
+        pages[0]
+            .result()
+            .headers()
+            .get("x-page")
+            .map(String::as_str)
+    );
+    assert_eq!(
+        Some("1"),
+        pages[1]
+            .result()
+            .headers()
+            .get("x-page")
+            .map(String::as_str)
+    );
+    let decoded: &PetCatalogPage = pages[0].result().data().expect("the decoded body");
+    assert_eq!(2, decoded.items.as_ref().expect("items").len());
+    assert_eq!(Some(&"c1".to_string()), pages[0].next_cursor());
+    assert_eq!(None, pages[1].next_cursor());
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_011_the_cursor_passed_to_the_paged_method_is_the_starting_position_and_the_first_request_sends_it(
+) {
+    let server = catalog_server(3, 1);
+    let options = ListPetCatalogOptions::new().cursor("c1".to_string());
+
+    let names = names_of(
+        paged_api(&server, 0)
+            .list_pet_catalog_pages(Some(&options))
+            .items(),
+    )
+    .await;
+
+    assert_eq!(vec!["p1-0", "p2-0"], names);
+    assert_eq!(Some("c1".to_string()), cursors_seen(&server)[0]);
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_012_resuming_with_the_next_cursor_of_a_page_continues_with_the_following_page(
+) {
+    let server = catalog_server(3, 1);
+    let api = paged_api(&server, 0);
+
+    let first = api
+        .list_pet_catalog_pages(None)
+        .pages()
+        .next()
+        .await
+        .expect("a page")
+        .expect("decoded");
+    let resume = first.next_cursor().cloned().expect("a next cursor");
+
+    assert_eq!("c1", resume);
+    let options = ListPetCatalogOptions::new().cursor(resume);
+    assert_eq!(
+        vec!["p1-0", "p2-0"],
+        names_of(api.list_pet_catalog_pages(Some(&options)).items()).await
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_013_every_other_parameter_including_the_page_size_is_repeated_unchanged_on_each_page_request(
+) {
+    let server = catalog_server(3, 1);
+    let options = ListPetCatalogOptions::new()
+        .limit(1)
+        .header("X-Keep", "yes");
+
+    names_of(
+        paged_api(&server, 0)
+            .list_pet_catalog_pages(Some(&options))
+            .items(),
+    )
+    .await;
+
+    assert_eq!(3, server.hits());
+    for head in server.heads() {
+        assert_eq!(Some(&"1".to_string()), query_of(&head).get("limit"));
+        assert_eq!(
+            Some("yes"),
+            header_names_of(&head).get("x-keep").map(String::as_str)
+        );
+    }
+    assert_eq!(
+        vec![None, Some("c1".to_string()), Some("c2".to_string())],
+        cursors_seen(&server)
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_014_a_cursor_equal_to_the_one_just_sent_or_an_offset_that_did_not_advance_raises_a_pagination_error_instead_of_looping(
+) {
+    let hits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counted = hits.clone();
+    let server = RawServer::serve(move |conn| {
+        let number = counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        reply(
+            conn,
+            200,
+            &format!(
+                r#"{{"items":[{}],"next_cursor":"c1"}}"#,
+                pet_json(&format!("p{number}"))
+            ),
+            &[],
+        );
+    });
+    let mut items = paged_api(&server, 0).list_pet_catalog_pages(None).items();
+
+    assert_eq!(
+        "p1",
+        items.next().await.expect("an item").expect("decoded").name
+    );
+    assert_eq!(
+        "p2",
+        items
+            .next()
+            .await
+            .expect("an item")
+            .expect("the page that repeated the cursor is still delivered")
+            .name
+    );
+    let failure = items
+        .next()
+        .await
+        .expect("the failure")
+        .expect_err("the repeat is refused");
+
+    let repeated = failure
+        .downcast_ref::<PaginationError>()
+        .unwrap_or_else(|| panic!("got: {failure}"));
+    assert_eq!(Some("/pet/catalog"), repeated.request_path());
+    assert_eq!(2, server.hits(), "nothing was asked for after the repeat");
+    assert!(items.next().await.is_none(), "the iteration is finished");
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_015_an_error_on_a_later_page_is_raised_after_the_earlier_pages_items_were_delivered_and_ends_iteration(
+) {
+    let server = RawServer::serve(|conn| {
+        if query_of(&conn.head).contains_key("cursor") {
+            reply(conn, 404, "{}", &[]);
+        } else {
+            reply(conn, 200, &catalog_body(0, 2, 3), &[]);
+        }
+    });
+    let mut items = paged_api(&server, 0).list_pet_catalog_pages(None).items();
+
+    assert_eq!(
+        "p0-0",
+        items.next().await.expect("an item").expect("decoded").name
+    );
+    assert_eq!(
+        "p0-1",
+        items.next().await.expect("an item").expect("decoded").name
+    );
+    let failure = items
+        .next()
+        .await
+        .expect("the failure")
+        .expect_err("the second page fails");
+
+    let not_found = failure
+        .downcast_ref::<NotFoundError>()
+        .unwrap_or_else(|| panic!("got: {failure}"));
+    assert_eq!(404, not_found.client_error().api_error().status_code());
+    assert!(
+        items.next().await.is_none(),
+        "the iteration ended with the error"
+    );
+    assert_eq!(2, server.hits());
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_016_a_503_on_the_second_page_is_retried_under_the_retry_rules_and_iteration_continues(
+) {
+    let server = RawServer::serve(|conn| {
+        if conn.hit == 2 {
+            reply(conn, 503, "{}", &["Retry-After: 0"]);
+        } else {
+            let page = page_of_cursor(&conn.head);
+            reply(conn, 200, &catalog_body(page, 1, 2), &[]);
+        }
+    });
+
+    let names = names_of(paged_api(&server, 2).list_pet_catalog_pages(None).items()).await;
+
+    assert_eq!(vec!["p0-0", "p1-0"], names);
+    assert_eq!(
+        vec![None, Some("c1".to_string()), Some("c1".to_string())],
+        cursors_seen(&server)
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_017_the_per_call_timeout_headers_and_retry_count_apply_to_each_page_request(
+) {
+    let server = RawServer::serve(|conn| {
+        if conn.hit % 2 == 1 {
+            reply(conn, 503, "{}", &["Retry-After: 0"]);
+        } else {
+            let page = if conn.hit == 2 { 0 } else { 1 };
+            reply(conn, 200, &catalog_body(page, 1, 2), &[]);
+        }
+    });
+    let options = ListPetCatalogOptions::new()
+        .max_retries(1)
+        .header("X-Trace", "t1");
+
+    names_of(
+        paged_api(&server, 0)
+            .list_pet_catalog_pages(Some(&options))
+            .items(),
+    )
+    .await;
+
+    assert_eq!(
+        4,
+        server.hits(),
+        "each page was tried twice: one try and one retry"
+    );
+    for head in server.heads() {
+        assert_eq!(
+            Some("t1"),
+            header_names_of(&head).get("x-trace").map(String::as_str)
+        );
+    }
+
+    let slow = RawServer::serve(|conn| {
+        if query_of(&conn.head).contains_key("cursor") {
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            reply(conn, 200, &catalog_body(1, 1, 2), &[]);
+        } else {
+            reply(conn, 200, &catalog_body(0, 1, 2), &[]);
+        }
+    });
+    let options = ListPetCatalogOptions::new().timeout(std::time::Duration::from_millis(300));
+    let mut items = paged_api(&slow, 0)
+        .list_pet_catalog_pages(Some(&options))
+        .items();
+    assert_eq!(
+        "p0-0",
+        items.next().await.expect("an item").expect("decoded").name,
+        "the first page answers within its own budget"
+    );
+    let failure = items
+        .next()
+        .await
+        .expect("the failure")
+        .expect_err("the second page is too slow");
+    assert!(failure.is::<NetworkTimeoutError>(), "got: {failure}");
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_018_stopping_early_sends_no_further_request_and_leaves_nothing_to_close(
+) {
+    let server = catalog_server(3, 2);
+    let api = paged_api(&server, 0);
+
+    assert_eq!(
+        "p0-0",
+        api.list_pet_catalog_pages(None)
+            .items()
+            .next()
+            .await
+            .expect("an item")
+            .expect("decoded")
+            .name
+    );
+    assert_eq!(1, server.hits());
+
+    let two: Vec<_> = api
+        .list_pet_catalog_pages(None)
+        .items()
+        .take(2)
+        .collect()
+        .await;
+    assert_eq!(2, two.len());
+    assert_eq!(
+        2,
+        server.hits(),
+        "taking two items read exactly one more page"
+    );
+
+    let three: Vec<_> = api
+        .list_pet_catalog_pages(None)
+        .items()
+        .take(3)
+        .collect()
+        .await;
+    assert_eq!(3, three.len());
+    assert_eq!(4, server.hits(), "the third item needed the second page");
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_019_cancelling_mid_iteration_aborts_the_in_flight_page_request_and_is_not_reported_as_a_timeout(
+) {
+    let server = RawServer::serve(|conn| {
+        if query_of(&conn.head).contains_key("cursor") {
+            conn.watch_for_close();
+        } else {
+            reply(conn, 200, &catalog_body(0, 1, 2), &[]);
+        }
+    });
+    let transport = TransportOptions::builder()
+        .max_retries(0)
+        .timeout(Some(20_000))
+        .build()
+        .expect("valid transport options");
+    let config = ConfigurationBuilder::new()
+        .base_url(&server.url(""))
+        .build();
+    let api = PetApi::new(
+        Arc::new(DefaultApiClient::new(Some(transport))),
+        config,
+        None,
+    );
+    let reader =
+        tokio::spawn(async move { names_of(api.list_pet_catalog_pages(None).items()).await });
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while server.hits() < 2 && std::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert_eq!(2, server.hits(), "the second page is in flight");
+    reader.abort();
+    let outcome = reader.await.expect_err("the cancelled iteration ends");
+
+    assert!(
+        outcome.is_cancelled(),
+        "a cancellation is not a timeout or a failure of the SDK"
+    );
+    assert!(
+        server.await_gone(10).await,
+        "the in-flight request was aborted"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_020_iterating_a_second_time_starts_again_from_the_starting_position() {
+    let server = catalog_server(2, 2);
+    let paginator = paged_api(&server, 0).list_pet_catalog_pages(None);
+
+    let first = names_of(paginator.items()).await;
+    let second = names_of(paginator.items()).await;
+
+    assert_eq!(first, second);
+    assert_eq!(4, server.hits(), "the second loop read both pages again");
+    assert_eq!(
+        vec![None, Some("c1".to_string()), None, Some("c1".to_string())],
+        cursors_seen(&server)
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_021_a_page_that_does_not_decode_on_a_later_page_fails_with_the_serialization_error_after_the_earlier_items_were_delivered(
+) {
+    let server = RawServer::serve(|conn| {
+        if query_of(&conn.head).contains_key("cursor") {
+            reply(
+                conn,
+                200,
+                r#"{"items":[{"id":"not a number","name":"x","photoUrls":[]}]}"#,
+                &[],
+            );
+        } else {
+            reply(conn, 200, &catalog_body(0, 1, 2), &[]);
+        }
+    });
+    let mut items = paged_api(&server, 0).list_pet_catalog_pages(None).items();
+
+    assert_eq!(
+        "p0-0",
+        items.next().await.expect("an item").expect("decoded").name
+    );
+    let failure = items
+        .next()
+        .await
+        .expect("the failure")
+        .expect_err("the second page does not decode");
+
+    assert!(failure.is::<SerializationError>(), "got: {failure}");
+    assert!(items.next().await.is_none());
+}
+
+struct RotatingAuthenticator {
+    issued: std::sync::atomic::AtomicUsize,
+}
+
+impl petstore::auth::Authenticator for RotatingAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
+        let number = self
+            .issued
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            + 1;
+        Box::pin(async move {
+            HashMap::from([(
+                "Authorization".to_string(),
+                format!("Bearer token-{number}"),
+            )])
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_022_a_refreshed_credential_is_used_for_the_next_page() {
+    let server = catalog_server(3, 1);
+    let config = ConfigurationBuilder::new()
+        .base_url(&server.url(""))
+        .build();
+    let transport = TransportOptions::builder()
+        .max_retries(0)
+        .build()
+        .expect("valid transport options");
+    let rotating = Arc::new(RotatingAuthenticator {
+        issued: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let api = PetApi::new(
+        Arc::new(DefaultApiClient::new(Some(transport))),
+        config,
+        Some(rotating),
+    );
+
+    names_of(api.list_pet_catalog_pages(None).items()).await;
+
+    let tokens: Vec<Option<String>> = server
+        .heads()
+        .iter()
+        .map(|head| header_names_of(head).get("authorization").cloned())
+        .collect();
+    assert_eq!(
+        vec![
+            Some("Bearer token-1".to_string()),
+            Some("Bearer token-2".to_string()),
+            Some("Bearer token-3".to_string()),
+        ],
+        tokens
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_023_an_error_from_a_link_driven_page_request_carries_the_path_without_the_query(
+) {
+    let server = RawServer::serve(|conn| {
+        if query_of(&conn.head).contains_key("page") {
+            reply(conn, 500, "{}", &[]);
+        } else {
+            reply(
+                conn,
+                200,
+                &format!("[{}]", pet_json("f0")),
+                &["Link: </pet/feed?page=1&secret=s3>; rel=\"next\""],
+            );
+        }
+    });
+    let mut items = paged_api(&server, 0).list_pet_feed_pages(None).items();
+
+    assert_eq!(
+        "f0",
+        items.next().await.expect("an item").expect("decoded").name
+    );
+    let failure = items
+        .next()
+        .await
+        .expect("the failure")
+        .expect_err("the second page fails");
+
+    let api_error = failure
+        .as_api_error()
+        .unwrap_or_else(|| panic!("got: {failure}"));
+    assert_eq!(500, api_error.status_code());
+    assert_eq!(Some("/pet/feed"), api_error.request_path());
+    assert!(!failure.to_string().contains("s3"));
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_024_an_operation_with_two_candidate_cursors_two_array_properties_a_non_get_method_or_several_2xx_bodies_gets_no_paged_method(
+) {
+    let source = include_str!("../src/api/pet_api.rs");
+
+    for paged in [
+        "list_pet_catalog_pages",
+        "list_pet_events_pages",
+        "list_pet_feed_pages",
+        "list_pet_notes_pages",
+    ] {
+        assert!(source.contains(&format!("pub fn {paged}(")), "{paged}");
+    }
+    assert!(
+        !source.contains("fn list_pet_matches_pages"),
+        "the ambiguous operation has no paged method"
+    );
+    assert!(
+        source.contains("pub async fn list_pet_matches("),
+        "the ambiguous operation keeps its base method"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_025_a_paged_method_has_the_same_parameters_in_the_same_order_as_the_base_method_and_the_base_method_is_unchanged(
+) {
+    let server = catalog_server(2, 1);
+    let api = paged_api(&server, 0);
+    let options = ListPetCatalogOptions::new().limit(1);
+
+    let page: PetCatalogPage = api
+        .list_pet_catalog(Some(&options))
+        .await
+        .expect("the base method still returns the page body");
+    let paginator = api.list_pet_catalog_pages(Some(&options));
+
+    assert_eq!(1, page.items.as_ref().expect("items").len());
+    assert_eq!(vec!["p0-0", "p1-0"], names_of(paginator.items()).await);
+    let feed: Paginator<Pet, (), Vec<Pet>> =
+        paged_api(&feed_server(1, false), 0).list_pet_feed_pages(None);
+    drop(feed);
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_026_the_generator_option_overrides_inference_and_can_switch_an_operation_or_the_whole_feature_off(
+) {
+    let source = include_str!("../src/api/pet_api.rs");
+
+    assert!(
+        source.contains("pub fn list_pet_events_pages("),
+        "an operation the option names is paged"
+    );
+    assert!(
+        !source.contains("fn list_pet_archive_pages"),
+        "an operation the option sets to none is not"
+    );
+    assert!(
+        source.contains("pub async fn list_pet_archive("),
+        "its base method remains"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_027_headers_and_options_given_to_the_paged_method_are_sent_on_every_page_request(
+) {
+    let server = feed_server(3, false);
+    let options = ListPetFeedOptions::new().limit(1).header("X-Keep", "yes");
+
+    names_of(
+        paged_api(&server, 0)
+            .list_pet_feed_pages(Some(&options))
+            .items(),
+    )
+    .await;
+
+    assert_eq!(3, server.hits());
+    for head in server.heads() {
+        assert_eq!(
+            Some("yes"),
+            header_names_of(&head).get("x-keep").map(String::as_str)
+        );
+    }
+    assert_eq!(
+        Some(&"1".to_string()),
+        query_of(&server.heads()[0]).get("limit"),
+        "the first page carries the page size"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_028_the_cursor_for_the_next_page_is_taken_from_the_accepted_response_never_from_a_retried_attempt(
+) {
+    let server = RawServer::serve(|conn| {
+        if conn.hit == 1 {
+            reply(
+                conn,
+                503,
+                r#"{"items":[],"next_cursor":"WRONG"}"#,
+                &["Retry-After: 0"],
+            );
+        } else {
+            let page = if query_of(&conn.head).contains_key("cursor") {
+                1
+            } else {
+                0
+            };
+            reply(conn, 200, &catalog_body(page, 1, 2), &[]);
+        }
+    });
+
+    let names = names_of(paged_api(&server, 2).list_pet_catalog_pages(None).items()).await;
+
+    assert_eq!(vec!["p0-0", "p1-0"], names);
+    assert_eq!(
+        vec![None, None, Some("c1".to_string())],
+        cursors_seen(&server)
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_030_a_vendor_extension_on_an_operation_is_read_as_a_hint_and_the_override_option_wins_over_it(
+) {
+    let source = include_str!("../src/api/pet_api.rs");
+
+    assert!(
+        source.contains("pub fn list_pet_notes_pages("),
+        "the operation whose names are no known cursor is paged by its hint"
+    );
+}
+
+fn is_root_error<E: OpenAPIError>(_: &E) {}
+
+#[tokio::test]
+async fn test_bhv_pagination_031_the_repeated_cursor_failure_is_a_pagination_error_and_is_not_a_network_error_or_an_api_error(
+) {
+    let server =
+        RawServer::serve(|conn| reply(conn, 200, r#"{"items":[],"next_cursor":"c1"}"#, &[]));
+    let options = ListPetCatalogOptions::new().cursor("c1".to_string());
+
+    let failure = paged_api(&server, 0)
+        .list_pet_catalog_pages(Some(&options))
+        .items()
+        .next()
+        .await
+        .expect("the failure")
+        .expect_err("the cursor repeats");
+
+    let repeated = failure
+        .downcast_ref::<PaginationError>()
+        .unwrap_or_else(|| panic!("got: {failure}"));
+    is_root_error(repeated);
+    assert!(failure.as_api_error().is_none(), "it is not an API error");
+    assert!(
+        !failure.is::<NetworkError>() && !failure.is::<NetworkTimeoutError>(),
+        "it is not a network error"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_032_an_operation_that_is_streamed_is_never_also_given_a_paged_method()
+{
+    let source = include_str!("../src/api/store_api.rs");
+
+    assert!(
+        !source.contains("_pages("),
+        "no paged method in the group of the streamed operations"
+    );
+    assert!(
+        source.contains("export_orders_stream"),
+        "the streamed operation keeps its stream method"
+    );
 }

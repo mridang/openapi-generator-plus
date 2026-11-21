@@ -19,6 +19,7 @@ use crate::api_http_response::ApiHttpResponse;
 use crate::api_result::ApiResult;
 use crate::api_stream_response::ApiStreamResponse;
 use crate::auth::Authenticator;
+use crate::body_source::BodySource;
 use crate::byte_stream::ByteStream;
 use crate::call_hook::{CallInfo, CallScope};
 use crate::configuration::Configuration;
@@ -220,6 +221,11 @@ pub(crate) struct InvokeApiParams<'a> {
     pub query_params: Vec<(String, String, bool)>,
     pub header_params: HashMap<String, String>,
     pub body: Option<Vec<u8>>,
+    /// A raw binary body sent as it is read, never buffered. When set it is the
+    /// body of the request and `body` is ignored. A replayable source is sent
+    /// again for a retry, a replay after a 401 and a 307 or 308 redirect; a
+    /// single-use one is sent once and its call is never retried.
+    pub source: Option<BodySource>,
     /// Multipart/form-data fields. When set, the request is sent as
     /// `multipart/form-data` and `body` is ignored. File parts carry their
     /// bytes via `MultipartValue::Bytes`, repeated fields via
@@ -264,6 +270,7 @@ struct StreamCall {
     query_params: Vec<(String, String, bool)>,
     header_params: HashMap<String, String>,
     body: Option<Vec<u8>>,
+    source: Option<BodySource>,
     multipart: Option<Vec<(String, MultipartValue)>>,
     accepts: Vec<String>,
     content_type: String,
@@ -290,6 +297,7 @@ impl StreamCall {
             query_params: params.query_params,
             header_params: params.header_params,
             body: params.body,
+            source: params.source,
             multipart: params.multipart,
             accepts: params.accepts.iter().map(|a| a.to_string()).collect(),
             content_type: params.content_type.to_string(),
@@ -316,6 +324,7 @@ impl StreamCall {
             query_params: self.query_params.clone(),
             header_params,
             body: self.body.clone(),
+            source: self.source.clone(),
             multipart: self.multipart.clone(),
             accepts: self.accepts.iter().map(String::as_str).collect(),
             content_type: &self.content_type,
@@ -413,6 +422,11 @@ impl BaseApi {
             base
         };
         format!("{}{}", base_trimmed, path)
+    }
+
+    /// The base URL of the client, which a paged list checks a next link against.
+    pub(crate) fn base_url(&self) -> &str {
+        self.config.base_url()
     }
 
     /// Creates an API instance with a custom API client, configuration, and
@@ -583,7 +597,10 @@ impl BaseApi {
         /* Build query string */
         let query_string = build_query_string(&query_params);
         if !query_string.is_empty() {
-            request_url = format!("{}?{}", request_url, query_string);
+            /* A next URL of a paged list already carries a query, so an
+             * authentication query parameter is joined to it with `&`. */
+            let joiner = if request_url.contains('?') { '&' } else { '?' };
+            request_url = format!("{}{}{}", request_url, joiner, query_string);
         }
 
         /* Select headers */
@@ -698,6 +715,9 @@ impl BaseApi {
             } else {
                 Some(RequestBody::Multipart(fields))
             }
+        } else if let Some(source) = params.source {
+            /* A raw binary body is sent unchanged as it is read; nothing is serialized. */
+            Some(RequestBody::Source(source))
         } else {
             serialize_body(params.body, params.content_type)?.map(RequestBody::Bytes)
         };
@@ -713,8 +733,13 @@ impl BaseApi {
          * headers applied again. The retries share the transport's end-to-end
          * timeout, so a retry that would not fit in what is left is not made,
          * and dropping the returned future cancels the wait between attempts.
-         * A multipart body is never sent twice. */
-        let replayable = !matches!(serialized_body, Some(RequestBody::Multipart(_)));
+         * A multipart body and a single-use body source are never sent twice: the
+         * first error, or the first response, is the one that is reported. */
+        let replayable = match &serialized_body {
+            Some(RequestBody::Multipart(_)) => false,
+            Some(RequestBody::Source(source)) => source.is_replayable(),
+            _ => true,
+        };
         let max_retries = if replayable {
             params
                 .call
@@ -943,7 +968,12 @@ impl BaseApi {
                     .insert(name.to_string(), value.to_string());
             }
         }
-        let has_body = params.body.is_some() || params.multipart.is_some();
+        let has_body =
+            params.body.is_some() || params.source.is_some() || params.multipart.is_some();
+        let single_use_body = params
+            .source
+            .as_ref()
+            .is_some_and(|source| !source.is_replayable());
         let method = params.method.to_string();
         let request_path =
             crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
@@ -961,6 +991,7 @@ impl BaseApi {
             terminator.map(str::to_string),
             options,
             has_body,
+            single_use_body,
             &method,
             &request_path,
         )
@@ -1788,6 +1819,7 @@ mod tests {
             header_params,
             body: None,
             multipart: None,
+            source: None,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "",
@@ -1880,6 +1912,7 @@ mod tests {
             header_params: HashMap::new(),
             body: None,
             multipart: None,
+            source: None,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "",
@@ -1970,6 +2003,7 @@ mod tests {
             header_params: HashMap::new(),
             body: None,
             multipart: None,
+            source: None,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "",
@@ -2029,6 +2063,7 @@ mod tests {
             header_params: HashMap::new(),
             body: None,
             multipart: None,
+            source: None,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "",
@@ -2169,6 +2204,7 @@ mod tests {
             header_params,
             body: None,
             multipart: None,
+            source: None,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "",
@@ -2734,6 +2770,7 @@ mod tests {
             header_params: HashMap::new(),
             body: None,
             multipart: None,
+            source: None,
             accepts: vec!["text/plain"],
             content_type: "application/json",
             return_type: "String",

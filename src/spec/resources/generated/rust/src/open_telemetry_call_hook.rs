@@ -413,6 +413,7 @@ mod tests {
             header_params: HashMap::new(),
             body: None,
             multipart: None,
+            source: None,
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "",
