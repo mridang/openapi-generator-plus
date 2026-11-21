@@ -364,6 +364,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("api_response.mustache", "src", "api-http-response.ts"),
             new SupportingFileSpec("api_stream_response.mustache", "src", "api-stream-response.ts"),
             new SupportingFileSpec("byte_stream.mustache", "src", "byte-stream.ts"),
+            new SupportingFileSpec("event_stream.mustache", "src", "event-stream.ts"),
+            new SupportingFileSpec("server_sent_event.mustache", "src", "server-sent-event.ts"),
+            new SupportingFileSpec("stream_options.mustache", "src", "stream-options.ts"),
+            new SupportingFileSpec("json_lines_stream.mustache", "src", "json-lines-stream.ts"),
+            new SupportingFileSpec("sse_stream.mustache", "src", "sse-stream.ts"),
             new SupportingFileSpec("api_result.mustache", "src", "api-result.ts"),
             new SupportingFileSpec("configuration.mustache", "src", "configuration.ts"),
             new SupportingFileSpec("transport_options.mustache", "src", "transport-options.ts"),
@@ -584,6 +589,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/credentials.test.mustache",
                             "test",
                             "credentials.test.ts"));
+            // The parser, the line splitter and the two stream types over
+            // canned bytes: the mirror test of event-stream.ts.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/event-stream.test.mustache",
+                            "test",
+                            "event-stream.test.ts"));
         }
 
         // Spec-coupled tests: they import spec-derived models/APIs, the
@@ -979,8 +991,17 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             if (ops != null) {
                 boolean hasEnums = false;
                 boolean hasBinaryStream = false;
+                boolean hasSseStream = false;
+                boolean hasJsonLinesStream = false;
                 for (final CodegenOperation op : ops) {
                     hasBinaryStream |= markBinaryStream(op);
+                    final Object marked = op.vendorExtensions.get("op");
+                    if (marked instanceof Map) {
+                        hasSseStream |=
+                                Boolean.TRUE.equals(((Map<?, ?>) marked).get("streamsSse"));
+                        hasJsonLinesStream |=
+                                Boolean.TRUE.equals(((Map<?, ?>) marked).get("streamsJsonLines"));
+                    }
                     for (final CodegenParameter param : op.allParams) {
                         if (param.isEnum) {
                             hasEnums = true;
@@ -1002,6 +1023,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     }
                 }
                 objs.put("hasBinaryStream", hasBinaryStream);
+                objs.put("hasSseStream", hasSseStream);
+                objs.put("hasJsonLinesStream", hasJsonLinesStream);
+                objs.put("hasStreamOptions", hasSseStream || hasJsonLinesStream);
                 objs.put("hasDeepInputBody", hasDeepInputBody);
                 objs.put("hasEnums", hasEnums);
             }
@@ -1060,14 +1084,39 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             return false;
         }
         final Map<String, Object> d = (Map<String, Object>) decorators;
-        final boolean binary = "binary".equals(d.get("streamKind"));
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
         d.put("streamsBinary", binary);
         if (binary) {
             op.returnType = "ByteStream";
             op.returnBaseType = "ByteStream";
         }
+        final boolean streamOnly = Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && streamOnly;
+        final boolean jsonLines = "jsonlines".equals(kind) && streamOnly;
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "string";
+            final boolean typed = !"string".equals(item);
+            final boolean model =
+                    item.matches("[A-Z]\\w*") && !STREAM_ITEM_NON_MODELS.contains(item);
+            d.put("streamTyped", typed);
+            d.put("streamIsModel", model);
+            d.put("streamItemTs", item);
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
         return binary;
     }
+
+    /** Item types of a stream that are not generated model classes. */
+    private static final Set<String> STREAM_ITEM_NON_MODELS =
+            Set.of(
+                    "Date", "Buffer", "Blob", "UUID", "URI", "Email", "Decimal", "Object", "Array",
+                    "Record", "Map", "Set", "Uint8Array");
 
     /**
      * Hands the README and SKILLS the first operation that returns a
@@ -1079,39 +1128,46 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        CodegenOperation found = null;
-        Object group = null;
-        final Object apiInfo = objs.get("apiInfo");
-        if (apiInfo instanceof Map) {
-            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
-            if (apis instanceof List) {
-                for (final Object api : (List<Object>) apis) {
-                    final Object operations = ((Map<String, Object>) api).get("operations");
-                    if (!(operations instanceof Map)) {
-                        continue;
-                    }
-                    final Object list = ((Map<String, Object>) operations).get("operation");
-                    if (!(list instanceof List)) {
-                        continue;
-                    }
-                    for (final Object candidate : (List<Object>) list) {
-                        final CodegenOperation op = (CodegenOperation) candidate;
-                        final Object decorators =
-                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-                        if (found == null
-                                && decorators instanceof Map
-                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
-                            found = op;
-                            group = operations;
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
                         }
                     }
                 }
             }
-        }
-        objs.put("hasBinaryStreamOperation", found != null);
-        if (found != null) {
-            objs.put("binaryStreamOperation", found);
-            objs.put("binaryStreamGroup", group);
+            final String name = names[kind];
+            objs.put(
+                    "has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation",
+                    found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
         }
         return super.postProcessSupportingFileData(objs);
     }
@@ -1334,8 +1390,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             d.put("hasContentTypeSelector", false);
         }
 
-        /* The trailing per-call cancellation handle: always last. */
-        fields.add(wrapperField("requestOptions", "RequestOptions", true));
+        /* The trailing per-call cancellation handle: always last. A stream
+         * operation takes StreamOptions, which includes the per-call options. */
+        if (Boolean.TRUE.equals(d.get("streamOnly"))) {
+            fields.add(wrapperField("streamOptions", "StreamOptions", true));
+        } else {
+            fields.add(wrapperField("requestOptions", "RequestOptions", true));
+        }
 
         d.put("requestWrapperFields", fields);
     }
