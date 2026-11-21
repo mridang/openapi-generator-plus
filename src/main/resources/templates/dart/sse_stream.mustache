@@ -1,0 +1,388 @@
+{{>api_info}}
+import 'dart:async';
+import 'dart:math';
+
+import 'byte_stream.dart';
+import 'errors/api_exception.dart';
+import 'errors/network_exception.dart';
+import 'errors/serialization_exception.dart';
+import 'errors/stream_exception.dart';
+import 'event_stream.dart';
+import 'retry_after.dart';
+import 'server_sent_event.dart';
+import 'stream_options.dart';
+
+/// The events of a server-sent events response, parsed as they arrive (WHATWG
+/// HTML, "Server-sent events"), with automatic reconnecting.
+///
+/// It is a single-subscription `Stream` of [ServerSentEvent]: iterate it with
+/// `await for`. [close] is idempotent and aborts the connection; call it
+/// (`try`/`finally`) when you stop early, and note that cancelling the
+/// subscription closes it too.
+///
+/// When the connection ends, fails or stays silent for the idle timeout, the
+/// stream asks again with a fresh request (headers rebuilt, so a refreshed
+/// token is the one sent) that carries the last event id in `Last-Event-ID`. It
+/// waits the server's `retry` value, else the `reconnectDelay` doubling to 30
+/// seconds with jitter, and gives up after `maxReconnects` consecutive
+/// failures without an event by raising the last failure. It never reconnects
+/// after a `204`, a status other than 408, 429 and 5xx, a response that is not
+/// `text/event-stream`, a cancellation or the closing of the client. An event
+/// named `error` raises an [ApiException] with the response status and the data
+/// as its body. [toString] shows the status code, the events delivered and the
+/// last event id, never the data.
+final class SseStream<T> extends Stream<ServerSentEvent<T>> {
+  SseStream._(
+    this._opener,
+    this._decoder,
+    this._terminator,
+    StreamOptions given,
+    bool hasBody,
+    this._method,
+    this._path,
+    ByteStream first,
+    this._lastEventId,
+  )   : _maxReconnects = given.maxReconnects ?? (hasBody ? 0 : 5),
+        _reconnectDelay = given.reconnectDelay ?? 1000,
+        _maxEventBytes = given.maxEventBytes ?? 1024 * 1024,
+        _current = first {
+    _parser = SseParser(first, _maxEventBytes, _lastEventId);
+  }
+
+  static const int _maxReconnectDelayMillis = 30000;
+
+  final Future<ByteStream> Function(String lastEventId) _opener;
+  final T Function(String data)? _decoder;
+  final String? _terminator;
+  final int _maxReconnects;
+  final int _reconnectDelay;
+  final int _maxEventBytes;
+  final String _method;
+  final String _path;
+  ByteStream _current;
+  late SseParser _parser;
+  String _lastEventId;
+  int? _serverRetry;
+  int _consecutive = 0;
+  int _delivered = 0;
+  bool _closed = false;
+  bool _listened = false;
+  Completer<void>? _waiting;
+
+  /// Opens the first connection of an event stream; a failure of that request
+  /// is raised here.
+  ///
+  /// [opener] sends one request with the given last event id (empty for none)
+  /// and returns its open body, or throws the typed error of a failed status.
+  /// [decoder] decodes the `data` field, or is null to hand it over as a
+  /// string. [terminator] is a `data` value that ends the stream and is not
+  /// delivered. [hasBody] says the request has a body, which turns reconnecting
+  /// off by default; [method] and [path] name the request in errors.
+  static Future<SseStream<T>> open<T>({
+    required Future<ByteStream> Function(String lastEventId) opener,
+    T Function(String data)? decoder,
+    String? terminator,
+    StreamOptions? options,
+    bool hasBody = false,
+    required String method,
+    required String path,
+  }) async {
+    final given = options ?? const StreamOptions();
+    final lastEventId = given.lastEventId ?? '';
+    final first = await _connectTo(opener, lastEventId, method, path);
+    return SseStream<T>._(
+      opener,
+      decoder,
+      terminator,
+      given,
+      hasBody,
+      method,
+      path,
+      first,
+      lastEventId,
+    );
+  }
+
+  /// The HTTP status code of the current connection.
+  int get statusCode => _current.statusCode;
+
+  /// The lower-cased headers of the current connection.
+  Map<String, String> get headers => _current.headers;
+
+  /// The last event id seen, which a reconnect sends; empty when none.
+  String get lastEventId => _lastEventId;
+
+  /// Sends the request and checks that the answer is an event stream.
+  static Future<ByteStream> _connectTo(
+    Future<ByteStream> Function(String lastEventId) opener,
+    String lastEventId,
+    String method,
+    String path,
+  ) async {
+    final stream = await opener(lastEventId);
+    if (stream.statusCode == 204) {
+      return stream;
+    }
+    final type = stream.headers['content-type'] ?? '';
+    if (!type.toLowerCase().startsWith('text/event-stream')) {
+      await stream.close();
+      final semicolon = type.indexOf(';');
+      throw SerializationException(
+        "Unexpected response Content-Type "
+        "'${(semicolon >= 0 ? type.substring(0, semicolon) : type).trim()}' "
+        'for $path: expected text/event-stream',
+      ).withResponse(
+        statusCode: stream.statusCode,
+        responseHeaders: stream.headers,
+        responseBody: '',
+        requestMethod: method,
+        requestPath: path,
+      );
+    }
+    return stream;
+  }
+
+  @override
+  StreamSubscription<ServerSentEvent<T>> listen(
+    void Function(ServerSentEvent<T> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    if (_listened) {
+      throw StateError('An SseStream can be listened to only once');
+    }
+    _listened = true;
+    late final StreamController<ServerSentEvent<T>> controller;
+    StreamSubscription<ServerSentEvent<T>>? inner;
+    controller = StreamController<ServerSentEvent<T>>(
+      onListen: () {
+        inner = _events().listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        );
+      },
+      onPause: () => inner?.pause(),
+      onResume: () => inner?.resume(),
+      onCancel: () {
+        unawaited(close());
+        unawaited(inner?.cancel());
+      },
+    );
+    return controller.stream.listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  Stream<ServerSentEvent<T>> _events() async* {
+    try {
+      if (_current.statusCode == 204) {
+        return;
+      }
+      while (!_closed) {
+        RawEvent? raw;
+        NetworkException? lost;
+        try {
+          raw = await _parser.next();
+        } on OverLimit catch (tooLong) {
+          throw _failure(
+            'An event of the stream is too long: ${tooLong.message}',
+            tooLong,
+          );
+        } on NetworkException catch (network) {
+          lost = network;
+        }
+        _lastEventId = _parser.lastEventId;
+        _serverRetry = _parser.retry;
+        if (raw != null) {
+          _consecutive = 0;
+          final event = _deliver(raw);
+          if (event == null) {
+            return;
+          }
+          yield event;
+          continue;
+        }
+        if (_closed) {
+          return;
+        }
+        if (!await _reconnect(lost)) {
+          return;
+        }
+      }
+    } finally {
+      _closed = true;
+      await _current.close();
+    }
+  }
+
+  SerializationException _failure(String message, Object cause) =>
+      SerializationException(message, cause).withResponse(
+        statusCode: _current.statusCode,
+        responseHeaders: _current.headers,
+        responseBody: '',
+        requestMethod: _method,
+        requestPath: _path,
+      );
+
+  ServerSentEvent<T>? _deliver(RawEvent raw) {
+    if (raw.event == 'error') {
+      throw ApiException(
+        statusCode: _current.statusCode,
+        message: 'The server sent an error event',
+        responseHeaders: _current.headers,
+        responseBody: raw.data,
+      );
+    }
+    if (_terminator != null && _terminator == raw.data) {
+      return null;
+    }
+    final T data;
+    final decode = _decoder;
+    if (decode == null) {
+      data = raw.data as T;
+    } else {
+      try {
+        data = decode(raw.data);
+      } on SerializationException catch (failure) {
+        throw _failure(
+          'The data of an event does not decode: ${failure.message}',
+          failure,
+        );
+      }
+    }
+    _delivered++;
+    return ServerSentEvent<T>(
+      id: raw.id,
+      event: raw.event,
+      data: data,
+      retry: raw.retry,
+      raw: raw.data,
+    );
+  }
+
+  /// Re-establishes the connection after it was lost. [failure] is why it was
+  /// lost, or null when it ended cleanly. Returns true when a new connection is
+  /// open and false when the stream ends.
+  Future<bool> _reconnect(ApiException? failure) async {
+    var cause = failure;
+    while (true) {
+      await _current.close();
+      if (_maxReconnects == 0) {
+        if (cause != null) {
+          throw cause;
+        }
+        return false;
+      }
+      if (_maxReconnects > 0 && _consecutive >= _maxReconnects) {
+        if (cause != null) {
+          throw cause;
+        }
+        throw StreamException(
+          message: 'The event stream ended and was not re-established after '
+              '$_maxReconnects reconnects',
+          requestMethod: _method,
+          requestPath: _path,
+        );
+      }
+      _consecutive++;
+      await _pause(reconnectWaitMillis(
+        _consecutive,
+        _reconnectDelay,
+        _serverRetry,
+        _retryAfterMillis(cause),
+        Random().nextDouble(),
+      ));
+      if (_closed) {
+        return false;
+      }
+      try {
+        final next = await _connectTo(_opener, _lastEventId, _method, _path);
+        _current = next;
+        _parser = SseParser(next, _maxEventBytes, _lastEventId);
+        return next.statusCode != 204;
+      } on NetworkException catch (network) {
+        cause = network;
+      } on ApiException catch (status) {
+        if (!(status.statusCode == 408 ||
+            status.statusCode == 429 ||
+            (status.statusCode >= 500 && status.statusCode <= 599))) {
+          rethrow;
+        }
+        cause = status;
+      }
+    }
+  }
+
+  static int? _retryAfterMillis(ApiException? failure) {
+    if (failure == null || failure is NetworkException) {
+      return null;
+    }
+    final status = failure.statusCode;
+    final headers = failure.responseHeaders;
+    if (headers == null ||
+        !(status == 429 || status == 502 || status == 503 || status == 504)) {
+      return null;
+    }
+    return retryAfterOf(headers)?.inMilliseconds;
+  }
+
+  /// How long to wait before reconnect number [attempt] (1 for the first): the
+  /// server's `retry` value, else `Retry-After`, else [base] doubling to 30
+  /// seconds, reduced by up to 25% of jitter. [jitterSample] is a uniform
+  /// random value in [0, 1). The result is in milliseconds.
+  static int reconnectWaitMillis(
+    int attempt,
+    int base,
+    int? serverRetry,
+    int? retryAfter,
+    double jitterSample,
+  ) {
+    if (serverRetry != null) {
+      return serverRetry;
+    }
+    if (retryAfter != null) {
+      return retryAfter;
+    }
+    final doubled = min(_maxReconnectDelayMillis, base << min(attempt - 1, 20));
+    return (doubled * (1.0 - 0.25 * jitterSample)).toInt();
+  }
+
+  /// Waits [millis]; closing the stream ends the wait.
+  Future<void> _pause(int millis) {
+    if (millis <= 0 || _closed) {
+      return Future<void>.value();
+    }
+    final waiting = Completer<void>();
+    _waiting = waiting;
+    final timer = Timer(Duration(milliseconds: millis), () {
+      if (!waiting.isCompleted) waiting.complete();
+    });
+    return waiting.future.whenComplete(() {
+      timer.cancel();
+      _waiting = null;
+    });
+  }
+
+  /// Closes the stream and aborts the connection; later calls do nothing. A
+  /// listener that is still reading sees the stream end.
+  Future<void> close() async {
+    _closed = true;
+    final waiting = _waiting;
+    if (waiting != null && !waiting.isCompleted) {
+      waiting.complete();
+    }
+    await _current.close();
+  }
+
+  /// Describes the stream by its status code, the events delivered and the last
+  /// event id; the headers and the data are never shown.
+  @override
+  String toString() =>
+      'SseStream(statusCode: ${_current.statusCode}, eventsDelivered: $_delivered, '
+      'lastEventId: $_lastEventId)';
+}

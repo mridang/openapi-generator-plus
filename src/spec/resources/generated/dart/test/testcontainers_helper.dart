@@ -260,6 +260,14 @@ Future<void> rawChunk(Socket socket, String data) {
   return socket.flush();
 }
 
+/// Writes [bytes] as one chunk of a chunked body.
+Future<void> rawChunkBytes(Socket socket, List<int> bytes) {
+  socket.add(latin1.encode('${bytes.length.toRadixString(16)}\r\n'));
+  socket.add(bytes);
+  socket.add(latin1.encode('\r\n'));
+  return socket.flush();
+}
+
 /// Ends a chunked body.
 Future<void> rawEnd(Socket socket) {
   socket.add(latin1.encode('0\r\n\r\n'));

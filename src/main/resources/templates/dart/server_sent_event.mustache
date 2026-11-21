@@ -1,0 +1,34 @@
+{{>api_info}}
+/// One server-sent event: the fields of the standard envelope, with the data
+/// decoded.
+///
+/// [toString] shows the event name and the id, never the data. [T] is the type
+/// the `data` field is decoded into (`String` for a plain payload).
+class ServerSentEvent<T> {
+  /// Creates an event.
+  const ServerSentEvent({
+    this.id,
+    this.event = 'message',
+    required this.data,
+    this.retry,
+    required this.raw,
+  });
+
+  /// The event id, or null when the stream has none.
+  final String? id;
+
+  /// The event name, `message` when the server sent none.
+  final String event;
+
+  /// The decoded `data` field.
+  final T data;
+
+  /// The reconnection time in milliseconds the server named, or null.
+  final int? retry;
+
+  /// The `data` field exactly as it arrived, lines joined with a line feed.
+  final String raw;
+
+  @override
+  String toString() => 'ServerSentEvent(event: $event, id: $id)';
+}

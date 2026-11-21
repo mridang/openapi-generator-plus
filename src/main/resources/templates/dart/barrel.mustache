@@ -73,6 +73,7 @@ export 'src/errors/unsupported_media_type_exception.dart';
 export 'src/errors/{{classFilename}}.dart';
 {{/errorSchemas}}
 export 'src/iso8601_duration.dart';
+export 'src/json_lines_stream.dart';
 export 'src/object_serializer.dart' show UuidValue;
 {{#models}}
 {{#model}}
@@ -80,6 +81,9 @@ export 'src/models/{{classFilename}}.dart';
 {{/model}}
 {{/models}}
 export 'src/server_configuration.dart';
+export 'src/server_sent_event.dart';
 export 'src/servers.dart';
+export 'src/sse_stream.dart';
+export 'src/stream_options.dart';
 export 'src/trace_context_util.dart';
 export 'src/transport_options.dart';

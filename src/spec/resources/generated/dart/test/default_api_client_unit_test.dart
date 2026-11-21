@@ -6770,6 +6770,252 @@ void main() {
       },
     );
 
+    Future<ByteStream> Function(String) eventOpener(
+      RawServer server, {
+      int? idleTimeout,
+    }) {
+      final client = newClient(idleTimeout: idleTimeout);
+      return (lastEventId) async => wrap(
+        await client.sendStreaming('GET', server.url('/items/events'), {
+          if (lastEventId.isNotEmpty) 'Last-Event-ID': lastEventId,
+        }, null),
+      );
+    }
+
+    Future<void> eventsHead(Socket socket) => rawHead(socket, 200, [
+      'Content-Type: text/event-stream',
+      'Transfer-Encoding: chunked',
+    ]);
+
+    List<int> drained(RawZLibFilter filter, {bool end = false}) {
+      final out = <int>[];
+      while (true) {
+        final piece = filter.processed(flush: !end, end: end);
+        if (piece == null || piece.isEmpty) break;
+        out.addAll(piece);
+      }
+      return out;
+    }
+
+    test(
+      'bhv streaming 006 a gzip encoded stream is decoded incrementally, so the first item arrives before the body ends',
+      () async {
+        final filter = RawZLibFilter.deflateFilter(gzip: true);
+        filter.process(utf8.encode('first\n'), 0, 6);
+        final head = drained(filter);
+        filter.process(utf8.encode('second\n'), 0, 7);
+        final rest = drained(filter, end: true);
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          await rawHead(socket, 200, [
+            'Content-Encoding: gzip',
+            'Transfer-Encoding: chunked',
+          ]);
+          await rawChunkBytes(socket, head);
+          await self.awaitRelease();
+          await rawChunkBytes(socket, rest);
+          await rawEnd(socket);
+        });
+        try {
+          final response = await open(server, '/items/export');
+          final items = JsonLinesStream<String>(
+            wrap(response),
+            (line) => line,
+            1024,
+            'GET',
+            '/items/export',
+          );
+          final reader = StreamIterator(items);
+          expect(await reader.moveNext(), isTrue);
+          expect(
+            reader.current,
+            equals('first'),
+            reason: 'the first item arrived while the body was unfinished',
+          );
+          server.release();
+          expect(await reader.moveNext(), isTrue);
+          expect(reader.current, equals('second'));
+          expect(await reader.moveNext(), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 007 a corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried',
+      () async {
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          await rawHead(socket, 200, [
+            'Content-Encoding: gzip',
+            'Content-Length: 8',
+          ]);
+          await rawBytes(socket, utf8.encode('notgzip!'));
+        });
+        try {
+          final response = await open(server, '/items/export');
+          final items = JsonLinesStream<String>(
+            wrap(response),
+            (line) => line,
+            1024,
+            'GET',
+            '/items/export',
+          );
+          await expectLater(
+            StreamIterator(items).moveNext(),
+            throwsA(
+              allOf(
+                isA<ApiException>(),
+                isNot(isA<NetworkException>()),
+                predicate<ApiException>(
+                  (e) => e.statusCode == 200,
+                  'status 200',
+                ),
+                predicate<ApiException>((e) => e.cause != null, 'has a cause'),
+              ),
+            ),
+          );
+          expect(server.hits, equals(1));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv sse 007 an SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID',
+      () async {
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          if (hit >= 3) {
+            await rawHead(socket, 204, ['Content-Length: 0']);
+            return;
+          }
+          await eventsHead(socket);
+          await rawChunk(
+            socket,
+            hit == 1
+                ? 'id: 1\ndata: a\n\nid: 2\ndata: b\n\n'
+                : 'id: 3\ndata: c\n\n',
+          );
+          await rawEnd(socket);
+        });
+        try {
+          final stream = await SseStream.open<String>(
+            opener: eventOpener(server),
+            options: const StreamOptions(reconnectDelay: 1),
+            method: 'GET',
+            path: '/items/events',
+          );
+          final data = <String>[];
+          await for (final event in stream) {
+            data.add(event.data);
+          }
+          expect(data, equals(['a', 'b', 'c']));
+          expect(
+            server.heads[0].toLowerCase(),
+            isNot(contains('last-event-id')),
+          );
+          expect(server.heads[1].toLowerCase(), contains('last-event-id: 2'));
+          expect(server.heads[2].toLowerCase(), contains('last-event-id: 3'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv sse 015 an idle timeout on an SSE stream counts as a lost connection and reconnects',
+      () async {
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          await eventsHead(socket);
+          if (hit == 1) {
+            await rawChunk(socket, 'id: 1\ndata: a\n\n');
+            await self.awaitRelease();
+            return;
+          }
+          await rawChunk(socket, 'id: 2\ndata: b\n\n');
+          await rawEnd(socket);
+        });
+        try {
+          final stream = await SseStream.open<String>(
+            opener: eventOpener(server, idleTimeout: 300),
+            options: const StreamOptions(reconnectDelay: 1, maxReconnects: 1),
+            method: 'GET',
+            path: '/items/events',
+          );
+          final reader = StreamIterator(stream);
+          expect(await reader.moveNext(), isTrue);
+          expect(reader.current.data, equals('a'));
+          expect(await reader.moveNext(), isTrue);
+          expect(
+            reader.current.data,
+            equals('b'),
+            reason: 'the stalled connection was replaced',
+          );
+          expect(server.heads[1].toLowerCase(), contains('last-event-id: 1'));
+          await stream.close();
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv sse 018 an SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout',
+      () async {
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          await eventsHead(socket);
+          for (var beat = 0; beat < 8; beat++) {
+            await rawChunk(socket, ': heartbeat\n\n');
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          }
+          await rawChunk(socket, 'data: late\n\n');
+          await rawEnd(socket);
+        });
+        try {
+          final stream = await SseStream.open<String>(
+            opener: eventOpener(server, idleTimeout: 400),
+            options: const StreamOptions(reconnectDelay: 1, maxReconnects: 0),
+            method: 'GET',
+            path: '/items/events',
+          );
+          final event = await stream.first;
+          expect(
+            event.data,
+            equals('late'),
+            reason: 'the quiet feed outlived the idle timeout',
+          );
+          expect(server.hits, equals(1), reason: 'no reconnect was needed');
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test(
       'bhv streaming 029 the read-all helper of a byte stream returns every byte in order and leaves the stream closed',
       () async {

@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 
 import '../api_client.dart';
@@ -20,7 +19,11 @@ import '../call_outcome.dart';
 import '../configuration.dart';
 import '../default_api_client.dart';
 import '../header_selector.dart';
+import '../json_lines_stream.dart';
 import '../object_serializer.dart';
+import '../retry_after.dart';
+import '../sse_stream.dart';
+import '../stream_options.dart';
 import '../value_serializer.dart';
 import '../trace_context_util.dart';
 import '../errors/api_exception.dart';
@@ -212,6 +215,7 @@ class BaseApi {
     int? maxRetries,
     Map<String, ErrorFactory>? errorSchemas,
     bool stream = false,
+    int? idleTimeout,
   }) async {
     if (timeout != null && timeout < 1) {
       throw ArgumentError(
@@ -361,6 +365,7 @@ class BaseApi {
           headers: headers,
           body: serializedBody,
           timeout: timeout,
+          idleTimeout: idleTimeout,
         );
       }
       final send = first && admitting != null
@@ -489,6 +494,7 @@ class BaseApi {
     required Map<String, String> headers,
     required Uint8List? body,
     required int? timeout,
+    required int? idleTimeout,
   }) async {
     final transport = apiClient;
     if (transport is! StreamingApiClient) {
@@ -500,9 +506,9 @@ class BaseApi {
     final admitting = transport is AdmittingStreamingApiClient ? transport : null;
     final reply = admitted && admitting != null
         ? await admitting.sendAdmittedStreaming(method, url, headers, body,
-            timeout: timeout)
+            timeout: timeout, idleTimeout: idleTimeout)
         : await transport.sendStreaming(method, url, headers, body,
-            timeout: timeout);
+            timeout: timeout, idleTimeout: idleTimeout);
     if (reply.statusCode >= 200 && reply.statusCode < 300) {
       return _StreamReply(reply);
     }
@@ -554,6 +560,7 @@ class BaseApi {
     Map<String, ErrorFactory>? errorSchemas,
     String operationId = '',
     String urlTemplate = '',
+    int? idleTimeout,
   }) {
     final run = _CallRun(config.callHook, operationId, urlTemplate);
     return run.observe<ApiResult<ByteStream>>(
@@ -574,6 +581,7 @@ class BaseApi {
           maxRetries: maxRetries,
           errorSchemas: errorSchemas,
           stream: true,
+          idleTimeout: idleTimeout,
         );
         final opened = (response as _StreamReply).stream;
         return ApiResult<ByteStream>(
@@ -588,6 +596,146 @@ class BaseApi {
         );
       },
       (result) => (result.statusCode, result.headers),
+    );
+  }
+
+  /// Invoke an operation whose success response is a JSON Lines body and return
+  /// its items as a lazy stream. Everything up to the headers is the buffered
+  /// call; a non-2xx status raises the typed error and no stream is returned.
+  ///
+  /// Parameters are as for [invokeApiForStream], plus [decoder], which decodes
+  /// one line into an item (null hands each line over as a string), and
+  /// [streamOptions].
+  Future<JsonLinesStream<T>> invokeApiForJsonLines<T>({
+    required String method,
+    String operation = '',
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    Map<String, ErrorFactory>? errorSchemas,
+    String operationId = '',
+    String urlTemplate = '',
+    T Function(String line)? decoder,
+    StreamOptions? streamOptions,
+  }) async {
+    final options = streamOptions ?? const StreamOptions();
+    final result = await invokeApiForStream(
+      method: method,
+      operation: operation,
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: body,
+      accepts: accepts,
+      contentType: contentType,
+      auth: auth,
+      rawBody: rawBody,
+      timeout: timeout,
+      callHeaders: callHeaders,
+      maxRetries: maxRetries,
+      errorSchemas: errorSchemas,
+      operationId: operationId,
+      urlTemplate: urlTemplate,
+      idleTimeout: options.idleTimeout,
+    );
+    return JsonLinesStream<T>(
+      result.data!,
+      decoder ?? (String line) => line as T,
+      options.maxEventBytes ?? 1024 * 1024,
+      method,
+      _requestPathOf(_urlFor(config.baseUrl, path)),
+    );
+  }
+
+  /// Invoke an operation whose success response is a server-sent events body
+  /// and return its events as a lazy stream that reconnects. Each connection is
+  /// a fresh stream call, so the headers and the credential are built again;
+  /// the stream adds `Accept-Encoding: identity` and `Cache-Control: no-cache`
+  /// unless the caller set them (the `Accept` header is the one the operation
+  /// negotiates) and `Last-Event-ID` once it has an id.
+  ///
+  /// Parameters are as for [invokeApiForStream], plus [decoder], which decodes
+  /// the `data` field (null hands it over as a string), [terminator], a `data`
+  /// value that ends the stream, and [streamOptions]. A failure of the first
+  /// request is raised here.
+  Future<SseStream<T>> invokeApiForSse<T>({
+    required String method,
+    String operation = '',
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = '',
+    Authenticator? auth,
+    bool rawBody = false,
+    int? timeout,
+    Map<String, String>? callHeaders,
+    int? maxRetries,
+    Map<String, ErrorFactory>? errorSchemas,
+    String operationId = '',
+    String urlTemplate = '',
+    T Function(String data)? decoder,
+    String? terminator,
+    StreamOptions? streamOptions,
+  }) {
+    final options = streamOptions ?? const StreamOptions();
+    final sseHeaders = <String, String>{...?headerParams};
+    bool named(Map<String, String> headers, String name) =>
+        headers.keys.any((key) => key.toLowerCase() == name.toLowerCase());
+    for (final entry in const {
+      'Cache-Control': 'no-cache',
+      'Accept-Encoding': 'identity',
+    }.entries) {
+      if (!named(sseHeaders, entry.key) &&
+          !named(callHeaders ?? const {}, entry.key) &&
+          !named(config.defaultHeaders, entry.key)) {
+        sseHeaders[entry.key] = entry.value;
+      }
+    }
+    Future<ByteStream> opener(String lastEventId) async {
+      final headers = Map<String, String>.of(sseHeaders);
+      if (lastEventId.isNotEmpty) {
+        headers['Last-Event-ID'] = lastEventId;
+      }
+      final result = await invokeApiForStream(
+        method: method,
+        operation: operation,
+        path: path,
+        queryParams: queryParams,
+        headerParams: headers,
+        body: body,
+        accepts: accepts,
+        contentType: contentType,
+        auth: auth,
+        rawBody: rawBody,
+        timeout: timeout,
+        callHeaders: callHeaders,
+        maxRetries: maxRetries,
+        errorSchemas: errorSchemas,
+        operationId: operationId,
+        urlTemplate: urlTemplate,
+        idleTimeout: options.idleTimeout,
+      );
+      return result.data!;
+    }
+
+    return SseStream.open<T>(
+      opener: opener,
+      decoder: decoder,
+      terminator: terminator,
+      options: options,
+      hasBody: body != null,
+      method: method,
+      path: _requestPathOf(_urlFor(config.baseUrl, path)),
     );
   }
 
@@ -660,58 +808,13 @@ class BaseApi {
   /// `Retry-After` (seconds or an HTTP date) capped at 60 s, else 0.5 s doubling
   /// to 8 s less up to 25% jitter.
   static Duration _retryDelay(int retries, Map<String, String> headers) {
-    final retryAfter = _retryAfter(headers);
+    final retryAfter = retryAfterOf(headers);
     if (retryAfter != null) {
       return retryAfter;
     }
     final seconds = min(0.5 * pow(2, retries).toDouble(), 8.0);
     final jittered = seconds * (1 - 0.25 * Random().nextDouble());
     return Duration(milliseconds: (jittered * 1000).round());
-  }
-
-  /// The `Retry-After` header as a wait capped at 60 s, or null when absent or
-  /// not understood.
-  static Duration? _retryAfter(Map<String, String> headers) {
-    String? raw;
-    for (final entry in headers.entries) {
-      if (entry.key.toLowerCase() == 'retry-after') {
-        raw = entry.value.trim();
-        break;
-      }
-    }
-    if (raw == null || raw.isEmpty) {
-      return null;
-    }
-    final seconds = double.tryParse(raw);
-    if (seconds != null) {
-      if (seconds.isNaN || seconds < 0) {
-        return null;
-      }
-      return seconds >= 60
-          ? _maxRetryAfter
-          : Duration(milliseconds: (seconds * 1000).round());
-    }
-    final until = _tryParseHttpDate(raw);
-    if (until == null) {
-      return null;
-    }
-    final wait = until.difference(DateTime.now().toUtc());
-    if (wait.isNegative) {
-      return Duration.zero;
-    }
-    return wait > _maxRetryAfter ? _maxRetryAfter : wait;
-  }
-
-  /// The longest wait a `Retry-After` header can ask for.
-  static const Duration _maxRetryAfter = Duration(seconds: 60);
-
-  /// Parses an HTTP date, or returns null when [value] is not one.
-  static DateTime? _tryParseHttpDate(String value) {
-    try {
-      return parseHttpDate(value);
-    } on FormatException {
-      return null;
-    }
   }
 
   /// Invoke an API operation and return the full result including status
