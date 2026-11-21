@@ -262,39 +262,44 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        CodegenOperation found = null;
-        Object group = null;
-        final Object apiInfo = objs.get("apiInfo");
-        if (apiInfo instanceof Map) {
-            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
-            if (apis instanceof List) {
-                for (final Object api : (List<Object>) apis) {
-                    final Object operations = ((Map<String, Object>) api).get("operations");
-                    if (!(operations instanceof Map)) {
-                        continue;
-                    }
-                    final Object list = ((Map<String, Object>) operations).get("operation");
-                    if (!(list instanceof List)) {
-                        continue;
-                    }
-                    for (final Object candidate : (List<Object>) list) {
-                        final CodegenOperation op = (CodegenOperation) candidate;
-                        final Object decorators =
-                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-                        if (found == null
-                                && decorators instanceof Map
-                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
-                            found = op;
-                            group = operations;
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
                         }
                     }
                 }
             }
-        }
-        objs.put("hasBinaryStreamOperation", found != null);
-        if (found != null) {
-            objs.put("binaryStreamOperation", found);
-            objs.put("binaryStreamGroup", group);
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
         }
         return super.postProcessSupportingFileData(objs);
     }
@@ -311,11 +316,26 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             return;
         }
         final Map<String, Object> d = (Map<String, Object>) decorators;
-        final boolean binary = "binary".equals(d.get("streamKind"));
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
         d.put("streamsBinary", binary);
         if (binary) {
             op.returnType = "ByteStream";
             op.returnBaseType = "ByteStream";
+        }
+        final boolean sse = "sse".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean jsonLines = "jsonlines".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            final boolean typed = !"String".equals(item);
+            d.put("streamTyped", typed);
+            d.put("streamItemJava", item);
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
         }
     }
 
@@ -614,6 +634,13 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec(
                 "api_stream_response.mustache", invokerFolder, "ApiStreamResponse.java"),
             new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.java"),
+            new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.java"),
+            new SupportingFileSpec(
+                "server_sent_event.mustache", invokerFolder, "ServerSentEvent.java"),
+            new SupportingFileSpec("stream_options.mustache", invokerFolder, "StreamOptions.java"),
+            new SupportingFileSpec(
+                "json_lines_stream.mustache", invokerFolder, "JsonLinesStream.java"),
+            new SupportingFileSpec("sse_stream.mustache", invokerFolder, "SseStream.java"),
             new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.java"),
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.java"),
             new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.java"),
@@ -932,6 +959,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/ApiResultTest.mustache",
                             testFolder,
                             "ApiResultTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/EventStreamTest.mustache",
+                            testFolder,
+                            "EventStreamTest.java"));
         }
 
         if (generateTests) {

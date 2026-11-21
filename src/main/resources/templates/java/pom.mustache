@@ -127,6 +127,11 @@
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
                         <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
                         <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+                        <!-- NullAway's data-flow analysis loads Guava's cache, whose AbstractFuture
+                             calls sun.misc.Unsafe; JDK 24 and later print a warning for that on the
+                             forked javac, and failOnWarning counts it as a compiler warning. The flag
+                             keeps that JDK-internal notice out of the build; it changes no check. -->
+                        <arg>-J--sun-misc-unsafe-memory-access=allow</arg>
                         <arg>-J-Xss4m</arg>
                     </compilerArgs>
                     <annotationProcessorPaths>

@@ -9,6 +9,9 @@
 package com.example.petstore.api;
 
 import com.example.petstore.ApiResult;
+import com.example.petstore.JsonLinesStream;
+import com.example.petstore.SseStream;
+import com.example.petstore.StreamOptions;
 import com.example.petstore.api.options.CreateAccountOptions;
 import com.example.petstore.api.options.DeleteOrderOptions;
 import com.example.petstore.api.options.ExportOrdersOptions;
@@ -168,48 +171,26 @@ public interface StoreApiInterface {
   /**
    * Exports every order as JSON Lines
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return {@code Order}
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param streamOptions the stream settings, or {@code null} for the defaults
+   * @return the open stream; close it when you stop early
    * @throws ApiException if fails to make API call
    */
-  default Order exportOrders() {
-    return exportOrders(null);
-  }
+  JsonLinesStream<Order> exportOrdersStream(
+      @Nullable ExportOrdersOptions options, @Nullable StreamOptions streamOptions);
 
   /**
    * Exports every order as JSON Lines
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return the API result wrapping {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  default ApiResult<Order> exportOrdersWithHttpInfo() {
-    return exportOrdersWithHttpInfo(null);
-  }
-
-  /**
-   * Exports every order as JSON Lines
+   * <p>Convenience overload that keeps every stream setting at its default.
    *
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code Order}
+   * @return the open stream; close it when you stop early
    * @throws ApiException if fails to make API call
    */
-  Order exportOrders(@Nullable ExportOrdersOptions options);
-
-  /**
-   * Exports every order as JSON Lines
-   *
-   * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  ApiResult<Order> exportOrdersWithHttpInfo(@Nullable ExportOrdersOptions options);
+  default JsonLinesStream<Order> exportOrdersStream(@Nullable ExportOrdersOptions options) {
+    return exportOrdersStream(options, null);
+  }
 
   /**
    * Read the audit trail, which needs a bearer token and an API key together
@@ -1112,92 +1093,48 @@ public interface StoreApiInterface {
   /**
    * Streams plain text notices as server-sent events
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return {@code String}
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @param streamOptions the stream settings, or {@code null} for the defaults
+   * @return the open stream; close it when you stop early
    * @throws ApiException if fails to make API call
    */
-  default String watchNotices() {
-    return watchNotices(null);
-  }
+  SseStream<String> watchNoticesStream(
+      @Nullable WatchNoticesOptions options, @Nullable StreamOptions streamOptions);
 
   /**
    * Streams plain text notices as server-sent events
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return the API result wrapping {@code String}
-   * @throws ApiException if fails to make API call
-   */
-  default ApiResult<String> watchNoticesWithHttpInfo() {
-    return watchNoticesWithHttpInfo(null);
-  }
-
-  /**
-   * Streams plain text notices as server-sent events
+   * <p>Convenience overload that keeps every stream setting at its default.
    *
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code String}
+   * @return the open stream; close it when you stop early
    * @throws ApiException if fails to make API call
    */
-  String watchNotices(@Nullable WatchNoticesOptions options);
-
-  /**
-   * Streams plain text notices as server-sent events
-   *
-   * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code String}
-   * @throws ApiException if fails to make API call
-   */
-  ApiResult<String> watchNoticesWithHttpInfo(@Nullable WatchNoticesOptions options);
-
-  /**
-   * Streams order changes as server-sent events
-   *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  default Order watchOrders() {
-    return watchOrders(null);
-  }
-
-  /**
-   * Streams order changes as server-sent events
-   *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return the API result wrapping {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  default ApiResult<Order> watchOrdersWithHttpInfo() {
-    return watchOrdersWithHttpInfo(null);
+  default SseStream<String> watchNoticesStream(@Nullable WatchNoticesOptions options) {
+    return watchNoticesStream(options, null);
   }
 
   /**
    * Streams order changes as server-sent events
    *
    * @param options options for query, header, form, and cookie parameters
-   * @return {@code Order}
+   * @param streamOptions the stream settings, or {@code null} for the defaults
+   * @return the open stream; close it when you stop early
    * @throws ApiException if fails to make API call
    */
-  Order watchOrders(@Nullable WatchOrdersOptions options);
+  SseStream<Order> watchOrdersStream(
+      @Nullable WatchOrdersOptions options, @Nullable StreamOptions streamOptions);
 
   /**
    * Streams order changes as server-sent events
    *
+   * <p>Convenience overload that keeps every stream setting at its default.
+   *
    * @param options options for query, header, form, and cookie parameters
-   * @return the API result wrapping {@code Order}
+   * @return the open stream; close it when you stop early
    * @throws ApiException if fails to make API call
    */
-  ApiResult<Order> watchOrdersWithHttpInfo(@Nullable WatchOrdersOptions options);
+  default SseStream<Order> watchOrdersStream(@Nullable WatchOrdersOptions options) {
+    return watchOrdersStream(options, null);
+  }
 }

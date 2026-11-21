@@ -11,6 +11,9 @@ package com.example.petstore.api;
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
+import com.example.petstore.JsonLinesStream;
+import com.example.petstore.SseStream;
+import com.example.petstore.StreamOptions;
 import com.example.petstore.api.options.CreateAccountOptions;
 import com.example.petstore.api.options.DeleteOrderOptions;
 import com.example.petstore.api.options.ExportOrdersOptions;
@@ -62,7 +65,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   private static final java.lang.reflect.Type createAccountTypeRef =
       new TypeReference<Account>() {}.getType();
 
-  private static final java.lang.reflect.Type exportOrdersTypeRef =
+  private static final java.lang.reflect.Type exportOrdersItemType =
       new TypeReference<Order>() {}.getType();
 
   private static final java.lang.reflect.Type getAuditTrailTypeRef =
@@ -119,10 +122,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   private static final java.lang.reflect.Type searchStoreTypeRef =
       new TypeReference<List<Order>>() {}.getType();
 
-  private static final java.lang.reflect.Type watchNoticesTypeRef =
-      new TypeReference<String>() {}.getType();
-
-  private static final java.lang.reflect.Type watchOrdersTypeRef =
+  private static final java.lang.reflect.Type watchOrdersItemType =
       new TypeReference<Order>() {}.getType();
 
   /** Creates an instance with the default client and configuration. */
@@ -361,54 +361,14 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   /**
    * Exports every order as JSON Lines
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  @Override
-  public Order exportOrders() {
-    return exportOrders(null);
-  }
-
-  /**
-   * Exports every order as JSON Lines
-   *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return the API result wrapping {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  @Override
-  public ApiResult<Order> exportOrdersWithHttpInfo() {
-    return exportOrdersWithHttpInfo(null);
-  }
-
-  /**
-   * Exports every order as JSON Lines
-   *
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code Order}
+   * @param streamOptions the stream settings, or {@code null} for the defaults
+   * @return the open stream; close it when you stop early
    * @throws ApiException if fails to make API call
    */
   @Override
-  public Order exportOrders(@Nullable ExportOrdersOptions options) {
-    return requireBody(exportOrdersWithHttpInfo(options), "exportOrders");
-  }
-
-  /**
-   * Exports every order as JSON Lines
-   *
-   * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  @Override
-  public ApiResult<Order> exportOrdersWithHttpInfo(@Nullable ExportOrdersOptions options) {
+  public JsonLinesStream<Order> exportOrdersStream(
+      @Nullable ExportOrdersOptions options, @Nullable StreamOptions streamOptions) {
     String path = "/store/orders/export";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
@@ -418,7 +378,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
     if (callHeaders != null) {
       headerParams.putAll(callHeaders);
     }
-    return invokeApiForResult(
+    return invokeApiForJsonLines(
         "exportOrders",
         "GET",
         path,
@@ -427,14 +387,14 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
         null,
         new String[] {"application/x-ndjson"},
         "application/json",
-        exportOrdersTypeRef,
         NO_AUTH,
         callTimeout,
         callMaxRetries,
         null,
-        null,
         "exportOrders",
-        "/store/orders/export");
+        "/store/orders/export",
+        exportOrdersItemType,
+        streamOptions);
   }
 
   /**
@@ -2069,54 +2029,14 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   /**
    * Streams plain text notices as server-sent events
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return {@code String}
-   * @throws ApiException if fails to make API call
-   */
-  @Override
-  public String watchNotices() {
-    return watchNotices(null);
-  }
-
-  /**
-   * Streams plain text notices as server-sent events
-   *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return the API result wrapping {@code String}
-   * @throws ApiException if fails to make API call
-   */
-  @Override
-  public ApiResult<String> watchNoticesWithHttpInfo() {
-    return watchNoticesWithHttpInfo(null);
-  }
-
-  /**
-   * Streams plain text notices as server-sent events
-   *
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code String}
+   * @param streamOptions the stream settings, or {@code null} for the defaults
+   * @return the open stream; close it when you stop early
    * @throws ApiException if fails to make API call
    */
   @Override
-  public String watchNotices(@Nullable WatchNoticesOptions options) {
-    return requireBody(watchNoticesWithHttpInfo(options), "watchNotices");
-  }
-
-  /**
-   * Streams plain text notices as server-sent events
-   *
-   * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code String}
-   * @throws ApiException if fails to make API call
-   */
-  @Override
-  public ApiResult<String> watchNoticesWithHttpInfo(@Nullable WatchNoticesOptions options) {
+  public SseStream<String> watchNoticesStream(
+      @Nullable WatchNoticesOptions options, @Nullable StreamOptions streamOptions) {
     String path = "/store/notices";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
@@ -2126,7 +2046,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
     if (callHeaders != null) {
       headerParams.putAll(callHeaders);
     }
-    return invokeApiForResult(
+    return invokeApiForSse(
         "watchNotices",
         "GET",
         path,
@@ -2135,67 +2055,28 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
         null,
         new String[] {"text/event-stream"},
         "application/json",
-        watchNoticesTypeRef,
         NO_AUTH,
         callTimeout,
         callMaxRetries,
         null,
-        null,
         "watchNotices",
-        "/store/notices");
-  }
-
-  /**
-   * Streams order changes as server-sent events
-   *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  @Override
-  public Order watchOrders() {
-    return watchOrders(null);
-  }
-
-  /**
-   * Streams order changes as server-sent events
-   *
-   * <p>Convenience overload that omits the optional {@code options} argument; any optional
-   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
-   * configured settings apply.
-   *
-   * @return the API result wrapping {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  @Override
-  public ApiResult<Order> watchOrdersWithHttpInfo() {
-    return watchOrdersWithHttpInfo(null);
+        "/store/notices",
+        null,
+        null,
+        streamOptions);
   }
 
   /**
    * Streams order changes as server-sent events
    *
    * @param options options for query, header, form, and cookie parameters
-   * @return {@code Order}
+   * @param streamOptions the stream settings, or {@code null} for the defaults
+   * @return the open stream; close it when you stop early
    * @throws ApiException if fails to make API call
    */
   @Override
-  public Order watchOrders(@Nullable WatchOrdersOptions options) {
-    return requireBody(watchOrdersWithHttpInfo(options), "watchOrders");
-  }
-
-  /**
-   * Streams order changes as server-sent events
-   *
-   * @param options options for query, header, form, and cookie parameters
-   * @return the API result wrapping {@code Order}
-   * @throws ApiException if fails to make API call
-   */
-  @Override
-  public ApiResult<Order> watchOrdersWithHttpInfo(@Nullable WatchOrdersOptions options) {
+  public SseStream<Order> watchOrdersStream(
+      @Nullable WatchOrdersOptions options, @Nullable StreamOptions streamOptions) {
     String path = "/store/orders/events";
     Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options != null && options.status() != null) {
@@ -2213,7 +2094,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
     if (callHeaders != null) {
       headerParams.putAll(callHeaders);
     }
-    return invokeApiForResult(
+    return invokeApiForSse(
         "watchOrders",
         "GET",
         path,
@@ -2222,14 +2103,15 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
         null,
         new String[] {"text/event-stream"},
         "application/json",
-        watchOrdersTypeRef,
         NO_AUTH,
         callTimeout,
         callMaxRetries,
         null,
-        null,
         "watchOrders",
-        "/store/orders/events");
+        "/store/orders/events",
+        watchOrdersItemType,
+        null,
+        streamOptions);
   }
 
   /**

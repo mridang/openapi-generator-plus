@@ -1,0 +1,174 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import {{invokerPackage}}.errors.SerializationException;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.function.Function;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
+
+/**
+ * The items of a JSON Lines response, decoded one per line as they arrive. Blank lines are
+ * skipped, and a last line without a newline counts. A line that does not decode raises a
+ * {@link SerializationException} that names its 1-based line number and ends the stream, as does a
+ * line over {@code maxEventBytes}.
+ *
+ * <p>It is an {@link Iterator} and {@link AutoCloseable}; {@link #close()} is idempotent and aborts
+ * the connection instead of draining it, so close it (try-with-resources) when you stop early.
+ * {@link #stream()} adapts it to a {@link Stream}. Closing the client cancels the streams still
+ * open. {@link #toString()} shows the status code and the lines read, never the content.
+ *
+ * @param <T> the item type
+ */
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+        value = {"THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
+        justification = "the SDK's error contract is built on unchecked exceptions")
+public final class JsonLinesStream<T> implements Iterator<T>, AutoCloseable {
+
+    private final ByteStream source;
+    private final EventStream.LineReader lines;
+    private final Function<String, T> decoder;
+    private final String method;
+    private final String path;
+    private long lineNumber;
+    private boolean ready;
+    @Nullable private T item;
+    private boolean done;
+
+    /**
+     * Wraps an open response body.
+     *
+     * @param source the open body; this stream closes it
+     * @param decoder decodes one line into an item
+     * @param maxLineBytes the longest a line may be
+     * @param method the HTTP method of the request, for errors
+     * @param path the path of the request, for errors
+     */
+    public JsonLinesStream(
+            ByteStream source,
+            Function<String, T> decoder,
+            int maxLineBytes,
+            String method,
+            String path) {
+        this.source = source;
+        this.lines = new EventStream.LineReader(source, maxLineBytes);
+        this.decoder = decoder;
+        this.method = method;
+        this.path = path;
+    }
+
+    /**
+     * The HTTP status code of the response.
+     *
+     * @return the status code
+     */
+    public int getStatusCode() {
+        return source.getStatusCode();
+    }
+
+    /**
+     * The lower-cased response headers.
+     *
+     * @return the headers (unmodifiable)
+     */
+    public Map<String, String> getHeaders() {
+        return source.getHeaders();
+    }
+
+    @Override
+    public boolean hasNext() {
+        if (ready) {
+            return true;
+        }
+        if (done) {
+            return false;
+        }
+        try {
+            while (true) {
+                String line = lines.readLine();
+                if (line == null) {
+                    finish();
+                    return false;
+                }
+                lineNumber++;
+                if (line.isBlank()) {
+                    continue;
+                }
+                item = decode(line);
+                ready = true;
+                return true;
+            }
+        } catch (EventStream.TooLongException tooLong) {
+            finish();
+            throw new SerializationException(
+                    "Line " + (lineNumber + 1) + " of the JSON Lines response is too long: "
+                            + tooLong.getMessage(),
+                    tooLong, source.getStatusCode(), source.getHeaders(), null, method, path);
+        } catch (IOException closed) {
+            finish();
+            return false;
+        } catch (RuntimeException failure) {
+            finish();
+            throw failure;
+        }
+    }
+
+    private T decode(String line) {
+        try {
+            return decoder.apply(line);
+        } catch (SerializationException failure) {
+            throw new SerializationException(
+                    "Line " + lineNumber + " of the JSON Lines response does not decode: "
+                            + failure.getMessage(),
+                    failure, source.getStatusCode(), source.getHeaders(), null, method, path);
+        }
+    }
+
+    @Override
+    public T next() {
+        if (!hasNext()) {
+            throw new NoSuchElementException();
+        }
+        ready = false;
+        T value = item;
+        item = null;
+        if (value == null) {
+            throw new IllegalStateException("The line decoded to null");
+        }
+        return value;
+    }
+
+    /**
+     * The remaining items as a {@link Stream}; closing the stream closes this one.
+     *
+     * @return a sequential stream of the items
+     */
+    public Stream<T> stream() {
+        return StreamSupport.stream(
+                        java.util.Spliterators.spliteratorUnknownSize(this, java.util.Spliterator.ORDERED), false)
+                .onClose(this::close);
+    }
+
+    private void finish() {
+        done = true;
+        source.close();
+    }
+
+    /** Closes the stream and aborts the connection; later calls do nothing. */
+    @Override
+    public void close() {
+        done = true;
+        ready = false;
+        source.close();
+    }
+
+    @Override
+    public String toString() {
+        return "JsonLinesStream{statusCode=" + source.getStatusCode() + ", linesRead=" + lineNumber + "}";
+    }
+}
