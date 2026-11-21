@@ -242,6 +242,80 @@ func (b *baseApi) invokeApiForStream(params invokeApiParams) (*ApiStreamResponse
 	return streamed, err
 }
 
+// invokeJsonLines invokes an operation whose success response is JSON Lines
+// and returns its items as a lazy stream. Everything up to the response headers
+// is the buffered call (see invokeApiForStream); decode turns one line into an
+// item.
+func invokeJsonLines[T any](b *baseApi, params invokeApiParams, decode func(string) (T, error)) (*JsonLinesStream[T], error) {
+	response, err := b.invokeApiForStream(params)
+	if err != nil {
+		return nil, err
+	}
+	limit := defaultMaxEventBytes
+	if params.settings != nil && params.settings.maxEventBytes != nil {
+		limit = *params.settings.maxEventBytes
+	}
+	return newJsonLinesStream(response, decode, limit, params.method, requestPathOf(params.path)), nil
+}
+
+// invokeSse invokes an operation whose success response is server-sent events
+// and returns its events as a lazy stream that reconnects. Each connection is a
+// fresh call of the pipeline of invokeApiForStream, so the call hook, the
+// headers and the authentication are built again; the stream adds Accept
+// (from the operation), Cache-Control: no-cache and Accept-Encoding: identity
+// unless the caller set them, and Last-Event-ID once it has an id. terminator,
+// when not nil, is a data value that ends the stream and is not delivered.
+func invokeSse[T any](b *baseApi, params invokeApiParams, decode func(string) (T, error), terminator *string) (*SseStream[T], error) {
+	ctx := params.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	settings := params.settings
+	if settings == nil {
+		settings = &callSettings{}
+	}
+	base := make(map[string]string, len(params.headerParams)+2)
+	for name, value := range params.headerParams {
+		base[name] = value
+	}
+	for name, value := range map[string]string{"Cache-Control": "no-cache", "Accept-Encoding": "identity"} {
+		if !hasHeader(base, name) && !hasHeader(settings.headers, name) && !hasHeader(b.config.DefaultHeaders(), name) {
+			base[name] = value
+		}
+	}
+	attempt := 0
+	opener := func(lastEventID string) (*ApiStreamResponse, error) {
+		attempted := params
+		attempted.headerParams = make(map[string]string, len(base)+1)
+		for name, value := range base {
+			attempted.headerParams[name] = value
+		}
+		if lastEventID != "" {
+			attempted.headerParams["Last-Event-ID"] = lastEventID
+		}
+		attempt++
+		if attempt == 1 {
+			return b.invokeApiForStream(attempted)
+		}
+		call := &callState{}
+		attempted.call = call
+		response, err := b.invokeApiForStream(attempted)
+		call.end(&err)
+		return response, err
+	}
+	return openSse(ctx, opener, decode, terminator, settings, params.body != nil, params.method, requestPathOf(params.path))
+}
+
+// decodeItem decodes one line or one data field as JSON into a T.
+func decodeItem[T any](text string) (T, error) {
+	var item T
+	err := deserialize([]byte(text), &item)
+	return item, err
+}
+
+// decodeText hands a data field over as it is.
+func decodeText(text string) (string, error) { return text, nil }
+
 // invokeCall is the one call loop of invokeApiForResult and invokeApiForStream.
 // A stream call returns the open response and no buffered one.
 func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpResponse, *ApiStreamResponse, error) {
@@ -567,7 +641,11 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 				remaining := max(time.Until(budgetDeadline), time.Nanosecond)
 				attemptTimeout = &remaining
 			}
-			streamed, err = streamer.SendStreaming(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: streamCtx, Timeout: attemptTimeout})
+			var idleTimeout *time.Duration
+			if params.settings != nil {
+				idleTimeout = params.settings.idleTimeout
+			}
+			streamed, err = streamer.SendStreaming(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: streamCtx, Timeout: attemptTimeout, IdleTimeout: idleTimeout})
 			if err == nil {
 				if streamed.StatusCode >= 200 && streamed.StatusCode < 300 {
 					response = &ApiHttpResponse{StatusCode: streamed.StatusCode, Headers: streamed.Headers}

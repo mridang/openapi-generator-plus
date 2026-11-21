@@ -1,0 +1,201 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"errors"
+	"io"
+	"strconv"
+	"strings"
+)
+
+/* defaultMaxEventBytes is the longest line of a JSON Lines body, and the
+ * longest event of an event stream, a stream accepts unless WithMaxEventBytes
+ * says otherwise. */
+const defaultMaxEventBytes = 1024 * 1024
+
+// tooLongError is raised by the line reader and the parser for a line or an
+// event over the limit.
+type tooLongError struct {
+	message string
+}
+
+func (e *tooLongError) Error() string { return e.message }
+
+// lineReader splits a body into lines at LF, CR or CRLF (a CR is followed by a
+// skipped LF), keeping a flag for the last line of a body that has no line end.
+// It drops one leading byte order mark.
+type lineReader struct {
+	in           io.Reader
+	maxBytes     int
+	buffer       []byte
+	position     int
+	limit        int
+	skipLineFeed bool
+	first        bool
+	terminated   bool
+}
+
+func newLineReader(in io.Reader, maxBytes int) *lineReader {
+	return &lineReader{in: in, maxBytes: maxBytes, buffer: make([]byte, 8192), first: true, terminated: true}
+}
+
+// wasTerminated reports whether the line last returned ended in a line end
+// (false for a last line that the body cut off).
+func (r *lineReader) wasTerminated() bool { return r.terminated }
+
+// readLine returns the next line without its line end and true, or false at
+// the end of the body. A read failure and a line over the limit are errors.
+func (r *lineReader) readLine() (string, bool, error) {
+	var line []byte
+	started := false
+	for {
+		if r.position >= r.limit {
+			n, err := r.in.Read(r.buffer)
+			if n == 0 {
+				if err == nil {
+					continue
+				}
+				if err == io.EOF {
+					if !started {
+						return "", false, nil
+					}
+					r.terminated = false
+					return r.decode(line), true, nil
+				}
+				return "", false, err
+			}
+			r.position, r.limit = 0, n
+		}
+		value := r.buffer[r.position]
+		r.position++
+		if r.skipLineFeed {
+			r.skipLineFeed = false
+			if value == '\n' {
+				continue
+			}
+		}
+		if value == '\n' || value == '\r' {
+			r.skipLineFeed = value == '\r'
+			r.terminated = true
+			return r.decode(line), true, nil
+		}
+		started = true
+		if len(line) >= r.maxBytes {
+			return "", false, &tooLongError{message: "a line is longer than " + strconv.Itoa(r.maxBytes) + " bytes"}
+		}
+		line = append(line, value)
+	}
+}
+
+func (r *lineReader) decode(line []byte) string {
+	text := string(line)
+	if r.first {
+		r.first = false
+		text = strings.TrimPrefix(text, "\xef\xbb\xbf")
+	}
+	return text
+}
+
+// rawEvent is one dispatched event of an event stream, before its data is
+// decoded.
+type rawEvent struct {
+	id    string
+	event string
+	data  string
+	retry *int64
+}
+
+// sseParser reads the events of one connection following the WHATWG grammar:
+// a blank line dispatches, an event with no data is not dispatched but keeps
+// its id, a comment line is skipped, one space after the colon is removed, an
+// unknown field is ignored, data lines are joined with LF, an id with NUL is
+// ignored, a retry of anything but digits is ignored, and an event cut off by
+// the end of the connection is discarded.
+type sseParser struct {
+	lines         *lineReader
+	maxEventBytes int
+	lastEventID   string
+	retry         *int64
+}
+
+func newSseParser(in io.Reader, maxEventBytes int, lastEventID string) *sseParser {
+	return &sseParser{lines: newLineReader(in, maxEventBytes), maxEventBytes: maxEventBytes, lastEventID: lastEventID}
+}
+
+// next returns the next event, or nil at the end of the connection. A read
+// failure and an event over the limit are errors.
+func (p *sseParser) next() (*rawEvent, error) {
+	var data strings.Builder
+	hasData := false
+	name := ""
+	idBuffer := p.lastEventID
+	for {
+		line, ok, err := p.lines.readLine()
+		if err != nil {
+			return nil, err
+		}
+		if !ok || !p.lines.wasTerminated() {
+			return nil, nil
+		}
+		if line == "" {
+			p.lastEventID = idBuffer
+			if !hasData {
+				name = ""
+				continue
+			}
+			text := data.String()
+			text = text[:len(text)-1]
+			event := &rawEvent{id: p.lastEventID, event: name, data: text, retry: p.retry}
+			if event.event == "" {
+				event.event = "message"
+			}
+			return event, nil
+		}
+		if line[0] == ':' {
+			continue
+		}
+		field, value := line, ""
+		if colon := strings.IndexByte(line, ':'); colon >= 0 {
+			field, value = line[:colon], strings.TrimPrefix(line[colon+1:], " ")
+		}
+		switch field {
+		case "data":
+			if data.Len()+len(value)+1 > p.maxEventBytes {
+				return nil, &tooLongError{message: "an event is longer than " + strconv.Itoa(p.maxEventBytes) + " bytes"}
+			}
+			data.WriteString(value)
+			data.WriteByte('\n')
+			hasData = true
+		case "event":
+			name = value
+		case "id":
+			if !strings.ContainsRune(value, 0) {
+				idBuffer = value
+			}
+		case "retry":
+			if parsed, ok := parseDigits(value); ok {
+				p.retry = &parsed
+			}
+		}
+	}
+}
+
+// parseDigits reads a value made of ASCII digits only, at most 17 of them.
+func parseDigits(value string) (int64, bool) {
+	if value == "" || len(value) >= 18 {
+		return 0, false
+	}
+	for _, c := range value {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	return parsed, err == nil
+}
+
+// isTooLong reports whether err is a line or event over the limit.
+func isTooLong(err error) (*tooLongError, bool) {
+	var tooLong *tooLongError
+	return tooLong, errors.As(err, &tooLong)
+}

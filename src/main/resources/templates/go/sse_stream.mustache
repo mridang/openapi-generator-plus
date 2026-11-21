@@ -1,0 +1,363 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"iter"
+	"math/rand/v2"
+	"net/http"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	errors_pkg "{{packageName}}/pkg/errors"
+)
+
+/* maxReconnectDelay is the longest wait between two connections of an event
+ * stream when the server named none. */
+const maxReconnectDelay = 30 * time.Second
+
+// SseStream is the events of a server-sent events response, read as they
+// arrive and reconnected when the connection is lost. An operation whose
+// success response is text/event-stream returns one from its <Operation>Stream
+// method.
+//
+// Range over All to read the events; leaving the loop early, or reaching its
+// end, closes the stream and releases the connection. The stream reconnects when
+// the connection ends, fails or stays silent for the idle timeout: it asks again
+// with freshly built headers (so a refreshed token is the one sent) and
+// Last-Event-ID, waits the server's retry value or the reconnect delay (1
+// second, doubling to 30 seconds with up to 25% jitter) and gives up with the
+// last failure after WithMaxReconnects failures in a row without an event (5; 0
+// for a request with a body; -1 is unlimited). It never reconnects after a 204,
+// a status other than 408, 429 and 5xx, a response that is not
+// text/event-stream, a cancellation or the close of the client. An event named
+// error returns the *ApiError of the response status with the data as its body.
+//
+// Close is idempotent, and closing the client cancels the stream.
+//
+// String shows the status code, the number of events delivered and the last
+// event id, never the headers, the URL or the data.
+type SseStream[T any] struct {
+	opener        func(lastEventID string) (*ApiStreamResponse, error)
+	decode        func(string) (T, error)
+	terminator    *string
+	maxReconnects int
+	delay         time.Duration
+	maxEventBytes int
+	method        string
+	path          string
+	ctx           context.Context
+
+	mu          sync.Mutex // guards current and the close
+	current     *ApiStreamResponse
+	stop        chan struct{}
+	parser      *sseParser
+	lastEventID string
+	serverRetry *int64
+	consecutive int
+	delivered   atomic.Int64
+	done        bool
+	closed      bool
+}
+
+// openSse connects for the first time and returns the stream, or the failure of
+// the first request.
+func openSse[T any](ctx context.Context, opener func(string) (*ApiStreamResponse, error), decode func(string) (T, error), terminator *string, settings *callSettings, hasBody bool, method, path string) (*SseStream[T], error) {
+	s := &SseStream[T]{
+		opener:        opener,
+		decode:        decode,
+		terminator:    terminator,
+		maxReconnects: 5,
+		delay:         time.Second,
+		maxEventBytes: defaultMaxEventBytes,
+		method:        method,
+		path:          path,
+		ctx:           ctx,
+		stop:          make(chan struct{}),
+	}
+	if hasBody {
+		s.maxReconnects = 0
+	}
+	if settings != nil {
+		if settings.maxReconnects != nil {
+			s.maxReconnects = *settings.maxReconnects
+		}
+		if settings.reconnectDelay != nil {
+			s.delay = *settings.reconnectDelay
+		}
+		if settings.maxEventBytes != nil {
+			s.maxEventBytes = *settings.maxEventBytes
+		}
+		if settings.lastEventID != nil {
+			s.lastEventID = *settings.lastEventID
+		}
+	}
+	first, err := s.connect()
+	if err != nil {
+		return nil, err
+	}
+	s.current = first
+	s.parser = newSseParser(first.Body, s.maxEventBytes, s.lastEventID)
+	return s, nil
+}
+
+// StatusCode returns the HTTP status code of the current connection.
+func (s *SseStream[T]) StatusCode() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.current.StatusCode
+}
+
+// Headers returns the response headers of the current connection with
+// lower-cased names. Go has no immutable map, so callers must not mutate it.
+func (s *SseStream[T]) Headers() map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.current.Headers
+}
+
+// connect opens one connection and checks that it is an event stream.
+func (s *SseStream[T]) connect() (*ApiStreamResponse, error) {
+	response, err := s.opener(s.lastEventID)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode == http.StatusNoContent {
+		return response, nil
+	}
+	contentType := response.Headers["content-type"]
+	if !strings.HasPrefix(strings.ToLower(contentType), "text/event-stream") {
+		_ = response.Body.Close()
+		bare, _, _ := strings.Cut(contentType, ";")
+		return nil, s.serializationFailure(response, fmt.Sprintf("unexpected response Content-Type '%s' for %s: expected text/event-stream", strings.TrimSpace(bare), s.path), nil)
+	}
+	return response, nil
+}
+
+func (s *SseStream[T]) serializationFailure(response *ApiStreamResponse, message string, cause error) error {
+	failure := newSerializationError(message, cause)
+	failure.AttachResponse(response.StatusCode, response.Headers, "", s.method, s.path)
+	return failure
+}
+
+// All returns the events of the stream in order. The error of a failed stream is
+// the last value; the sequence ends after it.
+func (s *SseStream[T]) All() iter.Seq2[ServerSentEvent[T], error] {
+	return func(yield func(ServerSentEvent[T], error) bool) {
+		defer func() { _ = s.Close() }()
+		for {
+			event, err := s.advance()
+			if err != nil {
+				yield(ServerSentEvent[T]{}, err)
+				return
+			}
+			if event == nil || !yield(*event, nil) {
+				return
+			}
+		}
+	}
+}
+
+// advance returns the next event, or nil when the stream has ended.
+func (s *SseStream[T]) advance() (*ServerSentEvent[T], error) {
+	if s.done || s.current.StatusCode == http.StatusNoContent {
+		return nil, nil
+	}
+	for !s.done {
+		raw, err := s.parser.next()
+		var lost error
+		if err != nil {
+			if tooLong, isLong := isTooLong(err); isLong {
+				s.done = true
+				return nil, s.serializationFailure(s.current, "an event of the stream is too long: "+tooLong.message, tooLong)
+			}
+			var network *errors_pkg.NetworkError
+			switch {
+			case errors.Is(err, io.ErrClosedPipe):
+				s.done = true
+				return nil, nil
+			case errors.As(err, &network):
+				lost = err
+			default:
+				s.done = true
+				return nil, err
+			}
+		}
+		s.lastEventID = s.parser.lastEventID
+		s.serverRetry = s.parser.retry
+		if raw != nil {
+			s.consecutive = 0
+			event, deliverErr := s.deliver(raw)
+			if deliverErr != nil || event == nil {
+				s.done = true
+			}
+			return event, deliverErr
+		}
+		if s.done {
+			return nil, nil
+		}
+		more, reconnectErr := s.reconnect(lost)
+		if reconnectErr != nil {
+			s.done = true
+			return nil, reconnectErr
+		}
+		if !more {
+			s.done = true
+			return nil, nil
+		}
+	}
+	return nil, nil
+}
+
+// deliver turns a dispatched event into an item; nil ends the stream.
+func (s *SseStream[T]) deliver(raw *rawEvent) (*ServerSentEvent[T], error) {
+	if raw.event == "error" {
+		failure := errors_pkg.NewApiError(s.current.StatusCode, "the server sent an error event", raw.data, s.current.Headers, nil, nil)
+		attachRequestContext(failure, s.method, s.path)
+		return nil, failure
+	}
+	if s.terminator != nil && *s.terminator == raw.data {
+		return nil, nil
+	}
+	data, err := s.decode(raw.data)
+	if err != nil {
+		return nil, s.serializationFailure(s.current, "the data of an event does not decode: "+err.Error(), err)
+	}
+	s.delivered.Add(1)
+	return &ServerSentEvent[T]{ID: raw.id, Event: raw.event, Data: data, Retry: raw.retry, Raw: raw.data}, nil
+}
+
+// reconnect closes the lost connection and opens another. It reports false
+// when the stream ends without a failure, and returns the failure that ended it
+// otherwise.
+func (s *SseStream[T]) reconnect(failure error) (bool, error) {
+	cause := failure
+	for {
+		s.mu.Lock()
+		_ = s.current.Body.Close()
+		s.mu.Unlock()
+		if s.maxReconnects == 0 {
+			return false, cause
+		}
+		if s.maxReconnects > 0 && s.consecutive >= s.maxReconnects {
+			if cause != nil {
+				return false, cause
+			}
+			ended := errors_pkg.NewStreamError(fmt.Sprintf("the event stream ended and was not re-established after %d reconnects", s.maxReconnects), io.ErrUnexpectedEOF)
+			attachRequestContext(ended, s.method, s.path)
+			return false, ended
+		}
+		s.consecutive++
+		if err := s.pause(reconnectWait(s.consecutive, s.delay, s.serverRetry, retryAfterOf(cause), rand.Float64())); err != nil {
+			return false, err
+		}
+		if s.isClosed() {
+			return false, nil
+		}
+		next, err := s.connect()
+		if err == nil {
+			s.mu.Lock()
+			s.current = next
+			s.mu.Unlock()
+			s.parser = newSseParser(next.Body, s.maxEventBytes, s.lastEventID)
+			return next.StatusCode != http.StatusNoContent, nil
+		}
+		var network *errors_pkg.NetworkError
+		var api *errors_pkg.ApiError
+		switch {
+		case errors.As(err, &network):
+			cause = err
+		case errors.As(err, &api) && (api.StatusCode() == 408 || api.StatusCode() == 429 || (api.StatusCode() >= 500 && api.StatusCode() <= 599)):
+			cause = err
+		default:
+			return false, err
+		}
+	}
+}
+
+// retryAfterOf is the wait a 429, 502, 503 or 504 asked for with Retry-After.
+func retryAfterOf(failure error) *time.Duration {
+	var network *errors_pkg.NetworkError
+	var api *errors_pkg.ApiError
+	if failure == nil || errors.As(failure, &network) || !errors.As(failure, &api) {
+		return nil
+	}
+	switch api.StatusCode() {
+	case 429, 502, 503, 504:
+		if delay, ok := retryAfterDelay(api.ResponseHeaders(), time.Now()); ok {
+			return &delay
+		}
+	}
+	return nil
+}
+
+// reconnectWait is the wait before reconnection number attempt (from 1): the
+// retry the server set, else the Retry-After of the failure, else the base
+// delay doubling to 30 seconds and losing up to 25% to jitter (jitterSample is a
+// value from 0 to 1).
+func reconnectWait(attempt int, base time.Duration, serverRetry *int64, retryAfter *time.Duration, jitterSample float64) time.Duration {
+	if serverRetry != nil {
+		return time.Duration(*serverRetry) * time.Millisecond
+	}
+	if retryAfter != nil {
+		return *retryAfter
+	}
+	doubled := base
+	for i := 1; i < attempt && doubled < maxReconnectDelay; i++ {
+		doubled *= 2
+	}
+	doubled = min(doubled, maxReconnectDelay)
+	return time.Duration(float64(doubled) * (1 - 0.25*jitterSample))
+}
+
+// pause waits d, ending early with the cancellation error when the call context
+// is cancelled and quietly when the stream is closed.
+func (s *SseStream[T]) pause(d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-s.stop:
+		return nil
+	case <-s.ctx.Done():
+		return fmt.Errorf("request cancelled: %w", s.ctx.Err())
+	}
+}
+
+func (s *SseStream[T]) isClosed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
+}
+
+// Close closes the stream and aborts the connection; later calls do nothing and
+// return nil.
+func (s *SseStream[T]) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+	close(s.stop)
+	_ = s.current.Body.Close()
+	return nil
+}
+
+// String describes the stream by its status code, the events delivered and the
+// last event id.
+func (s *SseStream[T]) String() string {
+	return fmt.Sprintf("SseStream{statusCode=%d, eventsDelivered=%d, lastEventID=%s}", s.StatusCode(), s.delivered.Load(), s.lastEventID)
+}
+
+// GoString is String for the %#v verb, which would otherwise show the headers.
+func (s *SseStream[T]) GoString() string { return s.String() }
