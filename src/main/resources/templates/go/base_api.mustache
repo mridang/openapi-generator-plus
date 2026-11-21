@@ -450,7 +450,12 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 		/* Build query string */
 		queryString := buildQueryStringOrdered(queryParams, params.order)
 		if queryString != "" {
-			attemptURL = attemptURL + "?" + queryString
+			/* A URL named by a Link header may carry a query of its own. */
+			separator := "?"
+			if strings.Contains(attemptURL, "?") {
+				separator = "&"
+			}
+			attemptURL = attemptURL + separator + queryString
 		}
 
 		/* Select headers */

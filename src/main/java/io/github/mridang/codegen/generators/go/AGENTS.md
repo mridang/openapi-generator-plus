@@ -476,6 +476,18 @@ Rule: `openSse` takes `singleUse`; when true `maxReconnects` is 0 whatever the o
 Where: `sse_stream.mustache`, `base_api.mustache`.
 Test: `event_stream_test.mustache` (`bhvSse016`).
 
+## Pagination (capability 4 of #114, D123, D124)
+
+### `Paginator[T, C]`, `Page[T, C]` and the Pages methods
+Rule: for an operation with `vendorExtensions.op.hasPagesMethod` the api template emits `<Op>Pages(ctx, ...args, options, callOptions...)` (and the same line in `<Group>ApiInterface`, through `operation_pages_interface.mustache`) returning `*Paginator[Item, Cursor]`, with `NoCursor` as the cursor type of a `Link` list. `BetterGoCodegen.markPaged` adds `goPaginatorType`, `goCursorType` and `goCursorField` (the options struct field) to the shared `pagination` map. Go has no generic default, so `Paginator` and `Page` carry two type parameters (the design table writes one): the cursor must be typed like the request parameter (`*string`, `*int32`, `*int64`), and `Page.Result` is an `*ApiResult[any]` because a third parameter would make every signature unreadable. `Items()` and `Pages()` are `iter.Seq2` with the error as the second value; each range builds new state, so re-iteration restarts. The options struct is copied by value (`base := *options`) and the cursor set on the copy for each page. `pageItems` and `pageCursor` read the page property whether it is a value or a pointer and convert an integer cursor property to the integer type of the parameter.
+Where: `BetterGoCodegen`, `paginator.mustache`, `page.mustache`, `api/api.mustache`, `api/operation_pages.mustache`, `api/operation_pages_interface.mustache`.
+Test: `test/paginator_test.mustache` (the mirror test file of `paginator.go`: `bhvPagination001` to `003`, `007` to `028`, `030` to `032`).
+
+### Link header lists and the loop guard
+Rule: a `Link` operation is split into `<Op>WithHTTPInfo` and a private `fetch<Op>Page(..., pageURL *string, ...)` that replaces the path with the URL and clears the query parameters; `invokeCall` appends the authentication query to a URL that already has a query with `&`. `linkNext` (`link_header.mustache`, tested in `link_header_test.mustache`) reads RFC 8288. `newLinkPaginator` resolves a relative link against the previous page URL (the base URL for the first page), refuses a scheme, host or port other than the client's with `*PaginationError` before anything is sent, and treats a link to the page just read as a repeat. `newCursorPaginator` ends on a nil or empty cursor and yields `*PaginationError` after the page whose cursor equals the one sent. `PaginationError` (`errors/pagination_error.mustache`) satisfies the root error directly, not `*ApiError` or `*NetworkError`.
+Where: `paginator.mustache`, `link_header.mustache`, `errors/pagination_error.mustache`, `base_api.mustache`.
+Test: `bhvPagination007`, `008`, `014`, `023`, `031`.
+
 ## Gate lessons (what broke the gate and how to avoid it)
 
 - Generated code is verified only by the Docker specs, so a template edit is unproven until `etc/ci-local.sh check Go` is green (GoFormattingSpec, GoLintingSpec, GoClientSpec). Run it before every push; the quick mode skips the integration specs and lets lint failures through.

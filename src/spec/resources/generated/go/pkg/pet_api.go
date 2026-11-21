@@ -248,14 +248,18 @@ type PetApiInterface interface {
 	ListPetArchiveWithHTTPInfo(ctx context.Context, options *opts.ListPetArchiveOptions, callOptions ...RequestOption) (*ApiResult[PetArchivePage], error)
 	ListPetCatalog(ctx context.Context, options *opts.ListPetCatalogOptions, callOptions ...RequestOption) (*PetCatalogPage, error)
 	ListPetCatalogWithHTTPInfo(ctx context.Context, options *opts.ListPetCatalogOptions, callOptions ...RequestOption) (*ApiResult[PetCatalogPage], error)
+	ListPetCatalogPages(ctx context.Context, options *opts.ListPetCatalogOptions, callOptions ...RequestOption) *Paginator[Pet, string]
 	ListPetEvents(ctx context.Context, options *opts.ListPetEventsOptions, callOptions ...RequestOption) (*PetEventPage, error)
 	ListPetEventsWithHTTPInfo(ctx context.Context, options *opts.ListPetEventsOptions, callOptions ...RequestOption) (*ApiResult[PetEventPage], error)
+	ListPetEventsPages(ctx context.Context, options *opts.ListPetEventsOptions, callOptions ...RequestOption) *Paginator[string, string]
 	ListPetFeed(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) ([]Pet, error)
 	ListPetFeedWithHTTPInfo(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) (*ApiResult[[]Pet], error)
+	ListPetFeedPages(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) *Paginator[Pet, NoCursor]
 	ListPetMatches(ctx context.Context, options *opts.ListPetMatchesOptions, callOptions ...RequestOption) (*PetMatchPage, error)
 	ListPetMatchesWithHTTPInfo(ctx context.Context, options *opts.ListPetMatchesOptions, callOptions ...RequestOption) (*ApiResult[PetMatchPage], error)
 	ListPetNotes(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) (*PetNotePage, error)
 	ListPetNotesWithHTTPInfo(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) (*ApiResult[PetNotePage], error)
+	ListPetNotesPages(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) *Paginator[string, string]
 	SetPetAvatar(ctx context.Context, petId int64, body *BodySource, callOptions ...RequestOption) error
 	SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body *BodySource, callOptions ...RequestOption) (*ApiResult[any], error)
 	SetPetAvatarThumbnail(ctx context.Context, petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest, callOptions ...RequestOption) error
@@ -3668,6 +3672,39 @@ func (a *PetApi) ListPetCatalogWithHTTPInfo(ctx context.Context, options *opts.L
 	}, nil
 }
 
+// ListPetCatalogPages Lists the pet catalog one page at a time with a next-cursor token
+//
+// It returns the items as a lazy *Paginator: no request is sent until you first
+// range over its items or pages, and each next page is requested only when you
+// ask for more. Every page is an ordinary call of ListPetCatalogWithHTTPInfo, with
+// the same options on each page.
+// The value of the Cursor option is where the list starts, and the page after
+// each one is requested with the NextCursor it returned.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the page request in flight.
+// param options: Options for query, header, form, and cookie parameters; they are repeated on every page.
+// param callOptions: Per-call options, applied to every page request.
+//
+// GET /pet/catalog
+func (a *PetApi) ListPetCatalogPages(ctx context.Context, options *opts.ListPetCatalogOptions, callOptions ...RequestOption) *Paginator[Pet, string] {
+	var base opts.ListPetCatalogOptions
+	if options != nil {
+		base = *options
+	}
+	return newCursorPaginator(base.Cursor, "/pet/catalog",
+		func(cursor *string) (*ApiResult[PetCatalogPage], error) {
+			page := base
+			page.Cursor = cursor
+			return a.ListPetCatalogWithHTTPInfo(ctx, &page, callOptions...)
+		},
+		func(body PetCatalogPage) []Pet {
+			return pageItems[Pet](body.Items)
+		},
+		func(body PetCatalogPage) *string {
+			return pageCursor[string](body.NextCursor)
+		})
+}
+
 // ListPetEvents Lists pet events; only the generator option says it is paged
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
@@ -3811,6 +3848,39 @@ func (a *PetApi) ListPetEventsWithHTTPInfo(ctx context.Context, options *opts.Li
 	}, nil
 }
 
+// ListPetEventsPages Lists pet events; only the generator option says it is paged
+//
+// It returns the items as a lazy *Paginator: no request is sent until you first
+// range over its items or pages, and each next page is requested only when you
+// ask for more. Every page is an ordinary call of ListPetEventsWithHTTPInfo, with
+// the same options on each page.
+// The value of the Since option is where the list starts, and the page after
+// each one is requested with the Upto it returned.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the page request in flight.
+// param options: Options for query, header, form, and cookie parameters; they are repeated on every page.
+// param callOptions: Per-call options, applied to every page request.
+//
+// GET /pet/events
+func (a *PetApi) ListPetEventsPages(ctx context.Context, options *opts.ListPetEventsOptions, callOptions ...RequestOption) *Paginator[string, string] {
+	var base opts.ListPetEventsOptions
+	if options != nil {
+		base = *options
+	}
+	return newCursorPaginator(base.Since, "/pet/events",
+		func(cursor *string) (*ApiResult[PetEventPage], error) {
+			page := base
+			page.Since = cursor
+			return a.ListPetEventsWithHTTPInfo(ctx, &page, callOptions...)
+		},
+		func(body PetEventPage) []string {
+			return pageItems[string](body.Events)
+		},
+		func(body PetEventPage) *string {
+			return pageCursor[string](body.Upto)
+		})
+}
+
 // ListPetFeed Lists the pet feed one page at a time with a Link header
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
@@ -3834,7 +3904,13 @@ func (a *PetApi) ListPetFeed(ctx context.Context, options *opts.ListPetFeedOptio
 }
 
 // ListPetFeedWithHTTPInfo performs the ListPetFeed operation and returns the full API result.
-func (a *PetApi) ListPetFeedWithHTTPInfo(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) (_ *ApiResult[[]Pet], callErr error) {
+func (a *PetApi) ListPetFeedWithHTTPInfo(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) (*ApiResult[[]Pet], error) {
+	return a.fetchListPetFeedPage(ctx, options, nil, callOptions...)
+}
+
+/* fetchListPetFeedPage sends one page of the list: the first when pageURL is nil,
+ * else the URL the Link header of the page before it named. */
+func (a *PetApi) fetchListPetFeedPage(ctx context.Context, options *opts.ListPetFeedOptions, pageURL *string, callOptions ...RequestOption) (_ *ApiResult[[]Pet], callErr error) {
 	/* The call hook follows the call to its end, the decoding of the response
 	 * included: it is told how the call ended when this method returns. */
 	call := &callState{}
@@ -3861,6 +3937,10 @@ func (a *PetApi) ListPetFeedWithHTTPInfo(ctx context.Context, options *opts.List
 
 	var requestBody any
 
+	if pageURL != nil {
+		path = *pageURL
+		queryParams = make(map[string]any)
+	}
 	response, err := a.invokeApi(invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
@@ -3953,6 +4033,28 @@ func (a *PetApi) ListPetFeedWithHTTPInfo(ctx context.Context, options *opts.List
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
+}
+
+// ListPetFeedPages Lists the pet feed one page at a time with a Link header
+//
+// It returns the items as a lazy *Paginator: no request is sent until you first
+// range over its items or pages, and each next page is requested only when you
+// ask for more. Every page is an ordinary call of ListPetFeedWithHTTPInfo, with
+// the same options on each page.
+// The page after each one is the rel="next" link of its Link header, followed
+// only within the origin of the client.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the page request in flight.
+// param options: Options for query, header, form, and cookie parameters; they are repeated on every page.
+// param callOptions: Per-call options, applied to every page request.
+//
+// GET /pet/feed
+func (a *PetApi) ListPetFeedPages(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) *Paginator[Pet, NoCursor] {
+	return newLinkPaginator(a.config.BaseURL(), "/pet/feed",
+		func(pageURL *string) (*ApiResult[[]Pet], error) {
+			return a.fetchListPetFeedPage(ctx, options, pageURL, callOptions...)
+		},
+		func(body []Pet) []Pet { return body })
 }
 
 // ListPetMatches Finds pets and their owners; two lists make it ambiguous, so it is not paged
@@ -4239,6 +4341,39 @@ func (a *PetApi) ListPetNotesWithHTTPInfo(ctx context.Context, options *opts.Lis
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil
+}
+
+// ListPetNotesPages Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+//
+// It returns the items as a lazy *Paginator: no request is sent until you first
+// range over its items or pages, and each next page is requested only when you
+// ask for more. Every page is an ordinary call of ListPetNotesWithHTTPInfo, with
+// the same options on each page.
+// The value of the Pos option is where the list starts, and the page after
+// each one is requested with the Following it returned.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the page request in flight.
+// param options: Options for query, header, form, and cookie parameters; they are repeated on every page.
+// param callOptions: Per-call options, applied to every page request.
+//
+// GET /pet/notes
+func (a *PetApi) ListPetNotesPages(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) *Paginator[string, string] {
+	var base opts.ListPetNotesOptions
+	if options != nil {
+		base = *options
+	}
+	return newCursorPaginator(base.Pos, "/pet/notes",
+		func(cursor *string) (*ApiResult[PetNotePage], error) {
+			page := base
+			page.Pos = cursor
+			return a.ListPetNotesWithHTTPInfo(ctx, &page, callOptions...)
+		},
+		func(body PetNotePage) []string {
+			return pageItems[string](body.Rows)
+		},
+		func(body PetNotePage) *string {
+			return pageCursor[string](body.Following)
+		})
 }
 
 // SetPetAvatar Set the pet's profile photo
