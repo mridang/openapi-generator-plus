@@ -1,0 +1,217 @@
+{{>api_info}}
+
+// An in-process HTTP/1.1 server on a raw socket, included through `mod raw_server;` into the
+// integration-test binaries that need a server which can stall a body, cut it short, drop the
+// connection or answer differently on the Nth request: what the shared mock server cannot do.
+// Each binary links the whole module and calls only the part its scenarios need, which is why
+// Cargo.toml allows `dead_code` for the package.
+
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
+
+struct Shared {
+    hits: AtomicUsize,
+    heads: Mutex<Vec<String>>,
+    released: (Mutex<bool>, Condvar),
+    gone: AtomicBool,
+    stopped: AtomicBool,
+}
+
+/// One connection a script is handling: the request head that arrived, the number of this
+/// request (the first is 1) and the socket to answer on.
+pub struct Conn {
+    stream: TcpStream,
+    pub hit: usize,
+    pub head: String,
+    shared: Arc<Shared>,
+}
+
+impl Conn {
+    /// Writes a status line and the headers, then ends the head. `Connection: close` is added.
+    pub fn head(&mut self, status: u16, headers: &[&str]) -> std::io::Result<()> {
+        let mut head = format!("HTTP/1.1 {} Test\r\n", status);
+        for header in headers {
+            head.push_str(header);
+            head.push_str("\r\n");
+        }
+        head.push_str("Connection: close\r\n\r\n");
+        self.write(head.as_bytes())
+    }
+
+    /// Writes raw bytes of the body, as they are.
+    pub fn write(&mut self, bytes: &[u8]) -> std::io::Result<()> {
+        self.stream.write_all(bytes)?;
+        self.stream.flush()
+    }
+
+    /// Writes one chunk of a chunked body.
+    pub fn chunk(&mut self, data: &str) -> std::io::Result<()> {
+        let framed = format!("{:x}\r\n{}\r\n", data.len(), data);
+        self.write(framed.as_bytes())
+    }
+
+    /// Writes the last chunk of a chunked body.
+    pub fn end(&mut self) -> std::io::Result<()> {
+        self.write(b"0\r\n\r\n")
+    }
+
+    /// Waits until the test calls [`RawServer::release`]; true when it did, false after 20 s.
+    pub fn await_release(&self) -> bool {
+        let (lock, cvar) = &self.shared.released;
+        let guard = lock.lock().expect("release lock");
+        let (guard, _) = cvar
+            .wait_timeout_while(guard, Duration::from_secs(20), |released| !*released)
+            .expect("release wait");
+        *guard
+    }
+
+    /// Records that the client dropped the connection, for [`RawServer::await_gone`].
+    pub fn mark_gone(&self) {
+        self.shared.gone.store(true, Ordering::SeqCst);
+    }
+
+    /// Ends the connection at once, without finishing the body.
+    pub fn drop_connection(&mut self) {
+        let _ = self.stream.shutdown(std::net::Shutdown::Both);
+    }
+
+    /// Blocks until the client drops the connection, and then records that it did.
+    pub fn watch_for_close(&mut self) {
+        let mut byte = [0u8; 1];
+        while self.stream.read(&mut byte).map(|n| n > 0).unwrap_or(false) {}
+        self.mark_gone();
+    }
+
+    /// Writes 4096 byte chunks, without end, until the client drops the connection, and then
+    /// records that it did.
+    pub fn flood_until_gone(&mut self) {
+        let chunk = format!("{:x}\r\n{}\r\n", 4096, "x".repeat(4096));
+        let _ = self.stream.set_nonblocking(true);
+        let mut byte = [0u8; 1];
+        loop {
+            match self.stream.read(&mut byte) {
+                Ok(0) => break,
+                Ok(_) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(_) => break,
+            }
+            match self.stream.write(chunk.as_bytes()) {
+                Err(e) if e.kind() != std::io::ErrorKind::WouldBlock => break,
+                _ => {}
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        self.mark_gone();
+    }
+}
+
+/// A scripted HTTP server on 127.0.0.1. It runs `script` for every connection it accepts, and
+/// stops accepting when it is dropped.
+pub struct RawServer {
+    port: u16,
+    shared: Arc<Shared>,
+}
+
+impl RawServer {
+    /// Starts a server that runs `script` on its own thread for every connection.
+    pub fn serve<F>(script: F) -> RawServer
+    where
+        F: Fn(&mut Conn) + Send + Sync + 'static,
+    {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+        listener.set_nonblocking(true).expect("non-blocking listener");
+        let port = listener.local_addr().expect("local address").port();
+        let shared = Arc::new(Shared {
+            hits: AtomicUsize::new(0),
+            heads: Mutex::new(Vec::new()),
+            released: (Mutex::new(false), Condvar::new()),
+            gone: AtomicBool::new(false),
+            stopped: AtomicBool::new(false),
+        });
+        let script = Arc::new(script);
+        let accepting = shared.clone();
+        std::thread::spawn(move || {
+            while !accepting.stopped.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((stream, _)) => {
+                        let shared = accepting.clone();
+                        let script = script.clone();
+                        std::thread::spawn(move || handle(stream, shared, script));
+                    }
+                    Err(_) => std::thread::sleep(Duration::from_millis(5)),
+                }
+            }
+        });
+        RawServer { port, shared }
+    }
+
+    /// The URL of `path` on this server.
+    pub fn url(&self, path: &str) -> String {
+        format!("http://127.0.0.1:{}{}", self.port, path)
+    }
+
+    /// How many requests have arrived.
+    pub fn hits(&self) -> usize {
+        self.shared.hits.load(Ordering::SeqCst)
+    }
+
+    /// The request heads that arrived, in order.
+    pub fn heads(&self) -> Vec<String> {
+        self.shared.heads.lock().expect("heads lock").clone()
+    }
+
+    /// Lets a script that waits in [`Conn::await_release`] carry on.
+    pub fn release(&self) {
+        let (lock, cvar) = &self.shared.released;
+        *lock.lock().expect("release lock") = true;
+        cvar.notify_all();
+    }
+
+    /// Waits until a script recorded that the client dropped the connection; true when it did.
+    /// It waits on the test's runtime without blocking it, because the runtime also drives the
+    /// client's connection, which has to run for the connection to be dropped.
+    pub async fn await_gone(&self, seconds: u64) -> bool {
+        let deadline = std::time::Instant::now() + Duration::from_secs(seconds);
+        while std::time::Instant::now() < deadline {
+            if self.shared.gone.load(Ordering::SeqCst) {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        self.shared.gone.load(Ordering::SeqCst)
+    }
+
+    /// A script for other tests: one chunk, then silence until the test releases the server.
+    pub fn one_chunk_then_hold(conn: &mut Conn) {
+        let _ = conn.head(200, &["Content-Type: application/octet-stream", "Transfer-Encoding: chunked"]);
+        let _ = conn.chunk("tick");
+        conn.await_release();
+    }
+}
+
+impl Drop for RawServer {
+    fn drop(&mut self) {
+        self.release();
+        self.shared.stopped.store(true, Ordering::SeqCst);
+    }
+}
+
+fn handle(mut stream: TcpStream, shared: Arc<Shared>, script: Arc<dyn Fn(&mut Conn) + Send + Sync>) {
+    stream.set_nonblocking(false).expect("blocking connection");
+    let mut head = Vec::new();
+    let mut byte = [0u8; 1];
+    while stream.read(&mut byte).map(|n| n == 1).unwrap_or(false) {
+        head.push(byte[0]);
+        if head.ends_with(b"\r\n\r\n") {
+            break;
+        }
+    }
+    let head = String::from_utf8_lossy(&head).into_owned();
+    let hit = shared.hits.fetch_add(1, Ordering::SeqCst) + 1;
+    shared.heads.lock().expect("heads lock").push(head.clone());
+    let mut conn = Conn { stream, hit, head, shared };
+    script(&mut conn);
+}

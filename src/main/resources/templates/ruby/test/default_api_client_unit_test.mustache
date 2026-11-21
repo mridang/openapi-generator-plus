@@ -8,6 +8,7 @@ require 'stringio'
 require 'tempfile'
 require 'tmpdir'
 require 'zlib'
+require 'test_helper'
 require '{{gemName}}'
 
 # A stand-in model part for the multipart serialisation test below. It is
@@ -3943,4 +3944,300 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
+  # The tests below run the transport against a RawServer, so a body can stall,
+  # stop short or be reset.
+  def streaming_client
+    {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.build)
+  end
+
+  def stream_of(server, path, client = streaming_client)
+    client.send_streaming(:GET, server.url(path), {}, nil)
+  end
+
+  # Every byte of a stream body, read to its end.
+  def drain(body)
+    all = ''.b
+    while (chunk = body.read(16_384))
+      all << chunk
+    end
+    all
+  end
+
+  def byte_stream_of(response)
+    {{moduleName}}::ByteStream.new(status_code: response.status_code, headers: response.headers, source: response.body)
+  end
+
+  # A body that never ends: 4 KiB chunks until the client drops the connection.
+  def endless_body(server, socket)
+    RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+    loop do
+      RawHttp.chunk(socket, 'x' * 4096)
+      sleep 0.005
+    end
+  rescue IOError, SystemCallError
+    server.client_gone!
+  end
+
+  it 'bhv_streaming_001 a binary stream delivers the bytes in order and returns before the body has ended' do
+    server = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Type: application/octet-stream', 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'first-')
+      self_server.await_release
+      RawHttp.chunk(socket, 'second')
+      RawHttp.finish(socket)
+    end
+    response = stream_of(server, '/items/blob')
+    _(response.status_code).must_equal 200
+    _(server.released?).must_equal false
+    _(response.body.read(6)).must_equal 'first-'
+    server.release!
+    _(drain(response.body)).must_equal 'second'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_010 the call timeout bounds only the wait for the response headers, not the body' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      sleep 1.2
+      RawHttp.chunk(socket, 'cd')
+      RawHttp.finish(socket)
+    end
+    response = streaming_client.send_streaming(:GET, server.url('/items/blob'), {}, nil, timeout: 400, max_retries: 0,
+                                                                                         idle_timeout: 0)
+    _(drain(response.body)).must_equal 'abcd'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_011 the idle timeout raises a network timeout error when the server stalls in the middle of the body' do
+    server = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      self_server.await_release
+    end
+    client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.idle_timeout(300).build)
+    response = stream_of(server, '/items/blob', client)
+    _(response.body.read(2)).must_equal 'ab'
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    error = assert_raises({{moduleName}}::Errors::NetworkTimeoutError) { response.body.read(1) }
+    _(error.status_code).must_equal 0
+    _(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).must_be :<, 5
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_012 a connection reset in the middle of the body raises a network error and is not retried' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      sleep 0.1
+      RawHttp.reset(socket)
+    end
+    response = stream_of(server, '/items/blob')
+    assert_raises({{moduleName}}::Errors::NetworkError) { drain(response.body) }
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_013 a body shorter than its Content-Length raises a network error and never a short success' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Length: 10')
+      socket.write('abcd')
+    end
+    response = stream_of(server, '/items/blob')
+    assert_raises({{moduleName}}::Errors::NetworkError) { drain(response.body) }
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_014 a streaming call retries a 503 before the headers and then streams the retried response' do
+    server = RawServer.serve do |_self_server, socket, hit, _head|
+      if hit == 1
+        RawHttp.head(socket, 503, 'Retry-After: 0', 'Content-Length: 4')
+        socket.write('nope')
+      else
+        RawHttp.head(socket, 200, 'Content-Length: 5')
+        socket.write('hello')
+      end
+    end
+    response = stream_of(server, '/items/blob')
+    _(response.status_code).must_equal 200
+    _(drain(response.body)).must_equal 'hello'
+    _(server.hits).must_equal 2
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_015 a streaming call never retries after the first body byte was delivered' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'part')
+      sleep 0.1
+      RawHttp.reset(socket)
+    end
+    response = stream_of(server, '/items/blob')
+    _(response.body.read(4)).must_equal 'part'
+    assert_raises({{moduleName}}::Errors::NetworkError) { drain(response.body) }
+    sleep 0.3
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_016 a streaming call follows a redirect before the body and strips credentials across origins' do
+    target = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Length: 6')
+      socket.write('landed')
+    end
+    origin = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 302, "Location: #{target.url('/items/final')}", 'Content-Length: 0')
+    end
+    headers = { 'Authorization' => 'Bearer secret-token', 'Cookie' => 'session=abc', 'X-Trace' => 'kept' }
+    response = streaming_client.send_streaming(:GET, origin.url('/items/blob'), headers, nil)
+    _(drain(response.body)).must_equal 'landed'
+    sent_to_origin = origin.heads.first.downcase
+    sent_to_target = target.heads.first.downcase
+    _(sent_to_origin).must_include 'authorization: bearer secret-token'
+    _(sent_to_target).wont_include 'authorization'
+    _(sent_to_target).wont_include 'cookie'
+    _(sent_to_target).must_include 'x-trace: kept'
+  ensure
+    origin&.close
+    target&.close
+  end
+
+  it 'bhv_streaming_019 closing a stream twice is safe and aborts the connection' do
+    server = RawServer.serve { |self_server, socket, _hit, _head| endless_body(self_server, socket) }
+    response = stream_of(server, '/items/blob')
+    stream = byte_stream_of(response)
+    _(stream.read(4).bytesize).must_equal 4
+    stream.close
+    stream.close
+    response.close
+    _(server.client_gone?).must_equal true
+    assert_raises(IOError) { stream.read(1) }
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_020 cancelling the call aborts the stream and is never raised as a timeout' do
+    cancelled = Class.new(StandardError)
+    silent = RawServer.serve { |self_server, _socket, _hit, _head| self_server.await_release }
+    stalled = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      self_server.await_release
+    end
+    before_headers = nil
+    waiting = Thread.new do
+      stream_of(silent, '/items/blob')
+    rescue StandardError => e
+      before_headers = e
+    end
+    sleep 0.01 while silent.hits.zero?
+    waiting.raise(cancelled.new)
+    waiting.join(10)
+    _(before_headers).must_be_instance_of cancelled
+
+    response = stream_of(stalled, '/items/blob')
+    in_body = nil
+    reading = Thread.new do
+      response.body.read(100)
+      response.body.read(100)
+    rescue StandardError => e
+      in_body = e
+    end
+    sleep 0.3
+    reading.raise(cancelled.new)
+    reading.join(10)
+    _(in_body).must_be_instance_of cancelled
+    _(in_body).wont_be_kind_of {{moduleName}}::Errors::NetworkTimeoutError
+  ensure
+    silent&.close
+    stalled&.close
+  end
+
+  it 'bhv_streaming_022 the string form of a stream hides credentials, the query and the data' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Length: 7', 'Set-Cookie: sid=secret-cookie')
+      socket.write('payload')
+    end
+    response = streaming_client.send_streaming(:GET, server.url('/items/blob?token=secret-query'),
+                                               { 'Authorization' => 'Bearer secret-token' }, nil)
+    stream = byte_stream_of(response)
+    _(stream.read(7)).must_equal 'payload'
+    [stream.to_s, stream.inspect, response.to_s, response.inspect].each_case do |shown|
+      %w[secret payload token items].each { |word| _(shown).wont_include word }
+    end
+    _(stream.to_s).must_equal "#<{{moduleName}}::ByteStream status_code=200 bytes_delivered=7>"
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_031 closing a live endless stream returns promptly and does not wait for the server' do
+    server = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.one_chunk_then_hold(self_server, socket, 1, '')
+    end
+    response = stream_of(server, '/items/events')
+    _(response.body.read(4)).must_equal 'tick'
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    response.close
+    _(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).must_be :<, 2
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_032 a reset or truncation after the headers raises a stream error that is a network error' do
+    reset = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      sleep 0.1
+      RawHttp.reset(socket)
+    end
+    cut = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Length: 10')
+      socket.write('abcd')
+    end
+    [reset, cut].each_case do |server|
+      stream = byte_stream_of(stream_of(server, '/items/blob'))
+      failure = assert_raises({{moduleName}}::Errors::StreamError) { stream.read_all }
+      _(failure).must_be_kind_of {{moduleName}}::Errors::NetworkError
+      _(failure.status_code).must_equal 0
+    end
+  ensure
+    reset&.close
+    cut&.close
+  end
+
+  it 'bhv_streaming_033 stopping a stream early without reading it to the end releases the connection' do
+    server = RawServer.serve { |self_server, socket, _hit, _head| endless_body(self_server, socket) }
+    body = stream_of(server, '/items/events').body
+    begin
+      _(body.read(10).bytesize).must_equal 10
+    ensure
+      body.close
+    end
+    _(server.client_gone?).must_equal true
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_029 the read-all helper of a byte stream returns every byte in order and leaves it closed' do
+    payload = (0...100_000).map { |i| ((i * 31) % 256).chr }.join.b
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, "Content-Length: #{payload.bytesize}")
+      socket.write(payload)
+    end
+    stream = byte_stream_of(stream_of(server, '/items/blob'))
+    _(stream.read_all).must_equal payload
+    _(stream.to_s).must_equal "#<{{moduleName}}::ByteStream status_code=200 bytes_delivered=100000>"
+    _(stream.closed?).must_equal true
+    assert_raises(IOError) { stream.read(1) }
+  ensure
+    server&.close
+  end
 end

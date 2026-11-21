@@ -544,7 +544,12 @@ public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sen
         }
 {{/vendorExtensions.op.hasMultiple2xx}}
 {{^vendorExtensions.op.hasMultiple2xx}}
+{{#vendorExtensions.op.streamsBinary}}
+        return try await invokeAPIForStream(params)
+{{/vendorExtensions.op.streamsBinary}}
+{{^vendorExtensions.op.streamsBinary}}
         return try await invokeAPIForResult(params, as: {{{.}}}.self)
+{{/vendorExtensions.op.streamsBinary}}
 {{/vendorExtensions.op.hasMultiple2xx}}
 {{/returnType}}
 {{^returnType}}

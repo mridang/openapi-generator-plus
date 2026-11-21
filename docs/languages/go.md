@@ -20,7 +20,7 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 | `string` / `duration` | `models.Duration` | A `time.Duration` wrapper. The wire form is the protobuf-JSON string such as `"3600s"`, not ISO 8601. |
 | `string` / `uuid` | `uuid.UUID` | From `github.com/google/uuid`. Written in lower case. |
 | `string` / `byte` | `[]byte` | `encoding/json` encodes it as padded standard base64. |
-| `string` / `binary`, file bodies | `[]byte` for downloads, `io.Reader` for uploads | Responses are read fully into memory. |
+| `string` / `binary`, file bodies | `*ByteStream` (an `io.ReadCloser`) for downloads, `io.Reader` for uploads | The response body is read as you consume it, see Streaming. |
 | `string` / `uri` | `string` | |
 | `integer` / `int32` | `int32` | |
 | `integer` / `int64` | `int64` | |
@@ -124,7 +124,7 @@ The names come from the specification, so the seam is the normaliser: the `RUN_S
 
 ### Status, headers and the raw body
 
-Every operation has a `...WithHTTPInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiError` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+Every operation has a `...WithHTTPInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiError` that holds the status code, the response headers and the response body. A live response object is not exposed; to see or change what goes over the wire, use the call hook above or the transport you supply. A binary response is the exception in one respect: it is a `*ByteStream` whose body is read as you consume it (see Streaming).
 
 ```go
 result, err := client.Pet.AddPetWithHTTPInfo(ctx, pet, nil)
@@ -139,13 +139,28 @@ if errors.As(err, &apiErr) {
 }
 ```
 
+## Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns `*ByteStream`, an `io.ReadCloser`, from the one operation method (there is no second method), and `...WithHTTPInfo` returns `*ApiResult[ByteStream]` with an empty `RawBody`. A `ByteStream` has `StatusCode()`, the lower-cased `Headers()`, an idempotent `Close()` that aborts the connection instead of draining it, a `ReadAll()` that reads the rest and leaves the stream closed, and a `String()` that shows only the status and the bytes delivered.
+
+```go
+stream, err := client.Pet.GetPetAvatar(ctx, petID)
+if err != nil {
+    return err
+}
+defer func() { _ = stream.Close() }()
+_, err = io.Copy(file, stream)
+```
+
+The transport gets a second interface, `StreamingApiClient`, with `SendStreaming(method, url, headers, body, opts)`, which returns an `*ApiStreamResponse` (status, headers, open body). Go interfaces carry no default method, so it is separate from `ApiClient` and the SDK checks for it at call time (D118): an injected `ApiClient` that only implements the buffered calls keeps working, and a stream call on it fails with `ErrStreamingUnsupported` naming the transport. `DefaultApiClient` implements it. Retries, the 401 replay, the headers and the call hook stay in `baseApi` (one loop for both paths), and redirects stay in the policy client, so the stream call is the buffered call up to the response headers. The call timeout (`WithTimeout`, else `TransportOptionsBuilder.Timeout`) ends at the headers: the policy client is copied without a timeout and a timer cancels the request context unless the headers arrive first. `TransportOptionsBuilder.IdleTimeout(*int)` (default 60 seconds, `nil` or `0` disables) bounds the gap between two reads of the body and returns `*NetworkTimeoutError`. Nothing is retried after the first body byte. A non-2xx status returns the usual typed error with its body read up to 64 KiB, and never a stream. A reset, or a body shorter than its `Content-Length`, returns `*StreamError` (a `*NetworkError`, status 0). Cancelling the call context returns the cancellation error, never a timeout. `Close()` of a stream cancels the request context first and then closes the body, because Go 1.27 reads the rest of an HTTP/1 body on `Close()` and an endless feed would block; `client.Close()` cancels the streams still open, and their next read returns `ErrClientClosed`.
+
 ## Known limits
 
 - `format: date` and `format: time` are plain strings, so they are not validated.
 - `format: decimal` and `number` are `float64` and lose exactness.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client. The server owns validation.
 - `allOf` with a discriminator is not implemented yet. Only `oneOf` with a discriminator is.
-- Responses are buffered in full. Streaming a download is not supported.
+- A request body and a JSON, text or form response body are read whole into memory. Only a binary response is a stream; there is no JSON Lines or server-sent events API yet.
 - SOCKS proxies are not supported.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
 - Operations are blocking only, as a plain function call that blocks until the call finishes or the context ends, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.

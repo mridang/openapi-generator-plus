@@ -5557,4 +5557,187 @@ class DefaultApiClientUnitTest {
       assertThrows(IOException.class, stream::read, "the helper left the stream closed");
     }
   }
+
+  private static void rawChunkBytes(java.net.Socket socket, byte[] bytes) throws IOException {
+    OutputStream out = socket.getOutputStream();
+    out.write((Integer.toHexString(bytes.length) + "\r\n").getBytes(StandardCharsets.ISO_8859_1));
+    out.write(bytes);
+    out.write("\r\n".getBytes(StandardCharsets.ISO_8859_1));
+    out.flush();
+  }
+
+  /** What an operation does for an event stream: one request per connection, over the transport. */
+  private static java.util.function.Function<String, ByteStream> eventOpener(
+      RawServer server, TransportOptions options) {
+    DefaultApiClient client = new DefaultApiClient(options);
+    return lastEventId -> {
+      Map<String, String> headers = new HashMap<>();
+      if (!lastEventId.isEmpty()) {
+        headers.put("Last-Event-ID", lastEventId);
+      }
+      ApiStreamResponse response =
+          client.sendStreaming("GET", server.url("/items/events"), headers, null, null, 0, null);
+      return new ByteStream(response.statusCode(), response.headers(), response.body());
+    };
+  }
+
+  private static void eventsHead(java.net.Socket socket) throws IOException {
+    rawHead(socket, 200, "Content-Type: text/event-stream", "Transfer-Encoding: chunked");
+  }
+
+  @Test
+  void
+      bhvStreaming006AGzipEncodedStreamIsDecodedIncrementallySoTheFirstItemArrivesBeforeTheBodyEnds()
+          throws Exception {
+    java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+    java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(sink, true);
+    gzip.write("first\n".getBytes(StandardCharsets.UTF_8));
+    gzip.flush();
+    byte[] head = sink.toByteArray();
+    sink.reset();
+    gzip.write("second\n".getBytes(StandardCharsets.UTF_8));
+    gzip.close();
+    byte[] rest = sink.toByteArray();
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              rawHead(socket, 200, "Content-Encoding: gzip", "Transfer-Encoding: chunked");
+              rawChunkBytes(socket, head);
+              self.awaitRelease();
+              rawChunkBytes(socket, rest);
+              rawEnd(socket);
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/export");
+      JsonLinesStream<String> items =
+          new JsonLinesStream<>(
+              new ByteStream(response.statusCode(), response.headers(), response.body()),
+              line -> line,
+              1024,
+              "GET",
+              "/items/export");
+      assertEquals("first", items.next(), "the first item arrived while the body was unfinished");
+      server.release.countDown();
+      assertEquals("second", items.next());
+      assertFalse(items.hasNext());
+    }
+  }
+
+  @Test
+  void
+      bhvStreaming007ACorruptCompressedStreamRaisesAnApiErrorWithTheStatusAndTheDecoderErrorAndIsNotRetried()
+          throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              rawHead(socket, 200, "Content-Encoding: gzip", "Content-Length: 8");
+              socket.getOutputStream().write("notgzip!".getBytes(StandardCharsets.UTF_8));
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/export");
+      JsonLinesStream<String> items =
+          new JsonLinesStream<>(
+              new ByteStream(response.statusCode(), response.headers(), response.body()),
+              line -> line,
+              1024,
+              "GET",
+              "/items/export");
+      ApiException failure = assertThrows(ApiException.class, items::hasNext);
+      assertFalse(failure instanceof com.example.petstore.errors.NetworkException);
+      assertEquals(200, failure.getStatusCode());
+      assertNotNull(failure.getCause());
+      assertEquals(1, server.hits.get());
+    }
+  }
+
+  @Test
+  void bhvSse007AnSseStreamReconnectsAfterTheConnectionDropsAndSendsTheLastEventIdInLastEventId()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              if (hit >= 3) {
+                rawHead(socket, 204, "Content-Length: 0");
+                return;
+              }
+              eventsHead(socket);
+              rawChunk(
+                  socket, hit == 1 ? "id: 1\ndata: a\n\nid: 2\ndata: b\n\n" : "id: 3\ndata: c\n\n");
+              rawEnd(socket);
+            })) {
+      SseStream<String> stream =
+          SseStream.open(
+              eventOpener(server, TransportOptions.builder().build()),
+              null,
+              null,
+              new StreamOptions().reconnectDelay(1),
+              false,
+              "GET",
+              "/items/events");
+      List<String> data = new java.util.ArrayList<>();
+      stream.forEachRemaining(event -> data.add(event.data()));
+      assertEquals(List.of("a", "b", "c"), data);
+      assertFalse(server.heads.get(0).toLowerCase(java.util.Locale.ROOT).contains("last-event-id"));
+      assertTrue(
+          server.heads.get(1).toLowerCase(java.util.Locale.ROOT).contains("last-event-id: 2"));
+      assertTrue(
+          server.heads.get(2).toLowerCase(java.util.Locale.ROOT).contains("last-event-id: 3"));
+    }
+  }
+
+  @Test
+  void bhvSse015AnIdleTimeoutOnAnSseStreamCountsAsALostConnectionAndReconnects() throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              eventsHead(socket);
+              if (hit == 1) {
+                rawChunk(socket, "id: 1\ndata: a\n\n");
+                self.awaitRelease();
+                return;
+              }
+              rawChunk(socket, "id: 2\ndata: b\n\n");
+              rawEnd(socket);
+            })) {
+      SseStream<String> stream =
+          SseStream.open(
+              eventOpener(server, TransportOptions.builder().idleTimeout(300).build()),
+              null,
+              null,
+              new StreamOptions().reconnectDelay(1).maxReconnects(1),
+              false,
+              "GET",
+              "/items/events");
+      assertEquals("a", stream.next().data());
+      assertEquals("b", stream.next().data(), "the stalled connection was replaced");
+      assertTrue(
+          server.heads.get(1).toLowerCase(java.util.Locale.ROOT).contains("last-event-id: 1"));
+    }
+  }
+
+  @Test
+  void bhvSse018AnSseCommentLineSuchAsAHeartbeatIsSkippedAndCountsAsActivityForTheIdleTimeout()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              eventsHead(socket);
+              for (int beat = 0; beat < 8; beat++) {
+                rawChunk(socket, ": heartbeat\n\n");
+                Thread.sleep(100);
+              }
+              rawChunk(socket, "data: late\n\n");
+              rawEnd(socket);
+            })) {
+      SseStream<String> stream =
+          SseStream.open(
+              eventOpener(server, TransportOptions.builder().idleTimeout(400).build()),
+              null,
+              null,
+              new StreamOptions().reconnectDelay(1).maxReconnects(0),
+              false,
+              "GET",
+              "/items/events");
+      assertEquals("late", stream.next().data(), "the quiet feed outlived the idle timeout");
+      assertEquals(1, server.hits.get(), "no reconnect was needed");
+    }
+  }
 }

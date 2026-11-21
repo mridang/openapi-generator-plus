@@ -145,7 +145,7 @@ void main() {
           '### Optional and nullable are one type',
           '### Unknown enum values and discriminators',
           '### Response headers',
-          '### Streaming is not supported',
+          '### Streaming',
           '### `Configuration` and `TransportOptions` are separate',
         ]) {
           expect(readme, contains(heading));

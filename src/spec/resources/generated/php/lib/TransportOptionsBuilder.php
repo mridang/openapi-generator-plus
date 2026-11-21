@@ -21,6 +21,7 @@ namespace PetstoreClient;
  * - followRedirects: true
  * - injectRequestId: false
  * - timeout: 10000 (10 seconds)
+ * - idleTimeout: 60000 (60 seconds)
  * - userAgent: a package-specific default string
  * - All other fields: null or empty
  *
@@ -58,6 +59,9 @@ final class TransportOptionsBuilder
 
     /** @var int Maximum number of automatic retries (0 disables). */
     private int $maxRetries = 2;
+
+    /** @var int|null The longest a streamed response body may stay silent in milliseconds. Defaults to 60000ms. */
+    private ?int $idleTimeout = 60000;
 
     /**
      * Enable or disable TLS certificate verification.
@@ -203,6 +207,24 @@ final class TransportOptionsBuilder
     }
 
     /**
+     * Set the longest a streamed response body may stay silent, in milliseconds.
+     *
+     * Applies only to a call that returns a stream (a binary operation): the
+     * `timeout` stops at the response headers, and this value bounds the gap
+     * between two reads of the body. A stalled body raises
+     * `NetworkTimeoutException`. A buffered call is unaffected.
+     *
+     * @param int|null $idleTimeout the gap in milliseconds (positive), or 0 or null to disable it;
+     *                              the default is 60000
+     * @return self this builder
+     */
+    public function idleTimeout(?int $idleTimeout): self
+    {
+        $this->idleTimeout = $idleTimeout;
+        return $this;
+    }
+
+    /**
      * Build and return an immutable TransportOptions instance.
      *
      * @return TransportOptions the configured transport options
@@ -220,6 +242,7 @@ final class TransportOptionsBuilder
             defaultHeaders: $this->defaultHeaders,
             injectRequestId: $this->injectRequestId,
             maxRetries: $this->maxRetries,
+            idleTimeout: $this->idleTimeout,
         );
     }
 }

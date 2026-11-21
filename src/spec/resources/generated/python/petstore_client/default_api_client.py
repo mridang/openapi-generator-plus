@@ -28,10 +28,12 @@ import urllib3.connectionpool
 import urllib3.exceptions
 
 from petstore_client.api_http_response import ApiHttpResponse
+from petstore_client.api_stream_response import ApiStreamResponse
 from petstore_client.errors import (
     ApiException,
     NetworkException,
     NetworkTimeoutException,
+    StreamException,
 )
 from petstore_client.transport_options import TransportOptions, _is_sensitive_header
 
@@ -77,6 +79,7 @@ class RequestHandle:
         self._lock = threading.Lock()
         self._cancelled = False
         self._connection: Optional[Any] = None
+        self._sock: Optional[Any] = None
 
     @property
     def cancelled(self) -> bool:
@@ -87,21 +90,42 @@ class RequestHandle:
         """Record the connection the request is using; raise if already cancelled."""
         with self._lock:
             self._connection = connection
+            self._sock = None
             cancelled = self._cancelled
         if cancelled:
             raise RuntimeError("The request was cancelled")
+
+    def attach_socket(self, sock: Any) -> None:
+        """Record the socket the connection just opened.
+
+        A response that ends with the connection (``Connection: close``) leaves the
+        connection object without its socket, so the handle keeps its own reference
+        to be able to abort the request and to set a timeout on it.
+        """
+        with self._lock:
+            self._sock = sock
+
+    def socket(self) -> Optional[Any]:
+        """The socket of the connection the request is using, when there is one."""
+        with self._lock:
+            connection = self._connection
+            sock = self._sock
+        return sock if sock is not None else getattr(connection, "sock", None)
 
     def detach(self) -> None:
         """Forget the connection once the request is finished."""
         with self._lock:
             self._connection = None
+            self._sock = None
 
     def cancel(self) -> None:
         """Abort the request; safe to call from any thread, any number of times."""
         with self._lock:
             self._cancelled = True
             connection = self._connection
-        sock = getattr(connection, "sock", None) if connection is not None else None
+            sock = self._sock
+        if sock is None and connection is not None:
+            sock = getattr(connection, "sock", None)
         if sock is not None:
             try:
                 sock.shutdown(socket.SHUT_RDWR)
@@ -113,6 +137,12 @@ def _attach_to_active_request(connection: Any) -> None:
     handle: Optional[RequestHandle] = getattr(_ACTIVE, "handle", None)
     if handle is not None:
         handle.attach(connection)
+
+
+def _remember_socket(connection: Any) -> None:
+    handle: Optional[RequestHandle] = getattr(_ACTIVE, "handle", None)
+    if handle is not None:
+        handle.attach_socket(getattr(connection, "sock", None))
 
 
 def _abort_if_cancelled(connection: Any) -> None:
@@ -131,6 +161,7 @@ class _CancellableHTTPConnection(urllib3.connection.HTTPConnection):
 
     def connect(self) -> None:
         super().connect()
+        _remember_socket(self)
         _abort_if_cancelled(self)
 
 
@@ -143,6 +174,7 @@ class _CancellableHTTPSConnection(urllib3.connection.HTTPSConnection):
 
     def connect(self) -> None:
         super().connect()
+        _remember_socket(self)
         _abort_if_cancelled(self)
 
 
@@ -446,6 +478,98 @@ def _is_text_content_type(content_type: str) -> bool:
     )
 
 
+class _StreamBody:
+    """An open streamed response body, tracked by the client so ``close()`` can cancel it.
+
+    A read returns the next bytes as soon as some are available (decoded when
+    the server compressed the body). A failure of the connection, or a body that
+    ends before its declared length, is a :class:`StreamException`; a silence longer
+    than the idle timeout is a :class:`NetworkTimeoutException`, because the socket
+    timeout is set to it once the headers have arrived. :meth:`close` aborts the
+    connection instead of draining it.
+    """
+
+    def __init__(
+        self,
+        client: "DefaultApiClient",
+        response: Any,
+        handle: RequestHandle,
+        idle_seconds: Optional[float],
+    ) -> None:
+        self._client = client
+        self._response = response
+        self._handle = handle
+        self._cancelled = False
+        self._aborted = False
+        sock = handle.socket()
+        if sock is not None:
+            # The call timeout stopped at the headers; from here a recv that stays
+            # silent for ``idle_seconds`` raises the read timeout (None: no limit).
+            sock.settimeout(idle_seconds)
+
+    def read(self, size: int = -1) -> bytes:
+        """Return at most ``size`` bytes (the rest of the body when negative); ``b''`` at the end."""
+        if self._cancelled:
+            raise RuntimeError(_CLOSED_MESSAGE)
+        if self._aborted:
+            raise ValueError("I/O operation on a closed stream")
+        try:
+            if size < 0:
+                chunks = []
+                while True:
+                    part = self._response.read1(65536, decode_content=True)
+                    if not part:
+                        break
+                    chunks.append(part)
+                data = b"".join(chunks)
+            else:
+                data = self._response.read1(size, decode_content=True) or b""
+        except Exception as error:
+            if self._cancelled:
+                raise RuntimeError(_CLOSED_MESSAGE) from error
+            if self._aborted:
+                raise ValueError("I/O operation on a closed stream") from error
+            self._abort()
+            if isinstance(error, (urllib3.exceptions.TimeoutError, TimeoutError)):
+                raise NetworkTimeoutException(message=str(error)) from error
+            raise StreamException(message=str(error)) from error
+        if not data and size != 0:
+            self._finish()
+        return data
+
+    def _finish(self) -> None:
+        """The body ended: its connection has gone back to the pool, so nothing may touch it."""
+        self._handle.detach()
+        self._client._forget(self)
+
+    def _abort(self) -> None:
+        """Drop the connection without draining the rest of the body."""
+        self._aborted = True
+        if getattr(self._response, "connection", None) is not None:
+            self._handle.cancel()
+        else:
+            self._handle.detach()
+        try:
+            self._response.close()
+        except Exception:
+            pass
+        try:
+            self._response.release_conn()
+        except Exception:
+            pass
+        self._client._forget(self)
+
+    def close(self) -> None:
+        """Abort the connection; calling it again does nothing."""
+        if not self._aborted:
+            self._abort()
+
+    def cancel(self) -> None:
+        """Called by the client's ``close()``: abort, and make the next read raise the closed-client error."""
+        self._cancelled = True
+        self.close()
+
+
 class DefaultApiClient:
     """Default implementation of :class:`ApiClient` using urllib3.
 
@@ -492,6 +616,7 @@ class DefaultApiClient:
         self._active = 0
         self._lock = threading.Lock()
         self._inflight: set[RequestHandle] = set()
+        self._streams: set[_StreamBody] = set()
         self._owns_pool = pool_manager is None
 
         if pool_manager is not None:
@@ -603,8 +728,17 @@ class DefaultApiClient:
         with self._lock:
             self._closed = True
             release = self._active == 0
+            streams = list(self._streams)
+            self._streams.clear()
+        for stream in streams:
+            stream.cancel()
         if release:
             self._release()
+
+    def _forget(self, stream: "_StreamBody") -> None:
+        """Stop tracking a stream that ended or was aborted."""
+        with self._lock:
+            self._streams.discard(stream)
 
     def _release(self) -> None:
         """Release the transport once; a caller-supplied pool manager stays open."""
@@ -706,7 +840,130 @@ class DefaultApiClient:
                 raise RuntimeError("The request was cancelled")
             return response
 
-    def _send(
+    def send_streaming(
+        self,
+        method: str,
+        url: str,
+        headers: Dict[str, str],
+        body: Any = None,
+        idle_timeout: Optional[int] = None,
+        handle: Optional[RequestHandle] = None,
+        deadline: Optional[float] = None,
+    ) -> ApiStreamResponse:
+        """Send an HTTP request and return as soon as the response headers are accepted.
+
+        The header phase is the buffered call's (header injection, redirects, the
+        ``timeout`` or ``deadline`` as one budget that stops at the headers); the
+        body is not read. The retries belong to the caller, which sends the request
+        again before the first body byte only. The call is counted as in flight until
+        the headers are in; a stream that is still open when :meth:`close` is called
+        is cancelled.
+
+        Args:
+            method: HTTP method.
+            url: Fully qualified URL.
+            headers: HTTP headers from the caller.
+            body: Request body.
+            idle_timeout: The longest silence in the body in milliseconds, ``0``
+                to disable it, or ``None`` for ``TransportOptions.idle_timeout``.
+            handle: Optional handle another thread can cancel.
+            deadline: Optional ``time.monotonic()`` instant the header phase must end by.
+
+        Returns:
+            :class:`ApiStreamResponse` with the status code, the lower-cased headers and
+            the open body, which the caller must close.
+
+        Raises:
+            RuntimeError: If the client is closed, or the request was cancelled.
+        """
+        idle_ms = (
+            self._transport_options.idle_timeout
+            if idle_timeout is None
+            else idle_timeout
+        )
+        idle_seconds = idle_ms / 1000.0 if idle_ms else None
+        with self._in_flight():
+            if handle is None:
+                handle = RequestHandle()
+            with self._lock:
+                self._inflight.add(handle)
+            _ACTIVE.handle = handle
+            opened: Optional[_StreamBody] = None
+            response: Any = None
+            try:
+                response = self._open(method, url, headers, body, False, deadline)
+                content_encoding = (
+                    response.headers.get("content-encoding") or ""
+                ).lower()
+                self._require_decoder(response, content_encoding)
+                opened = _StreamBody(self, response, handle, idle_seconds)
+                with self._lock:
+                    if self._closed:
+                        raise RuntimeError(_CLOSED_MESSAGE)
+                    self._streams.add(opened)
+                if handle.cancelled:
+                    raise RuntimeError("The request was cancelled")
+                response_headers = _lower_headers(response.headers)
+                if content_encoding not in ("", "identity"):
+                    # The body is decoded as it is read, so the headers describe the body the
+                    # caller receives, not the encoded bytes on the wire (D92).
+                    response_headers.pop("content-encoding", None)
+                    response_headers.pop("content-length", None)
+                return ApiStreamResponse(
+                    status_code=response.status, headers=response_headers, body=opened
+                )
+            except Exception as error:
+                was_cancelled = handle.cancelled
+                if opened is not None:
+                    opened.close()
+                elif response is not None:
+                    self._abort_response(response)
+                if was_cancelled:
+                    raise RuntimeError("The request was cancelled") from error
+                raise
+            finally:
+                _ACTIVE.handle = None
+                with self._lock:
+                    self._inflight.discard(handle)
+                if opened is None:
+                    handle.detach()
+
+    @staticmethod
+    def _abort_response(response: Any) -> None:
+        """Drop a response that was opened but is not going to be streamed."""
+        try:
+            response.close()
+        except Exception:
+            pass
+        try:
+            response.release_conn()
+        except Exception:
+            pass
+
+    @staticmethod
+    def _require_decoder(response: Any, encoding: str) -> None:
+        """Refuse a Content-Encoding this client cannot decode, as a buffered call does."""
+        if encoding in ("", "identity", "gzip", "x-gzip", "deflate"):
+            return
+        if encoding not in ("br", "zstd"):
+            raise ApiException(
+                status_code=response.status,
+                message=f"Unsupported Content-Encoding '{encoding}'",
+                response_headers=_lower_headers(response.headers),
+            )
+        if (encoding == "br" and _brotli is None) or (
+            encoding == "zstd" and _zstandard is None
+        ):
+            raise ApiException(
+                status_code=response.status,
+                message=(
+                    f"Failed to decompress {encoding} response body: "
+                    f"Unsupported Content-Encoding '{encoding}'"
+                ),
+                response_headers=_lower_headers(response.headers),
+            )
+
+    def _open(
         self,
         method: str,
         url: str,
@@ -714,8 +971,8 @@ class DefaultApiClient:
         body: Any = None,
         no_redirect: bool = False,
         deadline_at: Optional[float] = None,
-    ) -> ApiHttpResponse:
-        """Send an HTTP request and return the response.
+    ) -> Any:
+        """Run the header phase of one request and return the response with its body unread.
 
         Applies transport-level header injection (default headers, User-Agent,
         X-Request-ID) before sending. The merge order ensures transport
@@ -737,7 +994,7 @@ class DefaultApiClient:
                 end by, replacing the configured timeout.
 
         Returns:
-            :class:`ApiHttpResponse` containing status code, body, and headers.
+            The urllib3 response: the headers have arrived and the body is not read.
         """
         # --- Merge headers: transport defaults < caller headers < injected ---
         # A no_redirect request is a credential-bearing auth call (the OAuth2
@@ -875,7 +1132,39 @@ class DefaultApiClient:
                     request_kwargs=request_kwargs,
                     deadline=deadline,
                 )
+        except urllib3.exceptions.LocationValueError as e:
+            # An unparseable request URL is a caller mistake, not a network
+            # failure: urllib3 reports it as an HTTPError subclass, so it is
+            # caught before the network handler below.
+            raise ValueError(f"Invalid request URL: {url}: {e}") from e
+        except urllib3.exceptions.HTTPError as e:
+            raise _network_exception(e) from e
 
+        return response
+
+    def _send(
+        self,
+        method: str,
+        url: str,
+        headers: Dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+        deadline_at: Optional[float] = None,
+    ) -> ApiHttpResponse:
+        """Send an HTTP request and read the whole response.
+
+        The header phase is :meth:`_open`; the body is read here, inside the
+        transport try/catch, so a connection-reset / read-timeout /
+        truncated-chunked failure that occurs AFTER the response headers are
+        received is wrapped in the SDK's uniform ApiException (with the
+        underlying error preserved as the cause) rather than leaking a raw
+        urllib3 exception.
+
+        Returns:
+            :class:`ApiHttpResponse` containing status code, body, and headers.
+        """
+        response = self._open(method, url, headers, body, no_redirect, deadline_at)
+        try:
             # The body read happens INSIDE the transport try/catch so a
             # connection-reset / read-timeout / truncated-chunked failure
             # that occurs AFTER the response headers are received is wrapped
@@ -921,11 +1210,6 @@ class DefaultApiClient:
                     message=f"Failed to decompress {content_encoding} response body: {e}",
                     response_headers=_lower_headers(response.headers),
                 ) from e
-        except urllib3.exceptions.LocationValueError as e:
-            # An unparseable request URL is a caller mistake, not a network
-            # failure: urllib3 reports it as an HTTPError subclass, so it is
-            # caught before the network handler below.
-            raise ValueError(f"Invalid request URL: {url}: {e}") from e
         except urllib3.exceptions.HTTPError as e:
             raise _network_exception(e) from e
 

@@ -21,6 +21,7 @@ from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest,
 )
 from datetime import date
+from petstore_client.byte_stream import ByteStream
 
 from ..api_client import ApiClient
 from ..api_result import ApiResult
@@ -291,7 +292,7 @@ class PetApiProtocol(Protocol):
         pet_id: StrictInt,
         document_id: StrictInt,
         options: Optional[DownloadPetDocumentOptions] = None,
-    ) -> bytes:
+    ) -> ByteStream:
         """The ``download_pet_document`` operation."""
         ...
 
@@ -300,7 +301,7 @@ class PetApiProtocol(Protocol):
         pet_id: StrictInt,
         document_id: StrictInt,
         options: Optional[DownloadPetDocumentOptions] = None,
-    ) -> "ApiResult[bytes]":
+    ) -> "ApiResult[ByteStream]":
         """The ``download_pet_document`` operation with its status code, headers and body."""
         ...
 
@@ -374,7 +375,7 @@ class PetApiProtocol(Protocol):
         self,
         pet_id: StrictInt,
         options: Optional[GetPetAvatarOptions] = None,
-    ) -> bytes:
+    ) -> ByteStream:
         """The ``get_pet_avatar`` operation."""
         ...
 
@@ -382,7 +383,7 @@ class PetApiProtocol(Protocol):
         self,
         pet_id: StrictInt,
         options: Optional[GetPetAvatarOptions] = None,
-    ) -> "ApiResult[bytes]":
+    ) -> "ApiResult[ByteStream]":
         """The ``get_pet_avatar`` operation with its status code, headers and body."""
         ...
 
@@ -471,7 +472,7 @@ class PetApiProtocol(Protocol):
         pet_id: StrictInt,
         photo_id: StrictInt,
         options: Optional[GetPetPhotoOptions] = None,
-    ) -> bytes:
+    ) -> ByteStream:
         """The ``get_pet_photo`` operation."""
         ...
 
@@ -480,7 +481,7 @@ class PetApiProtocol(Protocol):
         pet_id: StrictInt,
         photo_id: StrictInt,
         options: Optional[GetPetPhotoOptions] = None,
-    ) -> "ApiResult[bytes]":
+    ) -> "ApiResult[ByteStream]":
         """The ``get_pet_photo`` operation with its status code, headers and body."""
         ...
 
@@ -1087,13 +1088,13 @@ class PetApi(BaseApi):
         pet_id: StrictInt,
         document_id: StrictInt,
         options: Optional[DownloadPetDocumentOptions] = None,
-    ) -> bytes:
+    ) -> ByteStream:
         """Download a vet document
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
         :param pet_id:  (required)
         :param document_id:  (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
-        :return: bytes
+        :return: ByteStream
         :raises ApiException: if fails to make API call
         :raises NotFoundException: on HTTP 404
         """
@@ -1121,7 +1122,7 @@ class PetApi(BaseApi):
         pet_id: StrictInt,
         document_id: StrictInt,
         options: Optional[DownloadPetDocumentOptions] = None,
-    ) -> "ApiResult[bytes]":
+    ) -> "ApiResult[ByteStream]":
         """Download a vet document (with HTTP info)
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
         :param pet_id:  (required)
@@ -1168,7 +1169,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return await self._invoke_api_for_result(
+        return await self._invoke_api_for_stream(
             "GET",
             path,
             query_params,
@@ -1176,7 +1177,6 @@ class PetApi(BaseApi):
             body,
             ["application/octet-stream"],
             "application/json",
-            "bytes",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="download_pet_document",
             operation_id="downloadPetDocument",
@@ -1561,12 +1561,12 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: Optional[GetPetAvatarOptions] = None,
-    ) -> bytes:
+    ) -> ByteStream:
         """Get the pet's profile photo
         Returns the raw image bytes of the pet's current avatar.
         :param pet_id:  (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
-        :return: bytes
+        :return: ByteStream
         :raises ApiException: if fails to make API call
         :raises NotFoundException: on HTTP 404
         """
@@ -1592,7 +1592,7 @@ class PetApi(BaseApi):
         self,
         pet_id: StrictInt,
         options: Optional[GetPetAvatarOptions] = None,
-    ) -> "ApiResult[bytes]":
+    ) -> "ApiResult[ByteStream]":
         """Get the pet's profile photo (with HTTP info)
         Returns the raw image bytes of the pet's current avatar.
         :param pet_id:  (required)
@@ -1619,7 +1619,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return await self._invoke_api_for_result(
+        return await self._invoke_api_for_stream(
             "GET",
             path,
             query_params,
@@ -1627,7 +1627,6 @@ class PetApi(BaseApi):
             body,
             ["image/jpeg", "image/png"],
             "application/json",
-            "bytes",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_avatar",
             operation_id="getPetAvatar",
@@ -2119,13 +2118,13 @@ class PetApi(BaseApi):
         pet_id: StrictInt,
         photo_id: StrictInt,
         options: Optional[GetPetPhotoOptions] = None,
-    ) -> bytes:
+    ) -> ByteStream:
         """Get a photo or its metadata
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
         :param pet_id:  (required)
         :param photo_id:  (required)
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
-        :return: bytes
+        :return: ByteStream
         :raises ApiException: if fails to make API call
         :raises NotFoundException: on HTTP 404
         """
@@ -2153,7 +2152,7 @@ class PetApi(BaseApi):
         pet_id: StrictInt,
         photo_id: StrictInt,
         options: Optional[GetPetPhotoOptions] = None,
-    ) -> "ApiResult[bytes]":
+    ) -> "ApiResult[ByteStream]":
         """Get a photo or its metadata (with HTTP info)
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
         :param pet_id:  (required)
@@ -2194,7 +2193,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return await self._invoke_api_for_result(
+        return await self._invoke_api_for_stream(
             "GET",
             path,
             query_params,
@@ -2202,7 +2201,6 @@ class PetApi(BaseApi):
             body,
             ["image/jpeg", "image/png", "application/json"],
             "application/json",
-            "bytes",
             self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
             operation_name="get_pet_photo",
             operation_id="getPetPhoto",

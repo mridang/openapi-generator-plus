@@ -1190,6 +1190,416 @@ import Testing
     #expect((error?.underlyingError as? URLError)?.code == .timedOut)
   }
 
+  // MARK: - Streaming
+
+  private func text(_ data: Data) -> String {
+    String(decoding: data, as: UTF8.self)
+  }
+
+  /// Opens a stream call to the server with the transport's own settings.
+  private func open(
+    _ server: RawServer, _ path: String = "/items/blob",
+    client: DefaultApiClient = DefaultApiClient()
+  ) async throws -> ApiStreamResponse {
+    try await client.sendStreaming(
+      method: "GET", url: server.url(path), headers: [:], body: nil, timeout: nil,
+      maxRetries: nil, idleTimeout: nil)
+  }
+
+  /// Reads from the iterator until it has `count` bytes.
+  private func take(_ count: Int, from iterator: inout ByteStream.AsyncIterator) async throws
+    -> Data
+  {
+    var collected = Data()
+    while collected.count < count, let chunk = try await iterator.next() {
+      collected.append(chunk)
+    }
+    return collected
+  }
+
+  /// Reads from the iterator to the end of the body.
+  private func rest(of iterator: inout ByteStream.AsyncIterator) async throws -> Data {
+    var collected = Data()
+    while let chunk = try await iterator.next() {
+      collected.append(chunk)
+    }
+    return collected
+  }
+
+  /* A binary stream delivers the bytes in order and the call returns while the body is still unfinished. */
+  @Test
+  func testBhvStreaming001ABinaryStreamDeliversTheBytesInOrderAndReturnsBeforeTheBodyHasEnded()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Type: application/octet-stream", "Transfer-Encoding: chunked")
+      connection.chunk("first-")
+      connection.server.awaitRelease()
+      connection.chunk("second")
+      connection.end()
+    }
+    defer { server.stop() }
+    let response = try await open(server)
+    #expect(response.statusCode == 200)
+    #expect(!server.isReleased, "the call returned while the body was unfinished")
+    let stream = ByteStream(response: response)
+    var iterator = stream.makeAsyncIterator()
+    #expect(text(try await take(6, from: &iterator)) == "first-")
+    server.release()
+    #expect(text(try await rest(of: &iterator)) == "second")
+  }
+
+  /* The call timeout bounds the wait for the headers only, so a body that outlives it is delivered. */
+  @Test func testBhvStreaming010TheCallTimeoutBoundsOnlyTheWaitForTheHeadersNotTheBody()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Transfer-Encoding: chunked")
+      connection.chunk("ab")
+      Thread.sleep(forTimeInterval: 1.2)
+      connection.chunk("cd")
+      connection.end()
+    }
+    defer { server.stop() }
+    let response = try await DefaultApiClient().sendStreaming(
+      method: "GET", url: server.url("/items/blob"), headers: [:], body: nil, timeout: 400,
+      maxRetries: 0, idleTimeout: 0)
+    let all = try await ByteStream(response: response).readAll()
+    #expect(text(all) == "abcd")
+  }
+
+  /* A server that stalls in the middle of the body raises a network timeout error after the idle timeout, and the call is not retried. */
+  @Test
+  func testBhvStreaming011TheIdleTimeoutRaisesANetworkTimeoutErrorWhenTheServerStallsInTheBody()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Transfer-Encoding: chunked")
+      connection.chunk("ab")
+      connection.server.awaitRelease()
+    }
+    defer { server.stop() }
+    let client = try DefaultApiClient(
+      transportOptions: try TransportOptionsBuilder().idleTimeout(300).build())
+    let stream = ByteStream(response: try await open(server, client: client))
+    var iterator = stream.makeAsyncIterator()
+    #expect(text(try await take(2, from: &iterator)) == "ab")
+    let started = Date()
+    let error = await #expect(throws: NetworkTimeoutError.self) {
+      _ = try await iterator.next()
+    }
+    #expect(error?.statusCode == 0)
+    #expect(
+      Date().timeIntervalSince(started) < 5,
+      "the stall ended by the idle timeout and not by the server")
+    #expect(server.hits == 1, "a stalled body is not retried")
+  }
+
+  /* A connection reset in the middle of the body raises a network error and the default retries do not apply to it. */
+  @Test
+  func testBhvStreaming012AConnectionResetInTheMiddleOfTheBodyRaisesANetworkErrorAndIsNotRetried()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Transfer-Encoding: chunked")
+      connection.chunk("ab")
+      Thread.sleep(forTimeInterval: 0.1)
+      connection.reset()
+    }
+    defer { server.stop() }
+    let stream = ByteStream(response: try await open(server))
+    await #expect(throws: NetworkError.self) {
+      _ = try await stream.readAll()
+    }
+    #expect(server.hits == 1, "the default of two retries does not apply to a body")
+  }
+
+  /* A body shorter than its Content-Length raises a network error and is never a short success. */
+  @Test
+  func testBhvStreaming013ABodyShorterThanItsContentLengthRaisesANetworkErrorAndNeverAShortSuccess()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Length: 10")
+      connection.send("abcd")
+    }
+    defer { server.stop() }
+    let stream = ByteStream(response: try await open(server))
+    await #expect(throws: NetworkError.self) {
+      _ = try await stream.readAll()
+    }
+  }
+
+  /* A 503 before the headers is retried and the retried response is the one streamed. */
+  @Test
+  func
+    testBhvStreaming014AStreamingCallRetriesA503BeforeTheHeadersAndThenStreamsTheRetriedResponse()
+    async throws
+  {
+    let server = try RawServer { connection, hit, _ in
+      if hit == 1 {
+        connection.head(503, "Retry-After: 0", "Content-Length: 4")
+        connection.send("nope")
+        return
+      }
+      connection.head(200, "Content-Length: 5")
+      connection.send("hello")
+    }
+    defer { server.stop() }
+    let response = try await open(server)
+    #expect(response.statusCode == 200)
+    #expect(text(try await ByteStream(response: response).readAll()) == "hello")
+    #expect(server.hits == 2)
+  }
+
+  /* Once a body byte was delivered, a failure is never retried. */
+  @Test func testBhvStreaming015AStreamingCallNeverRetriesAfterTheFirstBodyByteWasDelivered()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Transfer-Encoding: chunked")
+      connection.chunk("part")
+      Thread.sleep(forTimeInterval: 0.1)
+      connection.reset()
+    }
+    defer { server.stop() }
+    let stream = ByteStream(response: try await open(server))
+    var iterator = stream.makeAsyncIterator()
+    #expect(text(try await take(4, from: &iterator)) == "part")
+    await #expect(throws: NetworkError.self) {
+      _ = try await rest(of: &iterator)
+    }
+    try await Task.sleep(nanoseconds: 300_000_000)
+    #expect(server.hits == 1, "no second request after the first body byte")
+  }
+
+  /* A redirect before the body is followed, and credentials stay on the origin that was sent them. */
+  @Test
+  func
+    testBhvStreaming016AStreamingCallFollowsARedirectBeforeTheBodyAndStripsCredentialsAcrossOrigins()
+    async throws
+  {
+    let target = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Length: 6")
+      connection.send("landed")
+    }
+    defer { target.stop() }
+    let origin = try RawServer { connection, _, _ in
+      connection.head(302, "Location: \(target.url("/items/final"))", "Content-Length: 0")
+    }
+    defer { origin.stop() }
+    let response = try await DefaultApiClient().sendStreaming(
+      method: "GET", url: origin.url("/items/blob"),
+      headers: [
+        "Authorization": "Bearer secret-token", "Cookie": "session=abc", "X-Trace": "kept",
+      ],
+      body: nil, timeout: nil, maxRetries: nil, idleTimeout: nil)
+    #expect(text(try await ByteStream(response: response).readAll()) == "landed")
+    let sentToOrigin = try #require(origin.heads.first).lowercased()
+    let sentToTarget = try #require(target.heads.first).lowercased()
+    #expect(sentToOrigin.contains("authorization: bearer secret-token"))
+    #expect(!sentToTarget.contains("authorization"), "the credential stays on its origin")
+    #expect(!sentToTarget.contains("cookie"), "the cookie stays on its origin")
+    #expect(sentToTarget.contains("x-trace: kept"), "other headers go with the redirect")
+  }
+
+  /* Closing a stream twice is safe, aborts the connection and leaves the stream unreadable. */
+  @Test func testBhvStreaming019ClosingAStreamTwiceIsSafeAndAbortsTheConnection() async throws {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Transfer-Encoding: chunked")
+      while connection.chunk(String(repeating: "x", count: 4096)) {
+        Thread.sleep(forTimeInterval: 0.005)
+      }
+      connection.server.markClientGone()
+    }
+    defer { server.stop() }
+    let response = try await open(server)
+    let stream = ByteStream(response: response)
+    var iterator = stream.makeAsyncIterator()
+    #expect(try await take(4, from: &iterator).count >= 4)
+    stream.close()
+    stream.close()
+    response.close()
+    #expect(
+      await server.waitForClientGone(),
+      "the server saw the connection dropped and was not made to finish the body")
+    await #expect(throws: ConfigurationError.self) {
+      _ = try await iterator.next()
+    }
+  }
+
+  /* Cancelling the task that waits, for the headers or for the body, ends the call with a cancellation and never with a timeout. */
+  @Test func testBhvStreaming020CancellingTheCallAbortsTheStreamAndIsNeverRaisedAsATimeout()
+    async throws
+  {
+    let silent = try RawServer { connection, _, _ in connection.server.awaitRelease() }
+    defer { silent.stop() }
+    let stalled = try RawServer { connection, _, _ in
+      connection.head(200, "Transfer-Encoding: chunked")
+      connection.chunk("ab")
+      connection.server.awaitRelease()
+    }
+    defer { stalled.stop() }
+
+    let beforeHeaders = Task { try await open(silent) }
+    while silent.hits == 0 {
+      try await Task.sleep(nanoseconds: 20_000_000)
+    }
+    beforeHeaders.cancel()
+    guard case .failure(let headerFailure) = await beforeHeaders.result else {
+      Issue.record("a cancelled call returned a stream")
+      return
+    }
+    #expect(headerFailure is CancellationError)
+    #expect(!(headerFailure is NetworkTimeoutError))
+
+    let stream = ByteStream(response: try await open(stalled))
+    let reading = Task { try await stream.readAll() }
+    try await Task.sleep(nanoseconds: 300_000_000)
+    reading.cancel()
+    guard case .failure(let bodyFailure) = await reading.result else {
+      Issue.record("a cancelled read returned bytes")
+      return
+    }
+    #expect(bodyFailure is CancellationError)
+    #expect(!(bodyFailure is NetworkTimeoutError))
+  }
+
+  /* The string form of a stream and of its response shows the status and the bytes delivered, never credentials, the query or the data. */
+  @Test func testBhvStreaming022TheStringFormOfAStreamHidesCredentialsTheQueryAndTheData()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Length: 7", "Set-Cookie: sid=secret-cookie")
+      connection.send("payload")
+    }
+    defer { server.stop() }
+    let response = try await DefaultApiClient().sendStreaming(
+      method: "GET", url: server.url("/items/blob?token=secret-query"),
+      headers: ["Authorization": "Bearer secret-token"], body: nil, timeout: nil,
+      maxRetries: nil, idleTimeout: nil)
+    let stream = ByteStream(response: response)
+    var iterator = stream.makeAsyncIterator()
+    #expect(text(try await take(7, from: &iterator)) == "payload")
+    for shown in [
+      String(describing: stream), String(reflecting: stream), String(describing: response),
+    ] {
+      #expect(!shown.contains("secret"), "\(shown)")
+      #expect(!shown.contains("payload"), "\(shown)")
+      #expect(!shown.contains("token"), "\(shown)")
+      #expect(!shown.contains("items"), "\(shown)")
+    }
+    #expect(String(describing: stream) == "ByteStream(statusCode: 200, bytesDelivered: 7)")
+    #expect(String(describing: response) == "ApiStreamResponse(statusCode: 200)")
+  }
+
+  /* Closing a live endless stream returns at once and does not wait for the server. */
+  @Test func testBhvStreaming031ClosingALiveEndlessStreamReturnsPromptlyAndDoesNotWaitForTheServer()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Transfer-Encoding: chunked")
+      connection.chunk("tick")
+      connection.server.awaitRelease()
+    }
+    defer { server.stop() }
+    let response = try await open(server, "/items/events")
+    let stream = ByteStream(response: response)
+    var iterator = stream.makeAsyncIterator()
+    #expect(text(try await take(4, from: &iterator)) == "tick")
+    let started = Date()
+    response.close()
+    #expect(
+      Date().timeIntervalSince(started) < 2,
+      "close aborted the connection instead of waiting for the endless body")
+  }
+
+  /* A reset, or a body cut short of its length, after the headers raises a stream error that is a network error. */
+  @Test
+  func testBhvStreaming032AResetOrTruncationAfterTheHeadersRaisesAStreamErrorThatIsANetworkError()
+    async throws
+  {
+    let reset = try RawServer { connection, _, _ in
+      connection.head(200, "Transfer-Encoding: chunked")
+      connection.chunk("ab")
+      Thread.sleep(forTimeInterval: 0.1)
+      connection.reset()
+    }
+    defer { reset.stop() }
+    let cut = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Length: 10")
+      connection.send("abcd")
+    }
+    defer { cut.stop() }
+    for server in [reset, cut] {
+      let stream = ByteStream(response: try await open(server))
+      let failure = await #expect(throws: StreamError.self) {
+        _ = try await stream.readAll()
+      }
+      #expect(failure is NetworkError)
+      #expect(failure?.statusCode == 0)
+    }
+  }
+
+  /* Leaving a stream unread, without reading it to the end or closing it, releases the connection. */
+  @Test func testBhvStreaming033StoppingAStreamEarlyWithoutReadingItToTheEndReleasesTheConnection()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Transfer-Encoding: chunked")
+      while connection.chunk(String(repeating: "x", count: 4096)) {
+        Thread.sleep(forTimeInterval: 0.005)
+      }
+      connection.server.markClientGone()
+    }
+    defer { server.stop() }
+    do {
+      let stream = ByteStream(response: try await open(server, "/items/events"))
+      var iterator = stream.makeAsyncIterator()
+      #expect(try await take(10, from: &iterator).count >= 10)
+    }
+    #expect(await server.waitForClientGone(), "leaving the scope dropped the connection")
+  }
+
+  /* The read-all helper returns every byte in order and leaves the stream closed. */
+  @Test
+  func testBhvStreaming029TheReadAllHelperOfAByteStreamReturnsEveryByteInOrderAndLeavesItClosed()
+    async throws
+  {
+    let payload = Data((0..<100_000).map { UInt8(truncatingIfNeeded: $0 &* 31) })
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Length: \(payload.count)")
+      connection.send(payload)
+    }
+    defer { server.stop() }
+    let stream = ByteStream(response: try await open(server))
+    #expect(try await stream.readAll() == payload, "every byte, in order")
+    #expect(String(describing: stream) == "ByteStream(statusCode: 200, bytesDelivered: 100000)")
+    await #expect(throws: ConfigurationError.self) {
+      var iterator = stream.makeAsyncIterator()
+      _ = try await iterator.next()
+    }
+  }
+
+  /* A download larger than the stream buffer arrives whole and in order while the reader is slower than the server. */
+  @Test func testASlowReaderOfALargeStreamedBodyGetsEveryByteInOrder() async throws {
+    let payload = Data((0..<6_000_000).map { UInt8(truncatingIfNeeded: $0 &* 7) })
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Length: \(payload.count)")
+      connection.send(payload)
+    }
+    defer { server.stop() }
+    let stream = ByteStream(response: try await open(server))
+    var received = Data()
+    var count = 0
+    for try await chunk in stream {
+      received.append(chunk)
+      count += 1
+      if count % 20 == 0 { try await Task.sleep(nanoseconds: 5_000_000) }
+    }
+    #expect(received == payload)
+  }
+
   // MARK: - Automatic retries
 
   private func retryClient(

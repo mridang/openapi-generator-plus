@@ -10,7 +10,9 @@ import * as http from "node:http";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as util from "node:util";
 import * as zlib from "node:zlib";
+import { ByteStream } from "../src/byte-stream.js";
 import {
   DefaultApiClient,
   SENSITIVE_HEADER_NAMES,
@@ -20,6 +22,7 @@ import {
   OpenAPIError,
   NetworkError,
   NetworkTimeoutError,
+  StreamError,
 } from "../src/errors/index.js";
 import { ClientError } from "../src/errors/client-error.js";
 import { TransportOptions } from "../src/transport-options.js";
@@ -5838,5 +5841,569 @@ describe("DefaultApiClient CA certificate misc behaviours", () => {
             .build(),
         ),
     ).toThrow(missing);
+  });
+});
+
+/* Captured at load, before any suite below replaces the global fetch. */
+const nativeFetch = globalThis.fetch;
+
+/** What a scripted raw server does with one connection: the hit number and the request head. */
+type RawScript = (
+  server: RawServer,
+  socket: net.Socket,
+  hit: number,
+  head: string,
+) => void | Promise<void>;
+
+/**
+ * An in-process HTTP/1.1 server on a raw socket, so a test can stall a body, cut it short or
+ * reset the connection, which neither the shared mock server nor a plain HTTP server can do.
+ */
+class RawServer {
+  hits = 0;
+  readonly heads: string[] = [];
+  /** True once the test released the scripts that wait on it. */
+  released = false;
+  /** Settles when the test, or closing the server, lets a script that waits on it carry on. */
+  readonly release: Promise<void>;
+  /** Settles when a connection was closed, by either side. */
+  readonly gone: Promise<void>;
+  private open!: () => void;
+  private markGone!: () => void;
+  private readonly sockets = new Set<net.Socket>();
+
+  private constructor(private readonly listener: net.Server) {
+    this.release = new Promise<void>((resolve) => {
+      this.open = resolve;
+    });
+    this.gone = new Promise<void>((resolve) => {
+      this.markGone = resolve;
+    });
+  }
+
+  /** Starts a server that runs `script` for every connection it accepts. */
+  static async serve(script: RawScript): Promise<RawServer> {
+    const listener = net.createServer();
+    const server = new RawServer(listener);
+    listener.on("connection", (socket) => server.handle(socket, script));
+    await new Promise<void>((resolve) =>
+      listener.listen(0, "127.0.0.1", resolve),
+    );
+    return server;
+  }
+
+  url(pathAndQuery: string): string {
+    return `http://127.0.0.1:${(this.listener.address() as net.AddressInfo).port}${pathAndQuery}`;
+  }
+
+  /** Lets every script that waits on `release` carry on. */
+  letGo(): void {
+    this.released = true;
+    this.open();
+  }
+
+  private handle(socket: net.Socket, script: RawScript): void {
+    this.sockets.add(socket);
+    socket.on("error", () => undefined);
+    socket.on("close", () => {
+      this.sockets.delete(socket);
+      this.markGone();
+    });
+    let head = "";
+    const onData = (chunk: Buffer): void => {
+      head += chunk.toString("latin1");
+      if (!head.includes("\r\n\r\n")) {
+        return;
+      }
+      socket.off("data", onData);
+      const hit = ++this.hits;
+      this.heads.push(head);
+      Promise.resolve(script(this, socket, hit, head)).catch(() => undefined);
+    };
+    socket.on("data", onData);
+  }
+
+  async close(): Promise<void> {
+    this.letGo();
+    for (const socket of this.sockets) {
+      socket.destroy();
+    }
+    await new Promise<void>((resolve) => this.listener.close(() => resolve()));
+  }
+}
+
+function rawHead(
+  socket: net.Socket,
+  status: number,
+  ...headers: string[]
+): void {
+  /* No Connection: close: undici reads a reset after the headers of such a response as its end. */
+  const lines = [`HTTP/1.1 ${status} Test`, ...headers, "", ""];
+  socket.write(lines.join("\r\n"), "latin1");
+}
+
+function rawChunk(socket: net.Socket, data: string): void {
+  socket.write(`${Buffer.byteLength(data).toString(16)}\r\n${data}\r\n`);
+}
+
+function rawEnd(socket: net.Socket): void {
+  socket.end("0\r\n\r\n");
+}
+
+/** Resets the connection instead of ending it cleanly. */
+function rawReset(socket: net.Socket): void {
+  socket.resetAndDestroy();
+}
+
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Rejects when the promise does not settle within the time, so a hung test fails with a message. */
+async function within<T>(
+  promise: Promise<T>,
+  ms: number,
+  what: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`timed out waiting for ${what}`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Reads from the reader until at least `count` bytes arrived and returns them as text. */
+async function readText(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  count: number,
+): Promise<string> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  while (total < count) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    chunks.push(Buffer.from(value));
+    total += value.byteLength;
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+describe("DefaultApiClient streaming", () => {
+  const servers: RawServer[] = [];
+  const clients: DefaultApiClient[] = [];
+
+  beforeEach(() => {
+    globalThis.fetch = nativeFetch;
+  });
+
+  afterEach(async () => {
+    for (const client of clients.splice(0)) {
+      await client.close();
+    }
+    for (const server of servers.splice(0)) {
+      await server.close();
+    }
+  });
+
+  const serve = async (script: RawScript): Promise<RawServer> => {
+    const server = await RawServer.serve(script);
+    servers.push(server);
+    return server;
+  };
+
+  const clientOf = (options?: TransportOptions): DefaultApiClient => {
+    const client = new DefaultApiClient(
+      options ?? TransportOptions.builder().build(),
+    );
+    clients.push(client);
+    return client;
+  };
+
+  const streamOf = (server: RawServer, path: string) =>
+    clientOf().sendStreaming("GET", server.url(path), {}, null);
+
+  const asByteStream = (
+    response: Awaited<ReturnType<typeof streamOf>>,
+  ): ByteStream =>
+    new ByteStream(response.statusCode, response.headers, response.body);
+
+  const endlessChunks: RawScript = async (_server, socket) => {
+    rawHead(socket, 200, "Transfer-Encoding: chunked");
+    while (!socket.destroyed) {
+      rawChunk(socket, "x".repeat(4096));
+      await pause(5);
+    }
+  };
+
+  it("bhv streaming 001 a binary stream call delivers the bytes in order and returns before the body has ended", async () => {
+    const server = await serve(async (self, socket) => {
+      rawHead(
+        socket,
+        200,
+        "Content-Type: application/octet-stream",
+        "Transfer-Encoding: chunked",
+      );
+      rawChunk(socket, "first-");
+      await self.release;
+      rawChunk(socket, "second");
+      rawEnd(socket);
+    });
+
+    const response = await streamOf(server, "/items/blob");
+
+    expect(response.statusCode).toBe(200);
+    expect(server.released).toBe(false);
+    const reader = response.body.getReader();
+    expect(await readText(reader, 6)).toBe("first-");
+    server.letGo();
+    expect(await readText(reader, 6)).toBe("second");
+    expect((await reader.read()).done).toBe(true);
+  });
+
+  it("bhv streaming 010 the call timeout bounds only the wait for the response headers, not the body", async () => {
+    const server = await serve(async (_self, socket) => {
+      rawHead(socket, 200, "Transfer-Encoding: chunked");
+      rawChunk(socket, "ab");
+      await pause(1200);
+      rawChunk(socket, "cd");
+      rawEnd(socket);
+    });
+
+    const response = await clientOf().sendStreaming(
+      "GET",
+      server.url("/items/blob"),
+      {},
+      null,
+      {
+        timeout: 400,
+        maxRetries: 0,
+      },
+    );
+
+    expect((await asByteStream(response).readAll()).toString("utf8")).toBe(
+      "abcd",
+    );
+  });
+
+  it("bhv streaming 011 the idle timeout raises a network timeout error when the server stalls in the middle of the body", async () => {
+    const server = await serve(async (self, socket) => {
+      rawHead(socket, 200, "Transfer-Encoding: chunked");
+      rawChunk(socket, "ab");
+      await self.release;
+    });
+    expect(TransportOptions.builder().build().idleTimeout).toBe(60000);
+    expect(
+      TransportOptions.builder().idleTimeout(0).build().idleTimeout,
+    ).toBeNull();
+    expect(
+      TransportOptions.builder().idleTimeout(null).build().idleTimeout,
+    ).toBeNull();
+    expect(() => TransportOptions.builder().idleTimeout(-1)).toThrow(TypeError);
+
+    const client = clientOf(
+      TransportOptions.builder().idleTimeout(300).build(),
+    );
+    const response = await client.sendStreaming(
+      "GET",
+      server.url("/items/blob"),
+      {},
+      null,
+    );
+    const reader = response.body.getReader();
+    expect(await readText(reader, 2)).toBe("ab");
+    const started = Date.now();
+    const failure = await reader.read().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(NetworkTimeoutError);
+    expect((failure as NetworkTimeoutError).statusCode).toBe(0);
+    expect(Date.now() - started).toBeLessThan(5000);
+    expect(server.hits).toBe(1);
+  });
+
+  it("bhv streaming 012 a connection reset in the middle of the body raises a network error and is not retried", async () => {
+    const server = await serve(async (_self, socket) => {
+      rawHead(socket, 200, "Transfer-Encoding: chunked");
+      rawChunk(socket, "ab");
+      await pause(100);
+      rawReset(socket);
+    });
+
+    const response = await streamOf(server, "/items/blob");
+
+    await expect(asByteStream(response).readAll()).rejects.toBeInstanceOf(
+      NetworkError,
+    );
+    expect(server.hits).toBe(1);
+  });
+
+  it("bhv streaming 013 a body shorter than its Content-Length raises a network error and is never a silent short success", async () => {
+    const server = await serve((_self, socket) => {
+      rawHead(socket, 200, "Content-Length: 10");
+      socket.end("abcd");
+    });
+
+    const response = await streamOf(server, "/items/blob");
+
+    await expect(asByteStream(response).readAll()).rejects.toBeInstanceOf(
+      NetworkError,
+    );
+  });
+
+  it("bhv streaming 014 a streaming call retries a 503 before the headers and then streams the retried response", async () => {
+    const server = await serve((_self, socket, hit) => {
+      if (hit === 1) {
+        rawHead(socket, 503, "Retry-After: 0", "Content-Length: 4");
+        socket.end("nope");
+        return;
+      }
+      rawHead(socket, 200, "Content-Length: 5");
+      socket.end("hello");
+    });
+
+    const response = await streamOf(server, "/items/blob");
+
+    expect(response.statusCode).toBe(200);
+    expect((await asByteStream(response).readAll()).toString("utf8")).toBe(
+      "hello",
+    );
+    expect(server.hits).toBe(2);
+  });
+
+  it("bhv streaming 015 a streaming call never retries after the first body byte was delivered", async () => {
+    const server = await serve(async (_self, socket) => {
+      rawHead(socket, 200, "Transfer-Encoding: chunked");
+      rawChunk(socket, "part");
+      await pause(100);
+      rawReset(socket);
+    });
+
+    const response = await streamOf(server, "/items/blob");
+    const stream = asByteStream(response);
+    const reader = stream.getReader();
+    expect(await readText(reader, 4)).toBe("part");
+    await expect(reader.read()).rejects.toBeInstanceOf(NetworkError);
+    await pause(300);
+
+    expect(server.hits).toBe(1);
+  });
+
+  it("bhv streaming 016 a streaming call follows a redirect before the body and strips credentials across origins", async () => {
+    const target = await serve((_self, socket) => {
+      rawHead(socket, 200, "Content-Length: 6");
+      socket.end("landed");
+    });
+    const origin = await serve((_self, socket) => {
+      rawHead(
+        socket,
+        302,
+        `Location: ${target.url("/items/final")}`,
+        "Content-Length: 0",
+      );
+      socket.end();
+    });
+
+    const response = await clientOf().sendStreaming(
+      "GET",
+      origin.url("/items/blob"),
+      {
+        Authorization: "Bearer secret-token",
+        Cookie: "session=abc",
+        "X-Trace": "kept",
+      },
+      null,
+    );
+
+    expect((await asByteStream(response).readAll()).toString("utf8")).toBe(
+      "landed",
+    );
+    const sentToOrigin = origin.heads[0]!.toLowerCase();
+    const sentToTarget = target.heads[0]!.toLowerCase();
+    expect(sentToOrigin).toContain("authorization: bearer secret-token");
+    expect(sentToTarget).not.toContain("authorization");
+    expect(sentToTarget).not.toContain("cookie");
+    expect(sentToTarget).toContain("x-trace: kept");
+  });
+
+  it("bhv streaming 019 closing a stream twice is safe and aborts the connection", async () => {
+    const server = await serve(endlessChunks);
+
+    const response = await streamOf(server, "/items/blob");
+    const stream = asByteStream(response);
+    const reader = stream.getReader();
+    expect((await readText(reader, 4)).length).toBeGreaterThanOrEqual(4);
+    reader.releaseLock();
+    await stream.close();
+    await stream.close();
+    await response.close();
+
+    await within(
+      server.gone,
+      10000,
+      "the server to see the connection dropped",
+    );
+    await expect(stream.getReader().read()).rejects.toThrow("closed");
+  });
+
+  it("bhv streaming 020 cancelling the call aborts the stream and is never raised as a timeout", async () => {
+    const silent = await serve(async (self) => {
+      await self.release;
+    });
+    const stalled = await serve(async (self, socket) => {
+      rawHead(socket, 200, "Transfer-Encoding: chunked");
+      rawChunk(socket, "ab");
+      await self.release;
+    });
+    const client = clientOf();
+
+    const beforeHeaders = new AbortController();
+    const waiting = client
+      .sendStreaming("GET", silent.url("/items/blob"), {}, null, {
+        signal: beforeHeaders.signal,
+        maxRetries: 0,
+      })
+      .catch((error: unknown) => error);
+    while (silent.hits === 0) {
+      await pause(10);
+    }
+    beforeHeaders.abort();
+    const early = await within(waiting, 10000, "the call to stop");
+    expect((early as Error).name).toBe("AbortError");
+    expect(early).not.toBeInstanceOf(NetworkTimeoutError);
+
+    const inBody = new AbortController();
+    const response = await client.sendStreaming(
+      "GET",
+      stalled.url("/items/blob"),
+      {},
+      null,
+      { signal: inBody.signal },
+    );
+    const reader = response.body.getReader();
+    expect(await readText(reader, 2)).toBe("ab");
+    const pending = reader.read().catch((error: unknown) => error);
+    await pause(300);
+    inBody.abort();
+    const late = await within(pending, 10000, "the read to stop");
+    expect((late as Error).name).toBe("AbortError");
+    expect(late).not.toBeInstanceOf(NetworkTimeoutError);
+  });
+
+  it("bhv streaming 022 the string form of a stream hides credentials, the query and the data", async () => {
+    const server = await serve((_self, socket) => {
+      rawHead(
+        socket,
+        200,
+        "Content-Length: 7",
+        "Set-Cookie: sid=secret-cookie",
+      );
+      socket.end("payload");
+    });
+
+    const response = await clientOf().sendStreaming(
+      "GET",
+      server.url("/items/blob?token=secret-query"),
+      { Authorization: "Bearer secret-token" },
+      null,
+    );
+    const stream = asByteStream(response);
+    const reader = stream.getReader();
+    expect(await readText(reader, 7)).toBe("payload");
+
+    for (const shown of [
+      String(stream),
+      String(response),
+      util.inspect(stream),
+      util.inspect(response),
+      JSON.stringify(stream),
+      JSON.stringify(response),
+    ]) {
+      expect(shown).not.toContain("secret");
+      expect(shown).not.toContain("payload");
+      expect(shown).not.toContain("token");
+      expect(shown).not.toContain("items");
+    }
+    expect(String(stream)).toBe("ByteStream{statusCode=200, bytesDelivered=7}");
+  });
+
+  it("bhv streaming 029 the read-all helper of a byte stream returns every byte in order and leaves the stream closed", async () => {
+    const payload = Buffer.alloc(100_000);
+    for (let i = 0; i < payload.length; i++) {
+      payload[i] = (i * 31) & 0xff;
+    }
+    const server = await serve((_self, socket) => {
+      rawHead(socket, 200, `Content-Length: ${payload.length}`);
+      socket.end(payload);
+    });
+
+    const stream = asByteStream(await streamOf(server, "/items/blob"));
+
+    expect((await stream.readAll()).equals(payload)).toBe(true);
+    expect(String(stream)).toBe(
+      "ByteStream{statusCode=200, bytesDelivered=100000}",
+    );
+    expect((await stream.readAll()).length).toBe(0);
+    await expect(stream.close()).resolves.toBeUndefined();
+  });
+
+  it("bhv streaming 031 closing a live endless stream returns promptly and does not wait for the server to finish", async () => {
+    const server = await serve(async (self, socket) => {
+      rawHead(socket, 200, "Transfer-Encoding: chunked");
+      rawChunk(socket, "tick");
+      await self.release;
+    });
+
+    const response = await streamOf(server, "/items/events");
+    const reader = response.body.getReader();
+    expect(await readText(reader, 4)).toBe("tick");
+    reader.releaseLock();
+    const started = Date.now();
+    await response.close();
+
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it("bhv streaming 032 a reset or truncation after the headers raises a StreamError, and a StreamError is a network error", async () => {
+    const reset = await serve(async (_self, socket) => {
+      rawHead(socket, 200, "Transfer-Encoding: chunked");
+      rawChunk(socket, "ab");
+      await pause(100);
+      rawReset(socket);
+    });
+    const cut = await serve((_self, socket) => {
+      rawHead(socket, 200, "Content-Length: 10");
+      socket.end("abcd");
+    });
+
+    for (const server of [reset, cut]) {
+      const stream = asByteStream(await streamOf(server, "/items/blob"));
+      const failure = await stream.readAll().catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(StreamError);
+      expect(failure).toBeInstanceOf(NetworkError);
+      expect((failure as StreamError).statusCode).toBe(0);
+    }
+  });
+
+  it("bhv streaming 033 stopping a stream early without reading it to the end releases the connection", async () => {
+    const server = await serve(endlessChunks);
+
+    const stream = asByteStream(await streamOf(server, "/items/events"));
+    for await (const chunk of stream) {
+      expect(chunk.byteLength).toBeGreaterThan(0);
+      break;
+    }
+
+    await within(server.gone, 10000, "leaving the loop to drop the connection");
   });
 });

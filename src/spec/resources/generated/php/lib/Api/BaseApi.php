@@ -19,6 +19,7 @@ use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\ApiResult;
+use PetstoreClient\ByteStream;
 use PetstoreClient\CallInfo;
 use PetstoreClient\CallObserver;
 use PetstoreClient\CallOutcome;
@@ -27,6 +28,7 @@ use PetstoreClient\DefaultApiClient;
 use PetstoreClient\HeaderSelector;
 use PetstoreClient\ClientLifecycle;
 use PetstoreClient\ObjectSerializer;
+use PetstoreClient\StreamingApiClient;
 use PetstoreClient\TraceContextUtil;
 use PetstoreClient\ValueSerializer;
 use PetstoreClient\Auth\Authenticator;
@@ -174,6 +176,219 @@ class BaseApi
      * @throws ApiException
      */
     protected function invokeApiForResult(
+        string $method,
+        string $path,
+        array $queryParams,
+        array $headerParams,
+        mixed $body,
+        array $accepts,
+        ?string $contentType,
+        ?string $returnType,
+        ?Authenticator $auth = null,
+        array $allowReservedKeys = [],
+        bool $rawBody = false,
+        ?int $timeout = null,
+        ?array $headers = null,
+        ?int $maxRetries = null,
+        array $successTypes = [],
+        array $securityRequirements = [],
+        array $errorSchemas = [],
+        ?string $operationId = null,
+        ?string $urlTemplate = null
+    ): ApiResult {
+        return $this->invokeCall(
+            false,
+            $method,
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            $accepts,
+            $contentType,
+            $returnType,
+            $auth,
+            $allowReservedKeys,
+            $rawBody,
+            $timeout,
+            $headers,
+            $maxRetries,
+            $successTypes,
+            $securityRequirements,
+            $errorSchemas,
+            $operationId,
+            $urlTemplate
+        );
+    }
+
+    /**
+     * Invoke an operation whose success response is binary and return its body as a stream, unread.
+     *
+     * Everything up to the response headers is the buffered call: the same retries, redirects,
+     * authentication, 401 replay, headers and call hook. A non-2xx status raises the same typed error
+     * as a buffered call, its body read up to 64 KiB, and no stream is returned. The result holds the
+     * open {@see ByteStream} as its data and an empty raw body.
+     *
+     * @param string                $method       HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param string                $path         URL path (with path params already substituted)
+     * @param array<string, mixed>  $queryParams  Query parameters
+     * @param array<string, string> $headerParams Custom header parameters
+     * @param mixed                 $body         Request body (model object or form params array)
+     * @param string[]              $accepts      Acceptable response content types
+     * @param string|null           $contentType  Request content type
+     * @param Authenticator|null    $auth         Three-state auth selector: the NoAuth sentinel
+     *                                            suppresses all credentials (security:[] operation);
+     *                                            null falls back to the client authenticator (secured
+     *                                            op, no per-call override); a real Authenticator is a
+     *                                            per-call override
+     * @param array<string, bool>   $allowReservedKeys Set of query parameter
+     *                                            names (baseName => true) declared
+     *                                            `allowReserved: true`; their values
+     *                                            keep RFC 3986 reserved characters
+     *                                            literal. Empty by default, so
+     *                                            omitting it encodes every value as
+     *                                            before.
+     * @param bool                  $rawBody      True when the operation's body is
+     *                                            `format: binary`: the caller's bytes,
+     *                                            file or stream go on the wire verbatim
+     *                                            under whichever declared Content-Type
+     *                                            was selected, even application/json.
+     * @param int|null              $timeout      Per-call request timeout in milliseconds,
+     *                                            replacing the transport timeout for this call
+     *                                            only (a transport that is not an
+     *                                            {@see AbstractApiClient} ignores it).
+     * @param array<string, string>|null $headers Per-call request headers. They win over the
+     *                                            configuration, operation and authentication
+     *                                            headers of the same name.
+     * @param int|null              $maxRetries   Per-call retry count, replacing the transport
+     *                                            retry count for this call only (a transport
+     *                                            that is not an {@see AbstractApiClient}
+     *                                            ignores it).
+     * @param list<list<string>>    $securityRequirements The operation's security requirement:
+     *                                            alternatives of scheme ids that must all be
+     *                                            configured. Read only when per-scheme credentials
+     *                                            are configured.
+     * @param array<int|string, \Closure(int, array<string, string>|null, string|null, string|null, string|null): ApiException> $errorSchemas
+     *                                            Factory of the error type of each error schema
+     *                                            the operation declares, by declared status (404,
+     *                                            4XX or default). Empty when it declares none.
+     * @param string|null           $operationId  The operation id exactly as written in the OpenAPI
+     *                                            document, handed to the call hook
+     * @param string|null           $urlTemplate  The path template of the operation, handed to the call hook
+     *
+     *
+     * @return ApiResult<ByteStream> Result whose data is the open stream
+     * @throws ApiException
+     */
+    protected function invokeApiForStream(
+        string $method,
+        string $path,
+        array $queryParams,
+        array $headerParams,
+        mixed $body,
+        array $accepts,
+        ?string $contentType,
+        ?Authenticator $auth = null,
+        array $allowReservedKeys = [],
+        bool $rawBody = false,
+        ?int $timeout = null,
+        ?array $headers = null,
+        ?int $maxRetries = null,
+        array $securityRequirements = [],
+        array $errorSchemas = [],
+        ?string $operationId = null,
+        ?string $urlTemplate = null
+    ): ApiResult {
+        return $this->invokeCall(
+            true,
+            $method,
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            $accepts,
+            $contentType,
+            null,
+            $auth,
+            $allowReservedKeys,
+            $rawBody,
+            $timeout,
+            $headers,
+            $maxRetries,
+            [],
+            $securityRequirements,
+            $errorSchemas,
+            $operationId,
+            $urlTemplate
+        );
+    }
+
+    /**
+     * The one call path behind {@see invokeApiForResult()} and {@see invokeApiForStream()}: it builds
+     * the URL and the headers, runs the call hook and the authentication, and then sends the request
+     * either buffered or as a stream.
+     *
+     * @param bool                  $stream       true to return the open {@see ByteStream} as the data, false to
+     *                                            decode the body as the return type
+     * @param string                $method       HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param string                $path         URL path (with path params already substituted)
+     * @param array<string, mixed>  $queryParams  Query parameters
+     * @param array<string, string> $headerParams Custom header parameters
+     * @param mixed                 $body         Request body (model object or form params array)
+     * @param string[]              $accepts      Acceptable response content types
+     * @param string|null           $contentType  Request content type
+     * @param string|null           $returnType   Return type for deserialization
+     * @param Authenticator|null    $auth         Three-state auth selector: the NoAuth sentinel
+     *                                            suppresses all credentials (security:[] operation);
+     *                                            null falls back to the client authenticator (secured
+     *                                            op, no per-call override); a real Authenticator is a
+     *                                            per-call override
+     * @param array<string, bool>   $allowReservedKeys Set of query parameter
+     *                                            names (baseName => true) declared
+     *                                            `allowReserved: true`; their values
+     *                                            keep RFC 3986 reserved characters
+     *                                            literal. Empty by default, so
+     *                                            omitting it encodes every value as
+     *                                            before.
+     * @param bool                  $rawBody      True when the operation's body is
+     *                                            `format: binary`: the caller's bytes,
+     *                                            file or stream go on the wire verbatim
+     *                                            under whichever declared Content-Type
+     *                                            was selected, even application/json.
+     * @param int|null              $timeout      Per-call request timeout in milliseconds,
+     *                                            replacing the transport timeout for this call
+     *                                            only (a transport that is not an
+     *                                            {@see AbstractApiClient} ignores it).
+     * @param array<string, string>|null $headers Per-call request headers. They win over the
+     *                                            configuration, operation and authentication
+     *                                            headers of the same name.
+     * @param int|null              $maxRetries   Per-call retry count, replacing the transport
+     *                                            retry count for this call only (a transport
+     *                                            that is not an {@see AbstractApiClient}
+     *                                            ignores it).
+     * @param array<int|string, string> $successTypes Model type of each success status of an
+     *                                            operation that declares several 2xx responses
+     *                                            (a status such as 201, or a range such as 2XX).
+     *                                            A success body is decoded as the type of its
+     *                                            actual status and wrapped in $returnType, the
+     *                                            union. Empty for every other operation.
+     * @param list<list<string>>    $securityRequirements The operation's security requirement:
+     *                                            alternatives of scheme ids that must all be
+     *                                            configured. Read only when per-scheme credentials
+     *                                            are configured.
+     * @param array<int|string, \Closure(int, array<string, string>|null, string|null, string|null, string|null): ApiException> $errorSchemas
+     *                                            Factory of the error type of each error schema
+     *                                            the operation declares, by declared status (404,
+     *                                            4XX or default). Empty when it declares none.
+     * @param string|null           $operationId  The operation id exactly as written in the OpenAPI
+     *                                            document, handed to the call hook
+     * @param string|null           $urlTemplate  The path template of the operation, handed to the call hook
+     *
+     *
+     * @return ApiResult<mixed>
+     * @throws ApiException
+     */
+    private function invokeCall(
+        bool $stream,
         string $method,
         string $path,
         array $queryParams,
@@ -358,74 +573,89 @@ class BaseApi
         try {
             $serializedBody = $this->serializeBody($body, $contentType, $isMultipart, $rawBody);
 
-            /* A transport that derives from AbstractApiClient also retries a
-             * transient failure (TransportOptions::$maxRetries); any other
-             * ApiClient implementation sends once. */
-            $response = $this->apiClient instanceof AbstractApiClient
-                ? $this->apiClient->sendWithRetries(
+            if ($stream) {
+                $result = $this->openStream(
                     $method,
                     $url,
                     $headersForAttempt,
                     $serializedBody,
                     $timeout,
-                    $maxRetries
-                )
-                : $this->apiClient->sendRequest($method, $url, $headersForAttempt(), $serializedBody);
-            $statusCode = $response->statusCode;
-            $responseHeaders = $response->headers;
-
-            if (
-                $response->statusCode === 401
-                && $effectiveAuth instanceof Authenticator
-                && method_exists($effectiveAuth, 'invalidateAccessToken')
-                && ($serializedBody === null || is_string($serializedBody))
-            ) {
-                /* A revoked or rotated token keeps failing while it is cached.
-                 * Drop it, obtain a new one (a refresh grant first) and replay the
-                 * request once. A body that cannot be replayed (a stream) is not
-                 * retried, and a failed re-authentication leaves the 401 as is. */
-                $effectiveAuth->invalidateAccessToken();
-                try {
-                    $retryAuthHeaders = $effectiveAuth->getAuthHeaders();
-                } catch (\PetstoreClient\Errors\OpenAPIException) {
-                    $retryAuthHeaders = null;
-                }
-                if ($retryAuthHeaders !== null) {
-                    $response = $this->apiClient->sendRequest(
+                    $maxRetries,
+                    $effectiveAuth,
+                    $errorSchemas,
+                    $statusCode,
+                    $responseHeaders
+                );
+            } else {
+                /* A transport that derives from AbstractApiClient also retries a
+                 * transient failure (TransportOptions::$maxRetries); any other
+                 * ApiClient implementation sends once. */
+                $response = $this->apiClient instanceof AbstractApiClient
+                    ? $this->apiClient->sendWithRetries(
                         $method,
                         $url,
-                        array_merge($headersForAttempt(), $retryAuthHeaders),
-                        $serializedBody
-                    );
-                    $statusCode = $response->statusCode;
-                    $responseHeaders = $response->headers;
+                        $headersForAttempt,
+                        $serializedBody,
+                        $timeout,
+                        $maxRetries
+                    )
+                    : $this->apiClient->sendRequest($method, $url, $headersForAttempt(), $serializedBody);
+                $statusCode = $response->statusCode;
+                $responseHeaders = $response->headers;
+
+                if (
+                    $response->statusCode === 401
+                    && $effectiveAuth instanceof Authenticator
+                    && method_exists($effectiveAuth, 'invalidateAccessToken')
+                    && ($serializedBody === null || is_string($serializedBody))
+                ) {
+                    /* A revoked or rotated token keeps failing while it is cached.
+                     * Drop it, obtain a new one (a refresh grant first) and replay the
+                     * request once. A body that cannot be replayed (a stream) is not
+                     * retried, and a failed re-authentication leaves the 401 as is. */
+                    $effectiveAuth->invalidateAccessToken();
+                    try {
+                        $retryAuthHeaders = $effectiveAuth->getAuthHeaders();
+                    } catch (\PetstoreClient\Errors\OpenAPIException) {
+                        $retryAuthHeaders = null;
+                    }
+                    if ($retryAuthHeaders !== null) {
+                        $response = $this->apiClient->sendRequest(
+                            $method,
+                            $url,
+                            array_merge($headersForAttempt(), $retryAuthHeaders),
+                            $serializedBody
+                        );
+                        $statusCode = $response->statusCode;
+                        $responseHeaders = $response->headers;
+                    }
                 }
-            }
 
-            if ($response->statusCode < 200 || $response->statusCode >= 300) {
-                throw ApiException::fromResponse(
-                    $response->statusCode,
-                    $response->headers,
-                    $response->body,
-                    $method,
-                    $url,
-                    $errorSchemas
-                );
-            }
+                if ($response->statusCode < 200 || $response->statusCode >= 300) {
+                    throw ApiException::fromResponse(
+                        $response->statusCode,
+                        $response->headers,
+                        $response->body,
+                        $method,
+                        $url,
+                        $errorSchemas
+                    );
+                }
 
-            try {
-                $data = $this->decodeSuccessBody($response, $returnType, $successTypes, $operationId);
-            } catch (SerializationException $e) {
-                throw $e->withResponse(
-                    $response->statusCode,
-                    $response->headers,
-                    $response->body,
-                    $method,
-                    $url
-                );
-            }
+                try {
+                    $data = $this->decodeSuccessBody($response, $returnType, $successTypes, $operationId);
+                } catch (SerializationException $e) {
+                    throw $e->withResponse(
+                        $response->statusCode,
+                        $response->headers,
+                        $response->body,
+                        $method,
+                        $url
+                    );
+                }
 
-            $result = new ApiResult($response->statusCode, $data, $response->body, $response->headers);
+                $result = new ApiResult($response->statusCode, $data, $response->body, $response->headers);
+            }
         } catch (\Throwable $error) {
             $this->finishCall($observer, $statusCode, $responseHeaders, $error);
             throw $error;
@@ -433,6 +663,147 @@ class BaseApi
         $this->finishCall($observer, $statusCode, $responseHeaders, null);
 
         return $result;
+    }
+
+    /** The most of an error body a stream call reads before it raises the error. */
+    private const int STREAM_ERROR_BODY_LIMIT = 65536;
+
+    /**
+     * Send the request for a stream result: a success hands back the open stream, any other status
+     * reads a bounded part of its body, closes it and raises the typed error of a buffered call.
+     *
+     * @param \Closure(): array<string, string> $headersForAttempt builds the request headers for one attempt
+     * @param array<int|string, \Closure(int, array<string, string>|null, string|null, string|null, string|null): ApiException> $errorSchemas
+     * @param int                         $statusCode      set to the status that arrived
+     * @param array<string, string>|null  $responseHeaders set to the headers that arrived
+     * @param-out int                     $statusCode
+     * @param-out array<string, string>   $responseHeaders
+     *
+     * @return ApiResult<ByteStream> the result whose data is the open stream; its raw body is empty
+     *
+     * @throws ApiException when the status is not 2xx
+     */
+    private function openStream(
+        string $method,
+        string $url,
+        \Closure $headersForAttempt,
+        mixed $serializedBody,
+        ?int $timeout,
+        ?int $maxRetries,
+        ?Authenticator $effectiveAuth,
+        array $errorSchemas,
+        int &$statusCode,
+        ?array &$responseHeaders,
+    ): ApiResult {
+        $stream = $this->callStreaming($method, $url, $headersForAttempt, $serializedBody, $timeout, $maxRetries);
+        $statusCode = $stream->statusCode;
+        $responseHeaders = $stream->headers;
+
+        if (
+            $stream->statusCode === 401
+            && $effectiveAuth instanceof Authenticator
+            && method_exists($effectiveAuth, 'invalidateAccessToken')
+            && ($serializedBody === null || is_string($serializedBody))
+        ) {
+            /* The same replay as a buffered call: drop the cached token, obtain a new one and send
+             * the request once more. The refused response is closed unread. */
+            $effectiveAuth->invalidateAccessToken();
+            try {
+                $retryAuthHeaders = $effectiveAuth->getAuthHeaders();
+            } catch (\PetstoreClient\Errors\OpenAPIException) {
+                $retryAuthHeaders = null;
+            }
+            if ($retryAuthHeaders !== null) {
+                $stream->close();
+                $stream = $this->callStreaming(
+                    $method,
+                    $url,
+                    static fn (): array => array_merge($headersForAttempt(), $retryAuthHeaders),
+                    $serializedBody,
+                    $timeout,
+                    $maxRetries
+                );
+                $statusCode = $stream->statusCode;
+                $responseHeaders = $stream->headers;
+            }
+        }
+
+        if ($stream->statusCode < 200 || $stream->statusCode >= 300) {
+            $bytes = $stream->readBounded(self::STREAM_ERROR_BODY_LIMIT);
+            throw ApiException::fromResponse(
+                $stream->statusCode,
+                $stream->headers,
+                $this->errorBodyText($bytes, $stream->headers),
+                $method,
+                $url,
+                $errorSchemas
+            );
+        }
+
+        $this->lifecycle?->track($stream);
+
+        return new ApiResult($stream->statusCode, $stream, '', $stream->headers);
+    }
+
+    /**
+     * Sends a streaming request through the transport: a transport that derives from AbstractApiClient
+     * retries and rebuilds the headers of every attempt, any other {@see StreamingApiClient} is sent
+     * once, and a transport that cannot stream fails the call, never falling back to buffering.
+     *
+     * @param \Closure(): array<string, string> $headers builds the request headers for one attempt
+     *
+     * @throws \BadMethodCallException when the transport does not implement {@see StreamingApiClient}
+     */
+    private function callStreaming(
+        string $method,
+        string $url,
+        \Closure $headers,
+        mixed $body,
+        ?int $timeout,
+        ?int $maxRetries,
+    ): ByteStream {
+        if ($this->apiClient instanceof AbstractApiClient) {
+            return $this->apiClient->sendStreamingWithRetries($method, $url, $headers, $body, $timeout, $maxRetries);
+        }
+        if ($this->apiClient instanceof StreamingApiClient) {
+            return $this->apiClient->sendStreaming($method, $url, $headers(), $body, $timeout, $maxRetries);
+        }
+
+        throw new \BadMethodCallException(
+            $this->apiClient::class . ' cannot stream: it does not implement StreamingApiClient::sendStreaming,'
+            . ' so an operation that returns a stream cannot be called through it'
+        );
+    }
+
+    /**
+     * The body of an error response as a buffered call hands it over: the decoded text for a text
+     * content type, and base64 text for anything else.
+     *
+     * @param array<string, string> $headers the response headers, lower-cased
+     */
+    private function errorBodyText(string $bytes, array $headers): string
+    {
+        $contentType = $headers['content-type'] ?? '';
+        $mediaType = trim(explode(';', $contentType)[0]);
+        if ($mediaType !== '' && !$this->isTextMediaType($mediaType)) {
+            return base64_encode($bytes);
+        }
+        if (
+            preg_match('/charset\s*=\s*"?([^";\s]+)/i', $contentType, $found) === 1
+            && !in_array(strtolower($found[1]), ['utf-8', 'utf8'], true)
+            && function_exists('mb_convert_encoding')
+        ) {
+            try {
+                $converted = mb_convert_encoding($bytes, 'UTF-8', $found[1]);
+                if ($converted !== false) {
+                    return $converted;
+                }
+            } catch (\ValueError) {
+                /* an unknown charset: the bytes are handled as UTF-8 */
+            }
+        }
+
+        return function_exists('mb_scrub') ? mb_scrub($bytes, 'UTF-8') : $bytes;
     }
 
     /**

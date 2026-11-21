@@ -25,6 +25,7 @@ This generator emits a Python client package: pydantic v2 models, an `async` ope
 | `errors.mustache`, `errors/*.mustache` | `ApiError` hierarchy, OAuth2 errors, header rendering, `ErrorFactory`, `is_retryable`, `request_id`; `errors/schema_exception.mustache` renders one class per declared error schema (issue 123) | error classes and messages |
 | `auth/*.mustache`, `auth/oauth/*.mustache` | authenticators, token manager, OIDC | auth behaviour |
 | `server_configuration.mustache`, `servers.mustache` | server list and variables | server constants |
+| `byte_stream.mustache`, `api_stream_response.mustache`, `errors/stream_exception.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body) and `StreamBody` (its Protocol), `StreamException` | streaming types |
 | `readme.mustache`, `skills*.mustache`, `pyproject_toml.mustache`, `makefile.mustache` | README, SKILLS.md, manifest, Makefile (`typecheck`, `docs`) | docs, dependencies, ruff and mypy config |
 | `test/*.mustache`, `test/*.py` | the tests shipped inside the generated SDK | generated test files (add rows to the existing mirror file) |
 
@@ -45,6 +46,8 @@ This generator emits a Python client package: pydantic v2 models, an `async` ope
 | Cancellation | no parameter; `asyncio` task cancellation (S7) | asyncio is the native handle |
 | Lifecycle | context manager plus graceful, idempotent `close()`, which the `ApiClient` interface does not require; a closed client raises `RuntimeError` | the interface does not require `close` |
 | Transport injection | a trailing `pool_manager` argument on `DefaultApiClient` and `Client` | urllib3 pool manager is the transport object |
+| Streaming transport | a second `runtime_checkable` Protocol `StreamingApiClient` (`send_streaming`), checked with `isinstance` at call time; the unsupported error is `NotImplementedError` naming the transport | a Protocol that a transport matches structurally cannot hand it a default method, so the default is the check (D118: second interface where defaults cannot exist) |
+| Binary response | `ByteStream`, an async context manager and async iterator of `bytes` with `read(n)`, `read_all()` and an idempotent sync `close()` | Python has no `InputStream`; the SDK is async-first, so the carrier is async (D119) |
 | Optional codecs | `brotli` and `zstandard` are imported behind `try/except ImportError` and advertised only when installed | keeps the mandatory dependency set small (FD-compression) |
 
 ## Settled decisions (do not re-open in review)
@@ -191,7 +194,7 @@ Where: `value_serializer.mustache`, `base_api.mustache`, `default_api_client.mus
 Test: `test_value_serializer.mustache`, `test_base_api.mustache`.
 
 ### Bodies and content negotiation (D30, D32, D35, D39)
-Rule: a `format: binary` response is raw bytes (text-class or absent Content-Type gives the UTF-8 bytes of the body string, anything else `b64decode(validate=True)` wrapped in `SerializationException`) through a binary marker distinct from the `bytes` used for `format: byte`; a non-JSON content type on a non-binary return is the text for `str` and otherwise `SerializationException` naming the Content-Type; a binary request body is sent verbatim under whatever content type the caller selected (`raw_body`, `read()` for a file-like); a form-urlencoded field that is a model or dict raises `SerializationException`; an unrecognised `request_content_type` raises `ValueError`.
+Rule: a binary success response is a `ByteStream` (see "Streaming: binary responses"; the `bytes` decode of `_invoke_api_for_result` stays for `format: byte` and for a caller that passes the `'bytes'` return type); a non-JSON content type on a non-binary return is the text for `str` and otherwise `SerializationException` naming the Content-Type; a binary request body is sent verbatim under whatever content type the caller selected (`raw_body`, `read()` for a file-like); a form-urlencoded field that is a model or dict raises `SerializationException`; an unrecognised `request_content_type` raises `ValueError`.
 Why: a typo must never ride the wire as an undeclared Content-Type, and a binary body must never go through the JSON serializer.
 Where: `base_api.mustache`, `api/api.mustache`, `object_serializer.mustache`.
 Test: `test_base_api.mustache`.
@@ -382,7 +385,7 @@ Where: `readme.mustache`, `skills.mustache`, `api/options.mustache`, `makefile.m
 F229 (pool `maxsize=10`, `default_api_client.mustache`, test `TestConnectionPoolSizing`), F823 and F855 (batch 9: `base_api.mustache` replay at the `invalidate_access_token` lookup), F858 PKCE (`oauth2_auth_code_authenticator.mustache:126`), F1080 (`errors.mustache:46`, `TestApiErrorRendering`), F1180 (`invalidate_access_token` is public on all four OAuth authenticators), F831 (429 is `TooManyRequestsException`; the `retryAfter` accessor is not decided).
 
 ### Not done in python, with the reason
-- F912: reading the body in chunks to check the deadline needs `response.stream`, and the unit tests' fake responses implement `read()` only; the per-read timeout still applies to a trickled body.
+- F912: reading the body in chunks to check the deadline needs `response.stream`, and the unit tests' fake responses implement `read()` only; the per-read timeout still applies to a trickled body. A streamed body is read with `read1` and bounded by the idle timeout instead (see "Streaming: binary responses").
 
 ## Decisions taken in wave 2
 
@@ -470,6 +473,33 @@ The first command runs the Python specs end to end (client tests, ruff format, r
 - Trace context from the caller (#136): `inject` reads the `ContextVar` context of the awaiting task (`use_span` or `context.attach`); headers are built in the coroutine, not offloaded (D95).
 
 - **F15 (typed `additionalProperties`, #103).** The bucket is `Dict[str, V]` (`Optional[V]` when nullable); pydantic validates the dict on decode, so the strict scalar names reject a wrong type and a null.
+
+## Streaming: binary responses (capability 1 of #114, D118 to D122)
+
+### The transport returns an unread body
+Rule: `StreamingApiClient.send_streaming(method, url, headers, body, idle_timeout)` (a second `runtime_checkable` Protocol in `api_client.py`) returns an `ApiStreamResponse` (status code, lower-cased headers, the open `StreamBody` with blocking `read(size)` and `close()`; its `repr` shows the status only). `DefaultApiClient.send_streaming` also takes the `handle` and `deadline` of `send_request`. `BaseApi` checks `isinstance(client, StreamingApiClient)` before anything is built or sent and raises `NotImplementedError` naming the transport, so a buffered-only transport keeps working for every buffered call and a stream call never falls back to buffering.
+Why: the stream call must fail clearly (D118); a structural Protocol has no default method to inherit, so the check is the default.
+Where: `api_client.mustache`, `api_stream_response.mustache`, `base_api.mustache` (`_invoke_api_for_stream` runs the one `_invoke_api_for_result` with `stream=True`, so the hook, headers, authentication and 401 replay are the buffered code), `default_api_client.mustache`.
+Test: `test_default_api_client_unit.mustache` (`TestByteStreamTransport`), `test_base_api.mustache` (`TestBinaryStreams`: 008, 012, 014, 015, 017, 018, 020, 030), `test_client.mustache` (021), golden `test_pet_api` (009); the raw-socket `RawServer` fixture is in `test/conftest.py`.
+
+### One header phase for both paths; retries stay in BaseApi
+Rule: `DefaultApiClient._open` merges the headers, encodes the body and runs the redirect loop under the call budget, and returns the urllib3 response with the body unread; `_send` (buffered) and `send_streaming` both start from it. The retries, the `Retry-After` wait and the 401 replay are in `BaseApi._send_under_policy` and `_send_with_retries`, parametrised by the send function, so a stream is retried exactly as a buffered call until the headers and a refused response is closed unread; nothing is sent again after the first body byte because a returned stream is never sent again. A non-2xx status reads at most 64 KiB (`_read_bounded`), closes the stream and raises the typed error of a buffered call.
+Where: `default_api_client.mustache`, `base_api.mustache`.
+
+### The body: idle timeout, truncation, decoding, cancellation
+Rule: `_StreamBody` reads with `HTTPResponse.read1` (returns as soon as bytes arrive; decodes gzip, deflate, and br or zstd when installed; enforces `Content-Length`). Once the headers are in, the socket timeout is set to `TransportOptions.idle_timeout` (default 60000 ms, `0` or `None` disables), so a stall raises `NetworkTimeoutException`; a reset, a decode failure or a body shorter than `Content-Length` is `StreamException` (a `NetworkException`, status 0). The `RequestHandle` keeps the socket itself (`attach_socket`), because a response that ends with its connection (`Connection: close`) leaves `HTTPConnection.sock` empty. `close()` shuts the socket down and closes the response without draining; once the body has ended nothing is touched, because its connection is back in the pool. Cancelling the task awaiting a read closes the stream. `urllib3>=2.2.0` is the floor for `read1`.
+Where: `default_api_client.mustache`, `byte_stream.mustache`, `transport_options.mustache`, `errors/stream_exception.mustache`.
+Test: `TestByteStreamTransport` (010, 011, 013, 016, 019, 022, 029, 031, 032, 033, 001), `test_transport_options.mustache`.
+
+### Closing the client cancels open streams
+Rule: `DefaultApiClient` tracks each open `_StreamBody`; `close()` marks the client closed, calls `cancel()` on each (the next read raises `RuntimeError` with the closed-client message) and releases the pool as before. An open stream is not counted as an in-flight call: only the header phase is.
+Where: `default_api_client.mustache`, `client.mustache`.
+Test: `test_client.mustache` (021).
+
+### Binary operations return `ByteStream`
+Rule: `BetterPythonCodegen.markBinaryStream` (run after the shared pass that fills the decorators) sets `streamsBinary` on `vendorExtensions.op` and rewrites `returnType` to `ByteStream` for an operation whose `streamKind` is `binary`, so every template says `ByteStream` and `api/api.mustache` calls `_invoke_api_for_stream` (no `return_type`, no `decode_success`); the `ByteStream` import is added to the API file. `postProcessSupportingFileData` hands the README and SKILLS the first such operation (`binaryStreamOperation`, `binaryStreamGroup`, `binaryStreamExample` with the imports, typed parameters and arguments) for the Streaming fence, which is a `file` fence a mypy gate checks.
+Where: `BetterPythonCodegen`, `api/api.mustache`, `readme.mustache`, `skills.mustache`.
+Test: golden `test_pet_api` (the existing avatar, document and photo rows close their stream), `TestByteStreamTransport` (029).
 
 ## Compiled examples (#111)
 

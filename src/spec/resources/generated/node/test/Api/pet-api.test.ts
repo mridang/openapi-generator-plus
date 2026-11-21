@@ -33,6 +33,7 @@ import type { ApiHttpResponse } from "../../src/api-http-response.js";
 import { ApiKeyAuthenticator } from "../../src/auth/api-key-authenticator.js";
 import { ApiKeyLocation } from "../../src/auth/api-key-location.js";
 import { BearerAuthenticator } from "../../src/auth/bearer-authenticator.js";
+import { ByteStream } from "../../src/byte-stream.js";
 import { Configuration } from "../../src/configuration.js";
 import { DefaultApiClient } from "../../src/default-api-client.js";
 import { TransportOptions } from "../../src/transport-options.js";
@@ -136,9 +137,35 @@ describe("PetApi", () => {
 
   test("bhv operations 045 getPetAvatar", async () => {
     const result = await api.getPetAvatarWithHttpInfo(1);
+    const stream = result.data as ByteStream;
 
-    expect(Buffer.isBuffer(result.data)).toBe(true);
-    expect((result.data as Buffer).toString("base64")).toBe(result.rawBody);
+    expect(stream).toBeInstanceOf(ByteStream);
+    expect(result.rawBody).toBe("");
+    await stream.close();
+  });
+
+  test("bhv streaming 009 a binary stream exposes the status and the lower-cased response headers", async () => {
+    const stream = await api.getPetAvatar(1);
+    try {
+      expect(stream.statusCode).toBe(200);
+      expect(Object.keys(stream.headers)).toContain("content-type");
+      expect(
+        Object.keys(stream.headers).every(
+          (name) => name === name.toLowerCase(),
+        ),
+      ).toBe(true);
+    } finally {
+      await stream.close();
+    }
+    const result = await api.getPetAvatarWithHttpInfo(1);
+    const data = result.data as ByteStream;
+    try {
+      expect(result.statusCode).toBe(data.statusCode);
+      expect(result.headers).toEqual(data.headers);
+      expect(result.rawBody).toBe("");
+    } finally {
+      await data.close();
+    }
   });
 
   test("bhv operations 046 getPetAvatarThumbnail", async () => {
@@ -197,12 +224,14 @@ describe("PetApi", () => {
     const result = await api.downloadPetDocument(1, 100);
 
     expect(result).toBeDefined();
+    await result.close();
   });
 
   test("bhv operations 055 getPetPhoto", async () => {
     const result = await api.getPetPhoto(1, 100);
 
     expect(result).toBeDefined();
+    await result.close();
   });
 
   test("bhv operations 073 setPetAvatar streams raw bytes with declared content type", async () => {
@@ -581,7 +610,9 @@ describe("PetApi", () => {
     );
     try {
       const result = await mockApi.getPetAvatar(1);
-      expect(result).toBeDefined();
+      expect((await result.readAll()).toString("utf8")).toBe(
+        "FAKE_BINARY_DATA",
+      );
     } finally {
       close();
     }

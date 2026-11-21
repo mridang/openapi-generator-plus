@@ -61,12 +61,13 @@ defmodule PetstoreClient.Errors.NetworkError do
 
   @family [
     PetstoreClient.Errors.NetworkError,
-    PetstoreClient.Errors.NetworkTimeoutError
+    PetstoreClient.Errors.NetworkTimeoutError,
+    PetstoreClient.Errors.StreamError
   ]
 
   @doc """
-  Returns `true` if `term` is a `NetworkError` or the `NetworkTimeoutError`
-  that specialises it, `false` otherwise.
+  Returns `true` if `term` is a `NetworkError` or one of the errors that
+  specialise it (`NetworkTimeoutError` and `StreamError`), `false` otherwise.
   """
   @spec network_error?(term()) :: boolean()
   def network_error?(%module{}), do: module in @family

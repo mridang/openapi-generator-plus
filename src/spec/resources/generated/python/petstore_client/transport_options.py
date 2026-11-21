@@ -87,6 +87,26 @@ def _assert_valid_max_retries(max_retries: int) -> None:
         )
 
 
+def _assert_valid_idle_timeout(idle_timeout: Optional[int]) -> None:
+    """Reject an idle timeout that is not ``None`` or a whole number of milliseconds of at least 0.
+
+    ``None`` and ``0`` both mean no idle timeout.
+
+    Raises:
+        ValueError: If the value is negative or not a number.
+    """
+    if idle_timeout is None:
+        return
+    if (
+        isinstance(idle_timeout, bool)
+        or not isinstance(idle_timeout, (int, float))
+        or not idle_timeout >= 0
+    ):
+        raise ValueError(
+            f"Invalid idle_timeout: must be a number of milliseconds of at least 0 (got {idle_timeout})"
+        )
+
+
 def _assert_valid_max_redirects(max_redirects: Optional[int]) -> None:
     """Reject a redirect budget that is not ``None`` or a whole number of at least zero.
 
@@ -264,11 +284,24 @@ class TransportOptions:
     stream or a multipart upload) is never retried. ``0`` disables retries.
     """
 
+    idle_timeout: Optional[int] = 60000
+    """The longest a streamed response body may stay silent, in milliseconds.
+
+    Applies only to a call that returns a stream (a binary operation): the
+    :attr:`timeout` stops at the response headers, and this value bounds the
+    gap between two reads of the body. A stalled body raises
+    :class:`NetworkTimeoutException`. A buffered call is unaffected. Defaults
+    to 60 seconds; ``0`` or ``None`` disables it.
+    """
+
     def __post_init__(self) -> None:
         """Validate the proxy, the timeout, the retry count and the redirect budget, and make default_headers an immutable MappingProxyType."""
         _assert_valid_proxy(self.proxy)
         _assert_valid_timeout(self.timeout)
         _assert_valid_max_retries(self.max_retries)
+        _assert_valid_idle_timeout(self.idle_timeout)
+        if self.idle_timeout == 0:
+            object.__setattr__(self, "idle_timeout", None)
         _assert_valid_max_redirects(self.max_redirects)
         if not isinstance(self.default_headers, MappingProxyType):
             object.__setattr__(
@@ -284,7 +317,7 @@ class TransportOptions:
             f"max_redirects={self.max_redirects!r}, user_agent={self.user_agent!r}, "
             f"default_headers={_redact_headers(self.default_headers)!r}, "
             f"inject_request_id={self.inject_request_id!r}, "
-            f"max_retries={self.max_retries!r})"
+            f"max_retries={self.max_retries!r}, idle_timeout={self.idle_timeout!r})"
         )
 
     @classmethod
@@ -307,6 +340,7 @@ class TransportOptionsBuilder:
     - ``inject_request_id`` -- ``False``
     - ``timeout`` -- ``10000`` (10 seconds)
     - ``max_retries`` -- ``2``
+    - ``idle_timeout`` -- ``60000`` (60 seconds)
     - ``user_agent`` -- a package-specific default string
     - All other fields -- ``None`` or empty
 
@@ -330,6 +364,7 @@ class TransportOptionsBuilder:
         self._default_headers: Dict[str, str] = {}
         self._inject_request_id: bool = False
         self._max_retries: int = 2
+        self._idle_timeout: Optional[int] = 60000
 
     def verify_ssl(self, verify_ssl: bool) -> "TransportOptionsBuilder":
         """Enable or disable TLS certificate verification.
@@ -480,6 +515,23 @@ class TransportOptionsBuilder:
         self._max_retries = max_retries
         return self
 
+    def idle_timeout(self, idle_timeout: Optional[int]) -> "TransportOptionsBuilder":
+        """Set the longest a streamed response body may stay silent, in milliseconds.
+
+        Args:
+            idle_timeout: The gap in milliseconds (positive), or ``0`` or ``None`` to
+                disable it; the default is ``60000``.
+
+        Raises:
+            ValueError: If the value is negative or not a number.
+
+        Returns:
+            This builder.
+        """
+        _assert_valid_idle_timeout(idle_timeout)
+        self._idle_timeout = idle_timeout
+        return self
+
     def build(self) -> TransportOptions:
         """Build and return an immutable :class:`TransportOptions` instance.
 
@@ -497,4 +549,5 @@ class TransportOptionsBuilder:
             default_headers=self._default_headers,
             inject_request_id=self._inject_request_id,
             max_retries=self._max_retries,
+            idle_timeout=self._idle_timeout,
         )

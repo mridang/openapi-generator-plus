@@ -16,9 +16,10 @@
 | Path | What lives there | Edit this to change |
 |---|---|---|
 | `BetterGoCodegen.java` | type mappings, PascalCase naming with upper-case initialisms, default literals, pointer rules for optional and recursive properties, per-scheme authenticator rendering, server enums, `go.mod` and file list | a type mapping, an identifier rule, a default-value literal, the file list |
-| `templates/go/errors/*.mustache`, `errors_exports.mustache`, `api_error.mustache` | the `pkg/errors` package (`ApiError` and the status-specific errors, `NetworkError`, `NetworkTimeoutError`, `SerializationError`, `OAuth2ServerError`, `OAuth2TokenError`) and the re-exports | error classes and their rendering |
+| `templates/go/errors/*.mustache`, `errors_exports.mustache`, `api_error.mustache` | the `pkg/errors` package (`ApiError` and the status-specific errors, `NetworkError`, `NetworkTimeoutError`, `StreamError`, `SerializationError`, `OAuth2ServerError`, `OAuth2TokenError`) and the re-exports | error classes and their rendering |
 | `templates/go/auth/` and `auth/oauth/` | `Authenticator` interface, API key, basic, bearer, per-scheme wrappers, OAuth2 token manager and flows, OpenID Connect | authentication |
 | `default_api_client.mustache`, `transport_options.mustache` | `net/http` client build, redirect policy, timeout budget, proxy, TLS, decompression, `Close`, injected `HttpDoer` and `RoundTripper` | transport options and their validation |
+| `byte_stream.mustache`, `api_stream_response.mustache`, `api_client.mustache` (`StreamingApiClient`) | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), the second transport interface | streaming types |
 | `base_api.mustache`, `api/api.mustache`, `api/options.mustache` | request assembly, response decoding, per-operation methods and `opts.*Options` structs | an operation signature or request/response handling |
 | `object_serializer.mustache`, `value_serializer.mustache`, `header_selector.mustache`, `path_utils.mustache`, `models/` | JSON and parameter encoding, models, `Set`, `DateTime`, `Duration` | models and wire encoding |
 | `configuration.mustache`, `client.mustache`, `servers.mustache`, `server_configuration.mustache` | `Configuration` and builder, `Client` facade, server tables | client construction |
@@ -191,7 +192,7 @@ Where: `default_api_client.mustache`.
 Test: `test/default_api_client_test.mustache`.
 
 ### Response body decoding (D30, D31, D32, D33)
-Rule (intended, partly): a binary return is raw bytes and never JSON-parsed (an `isBinary` branch before the JSON test in `api/api.mustache`); a `format: byte` return is JSON by default with one strict base64 decoder and every failure a `*SerializationError` (already conformant); a text-class content type on a `*string` return gives the text (branch exists); any other non-JSON content type on a non-binary return is a `*SerializationError` naming the content type (intended;  is open); a binary request body is sent unchanged under any selected content type through `invokeApiParams.rawBody` (landed, batch 6).
+Rule (intended, partly): a binary success response is a `*ByteStream` handed over unread and never JSON-parsed (see "Streaming: binary responses"; a `[]byte` return is the `format: byte` case, with the `*[]byte` branch before the JSON test in `api/api.mustache`); a `format: byte` return is JSON by default with one strict base64 decoder and every failure a `*SerializationError` (already conformant); a text-class content type on a `*string` return gives the text (branch exists); any other non-JSON content type on a non-binary return is a `*SerializationError` naming the content type (intended;  is open); a binary request body is sent unchanged under any selected content type through `invokeApiParams.rawBody` (landed, batch 6).
 Why: five different outcomes across the twelve SDKs.
 Where: `base_api.mustache`, `api/api.mustache`.
 Test: `test/base_api_test.mustache`.
@@ -411,6 +412,34 @@ Inside the generated module: `make lint`, `make vet`, `make staticcheck`, `make 
 - F824: `Close()` cancels the base context, closes idle connections of the owned transport only, and later calls return `ErrClientClosed`; test `TestDefaultApiClient_ClosedClientRejectsRequestsAndLeavesSuppliedDoerOpen`.
 - F832: already conforming (the error names `Class.operationId`).
 
+## Streaming: binary responses (capability 1 of #114, D118 to D122)
+
+### The transport returns an unread body
+Rule: a second interface, `StreamingApiClient`, carries `SendStreaming(method, url, headers, body, opts *RequestOptions) (*ApiStreamResponse, error)`; Go interfaces have no default method, so `baseApi.invokeCall` checks for it with a type assertion when a stream call starts (D118, the pattern `retryPolicyProvider` already uses). A transport without it fails the call with `ErrStreamingUnsupported`, whose message names the transport (`%T`), before anything is sent; its buffered calls are untouched. `ApiStreamResponse` holds `StatusCode`, lower-cased `Headers` and the open `Body io.ReadCloser`, with `ReadBounded(maxBytes)` (reads, closes, returns a buffered `*ApiHttpResponse` whose text is decoded for a text content type and base64 otherwise) and a `String()` of the status only. `RequestOptions` gained `IdleTimeout`.
+Why: a method added to `ApiClient` would break every custom transport; a separate interface keeps them compiling.
+Where: `api_client.mustache`, `api_stream_response.mustache`, `base_api.mustache` (`invokeApiForStream` and `invokeApiForResult` share the one `invokeCall`, so the hook, the headers, the authentication, the retries and the 401 replay are the buffered code), `default_api_client.mustache`.
+Test: `default_api_client_unit_test.mustache` (`bhvStreaming001` and the rest), `base_api_unit_test.mustache` (012, 015, 017), `base_api_test.mustache` (008, 014, 018, 030), `client_test.mustache` (021), `api/pet_api_test.mustache` (009).
+
+### The header phase and the timeout
+Rule: the retry loop stays in `baseApi` (every attempt rebuilds the headers) and the redirects stay in the policy client, so a stream call is the buffered call up to the response headers. `DefaultApiClient.prepareRequest` is the header and body preparation both paths share. For a stream the policy client is copied with `Timeout = 0` (the body read would count against it) and `SendStreaming` runs a timer that cancels the request context unless the headers arrive first; `baseApi` passes what is left of the one budget (`RequestOptions.Timeout`) to each attempt and keeps the budget context only for authentication and the waits between retries. A non-2xx status is read up to 64 KiB through `ReadBounded` and raised through `throwAPIError`, so it can be retried like a buffered failure and never returns a stream. A 3xx that was not followed is treated the same way.
+Where: `default_api_client.mustache`, `base_api.mustache`.
+Test: `bhvStreaming010`, `014`, `016`, `008`.
+
+### The body: idle timeout, truncation, decoding, cancellation
+Rule: the body is a private `streamBody` over a `trackedBody` (remembers the last error of the connection, so a decoder failure is told from a transport failure) and, for an encoded body, a decoder built on the first read (gzip, deflate, br, zstd) so the header-phase timer is not spent on it. A read arms a per-read timer (`TransportOptions.IdleTimeout`, default 60000 ms, `nil` or `0` disables) that cancels the request context; the error is then `*NetworkTimeoutError`. A reset or a body shorter than its `Content-Length` is `*StreamError` (a `*NetworkError`, status 0, the cause kept); a corrupt compressed body is an `*ApiError` with the real status; a cancelled call context is the cancellation error and never a timeout; a read after `Close` is `io.ErrClosedPipe`. Nothing is retried once `invokeCall` has returned the stream. `Close` cancels the request context first and then closes the body: Go 1.27 reads the rest of an HTTP/1 body on `Close`, which an endless feed never finishes (`bhvStreaming031`). D92 holds: an encoded body's `content-encoding` and `content-length` headers are dropped.
+Where: `default_api_client.mustache`, `transport_options.mustache`, `errors/stream_error.mustache`.
+Test: `bhvStreaming011`, `012`, `013`, `015`, `019`, `020`, `031`, `032`, `033`, `transport_options_test.mustache` (the `IdleTimeout` row).
+
+### Closing the client cancels open streams
+Rule: `DefaultApiClient` keeps the open `streamBody` values in a registry; `Close` marks the client closed, aborts each of them (their next read returns `ErrClientClosed`) and releases the owned transport. A request in flight that is not a stream still finishes. `track` refuses a stream that finishes its headers after `Close` and the call returns `ErrClientClosed`.
+Where: `default_api_client.mustache`.
+Test: `client_test.mustache` (`bhvStreaming021`).
+
+### Binary operations return `*ByteStream`
+Rule: `BetterGoCodegen.markBinaryStream` sets `streamsBinary` on `vendorExtensions.op` and rewrites `returnType` to `ByteStream` (by pointer) for an operation whose `streamKind` is `binary`, so the interface, the method and `...WithHTTPInfo` (`*ApiResult[ByteStream]`, empty `RawBody`) say so and `api/api.mustache` calls `invokeApiForStream`. `ByteStream` has `StatusCode()`, `Headers()`, `Read`, `ReadAll()` (reads, closes), an idempotent `Close()` and a `String()` of the status and the bytes delivered. A `format: byte` return is not binary and stays `[]byte`. `postProcessSupportingFileData` hands the README and SKILLS the first such operation (`binaryStreamOperation`) for the Streaming example.
+Where: `BetterGoCodegen`, `api/api.mustache`, `byte_stream.mustache`, `readme.mustache`, `skills.mustache`.
+Test: `bhvStreaming009`, `bhvStreaming029`, the avatar, document and photo rows of `api/pet_api_test.mustache` (they close their stream).
+
 ## Gate lessons (what broke the gate and how to avoid it)
 
 - Generated code is verified only by the Docker specs, so a template edit is unproven until `etc/ci-local.sh check Go` is green (GoFormattingSpec, GoLintingSpec, GoClientSpec). Run it before every push; the quick mode skips the integration specs and lets lint failures through.
@@ -421,7 +450,7 @@ Inside the generated module: `make lint`, `make vet`, `make staticcheck`, `make 
 - A `[16]byte` (`uuid.UUID`) is a scalar, not a list: check it before the array/slice branch in `value_serializer.mustache` or it serializes as 16 numbers. Catch: a uuid parameter in GoClientSpec.
 - Stub clients and canned responses in test templates must return a body the generated decoder accepts (a valid `Pet` object, not `""` or `{}` once required fields are enforced), or the test fails in `UnmarshalJSON`, not in the code under test. Catch: `go test ./...` in GoClientSpec.
 - Encode once, at the URL builder: never strip or add percent-encoding in `SerializeValue`/`SerializeStyled` (double encoding). Catch: the path-encoding tests in GoClientSpec.
-- Do not rename the response DTO to `ApiResponse` (it collides with the spec model through the dot-import). Binary and multipart types are `*os.File`, never `[]byte`. Catch: `go build`.
+- Do not rename the response DTO to `ApiResponse` (it collides with the spec model through the dot-import). A binary request body and a multipart file are `io.Reader`, and a binary response is `*ByteStream`; neither is `[]byte`. Catch: `go build`.
 - Every `{{#is...}}` branch of a hand-rolled `UnmarshalJSON` needs the same required-field check (the `isUnevaluatedPropertiesFalse` branch once skipped it); enum defaults map the var name to the wire value through `enumVars`, never lowercase it. Catch: a fixture with an additionalProperties-only model and a non-lowercase enum value.
 - Spec-enforced comment text: grep `src/spec` for `contains("` before rewording or deleting a "cruft" comment (the `preSeed` wording is asserted case-sensitively). gofmt rejects a raw U+FEFF, so write the escape in the test template.
 - `devbox run` hijacks `go` and golangci-lint is not installed locally, so Go is checked in Docker through the specs. Redirect guards compare against the previous hop, not `via[0]`.

@@ -9,6 +9,7 @@ __all__ = [
     '{{clientClassName}}',
     '{{clientClassName}}Protocol',
     'ApiClient',
+    'ByteStream',
     'Configuration',
     'CallHook',
     'CallObserver',
@@ -43,6 +44,7 @@ __all__ = [
     'InternalServerErrorException',
     'NetworkException',
     'NetworkTimeoutException',
+    'StreamException',
     'SerializationException',
     'OAuth2ServerException',
     'OAuth2TokenException',
@@ -57,6 +59,7 @@ from {{apiPackage}}.{{classFilename}} import {{classname}}Protocol as {{classnam
 {{/apis}}{{/apiInfo}}
 # import ApiClient
 from {{packageName}}.api_client import ApiClient as ApiClient
+from {{packageName}}.byte_stream import ByteStream as ByteStream
 from {{packageName}}.auth.authenticator import Authenticator as Authenticator
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}} as {{clientClassName}}
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}}Protocol as {{clientClassName}}Protocol
@@ -94,6 +97,7 @@ from {{packageName}}.errors import GatewayTimeoutException as GatewayTimeoutExce
 from {{packageName}}.errors import InternalServerErrorException as InternalServerErrorException
 from {{packageName}}.errors import NetworkException as NetworkException
 from {{packageName}}.errors import NetworkTimeoutException as NetworkTimeoutException
+from {{packageName}}.errors import StreamException as StreamException
 from {{packageName}}.errors import SerializationException as SerializationException
 from {{packageName}}.errors import OAuth2ServerException as OAuth2ServerException
 from {{packageName}}.errors import OAuth2TokenException as OAuth2TokenException

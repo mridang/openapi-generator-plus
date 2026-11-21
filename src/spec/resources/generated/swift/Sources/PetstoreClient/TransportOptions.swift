@@ -116,6 +116,15 @@ public final class TransportOptions: Sendable {
   /// retried.
   public let maxRetries: Int
 
+  /// The longest a streamed response body may stay silent, in milliseconds.
+  ///
+  /// Applies only to a call that returns a stream (a binary operation): the
+  /// ``timeout`` stops at the response headers, and this value bounds the gap
+  /// between two reads of the body. A stalled body throws
+  /// ``NetworkTimeoutError``. A buffered call is unaffected. Defaults to
+  /// 60000 ms (60 seconds); `nil` means the gap is not bounded.
+  public let idleTimeout: Int?
+
   fileprivate init(
     verifySsl: Bool,
     caCertPath: String?,
@@ -127,7 +136,8 @@ public final class TransportOptions: Sendable {
     defaultHeaders: [String: String],
     injectRequestID: Bool,
     session: URLSession?,
-    maxRetries: Int
+    maxRetries: Int,
+    idleTimeout: Int?
   ) {
     self.verifySsl = verifySsl
     self.caCertPath = caCertPath
@@ -140,6 +150,7 @@ public final class TransportOptions: Sendable {
     self.injectRequestID = injectRequestID
     self.session = session
     self.maxRetries = maxRetries
+    self.idleTimeout = idleTimeout
   }
 
   /// Create a new builder for constructing ``TransportOptions`` instances.
@@ -164,6 +175,7 @@ public final class TransportOptions: Sendable {
 /// - `injectRequestID`: `false`
 /// - `timeout`: `10000` (10 seconds)
 /// - `maxRetries`: `2`
+/// - `idleTimeout`: `60000` (60 seconds)
 /// - `userAgent`: a package-specific default string
 /// - All other fields: `nil` or empty
 public final class TransportOptionsBuilder {
@@ -178,6 +190,7 @@ public final class TransportOptionsBuilder {
   private var injectRequestID: Bool = false
   private var session: URLSession? = nil
   private var maxRetries: Int = 2
+  private var idleTimeout: Int? = 60000
 
   public init() {}
 
@@ -282,6 +295,16 @@ public final class TransportOptionsBuilder {
     return self
   }
 
+  /// Set the longest a streamed response body may stay silent, in
+  /// milliseconds: `0` or `nil` disables the bound, the default is `60000`.
+  ///
+  /// A negative value is rejected by ``build()``.
+  @discardableResult
+  public func idleTimeout(_ val: Int?) -> TransportOptionsBuilder {
+    self.idleTimeout = val
+    return self
+  }
+
   /// Build and return an immutable ``TransportOptions`` instance.
   ///
   /// - Throws: ``ConfigurationError/invalidProxy(_:)`` if the proxy URL is
@@ -298,6 +321,9 @@ public final class TransportOptionsBuilder {
     }
     if maxRetries < 0 {
       throw ConfigurationError.invalidArgument("maxRetries must not be negative: \(maxRetries)")
+    }
+    if let idleTimeout = idleTimeout, idleTimeout < 0 {
+      throw ConfigurationError.invalidArgument("idleTimeout must not be negative: \(idleTimeout)")
     }
     if let maxRedirects = maxRedirects, maxRedirects < 0 {
       throw ConfigurationError.invalidArgument("maxRedirects must not be negative: \(maxRedirects)")
@@ -348,7 +374,8 @@ public final class TransportOptionsBuilder {
       defaultHeaders: defaultHeaders,
       injectRequestID: injectRequestID,
       session: session,
-      maxRetries: maxRetries
+      maxRetries: maxRetries,
+      idleTimeout: idleTimeout == 0 ? nil : idleTimeout
     )
   }
 }
@@ -368,7 +395,7 @@ extension TransportOptions: CustomStringConvertible, CustomDebugStringConvertibl
     }
     let headers = ApiError.compactJson(ApiError.maskingSecrets(defaultHeaders))
     return
-      "TransportOptions(proxy: \(shownProxy), defaultHeaders: \(headers), maxRetries: \(maxRetries))"
+      "TransportOptions(proxy: \(shownProxy), defaultHeaders: \(headers), maxRetries: \(maxRetries), idleTimeout: \(idleTimeout.map(String.init) ?? "nil"))"
   }
 
   /// The same text as ``description``, so `String(reflecting:)` never shows a secret either.

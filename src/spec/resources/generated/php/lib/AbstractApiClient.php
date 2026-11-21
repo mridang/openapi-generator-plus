@@ -16,6 +16,7 @@ namespace PetstoreClient;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\NetworkException;
 use PetstoreClient\Errors\NetworkTimeoutException;
+use PetstoreClient\Errors\StreamException;
 
 /**
  * Transport-agnostic base for {@see ApiClient} implementations.
@@ -40,7 +41,7 @@ use PetstoreClient\Errors\NetworkTimeoutException;
  * @category Class
  * @package  PetstoreClient
  */
-abstract class AbstractApiClient implements ApiClient
+abstract class AbstractApiClient implements ApiClient, StreamingApiClient
 {
     /**
      * Gap 3.1: headers stripped from cross-origin redirect hops. Includes
@@ -60,8 +61,17 @@ abstract class AbstractApiClient implements ApiClient
         'x-internal-key',
     ];
 
+    /**
+     * The Accept-Encoding a streaming call offers: the encodings that can be decoded while the body
+     * is read (the br and zstd codecs have no incremental decoder here).
+     */
+    private const string STREAMING_ENCODINGS = 'gzip, deflate';
+
     /** @var TransportOptions Transport configuration applied to every request. */
     protected readonly TransportOptions $transportOptions;
+
+    /** The streams this transport handed out that are still open; close() cancels them. */
+    private readonly ClientLifecycle $openStreams;
 
     /**
      * Gap T-D4: tracks whether close() has been called. Once closed, any
@@ -103,6 +113,7 @@ abstract class AbstractApiClient implements ApiClient
     public function __construct(?TransportOptions $transportOptions = null)
     {
         $this->transportOptions = $transportOptions ?? TransportOptions::builder()->build();
+        $this->openStreams = new ClientLifecycle();
     }
 
     /**
@@ -180,6 +191,101 @@ abstract class AbstractApiClient implements ApiClient
         bool $noRedirect = false,
         bool $noDefaultHeaders = false,
     ): ApiHttpResponse {
+        $mergedHeaders = $this->prepareRequest(
+            $method,
+            $url,
+            $headers,
+            $body,
+            $noDefaultHeaders,
+            $this->getSupportedEncodings()
+        );
+        $timeoutMs = $this->armDeadline();
+
+        try {
+            $response = $this->sendAndFollow(
+                $method,
+                $url,
+                $mergedHeaders,
+                $body,
+                $noRedirect,
+                $timeoutMs,
+                fn (string $m, string $u, array $h, mixed $b): RawHttpResponse => $this->execute($m, $u, $h, $b)
+            );
+            $responseBody = $response->body;
+            /* Gap BE+BF: response header keys are normalised to lowercase so
+               callers can look them up consistently regardless of the casing
+               the server used (HTTP header names are case-insensitive per
+               RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the
+               wire). Repeated header lines (for example multiple Link or
+               Set-Cookie headers) are joined with ', ' to preserve order
+               per RFC 7230 section 3.2.2. Each transport's execute() already
+               lowercases keys and exposes multi-value lists; we join them
+               for the public surface. The joined form is not directly
+               parseable for Set-Cookie; callers needing structured cookie
+               access should use a transport that exposes the raw response. */
+            $responseHeaders = $this->joinedHeaders($response->headers);
+            $contentEncoding = $response->headers['content-encoding'][0] ?? '';
+            try {
+                $responseBody = $this->decompressBody($responseBody, $contentEncoding);
+            } catch (\RuntimeException $e) {
+                /* A corrupt or truncated compressed body is not a transport
+                 * failure: a response did arrive, so it is an ApiException
+                 * carrying the real status, never a NetworkException. */
+                throw new ApiException(
+                    $response->statusCode,
+                    "Failed to decompress $contentEncoding response body: {$e->getMessage()}",
+                    $responseHeaders,
+                    null,
+                    null,
+                    $e
+                );
+            }
+            if ($contentEncoding !== '' && strtolower(trim($contentEncoding)) !== 'identity') {
+                /* D92: the headers describe the body the caller receives, and
+                 * that body is no longer encoded or the wire length. */
+                unset($responseHeaders['content-encoding'], $responseHeaders['content-length']);
+            }
+            $contentType = $response->headers['content-type'][0] ?? '';
+            if (!$this->isTextContentType($contentType)) {
+                $responseBody = base64_encode($responseBody);
+            } else {
+                $responseBody = $this->decodeTextBody($responseBody, $contentType);
+            }
+
+            return new ApiHttpResponse(
+                statusCode: $response->statusCode,
+                body: $responseBody,
+                headers: $responseHeaders
+            );
+        } catch (ApiException $e) {
+            /* SDK-typed errors raised inside the redirect loop (unsupported
+             * scheme, refused downgrade, too many redirects), by the body
+             * decoding above, and by the transport's execute() already carry
+             * the right type — surface them unchanged rather than re-wrapping. */
+            throw $e;
+        } finally {
+            $this->deadline = null;
+        }
+    }
+
+    /**
+     * Validates one request and builds the headers it is sent with: the closed-client and URL checks,
+     * the transport default headers, User-Agent and X-Request-ID injection, Accept-Encoding and the
+     * explicit empty body. The header rules every call shares, buffered or streamed.
+     *
+     * @param array<string, string> $headers          HTTP headers of the caller
+     * @param string                $encodings        the Accept-Encoding value to offer when the caller set none
+     *
+     * @return array<string, string> the headers to send
+     */
+    private function prepareRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noDefaultHeaders,
+        string $encodings,
+    ): array {
         /* Gap T-D4: refuse to send on a closed client. Using a client after
          * close() is a wrong call order, so it raises \LogicException rather
          * than silently re-using a reset transport. */
@@ -231,7 +337,7 @@ abstract class AbstractApiClient implements ApiClient
         /* A caller's accept-encoding in any casing wins (RFC 9110 section 5.1);
          * a second differently-cased line would be sent next to it. */
         if (!isset($presentHeaders['accept-encoding'])) {
-            $mergedHeaders['Accept-Encoding'] = $this->getSupportedEncodings();
+            $mergedHeaders['Accept-Encoding'] = $encodings;
         }
 
         if ($body === null) {
@@ -251,6 +357,16 @@ abstract class AbstractApiClient implements ApiClient
             }
         }
 
+        return $mergedHeaders;
+    }
+
+    /**
+     * Starts the one end-to-end budget of the call in flight, the retries' own budget included.
+     *
+     * @return int|null the timeout in milliseconds, or null when it is disabled
+     */
+    private function armDeadline(): ?int
+    {
         $timeoutMs = $this->callTimeoutMs ?? $this->transportOptions->timeout;
         $this->deadline = $timeoutMs === null
             ? null
@@ -261,6 +377,33 @@ abstract class AbstractApiClient implements ApiClient
                 : min($this->deadline, $this->retryDeadline);
         }
 
+        return $timeoutMs;
+    }
+
+    /**
+     * Sends the request and follows its redirects with the security rules shared by every transport:
+     * cross-origin credential stripping, the HTTPS to HTTP body-replay refusal, non-http(s) scheme
+     * rejection and the redirect budget. A streamed response that is followed or refused is closed.
+     *
+     * @template R of RawHttpResponse|RawStreamResponse
+     *
+     * @param array<string, string> $mergedHeaders the headers prepared for the first hop
+     * @param \Closure(string, string, array<string, string>, mixed): R $execute performs one exchange
+     *
+     * @return R the response that is not a redirect to follow
+     *
+     * @throws ApiException when a redirect is refused or the redirect budget is spent
+     */
+    private function sendAndFollow(
+        string $method,
+        string $url,
+        array $mergedHeaders,
+        mixed $body,
+        bool $noRedirect,
+        ?int $timeoutMs,
+        \Closure $execute,
+    ): RawHttpResponse|RawStreamResponse {
+        $response = null;
         try {
             /* A deadline that has already passed raises the timeout before the
              * transport is touched. */
@@ -269,7 +412,7 @@ abstract class AbstractApiClient implements ApiClient
                     "API Request timed out: the $timeoutMs ms timeout was spent before the request was sent"
                 );
             }
-            $response = $this->execute($method, $url, $mergedHeaders, $body);
+            $response = $execute($method, $url, $mergedHeaders, $body);
 
             /* Gap BH: manual redirect loop with cross-origin sensitive-
              * header strip. Transports never follow redirects themselves
@@ -397,7 +540,7 @@ abstract class AbstractApiClient implements ApiClient
                             . "was spent before following the redirect to $nextUrl"
                         );
                     }
-                    $response = $this->execute($nextMethod, $nextUrl, $redirectHeaders, $redirectBody);
+                    $response = $execute($nextMethod, $nextUrl, $redirectHeaders, $redirectBody);
                     $hops++;
                 }
 
@@ -419,60 +562,12 @@ abstract class AbstractApiClient implements ApiClient
                 }
             }
 
-            $responseBody = $response->body;
-            /* Gap BE+BF: response header keys are normalised to lowercase so
-               callers can look them up consistently regardless of the casing
-               the server used (HTTP header names are case-insensitive per
-               RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the
-               wire). Repeated header lines (for example multiple Link or
-               Set-Cookie headers) are joined with ', ' to preserve order
-               per RFC 7230 section 3.2.2. Each transport's execute() already
-               lowercases keys and exposes multi-value lists; we join them
-               for the public surface. The joined form is not directly
-               parseable for Set-Cookie; callers needing structured cookie
-               access should use a transport that exposes the raw response. */
-            $responseHeaders = $this->joinedHeaders($response->headers);
-            $contentEncoding = $response->headers['content-encoding'][0] ?? '';
-            try {
-                $responseBody = $this->decompressBody($responseBody, $contentEncoding);
-            } catch (\RuntimeException $e) {
-                /* A corrupt or truncated compressed body is not a transport
-                 * failure: a response did arrive, so it is an ApiException
-                 * carrying the real status, never a NetworkException. */
-                throw new ApiException(
-                    $response->statusCode,
-                    "Failed to decompress $contentEncoding response body: {$e->getMessage()}",
-                    $responseHeaders,
-                    null,
-                    null,
-                    $e
-                );
+            return $response;
+        } catch (\Throwable $failure) {
+            if ($response instanceof RawStreamResponse) {
+                $response->close();
             }
-            if ($contentEncoding !== '' && strtolower(trim($contentEncoding)) !== 'identity') {
-                /* D92: the headers describe the body the caller receives, and
-                 * that body is no longer encoded or the wire length. */
-                unset($responseHeaders['content-encoding'], $responseHeaders['content-length']);
-            }
-            $contentType = $response->headers['content-type'][0] ?? '';
-            if (!$this->isTextContentType($contentType)) {
-                $responseBody = base64_encode($responseBody);
-            } else {
-                $responseBody = $this->decodeTextBody($responseBody, $contentType);
-            }
-
-            return new ApiHttpResponse(
-                statusCode: $response->statusCode,
-                body: $responseBody,
-                headers: $responseHeaders
-            );
-        } catch (ApiException $e) {
-            /* SDK-typed errors raised inside the redirect loop (unsupported
-             * scheme, refused downgrade, too many redirects), by the body
-             * decoding above, and by the transport's execute() already carry
-             * the right type — surface them unchanged rather than re-wrapping. */
-            throw $e;
-        } finally {
-            $this->deadline = null;
+            throw $failure;
         }
     }
 
@@ -513,39 +608,274 @@ abstract class AbstractApiClient implements ApiClient
     ): ApiHttpResponse {
         $this->callTimeoutMs = $timeoutMs;
         try {
-            return $this->sendAndRetry(
+            $response = $this->sendAndRetry(
                 $method,
-                $url,
                 $headers,
                 $body,
                 $timeoutMs ?? $this->transportOptions->timeout,
-                $maxRetries ?? $this->transportOptions->maxRetries
+                $maxRetries ?? $this->transportOptions->maxRetries,
+                fn (array $attemptHeaders): ApiHttpResponse => $this->sendRequest($method, $url, $attemptHeaders, $body)
             );
+            assert($response instanceof ApiHttpResponse);
+
+            return $response;
         } finally {
             $this->callTimeoutMs = null;
         }
     }
 
     /**
-     * The attempt loop behind {@see sendWithRetries()}.
+     * Send a request and return as soon as the response headers are accepted,
+     * with the body not read yet. The retries are those of
+     * {@see sendWithRetries()}, the redirects, header rules and credential
+     * stripping those of {@see sendRequest()}, all of them up to the headers.
+     *
+     * @param string                $method        HTTP method
+     * @param string                $url           fully qualified URL
+     * @param array<string, string> $headers       HTTP headers
+     * @param mixed                 $body          request body (string, multipart array, stream, or null)
+     * @param int|null              $timeoutMs     timeout in milliseconds up to the headers, or null for the
+     *                                             transport's
+     * @param int|null              $maxRetries    retries for this call, or null for the transport's
+     * @param int|null              $idleTimeoutMs the longest silence in the body in milliseconds, 0 to disable,
+     *                                             or null for the transport's
+     *
+     * @throws ApiException if the request fails before the headers arrive
+     */
+    public function sendStreaming(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        ?int $timeoutMs = null,
+        ?int $maxRetries = null,
+        ?int $idleTimeoutMs = null,
+    ): ByteStream {
+        return $this->sendStreamingWithRetries(
+            $method,
+            $url,
+            static fn (): array => $headers,
+            $body,
+            $timeoutMs,
+            $maxRetries,
+            $idleTimeoutMs
+        );
+    }
+
+    /**
+     * {@see sendStreaming()} for a caller that builds the headers of every attempt afresh (a retry
+     * carries the authenticator's current headers), as {@see sendWithRetries()} does.
      *
      * @param callable(): array<string, string> $headers builds the request headers for one attempt
+     *
+     * @throws ApiException if the request fails before the headers arrive
      */
-    private function sendAndRetry(
+    public function sendStreamingWithRetries(
         string $method,
         string $url,
         callable $headers,
         mixed $body,
+        ?int $timeoutMs = null,
+        ?int $maxRetries = null,
+        ?int $idleTimeoutMs = null,
+    ): ByteStream {
+        $idle = $idleTimeoutMs ?? $this->transportOptions->idleTimeout;
+        $this->callTimeoutMs = $timeoutMs;
+        try {
+            $response = $this->sendAndRetry(
+                $method,
+                $headers,
+                $body,
+                $timeoutMs ?? $this->transportOptions->timeout,
+                $maxRetries ?? $this->transportOptions->maxRetries,
+                fn (array $attemptHeaders): ByteStream => $this->openStream(
+                    $method,
+                    $url,
+                    $attemptHeaders,
+                    $body,
+                    $idle === null || $idle === 0 ? null : $idle / 1000.0
+                )
+            );
+            assert($response instanceof ByteStream);
+
+            return $response;
+        } finally {
+            $this->callTimeoutMs = null;
+        }
+    }
+
+    /**
+     * One streaming attempt: the header phase of {@see sendRequest()} with a transport that leaves
+     * the body unread, then the body wrapped as a {@see ByteStream}.
+     *
+     * @param array<string, string> $headers     the headers of this attempt
+     * @param float|null            $idleSeconds the longest silence in the body, or null when disabled
+     */
+    private function openStream(string $method, string $url, array $headers, mixed $body, ?float $idleSeconds): ByteStream
+    {
+        $mergedHeaders = $this->prepareRequest($method, $url, $headers, $body, false, self::STREAMING_ENCODINGS);
+        $timeoutMs = $this->armDeadline();
+        try {
+            $raw = $this->sendAndFollow(
+                $method,
+                $url,
+                $mergedHeaders,
+                $body,
+                false,
+                $timeoutMs,
+                fn (string $m, string $u, array $h, mixed $b): RawStreamResponse => $this->executeStreaming(
+                    $m,
+                    $u,
+                    $h,
+                    $b,
+                    $idleSeconds
+                )
+            );
+        } finally {
+            /* The timeout stops at the headers: the body is bounded by the idle timeout alone. */
+            $this->deadline = null;
+        }
+
+        return $this->wrapStream($method, $url, $raw);
+    }
+
+    /**
+     * Wraps the raw body of a streaming response: the headers are lower-cased, a gzip or deflate
+     * encoded body is decoded as it is read, a body that ends before its declared Content-Length
+     * raises a StreamException, and the stream is tracked so that closing this transport cancels it.
+     *
+     * @throws ApiException when the response uses a Content-Encoding this client cannot decode
+     */
+    private function wrapStream(string $method, string $url, RawStreamResponse $raw): ByteStream
+    {
+        $headers = $this->joinedHeaders($raw->headers);
+        $encoding = strtolower(trim($raw->headers['content-encoding'][0] ?? ''));
+        $identity = $encoding === '' || $encoding === 'identity';
+        $status = $raw->statusCode;
+        $hasBody = strtoupper($method) !== 'HEAD' && $status !== 204 && $status !== 304 && $status >= 200;
+        $declared = null;
+        if ($hasBody && $identity) {
+            $length = trim($raw->headers['content-length'][0] ?? '');
+            if ($length !== '' && ctype_digit($length) && strlen($length) < 18) {
+                $declared = (int) $length;
+            }
+        }
+        $inflater = null;
+        if (!$identity) {
+            $inflater = match ($encoding) {
+                'gzip', 'x-gzip' => inflate_init(ZLIB_ENCODING_GZIP),
+                'deflate' => inflate_init(ZLIB_ENCODING_DEFLATE),
+                default => false,
+            };
+            if ($inflater === false) {
+                $raw->close();
+                throw new ApiException(
+                    $status,
+                    "Failed to decompress $encoding response body: Unsupported Content-Encoding '$encoding'",
+                    $headers
+                );
+            }
+            /* D92: the headers describe the body the caller receives, so the wire
+             * encoding and length of an encoded body go. */
+            unset($headers['content-encoding'], $headers['content-length']);
+        }
+        $path = self::withoutQuery($url);
+        $wire = 0;
+        $pull = function () use ($raw, &$wire, $declared, $inflater, $method, $path): ?string {
+            $chunk = ($raw->pull)();
+            if ($chunk === null) {
+                if ($declared !== null && $wire < $declared) {
+                    throw new StreamException(
+                        "The response body ended after $wire of $declared bytes",
+                        null,
+                        $method,
+                        $path
+                    );
+                }
+                if ($inflater instanceof \InflateContext && $wire > 0 && inflate_get_status($inflater) !== ZLIB_STREAM_END) {
+                    throw new StreamException('The compressed response body ended early', null, $method, $path);
+                }
+
+                return null;
+            }
+            $wire += strlen($chunk);
+            if (!$inflater instanceof \InflateContext) {
+                return $chunk;
+            }
+            $decoded = @inflate_add($inflater, $chunk, ZLIB_SYNC_FLUSH);
+            if ($decoded === false) {
+                throw new StreamException('The compressed response body is corrupt', null, $method, $path);
+            }
+
+            return $decoded;
+        };
+        $stream = new ByteStream($status, $headers, $pull, static function () use ($raw): void {
+            $raw->close();
+        });
+        try {
+            $this->openStreams->track($stream);
+        } catch (\LogicException $closed) {
+            $raw->close();
+            throw $closed;
+        }
+
+        return $stream;
+    }
+
+    /**
+     * Perform the header phase of a single streaming HTTP exchange with NO automatic redirect
+     * following: send the request, wait for the status and the headers, and return them with the
+     * body left unread. A transport that can stream overrides this; the default says it cannot.
+     *
+     * @param array<string, string> $headers     request headers
+     * @param mixed                 $body        request body (string, multipart array, or null)
+     * @param float|null            $idleSeconds the longest silence in the body, or null when disabled
+     *
+     * @throws \BadMethodCallException when this transport cannot stream
+     * @throws ApiException             if the request fails at the transport level
+     */
+    protected function executeStreaming(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        ?float $idleSeconds,
+    ): RawStreamResponse {
+        throw new \BadMethodCallException(
+            static::class . ' cannot stream: it does not implement executeStreaming, so an operation'
+            . ' that returns a stream cannot be called through it'
+        );
+    }
+
+    /**
+     * Cancels every stream this transport handed out that is still open. Called by close().
+     */
+    protected function cancelOpenStreams(): void
+    {
+        $this->openStreams->close();
+    }
+
+    /**
+     * Runs the attempts of one admitted call, the buffered and the streaming one alike.
+     *
+     * @param callable(): array<string, string>                      $headers builds the request headers for one attempt
+     * @param \Closure(array<string, string>): (ApiHttpResponse|ByteStream) $send    performs one attempt
+     */
+    private function sendAndRetry(
+        string $method,
+        callable $headers,
+        mixed $body,
         ?int $timeout,
         int $retries,
-    ): ApiHttpResponse {
+        \Closure $send,
+    ): ApiHttpResponse|ByteStream {
         if ($this->closed) {
             throw new \LogicException(ClientLifecycle::CLOSED_MESSAGE);
         }
         /* A call admitted before close() finishes, including its retries. */
         $this->inCall = true;
         try {
-            return $this->attemptLoop($method, $url, $headers, $body, $timeout, $retries);
+            return $this->attemptLoop($method, $headers, $body, $timeout, $retries, $send);
         } finally {
             $this->inCall = false;
         }
@@ -554,23 +884,24 @@ abstract class AbstractApiClient implements ApiClient
     /**
      * Runs the attempts of one admitted call.
      *
-     * @param callable(): array<string, string> $headers builds the request headers for one attempt
+     * @param callable(): array<string, string>                      $headers builds the request headers for one attempt
+     * @param \Closure(array<string, string>): (ApiHttpResponse|ByteStream) $send    performs one attempt
      */
     private function attemptLoop(
         string $method,
-        string $url,
         callable $headers,
         mixed $body,
         ?int $timeout,
         int $retries,
-    ): ApiHttpResponse {
+        \Closure $send,
+    ): ApiHttpResponse|ByteStream {
         $maxRetries = ($body === null || is_string($body)) ? $retries : 0;
         $budgetEnd = $timeout === null ? null : hrtime(true) / 1e9 + $timeout / 1000.0;
         $attempt = 0;
         while (true) {
             $this->retryDeadline = $budgetEnd;
             try {
-                $response = $this->sendRequest($method, $url, $headers(), $body);
+                $response = $send($headers());
                 $failure = null;
             } catch (NetworkTimeoutException $e) {
                 /* A timeout is not retried: the call's time budget is already spent,
@@ -588,18 +919,22 @@ abstract class AbstractApiClient implements ApiClient
             } finally {
                 $this->retryDeadline = null;
             }
-            if (!$failure instanceof \PetstoreClient\Errors\NetworkException && $response instanceof \PetstoreClient\ApiHttpResponse && !$this->isRetryableStatus($response->statusCode)) {
+            if (!$failure instanceof \PetstoreClient\Errors\NetworkException && $response !== null && !$this->isRetryableStatus($response->statusCode)) {
                 return $response;
             }
             if ($attempt >= $maxRetries) {
                 break;
             }
-            $delay = $response instanceof \PetstoreClient\ApiHttpResponse
-                ? $this->retryAfterSeconds($response->headers['retry-after'] ?? null)
-                : null;
+            $delay = $response === null
+                ? null
+                : $this->retryAfterSeconds($response->headers['retry-after'] ?? null);
             $delay ??= $this->backoffSeconds($attempt, $this->jitter());
             if ($budgetEnd !== null && hrtime(true) / 1e9 + $delay >= $budgetEnd) {
                 break;
+            }
+            /* A retried streaming response is closed unread before the wait. */
+            if ($response instanceof ByteStream) {
+                $response->close();
             }
             $this->pause($delay);
             $attempt++;
@@ -608,7 +943,7 @@ abstract class AbstractApiClient implements ApiClient
             throw $failure;
         }
         /* The loop only leaves with a response or a failure. */
-        assert($response instanceof \PetstoreClient\ApiHttpResponse);
+        assert($response !== null);
         return $response;
     }
 

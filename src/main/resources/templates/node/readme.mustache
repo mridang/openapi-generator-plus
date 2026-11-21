@@ -184,7 +184,7 @@ A cookie parameter is sent exactly as you give it when every character is an RFC
 
 ### Closing the client
 
-`await client.close()` (or `await using client = ...`) closes the client gracefully. It marks the client closed at once; a call started afterwards fails with the error `ApiClient has been closed and can no longer send requests`. A call already running finishes, and the connection pool the SDK created for itself is released when the last of them completes, or straight away when none is running. Closing never waits for a running call, so a call with no timeout cannot make it hang; cancel one call with its own `signal`. A `fetch` you supplied is never closed, and closing a second time does nothing.
+`await client.close()` (or `await using client = ...`) closes the client gracefully. It marks the client closed at once; a call started afterwards fails with the error `ApiClient has been closed and can no longer send requests`. A call already running finishes, and the connection pool the SDK created for itself is released when the last of them completes, or straight away when none is running. Closing never waits for a running call, so a call with no timeout cannot make it hang; cancel one call with its own `signal`. Streams that are still open are cancelled. A `fetch` you supplied is never closed, and closing a second time does nothing.
 
 ### Models
 
@@ -238,6 +238,34 @@ Pass a client-level signal as the third constructor argument
 through the client. The client-level and the per-call signals are merged: either
 one cancels the call. Cancellation is distinct from the timeout, which still fails
 with `NetworkTimeoutError`.
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`try`/`finally`). `readAll()` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```typescript file
+import { createWriteStream } from 'node:fs';
+import { Writable } from 'node:stream';
+import { {{clientClassName}} } from '{{npmName}}';
+
+async function saveTo(
+  client: {{clientClassName}},
+  path: string,
+  ...args: Parameters<{{clientClassName}}['{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}']['{{#binaryStreamOperation}}{{nickname}}{{/binaryStreamOperation}}']>
+): Promise<void> {
+  const stream = await client.{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}.{{#binaryStreamOperation}}{{nickname}}{{/binaryStreamOperation}}(...args);
+  try {
+    console.log(stream.statusCode);
+    await stream.pipeTo(Writable.toWeb(createWriteStream(path)));
+  } finally {
+    await stream.close();
+  }
+}
+```
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `TypeError` naming it, and its buffered calls keep working.
 
 ### Custom HTTP client
 
@@ -403,13 +431,6 @@ loudly with `SerializationError`.
 `ApiResult.headers` is a map of lower-cased names to one string each. A header the server
 repeats (`Set-Cookie`, `Link`, `Vary`) is joined into one value with `", "`; the SDK does not keep
 a list of the separate values.
-
-### No streaming
-
-The SDK reads each response body fully before it returns, and sends each request body whole, so
-there is no streaming API (server-sent events, chunked downloads and uploads). To stream an
-endpoint, send that one request through your own HTTP client, or inject your own transport with
-`TransportOptions.builder().fetch(myFetch)`, and keep the SDK for the rest.
 
 ### Configuration and TransportOptions are separate
 

@@ -6,11 +6,13 @@ namespace PetstoreClient\Test\Api;
 
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiHttpResponse;
+use PetstoreClient\ByteStream;
+use PetstoreClient\StreamingApiClient;
 
 /**
  * A mock API client that returns a canned response for testing error and binary handling.
  */
-class PetMockApiClient implements ApiClient
+class PetMockApiClient implements ApiClient, StreamingApiClient
 {
     public function __construct(
         private readonly int $statusCode,
@@ -33,5 +35,32 @@ class PetMockApiClient implements ApiClient
         bool $noDefaultHeaders = false,
     ): ApiHttpResponse {
         return new ApiHttpResponse($this->statusCode, $this->body, ['Content-Type' => $this->contentType]);
+    }
+
+    /**
+     * Returns the canned body as a stream that delivers it in one chunk.
+     *
+     * @param array<string, string> $headers
+     */
+    public function sendStreaming(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        ?int $timeoutMs = null,
+        ?int $maxRetries = null,
+        ?int $idleTimeoutMs = null,
+    ): ByteStream {
+        $pending = [$this->body];
+
+        return new ByteStream(
+            $this->statusCode,
+            ['content-type' => $this->contentType],
+            static function () use (&$pending): ?string {
+                return array_shift($pending);
+            },
+            static function (): void {
+            }
+        );
     }
 }

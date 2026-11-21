@@ -69,6 +69,19 @@ import FoundationNetworking
         #expect(try TransportOptionsBuilder().maxRetries(0).build().maxRetries == 0)
     }
 
+    @Test func testIdleTimeoutDefaultsToSixtySecondsAndIsDisabledByZeroOrNil() throws {
+        #expect(try TransportOptionsBuilder().build().idleTimeout == 60000)
+        #expect(try TransportOptionsBuilder().idleTimeout(2500).build().idleTimeout == 2500)
+        #expect(try TransportOptionsBuilder().idleTimeout(0).build().idleTimeout == nil)
+        #expect(try TransportOptionsBuilder().idleTimeout(nil).build().idleTimeout == nil)
+    }
+
+    @Test func testNegativeIdleTimeoutIsRejected() throws {
+        #expect(throws: ConfigurationError.invalidArgument("idleTimeout must not be negative: -1")) {
+            try TransportOptionsBuilder().idleTimeout(-1).build()
+        }
+    }
+
     @Test func testBhvOptions007NegativeMaxRetriesIsRejected() throws {
         #expect(throws: ConfigurationError.self) {
             try TransportOptionsBuilder().maxRetries(-1).build()

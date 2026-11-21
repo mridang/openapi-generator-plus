@@ -29,9 +29,42 @@ module Petstore::Client
       raise NotImplementedError, "#{self.class}#send_request must be implemented"
     end
 
+    # Send an HTTP request and return as soon as the response headers are
+    # accepted, with the body not read yet.
+    #
+    # The retry, redirect, authentication and header rules are those of
+    # {#send_request}, up to the headers; +timeout+ stops at the headers, and
+    # +idle_timeout+ bounds the gap between two reads of the body. A request is
+    # never retried after the first body byte has been handed to the caller. A
+    # non-2xx response is returned like any other, with its body open.
+    #
+    # The default implementation raises +NotImplementedError+: a transport that
+    # was written before streaming keeps working for every buffered call, and a
+    # call that needs a stream fails clearly instead of falling back to
+    # buffering (a buffered fallback would never end on an endless feed).
+    #
+    # @param method [String] HTTP method (GET, POST, PUT, DELETE, etc.)
+    # @param url [String] Fully qualified URL
+    # @param headers [Hash] HTTP headers
+    # @param body [Object, nil] Request body
+    # @param timeout [Numeric, nil] timeout in milliseconds up to the response
+    #   headers, or nil for the transport's setting
+    # @param max_retries [Integer, nil] retry count for this call (0 disables
+    #   retries), or nil for the transport's setting
+    # @param idle_timeout [Numeric, nil] the longest silence in the body in
+    #   milliseconds, 0 to disable it, or nil for the transport's setting
+    # @return [ApiStreamResponse] the status, the lower-cased headers and the open body
+    # @raise [NotImplementedError] if this transport cannot stream
+    def send_streaming(method, url, headers, body, timeout: nil, max_retries: nil, idle_timeout: nil)
+      raise ::NotImplementedError,
+            "#{self.class} cannot stream: it does not implement send_streaming, so an operation " \
+            'that returns a stream cannot be called through it'
+    end
+
     # Releases any resources held by this client (connection pool, executor
     # threads, sockets). Default implementation is a no-op; implementations
-    # that own a pooled HTTP client should override and dispose of it.
+    # that own a pooled HTTP client should override and dispose of it. A
+    # transport that hands out streams should cancel the ones still open.
     #
     # @return [void]
     def close

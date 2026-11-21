@@ -1,3 +1,4 @@
+import asyncio
 import gzip
 import json
 import time
@@ -8,7 +9,7 @@ import urllib3
 from urllib3._collections import HTTPHeaderDict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar, Optional, cast
 
 from {{packageName}}.default_api_client import (
     DefaultApiClient,
@@ -20,7 +21,8 @@ from {{packageName}}.default_api_client import (
     _sanitize_multipart_field_name,
     _sanitize_multipart_filename,
 )
-from {{packageName}}.errors import ApiException, NetworkException
+from {{packageName}}.byte_stream import ByteStream
+from {{packageName}}.errors import ApiException, NetworkException, NetworkTimeoutException, StreamException
 from {{packageName}}.transport_options import TransportOptions
 
 
@@ -3197,3 +3199,236 @@ class TestCancelSignalAlreadyAborted:
         client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=_ScriptedPool())
         with pytest.raises(RuntimeError, match='cancelled'):
             client.send_request('GET', 'https://example.com/start', {}, None, handle=handle)
+
+
+def _streaming_client(**options: Any) -> DefaultApiClient:
+    builder = TransportOptions.builder()
+    if 'timeout' in options:
+        builder.timeout(options['timeout'])
+    if 'idle_timeout' in options:
+        builder.idle_timeout(options['idle_timeout'])
+    return DefaultApiClient(builder.build())
+
+
+async def _open_stream(
+    server: Any,
+    path: str,
+    client: Optional[DefaultApiClient] = None,
+    headers: Optional[dict[str, str]] = None,
+    idle_timeout: Optional[int] = None,
+) -> ByteStream:
+    transport = client or _streaming_client()
+    response = await asyncio.to_thread(
+        transport.send_streaming, 'GET', server.url(path), headers or {}, None, idle_timeout
+    )
+    return ByteStream(response.status_code, response.headers, response.body)
+
+
+async def _read_exactly(stream: ByteStream, count: int) -> bytes:
+    data = b''
+    while len(data) < count:
+        part = await stream.read(count - len(data))
+        if not part:
+            break
+        data += part
+    return data
+
+
+class TestByteStreamTransport:
+    async def test_bhv_streaming_001_a_binary_stream_delivers_the_bytes_in_order_and_returns_before_the_body_has_ended(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Content-Type: application/octet-stream', 'Transfer-Encoding: chunked')
+            connection.chunk('first-')
+            connection.hold()
+            connection.chunk('second')
+            connection.end()
+
+        server = raw_server(script)
+        stream = await _open_stream(server, '/items/blob')
+        assert stream.status_code == 200
+        assert not server.release.is_set(), 'the call returned while the body was unfinished'
+        assert await _read_exactly(stream, 6) == b'first-'
+        server.release.set()
+        assert await stream.read_all() == b'second'
+
+    async def test_bhv_streaming_010_the_call_timeout_bounds_only_the_wait_for_the_headers_not_the_body(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Transfer-Encoding: chunked')
+            connection.chunk('ab')
+            time.sleep(1.2)
+            connection.chunk('cd')
+            connection.end()
+
+        server = raw_server(script)
+        client = _streaming_client(timeout=400, idle_timeout=0)
+        stream = await _open_stream(server, '/items/blob', client)
+        assert await stream.read_all() == b'abcd', 'the body outlived the 400 ms timeout'
+
+    async def test_bhv_streaming_011_the_idle_timeout_raises_a_network_timeout_error_when_the_server_stalls_in_the_body(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Transfer-Encoding: chunked')
+            connection.chunk('ab')
+            connection.hold()
+
+        server = raw_server(script)
+        stream = await _open_stream(server, '/items/blob', _streaming_client(idle_timeout=300))
+        assert await _read_exactly(stream, 2) == b'ab'
+        started = time.monotonic()
+        with pytest.raises(NetworkTimeoutException) as raised:
+            await stream.read()
+        assert raised.value.status_code == 0
+        assert time.monotonic() - started < 5, 'the stall ended by the idle timeout and not by the server'
+        assert server.hits == 1, 'a stalled body is not retried'
+        assert TransportOptions.builder().build().idle_timeout == 60000
+        assert TransportOptions.builder().idle_timeout(0).build().idle_timeout is None
+        assert TransportOptions.builder().idle_timeout(None).build().idle_timeout is None
+        with pytest.raises(ValueError, match='Invalid idle_timeout'):
+            TransportOptions.builder().idle_timeout(-1)
+        with pytest.raises(ValueError, match='Invalid idle_timeout'):
+            TransportOptions(idle_timeout=-5)
+
+    async def test_bhv_streaming_013_a_body_shorter_than_its_content_length_raises_a_network_error_and_never_a_short_success(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Content-Length: 10')
+            connection.send('abcd')
+
+        server = raw_server(script)
+        stream = await _open_stream(server, '/items/blob')
+        with pytest.raises(NetworkException):
+            await stream.read_all()
+
+    async def test_bhv_streaming_016_a_streaming_call_follows_a_redirect_before_the_body_and_strips_credentials_across_origins(
+        self, raw_server: Any
+    ) -> None:
+        def landed(connection: Any) -> None:
+            connection.head(200, 'Content-Length: 6')
+            connection.send('landed')
+
+        target = raw_server(landed)
+        origin = raw_server(
+            lambda connection: connection.head(302, f'Location: {target.url("/items/final")}', 'Content-Length: 0')
+        )
+        stream = await _open_stream(
+            origin,
+            '/items/blob',
+            headers={'Authorization': 'Bearer secret-token', 'Cookie': 'session=abc', 'X-Trace': 'kept'},
+        )
+        assert await stream.read_all() == b'landed'
+        sent_to_origin = origin.heads[0].lower()
+        sent_to_target = target.heads[0].lower()
+        assert 'authorization: bearer secret-token' in sent_to_origin
+        assert 'authorization' not in sent_to_target, 'the credential stays on its origin'
+        assert 'cookie' not in sent_to_target, 'the cookie stays on its origin'
+        assert 'x-trace: kept' in sent_to_target, 'other headers go with the redirect'
+
+    async def test_bhv_streaming_019_closing_a_stream_twice_is_safe_and_aborts_the_connection(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Transfer-Encoding: chunked')
+            connection.stream_forever()
+
+        server = raw_server(script)
+        stream = await _open_stream(server, '/items/blob')
+        assert len(await _read_exactly(stream, 4)) == 4
+        stream.close()
+        stream.close()
+        assert await asyncio.to_thread(server.client_gone.wait, 10), (
+            'the server saw the connection dropped and was not made to finish the body'
+        )
+        with pytest.raises(ValueError):
+            await stream.read()
+
+    async def test_bhv_streaming_022_the_string_form_of_a_stream_hides_credentials_the_query_and_the_data(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Content-Length: 7', 'Set-Cookie: sid=secret-cookie')
+            connection.send('payload')
+
+        server = raw_server(script)
+        client = _streaming_client()
+        response = await asyncio.to_thread(
+            client.send_streaming,
+            'GET',
+            server.url('/items/blob?token=secret-query'),
+            {'Authorization': 'Bearer secret-token'},
+            None,
+        )
+        stream = ByteStream(response.status_code, response.headers, response.body)
+        assert await _read_exactly(stream, 7) == b'payload'
+        for shown in (repr(stream), repr(response), str(stream)):
+            for hidden in ('secret', 'payload', 'token', 'items'):
+                assert hidden not in shown, shown
+        assert repr(stream) == 'ByteStream(status_code=200, bytes_delivered=7)'
+
+    async def test_bhv_streaming_029_the_read_all_helper_of_a_byte_stream_returns_every_byte_in_order_and_leaves_it_closed(
+        self, raw_server: Any
+    ) -> None:
+        payload = bytes((index * 31) % 256 for index in range(100_000))
+
+        def script(connection: Any) -> None:
+            connection.head(200, f'Content-Length: {len(payload)}')
+            connection.send(payload)
+
+        server = raw_server(script)
+        stream = await _open_stream(server, '/items/blob')
+        assert await stream.read_all() == payload, 'every byte, in order'
+        assert repr(stream) == 'ByteStream(status_code=200, bytes_delivered=100000)'
+        with pytest.raises(ValueError):
+            await stream.read()
+
+    async def test_bhv_streaming_031_closing_a_live_endless_stream_returns_promptly_and_does_not_wait_for_the_server(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Transfer-Encoding: chunked')
+            connection.chunk('tick')
+            connection.hold()
+
+        server = raw_server(script)
+        stream = await _open_stream(server, '/items/events')
+        assert await _read_exactly(stream, 4) == b'tick'
+        started = time.monotonic()
+        stream.close()
+        assert time.monotonic() - started < 2, 'close aborted the connection instead of waiting for the endless body'
+
+    async def test_bhv_streaming_032_a_reset_or_truncation_after_the_headers_raises_a_stream_error_that_is_a_network_error(
+        self, raw_server: Any
+    ) -> None:
+        def reset(connection: Any) -> None:
+            connection.head(200, 'Transfer-Encoding: chunked')
+            connection.chunk('ab')
+            time.sleep(0.1)
+            connection.reset()
+
+        def cut(connection: Any) -> None:
+            connection.head(200, 'Content-Length: 10')
+            connection.send('abcd')
+
+        for script in (reset, cut):
+            stream = await _open_stream(raw_server(script), '/items/blob')
+            with pytest.raises(StreamException) as raised:
+                await stream.read_all()
+            assert isinstance(raised.value, NetworkException)
+            assert raised.value.status_code == 0
+
+    async def test_bhv_streaming_033_stopping_a_stream_early_without_reading_it_to_the_end_releases_the_connection(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Transfer-Encoding: chunked')
+            connection.stream_forever()
+
+        server = raw_server(script)
+        async with await _open_stream(server, '/items/events') as stream:
+            assert len(await _read_exactly(stream, 10)) == 10
+        assert await asyncio.to_thread(server.client_gone.wait, 10), 'leaving the scope dropped the connection'

@@ -16,6 +16,7 @@ namespace PetstoreClient\Api;
 use PetstoreClient\ApiClient;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\ApiResult;
+use PetstoreClient\ByteStream;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
@@ -514,7 +515,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function downloadPetDocument(int $petId, int $documentId, ?DownloadPetDocumentOptions $options = null): string
+    public function downloadPetDocument(int $petId, int $documentId, ?DownloadPetDocumentOptions $options = null): ByteStream
     {
         $apiResult = $this->downloadPetDocumentWithHttpInfo($petId, $documentId, $options);
         if ($apiResult->data === null) {
@@ -530,14 +531,14 @@ class PetApi extends BaseApi implements PetApiInterface
                 $apiResult->rawBody
             );
         }
-        /** @var string $result */
+        /** @var ByteStream $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
      * @param DownloadPetDocumentOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<string>
+     * @return ApiResult<ByteStream>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -594,8 +595,8 @@ class PetApi extends BaseApi implements PetApiInterface
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<string> $result */
-        $result = $this->invokeApiForResult(
+        /** @var ApiResult<ByteStream> $result */
+        $result = $this->invokeApiForStream(
             'GET',
             $path,
             $queryParams,
@@ -603,7 +604,6 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/octet-stream'],
             'application/json',
-            'string',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -1033,7 +1033,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function getPetAvatar(int $petId, ?GetPetAvatarOptions $options = null): string
+    public function getPetAvatar(int $petId, ?GetPetAvatarOptions $options = null): ByteStream
     {
         $apiResult = $this->getPetAvatarWithHttpInfo($petId, $options);
         if ($apiResult->data === null) {
@@ -1049,14 +1049,14 @@ class PetApi extends BaseApi implements PetApiInterface
                 $apiResult->rawBody
             );
         }
-        /** @var string $result */
+        /** @var ByteStream $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
      * @param GetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<string>
+     * @return ApiResult<ByteStream>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -1094,8 +1094,8 @@ class PetApi extends BaseApi implements PetApiInterface
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<string> $result */
-        $result = $this->invokeApiForResult(
+        /** @var ApiResult<ByteStream> $result */
+        $result = $this->invokeApiForStream(
             'GET',
             $path,
             $queryParams,
@@ -1103,7 +1103,6 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['image/jpeg', 'image/png'],
             'application/json',
-            'string',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -1621,7 +1620,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function getPetPhoto(int $petId, int $photoId, ?GetPetPhotoOptions $options = null): string
+    public function getPetPhoto(int $petId, int $photoId, ?GetPetPhotoOptions $options = null): ByteStream
     {
         $apiResult = $this->getPetPhotoWithHttpInfo($petId, $photoId, $options);
         if ($apiResult->data === null) {
@@ -1637,14 +1636,14 @@ class PetApi extends BaseApi implements PetApiInterface
                 $apiResult->rawBody
             );
         }
-        /** @var string $result */
+        /** @var ByteStream $result */
         $result = $apiResult->data;
         return $result;
     }
 
     /**
      * @param GetPetPhotoOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<string>
+     * @return ApiResult<ByteStream>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -1701,8 +1700,8 @@ class PetApi extends BaseApi implements PetApiInterface
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<string> $result */
-        $result = $this->invokeApiForResult(
+        /** @var ApiResult<ByteStream> $result */
+        $result = $this->invokeApiForStream(
             'GET',
             $path,
             $queryParams,
@@ -1710,7 +1709,6 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['image/jpeg', 'image/png', 'application/json'],
             'application/json',
-            'string',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,

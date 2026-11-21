@@ -32,6 +32,10 @@ use PetstoreClient\Errors\BadGatewayException;
 use PetstoreClient\Errors\InternalServerErrorException;
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiHttpResponse;
+use PetstoreClient\ByteStream;
+use PetstoreClient\StreamingApiClient;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
 use PetstoreClient\Api\PetApi;
 use PetstoreClient\Api\StoreApi;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
@@ -3215,4 +3219,148 @@ test('bhv tracing 015 concurrent operations each send the traceparent of their o
         }
         expect($headersSeen[0]['traceparent'] ?? '')->not->toBe($headersSeen[1]['traceparent'] ?? '');
     });
+});
+
+test('bhv streaming 008 a non 2xx streaming call raises the typed error with the status and the error body and never returns a stream', function (int $status, string $expected): void {
+    $client = new ScriptedApiClient([new ApiHttpResponse($status, '{"error":"went wrong"}', ['Content-Type' => 'application/json'])]);
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    try {
+        $api->stream('GET', '/items/blob');
+        test()->fail('Expected the error status to raise');
+    } catch (ApiException $e) {
+        expect($e::class)->toBe($expected);
+        expect($e->getStatusCode())->toBe($status);
+        expect($e->getResponseBody())->toBe('{"error":"went wrong"}');
+        expect($e->getRequestPath())->toBe('/items/blob');
+    }
+})->with([
+    'not found' => [404, NotFoundException::class],
+    'teapot' => [418, ClientException::class],
+    'internal error' => [500, InternalServerErrorException::class],
+]);
+
+test('bhv streaming 017 a streaming call sends the same user agent, request id and authentication headers as a buffered call', function (): void {
+    /** @var list<array<string, list<string>>> $seen */
+    $seen = [];
+    $mock = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$seen): MockResponse {
+            $seen[] = $options['normalized_headers'] ?? [];
+
+            return new MockResponse('ok', ['http_code' => 200, 'response_headers' => ['Content-Type' => 'application/octet-stream']]);
+        }
+    );
+    $transport = new StubbedDefaultApiClient(
+        $mock,
+        TransportOptions::builder()->userAgent('MyApp/1.0')->injectRequestId(true)->defaultHeader('X-Tenant', 'acme')->build()
+    );
+    $api = new TestableApi($transport, new Configuration('http://localhost'), new TestAuthenticator(headers: ['X-Client-Auth' => 'token-1']));
+
+    $api->call('GET', '/items/blob', [], [], null, ['application/octet-stream'], null);
+    $result = $api->stream('GET', '/items/blob');
+    $stream = $result->data;
+    assert($stream instanceof ByteStream);
+    expect($stream->readAll())->toBe('ok');
+
+    [$buffered, $streamed] = $seen;
+    foreach (['accept-encoding', 'x-request-id'] as $differs) {
+        expect($streamed)->toHaveKey($differs);
+        expect($buffered)->toHaveKey($differs);
+        unset($buffered[$differs], $streamed[$differs]);
+    }
+    expect($streamed)->toEqual($buffered);
+    expect($streamed['user-agent'])->toBe(['User-Agent: MyApp/1.0']);
+    expect($streamed['x-client-auth'])->toBe(['X-Client-Auth: token-1']);
+});
+
+test('bhv streaming 018 a 401 on a streaming call authenticated by oauth refreshes the token and replays once before the stream is returned', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = new class ($requests) implements ApiClient, StreamingApiClient {
+        private int $issued = 0;
+
+        /** @param \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+        public function __construct(private readonly \ArrayObject $requests)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->issued++;
+
+            return new ApiHttpResponse(
+                200,
+                (string) json_encode(['access_token' => 't' . $this->issued, 'expires_in' => 3600]),
+                ['Content-Type' => 'application/json']
+            );
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendStreaming(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            ?int $timeoutMs = null,
+            ?int $maxRetries = null,
+            ?int $idleTimeoutMs = null,
+        ): ByteStream {
+            $this->requests[] = ['url' => $url, 'headers' => $headers];
+            $status = ($headers['Authorization'] ?? '') === 'Bearer t2' ? 200 : 401;
+            $pending = ['bytes'];
+
+            return new ByteStream(
+                $status,
+                ['content-type' => 'application/octet-stream'],
+                static function () use (&$pending): ?string {
+                    return array_shift($pending);
+                },
+                static function (): void {
+                }
+            );
+        }
+    };
+    $auth = new \PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost'), $auth);
+
+    $result = $api->stream('GET', '/items/blob');
+
+    expect($result->statusCode)->toBe(200);
+    $calls = $requests->getArrayCopy();
+    expect($calls)->toHaveCount(2);
+    expect($calls[0]['headers']['Authorization'])->toBe('Bearer t1');
+    expect($calls[1]['headers']['Authorization'])->toBe('Bearer t2');
+    $stream = $result->data;
+    assert($stream instanceof ByteStream);
+    expect($stream->readAll())->toBe('bytes');
+});
+
+test('bhv streaming 030 a transport that cannot stream fails a stream call naming it and still serves buffered calls', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    expect(fn (): mixed => $api->stream('GET', '/items/blob'))
+        ->toThrow(\BadMethodCallException::class, CapturingApiClient::class . ' cannot stream');
+    expect($client->capturedUrl)->toBe('');
+
+    $api->call('GET', '/items/blob', [], [], null, ['application/json'], null);
+    expect($client->capturedUrl)->toBe('http://localhost/items/blob');
 });

@@ -312,6 +312,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             }
         }
         d.put("hasOptionsObject", hasOptionsObject);
+        markBinaryStream(op, d);
         for (final String key : List.of(
                 "signatureArgs", "signatureArgsNoOptions")) {
             final Object value = d.get(key);
@@ -319,6 +320,69 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 d.put(key, serverBeforeOptions((List<Map<String, Object>>) value));
             }
         }
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator
+     * {@code streamsBinary} tells the template to call {@code invokeAPIForStream}.
+     *
+     * @param op the operation
+     * @param d the operation's decorator map
+     */
+    static void markBinaryStream(final CodegenOperation op, final Map<String, Object> d) {
+        final boolean binary = "binary".equals(d.get("streamKind"));
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        CodegenOperation found = null;
+        Object group = null;
+        final Object apiInfo = objs.get("apiInfo");
+        if (apiInfo instanceof Map) {
+            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+            if (apis instanceof List) {
+                for (final Object api : (List<Object>) apis) {
+                    final Object operations = ((Map<String, Object>) api).get("operations");
+                    if (!(operations instanceof Map)) {
+                        continue;
+                    }
+                    final Object list = ((Map<String, Object>) operations).get("operation");
+                    if (!(list instanceof List)) {
+                        continue;
+                    }
+                    for (final Object candidate : (List<Object>) list) {
+                        final CodegenOperation op = (CodegenOperation) candidate;
+                        final Object decorators =
+                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                        if (found == null
+                                && decorators instanceof Map
+                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
+                            found = op;
+                            group = operations;
+                        }
+                    }
+                }
+            }
+        }
+        objs.put("hasBinaryStreamOperation", found != null);
+        if (found != null) {
+            objs.put("binaryStreamOperation", found);
+            objs.put("binaryStreamGroup", group);
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**
@@ -671,6 +735,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "InternalServerError.swift"),
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "NetworkError.swift"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "NetworkTimeoutError.swift"),
+            new SupportingFileSpec("errors/stream_error.mustache", errorsDir, "StreamError.swift"),
             new SupportingFileSpec("errors/serialization_error.mustache", errorsDir, "SerializationError.swift"),
             new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsDir, "OAuth2ServerError.swift"),
             new SupportingFileSpec("errors/oauth2_token_error.mustache", errorsDir, "OAuth2TokenError.swift"),
@@ -686,6 +751,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("call_outcome.mustache", srcDir, "CallOutcome.swift"),
             new SupportingFileSpec("api_response.mustache", srcDir, "ApiHttpResponse.swift"),
             new SupportingFileSpec("api_result.mustache", srcDir, "ApiResult.swift"),
+            new SupportingFileSpec("api_stream_response.mustache", srcDir, "ApiStreamResponse.swift"),
+            new SupportingFileSpec("byte_stream.mustache", srcDir, "ByteStream.swift"),
+            new SupportingFileSpec("stream_transfer.mustache", srcDir, "StreamTransfer.swift"),
             new SupportingFileSpec("api_client.mustache", srcDir, "ApiClient.swift"),
             new SupportingFileSpec("default_api_client.mustache", srcDir, "DefaultApiClient.swift"),
             new SupportingFileSpec("base_api.mustache", Path.of(srcDir, "Api").toString(), "BaseApi.swift"),

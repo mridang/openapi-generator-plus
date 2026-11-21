@@ -481,7 +481,7 @@ module Petstore::Client
       # @param pet_id [Integer]
       # @param document_id [Integer]
       # @param options [DownloadPetDocumentOptions] per-call options: the optional timeout, headers and max_retries
-      # @return [StringIO]
+      # @return [ByteStream]
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def download_pet_document(pet_id, document_id, options = nil)
@@ -524,11 +524,10 @@ module Petstore::Client
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-        invoke_api_for_result(
+        invoke_api_for_stream(
           :GET, path, query_params, header_params, request_body,
           ['application/octet-stream'],
           'application/json',
-          'File',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.download_pet_document',
           spec_operation_id: 'downloadPetDocument',
@@ -777,7 +776,7 @@ module Petstore::Client
       # Returns the raw image bytes of the pet's current avatar.
       # @param pet_id [Integer]
       # @param options [GetPetAvatarOptions] per-call options: the optional timeout, headers and max_retries
-      # @return [StringIO]
+      # @return [ByteStream]
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_avatar(pet_id, options = nil)
@@ -814,11 +813,10 @@ module Petstore::Client
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-        invoke_api_for_result(
+        invoke_api_for_stream(
           :GET, path, query_params, header_params, request_body,
           ['image/jpeg', 'image/png'],
           'application/json',
-          'File',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_avatar',
           spec_operation_id: 'getPetAvatar',
@@ -1168,7 +1166,7 @@ module Petstore::Client
       # @param pet_id [Integer]
       # @param photo_id [Integer]
       # @param options [GetPetPhotoOptions] per-call options: the optional timeout, headers and max_retries
-      # @return [StringIO]
+      # @return [ByteStream]
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_photo(pet_id, photo_id, options = nil)
@@ -1211,11 +1209,10 @@ module Petstore::Client
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-        invoke_api_for_result(
+        invoke_api_for_stream(
           :GET, path, query_params, header_params, request_body,
           ['image/jpeg', 'image/png', 'application/json'],
           'application/json',
-          'File',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_photo',
           spec_operation_id: 'getPetPhoto',

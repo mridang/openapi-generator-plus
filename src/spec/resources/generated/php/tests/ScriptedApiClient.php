@@ -6,13 +6,16 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiHttpResponse;
+use PetstoreClient\ByteStream;
+use PetstoreClient\StreamingApiClient;
 
 /**
  * A transport that answers from a script, one entry per request (a response is returned, an
  * exception is thrown), and records every request. Once the script is used up it answers 200
- * with an empty body. It sends once and never retries.
+ * with an empty body. It sends once and never retries. A streaming call is answered from the same
+ * script, the body of the scripted response being delivered as one chunk.
  */
-final class ScriptedApiClient implements ApiClient
+final class ScriptedApiClient implements ApiClient, StreamingApiClient
 {
     /** @var list<array{method: string, url: string, headers: array<string, string>, body: mixed}> */
     public array $requests = [];
@@ -44,5 +47,29 @@ final class ScriptedApiClient implements ApiClient
         }
 
         return $next;
+    }
+
+    /** @param array<string, string> $headers */
+    public function sendStreaming(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        ?int $timeoutMs = null,
+        ?int $maxRetries = null,
+        ?int $idleTimeoutMs = null,
+    ): ByteStream {
+        $next = $this->sendRequest($method, $url, $headers, $body);
+        $pending = [$next->body];
+
+        return new ByteStream(
+            $next->statusCode,
+            array_change_key_case($next->headers, CASE_LOWER),
+            static function () use (&$pending): ?string {
+                return array_shift($pending);
+            },
+            static function (): void {
+            }
+        );
     }
 }

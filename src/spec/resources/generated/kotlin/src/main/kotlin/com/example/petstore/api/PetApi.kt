@@ -11,6 +11,7 @@ package com.example.petstore.api
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiResult
+import com.example.petstore.ByteStream
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.AddPetOptions
@@ -527,7 +528,7 @@ class PetApi :
      * @param documentId  (required)
      * @param options the per-call timeout, headers and maxRetries
 
-     * @return ByteArray
+     * @return ByteStream
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
@@ -535,7 +536,7 @@ class PetApi :
         petId: Long,
         documentId: Long,
         options: DownloadPetDocumentOptions?,
-    ): ByteArray =
+    ): ByteStream =
         downloadPetDocumentWithHttpInfo(petId, documentId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -550,7 +551,7 @@ class PetApi :
         petId: Long,
         documentId: Long,
         options: DownloadPetDocumentOptions?,
-    ): ApiResult<ByteArray> {
+    ): ApiResult<ByteStream> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -572,7 +573,7 @@ class PetApi :
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
 
-        return invokeApiForResult<ByteArray>(
+        return invokeApiForStream(
             "GET",
             path,
             queryParams,
@@ -581,7 +582,6 @@ class PetApi :
             arrayOf("application/octet-stream"),
             "application/json",
             schemeAuthenticator("petStoreBasic", "petStoreBearer"),
-            "PetApi.downloadPetDocument",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
@@ -868,14 +868,14 @@ class PetApi :
      * @param petId  (required)
      * @param options the per-call timeout, headers and maxRetries
 
-     * @return ByteArray
+     * @return ByteStream
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
     override suspend fun getPetAvatar(
         petId: Long,
         options: GetPetAvatarOptions?,
-    ): ByteArray =
+    ): ByteStream =
         getPetAvatarWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -889,7 +889,7 @@ class PetApi :
     override suspend fun getPetAvatarWithHttpInfo(
         petId: Long,
         options: GetPetAvatarOptions?,
-    ): ApiResult<ByteArray> {
+    ): ApiResult<ByteStream> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -905,7 +905,7 @@ class PetApi :
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
 
-        return invokeApiForResult<ByteArray>(
+        return invokeApiForStream(
             "GET",
             path,
             queryParams,
@@ -914,7 +914,6 @@ class PetApi :
             arrayOf("image/jpeg", "image/png"),
             "application/json",
             schemeAuthenticator("petStoreBasic", "petStoreBearer"),
-            "PetApi.getPetAvatar",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
@@ -1287,7 +1286,7 @@ class PetApi :
      * @param photoId  (required)
      * @param options the per-call timeout, headers and maxRetries
 
-     * @return ByteArray
+     * @return ByteStream
      * @throws ApiException if fails to make API call
      * @throws com.example.petstore.errors.NotFoundException on HTTP 404
      */
@@ -1295,7 +1294,7 @@ class PetApi :
         petId: Long,
         photoId: Long,
         options: GetPetPhotoOptions?,
-    ): ByteArray =
+    ): ByteStream =
         getPetPhotoWithHttpInfo(petId, photoId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
@@ -1310,7 +1309,7 @@ class PetApi :
         petId: Long,
         photoId: Long,
         options: GetPetPhotoOptions?,
-    ): ApiResult<ByteArray> {
+    ): ApiResult<ByteStream> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -1332,7 +1331,7 @@ class PetApi :
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
 
-        return invokeApiForResult<ByteArray>(
+        return invokeApiForStream(
             "GET",
             path,
             queryParams,
@@ -1341,7 +1340,6 @@ class PetApi :
             arrayOf("image/jpeg", "image/png", "application/json"),
             "application/json",
             schemeAuthenticator("petStoreBasic", "petStoreBearer"),
-            "PetApi.getPetPhoto",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,

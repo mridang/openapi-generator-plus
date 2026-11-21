@@ -17,7 +17,9 @@ use crate::api_client::{
 };
 use crate::api_http_response::ApiHttpResponse;
 use crate::api_result::ApiResult;
+use crate::api_stream_response::ApiStreamResponse;
 use crate::auth::Authenticator;
+use crate::byte_stream::ByteStream;
 use crate::call_hook::{CallInfo, CallScope};
 use crate::configuration::Configuration;
 use crate::errors::api_error::ApiError;
@@ -150,6 +152,51 @@ fn is_no_auth(auth: &dyn Authenticator) -> bool {
     let data_ptr = auth as *const dyn Authenticator as *const ();
     let sentinel_ptr = &NO_AUTH as *const NoAuth as *const ();
     std::ptr::eq(data_ptr, sentinel_ptr)
+}
+
+/// The most of an error body a stream call reads before it raises the error.
+const STREAM_ERROR_BODY_LIMIT: usize = 64 * 1024;
+
+/// What the transport handed back for one call: the whole response of a buffered
+/// call, or the response of a stream call with its body not read yet.
+enum Delivered {
+    Buffered(ApiHttpResponse),
+    Streamed(ApiStreamResponse),
+}
+
+impl Delivered {
+    fn status_code(&self) -> u16 {
+        match self {
+            Delivered::Buffered(response) => response.status_code(),
+            Delivered::Streamed(response) => response.status_code(),
+        }
+    }
+
+    fn headers(&self) -> &HashMap<String, String> {
+        match self {
+            Delivered::Buffered(response) => response.headers(),
+            Delivered::Streamed(response) => response.headers(),
+        }
+    }
+
+    /// The status, the headers and the text of the body of a response that is
+    /// not a success. A stream is read up to [`STREAM_ERROR_BODY_LIMIT`] bytes
+    /// and dropped, which closes it.
+    async fn into_error_parts(self) -> (u16, HashMap<String, String>, String) {
+        match self {
+            Delivered::Buffered(response) => (
+                response.status_code(),
+                response.headers().clone(),
+                response.body().to_string(),
+            ),
+            Delivered::Streamed(response) => {
+                let (status, mut headers, raw) =
+                    response.read_bounded(STREAM_ERROR_BODY_LIMIT).await;
+                let body = crate::default_api_client::error_body_text(&raw, &mut headers);
+                (status, headers, body)
+            }
+        }
+    }
 }
 
 /// Parameters for the `invoke_api` call.
@@ -334,12 +381,27 @@ impl BaseApi {
         params: InvokeApiParams<'_>,
         scope: &mut CallScope,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+        match self.invoke_scoped_for(params, scope, false).await? {
+            Delivered::Buffered(response) => Ok(response),
+            Delivered::Streamed(_) => {
+                unreachable!("a buffered call is sent through send_request_with_options")
+            }
+        }
+    }
+
+    /// [`invoke_scoped`](Self::invoke_scoped) for a buffered or a stream call.
+    async fn invoke_scoped_for(
+        &self,
+        params: InvokeApiParams<'_>,
+        scope: &mut CallScope,
+        stream: bool,
+    ) -> Result<Delivered, Box<dyn std::error::Error + Send + Sync>> {
         let method = params.method;
         let request_path =
             crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
         /* Read on the first poll, in the caller's task, before any await. */
         let trace = trace_context_util::TraceContext::capture();
-        self.invoke_api_inner(params, &request_path, &trace, scope)
+        self.invoke_api_inner(params, &request_path, &trace, scope, stream)
             .await
             .map_err(|err| crate::errors::api_error::attach_request(err, method, &request_path))
     }
@@ -350,7 +412,8 @@ impl BaseApi {
         request_path: &str,
         trace: &trace_context_util::TraceContext,
         scope: &mut CallScope,
-    ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+        stream: bool,
+    ) -> Result<Delivered, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(timeout) = params.call.timeout {
             if timeout.as_millis() == 0 {
                 return Err(Box::new(ConfigurationError::InvalidTimeout(0)));
@@ -550,16 +613,35 @@ impl BaseApi {
         let mut attempt: u32 = 0;
         let mut renewed_after_401 = false;
         let response = loop {
-            let sent = self
-                .api_client
-                .send_request_with_options(
-                    params.method,
-                    &request_url,
-                    &headers,
-                    serialized_body.as_ref(),
-                    &send_options,
-                )
-                .await;
+            /* A stream call is sent through `send_streaming`: the retries, the
+             * replay after a 401 and the error contract below run on the headers
+             * it returns, and a response that is retried or replayed is dropped
+             * unread, which closes it. Nothing is retried once the body has
+             * started, because the caller only ever sees the stream after this
+             * loop has ended. */
+            let sent = if stream {
+                self.api_client
+                    .send_streaming(
+                        params.method,
+                        &request_url,
+                        &headers,
+                        serialized_body.as_ref(),
+                        &send_options,
+                    )
+                    .await
+                    .map(Delivered::Streamed)
+            } else {
+                self.api_client
+                    .send_request_with_options(
+                        params.method,
+                        &request_url,
+                        &headers,
+                        serialized_body.as_ref(),
+                        &send_options,
+                    )
+                    .await
+                    .map(Delivered::Buffered)
+            };
             let response = match sent {
                 Ok(response) => response,
                 Err(err) => {
@@ -620,12 +702,15 @@ impl BaseApi {
 
         scope.record_response(response.status_code(), response.headers());
 
-        /* Check for errors */
+        /* Check for errors. A stream call reads at most 64 KiB of the body of an
+         * error status and closes it, so the error is the one of a buffered call
+         * and no stream is ever returned for it. */
         if response.status_code() < 200 || response.status_code() >= 300 {
+            let (status, headers, body) = response.into_error_parts().await;
             return Err(ApiError::from_response_with(
-                response.status_code(),
-                response.headers(),
-                response.body(),
+                status,
+                &headers,
+                &body,
                 Some(params.method),
                 Some(request_path),
                 params.error_schemas,
@@ -633,6 +718,32 @@ impl BaseApi {
         }
 
         Ok(response)
+    }
+
+    /// Invokes an operation whose success response is binary and returns its
+    /// body as a [`ByteStream`], not read yet. Everything up to the response
+    /// headers is the buffered call: the same retries, redirects, authentication,
+    /// replay after a 401, headers and call hook. A status that is not a success
+    /// raises the same typed error as a buffered call, with its body read up to
+    /// 64 KiB, and no stream is returned. The raw body of the result is empty.
+    pub async fn invoke_api_for_stream(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped_for(params, &mut scope, true).await {
+            Ok(Delivered::Streamed(response)) => {
+                let (status, headers, body) = response.into_parts();
+                let stream = ByteStream::new(status, headers.clone(), body);
+                Ok(ApiResult::new(status, Some(stream), String::new(), headers))
+            }
+            Ok(Delivered::Buffered(_)) => {
+                unreachable!("a stream call is sent through send_streaming")
+            }
+            Err(err) => Err(err),
+        };
+        scope.finish(&result);
+        result
     }
 
     /// Invokes an API operation and returns the full result including status

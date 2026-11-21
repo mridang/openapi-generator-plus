@@ -10,8 +10,12 @@
 package petstore
 
 import (
+	"context"
 	"errors"
+	"io"
+	"net"
 	"os"
+	"petstore/pkg/auth"
 	"petstore/pkg/models"
 	"strings"
 	"testing"
@@ -357,5 +361,139 @@ func TestBhvMisc169_BaseApiUnit_TheRetryWaitStartsAtHalfASecondDoublesAndNeverEx
 		if delay := retryDelay(retries, nil, now); delay > base || delay < base*3/4 {
 			t.Errorf("retry %d: expected a wait between %v and %v, got %v", retries, base*3/4, base, delay)
 		}
+	}
+}
+
+// streamBase is a baseApi over a default client with the default retries, which
+// is what a generated operation runs on.
+func streamBase(t *testing.T, server *rawServer, authenticator Authenticator, hook CallHook) *baseApi {
+	t.Helper()
+	transport, err := NewTransportOptionsBuilder().InjectRequestID(true).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	t.Cleanup(func() { _ = client.Close() })
+	config := NewConfigurationBuilder().BaseURL(server.url("")).CallHook(hook).Build()
+	return newBaseApi(client, config, authenticator)
+}
+
+func streamParams() invokeApiParams {
+	return invokeApiParams{
+		method:      "GET",
+		path:        "/items/blob",
+		accepts:     []string{"application/octet-stream"},
+		contentType: "application/json",
+		call:        &callState{},
+	}
+}
+
+func TestBhvStreaming012_BaseApi_InvokeApiForStream_AConnectionResetInTheMiddleOfTheBodyRaisesANetworkErrorAndIsNotRetried(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, rawResetAfterTwoBytes)
+	base := streamBase(t, server, nil, nil)
+	response, err := base.invokeApiForStream(streamParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+
+	_, err = io.ReadAll(response.Body)
+
+	var network *pkgerrors.NetworkError
+	if !errors.As(err, &network) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	time.Sleep(300 * time.Millisecond)
+	if got := server.hits.Load(); got != 1 {
+		t.Errorf("expected the default of two retries not to apply to a body, got %d requests", got)
+	}
+}
+
+func TestBhvStreaming015_BaseApi_InvokeApiForStream_AStreamingCallNeverRetriesAfterTheFirstBodyByteWasDelivered(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Transfer-Encoding: chunked")
+		_ = rawChunk(conn, "part")
+		time.Sleep(100 * time.Millisecond)
+		rawReset(conn)
+	})
+	base := streamBase(t, server, nil, nil)
+	response, err := base.invokeApiForStream(streamParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+	buffer := make([]byte, 4)
+	if _, err := io.ReadFull(response.Body, buffer); err != nil || string(buffer) != "part" {
+		t.Fatalf("expected the first bytes, got %q (%v)", buffer, err)
+	}
+
+	_, err = io.ReadAll(response.Body)
+
+	var network *pkgerrors.NetworkError
+	if !errors.As(err, &network) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	time.Sleep(300 * time.Millisecond)
+	if got := server.hits.Load(); got != 1 {
+		t.Errorf("expected no second request after the first body byte, got %d requests", got)
+	}
+}
+
+// requestHeaders reads the lower-cased header names and values of a raw request head.
+func requestHeaders(head string) map[string]string {
+	headers := map[string]string{}
+	for _, line := range strings.Split(head, "\r\n") {
+		name, value, found := strings.Cut(line, ":")
+		if found && !strings.HasPrefix(line, "GET ") {
+			headers[strings.ToLower(name)] = strings.TrimSpace(value)
+		}
+	}
+	return headers
+}
+
+func TestBhvStreaming017_BaseApi_InvokeApiForStream_AStreamingCallSendsTheSameHeadersAsABufferedCall(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Content-Type: text/plain", "Content-Length: 2")
+		_, _ = conn.Write([]byte("ok"))
+	})
+	trace := CallHookFunc(func(ctx context.Context, info CallInfo, headers map[string]string) (CallObserver, error) {
+		headers["traceparent"] = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+		return nil, nil
+	})
+	authenticator, err := auth.NewApiKeyAuthenticator(server.url(""), "X-Api-Key", "k-123", auth.ApiKeyLocationHeader)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	base := streamBase(t, server, authenticator, trace)
+	if _, err := base.invokeApiForResult(streamParams()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	response, err := base.invokeApiForStream(streamParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_ = response.Body.Close()
+
+	buffered, streamed := requestHeaders(server.headOf(0)), requestHeaders(server.headOf(1))
+	for name := range buffered {
+		if _, ok := streamed[name]; !ok {
+			t.Errorf("expected the streaming call to send %s as the buffered call does", name)
+		}
+	}
+	for name := range streamed {
+		if _, ok := buffered[name]; !ok {
+			t.Errorf("expected the buffered call to send %s as the streaming call does", name)
+		}
+	}
+	for _, name := range []string{"user-agent", "x-api-key", "traceparent", "accept", "accept-encoding"} {
+		if streamed[name] == "" || streamed[name] != buffered[name] {
+			t.Errorf("expected the same %s, got %q and %q", name, buffered[name], streamed[name])
+		}
+	}
+	if streamed["x-request-id"] == "" || streamed["x-request-id"] == buffered["x-request-id"] {
+		t.Errorf("expected each call to have its own request id, got %q and %q", buffered["x-request-id"], streamed["x-request-id"])
 	}
 }

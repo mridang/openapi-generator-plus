@@ -552,9 +552,25 @@ class PetApiTest {
         @Test
         @DisplayName("bhvOperations045 getPetAvatar")
         fun testGetPetAvatar() {
-            val result = runBlocking { api.getPetAvatar(1L) }
+            runBlocking { api.getPetAvatar(1L) }.use { result ->
+                assertNotNull(result)
+            }
+        }
 
-            assertNotNull(result)
+        @Test
+        @DisplayName("bhvStreaming009 a binary stream exposes the status and the lower-cased response headers")
+        fun bhvStreaming009ABinaryStreamExposesTheStatusAndTheLowerCasedResponseHeaders() {
+            runBlocking { api.getPetAvatar(1L) }.use { stream ->
+                assertEquals(200, stream.statusCode)
+                assertTrue(stream.headers.containsKey("content-type"))
+                assertTrue(stream.headers.keys.all { it == it.lowercase() })
+            }
+            val result = runBlocking { api.getPetAvatarWithHttpInfo(1L) }
+            result.data!!.use { stream ->
+                assertEquals(stream.statusCode, result.statusCode)
+                assertEquals(stream.headers, result.headers)
+                assertEquals("", result.rawBody)
+            }
         }
 
         @Test
@@ -607,17 +623,17 @@ class PetApiTest {
         @Test
         @DisplayName("bhvOperations035 downloadPetDocument")
         fun testDownloadPetDocument() {
-            val result = runBlocking { api.downloadPetDocument(1L, 1L) }
-
-            assertNotNull(result)
+            runBlocking { api.downloadPetDocument(1L, 1L) }.use { result ->
+                assertNotNull(result)
+            }
         }
 
         @Test
         @DisplayName("bhvOperations055 getPetPhoto")
         fun testGetPetPhoto() {
-            val result = runBlocking { api.getPetPhoto(1L, 1L) }
-
-            assertNotNull(result)
+            runBlocking { api.getPetPhoto(1L, 1L) }.use { result ->
+                assertNotNull(result)
+            }
         }
 
         @Test
@@ -2082,8 +2098,9 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
-            val result = runBlocking { api.getPetAvatar(1L) }
-            assertNotNull(result)
+            runBlocking { api.getPetAvatar(1L) }.use { result ->
+                assertEquals("FAKE_BINARY_DATA", String(runBlocking { result.readAll() }, Charsets.UTF_8))
+            }
         }
 
         @Test

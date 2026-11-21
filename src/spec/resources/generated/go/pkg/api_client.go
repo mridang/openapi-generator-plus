@@ -11,9 +11,15 @@ package petstore
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 )
+
+// ErrStreamingUnsupported is returned by an operation that returns a stream
+// when the ApiClient it runs on does not implement StreamingApiClient. The
+// message names the transport. Match it with errors.Is.
+var ErrStreamingUnsupported = errors.New("transport cannot stream")
 
 // HttpDoer is the minimal HTTP abstraction the SDK can send requests through:
 // *http.Client satisfies it. Supply one with TransportOptionsBuilder.HttpClient
@@ -55,6 +61,11 @@ type RequestOptions struct {
 	 * replaces the transport's own timeout for it. It comes from the
 	 * WithTimeout call option. A nil Timeout keeps the transport's. */
 	Timeout *time.Duration
+
+	/* IdleTimeout, for SendStreaming only, is the longest the response body
+	 * may stay silent between two reads. Nil keeps the transport's own
+	 * setting (TransportOptions.IdleTimeout); a pointer to 0 disables it. */
+	IdleTimeout *time.Duration
 }
 
 // ApiClient is the interface for API HTTP transport.
@@ -95,4 +106,24 @@ type ApiClient interface {
 	 * the contract is what lets a custom transport be closed through the
 	 * abstraction. */
 	Close() error
+}
+
+// StreamingApiClient is the second interface of a transport that can hand out a
+// response whose body has not been read yet. Go interfaces carry no default
+// method, so it is separate from ApiClient and the SDK checks for it with a type
+// assertion when an operation returns a stream: a transport written before
+// streaming keeps working for every buffered call, and a stream call on it
+// fails with ErrStreamingUnsupported naming the transport. DefaultApiClient
+// implements it.
+type StreamingApiClient interface {
+	/* SendStreaming sends an HTTP request and returns as soon as the response
+	 * headers are accepted, with the body not read yet.
+	 *
+	 * Parameters are those of SendRequestWithOptions. opts.Timeout stops at the
+	 * response headers, and opts.IdleTimeout bounds the gap between two reads of
+	 * the body. A non-2xx response is returned like any other, with its body
+	 * open. The caller owns the body and must close it; closing aborts the
+	 * connection instead of draining it. Closing the client cancels the bodies
+	 * that are still open: their next read returns ErrClientClosed. */
+	SendStreaming(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiStreamResponse, error)
 }

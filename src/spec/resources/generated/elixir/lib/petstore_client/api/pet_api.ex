@@ -364,7 +364,7 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
               PetstoreClient.Api.Options.DownloadPetDocumentOptions.t() | nil,
               keyword()
             ) ::
-              {:ok, binary()} | {:error, Exception.t()}
+              {:ok, PetstoreClient.ByteStream.t()} | {:error, Exception.t()}
 
   @callback download_pet_document!(
               PetstoreClient.Api.PetApi.t(),
@@ -373,7 +373,7 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
               PetstoreClient.Api.Options.DownloadPetDocumentOptions.t() | nil,
               keyword()
             ) ::
-              binary()
+              PetstoreClient.ByteStream.t()
 
   @callback download_pet_document_with_http_info(
               PetstoreClient.Api.PetApi.t(),
@@ -483,7 +483,7 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
               PetstoreClient.Api.Options.GetPetAvatarOptions.t() | nil,
               keyword()
             ) ::
-              {:ok, binary()} | {:error, Exception.t()}
+              {:ok, PetstoreClient.ByteStream.t()} | {:error, Exception.t()}
 
   @callback get_pet_avatar!(
               PetstoreClient.Api.PetApi.t(),
@@ -491,7 +491,7 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
               PetstoreClient.Api.Options.GetPetAvatarOptions.t() | nil,
               keyword()
             ) ::
-              binary()
+              PetstoreClient.ByteStream.t()
 
   @callback get_pet_avatar_with_http_info(
               PetstoreClient.Api.PetApi.t(),
@@ -625,7 +625,7 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
               PetstoreClient.Api.Options.GetPetPhotoOptions.t() | nil,
               keyword()
             ) ::
-              {:ok, binary()} | {:error, Exception.t()}
+              {:ok, PetstoreClient.ByteStream.t()} | {:error, Exception.t()}
 
   @callback get_pet_photo!(
               PetstoreClient.Api.PetApi.t(),
@@ -634,7 +634,7 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
               PetstoreClient.Api.Options.GetPetPhotoOptions.t() | nil,
               keyword()
             ) ::
-              binary()
+              PetstoreClient.ByteStream.t()
 
   @callback get_pet_photo_with_http_info(
               PetstoreClient.Api.PetApi.t(),
@@ -1710,7 +1710,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Returns
 
-    * `{:ok, binary()}` on success.
+    * `{:ok, PetstoreClient.ByteStream.t()}` on success.
     * `{:error, exception}` on failure.
 
   ## Errors
@@ -1728,7 +1728,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.DownloadPetDocumentOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, binary()} | {:error, Exception.t()}
+          {:ok, PetstoreClient.ByteStream.t()} | {:error, Exception.t()}
   @impl true
   def download_pet_document(%__MODULE__{} = api, pet_id, document_id, options \\ nil, opts \\ []) do
     case download_pet_document_with_http_info(api, pet_id, document_id, options, opts) do
@@ -1763,7 +1763,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.DownloadPetDocumentOptions.t() | nil,
           keyword()
         ) ::
-          binary()
+          PetstoreClient.ByteStream.t()
   @impl true
   def download_pet_document!(%__MODULE__{} = api, pet_id, document_id, options \\ nil, opts \\ []) do
     case download_pet_document(api, pet_id, document_id, options, opts) do
@@ -1801,6 +1801,10 @@ defmodule PetstoreClient.Api.PetApi do
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # A binary response is returned as a `ByteStream`, read as it arrives: the
+    # call is made as a stream.
+    call = Keyword.put(call, :stream, true)
 
     # The credential of the first scheme in this operation's own security
     # order that the client holds; nil when it holds none of them, which
@@ -1865,7 +1869,7 @@ defmodule PetstoreClient.Api.PetApi do
       request_body,
       ["application/octet-stream"],
       "application/json",
-      "binary()",
+      nil,
       auth,
       Keyword.put(
         call,
@@ -2593,7 +2597,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Returns
 
-    * `{:ok, binary()}` on success.
+    * `{:ok, PetstoreClient.ByteStream.t()}` on success.
     * `{:error, exception}` on failure.
 
   ## Errors
@@ -2610,7 +2614,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.GetPetAvatarOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, binary()} | {:error, Exception.t()}
+          {:ok, PetstoreClient.ByteStream.t()} | {:error, Exception.t()}
   @impl true
   def get_pet_avatar(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_avatar_with_http_info(api, pet_id, options, opts) do
@@ -2644,7 +2648,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.GetPetAvatarOptions.t() | nil,
           keyword()
         ) ::
-          binary()
+          PetstoreClient.ByteStream.t()
   @impl true
   def get_pet_avatar!(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
     case get_pet_avatar(api, pet_id, options, opts) do
@@ -2675,6 +2679,10 @@ defmodule PetstoreClient.Api.PetApi do
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # A binary response is returned as a `ByteStream`, read as it arrives: the
+    # call is made as a stream.
+    call = Keyword.put(call, :stream, true)
 
     # The credential of the first scheme in this operation's own security
     # order that the client holds; nil when it holds none of them, which
@@ -2718,7 +2726,7 @@ defmodule PetstoreClient.Api.PetApi do
       request_body,
       ["image/jpeg", "image/png"],
       "application/json",
-      "binary()",
+      nil,
       auth,
       Keyword.put(call, :operation, {"getPetAvatar", "/pet/{petId}/avatar"}),
       %{}
@@ -3594,7 +3602,7 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Returns
 
-    * `{:ok, binary()}` on success.
+    * `{:ok, PetstoreClient.ByteStream.t()}` on success.
     * `{:error, exception}` on failure.
 
   ## Errors
@@ -3612,7 +3620,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.GetPetPhotoOptions.t() | nil,
           keyword()
         ) ::
-          {:ok, binary()} | {:error, Exception.t()}
+          {:ok, PetstoreClient.ByteStream.t()} | {:error, Exception.t()}
   @impl true
   def get_pet_photo(%__MODULE__{} = api, pet_id, photo_id, options \\ nil, opts \\ []) do
     case get_pet_photo_with_http_info(api, pet_id, photo_id, options, opts) do
@@ -3647,7 +3655,7 @@ defmodule PetstoreClient.Api.PetApi do
           PetstoreClient.Api.Options.GetPetPhotoOptions.t() | nil,
           keyword()
         ) ::
-          binary()
+          PetstoreClient.ByteStream.t()
   @impl true
   def get_pet_photo!(%__MODULE__{} = api, pet_id, photo_id, options \\ nil, opts \\ []) do
     case get_pet_photo(api, pet_id, photo_id, options, opts) do
@@ -3685,6 +3693,10 @@ defmodule PetstoreClient.Api.PetApi do
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
     call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # A binary response is returned as a `ByteStream`, read as it arrives: the
+    # call is made as a stream.
+    call = Keyword.put(call, :stream, true)
 
     # The credential of the first scheme in this operation's own security
     # order that the client holds; nil when it holds none of them, which
@@ -3749,7 +3761,7 @@ defmodule PetstoreClient.Api.PetApi do
       request_body,
       ["image/jpeg", "image/png", "application/json"],
       "application/json",
-      "binary()",
+      nil,
       auth,
       Keyword.put(call, :operation, {"getPetPhoto", "/pet/{petId}/photos/{photoId}"}),
       %{}

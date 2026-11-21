@@ -15,6 +15,7 @@ import {
 import type { Authenticator } from "../src/auth/authenticator.js";
 import { NO_AUTH } from "../src/auth/authenticator.js";
 import { AsyncLocalStorage } from "node:async_hooks";
+import * as http from "node:http";
 import { ApiError } from "../src/errors/api-error.js";
 import { ClientError } from "../src/errors/client-error.js";
 import { ServerError } from "../src/errors/server-error.js";
@@ -33,6 +34,8 @@ import type {
   SendRequestOptions,
 } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
+import { ApiStreamResponse } from "../src/api-stream-response.js";
+import type { ByteStream } from "../src/byte-stream.js";
 import type { ApiResult } from "../src/api-result.js";
 import { PetApi } from "../src/api/pet-api.js";
 import { StoreApi } from "../src/api/store-api.js";
@@ -4294,5 +4297,307 @@ describe("BaseApi misc truncation behaviours", () => {
       )
       .catch((e: unknown) => e);
     expect(String(error)).toContain("(476 more bytes)");
+  });
+});
+
+describe("BaseApi binary streams", () => {
+  class StreamingApi extends TestableApi {
+    stream(path: string): Promise<ApiResult<ByteStream>> {
+      return this.invokeApiForStream(
+        "GET",
+        path,
+        {},
+        {},
+        null,
+        ["application/octet-stream"],
+        "application/json",
+        undefined,
+        false,
+        "downloadOperation",
+        undefined,
+        undefined,
+        "download_operation",
+        path,
+      );
+    }
+  }
+
+  /** A response body that remembers whether it was closed before it ended. */
+  function trackedBody(
+    bytes: Uint8Array,
+    probe: { cancelled: boolean },
+  ): ReadableStream<Uint8Array> {
+    let sent = false;
+    return new ReadableStream<Uint8Array>(
+      {
+        pull(controller): void {
+          if (sent) {
+            controller.close();
+            return;
+          }
+          sent = true;
+          controller.enqueue(bytes);
+        },
+        cancel(): void {
+          probe.cancelled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+  }
+
+  /** Answers a stream call from a script of statuses and keeps what each call was sent. */
+  class ScriptedStreamingClient implements ApiClient {
+    readonly streamHeaders: Array<Record<string, string>> = [];
+    readonly opened: Array<{ cancelled: boolean }> = [];
+    constructor(
+      private readonly contentType: string,
+      private readonly bytes: Uint8Array,
+      private readonly statuses: number[],
+    ) {}
+    async sendRequest(): Promise<ApiHttpResponse> {
+      return {
+        statusCode: 200,
+        body: "{}",
+        headers: { "content-type": "application/json" },
+      };
+    }
+    async sendStreaming(
+      _method: string,
+      _url: string,
+      headers: Record<string, string>,
+    ): Promise<ApiStreamResponse> {
+      const index = Math.min(
+        this.streamHeaders.length,
+        this.statuses.length - 1,
+      );
+      this.streamHeaders.push({ ...headers });
+      const probe = { cancelled: false };
+      this.opened.push(probe);
+      return new ApiStreamResponse(
+        this.statuses[index]!,
+        { "content-type": this.contentType },
+        trackedBody(this.bytes, probe),
+      );
+    }
+  }
+
+  /** An authenticator that hands out t1, t2, ... and moves to the next token when told to drop the current one. */
+  class RotatingTokenAuthenticator implements Authenticator {
+    private current = 1;
+    invalidations = 0;
+    getHost(): string {
+      return "";
+    }
+    getAuthHeaders(): Record<string, string> {
+      return { Authorization: `Bearer t${this.current}` };
+    }
+    getAuthHeadersAsync(): Promise<Record<string, string>> {
+      return Promise.resolve(this.getAuthHeaders());
+    }
+    getQueryParams(): Record<string, string> {
+      return {};
+    }
+    getCookieParams(): Record<string, string> {
+      return {};
+    }
+    invalidateAccessToken(): void {
+      this.invalidations += 1;
+      this.current += 1;
+    }
+  }
+
+  const streamApi = (
+    client: ApiClient,
+    authenticator?: Authenticator,
+  ): StreamingApi =>
+    new StreamingApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+      authenticator ?? null,
+    );
+
+  test("bhv streaming 008 a non-2xx streaming call raises the typed error with the status and the error body and never returns a stream", async () => {
+    const client = new ScriptedStreamingClient(
+      "application/json",
+      Buffer.from('{"message":"gone"}'),
+      [404],
+    );
+
+    const failure = await streamApi(client)
+      .stream("/items/blob")
+      .catch((error: unknown) => error);
+
+    expect((failure as Error).constructor).toBe(NotFoundError);
+    expect((failure as NotFoundError).statusCode).toBe(404);
+    expect((failure as NotFoundError).responseBody).toContain("gone");
+    expect((failure as NotFoundError).requestPath).toBe("/items/blob");
+
+    const endless = { cancelled: false };
+    const bounded = await streamApi({
+      async sendRequest(): Promise<ApiHttpResponse> {
+        return { statusCode: 200, body: "{}", headers: {} };
+      },
+      async sendStreaming(): Promise<ApiStreamResponse> {
+        return new ApiStreamResponse(
+          502,
+          { "content-type": "text/plain" },
+          new ReadableStream<Uint8Array>(
+            {
+              pull(controller): void {
+                controller.enqueue(Buffer.alloc(16 * 1024, "x"));
+              },
+              cancel(): void {
+                endless.cancelled = true;
+              },
+            },
+            { highWaterMark: 0 },
+          ),
+        );
+      },
+    })
+      .stream("/items/blob")
+      .catch((error: unknown) => error);
+
+    expect(bounded).toBeInstanceOf(BadGatewayError);
+    expect((bounded as BadGatewayError).responseBody).toHaveLength(64 * 1024);
+    expect(endless.cancelled).toBe(true);
+  });
+
+  test("bhv streaming 017 a streaming call sends the same user agent, request id, trace context and authentication as a buffered call", async () => {
+    const seen: Array<http.IncomingHttpHeaders> = [];
+    const server = http.createServer((request, response) => {
+      seen.push(request.headers);
+      response.writeHead(200, { "content-type": "text/plain" });
+      response.end("ok");
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const baseUrl = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+      const hook: CallHook = {
+        start: (_info, headers) => {
+          headers["traceparent"] =
+            "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+          return undefined;
+        },
+      };
+      const transport = new DefaultApiClient(
+        TransportOptions.builder().injectRequestId(true).maxRetries(0).build(),
+      );
+      const api = new StreamingApi(
+        transport,
+        new Configuration({ baseUrl, callHook: hook }),
+        new ApiKeyAuthenticator(
+          baseUrl,
+          "X-Api-Key",
+          "k-123",
+          ApiKeyLocation.HEADER,
+        ),
+      );
+
+      await api.callForResult(
+        "GET",
+        "/items/blob",
+        {},
+        {},
+        null,
+        ["application/octet-stream"],
+        "application/json",
+        (json: unknown) => json,
+      );
+      await (await api.stream("/items/blob")).data!.close();
+      await transport.close();
+
+      const [buffered, streamed] = seen;
+      expect(Object.keys(streamed!).sort()).toEqual(
+        Object.keys(buffered!).sort(),
+      );
+      for (const name of [
+        "user-agent",
+        "x-api-key",
+        "traceparent",
+        "accept",
+        "accept-encoding",
+      ]) {
+        expect(streamed![name]).toBeDefined();
+        expect(streamed![name]).toEqual(buffered![name]);
+      }
+      expect(streamed!["x-request-id"]).toBeDefined();
+      expect(streamed!["x-request-id"]).not.toEqual(buffered!["x-request-id"]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  test("bhv streaming 018 a 401 on a streaming call authenticated by OAuth2 refreshes the token and replays once before the stream is returned", async () => {
+    const client = new ScriptedStreamingClient(
+      "application/octet-stream",
+      Buffer.from("ok"),
+      [401, 200],
+    );
+    const authenticator = new RotatingTokenAuthenticator();
+
+    const result = await streamApi(client, authenticator).stream("/items/blob");
+
+    expect(client.streamHeaders).toHaveLength(2);
+    expect(client.streamHeaders[0]!["Authorization"]).toBe("Bearer t1");
+    expect(client.streamHeaders[1]!["Authorization"]).toBe("Bearer t2");
+    expect(authenticator.invalidations).toBe(1);
+    expect(client.opened[0]!.cancelled).toBe(true);
+    expect((await result.data!.readAll()).toString("utf8")).toBe("ok");
+
+    const refused = new ScriptedStreamingClient(
+      "application/octet-stream",
+      Buffer.alloc(0),
+      [401],
+    );
+    const failure = await streamApi(refused, new RotatingTokenAuthenticator())
+      .stream("/items/blob")
+      .catch((error: unknown) => error);
+    expect((failure as Error).constructor).toBe(UnauthorizedError);
+    expect(refused.streamHeaders).toHaveLength(2);
+  });
+
+  test("bhv streaming 030 a transport that does not implement the streaming method makes a stream call fail with the unsupported error that names the transport, and buffered calls on it keep working", async () => {
+    class BufferedOnlyClient implements ApiClient {
+      sentUrl = "";
+      async sendRequest(
+        _method: string,
+        url: string,
+      ): Promise<ApiHttpResponse> {
+        this.sentUrl = url;
+        return {
+          statusCode: 200,
+          body: "{}",
+          headers: { "content-type": "application/json" },
+        };
+      }
+    }
+    const transport = new BufferedOnlyClient();
+    const api = streamApi(transport);
+
+    const refused = await api
+      .stream("/items/blob")
+      .catch((error: unknown) => error);
+
+    expect(refused).toBeInstanceOf(TypeError);
+    expect((refused as TypeError).message).toContain("BufferedOnlyClient");
+    expect((refused as TypeError).message).toContain("cannot stream");
+    expect(transport.sentUrl).toBe("");
+
+    await api.callForResult(
+      "GET",
+      "/items/blob",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    expect(transport.sentUrl).toBe("http://localhost/items/blob");
   });
 });
