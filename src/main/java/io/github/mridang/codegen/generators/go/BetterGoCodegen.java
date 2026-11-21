@@ -624,9 +624,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/event_stream_test.mustache", "pkg", "event_stream_test.go"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/link_header_test.mustache", "pkg", "link_header_test.go"));
-            supportingFiles.add(
-                    new SupportingFile(
                             "test/default_api_client_unit_test.mustache",
                             "pkg",
                             "default_api_client_unit_test.go"));
