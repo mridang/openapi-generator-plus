@@ -11,6 +11,7 @@ import '../api_result.dart';
 import '../auth/authenticator.dart';
 import '../body_source.dart';
 import '../byte_stream.dart';
+import '../paginator.dart';
 import 'base_api.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
@@ -418,16 +419,46 @@ abstract interface class PetApiInterface {
   Future<ApiResult<PetCatalogPage>> listPetCatalogWithHttpInfo(
     ListPetCatalogOptions? options,
   );
+
+  /// Lists the pet catalog one page at a time with a next-cursor token
+  ///
+  /// Returns the items as a lazy [Paginator]: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of [listPetCatalogWithHttpInfo], with the same options on each page.
+  /// The value of the `cursor` option is where the list starts, and the
+  /// page after each one is requested with the `next_cursor` it returned.
+  /// `options` options for query, header, form, and cookie parameters
+  Paginator<Pet, String> listPetCatalogPages(ListPetCatalogOptions? options);
   Future<PetEventPage> listPetEvents(ListPetEventsOptions? options);
 
   Future<ApiResult<PetEventPage>> listPetEventsWithHttpInfo(
     ListPetEventsOptions? options,
   );
+
+  /// Lists pet events; only the generator option says it is paged
+  ///
+  /// Returns the items as a lazy [Paginator]: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of [listPetEventsWithHttpInfo], with the same options on each page.
+  /// The value of the `since` option is where the list starts, and the
+  /// page after each one is requested with the `upto` it returned.
+  /// `options` options for query, header, form, and cookie parameters
+  Paginator<String, String> listPetEventsPages(ListPetEventsOptions? options);
   Future<List<Pet>> listPetFeed(ListPetFeedOptions? options);
 
   Future<ApiResult<List<Pet>>> listPetFeedWithHttpInfo(
     ListPetFeedOptions? options,
   );
+
+  /// Lists the pet feed one page at a time with a Link header
+  ///
+  /// Returns the items as a lazy [Paginator]: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of [listPetFeedWithHttpInfo], with the same options on each page.
+  /// The page after each one is the `rel="next"` link of its `Link` header, followed only within
+  /// the origin of the client.
+  /// `options` options for query, header, form, and cookie parameters
+  Paginator<Pet, void> listPetFeedPages(ListPetFeedOptions? options);
   Future<PetMatchPage> listPetMatches(ListPetMatchesOptions? options);
 
   Future<ApiResult<PetMatchPage>> listPetMatchesWithHttpInfo(
@@ -438,6 +469,16 @@ abstract interface class PetApiInterface {
   Future<ApiResult<PetNotePage>> listPetNotesWithHttpInfo(
     ListPetNotesOptions? options,
   );
+
+  /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+  ///
+  /// Returns the items as a lazy [Paginator]: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of [listPetNotesWithHttpInfo], with the same options on each page.
+  /// The value of the `pos` option is where the list starts, and the
+  /// page after each one is requested with the `following` it returned.
+  /// `options` options for query, header, form, and cookie parameters
+  Paginator<String, String> listPetNotesPages(ListPetNotesOptions? options);
   Future<void> setPetAvatar(
     int petId,
     BodySource body,
@@ -2791,6 +2832,30 @@ class PetApi extends BaseApi implements PetApiInterface {
     );
   }
 
+  /// Lists the pet catalog one page at a time with a next-cursor token
+  ///
+  /// Returns the items as a lazy [Paginator]: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of [listPetCatalogWithHttpInfo], with the same options on each page.
+  /// The value of the `cursor` option is where the list starts, and the
+  /// page after each one is requested with the `next_cursor` it returned.
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Paginator<Pet, String> listPetCatalogPages(ListPetCatalogOptions? options) {
+    final pageOptions = options ?? const ListPetCatalogOptions();
+    return Paginator.ofCursor<Pet, String, PetCatalogPage>(
+      start: pageOptions.cursor,
+      fetch: (cursor) => listPetCatalogWithHttpInfo(
+        cursor == pageOptions.cursor
+            ? pageOptions
+            : pageOptions.withCursor(cursor!),
+      ),
+      items: (page) => page.items,
+      next: (page) => page.nextCursor,
+      requestPath: '/pet/catalog',
+    );
+  }
+
   /// Lists pet events; only the generator option says it is paged
   /// `options` options for query, header, form, and cookie parameters
   @override
@@ -2864,6 +2929,30 @@ class PetApi extends BaseApi implements PetApiInterface {
     );
   }
 
+  /// Lists pet events; only the generator option says it is paged
+  ///
+  /// Returns the items as a lazy [Paginator]: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of [listPetEventsWithHttpInfo], with the same options on each page.
+  /// The value of the `since` option is where the list starts, and the
+  /// page after each one is requested with the `upto` it returned.
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Paginator<String, String> listPetEventsPages(ListPetEventsOptions? options) {
+    final pageOptions = options ?? const ListPetEventsOptions();
+    return Paginator.ofCursor<String, String, PetEventPage>(
+      start: pageOptions.since,
+      fetch: (cursor) => listPetEventsWithHttpInfo(
+        cursor == pageOptions.since
+            ? pageOptions
+            : pageOptions.withCursor(cursor!),
+      ),
+      items: (page) => page.events,
+      next: (page) => page.upto,
+      requestPath: '/pet/events',
+    );
+  }
+
   /// Lists the pet feed one page at a time with a Link header
   /// `limit` The number of pets on a page
   /// `options` options for query, header, form, and cookie parameters
@@ -2892,6 +2981,14 @@ class PetApi extends BaseApi implements PetApiInterface {
   Future<ApiResult<List<Pet>>> listPetFeedWithHttpInfo(
     ListPetFeedOptions? options,
   ) async {
+    return _listPetFeedPage(options, null);
+  }
+
+  /* One page of the list: the first when pageUrl is null, else the URL the Link header named. */
+  Future<ApiResult<List<Pet>>> _listPetFeedPage(
+    ListPetFeedOptions? options,
+    String? pageUrl,
+  ) async {
     final Authenticator? auth = schemeAuthenticator(const ['petStoreBearer']);
 
     var path = '/pet/feed';
@@ -2915,6 +3012,10 @@ class PetApi extends BaseApi implements PetApiInterface {
     final headerParams = <String, String>{};
 
     final Object? requestBody = null;
+    if (pageUrl != null) {
+      path = pageUrl;
+      queryParams.clear();
+    }
 
     return invokeApiForResult<List<Pet>>(
       method: 'GET',
@@ -2934,6 +3035,25 @@ class PetApi extends BaseApi implements PetApiInterface {
       maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserializeList(body, Pet.fromJson) as List<Pet>,
+    );
+  }
+
+  /// Lists the pet feed one page at a time with a Link header
+  ///
+  /// Returns the items as a lazy [Paginator]: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of [listPetFeedWithHttpInfo], with the same options on each page.
+  /// The page after each one is the `rel="next"` link of its `Link` header, followed only within
+  /// the origin of the client.
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Paginator<Pet, void> listPetFeedPages(ListPetFeedOptions? options) {
+    final pageOptions = options ?? const ListPetFeedOptions();
+    return Paginator.ofLink<Pet, List<Pet>>(
+      baseUrl: config.baseUrl,
+      fetch: (pageUrl) => _listPetFeedPage(pageOptions, pageUrl),
+      items: (page) => page,
+      requestPath: '/pet/feed',
     );
   }
 
@@ -3081,6 +3201,30 @@ class PetApi extends BaseApi implements PetApiInterface {
 
       deserialize: (body) =>
           deserialize(body, PetNotePage.fromJson) as PetNotePage,
+    );
+  }
+
+  /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+  ///
+  /// Returns the items as a lazy [Paginator]: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of [listPetNotesWithHttpInfo], with the same options on each page.
+  /// The value of the `pos` option is where the list starts, and the
+  /// page after each one is requested with the `following` it returned.
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Paginator<String, String> listPetNotesPages(ListPetNotesOptions? options) {
+    final pageOptions = options ?? const ListPetNotesOptions();
+    return Paginator.ofCursor<String, String, PetNotePage>(
+      start: pageOptions.pos,
+      fetch: (cursor) => listPetNotesWithHttpInfo(
+        cursor == pageOptions.pos
+            ? pageOptions
+            : pageOptions.withCursor(cursor!),
+      ),
+      items: (page) => page.rows,
+      next: (page) => page.following,
+      requestPath: '/pet/notes',
     );
   }
 

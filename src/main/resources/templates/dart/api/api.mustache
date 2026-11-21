@@ -7,6 +7,7 @@ import '../auth/authenticator.dart';
 import '../body_source.dart';
 import '../byte_stream.dart';
 import '../json_lines_stream.dart';
+import '../paginator.dart';
 import '../sse_stream.dart';
 import '../stream_options.dart';
 import 'base_api.dart';
@@ -97,6 +98,9 @@ abstract interface class {{classname}}Interface {
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
   Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}});
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
@@ -271,7 +275,20 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/isDeprecated}}
   @override
   Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
+{{#vendorExtensions.op.pagination.isLink}}
+    return _{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}null);
+  }
+
+  /* One page of the list: the first when pageUrl is null, else the URL the Link header named. */
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> _{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}, {{/vendorExtensions.op.signatureArgs}}String? pageUrl) async {
+{{/vendorExtensions.op.pagination.isLink}}
 {{>api/operation_prelude}}
+{{#vendorExtensions.op.pagination.isLink}}
+    if (pageUrl != null) {
+      path = pageUrl;
+      queryParams.clear();
+    }
+{{/vendorExtensions.op.pagination.isLink}}
 
     return {{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{#returnType}}<{{{.}}}>{{/returnType}}{{^returnType}}<void>{{/returnType}}{{/vendorExtensions.op.streamsBinary}}(
       method: '{{httpMethod}}',
@@ -404,6 +421,9 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/vendorExtensions.op.streamsBinary}}
     );
   }
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }

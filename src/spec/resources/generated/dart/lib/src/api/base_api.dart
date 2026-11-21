@@ -294,7 +294,8 @@ class BaseApi {
 
       final queryString = _buildQueryString(allQueryParams);
       if (queryString.isNotEmpty) {
-        requestUrl = '$requestUrl?$queryString';
+        requestUrl =
+            '$requestUrl${requestUrl.contains('?') ? '&' : '?'}$queryString';
       }
 
       final isMultipart = multipartType != null && body is Map<String, Object?>;

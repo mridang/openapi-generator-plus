@@ -405,6 +405,160 @@ PetApi _chasmApi({Map<String, Authenticator>? schemes}) {
   );
 }
 
+/// One request a paged-list server saw: the path, the decoded query and the
+/// headers (lower-cased names).
+class _Seen {
+  _Seen(this.path, this.query, this.headers);
+
+  final String path;
+  final Map<String, String> query;
+  final Map<String, String> headers;
+
+  String? param(String name) => query[name];
+}
+
+/// What a paged-list server answers: a status, a JSON body, extra headers and a
+/// delay before it answers.
+class _Reply {
+  const _Reply(
+    this.status,
+    this.body, [
+    this.headers = const {},
+    this.delayMillis = 0,
+  ]);
+
+  factory _Reply.ok(String body, [Map<String, String> headers = const {}]) =>
+      _Reply(200, body, headers);
+
+  factory _Reply.status(int status) =>
+      _Reply(status, '{}', const {'Retry-After': '0'});
+
+  final int status;
+  final String body;
+  final Map<String, String> headers;
+  final int delayMillis;
+
+  _Reply after(int millis) => _Reply(status, body, headers, millis);
+}
+
+/// An in-process server whose answer depends on the request it gets and on how
+/// many it has had, which the shared mock cannot do. It records every request
+/// in arrival order.
+class _PagedServer {
+  _PagedServer._(this._server);
+
+  final HttpServer _server;
+  final List<_Seen> seen = [];
+
+  static Future<_PagedServer> start(
+    _Reply Function(_Seen request, int number) handler,
+  ) async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final paged = _PagedServer._(server);
+    server.listen((request) async {
+      final headers = <String, String>{};
+      request.headers.forEach(
+        (name, values) => headers[name] = values.join(', '),
+      );
+      final request0 = _Seen(
+        request.uri.path,
+        Map<String, String>.of(request.uri.queryParameters),
+        headers,
+      );
+      paged.seen.add(request0);
+      final reply = handler(request0, paged.seen.length);
+      if (reply.delayMillis > 0) {
+        await Future<void>.delayed(Duration(milliseconds: reply.delayMillis));
+      }
+      try {
+        request.response.statusCode = reply.status;
+        request.response.headers.set('Content-Type', 'application/json');
+        reply.headers.forEach(request.response.headers.add);
+        request.response.write(reply.body);
+        await request.response.close();
+      } catch (_) {
+        /* the client gave up on this request */
+      }
+    });
+    return paged;
+  }
+
+  String get url => 'http://127.0.0.1:${_server.port}';
+
+  Future<void> close() => _server.close(force: true);
+}
+
+/// One pet as a JSON object.
+String _petJson(String name) => '{"id":1,"name":"$name","photoUrls":[]}';
+
+/// A catalog page: the pets of page [page] of [size], and the cursor of the
+/// page after it.
+String _catalogBody(int page, int size, int pages) {
+  final items = [
+    for (var i = 0; i < size; i++) _petJson('p$page-$i'),
+  ].join(',');
+  final next = page + 1 < pages ? ',"next_cursor":"c${page + 1}"' : '';
+  return '{"items":[$items]$next}';
+}
+
+/// A catalog of [pages] pages of [size] pets; the cursor of page n is "c" and n.
+Future<_PagedServer> _catalogServer(int pages, int size) =>
+    _PagedServer.start((request, number) {
+      final cursor = request.param('cursor');
+      final page = cursor == null ? 0 : int.parse(cursor.substring(1));
+      return _Reply.ok(_catalogBody(page, size, pages));
+    });
+
+PetApi _petApi(
+  _PagedServer server, {
+  int maxRetries = 0,
+  Map<String, String> headers = const {},
+  Authenticator? authenticator,
+}) {
+  final config = ConfigurationBuilder().baseUrl(server.url);
+  headers.forEach(config.defaultHeader);
+  return PetApi(
+    apiClient: DefaultApiClient(
+      transportOptions: TransportOptionsBuilder()
+          .maxRetries(maxRetries)
+          .build(),
+    ),
+    config: config.build(),
+    authenticator: authenticator,
+  );
+}
+
+Future<List<String>> _namesOf(Stream<Pet> pets) async => [
+  await for (final pet in pets) pet.name,
+];
+
+/// A feed of [pages] pages of one pet each; every page but the last names the
+/// next one in a Link header, built by [link] from the page number.
+Future<_PagedServer> _feedServer(int pages, String Function(int next) link) =>
+    _PagedServer.start((request, number) {
+      final page = request.param('page');
+      final index = page == null ? 0 : int.parse(page);
+      return _Reply.ok(
+        '[${_petJson('f$index')}]',
+        index + 1 < pages ? {'Link': link(index + 1)} : const {},
+      );
+    });
+
+Future<_PagedServer> _sameOriginFeed(int pages) async {
+  late final _PagedServer self;
+  self = await _feedServer(
+    pages,
+    (next) =>
+        '</pet/feed?page=${next - 1}>; rel="prev", '
+        '<${self.url}/pet/feed?page=$next&secret=s3>; title="a, b"; rel="next"',
+  );
+  return self;
+}
+
+List<String?> _paramsSeen(_PagedServer server, String name) => [
+  for (final request in List.of(server.seen)) request.param(name),
+];
+
 /// An authenticator whose credential lookup suspends before it answers.
 class _SlowAuth extends _BaseApiAuth {
   @override
@@ -7375,6 +7529,790 @@ void main() {
         } finally {
           await failing.close();
         }
+      },
+    );
+  });
+
+  group('BaseApi paged lists', () {
+    test(
+      'bhv pagination 001 a paged operation reads no page until the first item or page is requested',
+      () async {
+        final server = await _catalogServer(2, 2);
+        try {
+          final paginator = _petApi(server).listPetCatalogPages(null);
+          expect(server.seen, isEmpty, reason: 'the method sends nothing');
+          final items = paginator.items();
+          final pages = paginator.pages();
+          expect(server.seen, isEmpty, reason: 'getting a view sends nothing');
+          expect(await items.first, isA<Pet>());
+          expect(
+            server.seen,
+            hasLength(1),
+            reason: 'the first read sends the first request',
+          );
+          expect(await pages.first, isA<Page<Pet, String>>());
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 002 a token-cursor operation yields every item of every page in order and sends the next page\'s cursor',
+      () async {
+        final server = await _catalogServer(3, 2);
+        try {
+          expect(
+            await _namesOf(_petApi(server).listPetCatalogPages(null).items()),
+            equals(['p0-0', 'p0-1', 'p1-0', 'p1-1', 'p2-0', 'p2-1']),
+          );
+          expect(_paramsSeen(server, 'cursor'), equals([null, 'c1', 'c2']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 003 the next request is sent only when the consumer asks for more items',
+      () async {
+        final server = await _catalogServer(3, 2);
+        try {
+          final items = StreamIterator(
+            _petApi(server).listPetCatalogPages(null).items(),
+          );
+          expect(await items.moveNext(), isTrue);
+          expect(await items.moveNext(), isTrue);
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          expect(
+            server.seen,
+            hasLength(1),
+            reason: 'both items of the first page came from one request',
+          );
+          expect(await items.moveNext(), isTrue);
+          expect(
+            server.seen,
+            hasLength(2),
+            reason: 'the third item needed the second page',
+          );
+          await items.cancel();
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 007 a Link-header operation follows rel=next and ends when it is absent',
+      () async {
+        final server = await _sameOriginFeed(3);
+        try {
+          expect(
+            await _namesOf(_petApi(server).listPetFeedPages(null).items()),
+            equals(['f0', 'f1', 'f2']),
+          );
+          expect(_paramsSeen(server, 'page'), equals([null, '1', '2']));
+          expect(server.seen[2].path, equals('/pet/feed'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 008 a Link next URL on another origin is refused and no credentials are sent to it',
+      () async {
+        final elsewhere = await _PagedServer.start(
+          (request, number) => _Reply.ok('[${_petJson('stolen')}]'),
+        );
+        final origin = await _PagedServer.start(
+          (request, number) => _Reply.ok('[${_petJson('f0')}]', {
+            'Link': '<${elsewhere.url}/pet/feed?page=1>; rel="next"',
+          }),
+        );
+        try {
+          final api = _petApi(
+            origin,
+            headers: {'Authorization': 'Bearer secret'},
+          );
+          final items = StreamIterator(api.listPetFeedPages(null).items());
+          expect(await items.moveNext(), isTrue);
+          expect(
+            items.current.name,
+            equals('f0'),
+            reason: 'the page before the foreign link is delivered',
+          );
+          expect(
+            origin.seen.first.headers['authorization'],
+            equals('Bearer secret'),
+          );
+          await expectLater(
+            items.moveNext(),
+            throwsA(
+              isA<PaginationException>().having(
+                (e) => e.message,
+                'message',
+                isNot(contains('page=1')),
+              ),
+            ),
+          );
+          expect(
+            elsewhere.seen,
+            isEmpty,
+            reason: 'nothing was sent to the other origin',
+          );
+          expect(origin.seen, hasLength(1));
+        } finally {
+          await origin.close();
+          await elsewhere.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 009 an empty page with a next cursor continues and an absent, null or empty cursor ends',
+      () async {
+        for (final end in ['', ',"next_cursor":null', ',"next_cursor":""']) {
+          final server = await _PagedServer.start(
+            (request, number) => _Reply.ok(
+              request.param('cursor') == null
+                  ? '{"items":[],"next_cursor":"c1"}'
+                  : '{"items":[${_petJson('only')}]$end}',
+            ),
+          );
+          try {
+            expect(
+              await _namesOf(_petApi(server).listPetCatalogPages(null).items()),
+              equals(['only']),
+              reason: end,
+            );
+            expect(
+              server.seen,
+              hasLength(2),
+              reason: 'the empty page continued and the end ended: $end',
+            );
+          } finally {
+            await server.close();
+          }
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 010 pages yields one page per response with its items, status, headers, decoded body and next cursor',
+      () async {
+        final server = await _PagedServer.start((request, number) {
+          final cursor = request.param('cursor');
+          final page = cursor == null ? 0 : int.parse(cursor.substring(1));
+          return _Reply.ok(_catalogBody(page, 2, 2), {'X-Page': '$page'});
+        });
+        try {
+          final pages = await _petApi(
+            server,
+          ).listPetCatalogPages(null).pages().toList();
+          expect(pages, hasLength(2));
+          expect(
+            pages[0].items.map((pet) => pet.name),
+            equals(['p0-0', 'p0-1']),
+          );
+          expect(pages[0].result.statusCode, equals(200));
+          expect(pages[0].result.headers['x-page'], equals('0'));
+          expect(pages[1].result.headers['x-page'], equals('1'));
+          expect(pages[0].result.data, isA<PetCatalogPage>());
+          expect(pages[0].nextCursor, equals('c1'));
+          expect(pages[1].nextCursor, isNull);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 011 the cursor passed to the paged method is the starting position and the first request sends it',
+      () async {
+        final server = await _catalogServer(3, 1);
+        try {
+          final api = _petApi(server);
+          expect(
+            await _namesOf(
+              api
+                  .listPetCatalogPages(
+                    const ListPetCatalogOptions(cursor: 'c1'),
+                  )
+                  .items(),
+            ),
+            equals(['p1-0', 'p2-0']),
+          );
+          expect(server.seen.first.param('cursor'), equals('c1'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 012 resuming with the next cursor of a page continues with the following page',
+      () async {
+        final server = await _catalogServer(3, 1);
+        try {
+          final api = _petApi(server);
+          final first = await api.listPetCatalogPages(null).pages().first;
+          final resume = first.nextCursor;
+          expect(resume, equals('c1'));
+          expect(
+            await _namesOf(
+              api
+                  .listPetCatalogPages(ListPetCatalogOptions(cursor: resume))
+                  .items(),
+            ),
+            equals(['p1-0', 'p2-0']),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 013 every other parameter, including the page size, is repeated unchanged on each page request',
+      () async {
+        final server = await _catalogServer(3, 1);
+        try {
+          await _namesOf(
+            _petApi(server)
+                .listPetCatalogPages(
+                  const ListPetCatalogOptions(
+                    limit: 1,
+                    headers: {'X-Keep': 'yes'},
+                  ),
+                )
+                .items(),
+          );
+          expect(server.seen, hasLength(3));
+          for (final request in server.seen) {
+            expect(request.param('limit'), equals('1'));
+            expect(request.headers['x-keep'], equals('yes'));
+          }
+          expect(_paramsSeen(server, 'cursor'), equals([null, 'c1', 'c2']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 014 a cursor equal to the one just sent, or an offset that did not advance, raises a PaginationError instead of looping',
+      () async {
+        final server = await _PagedServer.start(
+          (request, number) => _Reply.ok(
+            '{"items":[${_petJson('p$number')}],"next_cursor":"c1"}',
+          ),
+        );
+        try {
+          final items = StreamIterator(
+            _petApi(server).listPetCatalogPages(null).items(),
+          );
+          expect(await items.moveNext(), isTrue);
+          expect(items.current.name, equals('p1'));
+          expect(await items.moveNext(), isTrue);
+          expect(
+            items.current.name,
+            equals('p2'),
+            reason: 'the page that repeated the cursor is still delivered',
+          );
+          await expectLater(
+            items.moveNext(),
+            throwsA(
+              isA<PaginationException>().having(
+                (e) => e.requestPath,
+                'requestPath',
+                equals('/pet/catalog'),
+              ),
+            ),
+          );
+          expect(
+            server.seen,
+            hasLength(2),
+            reason: 'nothing was asked for after the repeat',
+          );
+          expect(
+            await items.moveNext(),
+            isFalse,
+            reason: 'the iteration is finished',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 015 an error on a later page is raised after the earlier pages\' items were delivered and ends iteration',
+      () async {
+        final server = await _PagedServer.start(
+          (request, number) => request.param('cursor') == null
+              ? _Reply.ok(_catalogBody(0, 2, 3))
+              : const _Reply(404, '{}'),
+        );
+        try {
+          final items = StreamIterator(
+            _petApi(server).listPetCatalogPages(null).items(),
+          );
+          expect(await items.moveNext(), isTrue);
+          expect(items.current.name, equals('p0-0'));
+          expect(await items.moveNext(), isTrue);
+          expect(items.current.name, equals('p0-1'));
+          await expectLater(
+            items.moveNext(),
+            throwsA(
+              isA<NotFoundException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                404,
+              ),
+            ),
+          );
+          expect(
+            await items.moveNext(),
+            isFalse,
+            reason: 'the iteration ended with the error',
+          );
+          expect(server.seen, hasLength(2));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 016 a 503 on the second page is retried under the retry rules and iteration continues',
+      () async {
+        final server = await _PagedServer.start(
+          (request, number) => number == 2
+              ? _Reply.status(503)
+              : _Reply.ok(_catalogBody(number == 1 ? 0 : 1, 1, 2)),
+        );
+        try {
+          final api = _petApi(server, maxRetries: 2);
+          expect(
+            await _namesOf(api.listPetCatalogPages(null).items()),
+            equals(['p0-0', 'p1-0']),
+          );
+          expect(_paramsSeen(server, 'cursor'), equals([null, 'c1', 'c1']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 017 the per-call timeout, headers and retry count apply to each page request',
+      () async {
+        final server = await _PagedServer.start(
+          (request, number) => number.isOdd
+              ? _Reply.status(503)
+              : _Reply.ok(_catalogBody(number == 2 ? 0 : 1, 1, 2)),
+        );
+        try {
+          await _namesOf(
+            _petApi(server)
+                .listPetCatalogPages(
+                  const ListPetCatalogOptions(
+                    maxRetries: 1,
+                    headers: {'X-Trace': 't1'},
+                  ),
+                )
+                .items(),
+          );
+          expect(
+            server.seen,
+            hasLength(4),
+            reason: 'each page was tried twice: one try and one retry',
+          );
+          for (final request in server.seen) {
+            expect(request.headers['x-trace'], equals('t1'));
+          }
+        } finally {
+          await server.close();
+        }
+        final slow = await _PagedServer.start(
+          (request, number) => request.param('cursor') == null
+              ? _Reply.ok(_catalogBody(0, 1, 2))
+              : _Reply.ok(_catalogBody(1, 1, 2)).after(1500),
+        );
+        try {
+          final items = StreamIterator(
+            _petApi(slow)
+                .listPetCatalogPages(const ListPetCatalogOptions(timeout: 300))
+                .items(),
+          );
+          expect(await items.moveNext(), isTrue);
+          expect(
+            items.current.name,
+            equals('p0-0'),
+            reason: 'the first page answers within its own budget',
+          );
+          await expectLater(
+            items.moveNext(),
+            throwsA(isA<NetworkTimeoutException>()),
+          );
+        } finally {
+          await slow.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 018 stopping early sends no further request and leaves nothing to close',
+      () async {
+        final server = await _catalogServer(3, 2);
+        try {
+          final api = _petApi(server);
+          expect(
+            (await api.listPetCatalogPages(null).items().first).name,
+            equals('p0-0'),
+          );
+          expect(server.seen, hasLength(1));
+          expect(
+            await api.listPetCatalogPages(null).items().take(2).length,
+            equals(2),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          expect(
+            server.seen,
+            hasLength(2),
+            reason: 'take(2) read exactly one more page',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 020 iterating a second time starts again from the starting position',
+      () async {
+        final server = await _catalogServer(2, 2);
+        try {
+          final paginator = _petApi(server).listPetCatalogPages(null);
+          final first = await _namesOf(paginator.items());
+          final second = await _namesOf(paginator.items());
+          expect(second, equals(first));
+          expect(
+            server.seen,
+            hasLength(4),
+            reason: 'the second loop read both pages again',
+          );
+          expect(
+            _paramsSeen(server, 'cursor'),
+            equals([null, 'c1', null, 'c1']),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 021 a page that does not decode on a later page fails with the serialization error after the earlier items were delivered',
+      () async {
+        final server = await _PagedServer.start(
+          (request, number) => number == 1
+              ? _Reply.ok(_catalogBody(0, 1, 2))
+              : _Reply.ok(
+                  '{"items":[{"id":"not a number","name":"x","photoUrls":[]}]}',
+                ),
+        );
+        try {
+          final items = StreamIterator(
+            _petApi(server).listPetCatalogPages(null).items(),
+          );
+          expect(await items.moveNext(), isTrue);
+          expect(items.current.name, equals('p0-0'));
+          await expectLater(
+            items.moveNext(),
+            throwsA(isA<SerializationException>()),
+          );
+          expect(await items.moveNext(), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 022 a refreshed credential is used for the next page',
+      () async {
+        final server = await _catalogServer(3, 1);
+        try {
+          await _namesOf(
+            _petApi(
+              server,
+              authenticator: _CountingAuth(),
+            ).listPetCatalogPages(null).items(),
+          );
+          expect(
+            server.seen.map((request) => request.headers['authorization']),
+            equals(['Bearer n1', 'Bearer n2', 'Bearer n3']),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 023 an error from a Link-driven page request carries the path without the query',
+      () async {
+        final server = await _PagedServer.start((request, number) {
+          if (request.param('page') != null) {
+            return const _Reply(500, '{}');
+          }
+          return _Reply.ok('[${_petJson('f0')}]', {
+            'Link': '</pet/feed?page=1&secret=s3>; rel="next"',
+          });
+        });
+        try {
+          final items = StreamIterator(
+            _petApi(server).listPetFeedPages(null).items(),
+          );
+          expect(await items.moveNext(), isTrue);
+          expect(items.current.name, equals('f0'));
+          await expectLater(
+            items.moveNext(),
+            throwsA(
+              isA<ApiException>()
+                  .having((e) => e.statusCode, 'statusCode', 500)
+                  .having(
+                    (e) => e.requestPath,
+                    'requestPath',
+                    equals('/pet/feed'),
+                  )
+                  .having((e) => e.message, 'message', isNot(contains('s3'))),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 024 an operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method',
+      () {
+        final source = File('lib/src/api/pet_api.dart').readAsStringSync();
+        final paged = RegExp(
+          r'Paginator<[^>]*> (\w+Pages)\(',
+        ).allMatches(source).map((match) => match.group(1)!).toSet();
+        expect(
+          paged,
+          equals({
+            'listPetCatalogPages',
+            'listPetEventsPages',
+            'listPetFeedPages',
+            'listPetNotesPages',
+          }),
+        );
+        expect(
+          source,
+          contains('Future<PetMatchPage> listPetMatches('),
+          reason: 'the ambiguous operation keeps its base method',
+        );
+      },
+    );
+
+    test(
+      'bhv pagination 025 a paged method has the same parameters in the same order as the base method and the base method is unchanged',
+      () async {
+        final server = await _PagedServer.start(
+          (request, number) => _Reply.ok(
+            request.path == '/pet/feed' ? '[${_petJson('f0')}]' : '{}',
+          ),
+        );
+        try {
+          final api = _petApi(server);
+          const catalog = ListPetCatalogOptions(limit: 1);
+          const feed = ListPetFeedOptions(limit: 1);
+          const notes = ListPetNotesOptions();
+          const events = ListPetEventsOptions();
+          expect(
+            api.listPetCatalogPages(catalog),
+            isA<Paginator<Pet, String>>(),
+          );
+          expect(api.listPetFeedPages(feed), isA<Paginator<Pet, void>>());
+          expect(
+            api.listPetNotesPages(notes),
+            isA<Paginator<String, String>>(),
+          );
+          expect(
+            api.listPetEventsPages(events),
+            isA<Paginator<String, String>>(),
+          );
+          expect(await api.listPetCatalog(catalog), isA<PetCatalogPage>());
+          expect(await api.listPetFeed(feed), isA<List<Pet>>());
+          expect(await api.listPetNotes(notes), isA<PetNotePage>());
+          expect(await api.listPetEvents(events), isA<PetEventPage>());
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 026 the generator option overrides inference and can switch an operation or the whole feature off',
+      () async {
+        final source = File('lib/src/api/pet_api.dart').readAsStringSync();
+        expect(
+          source,
+          contains('listPetEventsPages('),
+          reason: 'an operation the option names is paged',
+        );
+        expect(
+          source,
+          isNot(contains('listPetArchivePages')),
+          reason: 'an operation the option sets to none is not',
+        );
+        expect(
+          source,
+          contains('Future<PetArchivePage> listPetArchive('),
+          reason: 'its base method remains',
+        );
+        final server = await _PagedServer.start(
+          (request, number) => _Reply.ok(
+            request.param('since') == null
+                ? '{"events":["e1"],"upto":"u1"}'
+                : '{"events":["e2"]}',
+          ),
+        );
+        try {
+          expect(
+            await _petApi(server).listPetEventsPages(null).items().toList(),
+            equals(['e1', 'e2']),
+          );
+          expect(_paramsSeen(server, 'since'), equals([null, 'u1']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 027 headers and options given to the paged method are sent on every page request',
+      () async {
+        final server = await _sameOriginFeed(3);
+        try {
+          await _namesOf(
+            _petApi(server)
+                .listPetFeedPages(
+                  const ListPetFeedOptions(
+                    limit: 1,
+                    headers: {'X-Keep': 'yes'},
+                  ),
+                )
+                .items(),
+          );
+          expect(server.seen, hasLength(3));
+          for (final request in server.seen) {
+            expect(request.headers['x-keep'], equals('yes'));
+          }
+          expect(
+            server.seen.first.param('limit'),
+            equals('1'),
+            reason: 'the first page carries the page size',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 028 the cursor for the next page is taken from the accepted response, never from a retried attempt',
+      () async {
+        final server = await _PagedServer.start((request, number) {
+          if (number == 1) {
+            return const _Reply(503, '{"items":[],"next_cursor":"WRONG"}', {
+              'Retry-After': '0',
+            });
+          }
+          final cursor = request.param('cursor');
+          return _Reply.ok(_catalogBody(cursor == null ? 0 : 1, 1, 2));
+        });
+        try {
+          final api = _petApi(server, maxRetries: 2);
+          expect(
+            await _namesOf(api.listPetCatalogPages(null).items()),
+            equals(['p0-0', 'p1-0']),
+          );
+          expect(_paramsSeen(server, 'cursor'), equals([null, null, 'c1']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 030 a vendor extension on an operation is read as a hint, and the override option wins over it',
+      () async {
+        final server = await _PagedServer.start(
+          (request, number) => _Reply.ok(
+            request.param('pos') == null
+                ? '{"rows":["a","b"],"following":"n1"}'
+                : '{"rows":["c"]}',
+          ),
+        );
+        try {
+          expect(
+            await _petApi(server).listPetNotesPages(null).items().toList(),
+            equals(['a', 'b', 'c']),
+            reason:
+                'the operation whose names are no known cursor is paged by its hint',
+          );
+          expect(_paramsSeen(server, 'pos'), equals([null, 'n1']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 031 the repeated-cursor failure is a PaginationError and is not a network error or an API error',
+      () async {
+        final server = await _PagedServer.start(
+          (request, number) => _Reply.ok('{"items":[],"next_cursor":"c1"}'),
+        );
+        try {
+          const root = PaginationException('x');
+          expect(root, isA<OpenAPIException>());
+          await expectLater(
+            _namesOf(
+              _petApi(server)
+                  .listPetCatalogPages(
+                    const ListPetCatalogOptions(cursor: 'c1'),
+                  )
+                  .items(),
+            ),
+            throwsA(
+              allOf(
+                isA<PaginationException>(),
+                isA<OpenAPIException>(),
+                isNot(isA<ApiException>()),
+                isNot(isA<NetworkException>()),
+              ),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 032 an operation that is streamed is never also given a paged method',
+      () {
+        final source = File('lib/src/api/store_api.dart').readAsStringSync();
+        expect(source, isNot(contains('Pages(')));
+        expect(source, contains('exportOrdersStream('));
       },
     );
   });

@@ -469,6 +469,10 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("body_source_files_io.mustache", srcDir, "body_source_files_io.dart"),
             new SupportingFileSpec("body_source_files_web.mustache", srcDir, "body_source_files_web.dart"),
             new SupportingFileSpec("byte_stream.mustache", srcDir, "byte_stream.dart"),
+            new SupportingFileSpec("paginator.mustache", srcDir, "paginator.dart"),
+            new SupportingFileSpec("page.mustache", srcDir, "page.dart"),
+            new SupportingFileSpec("link_header.mustache", srcDir, "link_header.dart"),
+            new SupportingFileSpec("errors/pagination_exception.mustache", errorsDir, "pagination_exception.dart"),
             new SupportingFileSpec("event_stream.mustache", srcDir, "event_stream.dart"),
             new SupportingFileSpec("server_sent_event.mustache", srcDir, "server_sent_event.dart"),
             new SupportingFileSpec("stream_options.mustache", srcDir, "stream_options.dart"),
@@ -1382,6 +1386,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             op.consumes != null && op.consumes.size() > 1;
                     opDeco.put("hasMultipleConsumes", hasMultipleConsumes);
                     markBinaryStream(op, opDeco);
+                    markPaginator(opDeco);
                     final Object sigArgs = opDeco.get("signatureArgs");
                     if (sigArgs instanceof List) {
                         opDeco.put(
@@ -1462,6 +1467,24 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * Gives a paged operation the Dart type of its paginator, {@code dartPaginatorType}: the item
+     * type and the type of the cursor parameter, or {@code void} for a list that is followed by its
+     * {@code Link} header.
+     */
+    @SuppressWarnings("unchecked")
+    static void markPaginator(final Map<String, Object> decorators) {
+        final Object pagination = decorators.get("pagination");
+        if (!(pagination instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        p.put(
+                "dartPaginatorType",
+                "Paginator<" + p.get("itemType") + ", "
+                        + (Boolean.TRUE.equals(p.get("isLink")) ? "void" : p.get("cursorType")) + ">");
+    }
+
+    /**
      * A binary success response is returned as a {@code ByteStream} by the one operation method
      * (D119), so the return type becomes {@code ByteStream} and the decorator
      * {@code streamsBinary} tells the API template to call {@code invokeApiForStream}.
@@ -1496,13 +1519,14 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
      * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
      * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
      * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
-     * spec under generation. Nothing is rendered when the spec has none.
+     * spec under generation. The first paged operation is handed over the same way, as
+     * {@code pagedOperation}. Nothing is rendered when the spec has none.
      */
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
-        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
         for (int kind = 0; kind < flags.length; kind++) {
             CodegenOperation found = null;
             Object group = null;
@@ -1563,6 +1587,21 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             final Object deco = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
             if (!(deco instanceof Map)) {
                 continue;
+            }
+            final Object pagination = ((Map<String, Object>) deco).get("pagination");
+            if (pagination instanceof Map) {
+                final Object model = ((Map<String, Object>) pagination).get("itemModel");
+                if (model != null) {
+                    final String className = model.toString();
+                    final String filename = toModelFilename(className);
+                    if (known.add(filename)) {
+                        final Map<String, String> imp = new HashMap<>();
+                        imp.put("import", className);
+                        imp.put("className", className);
+                        imp.put("filename", filename);
+                        imports.add(imp);
+                    }
+                }
             }
             final Object variants = ((Map<String, Object>) deco).get("successVariants");
             if (!(variants instanceof List)) {
@@ -1857,6 +1896,23 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         context.put("className", className);
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
+        // A paged operation that follows a token cursor can copy its Options with the next cursor,
+        // so every page is sent with its own cursor and everything else unchanged.
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        final Object pagination =
+                opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
+        final boolean cursorCopy =
+                pagination instanceof Map
+                        && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"));
+        context.put("hasCursorCopy", cursorCopy);
+        if (cursorCopy && pagination instanceof Map) {
+            final Map<?, ?> plan = (Map<?, ?>) pagination;
+            final Object cursorName = plan.get("requestParamName");
+            context.put("cursorType", plan.get("cursorType"));
+            for (final Map<String, Object> param : params) {
+                param.put("isCursor", Objects.equals(param.get("name"), cursorName));
+            }
+        }
         context.put("params", params);
         context.put("dartImports", optionsImports);
         context.put("hasDartImports", !optionsImports.isEmpty());

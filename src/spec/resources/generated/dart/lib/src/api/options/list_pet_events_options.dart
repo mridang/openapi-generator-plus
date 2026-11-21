@@ -21,4 +21,14 @@ class ListPetEventsOptions {
     this.headers,
     this.maxRetries,
   });
+
+  /// Returns a copy of these options that continues the list at [cursor]: the
+  /// same value for every other parameter and the same timeout, headers and
+  /// retry count. A paged list uses it to send each page with its own cursor.
+  ListPetEventsOptions withCursor(String cursor) => ListPetEventsOptions(
+    since: cursor,
+    timeout: timeout,
+    headers: headers,
+    maxRetries: maxRetries,
+  );
 }
