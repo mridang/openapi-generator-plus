@@ -187,6 +187,8 @@ class GeneratedFileLayoutTest {
         "rust",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a type of its own in Rust");
+    allow(
+        ALLOWED_EXTRA,
         "dart",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a class of its own in Dart");
