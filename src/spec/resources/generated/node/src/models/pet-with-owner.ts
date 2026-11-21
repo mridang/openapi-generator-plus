@@ -313,10 +313,16 @@ export class PetWithOwner {
     if (this.status != null) {
       const statusValues = Object.values(PetWithOwnerStatusEnum);
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
-        throw new TypeError(
-          `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +
-            `Expected one of [${statusValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (
+          typeof this.status !==
+          typeof PetWithOwnerStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        ) {
+          throw new TypeError(
+            `Unknown enum value for status: ${JSON.stringify(this.status)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["status"] =
+          PetWithOwnerStatusEnum.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
   }
@@ -532,6 +538,8 @@ export const PetWithOwnerStatusEnum = {
   Available: "available",
   Pending: "pending",
   Sold: "sold",
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__",
 } as const;
 export type PetWithOwnerStatusEnum =
   (typeof PetWithOwnerStatusEnum)[keyof typeof PetWithOwnerStatusEnum];

@@ -15,8 +15,11 @@ defmodule PetstoreClient.Models.EdgeCases do
   defmodule PhaseEnum do
     @moduledoc "Allowed values of EdgeCases.phase"
 
-    @typedoc "One of the allowed enum atoms for EdgeCases.phase."
-    @type t :: :in_stock | :on_hold | :out_of_stock
+    @typedoc "One of the declared enum atoms for EdgeCases.phase."
+    @type declared :: :in_stock | :on_hold | :out_of_stock
+
+    @typedoc "One of the allowed enum atoms for EdgeCases.phase, or the catch-all `:unknown_default_open_api`."
+    @type t :: declared() | :unknown_default_open_api
 
     @doc "Enum value `in_stock`"
     def in_stock, do: :in_stock
@@ -27,14 +30,17 @@ defmodule PetstoreClient.Models.EdgeCases do
     @doc "Enum value `out_of_stock`"
     def out_of_stock, do: :out_of_stock
 
-    @doc "All allowed values as atoms."
-    @spec all_values() :: [t(), ...]
+    @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+    def unknown_default_open_api, do: :unknown_default_open_api
+
+    @doc "All declared values as atoms; the catch-all member is not one of them."
+    @spec all_values() :: [declared(), ...]
     def all_values do
       [in_stock(), on_hold(), out_of_stock()]
     end
 
     @doc "Map an atom to its wire value."
-    @spec value(t()) :: String.t()
+    @spec value(declared()) :: String.t()
     def value(:in_stock), do: "In-Stock"
     def value(:on_hold), do: "on-hold"
     def value(:out_of_stock), do: "OUT_OF_STOCK"
@@ -44,7 +50,7 @@ defmodule PetstoreClient.Models.EdgeCases do
 
     Returns `{:error, value}` for an unrecognised wire value.
     """
-    @spec from_value(term()) :: t() | {:error, term()}
+    @spec from_value(term()) :: declared() | {:error, term()}
     def from_value("In-Stock"), do: :in_stock
     def from_value("on-hold"), do: :on_hold
     def from_value("OUT_OF_STOCK"), do: :out_of_stock

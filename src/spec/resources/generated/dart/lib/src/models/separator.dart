@@ -17,7 +17,10 @@ enum Separator {
   ab('a-b'),
 
   /// Represents the value 'a_b'.
-  ab2('a_b');
+  ab2('a_b'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const Separator(this.value);
@@ -26,11 +29,18 @@ enum Separator {
   static Separator fromJson(String value) {
     return Separator.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown Separator value: $value'),
+      orElse: () => Separator.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == Separator.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value Separator.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

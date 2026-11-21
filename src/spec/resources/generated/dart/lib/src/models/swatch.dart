@@ -14,7 +14,10 @@ enum Swatch {
   green('green'),
 
   /// Represents the value 'blue'.
-  blue('blue');
+  blue('blue'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const Swatch(this.value);
@@ -23,11 +26,18 @@ enum Swatch {
   static Swatch fromJson(String value) {
     return Swatch.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown Swatch value: $value'),
+      orElse: () => Swatch.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == Swatch.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value Swatch.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

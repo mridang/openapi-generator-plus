@@ -24,6 +24,9 @@ module Petstore::Client
       A_B = 'a-b'
       A_B_2 = 'a_b'
 
+      # Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written.
+      UNKNOWN_DEFAULT_OPEN_API = '__unknown_default_open_api__'
+
       # Frozen set of all allowed values, used for validation.
       VALUES = [SPACE_1, VALUE_0040_0040, A_B, A_B_2].freeze
 

@@ -3,6 +3,7 @@ module Petstore::Client::Models
     NUMBER_1: Integer
     NUMBER_2: Integer
     NUMBER_3: Integer
+    UNKNOWN_DEFAULT_OPEN_API: Integer
     VALUES: Array[Integer]
     def self.all_vars: () -> Array[Integer]
     def self.validate!: (Integer?) -> Integer?

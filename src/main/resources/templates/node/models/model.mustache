@@ -34,6 +34,8 @@ export const {{classname}} = {
   {{{name}}}: {{{value}}},
   {{/enumVars}}
 {{/allowableValues}}
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: {{#isInteger}}-9007199254740991{{/isInteger}}{{#isLong}}-9007199254740991{{/isLong}}{{^isInteger}}{{^isLong}}'__unknown_default_open_api__'{{/isLong}}{{/isInteger}},
 } as const;
 export type {{classname}} = (typeof {{classname}})[keyof typeof {{classname}}];
 
@@ -1213,10 +1215,10 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       {{! Enums are const objects (no numeric reverse mapping), so Object.values() yields exactly the wire values. }}
       const {{name}}Values = Object.values({{classname}}{{enumName}});
       if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
-        throw new TypeError(
-          `Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}. ` +
-            `Expected one of [${ {{name}}Values.map((v) => JSON.stringify(v)).join(', ')}].`
-        );
+        if (typeof this.{{name}} !== typeof {{classname}}{{enumName}}.UNKNOWN_DEFAULT_OPEN_API) {
+          throw new TypeError(`Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}.`);
+        }
+        (this as unknown as Record<string, unknown>)['{{name}}'] = {{classname}}{{enumName}}.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
 {{/isEnum}}
@@ -1237,24 +1239,25 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null) {
       const {{name}}Values = Object.values({{complexType}});
       if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
-        throw new TypeError(
-          `Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}. ` +
-            `Expected one of [${ {{name}}Values.map((v) => JSON.stringify(v)).join(', ')}].`
-        );
+        if (typeof this.{{name}} !== typeof {{complexType}}.UNKNOWN_DEFAULT_OPEN_API) {
+          throw new TypeError(`Unknown enum value for {{name}}: ${JSON.stringify(this.{{name}})}.`);
+        }
+        (this as unknown as Record<string, unknown>)['{{name}}'] = {{complexType}}.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
 {{/vendorExtensions.prop.complexTypeIsEnum}}
 {{#vendorExtensions.prop.itemsComplexTypeIsEnum}}
     if (this.{{name}} != null && Array.isArray(this.{{name}})) {
       const {{name}}Values = Object.values({{items.complexType}});
-      for (const __v of this.{{name}} as readonly unknown[]) {
-        if (!({{name}}Values as readonly unknown[]).includes(__v)) {
-          throw new TypeError(
-            `Unknown enum value for {{name}}: ${JSON.stringify(__v)}. ` +
-              `Expected one of [${ {{name}}Values.map((v) => JSON.stringify(v)).join(', ')}].`
-          );
+      (this as unknown as Record<string, unknown>)['{{name}}'] = (this.{{name}} as readonly unknown[]).map((__v) => {
+        if (({{name}}Values as readonly unknown[]).includes(__v)) {
+          return __v;
         }
-      }
+        if (typeof __v !== typeof {{items.complexType}}.UNKNOWN_DEFAULT_OPEN_API) {
+          throw new TypeError(`Unknown enum value for {{name}}: ${JSON.stringify(__v)}.`);
+        }
+        return {{items.complexType}}.UNKNOWN_DEFAULT_OPEN_API;
+      });
     }
 {{/vendorExtensions.prop.itemsComplexTypeIsEnum}}
 {{/isEnum}}
@@ -1449,6 +1452,8 @@ export const {{classname}}{{enumName}} = {
   {{{name}}}: {{{value}}},
   {{/enumVars}}
 {{/allowableValues}}
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: {{#isInteger}}-9007199254740991{{/isInteger}}{{#isLong}}-9007199254740991{{/isLong}}{{^isInteger}}{{^isLong}}'__unknown_default_open_api__'{{/isLong}}{{/isInteger}},
 } as const;
 export type {{classname}}{{enumName}} = (typeof {{classname}}{{enumName}})[keyof typeof {{classname}}{{enumName}}];
 {{/isEnum}}

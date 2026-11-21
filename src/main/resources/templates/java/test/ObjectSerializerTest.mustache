@@ -810,17 +810,12 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationObject172 unknown enum value throws SerializationException")
-        void bhvSerializationObject172UnknownEnumValueThrowsSerializationException() {
-            // Parity regression: deserializing a payload whose enum field holds a
-            // value the schema never declared (status="banana") must fail loudly
-            // with the SDK's (de)serialization exception, not be silently coerced
-            // to null or a default constant.
-            SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
-                serializer.deserialize(
-                    "{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}",
-                    new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Pet>() {}.getType()));
-            assertInstanceOf({{errorPrefix}}Exception.class, ex);
+        @DisplayName("bhvSerializationObject172 an unknown enum value decodes to the catch-all member")
+        void bhvSerializationObject172UnknownEnumValueDecodesToTheCatchAllMember() {
+            {{modelPackage}}.Pet pet = serializer.deserialize(
+                "{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}",
+                {{modelPackage}}.Pet.class);
+            assertEquals({{modelPackage}}.Pet.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, pet.status);
         }
 
         @Test
@@ -874,14 +869,13 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationObject024 an unknown inline enum value is rejected")
-        void bhvSerializationObject024UnknownInlineEnumValueIsRejected() {
-            assertThrows(IllegalArgumentException.class, () ->
+        @DisplayName("bhvSerializationObject024 an unknown inline enum value decodes to the catch-all member")
+        void bhvSerializationObject024UnknownInlineEnumValueDecodesToTheCatchAllMember() {
+            assertEquals({{modelPackage}}.Order.StatusEnum.UNKNOWN_DEFAULT_OPEN_API,
                 {{modelPackage}}.Order.StatusEnum.fromValue("banana"));
-            assertThrowsExactly(SerializationException.class, () ->
-                serializer.deserialize(
-                    "{\"status\":\"banana\"}",
-                    new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Order>() {}.getType()));
+            {{modelPackage}}.Order order = serializer.deserialize(
+                "{\"status\":\"banana\"}", {{modelPackage}}.Order.class);
+            assertEquals({{modelPackage}}.Order.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, order.status);
         }
 
         @Test
@@ -895,11 +889,11 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationObject192 an unknown enum string fails at decode and names the value")
-        void bhvSerializationObject192UnknownEnumStringFailsAtDecode() {
-            SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
-                serializer.deserialize("{\"status\":\"teleported\"}", {{modelPackage}}.Order.class));
-            assertTrue(ex.toString().contains("teleported"), ex.toString());
+        @DisplayName("bhvSerializationObject192 an unknown enum string decodes to the catch-all member")
+        void bhvSerializationObject192UnknownEnumStringDecodesToTheCatchAllMember() {
+            {{modelPackage}}.Order order = serializer.deserialize(
+                "{\"status\":\"teleported\"}", {{modelPackage}}.Order.class);
+            assertEquals({{modelPackage}}.Order.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, order.status);
         }
 
         @Test
@@ -1841,13 +1835,11 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationObject193 an unknown integer enum value is rejected on deserialize")
-        void bhvSerializationObject193UnknownIntegerEnumValueIsRejected() {
-            assertThrowsExactly(SerializationException.class, () ->
-                    serializer.deserialize(
-                            "{\"priority\":99}",
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    {{modelPackage}}.StockItem>() {}.getType()));
+        @DisplayName("bhvSerializationObject193 an unknown integer enum value decodes to the catch-all member")
+        void bhvSerializationObject193UnknownIntegerEnumValueDecodesToTheCatchAllMember() {
+            {{modelPackage}}.StockItem item = serializer.deserialize(
+                    "{\"priority\":99}", {{modelPackage}}.StockItem.class);
+            assertEquals({{modelPackage}}.Priority.UNKNOWN_DEFAULT_OPEN_API, item.priority);
         }
 
         @Test
@@ -1896,15 +1888,11 @@ class ObjectSerializerTest {
         {{! reject a value the schema never declared, failing loudly rather than }}
         {{! coercing to null or a default constant. }}
         @Test
-        @DisplayName("bhvSerializationObject119 referenced enum field rejects an unknown wire value")
-        void bhvSerializationObject119ReferencedEnumRejectsUnknownValue() {
-            assertThrows(
-                    SerializationException.class,
-                    () ->
-                            serializer.deserialize(
-                                    "{\"priority\":1,\"availability\":\"banana\"}",
-                                    new com.fasterxml.jackson.core.type.TypeReference<
-                                            {{modelPackage}}.StockItem>() {}.getType()));
+        @DisplayName("bhvSerializationObject119 referenced enum field decodes an unknown wire value to the catch-all member")
+        void bhvSerializationObject119ReferencedEnumDecodesUnknownValueToTheCatchAllMember() {
+            {{modelPackage}}.StockItem item = serializer.deserialize(
+                    "{\"priority\":1,\"availability\":\"banana\"}", {{modelPackage}}.StockItem.class);
+            assertEquals({{modelPackage}}.Availability.UNKNOWN_DEFAULT_OPEN_API, item.availability);
         }
     }
 
@@ -1992,14 +1980,19 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvEnums008 encoding writes the wire value and decoding rejects a supplied name")
+        @DisplayName("bhvEnums008 encoding writes the wire value and decoding a supplied name gives the catch-all member")
         void bhvEnums008WireValueOnlyOnTheWire() {
             assertEquals("\"m\"", serializer.serialize({{modelPackage}}.Tier.MEDIUM));
-            SerializationException error =
-                    assertThrows(
-                            SerializationException.class,
-                            () -> decode("{\"rank\":1,\"tier\":\"Medium\"}", {{modelPackage}}.Subscription.class));
-            assertTrue(String.valueOf(error.getMessage()).contains("Medium"), error.getMessage());
+            {{modelPackage}}.Subscription decoded =
+                    decode("{\"rank\":1,\"tier\":\"Medium\"}", {{modelPackage}}.Subscription.class);
+            assertEquals({{modelPackage}}.Tier.UNKNOWN_DEFAULT_OPEN_API, decoded.tier);
+        }
+
+        @Test
+        @DisplayName("bhvEnums012 the catch-all member of an enum has no wire value and cannot be written")
+        void bhvEnums012TheCatchAllMemberCannotBeWritten() {
+            assertThrowsExactly(SerializationException.class,
+                    () -> serializer.serialize({{modelPackage}}.Tier.UNKNOWN_DEFAULT_OPEN_API));
         }
 
         @Test
@@ -2434,6 +2427,9 @@ class ObjectSerializerTest {
         @DisplayName("bhvSerializationObject076 every Availability member, hostile ones included, round-trips its wire value")
         void bhvSerializationObject076AvailabilityMembersRoundTrip() {
             for ({{modelPackage}}.Availability member : {{modelPackage}}.Availability.values()) {
+                if (member == {{modelPackage}}.Availability.UNKNOWN_DEFAULT_OPEN_API) {
+                    continue;
+                }
                 String json = serializer.serialize(member);
                 assertEquals("\"" + member.getValue().replace("\\", "\\\\") + "\"", json);
                 assertEquals(member, serializer.deserialize(json, {{modelPackage}}.Availability.class));
@@ -2695,16 +2691,16 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationObject059 deserialize rejects an unknown availability wire value")
-        void bhvSerializationObject059UnknownAvailabilityWireValueIsRejected() {
-            assertThrowsExactly(SerializationException.class, () -> serializer.deserialize(
+        @DisplayName("bhvSerializationObject059 deserialize gives the catch-all member for an unknown availability wire value")
+        void bhvSerializationObject059UnknownAvailabilityWireValueGivesTheCatchAllMember() {
+            assertEquals({{modelPackage}}.Availability.UNKNOWN_DEFAULT_OPEN_API, serializer.deserialize(
                 "\"banana\"", {{modelPackage}}.Availability.class));
         }
 
         @Test
-        @DisplayName("bhvSerializationObject182 unknown enum value on deserialize throws")
-        void bhvSerializationObject182UnknownEnumValueOnDeserializeThrows() {
-            assertThrowsExactly(SerializationException.class, () -> serializer.deserialize(
+        @DisplayName("bhvSerializationObject182 unknown enum value on deserialize gives the catch-all member")
+        void bhvSerializationObject182UnknownEnumValueOnDeserializeGivesTheCatchAllMember() {
+            assertEquals({{modelPackage}}.Availability.UNKNOWN_DEFAULT_OPEN_API, serializer.deserialize(
                 "\"unknown\"", {{modelPackage}}.Availability.class));
         }
 
@@ -2889,12 +2885,10 @@ class ObjectSerializerTest {
     @Test
     void bhvSerialization004EnumRefusesAValueOutsideItsMembers() {
         assertEquals({{modelPackage}}.Availability.SOLD, {{modelPackage}}.Availability.fromValue("Sold"));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> {{modelPackage}}.Availability.fromValue("Gone"));
-        assertThrows(
-                SerializationException.class,
-                () -> serializer.deserialize("\"Gone\"", {{modelPackage}}.Availability.class));
+        assertEquals({{modelPackage}}.Availability.UNKNOWN_DEFAULT_OPEN_API,
+                {{modelPackage}}.Availability.fromValue("Gone"));
+        assertEquals({{modelPackage}}.Availability.UNKNOWN_DEFAULT_OPEN_API,
+                serializer.deserialize("\"Gone\"", {{modelPackage}}.Availability.class));
     }
 
     @Test
@@ -3547,11 +3541,11 @@ class ObjectSerializerTest {
     }
 
     @Test
-    void bhvSerialization105EnumValueOutsideTheMembersOrInWrongCaseIsRejected() {
-        assertThrowsExactly(SerializationException.class,
-                () -> decode("\"RED\"", {{modelPackage}}.Color.class));
-        assertThrowsExactly(SerializationException.class,
-                () -> decode("\"purple\"", {{modelPackage}}.Color.class));
+    void bhvSerialization105EnumValueOutsideTheMembersOrInWrongCaseGivesTheCatchAllMember() {
+        assertEquals({{modelPackage}}.Color.UNKNOWN_DEFAULT_OPEN_API,
+                decode("\"RED\"", {{modelPackage}}.Color.class));
+        assertEquals({{modelPackage}}.Color.UNKNOWN_DEFAULT_OPEN_API,
+                decode("\"purple\"", {{modelPackage}}.Color.class));
     }
 
     @Test
@@ -3738,10 +3732,13 @@ class ObjectSerializerTest {
     }
 
     @Test
-    void bhvMisc137AGeneratedEnumListsItsDeclaredValuesAndRejectsOthers() {
+    void bhvMisc137AGeneratedEnumListsItsDeclaredValuesAndGivesTheCatchAllForOthers() {
         assertEquals(List.of(" ", "@@", "a-b", "a_b"),
-                Arrays.stream({{modelPackage}}.Separator.values()).map({{modelPackage}}.Separator::getValue).toList());
-        assertThrows(IllegalArgumentException.class, () -> {{modelPackage}}.Separator.fromValue("not-declared"));
+                Arrays.stream({{modelPackage}}.Separator.values())
+                        .filter(v -> v != {{modelPackage}}.Separator.UNKNOWN_DEFAULT_OPEN_API)
+                        .map({{modelPackage}}.Separator::getValue).toList());
+        assertEquals({{modelPackage}}.Separator.UNKNOWN_DEFAULT_OPEN_API,
+                {{modelPackage}}.Separator.fromValue("not-declared"));
     }
 
     @Test

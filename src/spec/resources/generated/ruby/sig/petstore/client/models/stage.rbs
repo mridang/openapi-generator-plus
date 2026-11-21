@@ -3,6 +3,7 @@ module Petstore::Client::Models
     ON_HOLD: String
     ACTIVE: String
     ACTIVE2: String
+    UNKNOWN_DEFAULT_OPEN_API: String
     VALUES: Array[String]
     def self.all_vars: () -> Array[String]
     def self.validate!: (String?) -> String?

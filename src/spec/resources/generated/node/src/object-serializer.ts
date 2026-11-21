@@ -861,6 +861,14 @@ export class ObjectSerializer {
     try {
       return JSON.stringify(obj, function (_key, value) {
         if (
+          value === "__unknown_default_open_api__" ||
+          value === -9007199254740991
+        ) {
+          throw new SerializationError(
+            "The catch-all enum member UNKNOWN_DEFAULT_OPEN_API has no wire value and cannot be written",
+          );
+        }
+        if (
           value !== null &&
           typeof value === "object" &&
           !Array.isArray(value)
@@ -1405,8 +1413,8 @@ export class ObjectSerializer {
    * itself, or an enum container leaf, arrives as a raw JSON scalar; a
    * plain cast would silently let an unknown value (`"magenta"`) through
    * as a non-enum string. This mirrors the model-field enum check (and Python's
-   * `klass(data)` / Java's `@JsonCreator fromValue`), throwing on an
-   * unknown value instead of corrupting the typed result.
+   * `klass(data)` / Java's `@JsonCreator fromValue`), giving the catch-all
+   * member for an unknown value instead of corrupting the typed result.
    *
    * @param value the parsed wire value
    * @param enumObj the runtime enum object whose values are the wire values
@@ -1420,10 +1428,13 @@ export class ObjectSerializer {
      * Object.values() is exactly the set of wire values. */
     const members = Object.values(enumObj);
     if (!(members as readonly unknown[]).includes(value)) {
-      throw new SerializationError(
-        `Unknown enum value: ${JSON.stringify(value)}. ` +
-          `Expected one of [${members.map((v) => JSON.stringify(v)).join(", ")}].`,
-      );
+      const catchAll = enumObj["UNKNOWN_DEFAULT_OPEN_API"];
+      if (typeof value !== typeof catchAll) {
+        throw new SerializationError(
+          `Unknown enum value: ${JSON.stringify(value)}.`,
+        );
+      }
+      return catchAll as T;
     }
     return value as T;
   }

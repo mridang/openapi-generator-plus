@@ -18,7 +18,10 @@ enum SubscriptionIntervalEnum {
   monthly('month'),
 
   /// Billed every year.
-  yearly('year');
+  yearly('year'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const SubscriptionIntervalEnum(this.value);
@@ -27,12 +30,18 @@ enum SubscriptionIntervalEnum {
   static SubscriptionIntervalEnum fromJson(String value) {
     return SubscriptionIntervalEnum.values.firstWhere(
       (e) => e.value == value,
-      orElse: () =>
-          throw ArgumentError('Unknown SubscriptionIntervalEnum value: $value'),
+      orElse: () => SubscriptionIntervalEnum.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == SubscriptionIntervalEnum.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value SubscriptionIntervalEnum.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

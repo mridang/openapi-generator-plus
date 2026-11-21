@@ -32,6 +32,9 @@ pub enum Availability {
     /// Represents the value "#{x}".
     #[serde(rename = "#{x}")]
     X,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for Availability {
@@ -45,6 +48,7 @@ impl std::fmt::Display for Availability {
             Availability::AB => "a\\b",
             Availability::Eq => "$eq",
             Availability::X => "#{x}",
+            Availability::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

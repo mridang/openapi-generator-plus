@@ -23,4 +23,6 @@ enum Rank: int
     case MEDIUM = 2;
     /** The highest rank. */
     case HIGH = 3;
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    case UNKNOWN_DEFAULT_OPEN_API = PHP_INT_MIN;
 }

@@ -434,16 +434,17 @@ void main() {
     // F316: a constructor never validates. Values the schema would refuse
     // (a pattern, a bound, an empty required string) build fine; the unknown
     // enum string fails loudly, and only when it is decoded.
-    test('bhv serializationobject 029 constructors do not validate and decode rejects an unknown enum', () {
+    test('bhv serializationobject 029 constructors do not validate and decode gives the catch-all for an unknown enum', () {
       expect(() => const StockItem(priority: Priority.number1), returnsNormally);
       expect(() => Pet(name: '', photoUrls: <String>{}, nickname: 'ZZZZZZZZZZ'),
           returnsNormally);
-      expect(() => Availability.fromJson('no-such-member'),
-          throwsA(isA<ArgumentError>()));
+      expect(Availability.fromJson('no-such-member'),
+          equals(Availability.unknownDefaultOpenApi));
       expect(
-          () => deserialize<StockItem>(
-              '{"priority":1,"availability":"no-such-member"}', StockItem.fromJson),
-          throwsA(anything));
+          deserialize<StockItem>(
+                  '{"priority":1,"availability":"no-such-member"}', StockItem.fromJson)!
+              .availability,
+          equals(Availability.unknownDefaultOpenApi));
     });
 
     test('bhv langdart 066 deserialize reports a JSON nesting depth over the limit', () {
@@ -880,7 +881,7 @@ void main() {
       expect(jsonDecode(serialize(decoded)), equals(wire));
     });
 
-    test('bhv serializationobject 024 an inline enum keeps its mixed-case wire values and refuses an unknown one', () {
+    test('bhv serializationobject 024 an inline enum keeps its mixed-case wire values and gives the catch-all member for an unknown one', () {
       for (final wire in ['In-Stock', 'on-hold', 'OUT_OF_STOCK']) {
         final decoded =
             deserialize<EdgeCases>('{"phase":"$wire"}', EdgeCases.fromJson)!;
@@ -889,13 +890,14 @@ void main() {
             equals(<String, Object?>{'phase': wire}));
       }
       expect(
-        () => deserialize<EdgeCases>('{"phase":"in-stock"}', EdgeCases.fromJson),
-        throwsA(isA<SerializationException>()),
+        deserialize<EdgeCases>('{"phase":"in-stock"}', EdgeCases.fromJson)!.phase,
+        equals(EdgeCasesPhaseEnum.unknownDefaultOpenApi),
       );
     });
 
     test('bhv serializationobject 022 an inline enum (EdgeCases.phase) round-trips every member through its wire value', () {
-      for (final member in EdgeCasesPhaseEnum.values) {
+      for (final member in EdgeCasesPhaseEnum.values
+          .where((m) => m != EdgeCasesPhaseEnum.unknownDefaultOpenApi)) {
         final decoded = deserialize<EdgeCases>(
             jsonEncode({'phase': member.value}), EdgeCases.fromJson)!;
         expect(decoded.phase, equals(member));
@@ -994,8 +996,6 @@ void main() {
       'malformed JSON': () => deserialize('{', Category.fromJson),
       'wrong primitive type': () => deserialize(
           '{"id":"abc","name":"doggie","photoUrls":[]}', Pet.fromJson),
-      'unknown enum value': () => deserialize(
-          '{"name":"doggie","photoUrls":[],"status":"banana"}', Pet.fromJson),
       'missing required field': () =>
           deserialize('{"photoUrls":[]}', Pet.fromJson),
       'malformed duration': () =>
@@ -1142,11 +1142,12 @@ void main() {
       expect(tag.name, equals('x'));
     });
 
-    test('bhv serializationobject 172 an unknown enum value raises SerializationException', () {
+    test('bhv serializationobject 172 an unknown enum value decodes to the catch-all member', () {
       expect(
-        () => deserialize<StockItem>(
-            '{"priority":1,"availability":"NotAStatus"}', StockItem.fromJson),
-        throwsA(isA<SerializationException>()),
+        deserialize<StockItem>(
+                '{"priority":1,"availability":"NotAStatus"}', StockItem.fromJson)!
+            .availability,
+        equals(Availability.unknownDefaultOpenApi),
       );
     });
 
@@ -1782,10 +1783,10 @@ void main() {
       expect(restored.priority, equals(Priority.number3));
     });
 
-    test('bhv serializationobject 193 an unknown integer enum value is rejected on deserialize', () {
+    test('bhv serializationobject 193 an unknown integer enum value decodes to the catch-all member', () {
       expect(
-        () => deserialize<StockItem>('{"priority":99}', StockItem.fromJson),
-        throwsA(isA<SerializationException>()),
+        deserialize<StockItem>('{"priority":99}', StockItem.fromJson)!.priority,
+        equals(Priority.unknownDefaultOpenApi),
       );
     });
 
@@ -1852,15 +1853,11 @@ void main() {
       }
     });
 
-    test('bhv serializationobject 059 non-lowercase Availability enum rejects an unknown wire value', () {
-      expect(
-        () => Availability.fromJson('available'),
-        throwsA(isA<ArgumentError>()),
-      );
-      expect(
-        () => Availability.fromJson('unknown'),
-        throwsA(isA<ArgumentError>()),
-      );
+    test('bhv serializationobject 059 non-lowercase Availability enum gives the catch-all member for an unknown wire value', () {
+      expect(Availability.fromJson('available'),
+          equals(Availability.unknownDefaultOpenApi));
+      expect(Availability.fromJson('unknown'),
+          equals(Availability.unknownDefaultOpenApi));
     });
 
     // -- ByteFieldBase64RoundTripTests (canonical scenario 3) --
@@ -1936,13 +1933,13 @@ void main() {
     // fromJson is called directly. StockItem.availability references the
     // Availability enum, so an unknown value must surface as an ArgumentError
     // out of StockItem.fromJson.
-    test('bhv serializationobject 119 model field typed as a referenced enum rejects an unknown wire value', () {
+    test('bhv serializationobject 119 model field typed as a referenced enum gives the catch-all member for an unknown wire value', () {
       expect(
-        () => StockItem.fromJson(<String, dynamic>{
+        StockItem.fromJson(<String, dynamic>{
           'priority': 1,
           'availability': 'NotAStatus',
-        }),
-        throwsA(isA<ArgumentError>()),
+        }).availability,
+        equals(Availability.unknownDefaultOpenApi),
       );
     });
 
@@ -2230,12 +2227,12 @@ void main() {
       expect(stringify(9007199254740993), equals('9007199254740993'));
     });
 
-    test('bhv serializationobject 192 an unknown enum string fails at decode', () {
+    test('bhv serializationobject 192 an unknown enum string decodes to the catch-all member', () {
       expect(
-        () => deserialize<StockItem>(
-            '{"priority":1,"availability":"NotAStatus"}', StockItem.fromJson),
-        throwsA(isA<SerializationException>()
-            .having((e) => e.message, 'message', contains('NotAStatus'))),
+        deserialize<StockItem>(
+                '{"priority":1,"availability":"NotAStatus"}', StockItem.fromJson)!
+            .availability,
+        equals(Availability.unknownDefaultOpenApi),
       );
     });
 
@@ -2445,10 +2442,14 @@ void main() {
       expect(Priority.number3.value, equals(3));
     });
 
-    test('bhv misc 137 a generated enum lists its declared values and refuses any other', () {
-      expect(Separator.values.map((e) => e.value).toList(),
+    test('bhv misc 137 a generated enum lists its declared values and gives the catch-all member for any other', () {
+      expect(
+          Separator.values
+              .where((e) => e != Separator.unknownDefaultOpenApi)
+              .map((e) => e.value)
+              .toList(),
           equals([' ', '@@', 'a-b', 'a_b']));
-      expect(() => Separator.fromJson('nope'), throwsArgumentError);
+      expect(Separator.fromJson('nope'), equals(Separator.unknownDefaultOpenApi));
     });
 
     test('bhv misc 138 converting an enum member to text yields its wire value', () {
@@ -2641,9 +2642,9 @@ void main() {
       expect(Defaults.fromJson({'swatch': 'green'}).swatch, equals(Swatch.green));
     });
 
-    test('bhv serialization 004 a generated enum refuses any value outside its declared members', () {
-      expect(() => Defaults.fromJson({'swatch': 'purple'}),
-          throwsA(isA<ArgumentError>()));
+    test('bhv serialization 004 a generated enum gives the catch-all member for any value outside its declared members', () {
+      expect(Defaults.fromJson({'swatch': 'purple'}).swatch,
+          equals(Swatch.unknownDefaultOpenApi));
     });
 
     group('native value formats', () {
@@ -2747,9 +2748,13 @@ void main() {
 
     test('bhv enums 008 encoding writes the wire value and decoding rejects a supplied name', () {
       expect(const Subscription(rank: Rank.low, tier: Tier.medium).toJson()['tier'], equals('m'));
-      expect(
-          () => deserialize<Subscription>('{"rank":1,"tier":"Medium"}', Subscription.fromJson),
-          throwsA(predicate((e) => e is SerializationException && e.toString().contains('Medium'))));
+      expect(deserialize<Subscription>('{"rank":1,"tier":"Medium"}', Subscription.fromJson)!.tier,
+          equals(Tier.unknownDefaultOpenApi));
+    });
+
+    test('bhv enums 012 the catch-all member of an enum has no wire value and cannot be written', () {
+      expect(() => serialize(const Subscription(rank: Rank.low, tier: Tier.unknownDefaultOpenApi)),
+          throwsA(anything));
     });
 
     test('bhv enums 009 a description is the one-line comment directly above the member', () {
@@ -2857,10 +2862,10 @@ void main() {
       expect(order?.trackingId.toString(), equals('0f8fad5b-d9cb-469f-a165-70867728950e'));
     });
 
-    test('bhv serialization 105 an enum value with the wrong case raises a serialization error', () {
+    test('bhv serialization 105 an enum value with the wrong case gives the catch-all member', () {
       expect(
-        () => deserialize<Order>('{"status":"PLACED"}', Order.fromJson),
-        throwsA(isA<SerializationException>()),
+        deserialize<Order>('{"status":"PLACED"}', Order.fromJson)!.status,
+        equals(OrderStatusEnum.unknownDefaultOpenApi),
       );
     });
 

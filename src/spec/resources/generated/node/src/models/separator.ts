@@ -13,5 +13,7 @@ export const Separator = {
   VALUE00400040: "@@",
   AB: "a-b",
   AB2: "a_b",
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__",
 } as const;
 export type Separator = (typeof Separator)[keyof typeof Separator];

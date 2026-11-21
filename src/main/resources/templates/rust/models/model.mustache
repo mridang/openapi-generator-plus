@@ -37,6 +37,9 @@ pub enum {{classname}} {
     {{name}},
 {{/enumVars}}
 {{/allowableValues}}
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 {{#isString}}
@@ -49,6 +52,7 @@ impl std::fmt::Display for {{classname}} {
             {{classname}}::{{name}} => {{{value}}},
 {{/enumVars}}
 {{/allowableValues}}
+            {{classname}}::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }
@@ -101,6 +105,9 @@ pub enum {{classname}}{{enumName}} {
     {{name}},
 {{/enumVars}}
 {{/allowableValues}}
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 {{#isString}}
@@ -113,6 +120,7 @@ impl std::fmt::Display for {{classname}}{{enumName}} {
             {{classname}}{{enumName}}::{{name}} => {{{value}}},
 {{/enumVars}}
 {{/allowableValues}}
+            {{classname}}{{enumName}}::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

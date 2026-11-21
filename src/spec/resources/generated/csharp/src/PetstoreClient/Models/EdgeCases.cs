@@ -23,6 +23,9 @@ public record EdgeCases
         OnHold,
 
         OUTOFSTOCK,
+
+        /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+        UnknownDefaultOpenApi,
     }
 
     /// <summary>
@@ -51,9 +54,7 @@ public record EdgeCases
                 "In-Stock" => PhaseEnum.InStock,
                 "on-hold" => PhaseEnum.OnHold,
                 "OUT_OF_STOCK" => PhaseEnum.OUTOFSTOCK,
-                _ => throw new System.Text.Json.JsonException(
-                    $"Unknown value '{value}' for enum PhaseEnum."
-                ),
+                _ => PhaseEnum.UnknownDefaultOpenApi,
             };
         }
 

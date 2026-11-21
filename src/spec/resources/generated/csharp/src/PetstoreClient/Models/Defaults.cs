@@ -20,6 +20,9 @@ public record Defaults
         Medium,
 
         High,
+
+        /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+        UnknownDefaultOpenApi,
     }
 
     /// <summary>
@@ -48,9 +51,7 @@ public record Defaults
                 "low" => ModeEnum.Low,
                 "medium" => ModeEnum.Medium,
                 "high" => ModeEnum.High,
-                _ => throw new System.Text.Json.JsonException(
-                    $"Unknown value '{value}' for enum ModeEnum."
-                ),
+                _ => ModeEnum.UnknownDefaultOpenApi,
             };
         }
 

@@ -91,10 +91,13 @@ export class StockItem {
     if (this.priority != null) {
       const priorityValues = Object.values(Priority);
       if (!(priorityValues as readonly unknown[]).includes(this.priority)) {
-        throw new TypeError(
-          `Unknown enum value for priority: ${JSON.stringify(this.priority)}. ` +
-            `Expected one of [${priorityValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (typeof this.priority !== typeof Priority.UNKNOWN_DEFAULT_OPEN_API) {
+          throw new TypeError(
+            `Unknown enum value for priority: ${JSON.stringify(this.priority)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["priority"] =
+          Priority.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
     if (this.availability != null) {
@@ -102,10 +105,16 @@ export class StockItem {
       if (
         !(availabilityValues as readonly unknown[]).includes(this.availability)
       ) {
-        throw new TypeError(
-          `Unknown enum value for availability: ${JSON.stringify(this.availability)}. ` +
-            `Expected one of [${availabilityValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (
+          typeof this.availability !==
+          typeof Availability.UNKNOWN_DEFAULT_OPEN_API
+        ) {
+          throw new TypeError(
+            `Unknown enum value for availability: ${JSON.stringify(this.availability)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["availability"] =
+          Availability.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
   }

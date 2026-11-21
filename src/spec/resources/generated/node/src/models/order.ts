@@ -194,10 +194,15 @@ export class Order {
     if (this.status != null) {
       const statusValues = Object.values(OrderStatusEnum);
       if (!(statusValues as readonly unknown[]).includes(this.status)) {
-        throw new TypeError(
-          `Unknown enum value for status: ${JSON.stringify(this.status)}. ` +
-            `Expected one of [${statusValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (
+          typeof this.status !== typeof OrderStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        ) {
+          throw new TypeError(
+            `Unknown enum value for status: ${JSON.stringify(this.status)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["status"] =
+          OrderStatusEnum.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
   }
@@ -337,6 +342,8 @@ export const OrderStatusEnum = {
   Placed: "placed",
   Approved: "approved",
   Delivered: "delivered",
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__",
 } as const;
 export type OrderStatusEnum =
   (typeof OrderStatusEnum)[keyof typeof OrderStatusEnum];

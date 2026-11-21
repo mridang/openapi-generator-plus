@@ -71,7 +71,7 @@ Response bodies are decoded by `URLSession`, with a bundled inflater for gzip an
 - The client takes one optional credential per security scheme, named after the scheme: `Client(host:petStoreBearer:apiKeyHeader:...transportOptions:)`, each argument any `Authenticator`. An operation uses the credential of the first scheme its own spec lists that the client holds, and falls back to the single authenticator of `Client(authenticator:)` when it holds none of them; an operation declared with `security: []` carries no credential. There is no per-call authenticator, so an options struct never has an `auth` field.
 - `close()` on the client is graceful and idempotent: a request in flight finishes (retries included), the `URLSession` the SDK built is released when the last one ends, and a request made afterwards throws `ConfigurationError.invalidState` (`ApiClient has been closed and can no longer send requests`). A `URLSession` you supplied is never invalidated.
 - A cookie parameter is sent raw when every character is an RFC 6265 cookie-octet; any other character throws `ConfigurationError.invalidArgument` before the request, so the caller percent-encodes it. A `content:` cookie holds a typed value and is serialised to JSON and percent-encoded by the SDK.
-- Building a model validates nothing and never throws; an unknown enum string builds no enum (`init(rawValue:)` returns `nil`). Wrong values fail when the SDK decodes a payload, with `SerializationError`.
+- Building a model validates nothing and never throws; an unknown enum string builds no enum (`init(rawValue:)` returns `nil`). Wrong values fail when the SDK decodes a payload, with `SerializationError`; an unknown enum string decodes to `.unknownDefaultOpenApi`.
 - A `oneOf` or `anyOf` wrapper exposes typed `is<Variant>` and `as<Variant>` members beside `actualInstance`.
 - Credentials come from an argument first and the environment second. Each security scheme authenticator takes its credentials as optional arguments and reads `{PREFIX}_{FIELD}` once, when it is built (`{PREFIX}` is `envVarPrefix`; where two schemes share a field the scheme id is part of the name, so `{PREFIX}_{SCHEME}_{FIELD}`); an empty variable counts as unset, and a credential found in neither place throws `ConfigurationError.invalidArgument` at that point. The generated README lists the exact names. A scheme authenticator initializer that cannot find a credential throws, so every one of them is called with `try`. `Client.fromEnvironment()` reads `{PREFIX}_HOST` and `{PREFIX}_TOKEN` for the bearer token, or takes a `tokenProvider` callback that runs before every request.
 - A property that is a `$ref` to a string enum with a `default` written beside the reference starts at that member in the initializer and takes it when the key is missing on decode; an explicit `null` stays `nil`.
@@ -151,7 +151,7 @@ do {
 - `format: decimal` is `Foundation.Decimal` (38 digits, trailing zeros are not kept); a bare `type: number` is `Double` and loses exactness.
 - Query, form and multipart parameters are held in dictionaries, so their wire order is not the order in the spec.
 - A body with a declared charset other than UTF-8 (such as `windows-1252` or `shift_jis`) can decode incorrectly.
-- An unknown enum value throws when decoding.
+- An unknown enum value decodes to the catch-all case `.unknownDefaultOpenApi` (D117), which cannot be written.
 - An optional nullable property cannot tell an absent key from an explicit `null`.
 - `allOf` with a discriminator is not implemented yet.
 - A `default` written beside a `$ref` is applied only when the reference points at a string enum; for any other referenced type the property stays `nil` until it is set.
@@ -171,6 +171,5 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - `Foundation.Decimal` for `decimal`, only after a test proves an exact JSON round trip.
 - `URL` for `uri`. The review recommends keeping `String`, because `URL` parsing differs between Apple platforms and Linux and rejects link templates.
 - Renaming `ISO8601Duration.swift`, since the wire form it handles is protobuf-JSON and not ISO 8601.
-- An unknown-case fallback on enums for forward compatibility.
 
 Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. The hook runs in the operation's own task after the credential await, so a task-local context is intact; the base-api tests prove this with a test-owned `@TaskLocal`.

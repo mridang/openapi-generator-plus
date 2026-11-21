@@ -19,6 +19,9 @@ public enum Swatch
     Green,
 
     Blue,
+
+    /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+    UnknownDefaultOpenApi,
 }
 
 /// <summary>
@@ -49,7 +52,7 @@ internal sealed class SwatchConverter : JsonConverter<Swatch>
             "red" => Swatch.Red,
             "green" => Swatch.Green,
             "blue" => Swatch.Blue,
-            _ => throw new JsonException($"Unknown value '{value}' for enum Swatch."),
+            _ => Swatch.UnknownDefaultOpenApi,
         };
     }
 

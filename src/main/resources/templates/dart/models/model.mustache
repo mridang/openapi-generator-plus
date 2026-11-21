@@ -34,6 +34,8 @@ enum {{classname}} {
   {{name}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991),
   ;
 
   final int value;
@@ -43,11 +45,16 @@ enum {{classname}} {
   static {{classname}} fromJson(int value) {
     return {{classname}}.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown {{classname}} value: $value'),
+      orElse: () => {{classname}}.unknownDefaultOpenApi,
     );
   }
 
-  int toJson() => value;
+  int toJson() {
+    if (this == {{classname}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{classname}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
 
   @override
   String toString() => value.toString();
@@ -73,6 +80,8 @@ enum {{classname}} {
   {{name}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991),
   ;
 
   final int value;
@@ -82,11 +91,16 @@ enum {{classname}} {
   static {{classname}} fromJson(int value) {
     return {{classname}}.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown {{classname}} value: $value'),
+      orElse: () => {{classname}}.unknownDefaultOpenApi,
     );
   }
 
-  int toJson() => value;
+  int toJson() {
+    if (this == {{classname}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{classname}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
 
   @override
   String toString() => value.toString();
@@ -111,6 +125,8 @@ enum {{classname}} {
   {{name}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__'),
   ;
 
   final String value;
@@ -120,11 +136,16 @@ enum {{classname}} {
   static {{classname}} fromJson(String value) {
     return {{classname}}.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown {{classname}} value: $value'),
+      orElse: () => {{classname}}.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == {{classname}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{classname}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
 
   @override
   String toString() => value;
@@ -166,6 +187,8 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
   {{nameLowercase}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991),
   ;
 
   final int value;
@@ -175,11 +198,16 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
   static {{vendorExtensions.dartOwner}}{{enumName}} fromJson(int value) {
     return {{vendorExtensions.dartOwner}}{{enumName}}.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown {{vendorExtensions.dartOwner}}{{enumName}} value: $value'),
+      orElse: () => {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi,
     );
   }
 
-  int toJson() => value;
+  int toJson() {
+    if (this == {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
 
   @override
   String toString() => value.toString();
@@ -201,6 +229,8 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
   {{nameLowercase}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991),
   ;
 
   final int value;
@@ -210,11 +240,16 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
   static {{vendorExtensions.dartOwner}}{{enumName}} fromJson(int value) {
     return {{vendorExtensions.dartOwner}}{{enumName}}.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown {{vendorExtensions.dartOwner}}{{enumName}} value: $value'),
+      orElse: () => {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi,
     );
   }
 
-  int toJson() => value;
+  int toJson() {
+    if (this == {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
 
   @override
   String toString() => value.toString();
@@ -235,6 +270,8 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
   {{nameLowercase}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__'),
   ;
 
   final String value;
@@ -244,11 +281,16 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
   static {{vendorExtensions.dartOwner}}{{enumName}} fromJson(String value) {
     return {{vendorExtensions.dartOwner}}{{enumName}}.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown {{vendorExtensions.dartOwner}}{{enumName}} value: $value'),
+      orElse: () => {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi) {
+      throw ArgumentError('The catch-all enum value {{vendorExtensions.dartOwner}}{{enumName}}.unknownDefaultOpenApi has no wire value and cannot be written');
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

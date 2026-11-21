@@ -4,6 +4,7 @@ module Petstore::Client::Models
       IN_STOCK: String
       ON_HOLD: String
       OUT_OF_STOCK: String
+      UNKNOWN_DEFAULT_OPEN_API: String
       VALUES: Array[String]
       def self.all_vars: () -> Array[String]
       def self.validate!: (String?) -> String?

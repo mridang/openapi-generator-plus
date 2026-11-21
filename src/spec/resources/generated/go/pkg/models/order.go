@@ -24,6 +24,8 @@ const (
 	OrderStatusEnumPlaced    OrderStatusEnum = "placed"
 	OrderStatusEnumApproved  OrderStatusEnum = "approved"
 	OrderStatusEnumDelivered OrderStatusEnum = "delivered"
+	/* OrderStatusEnumUnknownDefaultOpenApi is what a wire value this SDK does not list decodes to; it has no wire value and cannot be written. */
+	OrderStatusEnumUnknownDefaultOpenApi OrderStatusEnum = "__unknown_default_open_api__"
 )
 
 // AllOrderStatusEnumValues returns all allowed values.
@@ -51,8 +53,8 @@ func (v OrderStatusEnum) String() string {
 	return string(v)
 }
 
-// UnmarshalJSON validates the value is one of the declared
-// enum members at deserialise time.
+// UnmarshalJSON decodes a declared member to itself and any other wire value
+// to the catch-all member.
 func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
 	var raw string
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -65,11 +67,12 @@ func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %v for enum OrderStatusEnum", raw)
+	*v = OrderStatusEnumUnknownDefaultOpenApi
+	return nil
 }
 
-// MarshalJSON enforces the same membership on the way out, so a value outside
-// the declared members is rejected instead of being sent.
+// MarshalJSON enforces membership on the way out: the catch-all member and any
+// value outside the declared members are rejected instead of being sent.
 func (v OrderStatusEnum) MarshalJSON() ([]byte, error) {
 	for _, allowed := range AllOrderStatusEnumValues() {
 		if allowed == v {

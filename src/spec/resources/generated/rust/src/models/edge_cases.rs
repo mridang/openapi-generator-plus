@@ -23,6 +23,9 @@ pub enum EdgeCasesPhaseEnum {
     /// Represents the value "OUT_OF_STOCK".
     #[serde(rename = "OUT_OF_STOCK")]
     OUTOFSTOCK,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for EdgeCasesPhaseEnum {
@@ -32,6 +35,7 @@ impl std::fmt::Display for EdgeCasesPhaseEnum {
             EdgeCasesPhaseEnum::InStock => "In-Stock",
             EdgeCasesPhaseEnum::OnHold => "on-hold",
             EdgeCasesPhaseEnum::OUTOFSTOCK => "OUT_OF_STOCK",
+            EdgeCasesPhaseEnum::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

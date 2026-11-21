@@ -14,7 +14,10 @@ enum Stage {
   active('active'),
 
   /// Running.
-  active2('live');
+  active2('live'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const Stage(this.value);
@@ -23,11 +26,18 @@ enum Stage {
   static Stage fromJson(String value) {
     return Stage.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown Stage value: $value'),
+      orElse: () => Stage.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == Stage.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value Stage.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

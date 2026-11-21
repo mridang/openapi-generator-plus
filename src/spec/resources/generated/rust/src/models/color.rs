@@ -20,6 +20,9 @@ pub enum Color {
     /// Represents the value "blue".
     #[serde(rename = "blue")]
     Blue,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for Color {
@@ -29,6 +32,7 @@ impl std::fmt::Display for Color {
             Color::Red => "red",
             Color::Green => "green",
             Color::Blue => "blue",
+            Color::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

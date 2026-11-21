@@ -25,7 +25,9 @@ public class Defaults {
     /** The {@code "medium"} value. */
     MEDIUM("medium"),
     /** The {@code "high"} value. */
-    HIGH("high");
+    HIGH("high"),
+    /** Any wire value this SDK does not list; it cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API("");
 
     private final String value;
 
@@ -57,8 +59,7 @@ public class Defaults {
      * Returns the enum constant for the given wire value.
      *
      * @param value the wire value
-     * @return the matching enum constant
-     * @throws IllegalArgumentException if no constant matches
+     * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
      */
     @JsonCreator
     public static ModeEnum fromValue(String value) {
@@ -67,7 +68,7 @@ public class Defaults {
           return b;
         }
       }
-      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+      return UNKNOWN_DEFAULT_OPEN_API;
     }
   }
 

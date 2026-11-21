@@ -139,7 +139,7 @@ result.raw_body
 
 - `format: date-time` decoding returns UTC. See the table note above.
 - `format: decimal` and `number` are `float()` and lose exactness.
-- Building a struct never validates anything: a wrong-typed scalar or an atom that is no enum member builds fine. The checks run when a response is decoded (a wrong type, a missing required property and an unknown enum string raise `SerializationError`) and when a body is encoded (an inline enum atom outside its members raises).
+- Building a struct never validates anything: a wrong-typed scalar or an atom that is no enum member builds fine. The checks run when a response is decoded (a wrong type and a missing required property raise `SerializationError`, and an unknown enum string decodes to `:unknown_default_open_api`, D117) and when a body is encoded (an inline enum atom outside its members, the catch-all included, raises).
 - Fractional and quoted numbers are rejected when decoding. There is no 32-bit or 64-bit range check, because the typespec is the width-less `integer()`.
 - A body with a charset other than UTF-8 (such as `shift_jis` or the `iso-8859-x` family) is not decoded. Erlang's `:unicode` module does not cover it.
 - An optional nullable property cannot tell an absent key from an explicit `nil`.

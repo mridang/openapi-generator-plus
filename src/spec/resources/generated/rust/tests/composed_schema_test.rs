@@ -608,7 +608,7 @@ fn test_bhv_unions_017_pet_with_owner_round_trip() {
 // deserialization.
 
 #[test]
-fn test_bhv_unions_016_enum_unknown_value_on_deserialize_is_rejected() {
+fn test_bhv_unions_016_enum_unknown_value_on_deserialize_gives_the_catch_all_variant() {
     // `Pet.status` is a `PetStatusEnum` whose only values are
     // available/pending/sold. A `status` of "teleported" is not in the schema.
     let payload = r#"{
@@ -616,22 +616,21 @@ fn test_bhv_unions_016_enum_unknown_value_on_deserialize_is_rejected() {
         "photoUrls": ["http://example.com/rex.jpg"],
         "status": "teleported"
     }"#;
-    let result: Result<Pet, _> = serde_json::from_str(payload);
-    assert!(
-        result.is_err(),
-        "deserializing an unknown enum value must fail, not fall back to a default variant"
-    );
+    let pet: Pet = serde_json::from_str(payload).expect("an unknown enum value decodes");
+    assert_eq!(pet.status, Some(PetStatusEnum::UnknownDefaultOpenApi));
 }
 
 #[test]
-fn test_bhv_serializationobject_193_an_unknown_integer_enum_value_is_rejected_on_decode() {
+fn test_bhv_serializationobject_193_an_unknown_integer_enum_value_decodes_to_the_catch_all_variant()
+{
     assert_eq!(
         Priority::Number2,
         serde_json::from_str::<Priority>("2").expect("2 is a declared value")
     );
-    assert!(
-        serde_json::from_str::<Priority>("4").is_err(),
-        "4 is not a declared value"
+    assert_eq!(
+        Priority::UnknownDefaultOpenApi,
+        serde_json::from_str::<Priority>("4")
+            .expect("4 is not declared and decodes to the catch-all")
     );
 }
 
@@ -678,12 +677,9 @@ fn test_bhv_serializationobject_069_enum_known_value_on_deserialize_succeeds() {
 }
 
 #[test]
-fn test_bhv_serializationobject_192_an_unknown_enum_string_fails_at_decode() {
-    let result: Result<PetStatusEnum, _> = serde_json::from_str("\"teleported\"");
-    assert!(
-        result.is_err(),
-        "an unknown enum string must fail when it is decoded, never fall back to a variant"
-    );
+fn test_bhv_serializationobject_192_an_unknown_enum_string_decodes_to_the_catch_all_variant() {
+    let result: PetStatusEnum = serde_json::from_str("\"teleported\"").expect("decodes");
+    assert_eq!(result, PetStatusEnum::UnknownDefaultOpenApi);
 }
 
 // -- optional-enum-default-omitted (parity) --
@@ -877,17 +873,16 @@ fn test_bhv_serializationobject_076_availability_string_enum_round_trips_with_wi
 }
 
 #[test]
-fn test_bhv_serializationobject_059_availability_string_enum_rejects_unknown_value() {
-    let result: Result<Availability, _> = serde_json::from_str("\"available\"");
-    assert!(
-        result.is_err(),
-        "a lowercased (non-wire-casing) value must be rejected, not coerced"
+fn test_bhv_serializationobject_059_availability_string_enum_gives_the_catch_all_for_an_unknown_value(
+) {
+    let result: Availability = serde_json::from_str("\"available\"").expect("decodes");
+    assert_eq!(
+        result,
+        Availability::UnknownDefaultOpenApi,
+        "a lowercased (non-wire-casing) value must give the catch-all variant, not a declared one"
     );
-    let result: Result<Availability, _> = serde_json::from_str("\"Discontinued\"");
-    assert!(
-        result.is_err(),
-        "an unknown Availability value must fail to deserialize"
-    );
+    let result: Availability = serde_json::from_str("\"Discontinued\"").expect("decodes");
+    assert_eq!(result, Availability::UnknownDefaultOpenApi);
 }
 
 // -- a property that is a $ref with a sibling default starts as that default (F866) --
@@ -1282,11 +1277,12 @@ fn test_bhv_serializationobject_023_optional_nullable_field_drops_its_null() {
 }
 
 #[test]
-fn test_bhv_serializationobject_024_unknown_inline_enum_value_is_rejected() {
-    let result = serde_json::from_str::<EdgeCases>(r#"{"phase":"never-a-phase"}"#);
-    assert!(
-        result.is_err(),
-        "an unknown EdgeCases.phase must be rejected"
+fn test_bhv_serializationobject_024_unknown_inline_enum_value_decodes_to_the_catch_all_variant() {
+    let result: EdgeCases = serde_json::from_str(r#"{"phase":"never-a-phase"}"#).expect("decodes");
+    assert_eq!(
+        result.phase,
+        Some(EdgeCasesPhaseEnum::UnknownDefaultOpenApi),
+        "an unknown EdgeCases.phase gives the catch-all variant"
     );
 }
 

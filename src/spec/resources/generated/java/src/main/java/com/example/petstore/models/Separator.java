@@ -17,7 +17,9 @@ public enum Separator {
   /** The {@code "a-b"} value. */
   A_B("a-b"),
   /** The {@code "a_b"} value. */
-  A_B_2("a_b");
+  A_B_2("a_b"),
+  /** Any wire value this SDK does not list; it cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API("");
 
   private final String value;
 
@@ -49,8 +51,7 @@ public enum Separator {
    * Returns the enum constant for the given wire value.
    *
    * @param value the wire value
-   * @return the matching enum constant
-   * @throws IllegalArgumentException if no constant matches
+   * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
    */
   @com.fasterxml.jackson.annotation.JsonCreator
   public static Separator fromValue(String value) {
@@ -59,6 +60,6 @@ public enum Separator {
         return b;
       }
     }
-    throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    return UNKNOWN_DEFAULT_OPEN_API;
   }
 }

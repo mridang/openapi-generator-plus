@@ -47,6 +47,9 @@ public record Pet : global::System.Text.Json.Serialization.IJsonOnDeserialized
         Pending,
 
         Sold,
+
+        /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+        UnknownDefaultOpenApi,
     }
 
     /// <summary>
@@ -75,9 +78,7 @@ public record Pet : global::System.Text.Json.Serialization.IJsonOnDeserialized
                 "available" => StatusEnum.Available,
                 "pending" => StatusEnum.Pending,
                 "sold" => StatusEnum.Sold,
-                _ => throw new System.Text.Json.JsonException(
-                    $"Unknown value '{value}' for enum StatusEnum."
-                ),
+                _ => StatusEnum.UnknownDefaultOpenApi,
             };
         }
 

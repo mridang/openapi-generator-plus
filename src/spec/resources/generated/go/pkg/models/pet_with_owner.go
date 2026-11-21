@@ -22,6 +22,8 @@ const (
 	PetWithOwnerStatusEnumAvailable PetWithOwnerStatusEnum = "available"
 	PetWithOwnerStatusEnumPending   PetWithOwnerStatusEnum = "pending"
 	PetWithOwnerStatusEnumSold      PetWithOwnerStatusEnum = "sold"
+	/* PetWithOwnerStatusEnumUnknownDefaultOpenApi is what a wire value this SDK does not list decodes to; it has no wire value and cannot be written. */
+	PetWithOwnerStatusEnumUnknownDefaultOpenApi PetWithOwnerStatusEnum = "__unknown_default_open_api__"
 )
 
 // AllPetWithOwnerStatusEnumValues returns all allowed values.
@@ -49,8 +51,8 @@ func (v PetWithOwnerStatusEnum) String() string {
 	return string(v)
 }
 
-// UnmarshalJSON validates the value is one of the declared
-// enum members at deserialise time.
+// UnmarshalJSON decodes a declared member to itself and any other wire value
+// to the catch-all member.
 func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
 	var raw string
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -63,11 +65,12 @@ func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %v for enum PetWithOwnerStatusEnum", raw)
+	*v = PetWithOwnerStatusEnumUnknownDefaultOpenApi
+	return nil
 }
 
-// MarshalJSON enforces the same membership on the way out, so a value outside
-// the declared members is rejected instead of being sent.
+// MarshalJSON enforces membership on the way out: the catch-all member and any
+// value outside the declared members are rejected instead of being sent.
 func (v PetWithOwnerStatusEnum) MarshalJSON() ([]byte, error) {
 	for _, allowed := range AllPetWithOwnerStatusEnumValues() {
 		if allowed == v {

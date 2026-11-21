@@ -578,7 +578,7 @@ serializationobject020 | Additional property re-serializes at the top level not 
 serializationobject021 | An absolute URI $uri is accepted verbatim
 serializationobject022 | An inline enum (EdgeCases.phase) round-trips its non-identifier wire values
 serializationobject023 | An optional nullable field still drops its null
-serializationobject024 | An unknown inline enum value is rejected
+serializationobject024 | An unknown inline enum value decodes to the catch-all member
 serializationobject025 | Applies defaults only for absent fields, preserving explicit null
 serializationobject026 | Array-of-byte field round-trips through base64
 serializationobject027 | Boolean false returns "false"
@@ -613,7 +613,7 @@ serializationobject055 | Deserialize parent routes to subtype by discriminator
 serializationobject056 | Deserialize preserves an explicit null over the default
 serializationobject057 | Deserialize raises on a double literal that overflows to Infinity
 serializationobject058 | Deserialize rejects an undeclared key on an unevaluatedProperties:false model
-serializationobject059 | Deserialize rejects an unknown availability wire value
+serializationobject059 | An unknown wire value of a string enum gives the catch-all member
 serializationobject060 | Deserialize strips a leading UTF-8 BOM before parsing into a model
 serializationobject061 | Deserialize succeeds when all required fields are present
 serializationobject062 | Deserialize throws when a required container field is explicitly null
@@ -673,7 +673,7 @@ serializationobject115 | PetPassport.biometricChip (contentEncoding base64) roun
 serializationobject116 | Positive offset preserved in serialized string
 serializationobject117 | Properties named after keywords and literals keep their wire keys
 serializationobject118 | Raises SerializationError for a scalar where a nested model is expected
-serializationobject119 | Referenced enum field rejects an unknown wire value
+serializationobject119 | A referenced enum field decodes an unknown wire value to the catch-all member
 serializationobject120 | Rejects a fractional number for an int32 field
 serializationobject121 | Rejects a null element in an array of models
 serializationobject122 | Rejects a null element of a map of int32 and of a nested array of int32
@@ -726,7 +726,7 @@ serializationobject168 | ToQueryValue string slice CSV
 serializationobject169 | ToQueryValue string slice SSV
 serializationobject170 | Truncated JSON raises SerializationError
 serializationobject171 | Type:number BigDecimal field serializes as an unquoted JSON number
-serializationobject172 | Unknown enum value raises SerializationError
+serializationobject172 | An unknown enum value decodes to the catch-all member
 serializationobject173 | Uri-reference field still accepts a relative reference
 serializationobject174 | UTC datetime serializes containing date-time and offset
 serializationobject175 | UUID returns string representation
@@ -1019,7 +1019,7 @@ errors044 | Every error lives in src/errors and the package root exports it
 serializationparam104 | EncodeContentCookie keeps only the unreserved set literal and encodes the dot too / A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s / A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s
 config017 | Configuration is immutable
 retries027 | Backoff doubles from half a second to eight seconds with quarter jitter
-serializationobject182 | Unknown enum value on deserialize throws
+serializationobject182 | An unknown enum value on a standalone decode gives the catch-all member
 serializationobject183 | Handles null
 authbasic012 | An empty variable counts as unset
 authoauthtwotokenmgr041 | A 2xx token response that is not a JSON object is refused with the canonical error, and a non-JSON token body is not echoed into the error message
@@ -1171,8 +1171,8 @@ retries039 | Every retry is a fresh request that carries the same authentication
 retries041 | The retry backoff starts at 0.5 s, doubles up to 8 s and has up to 25% jitter taken off
 serializationobject190 | A long is stringified to its exact decimal digits
 serializationobject191 | An int64 above 2^53 keeps every digit when decoded
-serializationobject192 | An unknown enum string fails at decode
-serializationobject193 | An unknown integer enum value is rejected on decode
+serializationobject192 | An unknown enum string decodes to the catch-all member
+serializationobject193 | An unknown integer enum value decodes to the catch-all member
 serializationobject194 | A hyphenated enum wire value is serialized exactly as declared
 serializationobject196 | An explicit value on the wire replaces the declared default
 serializationobject199 | Subseconds are preserved in a serialized datetime
@@ -1318,7 +1318,7 @@ results006 | The headers an API result exposes are a read-only copy taken when t
 serialization001 | The text form of an enum member is exactly its declared wire value.
 serialization002 | An enum member held by a model is written as its exact declared wire string, casing included.
 serialization003 | A wire value that an enum declares decodes to the member carrying exactly that value.
-serialization004 | A generated enum lists its declared members, maps each to its wire value, and refuses any value outside them.
+serialization004 | A generated enum lists its declared members, maps each to its wire value, and gives the catch-all member for any value outside them.
 serialization005 | A path value keeps unreserved and sub-delimiter characters literal and percent-encodes every other character.
 serialization006 | Query parameter names and values percent-encode reserved and space characters, so a value cannot add a parameter.
 serialization007 | A literal plus sign is sent as %2B, and non-ASCII text in a form or query value is sent as percent-encoded UTF-8 bytes.
@@ -1442,7 +1442,7 @@ enums004 | A supplied name that is not a legal identifier is cleaned and cased l
 enums005 | Two members given names that collide after casing keep distinct names and their own wire values
 enums006 | An inline property enum takes its member names from its own keys
 enums007 | A default on a referenced enum property starts at the member that has the supplied name
-enums008 | Encoding writes the wire value and decoding rejects a supplied name with a serialization error naming it
+enums008 | Encoding writes the wire value and decoding a supplied name gives the catch-all member
 enums009 | A member with a description carries it as the one-line doc comment directly above that member
 enums010 | A member without a description keeps the comment it has today
 enums011 | A description holding comment terminators or interpolation sigils still yields a compiling doc comment
@@ -1897,7 +1897,7 @@ serialization101 | An integer-backed enum is written as a JSON number, and a JSO
 serialization102 | A date-time with a non-UTC offset keeps its offset on the wire, and a Z timestamp decodes to the same instant with a consistent offset.
 serialization103 | A body that is not well-formed JSON is rejected with an error message that describes the malformed document.
 serialization104 | A UUID is written in lowercase canonical form, and an uppercase UUID read from the wire is returned in lowercase.
-serialization105 | An enum value outside the declared members, including a wrong-case match of a declared member, raises a serialization error.
+serialization105 | An enum value outside the declared members, including a wrong-case match of a declared member, gives the catch-all member.
 serialization106 | A non-exploded array or set query parameter joins its values with commas.
 serialization107 | An exploded array or set query parameter repeats its key once for each element.
 serialization108 | A parameter with no declared style uses the default style for its location, which matches the simple style for path parameters.
@@ -2566,7 +2566,7 @@ langnode109 | A valid nested tree decodes into model instances
 langnode110 | A wrong-typed field on a nested single model is rejected
 langnode111 | A wrong-typed field on a model inside an array is rejected
 langnode112 | Required-field checks apply to a nested model
-langnode113 | The unknown-enum check applies to a nested model
+langnode113 | The unknown-enum catch-all applies to a nested model
 langnode114 | A non-string element of a string set is rejected
 langnode115 | A non-string element of a string set on a nested model is rejected
 langnode116 | A set of numbers serializes in numeric order
@@ -3226,3 +3226,4 @@ langcsharp078 | Every fence in README.md and SKILLS.md tagged with the SDK langu
 langcsharp079 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
 langcsharp080 | The SDK Makefile has an examples target that builds every file under examples
 serialization131 | An integer with no format is 64-bit: a value above 2^31 decodes exactly into its field.
+enums012 | The catch-all member of an enum has no wire value, so writing it raises the serialization error.

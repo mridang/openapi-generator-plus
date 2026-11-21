@@ -21,6 +21,9 @@ pub enum OrderStatusEnum {
     /// Represents the value "delivered".
     #[serde(rename = "delivered")]
     Delivered,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for OrderStatusEnum {
@@ -30,6 +33,7 @@ impl std::fmt::Display for OrderStatusEnum {
             OrderStatusEnum::Placed => "placed",
             OrderStatusEnum::Approved => "approved",
             OrderStatusEnum::Delivered => "delivered",
+            OrderStatusEnum::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

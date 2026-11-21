@@ -10,16 +10,18 @@ from __future__ import annotations
 from pydantic import ConfigDict, Field
 from petstore_client._types import ApiModel, hash_model
 from typing import Optional
-from enum import Enum
+from petstore_client._types import CatchAllEnum
 
 
-class SubscriptionIntervalEnum(str, Enum):
+class SubscriptionIntervalEnum(str, CatchAllEnum):
     """Subscription - interval"""
 
     #: Billed every month.
     MONTHLY = "month"
     #: Billed every year.
     YEARLY = "year"
+    #: Any wire value this SDK does not list; it has no wire value and cannot be written.
+    UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
 
     def __str__(self) -> str:
         """The wire value, so interpolating a member gives the text the server sees."""

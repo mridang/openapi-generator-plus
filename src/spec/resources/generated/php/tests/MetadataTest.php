@@ -335,7 +335,7 @@ test('bhv models 024 a newly built model leaves its optional properties unset', 
 });
 
 test('bhv misc 137 an enum lists its declared values and reports whether a value is one of them', function (): void {
-    expect(array_map(fn (Priority $priority): int => $priority->value, Priority::cases()))->toBe([1, 2, 3]);
+    expect(array_map(fn (Priority $priority): int => $priority->value, array_filter(Priority::cases(), fn (Priority $priority): bool => $priority !== Priority::UNKNOWN_DEFAULT_OPEN_API)))->toBe([1, 2, 3]);
     expect(Priority::tryFrom(2))->toBe(Priority::NUMBER_2);
     expect(Priority::tryFrom(4))->toBeNull();
 });

@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.cfg.CoercionAction;
@@ -555,6 +556,9 @@ public final class ObjectSerializer {
         /* A null element in an array or map of models fails the decode
         instead of reaching the caller as a null entry. */
         .addModule(nullModelElementModule())
+        /* The catch-all member of a generated enum stands for a value this
+        SDK does not list, so it has no wire form and writing it fails. */
+        .addModule(catchAllEnumModule())
         .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
         .build();
   }
@@ -701,6 +705,69 @@ public final class ObjectSerializer {
           }
         });
     return module;
+  }
+
+  private static SimpleModule catchAllEnumModule() {
+    SimpleModule module = new SimpleModule();
+    module.setSerializerModifier(
+        new com.fasterxml.jackson.databind.ser.BeanSerializerModifier() {
+          @Override
+          public JsonSerializer<?> modifySerializer(
+              SerializationConfig config, BeanDescription beanDesc, JsonSerializer<?> serializer) {
+            if (!beanDesc.getBeanClass().isEnum()) {
+              return serializer;
+            }
+            @SuppressWarnings("unchecked")
+            JsonSerializer<Object> delegate = (JsonSerializer<Object>) serializer;
+            return new CatchAllEnumGuard(delegate);
+          }
+        });
+    return module;
+  }
+
+  /* Refuses to write the catch-all member of a generated enum and otherwise
+  behaves as the serializer it wraps. */
+  private static final class CatchAllEnumGuard extends JsonSerializer<Object>
+      implements com.fasterxml.jackson.databind.ser.ContextualSerializer,
+          com.fasterxml.jackson.databind.ser.ResolvableSerializer {
+    private final JsonSerializer<Object> delegate;
+
+    CatchAllEnumGuard(JsonSerializer<Object> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void serialize(Object value, JsonGenerator generator, SerializerProvider provider)
+        throws IOException {
+      if (value instanceof Enum<?> e && "UNKNOWN_DEFAULT_OPEN_API".equals(e.name())) {
+        throw com.fasterxml.jackson.databind.JsonMappingException.from(
+            generator,
+            "The catch-all enum member UNKNOWN_DEFAULT_OPEN_API has no wire value and cannot be"
+                + " written");
+      }
+      delegate.serialize(value, generator, provider);
+    }
+
+    @Override
+    public void resolve(SerializerProvider provider)
+        throws com.fasterxml.jackson.databind.JsonMappingException {
+      if (delegate instanceof com.fasterxml.jackson.databind.ser.ResolvableSerializer resolvable) {
+        resolvable.resolve(provider);
+      }
+    }
+
+    @Override
+    public JsonSerializer<?> createContextual(
+        SerializerProvider provider, com.fasterxml.jackson.databind.BeanProperty property)
+        throws com.fasterxml.jackson.databind.JsonMappingException {
+      if (delegate instanceof com.fasterxml.jackson.databind.ser.ContextualSerializer contextual) {
+        @SuppressWarnings("unchecked")
+        JsonSerializer<Object> inner =
+            (JsonSerializer<Object>) contextual.createContextual(provider, property);
+        return inner == delegate ? this : new CatchAllEnumGuard(inner);
+      }
+      return this;
+    }
   }
 
   private static boolean isModelType(JavaType type) {

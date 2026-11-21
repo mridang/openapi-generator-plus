@@ -378,11 +378,12 @@ are all `T?`, so a missing key and an explicit `null` read the same after
 decoding. A required property that is nullable keeps its key mandatory on
 decode, and encoding always writes it (`null` when unset). A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
 
-### Unknown enum values and discriminators fail loudly
+### Unknown enum values and discriminators
 
-A value that is not one of an enum's declared values throws `ArgumentError`
-and a discriminator value that is not mapped throws `SerializationException`;
-the SDK never maps an unknown value to a default.
+An enum value the spec does not list decodes to the enum's catch-all member (`unknownDefaultOpenApi`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationException`. A discriminator value that maps to no variant still fails
+loudly with `SerializationException`.
 
 ### Response headers
 

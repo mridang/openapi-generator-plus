@@ -369,7 +369,7 @@ All API methods are asynchronous; call them with `await`.
 
 ## Models
 
-Models are generated as TypeScript classes in the `src/models/` directory. Every field is `readonly`; `model.with({ field: value })` returns a copy with the fields replaced. A model constructor validates nothing; a missing required field, a wrong type or an unknown enum string fails when a response is decoded. A `format: date` field or parameter is a plain `YYYY-MM-DD` string (a `Date` is accepted on input and sent as its UTC date); `format: date-time` is a `Date`.
+Models are generated as TypeScript classes in the `src/models/` directory. Every field is `readonly`; `model.with({ field: value })` returns a copy with the fields replaced. A model constructor validates nothing; a missing required field or a wrong type fails when a response is decoded, and an unknown enum string decodes to the catch-all member `UNKNOWN_DEFAULT_OPEN_API`. A `format: date` field or parameter is a plain `YYYY-MM-DD` string (a `Date` is accepted on input and sent as its UTC date); `format: date-time` is a `Date`.
 
 {{#models}}{{#model}}{{#-first}}
 ```typescript file

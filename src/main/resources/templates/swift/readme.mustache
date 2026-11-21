@@ -309,9 +309,9 @@ and read it back with `isVariant` and `asVariant`.
 
 A model's initializer never validates and never throws: a value the schema would
 refuse is still a value you can build, and an unknown enum string builds no enum at
-all (`Status(rawValue: "x")` is `nil`). Checking happens when the SDK decodes a payload: an
-unknown enum string, a missing required property or a `format: uri` that is not an
-absolute URI throws `SerializationError`.
+all (`Status(rawValue: "x")` is `nil`). Checking happens when the SDK decodes a payload: a
+missing required property or a `format: uri` that is not an
+absolute URI throws `SerializationError`, and an unknown enum string decodes to the catch-all case.
 
 ## Several success responses
 
@@ -365,9 +365,10 @@ nullable property keeps its key and is written as `null`. A required nullable qu
 
 ## Unknown enum values and discriminators
 
-An enum value, or a `oneOf` discriminator value, that the SDK does not know fails
-loudly with a decoding error (a `SerializationError` at the call) instead of being
-kept as a raw string. Regenerate the SDK when the API adds a value.
+An enum value the spec does not list decodes to the enum's catch-all member (`.unknownDefaultOpenApi`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationError`. A discriminator value that maps to no variant still fails
+loudly with `SerializationError`.
 
 ## Response headers
 

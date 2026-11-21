@@ -25,6 +25,9 @@ public enum Stage
     /// Running.
     /// </summary>
     Active2,
+
+    /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+    UnknownDefaultOpenApi,
 }
 
 /// <summary>
@@ -55,7 +58,7 @@ internal sealed class StageConverter : JsonConverter<Stage>
             "paused" => Stage.OnHold,
             "active" => Stage.Active,
             "live" => Stage.Active2,
-            _ => throw new JsonException($"Unknown value '{value}' for enum Stage."),
+            _ => Stage.UnknownDefaultOpenApi,
         };
     }
 

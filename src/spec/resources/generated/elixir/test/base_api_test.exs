@@ -4177,13 +4177,14 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # (de)serialization error instead of silently passing the raw value through
   # or defaulting to an "unknown" member. The Pet model declares an inline
   # `status` enum (available | pending | sold).
-  test "bhv serializationobject 182 unknown enum wire value raises SerializationError on deserialize" do
-    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+  test "bhv serializationobject 182 unknown enum wire value gives the catch-all member on deserialize" do
+    pet =
       PetstoreClient.ObjectSerializer.deserialize(
         ~s({"name":"rex","photoUrls":[],"status":"banana"}),
         "Pet"
       )
-    end
+
+    assert pet.status == :unknown_default_open_api
   end
 
   test "bhv serialization 003 valid enum wire value deserializes to its atom" do
