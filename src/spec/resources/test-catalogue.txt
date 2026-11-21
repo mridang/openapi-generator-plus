@@ -3228,3 +3228,24 @@ langcsharp079 | No fence tagged with the SDK language holds a placeholder line s
 langcsharp080 | The SDK Makefile has an examples target that builds every file under examples
 serialization131 | An integer with no format is 64-bit: a value above 2^31 decodes exactly into its field.
 enums012 | The catch-all member of an enum has no wire value, so writing it raises the serialization error.
+streaming001 | A binary stream call delivers the bytes in order and returns before the body has ended
+streaming008 | A non-2xx streaming call raises the typed error with the status and the error body and never returns a stream
+streaming009 | A stream exposes the status and the lower-cased response headers
+streaming010 | The call timeout bounds only the wait for the response headers, not the body
+streaming011 | The idle timeout raises a network timeout error when the server stalls in the middle of the body
+streaming012 | A connection reset in the middle of the body raises a network error and is not retried
+streaming013 | A body shorter than its Content-Length raises a network error and is never a silent short success
+streaming014 | A streaming call retries a 503 before the headers and then streams the retried response
+streaming015 | A streaming call never retries after the first body byte was delivered
+streaming016 | A streaming call follows a redirect before the body and strips credentials across origins
+streaming017 | A streaming call sends the same User-Agent, request id, trace context and authentication headers as a buffered call
+streaming018 | A 401 on a streaming call authenticated by OAuth2 refreshes the token and replays once before the stream is returned
+streaming019 | Closing a stream twice is safe and aborts the connection
+streaming020 | Cancelling the call aborts the stream and is never raised as a timeout
+streaming021 | Closing the client cancels the streams that are open, the next read of each raises the closed-client error, and new calls are refused
+streaming022 | The string form of a stream hides credentials, the query and the data
+streaming029 | The read-all helper of a byte stream returns every byte in order and leaves the stream closed
+streaming030 | A transport that does not implement the streaming method makes a stream call fail with the unsupported error that names the transport, and buffered calls on it keep working
+streaming031 | Closing a live endless stream returns promptly and does not wait for the server to finish
+streaming032 | A reset or truncation after the headers raises a StreamError, and a StreamError is a network error
+streaming033 | Stopping a stream early without reading it to the end releases the connection
