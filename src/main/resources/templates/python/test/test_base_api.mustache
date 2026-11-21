@@ -1,14 +1,17 @@
 {{>api_info}}
 import asyncio
+import inspect
 import io
 import pytest
 import datetime
 import socket
 import threading
 import time
+from dataclasses import dataclass, field
 from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable, Iterator, Optional, Union
+from urllib.parse import parse_qsl, urlsplit
 
 from urllib3._collections import HTTPHeaderDict
 
@@ -17,10 +20,14 @@ from {{packageName}}.api.pet_api import PetApi
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
 from {{packageName}}.api.options.set_pet_preferences_options import SetPetPreferencesOptions
+from {{packageName}}.api.options.list_pet_catalog_options import ListPetCatalogOptions
+from {{packageName}}.api.options.list_pet_feed_options import ListPetFeedOptions
 from {{packageName}}.api.options.reserve_stock_options import ReserveStockOptions
 from {{packageName}}.models.reservation import Reservation
 from {{packageName}}.models.reservation_receipt import ReservationReceipt
 from {{packageName}}.models.pet import Pet
+from {{packageName}}.models.pet_catalog_page import PetCatalogPage
+from {{packageName}}.page import Page
 from {{packageName}}.call_hook import CallInfo, CallObserver, CallOutcome
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.default_api_client import DefaultApiClient
@@ -33,6 +40,7 @@ from {{packageName}}.errors import ApiException, NetworkException, {{errorPrefix
 from {{packageName}}.errors.network_timeout_exception import NetworkTimeoutException
 from {{packageName}}.errors.service_unavailable_exception import ServiceUnavailableException
 from {{packageName}}.errors.stream_exception import StreamException
+from {{packageName}}.errors.pagination_exception import PaginationException
 from {{packageName}}.errors.bad_gateway_exception import BadGatewayException
 from {{packageName}}.errors.client_exception import ClientException
 from {{packageName}}.errors.server_exception import ServerException
@@ -3865,3 +3873,497 @@ class TestEventStreams:
         assert _header_of(client.sent_headers[0], 'Last-Event-ID') is None
         assert _header_of(client.sent_headers[1], 'Last-Event-ID') is None, 'no id yet, so none is sent'
         assert _header_of(client.sent_headers[2], 'Last-Event-ID') == '5'
+
+
+class _SeenRequest:
+    """One request a paged-list server saw: the path, the decoded query and the headers (lower-cased names)."""
+
+    def __init__(self, head: str) -> None:
+        request_line, _, rest = head.partition('\r\n')
+        target = urlsplit(request_line.split(' ')[1])
+        self.path = target.path
+        self.query = dict(parse_qsl(target.query, keep_blank_values=True))
+        self.headers = _request_headers(head)
+
+    def param(self, name: str) -> Optional[str]:
+        return self.query.get(name)
+
+
+@dataclass
+class _PagedReply:
+    """What a paged-list server answers: a status, a JSON body, extra headers and a delay before it answers."""
+
+    body: str = '{}'
+    status: int = 200
+    headers: dict[str, str] = field(default_factory=dict)
+    delay: float = 0.0
+
+
+class _PagedServer:
+    """An in-process server whose answer depends on the request it gets and on how many it has had, which
+    the shared mock cannot do. It records every request in arrival order."""
+
+    def __init__(self, raw_server: Any, handler: Callable[[_SeenRequest, int], _PagedReply]) -> None:
+        def script(connection: Any) -> None:
+            reply = handler(_SeenRequest(connection.request_head), connection.hit)
+            if reply.delay:
+                time.sleep(reply.delay)
+            payload = reply.body.encode('utf-8')
+            extra = [f'{name}: {value}' for name, value in reply.headers.items()]
+            connection.head(reply.status, 'Content-Type: application/json', f'Content-Length: {len(payload)}', *extra)
+            connection.send(payload)
+
+        self._server = raw_server(script)
+
+    @property
+    def url(self) -> str:
+        return str(self._server.base_url)
+
+    @property
+    def seen(self) -> list[_SeenRequest]:
+        return [_SeenRequest(head) for head in list(self._server.heads)]
+
+
+def _pet_json(name: str) -> str:
+    return '{"id":1,"name":"' + name + '","photoUrls":[]}'
+
+
+def _catalog_body(page: int, size: int, pages: int) -> str:
+    items = ','.join(_pet_json(f'p{page}-{index}') for index in range(size))
+    following = f',"next_cursor":"c{page + 1}"' if page + 1 < pages else ''
+    return '{"items":[' + items + ']' + following + '}'
+
+
+def _catalog_server(raw_server: Any, pages: int, size: int) -> _PagedServer:
+    """A catalog of ``pages`` pages of ``size`` pets; the cursor of page n is ``c`` followed by n."""
+
+    def handler(request: _SeenRequest, number: int) -> _PagedReply:
+        cursor = request.param('cursor')
+        page = 0 if cursor is None else int(cursor[1:])
+        return _PagedReply(_catalog_body(page, size, pages))
+
+    return _PagedServer(raw_server, handler)
+
+
+def _pet_api(
+    server: _PagedServer,
+    max_retries: int = 0,
+    default_headers: Optional[dict[str, str]] = None,
+    authenticator: Optional[Authenticator] = None,
+    timeout: Optional[int] = None,
+) -> PetApi:
+    builder = TransportOptions.builder().max_retries(max_retries)
+    if timeout is not None:
+        builder.timeout(timeout)
+    return PetApi(
+        api_client=DefaultApiClient(builder.build()),
+        config=Configuration(base_url=server.url, default_headers=default_headers or {}),
+        authenticator=authenticator,
+    )
+
+
+async def _names(paginator: Any) -> list[str]:
+    return [pet.name async for pet in paginator]
+
+
+def _feed_server(raw_server: Any, pages: int, link: Callable[[int], str]) -> _PagedServer:
+    """A feed page: one pet and a Link header that names the next page, or none on the last."""
+
+    def handler(request: _SeenRequest, number: int) -> _PagedReply:
+        page = request.param('page')
+        index = 0 if page is None else int(page)
+        headers = {'Link': link(index + 1)} if index + 1 < pages else {}
+        return _PagedReply('[' + _pet_json(f'f{index}') + ']', headers=headers)
+
+    return _PagedServer(raw_server, handler)
+
+
+def _same_origin_feed(raw_server: Any, pages: int) -> _PagedServer:
+    holder: list[_PagedServer] = []
+    server = _feed_server(
+        raw_server, pages, lambda following: f'<{holder[0].url}/pet/feed?page={following}&secret=s3>; rel="next"'
+    )
+    holder.append(server)
+    return server
+
+
+def _params_seen(server: _PagedServer, name: str) -> list[Optional[str]]:
+    return [request.param(name) for request in server.seen]
+
+
+class TestPagedLists:
+    async def test_bhv_pagination_001_a_paged_operation_reads_no_page_until_the_first_item_or_page_is_requested(
+        self, raw_server: Any
+    ) -> None:
+        server = _catalog_server(raw_server, 2, 2)
+        paginator = _pet_api(server).list_pet_catalog_pages()
+        assert len(server.seen) == 0, 'the method sends nothing'
+        assert paginator.items() is not None
+        assert paginator.pages() is not None
+        assert aiter(paginator) is not None
+        assert len(server.seen) == 0, 'getting a view sends nothing'
+        await paginator.items().__anext__()
+        assert len(server.seen) == 1, 'the first read sends the first request'
+
+    async def test_bhv_pagination_002_a_token_cursor_operation_yields_every_item_of_every_page_in_order_and_sends_the_next_pages_cursor(
+        self, raw_server: Any
+    ) -> None:
+        server = _catalog_server(raw_server, 3, 2)
+        assert await _names(_pet_api(server).list_pet_catalog_pages()) == [
+            'p0-0', 'p0-1', 'p1-0', 'p1-1', 'p2-0', 'p2-1'
+        ]
+        assert _params_seen(server, 'cursor') == [None, 'c1', 'c2']
+
+    async def test_bhv_pagination_003_the_next_request_is_sent_only_when_the_consumer_asks_for_more_items(
+        self, raw_server: Any
+    ) -> None:
+        server = _catalog_server(raw_server, 3, 2)
+        items = _pet_api(server).list_pet_catalog_pages().items()
+        await items.__anext__()
+        await items.__anext__()
+        assert len(server.seen) == 1, 'both items of the first page came from one request'
+        await items.__anext__()
+        assert len(server.seen) == 2, 'the third item needed the second page'
+
+    async def test_bhv_pagination_007_a_link_header_operation_follows_rel_next_and_ends_when_it_is_absent(
+        self, raw_server: Any
+    ) -> None:
+        server = _same_origin_feed(raw_server, 3)
+        assert await _names(_pet_api(server).list_pet_feed_pages()) == ['f0', 'f1', 'f2']
+        assert _params_seen(server, 'page') == [None, '1', '2']
+        assert server.seen[2].path == '/pet/feed'
+
+    async def test_bhv_pagination_008_a_link_next_url_on_another_origin_is_refused_and_no_credentials_are_sent_to_it(
+        self, raw_server: Any
+    ) -> None:
+        elsewhere = _PagedServer(raw_server, lambda request, number: _PagedReply('[' + _pet_json('stolen') + ']'))
+        origin = _PagedServer(
+            raw_server,
+            lambda request, number: _PagedReply(
+                '[' + _pet_json('f0') + ']', headers={'Link': f'<{elsewhere.url}/pet/feed?page=1>; rel="next"'}
+            ),
+        )
+        api = _pet_api(origin, default_headers={'Authorization': 'Bearer secret'})
+        items = api.list_pet_feed_pages().items()
+        assert (await items.__anext__()).name == 'f0', 'the page before the foreign link is delivered'
+        assert origin.seen[0].headers['authorization'] == 'Bearer secret'
+        with pytest.raises(PaginationException) as refused:
+            await items.__anext__()
+        assert 'page=1' not in str(refused.value), 'the message holds no query'
+        assert len(elsewhere.seen) == 0, 'nothing was sent to the other origin'
+        assert len(origin.seen) == 1
+
+    async def test_bhv_pagination_009_an_empty_page_with_a_next_cursor_continues_and_an_absent_null_or_empty_cursor_ends(
+        self, raw_server: Any
+    ) -> None:
+        for end in ('', ',"next_cursor":null', ',"next_cursor":""'):
+
+            def handler(request: _SeenRequest, number: int, end: str = end) -> _PagedReply:
+                if request.param('cursor') is None:
+                    return _PagedReply('{"items":[],"next_cursor":"c1"}')
+                return _PagedReply('{"items":[' + _pet_json('only') + ']' + end + '}')
+
+            server = _PagedServer(raw_server, handler)
+            assert await _names(_pet_api(server).list_pet_catalog_pages()) == ['only'], end
+            assert len(server.seen) == 2, f'the empty page continued and the end ended: {end}'
+
+    async def test_bhv_pagination_010_pages_yields_one_page_per_response_with_its_items_status_headers_decoded_body_and_next_cursor(
+        self, raw_server: Any
+    ) -> None:
+        def handler(request: _SeenRequest, number: int) -> _PagedReply:
+            cursor = request.param('cursor')
+            page = 0 if cursor is None else int(cursor[1:])
+            return _PagedReply(_catalog_body(page, 2, 2), headers={'X-Page': str(page)})
+
+        server = _PagedServer(raw_server, handler)
+        pages: list[Page[Pet, str]] = [page async for page in _pet_api(server).list_pet_catalog_pages().pages()]
+        assert len(pages) == 2
+        assert [pet.name for pet in pages[0].items] == ['p0-0', 'p0-1']
+        assert pages[0].result.status_code == 200
+        assert pages[0].result.headers['x-page'] == '0'
+        assert pages[1].result.headers['x-page'] == '1'
+        assert isinstance(pages[0].result.data, PetCatalogPage)
+        assert pages[0].next_cursor == 'c1'
+        assert pages[1].next_cursor is None
+
+    async def test_bhv_pagination_011_the_cursor_passed_to_the_paged_method_is_the_starting_position_and_the_first_request_sends_it(
+        self, raw_server: Any
+    ) -> None:
+        server = _catalog_server(raw_server, 3, 1)
+        api = _pet_api(server)
+        assert await _names(api.list_pet_catalog_pages(ListPetCatalogOptions(cursor='c1'))) == ['p1-0', 'p2-0']
+        assert server.seen[0].param('cursor') == 'c1'
+
+    async def test_bhv_pagination_012_resuming_with_the_next_cursor_of_a_page_continues_with_the_following_page(
+        self, raw_server: Any
+    ) -> None:
+        server = _catalog_server(raw_server, 3, 1)
+        api = _pet_api(server)
+        resume: Optional[str] = None
+        async for page in api.list_pet_catalog_pages().pages():
+            resume = page.next_cursor
+            break
+        assert resume == 'c1'
+        assert await _names(api.list_pet_catalog_pages(ListPetCatalogOptions(cursor=resume))) == ['p1-0', 'p2-0']
+
+    async def test_bhv_pagination_013_every_other_parameter_including_the_page_size_is_repeated_unchanged_on_each_page_request(
+        self, raw_server: Any
+    ) -> None:
+        server = _catalog_server(raw_server, 3, 1)
+        await _names(
+            _pet_api(server).list_pet_catalog_pages(ListPetCatalogOptions(limit=1, headers={'X-Keep': 'yes'}))
+        )
+        assert len(server.seen) == 3
+        for request in server.seen:
+            assert request.param('limit') == '1'
+            assert request.headers['x-keep'] == 'yes'
+        assert _params_seen(server, 'cursor') == [None, 'c1', 'c2']
+
+    async def test_bhv_pagination_014_a_cursor_equal_to_the_one_just_sent_or_an_offset_that_did_not_advance_raises_a_pagination_error_instead_of_looping(
+        self, raw_server: Any
+    ) -> None:
+        server = _PagedServer(
+            raw_server,
+            lambda request, number: _PagedReply('{"items":[' + _pet_json(f'p{number}') + '],"next_cursor":"c1"}'),
+        )
+        items = _pet_api(server).list_pet_catalog_pages().items()
+        assert (await items.__anext__()).name == 'p1'
+        assert (await items.__anext__()).name == 'p2', 'the page that repeated the cursor is still delivered'
+        with pytest.raises(PaginationException) as failure:
+            await items.__anext__()
+        assert failure.value.request_path == '/pet/catalog'
+        assert len(server.seen) == 2, 'nothing was asked for after the repeat'
+        with pytest.raises(StopAsyncIteration):
+            await items.__anext__()
+
+    async def test_bhv_pagination_015_an_error_on_a_later_page_is_raised_after_the_earlier_pages_items_were_delivered_and_ends_iteration(
+        self, raw_server: Any
+    ) -> None:
+        server = _PagedServer(
+            raw_server,
+            lambda request, number: _PagedReply(_catalog_body(0, 2, 3))
+            if request.param('cursor') is None
+            else _PagedReply(status=404),
+        )
+        items = _pet_api(server).list_pet_catalog_pages().items()
+        assert (await items.__anext__()).name == 'p0-0'
+        assert (await items.__anext__()).name == 'p0-1'
+        with pytest.raises(NotFoundException) as failure:
+            await items.__anext__()
+        assert failure.value.status_code == 404
+        with pytest.raises(StopAsyncIteration):
+            await items.__anext__()
+        assert len(server.seen) == 2
+
+    async def test_bhv_pagination_016_a_503_on_the_second_page_is_retried_under_the_retry_rules_and_iteration_continues(
+        self, raw_server: Any
+    ) -> None:
+        server = _PagedServer(
+            raw_server,
+            lambda request, number: _PagedReply(status=503, headers={'Retry-After': '0'})
+            if number == 2
+            else _PagedReply(_catalog_body(0 if number == 1 else 1, 1, 2)),
+        )
+        assert await _names(_pet_api(server, max_retries=2).list_pet_catalog_pages()) == ['p0-0', 'p1-0']
+        assert _params_seen(server, 'cursor') == [None, 'c1', 'c1']
+
+    async def test_bhv_pagination_017_the_per_call_timeout_headers_and_retry_count_apply_to_each_page_request(
+        self, raw_server: Any
+    ) -> None:
+        server = _PagedServer(
+            raw_server,
+            lambda request, number: _PagedReply(status=503, headers={'Retry-After': '0'})
+            if number % 2 == 1
+            else _PagedReply(_catalog_body(0 if number == 2 else 1, 1, 2)),
+        )
+        await _names(
+            _pet_api(server).list_pet_catalog_pages(ListPetCatalogOptions(max_retries=1, headers={'X-Trace': 't1'}))
+        )
+        assert len(server.seen) == 4, 'each page was tried twice: one try and one retry'
+        for request in server.seen:
+            assert request.headers['x-trace'] == 't1'
+
+        slow = _PagedServer(
+            raw_server,
+            lambda request, number: _PagedReply(_catalog_body(0, 1, 2))
+            if request.param('cursor') is None
+            else _PagedReply(_catalog_body(1, 1, 2), delay=1.5),
+        )
+        items = _pet_api(slow).list_pet_catalog_pages(ListPetCatalogOptions(timeout=300)).items()
+        assert (await items.__anext__()).name == 'p0-0', 'the first page answers within its own budget'
+        with pytest.raises(NetworkTimeoutException):
+            await items.__anext__()
+
+    async def test_bhv_pagination_018_stopping_early_sends_no_further_request_and_leaves_nothing_to_close(
+        self, raw_server: Any
+    ) -> None:
+        server = _catalog_server(raw_server, 3, 2)
+        assert (await _pet_api(server).list_pet_catalog_pages().items().__anext__()).name == 'p0-0'
+        assert len(server.seen) == 1
+        taken: list[str] = []
+        async for pet in _pet_api(server).list_pet_catalog_pages():
+            taken.append(pet.name)
+            if len(taken) == 2:
+                break
+        assert taken == ['p0-0', 'p0-1']
+        assert len(server.seen) == 2, 'stopping after two items read exactly one more page'
+        paginator = _pet_api(server).list_pet_catalog_pages()
+        assert not hasattr(paginator, 'close') and not hasattr(paginator, 'aclose')
+        assert not hasattr(paginator, '__aexit__')
+
+    async def test_bhv_pagination_019_cancelling_mid_iteration_aborts_the_in_flight_page_request_and_is_not_reported_as_a_timeout(
+        self, raw_server: Any
+    ) -> None:
+        server = _PagedServer(
+            raw_server,
+            lambda request, number: _PagedReply(_catalog_body(0, 1, 2))
+            if request.param('cursor') is None
+            else _PagedReply(_catalog_body(1, 1, 2), delay=8.0),
+        )
+        api = _pet_api(server, timeout=20000)
+        task = asyncio.ensure_future(_names(api.list_pet_catalog_pages()))
+        deadline = time.monotonic() + 5
+        while len(server.seen) < 2 and time.monotonic() < deadline:
+            await asyncio.sleep(0.02)
+        assert len(server.seen) == 2, 'the second page is in flight'
+        started = time.monotonic()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert time.monotonic() - started < 5, 'the cancelled iteration stops promptly'
+
+    async def test_bhv_pagination_020_iterating_a_second_time_starts_again_from_the_starting_position(
+        self, raw_server: Any
+    ) -> None:
+        server = _catalog_server(raw_server, 2, 2)
+        paginator = _pet_api(server).list_pet_catalog_pages()
+        first = await _names(paginator)
+        second = await _names(paginator)
+        assert first == second
+        assert len(server.seen) == 4, 'the second loop read both pages again'
+        assert _params_seen(server, 'cursor') == [None, 'c1', None, 'c1']
+
+    async def test_bhv_pagination_021_a_page_that_does_not_decode_on_a_later_page_fails_with_the_serialization_error_after_the_earlier_items_were_delivered(
+        self, raw_server: Any
+    ) -> None:
+        server = _PagedServer(
+            raw_server,
+            lambda request, number: _PagedReply(_catalog_body(0, 1, 2))
+            if number == 1
+            else _PagedReply('{"items":[{"id":"not a number","name":"x","photoUrls":[]}]}'),
+        )
+        items = _pet_api(server).list_pet_catalog_pages().items()
+        assert (await items.__anext__()).name == 'p0-0'
+        with pytest.raises(SerializationException):
+            await items.__anext__()
+        with pytest.raises(StopAsyncIteration):
+            await items.__anext__()
+
+    async def test_bhv_pagination_022_a_refreshed_credential_is_used_for_the_next_page(self, raw_server: Any) -> None:
+        class Rotating(StubAuthenticator):
+            def __init__(self) -> None:
+                super().__init__()
+                self.issued = 0
+
+            def get_auth_headers(self) -> dict[str, str]:
+                self.issued += 1
+                return {'Authorization': f'Bearer token-{self.issued}'}
+
+        server = _catalog_server(raw_server, 3, 1)
+        await _names(_pet_api(server, authenticator=Rotating()).list_pet_catalog_pages())
+        assert [request.headers['authorization'] for request in server.seen] == [
+            'Bearer token-1', 'Bearer token-2', 'Bearer token-3'
+        ]
+
+    async def test_bhv_pagination_023_an_error_from_a_link_driven_page_request_carries_the_path_without_the_query(
+        self, raw_server: Any
+    ) -> None:
+        def handler(request: _SeenRequest, number: int) -> _PagedReply:
+            if request.param('page') is not None:
+                return _PagedReply(status=500)
+            return _PagedReply(
+                '[' + _pet_json('f0') + ']', headers={'Link': '</pet/feed?page=1&secret=s3>; rel="next"'}
+            )
+
+        server = _PagedServer(raw_server, handler)
+        items = _pet_api(server).list_pet_feed_pages().items()
+        assert (await items.__anext__()).name == 'f0'
+        with pytest.raises(ApiException) as failure:
+            await items.__anext__()
+        assert failure.value.status_code == 500
+        assert failure.value.request_path == '/pet/feed'
+        assert 's3' not in str(failure.value)
+
+    async def test_bhv_pagination_024_an_operation_with_two_candidate_cursors_two_array_properties_a_non_get_method_or_several_2xx_bodies_gets_no_paged_method(
+        self,
+    ) -> None:
+        paged = sorted(name for name in dir(PetApi) if name.endswith('_pages'))
+        assert paged == [
+            'list_pet_catalog_pages', 'list_pet_events_pages', 'list_pet_feed_pages', 'list_pet_notes_pages'
+        ]
+        assert hasattr(PetApi, 'list_pet_matches'), 'the ambiguous operation keeps its base method'
+
+    async def test_bhv_pagination_025_a_paged_method_has_the_same_parameters_in_the_same_order_as_the_base_method_and_the_base_method_is_unchanged(
+        self,
+    ) -> None:
+        pages_methods = [name for name in dir(PetApi) if name.endswith('_pages')]
+        assert pages_methods
+        for name in pages_methods:
+            base = getattr(PetApi, name[: -len('_pages')])
+            paged = getattr(PetApi, name)
+            assert list(inspect.signature(paged).parameters.values()) == list(
+                inspect.signature(base).parameters.values()
+            ), name
+            assert inspect.iscoroutinefunction(base), 'the base method is still the buffered call'
+            assert not inspect.iscoroutinefunction(paged), 'the paged method sends nothing'
+            assert 'Paginator' not in str(inspect.signature(base).return_annotation)
+
+    async def test_bhv_pagination_026_the_generator_option_overrides_inference_and_can_switch_an_operation_or_the_whole_feature_off(
+        self,
+    ) -> None:
+        names = set(dir(PetApi))
+        assert 'list_pet_events_pages' in names, 'an operation the option names is paged'
+        assert 'list_pet_archive_pages' not in names, 'an operation the option sets to none is not'
+        assert 'list_pet_archive' in names, 'its base method remains'
+
+    async def test_bhv_pagination_027_headers_and_options_given_to_the_paged_method_are_sent_on_every_page_request(
+        self, raw_server: Any
+    ) -> None:
+        server = _same_origin_feed(raw_server, 3)
+        await _names(_pet_api(server).list_pet_feed_pages(ListPetFeedOptions(limit=1, headers={'X-Keep': 'yes'})))
+        assert len(server.seen) == 3
+        for request in server.seen:
+            assert request.headers['x-keep'] == 'yes'
+        assert server.seen[0].param('limit') == '1', 'the first page carries the page size'
+
+    async def test_bhv_pagination_028_the_cursor_for_the_next_page_is_taken_from_the_accepted_response_never_from_a_retried_attempt(
+        self, raw_server: Any
+    ) -> None:
+        def handler(request: _SeenRequest, number: int) -> _PagedReply:
+            if number == 1:
+                return _PagedReply('{"items":[],"next_cursor":"WRONG"}', status=503, headers={'Retry-After': '0'})
+            cursor = request.param('cursor')
+            return _PagedReply(_catalog_body(0 if cursor is None else 1, 1, 2))
+
+        server = _PagedServer(raw_server, handler)
+        assert await _names(_pet_api(server, max_retries=2).list_pet_catalog_pages()) == ['p0-0', 'p1-0']
+        assert _params_seen(server, 'cursor') == [None, None, 'c1']
+
+    async def test_bhv_pagination_030_a_vendor_extension_on_an_operation_is_read_as_a_hint_and_the_override_option_wins_over_it(
+        self,
+    ) -> None:
+        assert hasattr(PetApi, 'list_pet_notes_pages'), 'the operation whose names are no known cursor is paged by its hint'
+
+    async def test_bhv_pagination_031_the_repeated_cursor_failure_is_a_pagination_error_and_is_not_a_network_error_or_an_api_error(
+        self, raw_server: Any
+    ) -> None:
+        assert PaginationException.__bases__ == ({{errorPrefix}}Exception,)
+        server = _PagedServer(raw_server, lambda request, number: _PagedReply('{"items":[],"next_cursor":"c1"}'))
+        with pytest.raises({{errorPrefix}}Exception) as failure:
+            await _names(_pet_api(server).list_pet_catalog_pages(ListPetCatalogOptions(cursor='c1')))
+        assert isinstance(failure.value, PaginationException)
+        assert not isinstance(failure.value, (ApiException, NetworkException))
+
+    async def test_bhv_pagination_032_an_operation_that_is_streamed_is_never_also_given_a_paged_method(self) -> None:
+        assert not [name for name in dir(StoreApi) if name.endswith('_pages')]
+        assert hasattr(StoreApi, 'export_orders_stream')

@@ -25,6 +25,7 @@ This generator emits a Python client package: pydantic v2 models, an `async` ope
 | `errors.mustache`, `errors/*.mustache` | `ApiError` hierarchy, OAuth2 errors, header rendering, `ErrorFactory`, `is_retryable`, `request_id`; `errors/schema_exception.mustache` renders one class per declared error schema (issue 123) | error classes and messages |
 | `auth/*.mustache`, `auth/oauth/*.mustache` | authenticators, token manager, OIDC | auth behaviour |
 | `server_configuration.mustache`, `servers.mustache` | server list and variables | server constants |
+| `paginator.mustache`, `page.mustache`, `link_header.mustache`, `errors/pagination_exception.mustache`, `api/operation_pages*.mustache` | `Paginator[T, C]` (the lazy async sequence a `<op>_pages` method returns), `Page[T, C]`, the RFC 8288 `Link` parser and `PaginationException`, and the per-operation pages method | pagination |
 | `body_source.mustache` | `BodySource` (a raw binary request body, replayable or single use) and `OpenedBody` (one send of it) | uploads |
 | `byte_stream.mustache`, `api_stream_response.mustache`, `errors/stream_exception.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body) and `StreamBody` (its Protocol), `StreamException` | streaming types |
 | `readme.mustache`, `skills*.mustache`, `pyproject_toml.mustache`, `makefile.mustache` | README, SKILLS.md, manifest, Makefile (`typecheck`, `docs`) | docs, dependencies, ruff and mypy config |
@@ -527,6 +528,23 @@ Test: `TestUploadTransport` in `test_default_api_client_unit.mustache` (`streami
 Rule: `DefaultApiClient._open` sets `Content-Length` from `BodySource.length` (and removes the caller's framing headers), hands urllib3 an iterator of `bytes` (`BodySource._wire`: in-memory and empty bodies go as `bytes`; the iterator is checked against the declared length), opens the source again for every redirect hop that keeps the body, closes everything it opened when the send ends, and refuses a 307 or 308 (any hop that keeps the method) for a single-use source with `ApiException` `Refusing to replay a streamed request body`. `BaseApi` treats a replayable source like bytes (retries, 401 replay) and a single-use one like a stream (never retried, the original error is raised, no 401 replay), binds the running loop to a source before sending so a worker thread can read an async iterable, and passes `single_use_body` to `SseStream.open`, which then never reconnects.
 Where: `default_api_client.mustache` (`_open`, `_wire_body`, `_follow_redirects`), `base_api.mustache` (`_is_replayable`, `_send_under_policy`, `_invoke_api_for_sse`), `sse_stream.mustache`.
 Test: `streaming026` and `retries045` in `test_base_api.mustache` (`TestAutomaticRetries`, `TestUnauthorizedReplay`), `sse016` in `test_event_stream.mustache`. The `retries045` exception line is gone: Python now has a streamed request body.
+
+## Pagination (#163, D123, D124)
+
+### The detector is shared, the Python templates only render it
+Rule: `AbstractBetterCodegen.populatePaginationDecorators` computes `vendorExtensions.op.pagination` (`isToken`, `isLink`, `requestParamName`, `cursorType`, `responsePropertyName`, `itemsPropertyName`, `itemsFromBody`, `itemType`, `itemModel`) and `hasPagesMethod`/`pagesMethodName`; the property names are the pydantic attribute names, so the templates read `page.<name>`. `BetterPythonCodegen.addPagedImports` adds `Paginator`, the item model (the operation's own imports cover the page model only) and, for a token list, `dataclasses.replace as _replace_options` to the api file, and `postProcessSupportingFileData` hands the first paged operation to the README and SKILLS as `pagedOperation`, `pagedGroup` and `pagedExample` (a compiling `python file` fence).
+Where: `AbstractBetterCodegen`, `BetterPythonCodegen`, `api/api.mustache`, `api/operation_pages.mustache`, `api/operation_pages_protocol.mustache`.
+Test: `OperationDecoratorTest`.
+
+### `Paginator[T, C]`, `Page[T, C]`, `PaginationException`
+Rule: the `<op>_pages` method is a plain `def` that returns a `Paginator`; nothing is awaited until the first read. `Paginator` (`paginator.mustache`) keeps a factory of page iterators: `__aiter__` and `items()` wrap a fresh one in an item iterator and `pages()` returns a fresh one, so nothing is read before the first `__anext__`, one request is made per page and there is no read-ahead, and a second loop starts again. The page iterators are classes (`_CursorPages`, `_LinkPages`), not async generators, so an abandoned loop leaves no suspended generator behind. An end is an absent, `None` or empty cursor, or no `rel="next"`. A cursor equal to the one just sent (or a `Link` to the page just read, or a foreign origin) is held back: the page it arrived with is delivered and the next read raises `PaginationException`. Any failure of a fetch, `CancelledError` included, ends the iteration. `Page` is a frozen dataclass (`items` copied, `next_cursor`, `result`). `PaginationException` (`errors/pagination_exception.mustache`) extends the root exception directly and carries `request_path` without the query.
+Where: `paginator.mustache`, `page.mustache`, `link_header.mustache`, `errors/pagination_exception.mustache`.
+Test: `TestPagedLists` in `test_base_api.mustache` (`pagination001` to `032`) over the raw server of `conftest.py`.
+
+### Each page is an ordinary call; a `Link` page replaces the path
+Rule: a token page calls `<op>_with_http_info` with `dataclasses.replace(page_options, <cursor>=token)`, so retries, timeouts, redirects, authentication, redaction and per-call options apply to every page. A `Link` operation's `_with_http_info` delegates to a private `_<op>_page(...args, page_url=None)` whose body is the buffered call; when `page_url` is set it replaces `path` and clears the query, and `_invoke_api_for_result` joins an authentication query to a URL that already has one with `&`. The origin of a next URL is checked against `config.base_url`; an operation with a server of its own is not paged.
+Where: `api/api.mustache`, `base_api.mustache`, `paginator.mustache`.
+Test: `TestPagedLists` (`pagination007`, `008`, `023`, `027`).
 
 ## Compiled examples (#111)
 

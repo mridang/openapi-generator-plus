@@ -452,7 +452,8 @@ class BaseApi:
                             parts.append(encoded)
                 query_string = "&".join(parts)
                 if query_string:
-                    url += "?" + query_string
+                    # A paged list's next URL may carry a query of its own.
+                    url += ("&" if "?" in url else "?") + query_string
 
         call_headers = request_options.headers if request_options is not None else None
         call_timeout = request_options.timeout if request_options is not None else None

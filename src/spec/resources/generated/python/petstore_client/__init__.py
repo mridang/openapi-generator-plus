@@ -25,6 +25,8 @@ __all__ = [
     "ServerSentEvent",
     "SseStream",
     "StreamOptions",
+    "Paginator",
+    "Page",
     "Configuration",
     "CallHook",
     "CallObserver",
@@ -60,6 +62,7 @@ __all__ = [
     "NetworkException",
     "NetworkTimeoutException",
     "StreamException",
+    "PaginationException",
     "SerializationException",
     "OAuth2ServerException",
     "OAuth2TokenException",
@@ -152,6 +155,8 @@ from petstore_client.json_lines_stream import JsonLinesStream as JsonLinesStream
 from petstore_client.server_sent_event import ServerSentEvent as ServerSentEvent
 from petstore_client.sse_stream import SseStream as SseStream
 from petstore_client.stream_options import StreamOptions as StreamOptions
+from petstore_client.paginator import Paginator as Paginator
+from petstore_client.page import Page as Page
 from petstore_client.auth.authenticator import Authenticator as Authenticator
 from petstore_client.client import Client as Client
 from petstore_client.client import ClientProtocol as ClientProtocol
@@ -202,6 +207,7 @@ from petstore_client.errors import (
 from petstore_client.errors import NetworkException as NetworkException
 from petstore_client.errors import NetworkTimeoutException as NetworkTimeoutException
 from petstore_client.errors import StreamException as StreamException
+from petstore_client.errors import PaginationException as PaginationException
 from petstore_client.errors import SerializationException as SerializationException
 from petstore_client.errors import OAuth2ServerException as OAuth2ServerException
 from petstore_client.errors import OAuth2TokenException as OAuth2TokenException

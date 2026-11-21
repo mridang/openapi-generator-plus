@@ -470,6 +470,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         if (hasBinaryStream(operations)) {
             scalarImports.add("from " + packageName + ".byte_stream import ByteStream");
         }
+        addPagedImports(operations, scalarImports);
         if (hasBinaryUpload(operations)) {
             scalarImports.add("from " + packageName + ".body_source import BodySource");
         }
@@ -537,6 +538,40 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             }
         }
         op.vendorExtensions.put("uploadsBodySource", true);
+    }
+
+    /**
+     * What the {@code <op>_pages} methods of an api file need: the {@code Paginator}, the item
+     * model (the operation's own imports cover the page model, not the model of its items) and,
+     * for a token cursor, {@code dataclasses.replace}, which gives each page its own cursor.
+     */
+    @SuppressWarnings("unchecked")
+    private void addPagedImports(
+            @Nullable final Map<String, Object> operations, final Set<String> imports) {
+        if (operations == null || !(operations.get("operation") instanceof List)) {
+            return;
+        }
+        for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+            final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (!(decorators instanceof Map)
+                    || !Boolean.TRUE.equals(((Map<String, Object>) decorators).get("hasPagesMethod"))) {
+                continue;
+            }
+            imports.add("from " + packageName + ".paginator import Paginator");
+            final Object pagination = ((Map<String, Object>) decorators).get("pagination");
+            if (!(pagination instanceof Map)) {
+                continue;
+            }
+            final Map<String, Object> p = (Map<String, Object>) pagination;
+            if (Boolean.TRUE.equals(p.get("isToken"))) {
+                imports.add("from dataclasses import replace as _replace_options");
+            }
+            final Object model = p.get("itemModel");
+            if (model != null) {
+                imports.add("from " + modelPackage + "." + toModelFilename(model.toString())
+                        + " import " + model);
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -649,8 +684,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
-        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
         for (int kind = 0; kind < flags.length; kind++) {
             CodegenOperation found = null;
             Object group = null;
@@ -892,6 +927,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("api_result.mustache", packagePath, "api_result.py"),
             new SupportingFileSpec("api_stream_response.mustache", packagePath, "api_stream_response.py"),
             new SupportingFileSpec("body_source.mustache", packagePath, "body_source.py"),
+            new SupportingFileSpec("paginator.mustache", packagePath, "paginator.py"),
+            new SupportingFileSpec("page.mustache", packagePath, "page.py"),
+            new SupportingFileSpec("link_header.mustache", packagePath, "link_header.py"),
             new SupportingFileSpec("byte_stream.mustache", packagePath, "byte_stream.py"),
             new SupportingFileSpec("event_stream.mustache", packagePath, "event_stream.py"),
             new SupportingFileSpec("server_sent_event.mustache", packagePath, "server_sent_event.py"),
@@ -925,6 +963,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/network_exception.mustache", errorsPath, "network_exception.py"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsPath, "network_timeout_exception.py"),
             new SupportingFileSpec("errors/stream_exception.mustache", errorsPath, "stream_exception.py"),
+            new SupportingFileSpec("errors/pagination_exception.mustache", errorsPath, "pagination_exception.py"),
             new SupportingFileSpec("errors/serialization_exception.mustache", errorsPath, "serialization_exception.py"),
             new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsPath, "oauth2_server_exception.py"),
             new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsPath, "oauth2_token_exception.py"),

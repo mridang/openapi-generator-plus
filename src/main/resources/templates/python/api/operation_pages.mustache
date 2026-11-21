@@ -1,0 +1,99 @@
+
+    def {{vendorExtensions.op.pagesMethodName}}(
+        self,
+{{>api/operation_args}}    ) -> 'Paginator[{{{vendorExtensions.op.pagination.itemType}}}, {{#vendorExtensions.op.pagination.isToken}}{{{vendorExtensions.op.pagination.cursorType}}}{{/vendorExtensions.op.pagination.isToken}}{{#vendorExtensions.op.pagination.isLink}}None{{/vendorExtensions.op.pagination.isLink}}]':
+        """{{{summary}}} (as a paginator)
+
+        Returns the items as a lazy :class:`Paginator`: no request is sent until you first read an
+        item or a page, and each next page is requested only when you ask for more. Every page is
+        an ordinary call of :meth:`{{operationId}}_with_http_info`, with the same options on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+        The value of the ``{{vendorExtensions.op.pagination.requestParamName}}`` option is where the list starts, and the
+        page after each one is requested with the ``{{vendorExtensions.op.pagination.responsePropertyName}}`` it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+        The page after each one is the ``rel="next"`` link of its ``Link`` header, followed only
+        within the origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+
+{{#pathParams}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/pathParams}}
+{{#bodyParam}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/bodyParam}}
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget, repeated on every page
+        :return: the paginator over the items
+{{>api/operation_doc_raises}}{{#isDeprecated}}
+
+        .. deprecated::
+            This operation is deprecated.
+{{/isDeprecated}}
+        """
+{{#vendorExtensions.op.optionsParamRequired}}
+        page_options = options
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        page_options = options if options is not None else {{vendorExtensions.op.optionsClassName}}()
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.pagination.isToken}}
+
+        async def fetch(cursor: Optional[{{{vendorExtensions.op.pagination.cursorType}}}]) -> 'ApiResult[{{{returnType}}}]':
+            return await self.{{operationId}}_with_http_info(
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isPath}}
+                {{paramName}},
+{{/isPath}}
+{{#isBody}}
+                {{paramName}},
+{{/isBody}}
+{{#isOptions}}
+                options=_replace_options(page_options, {{vendorExtensions.op.pagination.requestParamName}}=cursor),
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+{{#vendorExtensions.hasMultipleConsumes}}
+                request_content_type=request_content_type,
+{{/vendorExtensions.hasMultipleConsumes}}
+            )
+
+        return Paginator.of_cursor(
+            page_options.{{vendorExtensions.op.pagination.requestParamName}},
+            fetch,
+            lambda page: page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+            lambda page: page.{{vendorExtensions.op.pagination.responsePropertyName}},
+            {{#lambda.quotedLiteral}}{{{path}}}{{/lambda.quotedLiteral}},
+        )
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+
+        async def fetch(page_url: Optional[str]) -> 'ApiResult[{{{returnType}}}]':
+            return await self._{{operationId}}_page(
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isPath}}
+                {{paramName}},
+{{/isPath}}
+{{#isBody}}
+                {{paramName}},
+{{/isBody}}
+{{#isOptions}}
+                options=page_options,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+{{#vendorExtensions.hasMultipleConsumes}}
+                request_content_type=request_content_type,
+{{/vendorExtensions.hasMultipleConsumes}}
+                page_url=page_url,
+            )
+
+        return Paginator.of_link(
+            self._config.base_url,
+            fetch,
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+            lambda page: page,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+            lambda page: page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+            {{#lambda.quotedLiteral}}{{{path}}}{{/lambda.quotedLiteral}},
+        )
+{{/vendorExtensions.op.pagination.isLink}}
