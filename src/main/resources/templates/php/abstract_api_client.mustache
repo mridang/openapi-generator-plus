@@ -772,7 +772,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
         }
         $path = self::withoutQuery($url);
         $wire = 0;
-        $pull = function () use ($raw, &$wire, $declared, $inflater, $method, $path): ?string {
+        $pull = function () use ($raw, &$wire, $declared, $inflater, $encoding, $status, $headers, $method, $path): ?string {
             $chunk = ($raw->pull)();
             if ($chunk === null) {
                 if ($declared !== null && $wire < $declared) {
@@ -795,7 +795,18 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
             }
             $decoded = @inflate_add($inflater, $chunk, ZLIB_SYNC_FLUSH);
             if ($decoded === false) {
-                throw new StreamException('The compressed response body is corrupt', null, $method, $path);
+                /* A response did arrive, so a corrupt body is an ApiException carrying the real
+                 * status, never a network error, as for a buffered call. */
+                throw new ApiException(
+                    $status,
+                    "Failed to decompress $encoding response body: the $encoding stream is corrupt",
+                    $headers,
+                    null,
+                    null,
+                    new \RuntimeException("the $encoding stream is corrupt"),
+                    $method,
+                    $path
+                );
             }
 
             return $decoded;

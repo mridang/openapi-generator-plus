@@ -25,10 +25,13 @@ use PetstoreClient\CallObserver;
 use PetstoreClient\CallOutcome;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
+use PetstoreClient\EventStream;
 use PetstoreClient\HeaderSelector;
 use PetstoreClient\ClientLifecycle;
 use PetstoreClient\ObjectSerializer;
+use PetstoreClient\SseStream;
 use PetstoreClient\StreamingApiClient;
+use PetstoreClient\StreamOptions;
 use PetstoreClient\TraceContextUtil;
 use PetstoreClient\ValueSerializer;
 use PetstoreClient\Auth\Authenticator;
@@ -323,12 +326,284 @@ class BaseApi
     }
 
     /**
+     * Invoke an operation whose success response is a JSON Lines body and return its items as a lazy
+     * generator. The first request is sent by this call, everything up to the headers is the buffered
+     * call, and a non-2xx status raises the typed error and returns no generator. A line that does not
+     * decode, or one longer than the limit, raises a SerializationException and ends the generator;
+     * leaving the generator releases the connection.
+     *
+     * @param string                $method       HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param string                $path         URL path (with path params already substituted)
+     * @param array<string, mixed>  $queryParams  Query parameters
+     * @param array<string, string> $headerParams Custom header parameters
+     * @param mixed                 $body         Request body (model object or form params array)
+     * @param string[]              $accepts      Acceptable response content types
+     * @param string|null           $contentType  Request content type
+     * @param Authenticator|null    $auth         Three-state auth selector: the NoAuth sentinel
+     *                                            suppresses all credentials (security:[] operation);
+     *                                            null falls back to the client authenticator (secured
+     *                                            op, no per-call override); a real Authenticator is a
+     *                                            per-call override
+     * @param array<string, bool>   $allowReservedKeys Set of query parameter
+     *                                            names (baseName => true) declared
+     *                                            `allowReserved: true`; their values
+     *                                            keep RFC 3986 reserved characters
+     *                                            literal. Empty by default, so
+     *                                            omitting it encodes every value as
+     *                                            before.
+     * @param bool                  $rawBody      True when the operation's body is
+     *                                            `format: binary`: the caller's bytes,
+     *                                            file or stream go on the wire verbatim
+     *                                            under whichever declared Content-Type
+     *                                            was selected, even application/json.
+     * @param int|null              $timeout      Per-call request timeout in milliseconds,
+     *                                            replacing the transport timeout for this call
+     *                                            only (a transport that is not an
+     *                                            {@see AbstractApiClient} ignores it).
+     * @param array<string, string>|null $headers Per-call request headers. They win over the
+     *                                            configuration, operation and authentication
+     *                                            headers of the same name.
+     * @param int|null              $maxRetries   Per-call retry count, replacing the transport
+     *                                            retry count for this call only (a transport
+     *                                            that is not an {@see AbstractApiClient}
+     *                                            ignores it).
+     * @param list<list<string>>    $securityRequirements The operation's security requirement:
+     *                                            alternatives of scheme ids that must all be
+     *                                            configured. Read only when per-scheme credentials
+     *                                            are configured.
+     * @param array<int|string, \Closure(int, array<string, string>|null, string|null, string|null, string|null): ApiException> $errorSchemas
+     *                                            Factory of the error type of each error schema
+     *                                            the operation declares, by declared status (404,
+     *                                            4XX or default). Empty when it declares none.
+     * @param string|null           $operationId  The operation id exactly as written in the OpenAPI
+     *                                            document, handed to the call hook
+     * @param string|null           $urlTemplate  The path template of the operation, handed to the call hook
+     * @param string|null           $itemType      the type of each line, or null to hand each line over as a string
+     * @param StreamOptions|null    $streamOptions the stream settings, or null for the defaults
+     *
+     * @return \Generator<int, mixed> the items, in order
+     * @throws ApiException
+     */
+    protected function invokeApiForJsonLines(
+        string $method,
+        string $path,
+        array $queryParams,
+        array $headerParams,
+        mixed $body,
+        array $accepts,
+        ?string $contentType,
+        ?Authenticator $auth = null,
+        array $allowReservedKeys = [],
+        bool $rawBody = false,
+        ?int $timeout = null,
+        ?array $headers = null,
+        ?int $maxRetries = null,
+        array $securityRequirements = [],
+        array $errorSchemas = [],
+        ?string $operationId = null,
+        ?string $urlTemplate = null,
+        ?string $itemType = null,
+        ?StreamOptions $streamOptions = null,
+    ): \Generator {
+        $options = $streamOptions ?? new StreamOptions();
+        /** @var ApiResult<ByteStream> $result */
+        $result = $this->invokeCall(
+            true,
+            $method,
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            $accepts,
+            $contentType,
+            null,
+            $auth,
+            $allowReservedKeys,
+            $rawBody,
+            $timeout,
+            $headers,
+            $maxRetries,
+            [],
+            $securityRequirements,
+            $errorSchemas,
+            $operationId,
+            $urlTemplate,
+            $options->idleTimeout
+        );
+        $source = $result->data;
+        assert($source instanceof ByteStream);
+        $decoder = $itemType === null
+            ? null
+            : static fn (string $line): mixed => ObjectSerializer::deserialize($line, $itemType, []);
+
+        return EventStream::jsonLines($source, $decoder, $options->maxEventBytes ?? 1048576, $method, $path);
+    }
+
+    /**
+     * Invoke an operation whose success response is a server-sent events body and return its events
+     * as a stream that reconnects. Each connection is a fresh streaming call, so the headers and the
+     * credential are built again; the stream adds `Accept: text/event-stream`, `Cache-Control: no-cache`
+     * and `Accept-Encoding: identity` unless the caller set them, and `Last-Event-ID` once it has an id.
+     * The first request is sent by this call.
+     *
+     * @param string                $method       HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param string                $path         URL path (with path params already substituted)
+     * @param array<string, mixed>  $queryParams  Query parameters
+     * @param array<string, string> $headerParams Custom header parameters
+     * @param mixed                 $body         Request body (model object or form params array)
+     * @param string[]              $accepts      Acceptable response content types
+     * @param string|null           $contentType  Request content type
+     * @param Authenticator|null    $auth         Three-state auth selector: the NoAuth sentinel
+     *                                            suppresses all credentials (security:[] operation);
+     *                                            null falls back to the client authenticator (secured
+     *                                            op, no per-call override); a real Authenticator is a
+     *                                            per-call override
+     * @param array<string, bool>   $allowReservedKeys Set of query parameter
+     *                                            names (baseName => true) declared
+     *                                            `allowReserved: true`; their values
+     *                                            keep RFC 3986 reserved characters
+     *                                            literal. Empty by default, so
+     *                                            omitting it encodes every value as
+     *                                            before.
+     * @param bool                  $rawBody      True when the operation's body is
+     *                                            `format: binary`: the caller's bytes,
+     *                                            file or stream go on the wire verbatim
+     *                                            under whichever declared Content-Type
+     *                                            was selected, even application/json.
+     * @param int|null              $timeout      Per-call request timeout in milliseconds,
+     *                                            replacing the transport timeout for this call
+     *                                            only (a transport that is not an
+     *                                            {@see AbstractApiClient} ignores it).
+     * @param array<string, string>|null $headers Per-call request headers. They win over the
+     *                                            configuration, operation and authentication
+     *                                            headers of the same name.
+     * @param int|null              $maxRetries   Per-call retry count, replacing the transport
+     *                                            retry count for this call only (a transport
+     *                                            that is not an {@see AbstractApiClient}
+     *                                            ignores it).
+     * @param list<list<string>>    $securityRequirements The operation's security requirement:
+     *                                            alternatives of scheme ids that must all be
+     *                                            configured. Read only when per-scheme credentials
+     *                                            are configured.
+     * @param array<int|string, \Closure(int, array<string, string>|null, string|null, string|null, string|null): ApiException> $errorSchemas
+     *                                            Factory of the error type of each error schema
+     *                                            the operation declares, by declared status (404,
+     *                                            4XX or default). Empty when it declares none.
+     * @param string|null           $operationId  The operation id exactly as written in the OpenAPI
+     *                                            document, handed to the call hook
+     * @param string|null           $urlTemplate  The path template of the operation, handed to the call hook
+     * @param string|null           $itemType      the type of the data, or null to hand it over as a string
+     * @param string|null           $terminator    a data value that ends the stream, or null
+     * @param StreamOptions|null    $streamOptions the stream settings, or null for the defaults
+     *
+     * @return SseStream<mixed> the open stream of events
+     * @throws ApiException if the first request fails
+     */
+    protected function invokeApiForSse(
+        string $method,
+        string $path,
+        array $queryParams,
+        array $headerParams,
+        mixed $body,
+        array $accepts,
+        ?string $contentType,
+        ?Authenticator $auth = null,
+        array $allowReservedKeys = [],
+        bool $rawBody = false,
+        ?int $timeout = null,
+        ?array $headers = null,
+        ?int $maxRetries = null,
+        array $securityRequirements = [],
+        array $errorSchemas = [],
+        ?string $operationId = null,
+        ?string $urlTemplate = null,
+        ?string $itemType = null,
+        ?string $terminator = null,
+        ?StreamOptions $streamOptions = null,
+    ): SseStream {
+        $options = $streamOptions ?? new StreamOptions();
+        $sseHeaders = $headerParams;
+        foreach (['Cache-Control' => 'no-cache', 'Accept-Encoding' => 'identity'] as $name => $value) {
+            $set = false;
+            foreach ([array_keys($sseHeaders), array_keys($this->config->defaultHeaders), array_keys($headers ?? [])] as $names) {
+                foreach ($names as $existing) {
+                    if (strcasecmp((string) $existing, $name) === 0) {
+                        $set = true;
+                    }
+                }
+            }
+            if (!$set) {
+                $sseHeaders[$name] = $value;
+            }
+        }
+        $opener = function (string $lastEventId) use (
+            $sseHeaders,
+            $method,
+            $path,
+            $queryParams,
+            $body,
+            $accepts,
+            $contentType,
+            $auth,
+            $allowReservedKeys,
+            $rawBody,
+            $timeout,
+            $headers,
+            $maxRetries,
+            $securityRequirements,
+            $errorSchemas,
+            $operationId,
+            $urlTemplate,
+            $options
+        ): ByteStream {
+            $connectionHeaders = $sseHeaders;
+            if ($lastEventId !== '') {
+                $connectionHeaders['Last-Event-ID'] = $lastEventId;
+            }
+            /** @var ApiResult<ByteStream> $result */
+            $result = $this->invokeCall(
+                true,
+                $method,
+                $path,
+                $queryParams,
+                $connectionHeaders,
+                $body,
+                $accepts,
+                $contentType,
+                null,
+                $auth,
+                $allowReservedKeys,
+                $rawBody,
+                $timeout,
+                $headers,
+                $maxRetries,
+                [],
+                $securityRequirements,
+                $errorSchemas,
+                $operationId,
+                $urlTemplate,
+                $options->idleTimeout
+            );
+            $stream = $result->data;
+            assert($stream instanceof ByteStream);
+
+            return $stream;
+        };
+        $decoder = $itemType === null
+            ? null
+            : static fn (string $data): mixed => ObjectSerializer::deserialize($data, $itemType, []);
+
+        return SseStream::open($opener, $decoder, $terminator, $options, $body !== null, $method, $this->urlWithoutQuery($path));
+    }
+
+    /**
      * The one call path behind {@see invokeApiForResult()} and {@see invokeApiForStream()}: it builds
      * the URL and the headers, runs the call hook and the authentication, and then sends the request
      * either buffered or as a stream.
      *
      * @param bool                  $stream       true to return the open {@see ByteStream} as the data, false to
      *                                            decode the body as the return type
+     * @param int|null              $idleTimeoutMs the longest silence in a streamed body, or null for the transport's
      * @param string                $method       HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param string                $path         URL path (with path params already substituted)
      * @param array<string, mixed>  $queryParams  Query parameters
@@ -407,7 +682,8 @@ class BaseApi
         array $securityRequirements = [],
         array $errorSchemas = [],
         ?string $operationId = null,
-        ?string $urlTemplate = null
+        ?string $urlTemplate = null,
+        ?int $idleTimeoutMs = null
     ): ApiResult {
         $this->lifecycle?->assertOpen();
         $callHeaders = $headers;
@@ -584,7 +860,8 @@ class BaseApi
                     $effectiveAuth,
                     $errorSchemas,
                     $statusCode,
-                    $responseHeaders
+                    $responseHeaders,
+                    $idleTimeoutMs
                 );
             } else {
                 /* A transport that derives from AbstractApiClient also retries a
@@ -694,8 +971,17 @@ class BaseApi
         array $errorSchemas,
         int &$statusCode,
         ?array &$responseHeaders,
+        ?int $idleTimeoutMs = null,
     ): ApiResult {
-        $stream = $this->callStreaming($method, $url, $headersForAttempt, $serializedBody, $timeout, $maxRetries);
+        $stream = $this->callStreaming(
+            $method,
+            $url,
+            $headersForAttempt,
+            $serializedBody,
+            $timeout,
+            $maxRetries,
+            $idleTimeoutMs
+        );
         $statusCode = $stream->statusCode;
         $responseHeaders = $stream->headers;
 
@@ -721,7 +1007,8 @@ class BaseApi
                     static fn (): array => array_merge($headersForAttempt(), $retryAuthHeaders),
                     $serializedBody,
                     $timeout,
-                    $maxRetries
+                    $maxRetries,
+                    $idleTimeoutMs
                 );
                 $statusCode = $stream->statusCode;
                 $responseHeaders = $stream->headers;
@@ -761,12 +1048,21 @@ class BaseApi
         mixed $body,
         ?int $timeout,
         ?int $maxRetries,
+        ?int $idleTimeoutMs = null,
     ): ByteStream {
         if ($this->apiClient instanceof AbstractApiClient) {
-            return $this->apiClient->sendStreamingWithRetries($method, $url, $headers, $body, $timeout, $maxRetries);
+            return $this->apiClient->sendStreamingWithRetries(
+                $method,
+                $url,
+                $headers,
+                $body,
+                $timeout,
+                $maxRetries,
+                $idleTimeoutMs
+            );
         }
         if ($this->apiClient instanceof StreamingApiClient) {
-            return $this->apiClient->sendStreaming($method, $url, $headers(), $body, $timeout, $maxRetries);
+            return $this->apiClient->sendStreaming($method, $url, $headers(), $body, $timeout, $maxRetries, $idleTimeoutMs);
         }
 
         throw new \BadMethodCallException(

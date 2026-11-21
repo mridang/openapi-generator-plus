@@ -114,7 +114,32 @@ class GeneratedFileLayoutTest {
 
     allow(ALLOWED_EXTRA, "elixir", "streambody", "the process that owns an open response body, because Req can be read only by the process that sent the request");
     allow(ALLOWED_EXTRA, "ruby", "streambody", "the open response body fed by the producer thread that runs the Faraday request");
-    allow(ALLOWED_EXTRA, "php", "streamingapiclient", "the second transport interface a streaming transport implements, because PHP interfaces carry no default method");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "streamingapiclient",
+        "PHP 8.3 interfaces cannot carry a default method, so the transport that can stream is a"
+            + " second interface that the SDK checks at call time (D118)");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "eventstream",
+        "the line splitter and the server-sent events parser, one class per file in PHP");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "ssestream",
+        "the reconnecting stream of server-sent events, a class of its own in PHP");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "serversentevent",
+        "the envelope of one server-sent event, a class of its own in PHP");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "streamoptions",
+        "the settings of one JSON Lines or server-sent events call, a class of its own in PHP");
     allow(ALLOWED_EXTRA, "php", "rawstreamresponse", "the internal pair of status, headers and open body that a PHP transport hands to the ByteStream");
     allow(ALLOWED_EXTRA, "swift", "streamtransfer", "the URLSession delegate that feeds the AsyncThrowingStream, because AsyncBytes is absent on Linux");
     allow(ALLOWED_EXTRA, "go", "doc", "a go package description can only live in a package comment file");

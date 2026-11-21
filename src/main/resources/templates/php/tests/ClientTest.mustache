@@ -619,7 +619,12 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect((new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->implementsInterface(\{{apiPackage}}\{{classname}}Interface::class))->toBeTrue();
     ${{clientPropertyName}}Listed = get_class_methods(\{{apiPackage}}\{{classname}}Interface::class);
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+    expect(${{clientPropertyName}}Listed)->toContain('{{vendorExtensions.op.streamMethodName}}');
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
     expect(${{clientPropertyName}}Listed)->toContain('{{operationId}}')->toContain('{{operationId}}WithHttpInfo');
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

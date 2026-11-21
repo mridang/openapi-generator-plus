@@ -11,6 +11,9 @@ use PetstoreClient\Errors\NetworkException;
 use PetstoreClient\Errors\NetworkTimeoutException;
 use PetstoreClient\Errors\StreamException;
 use PetstoreClient\DefaultApiClient;
+use PetstoreClient\EventStream;
+use PetstoreClient\SseStream;
+use PetstoreClient\StreamOptions;
 use PetstoreClient\TransportOptions;
 use PetstoreClient\TransportOptionsBuilder;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -4111,6 +4114,22 @@ test('bhv misc 133 a 300 or 305 response is returned as it is, even with a locat
     '305' => [305],
 ]);
 
+/**
+ * A PSR-18 transport that answers one canned 200 response.
+ *
+ * @param array<string, string> $headers
+ */
+function inlinePsr18Client(string $body, array $headers): \PetstoreClient\Psr18ApiClient
+{
+    $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
+    $response = $factory->createResponse(200)->withBody($factory->createStream($body));
+    foreach ($headers as $name => $value) {
+        $response = $response->withHeader($name, $value);
+    }
+
+    return new \PetstoreClient\Psr18ApiClient(new StubPsr18Client($response), $factory, $factory);
+}
+
 /** Opens a stream on a path of a raw test server with the default transport options. */
 function rawStreamOf(RawServer $server, string $path): ByteStream
 {
@@ -4132,6 +4151,12 @@ test('bhv streaming 001 a binary stream delivers the bytes in order and returns 
     expect($stream->read(6))->toBe('first-');
     $server->release();
     expect($stream->readAll())->toBe('second');
+
+    $psr = inlinePsr18Client('payload', ['X-Mixed-Case' => 'kept'])
+        ->sendStreaming('GET', 'http://example.com/items/blob', [], null);
+    expect($psr->headers)->toHaveKey('x-mixed-case');
+    expect($psr->read(3))->toBe('pay');
+    expect($psr->readAll())->toBe('load');
 });
 
 test('bhv streaming 010 the call timeout bounds only the wait for the response headers, not the body', function (): void {
@@ -4191,6 +4216,10 @@ test('bhv streaming 013 a body shorter than its content length raises a network 
     $stream = rawStreamOf($server, '/items/blob');
 
     expect(fn (): string => $stream->readAll())->toThrow(NetworkException::class);
+
+    $psr = inlinePsr18Client('abcd', ['Content-Length' => '10'])
+        ->sendStreaming('GET', 'http://example.com/items/blob', [], null);
+    expect(fn (): string => $psr->readAll())->toThrow(StreamException::class);
 });
 
 test('bhv streaming 014 a streaming call retries a 503 before the headers and then streams the retried response', function (): void {
@@ -4366,4 +4395,143 @@ test('bhv streaming 029 the read all helper of a byte stream returns every byte 
     expect((string) $stream)->toBe('ByteStream{statusCode=200, bytesDelivered=100000}');
     expect($stream->isReadable())->toBeFalse();
     expect(fn (): string => $stream->read(1))->toThrow(\RuntimeException::class);
+});
+
+/**
+ * What an operation does for an event stream: one request per connection, over the transport.
+ *
+ * @return \Closure(string): ByteStream
+ */
+function rawEventOpener(RawServer $server, TransportOptions $options): \Closure
+{
+    $client = new DefaultApiClient($options);
+
+    return static function (string $lastEventId) use ($client, $server): ByteStream {
+        $headers = $lastEventId === '' ? [] : ['Last-Event-ID' => $lastEventId];
+
+        return $client->sendStreaming('GET', $server->url('/items/events'), $headers, null, null, 0);
+    };
+}
+
+test('bhv streaming 006 a gzip encoded stream is decoded incrementally so the first item arrives before the body ends', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        $gzip = deflate_init(ZLIB_ENCODING_GZIP);
+        reply($socket, 200, 'Content-Encoding: gzip', 'Transfer-Encoding: chunked');
+        chunk($socket, deflate_add($gzip, "first\n", ZLIB_SYNC_FLUSH));
+        awaitRelease();
+        chunk($socket, deflate_add($gzip, "second\n", ZLIB_FINISH));
+        endChunks($socket);
+        PHP);
+    $items = EventStream::jsonLines(rawStreamOf($server, '/items/export'), null, 1024, 'GET', '/items/export');
+
+    expect($items->current())->toBe('first');
+
+    $server->release();
+    $items->next();
+    expect($items->current())->toBe('second');
+    $items->next();
+    expect($items->valid())->toBeFalse();
+});
+
+test('bhv streaming 007 a corrupt compressed stream raises an api error with the status and the decoder error and is not retried', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Encoding: gzip', 'Content-Length: 8');
+        fwrite($socket, 'notgzip!');
+        PHP);
+    $items = EventStream::jsonLines(rawStreamOf($server, '/items/export'), null, 1024, 'GET', '/items/export');
+
+    try {
+        $items->current();
+        test()->fail('Expected the corrupt body to raise');
+    } catch (ApiException $failure) {
+        expect($failure)->not->toBeInstanceOf(NetworkException::class);
+        expect($failure->getStatusCode())->toBe(200);
+        expect($failure->getPrevious())->not->toBeNull();
+    }
+
+    expect($server->hits())->toBe(1);
+});
+
+test('bhv sse 007 an sse stream reconnects after the connection drops and sends the last event id in last event id', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        if ($hit >= 3) {
+            reply($socket, 204, 'Content-Length: 0');
+            return;
+        }
+        reply($socket, 200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked');
+        chunk($socket, $hit === 1 ? "id: 1\ndata: a\n\nid: 2\ndata: b\n\n" : "id: 3\ndata: c\n\n");
+        endChunks($socket);
+        PHP);
+    $stream = SseStream::open(
+        rawEventOpener($server, TransportOptions::builder()->build()),
+        null,
+        null,
+        new StreamOptions(reconnectDelay: 1),
+        false,
+        'GET',
+        '/items/events'
+    );
+
+    $data = [];
+    foreach ($stream as $event) {
+        $data[] = $event->data;
+    }
+
+    expect($data)->toBe(['a', 'b', 'c']);
+    $heads = array_map(strtolower(...), $server->heads());
+    expect($heads[0])->not->toContain('last-event-id');
+    expect($heads[1])->toContain('last-event-id: 2');
+    expect($heads[2])->toContain('last-event-id: 3');
+});
+
+test('bhv sse 015 an idle timeout on an sse stream counts as a lost connection and reconnects', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked');
+        if ($hit === 1) {
+            chunk($socket, "id: 1\ndata: a\n\n");
+            holdUntilGone($socket);
+            return;
+        }
+        chunk($socket, "id: 2\ndata: b\n\n");
+        endChunks($socket);
+        PHP);
+    $stream = SseStream::open(
+        rawEventOpener($server, TransportOptions::builder()->idleTimeout(300)->build()),
+        null,
+        null,
+        new StreamOptions(maxReconnects: 1, reconnectDelay: 1),
+        false,
+        'GET',
+        '/items/events'
+    );
+    $events = $stream->getIterator();
+
+    expect($events->current()->data)->toBe('a');
+    $events->next();
+    expect($events->current()->data)->toBe('b');
+    expect(strtolower($server->heads()[1]))->toContain('last-event-id: 1');
+});
+
+test('bhv sse 018 an sse comment line such as a heartbeat is skipped and counts as activity for the idle timeout', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked');
+        for ($beat = 0; $beat < 8; $beat++) {
+            chunk($socket, ": heartbeat\n\n");
+            usleep(100_000);
+        }
+        chunk($socket, "data: late\n\n");
+        endChunks($socket);
+        PHP);
+    $stream = SseStream::open(
+        rawEventOpener($server, TransportOptions::builder()->idleTimeout(400)->build()),
+        null,
+        null,
+        new StreamOptions(maxReconnects: 0, reconnectDelay: 1),
+        false,
+        'GET',
+        '/items/events'
+    );
+
+    expect($stream->getIterator()->current()->data)->toBe('late');
+    expect($server->hits())->toBe(1);
 });

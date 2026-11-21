@@ -11,7 +11,7 @@ namespace PetstoreClient\Test;
  * connection), `$hit` (1 for the first connection) and `$head` (the request head), and writes the
  * reply with `reply()`, `chunk()` and `endChunks()`. Leaving the script closes the connection, so a
  * script that returns early cuts the body short. `awaitRelease()` blocks the script until the test
- * calls {@see release()}, and `gone()` tells the test that the client dropped the connection.
+ * calls {@see release()}, `holdUntilGone()` waits silently until the client drops the connection, and `gone()` tells the test that the client dropped the connection.
  * Connections are served one at a time.
  */
 final class RawServer
@@ -57,6 +57,29 @@ final class RawServer
             $until = microtime(true) + 20.0;
             while (!file_exists($dir . '/release') && microtime(true) < $until) {
                 usleep(10_000);
+            }
+        }
+
+        /**
+         * Holds the connection open and silent until the client drops it (or the test releases the
+         * script), so that a script waiting here does not keep the next connection from being served.
+         *
+         * @param resource $socket
+         */
+        function holdUntilGone($socket): void
+        {
+            global $dir;
+            $until = microtime(true) + 20.0;
+            while (!file_exists($dir . '/release') && microtime(true) < $until) {
+                $read = [$socket];
+                $write = null;
+                $except = null;
+                if (@stream_select($read, $write, $except, 0, 50_000) > 0) {
+                    $data = @fread($socket, 1024);
+                    if (($data === '' || $data === false) && feof($socket)) {
+                        return;
+                    }
+                }
             }
         }
 

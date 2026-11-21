@@ -219,6 +219,39 @@ function saveTo(Client $client, int $petId, int $documentId, ?DownloadPetDocumen
 
 The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` (the `StreamingApiClient` interface) fails a stream call with `BadMethodCallException` naming it, and its buffered calls keep working.
 
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `\Generator` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Iterate it, and close it when you stop early (leave the `foreach`; an `SseStream` also has `close()`, and a stream that is dropped releases its connection). A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationException` and end the stream.
+
+```php file
+use PetstoreClient\Client;
+use PetstoreClient\Api\Options\ExportOrdersOptions;
+
+function readFeed(Client $client, ?ExportOrdersOptions $options): void
+{
+    foreach ($client->store->exportOrdersStream($options) as $item) {
+        print_r($item);
+    }
+}
+```
+
+```php file
+use PetstoreClient\Client;
+use PetstoreClient\Api\Options\WatchNoticesOptions;
+
+function followEvents(Client $client, ?WatchNoticesOptions $options): void
+{
+    $feed = $client->store->watchNoticesStream($options);
+    try {
+        foreach ($feed as $event) {
+            echo $event->raw . "\n";
+        }
+    } finally {
+        $feed->close();
+    }
+}
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `maxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close()`. An event named `error` raises `ApiException` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idleTimeout` and `lastEventId`.
+
 ### Custom HTTP client
 
 By default the SDK sends requests through `DefaultApiClient`, which is backed by

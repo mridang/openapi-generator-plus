@@ -472,6 +472,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
             new SupportingFileSpec("raw_stream_response.mustache", invokerFolder, "RawStreamResponse.php"),
             new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.php"),
+            new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.php"),
+            new SupportingFileSpec("server_sent_event.mustache", invokerFolder, "ServerSentEvent.php"),
+            new SupportingFileSpec("sse_stream.mustache", invokerFolder, "SseStream.php"),
+            new SupportingFileSpec("stream_options.mustache", invokerFolder, "StreamOptions.php"),
             new SupportingFileSpec("streaming_api_client.mustache", invokerFolder, "StreamingApiClient.php"),
             new SupportingFileSpec("abstract_api_client.mustache", invokerFolder, "AbstractApiClient.php"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.php"),
@@ -886,6 +890,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/StubbedDefaultApiClient.mustache",
                             "tests",
                             "StubbedDefaultApiClient.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/EventStreamTest.mustache",
+                            "tests",
+                            "EventStreamTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/RawServer.mustache",
@@ -2040,16 +2049,24 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             final List<CodegenOperation> orderedOps =
                     (List<CodegenOperation>) processedOps.get("operation");
             boolean hasBinaryStream = false;
+            boolean hasSseMethod = false;
+            boolean hasStreamMethod = false;
             if (orderedOps != null) {
                 for (final CodegenOperation op : orderedOps) {
                     hasBinaryStream |= markBinaryStream(op);
+                    final Object streamDecorators = op.vendorExtensions.get("op");
+                    if (streamDecorators instanceof Map) {
+                        final Map<String, Object> sd = (Map<String, Object>) streamDecorators;
+                        final boolean sse = Boolean.TRUE.equals(sd.get("streamsSse"));
+                        hasSseMethod |= sse;
+                        hasStreamMethod |= sse || Boolean.TRUE.equals(sd.get("streamsJsonLines"));
+                    }
                     final boolean binaryBody =
                             op.bodyParam != null && "\\SplFileObject".equals(op.bodyParam.dataType);
                     if (binaryBody) {
                         op.bodyParam.dataType = BINARY_BODY_TYPE;
                     }
-                    final Object deco = op.vendorExtensions == null
-                            ? null : op.vendorExtensions.get("op");
+                    final Object deco = op.vendorExtensions.get("op");
                     if (deco instanceof Map) {
                         final Map<String, Object> decoMap = (Map<String, Object>) deco;
                         final Object sigArgs = decoMap.get("signatureArgs");
@@ -2069,6 +2086,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 }
             }
             processed.put("hasBinaryStream", hasBinaryStream);
+            processed.put("hasSseStream", hasSseMethod);
+            processed.put("hasStreamMethod", hasStreamMethod);
             processed.put("hasServerTypeDefs", processedOps.get("hasServerTypeDefs"));
             final List<Map<String, Object>> serverTypeDefs =
                     (List<Map<String, Object>>) processedOps.get("serverTypeDefs");
@@ -2082,10 +2101,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     /**
      * A binary success response is returned as a {@code ByteStream} by the one operation method
      * (D119), so the documented and the native return type become {@code ByteStream} and the
-     * decorator {@code streamsBinary} tells the templates to call {@code invokeApiForStream}.
+     * decorator {@code streamsBinary} tells the templates to call {@code invokeApiForStream}. A
+     * JSON Lines or server-sent events response that has no buffered method (the decorator {@code
+     * streamOnly}) is returned by {@code <operation>Stream}: a {@code \Generator} of items for JSON
+     * Lines and an {@code SseStream} for events, with {@code streamsJsonLines}, {@code streamsSse},
+     * {@code streamTyped} (the data has a schema type) and {@code streamItemPhp} for the templates.
      *
      * @param op the operation, already decorated by the shared pass
-     * @return whether the operation returns a stream
+     * @return whether the operation returns a binary stream
      */
     @SuppressWarnings("unchecked")
     static boolean markBinaryStream(final CodegenOperation op) {
@@ -2094,60 +2117,85 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             return false;
         }
         final Map<String, Object> d = (Map<String, Object>) decorators;
-        final boolean binary = "binary".equals(d.get("streamKind"));
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        final boolean sse = "sse".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean jsonLines = "jsonlines".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
         d.put("streamsBinary", binary);
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
         if (binary) {
             op.returnType = "ByteStream";
             op.returnBaseType = "ByteStream";
             op.vendorExtensions.put("phpDocReturnType", "ByteStream");
             op.vendorExtensions.put("phpNativeReturnType", "ByteStream");
         }
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "string";
+            d.put("streamTyped", !"string".equals(item));
+            d.put("streamItemPhp", item);
+            final String documented = sse ? "SseStream<" + item + ">" : "\\Generator<int, " + item + ">";
+            op.returnType = sse ? "SseStream" : "\\Generator";
+            op.returnBaseType = op.returnType;
+            op.vendorExtensions.put("phpDocReturnType", documented);
+            op.vendorExtensions.put("phpNativeReturnType", op.returnType);
+        }
         return binary;
     }
 
     /**
-     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as {@code
-     * binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and {@code
-     * hasBinaryStreamOperation}), so the Streaming example calls a real operation of the spec under
-     * generation. Nothing is rendered when the spec has none.
+     * Hands the README and SKILLS the first operation of each streaming kind, as {@code
+     * binaryStreamOperation}, {@code sseStreamOperation} and {@code jsonLinesStreamOperation} (each
+     * with its {@code ...Group}, its operations map, and a {@code has...Operation} flag), so the
+     * Streaming examples call real operations of the spec under generation. Nothing is rendered for a
+     * kind the spec has none of.
      */
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        CodegenOperation found = null;
-        Object group = null;
-        final Object apiInfo = objs.get("apiInfo");
-        if (apiInfo instanceof Map) {
-            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
-            if (apis instanceof List) {
-                for (final Object api : (List<Object>) apis) {
-                    final Object operations = ((Map<String, Object>) api).get("operations");
-                    if (!(operations instanceof Map)) {
-                        continue;
-                    }
-                    final Object list = ((Map<String, Object>) operations).get("operation");
-                    if (!(list instanceof List)) {
-                        continue;
-                    }
-                    for (final Object candidate : (List<Object>) list) {
-                        final CodegenOperation op = (CodegenOperation) candidate;
-                        final Object decorators =
-                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-                        if (found == null
-                                && decorators instanceof Map
-                                && Boolean.TRUE.equals(
-                                        ((Map<String, Object>) decorators).get("streamsBinary"))) {
-                            found = op;
-                            group = operations;
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
                         }
                     }
                 }
             }
-        }
-        objs.put("hasBinaryStreamOperation", found != null);
-        if (found != null) {
-            objs.put("binaryStreamOperation", found);
-            objs.put("binaryStreamGroup", group);
+            final String name = names[kind];
+            objs.put(
+                    "has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation",
+                    found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
         }
         return super.postProcessSupportingFileData(objs);
     }
