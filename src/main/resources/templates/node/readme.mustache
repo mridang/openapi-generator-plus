@@ -29,24 +29,18 @@ charset decoding, and header injection are identical everywhere:
   relies on reading `Location` from a `redirect: 'manual'` response, which CORS
   makes opaque.
 
-## Quick start
+## Installation
 
 ```bash
 npm install {{npmName}}
 ```
 
-```typescript
-import { ApiError, {{clientClassName}} } from '{{npmName}}';
+## Usage
 
-const client = {{clientClassName}}.withToken('https://api.example.com', 'your-token');
+```typescript statements
+import { {{clientClassName}} } from '{{npmName}}';
 
-try {
-  const result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
-} catch (error) {
-  if (error instanceof ApiError) {
-    console.log(`API error ${error.statusCode}: ${error.message}`);
-  }
-}
+{{>usage_statements}}
 ```
 
 Every error the SDK raises derives from `{{errorPrefix}}Error`; an `ApiError` carries the HTTP status, with a subclass per status class. Authentication
@@ -127,9 +121,17 @@ and `maxRetries` for the call; `headers` replace a client default or an operatio
 of the same name, whatever its case, but never the authentication headers. A value that
 is not valid throws a `TypeError` before anything is sent.
 
-```typescript
-await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{ timeout: 2000, maxRetries: 0, headers: { 'X-Trace-Id': 'abc' } }){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```typescript file
+import { {{clientClassName}} } from '{{npmName}}';
+
+async function {{nickname}}WithinTwoSeconds(client: {{clientClassName}}): Promise<void> {
+  await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{nickname}}({{#vendorExtensions.op.requestWrapperFields}}{{^-last}}undefined, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}{ timeout: 2000, maxRetries: 0, headers: { 'X-Trace-Id': 'abc' } });
+}
 ```
+{{/exampleOperation}}
+{{/hasExampleOperation}}
 
 ### Credentials
 
@@ -152,8 +154,12 @@ credential that is missing from both throws a `TypeError` when the authenticator
 is built, never at the first call. `BearerAuthenticator` and `withToken` also take a function in place
 of the token; it is called for every request, so a token that rotates is always current:
 
-```typescript
-const client = {{clientClassName}}.withToken('https://api.example.com', async () => await readTokenFromVault());
+```typescript file
+import { {{clientClassName}} } from '{{npmName}}';
+
+function clientWithRotatingToken(readToken: () => Promise<string>): {{clientClassName}} {
+  return {{clientClassName}}.withToken('https://api.example.com', async () => await readToken());
+}
 ```
 
 {{#hasClientSchemes}}
@@ -161,8 +167,12 @@ const client = {{clientClassName}}.withToken('https://api.example.com', async ()
 
 `{{clientClassName}}` takes one optional credential for each security scheme of the API, named after the scheme:{{#clientSchemes}} `{{paramName}}`{{^-last}},{{/-last}}{{/clientSchemes}}. Pass them as an object in place of the authenticator:
 
-```typescript
-const client = new {{clientClassName}}({ {{#clientSchemes}}{{#-first}}{{paramName}}{{/-first}}{{/clientSchemes}}: schemeAuthenticator });
+```typescript file
+import { {{clientClassName}}, type Authenticator } from '{{npmName}}';
+
+function clientWithSchemeCredential(schemeAuthenticator: Authenticator): {{clientClassName}} {
+  return new {{clientClassName}}({ {{#clientSchemes}}{{#-first}}{{paramName}}{{/-first}}{{/clientSchemes}}: schemeAuthenticator });
+}
 ```
 
 Each operation uses the credential of the first scheme in its own security requirement that you gave, so a credential is only sent to an operation whose spec names its scheme, and there is no per-call override. An optional `authenticator` in the same object serves any operation none of your scheme credentials matches. An operation the spec marks as needing no authentication never sends a credential. The client takes its base URL from the first credential given (`authenticator` first), and is refused with a `TypeError` when it gets none.
@@ -183,9 +193,15 @@ copy with the given fields replaced and leaves the original alone. Building a mo
 nothing: the constructor accepts any value and never throws, so the types you wrote are the only
 check until the model is decoded (see "Unknown enum values and discriminators").
 
-```typescript
-const renamed = original.with({ name: 'new name' });
+{{#models}}{{#model}}{{#-first}}
+```typescript file
+import { {{classname}} } from '{{npmName}}';
+
+function copyOf(original: {{classname}}): {{classname}} {
+  return original.with({});
+}
 ```
+{{/-first}}{{/model}}{{/models}}
 
 ### Dates
 
@@ -199,14 +215,23 @@ a date goes in, and is sent as its UTC date. A `format: date-time` value is a `D
 Every operation takes a trailing `RequestOptions` object carrying an
 `AbortSignal`; aborting it cancels that call:
 
-```typescript
-const controller = new AbortController();
-// An operation with optional parameters takes them before the signal: pass
-// `undefined` to skip them.
-const pending = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{ signal: controller.signal }){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
-controller.abort();
-await pending; // rejects with the signal's reason (an AbortError by default)
+An operation with optional parameters takes them before the signal: pass `undefined` to skip
+them. The cancelled call rejects with the signal's reason (an `AbortError` by default).
+
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```typescript file
+import { {{clientClassName}} } from '{{npmName}}';
+
+async function {{nickname}}Cancelled(client: {{clientClassName}}): Promise<void> {
+  const controller = new AbortController();
+  const pending = client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{nickname}}({{#vendorExtensions.op.requestWrapperFields}}{{^-last}}undefined, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}{ signal: controller.signal });
+  controller.abort();
+  await pending;
+}
 ```
+{{/exampleOperation}}
+{{/hasExampleOperation}}
 
 Pass a client-level signal as the third constructor argument
 (`new {{clientClassName}}(authenticator, undefined, { signal })`) to cancel every call made
@@ -227,7 +252,7 @@ those belong on the `fetch` you provide.
 
 Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```typescript
+```typescript file
 import type { {{#apiInfo}}{{#apis}}{{#operations}}{{classname}}Interface, {{/operations}}{{/apis}}{{/apiInfo}}{{clientClassName}}Interface } from '{{npmName}}';
 
 // Code under test takes the group interface, never the generated class.
@@ -239,7 +264,7 @@ const fake = {} as Partial<{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clas
 use(fake);
 
 const client: {{clientClassName}}Interface = {
-{{#apiInfo}}{{#apis}}{{#operations}}  {{clientPropertyName}}: fake as {{classname}}Interface,
+{{#apiInfo}}{{#apis}}{{#operations}}  {{clientPropertyName}}: fake as unknown as {{classname}}Interface,
 {{/operations}}{{/apis}}{{/apiInfo}}  close: async () => {
     calls.push('close');
   },
@@ -253,8 +278,10 @@ A new operation in the API adds a member to the interface, so a fake typed as th
 
 A call hook is one small, optional object that runs around every operation call. Before the request is sent it can read and edit the request headers, and when the call ends it is told the status or the error. A client with no hook does nothing extra. The hook runs once per call, however many sends happen inside it (transport retries, the one replay after a 401), and also when you supply the transport.
 
-```typescript
-import { {{clientClassName}}, type CallHook } from '{{npmName}}';
+```typescript file
+import { BearerAuthenticator, {{clientClassName}}, type CallHook } from '{{npmName}}';
+
+const authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
 
 const timing: CallHook = {
   start(info, headers) {
@@ -275,8 +302,11 @@ const client = new {{clientClassName}}(authenticator, undefined, { callHook: tim
 
 For OpenTelemetry, the `{{npmName}}/opentelemetry` entry point provides `createOpenTelemetryCallHook()`. It records one span named with the operation id (kind client), one `http.client.request.count` and one `http.client.request.duration` (seconds) per call, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` and `error.type` attributes, and writes `traceparent` itself. It is built on `@opentelemetry/api`, an optional peer dependency, and records nothing when no provider is registered. Pass `{ tracerProvider, meterProvider }` to use providers other than the global ones.
 
-```typescript
+```typescript file
+import { BearerAuthenticator, {{clientClassName}} } from '{{npmName}}';
 import { createOpenTelemetryCallHook } from '{{npmName}}/opentelemetry';
+
+const authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
 
 const traced = new {{clientClassName}}(authenticator, undefined, { callHook: createOpenTelemetryCallHook() });
 ```

@@ -4,7 +4,7 @@
 
 Add to your `mix.exs`:
 
-```elixir
+```text
 defp deps do
   [
     {:petstore_client, "~> 1.0.0"}
@@ -20,8 +20,19 @@ mix deps.get
 
 ## Quick Start
 
-```elixir
-client = PetstoreClient.Client.with_token("https://api.example.com", "your-token")
+```elixir statements
+host = System.fetch_env!("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL")
+token = System.fetch_env!("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+client = PetstoreClient.Client.with_token(host, token)
+
+try do
+  {:ok, result} =
+    PetstoreClient.Api.StoreApi.get_defaults(client.store)
+
+  IO.inspect(result)
+after
+  :ok = PetstoreClient.Client.close(client)
+end
 ```
 
 ## Authentication
@@ -30,72 +41,112 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```elixir
-authenticator = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
-client = PetstoreClient.Client.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+
+    PetstoreClient.Client.new(authenticator)
+  end
+end
 ```
 
 ### Basic Auth
 
-```elixir
-authenticator = PetstoreClient.Auth.BasicAuthenticator.new("https://api.example.com", "username", "password")
-client = PetstoreClient.Client.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = PetstoreClient.Auth.BasicAuthenticator.new("https://api.example.com", "username", "password")
+
+    PetstoreClient.Client.new(authenticator)
+  end
+end
 ```
 
 ### API Key
 
-```elixir
-authenticator = PetstoreClient.Auth.ApiKeyAuthenticator.new(
-  "https://api.example.com", "key-name", "key-value", :header)
-client = PetstoreClient.Client.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = PetstoreClient.Auth.ApiKeyAuthenticator.new(
+      "https://api.example.com", "key-name", "key-value", :header)
+
+    PetstoreClient.Client.new(authenticator)
+  end
+end
 ```
 
 ### OAuth2 Client Credentials
 
-```elixir
-authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [])
-client = PetstoreClient.Client.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [])
+
+    PetstoreClient.Client.new(authenticator)
+  end
+end
 ```
 
 ### OAuth2 Authorization Code
 
-```elixir
-authenticator = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret",
-  "https://auth.example.com/authorize", "https://auth.example.com/token",
-  "https://app.example.com/callback", [])
-client = PetstoreClient.Client.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret",
+      "https://auth.example.com/authorize", "https://auth.example.com/token",
+      "https://app.example.com/callback", [])
+
+    PetstoreClient.Client.new(authenticator)
+  end
+end
 ```
 
 ### OAuth2 Password
 
-```elixir
-authenticator = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret",
-  "https://auth.example.com/token", "username", "password", [])
-client = PetstoreClient.Client.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret",
+      "https://auth.example.com/token", "username", "password", [])
+
+    PetstoreClient.Client.new(authenticator)
+  end
+end
 ```
 
 ### OAuth2 Implicit
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```elixir
-authenticator =
-  PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
-    "https://api.example.com", "client-id", "https://auth.example.com/authorize", [])
-  |> PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token("your-access-token")
-client = PetstoreClient.Client.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator =
+      PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+        "https://api.example.com", "client-id", "https://auth.example.com/authorize", [])
+      |> PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token("your-access-token")
+
+    PetstoreClient.Client.new(authenticator)
+  end
+end
 ```
 
 ### OpenID Connect
 
-```elixir
-authenticator = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.new(
-  "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
-  "client-id", "client-secret", "https://app.example.com/callback", [])
-client = PetstoreClient.Client.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.new(
+      "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+      "client-id", "client-secret", "https://app.example.com/callback", [])
+
+    PetstoreClient.Client.new(authenticator)
+  end
+end
 ```
 
 ### OAuth2 token lifecycle
@@ -129,26 +180,34 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```elixir
-authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [],
-  client_auth_method: :basic)
+```elixir file
+defmodule BasicClientAuthentication do
+  def authenticator do
+    PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [],
+      client_auth_method: :basic)
+  end
+end
 ```
 
 ## Servers
 
 If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`, plus a `PetstoreClient.Servers.all/0` list. Pass the desired server's URL to the client:
 
-```elixir
-url = PetstoreClient.Servers.server_0() |> PetstoreClient.ServerConfiguration.url()
-client = PetstoreClient.Client.with_token(url, "your-token")
+```elixir file
+defmodule ServerClient do
+  def client do
+    url = PetstoreClient.Servers.server_0() |> PetstoreClient.ServerConfiguration.url()
+    PetstoreClient.Client.with_token(url, "your-token")
+  end
+end
 ```
 
 ## Testing
 
 The `Authenticator` behaviour is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```elixir
+```elixir file
 defmodule FakeAuthenticator do
   @behaviour PetstoreClient.Auth.Authenticator
 
@@ -167,7 +226,9 @@ defmodule FakeAuthenticator do
   def cookie_params(_), do: %{}
 end
 
-client = PetstoreClient.Client.new(%FakeAuthenticator{})
+defmodule FakeClient do
+  def client, do: PetstoreClient.Client.new(%FakeAuthenticator{})
+end
 ```
 
 ## Error Handling
@@ -203,30 +264,34 @@ Every failure the SDK raises or returns is one of the exceptions listed by `Pets
     - `NetworkError` (no HTTP response, status 0)
       - `NetworkTimeoutError` (the request timed out, status 0)
 
-```elixir
-case PetstoreClient.Api.PetApi.add_pet(client.pet, pet) do
-  {:ok, result} ->
-    IO.inspect(result)
+```elixir file
+defmodule ErrorHandling do
+  def add_pet_or_report(client, pet, options \\ nil) do
+    case PetstoreClient.Api.PetApi.add_pet(client.pet, pet, options) do
+      {:ok, result} ->
+        IO.inspect(result)
 
-  {:error, %PetstoreClient.Errors.NotFoundError{} = e} ->
-    IO.puts("Not found: #{e.message}")
+      {:error, %PetstoreClient.Errors.NotFoundError{} = e} ->
+        IO.puts("Not found: #{e.message}")
 
-  # Elixir has no inheritance: each error in the hierarchy above has a
-  # predicate that is true for it and for every error below it.
-  {:error, e} ->
-    cond do
-      PetstoreClient.Errors.ClientError.client_error?(e) ->
-        IO.puts("Client error #{e.status_code}: #{e.message}")
+      # Elixir has no inheritance: each error in the hierarchy above has a
+      # predicate that is true for it and for every error below it.
+      {:error, e} ->
+        cond do
+          PetstoreClient.Errors.ClientError.client_error?(e) ->
+            IO.puts("Client error #{e.status_code}: #{e.message}")
 
-      PetstoreClient.Errors.ServerError.server_error?(e) ->
-        IO.puts("Server error: #{e.message}")
+          PetstoreClient.Errors.ServerError.server_error?(e) ->
+            IO.puts("Server error: #{e.message}")
 
-      PetstoreClient.Errors.OpenAPIError.open_api_error?(e) ->
-        IO.puts("SDK error: #{Exception.message(e)}")
+          PetstoreClient.Errors.OpenAPIError.open_api_error?(e) ->
+            IO.puts("SDK error: #{Exception.message(e)}")
 
-      true ->
-        IO.puts("Error: #{Exception.message(e)}")
+          true ->
+            IO.puts("Error: #{Exception.message(e)}")
+        end
     end
+  end
 end
 ```
 
@@ -238,50 +303,75 @@ The text of an `ApiError` (`Exception.message/1`) cuts the response body at 1 Ki
 
 ### Custom Transport Options
 
-```elixir
-transport = PetstoreClient.TransportOptions.new(
-  proxy: "http://proxy:3128",
-  timeout: 5000
-)
+```elixir file
+defmodule ProxiedClient do
+  def client do
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
 
-client = PetstoreClient.Client.new(authenticator, transport)
+    transport =
+      PetstoreClient.TransportOptions.new(
+        proxy: "http://proxy:3128",
+        timeout: 5000
+      )
+
+    PetstoreClient.Client.new(authenticator, transport)
+  end
+end
 ```
 
 ### Retries
 
 `max_retries` on `TransportOptions` is how many times a failed call is tried again (default `2`; `0` turns retries off). A call is retried after a network error that happened before any response, and after a response with status 408, 409, 429 or 500 to 599 other than 501 (a timeout, 400, 401, 403, 404, 422 and 501 are not retried). The wait starts at 0.5 s and doubles up to 8 s, less up to 25% jitter; a `Retry-After` header (seconds or an HTTP date) replaces it, capped at 60 s. Every retry is a fresh request: headers, authentication included, are rebuilt. Retries share the single end-to-end `timeout` and never extend it.
 
-```elixir
-transport = PetstoreClient.TransportOptions.new(max_retries: 0)
-client = PetstoreClient.Client.new(authenticator, transport)
+```elixir file
+defmodule NoRetriesClient do
+  def client do
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+    transport = PetstoreClient.TransportOptions.new(max_retries: 0)
+    PetstoreClient.Client.new(authenticator, transport)
+  end
+end
 ```
 
 ### Custom HTTP client
 
 Pass Req options such as an `:adapter` function or a `:plug` through `req_options`. The SDK's own settings (timeouts, redirect policy, proxy, TLS, user agent) are applied on top, and the SDK never closes anything you supply. Combining `:connect_options` or `:finch` with `proxy`, `ca_cert_path` or `verify_ssl: false` raises `ArgumentError`.
 
-```elixir
-transport = PetstoreClient.TransportOptions.new(req_options: [adapter: &MyApp.Http.adapter/1])
-
-client = PetstoreClient.Client.new(authenticator, transport)
+```elixir file
+defmodule AdapterClient do
+  def client do
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+    adapter = fn request -> {request, Req.Response.new(status: 200)} end
+    transport = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
+    PetstoreClient.Client.new(authenticator, transport)
+  end
+end
 ```
 
 ### Per-call options
 
 Every operation takes an optional options struct, even one with no query, header, form or cookie parameter. It carries `timeout` (milliseconds), `headers` (a map) and `max_retries`; there is no per-call credential. The same three settings can be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list, which wins over the struct. Each replaces the client's own setting for that one call.
 
-```elixir
-options = %PetstoreClient.Api.Options.GetItemOptions{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
-PetstoreClient.Api.ItemsApi.get_item(client.items, 7, options)
-PetstoreClient.Api.ItemsApi.get_item(client.items, 7, nil, timeout: 5_000)
+```elixir file
+defmodule PerCall do
+  def call(client) do
+    options = %PetstoreClient.Api.Options.GetDefaultsOptions{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
+    PetstoreClient.Api.StoreApi.get_defaults(client.store, options)
+    PetstoreClient.Api.StoreApi.get_defaults(client.store, nil, timeout: 5_000)
+  end
+end
 ```
 
 ### Credentials
 
 The client takes one optional credential for each security scheme, named after the scheme, in the keyword list that is its third argument: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. An operation uses the credential of the first scheme its own security requirement lists that the client holds; the authenticator in the first argument serves an operation that none of them matches, and an operation declared `security: []` sends no credential. There is no per-call override, and the client is refused when it gets no credential at all.
 
-```elixir
-client = PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
+```elixir file
+defmodule SchemeCredential do
+  def client(credential) do
+    PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
+  end
+end
 ```
 
 Pass `nil` for a credential (or leave it out of a security scheme's authenticator) and the authenticator reads it once, when it is built, from an environment variable. A value you pass wins, an empty variable counts as unset, and a missing required credential raises `ArgumentError` when the client is built. A bearer token or an API key may be a zero-argument function that returns it, called for every request.
@@ -316,8 +406,12 @@ Each security scheme reads its own variables, named `SWAGGER_PETSTORE_OPEN_API_3
 
 An authenticator you build without a scheme (`BearerAuthenticator`, `BasicAuthenticator`, `ApiKeyAuthenticator`) reads `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` or `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`. Set `envVarPrefix` when generating to change the `SWAGGER_PETSTORE_OPEN_API_3_0` prefix.
 
-```elixir
-authenticator = PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", fn -> MyApp.Tokens.current() end)
+```elixir file
+defmodule RotatingToken do
+  def authenticator do
+    PetstoreClient.Auth.BearerAuthenticator.new("https://api.example.com", fn -> System.fetch_env!("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN") end)
+  end
+end
 ```
 
 ### Cancellation
@@ -330,7 +424,7 @@ Every operation calls one small, optional hook around the call. The hook can edi
 
 A hook is a module that implements the `PetstoreClient.CallHook` behaviour, or `{module, opts}`. `start(info, headers)` returns the headers to send and a state, or `nil`. `info` is a `CallInfo` (`operation_id`, `method`, `url_template`, `url`, `server_address`), `headers` is the final request header map and `outcome` is a `CallOutcome` (`status_code`, `headers`, `error`). `start` runs once per call, `finish(state, outcome)` exactly once on every way the call can end, an error raised by `start` reaches the caller and an error raised by `finish` is swallowed. `CallHook.chain([first, second])` runs several hooks in order.
 
-```elixir
+```elixir file
 defmodule TenantHook do
   @behaviour PetstoreClient.CallHook
 
@@ -341,7 +435,11 @@ defmodule TenantHook do
   def finish(_state, _outcome), do: :ok
 end
 
-client = PetstoreClient.Client.with_token("/api/v3", "token", nil, call_hook: TenantHook)
+defmodule TenantClient do
+  def build do
+    PetstoreClient.Client.with_token("https://api.example.com", "token", nil, call_hook: TenantHook)
+  end
+end
 ```
 
 For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCallHook` recipe that records one span, one request count and one duration per call.
@@ -350,8 +448,10 @@ For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCal
 
 `PetstoreClient.Client.close/1` closes the client and is idempotent. A call already in flight finishes, and a call that starts after it raises `RuntimeError` ("ApiClient has been closed and can no longer send requests"). The processes the SDK started (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. A transport you supply through `req_options` is never closed by the SDK.
 
-```elixir
-:ok = PetstoreClient.Client.close(client)
+```elixir file
+defmodule Closing do
+  def close(client), do: :ok = PetstoreClient.Client.close(client)
+end
 ```
 
 ### Cookie parameters
@@ -368,12 +468,14 @@ Each API group is exposed as a typed field on the client (e.g., `client.pet`). A
 
 ## Models
 
-Models are generated as Elixir structs under the `PetstoreClient.Models` namespace. A property the spec marks required (and that has no default) is an enforced key: the struct cannot be built without it, so the example gives each one; replace `nil` with a value of the field's type.
+Models are generated as Elixir structs under the `PetstoreClient.Models` namespace. A property the spec marks required (and that has no default) is an enforced key: the struct cannot be built without it.
 
-```elixir
-model = %PetstoreClient.Models.Account{
-  username: nil,
-}
+```elixir file
+defmodule ModelCopy do
+  def copy_of(%PetstoreClient.Models.Account{} = model) do
+    %{model | id: model.id}
+  end
+end
 ```
 
 Models never change in place. Make a changed copy with the struct update syntax: `%{model | name: "new"}`.

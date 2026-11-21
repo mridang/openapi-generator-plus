@@ -4,7 +4,7 @@
 
 Add to your `mix.exs`:
 
-```elixir
+```text
 defp deps do
   [
     {:{{packageName}}, "~> {{packageVersion}}"}
@@ -20,8 +20,8 @@ mix deps.get
 
 ## Quick Start
 
-```elixir
-client = {{moduleName}}.{{clientClassName}}.with_token("https://api.example.com", "your-token")
+```elixir statements
+{{>usage_statements}}
 ```
 
 ## Authentication
@@ -30,60 +30,90 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```elixir
-authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
-client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
 ```
 
 {{#hasBasicAuth}}
 ### Basic Auth
 
-```elixir
-authenticator = {{moduleName}}.Auth.BasicAuthenticator.new("https://api.example.com", "username", "password")
-client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.BasicAuthenticator.new("https://api.example.com", "username", "password")
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
 ```
 
 {{/hasBasicAuth}}
 {{#hasApiKeyAuth}}
 ### API Key
 
-```elixir
-authenticator = {{moduleName}}.Auth.ApiKeyAuthenticator.new(
-  "https://api.example.com", "key-name", "key-value", :header)
-client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.ApiKeyAuthenticator.new(
+      "https://api.example.com", "key-name", "key-value", :header)
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
 ```
 
 {{/hasApiKeyAuth}}
 {{#hasOAuth2ClientCredentials}}
 ### OAuth2 Client Credentials
 
-```elixir
-authenticator = {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [])
-client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [])
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
 ```
 
 {{/hasOAuth2ClientCredentials}}
 {{#hasOAuth2AuthorizationCode}}
 ### OAuth2 Authorization Code
 
-```elixir
-authenticator = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret",
-  "https://auth.example.com/authorize", "https://auth.example.com/token",
-  "https://app.example.com/callback", [])
-client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret",
+      "https://auth.example.com/authorize", "https://auth.example.com/token",
+      "https://app.example.com/callback", [])
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
 ```
 
 {{/hasOAuth2AuthorizationCode}}
 {{#hasOAuth2Password}}
 ### OAuth2 Password
 
-```elixir
-authenticator = {{moduleName}}.Auth.OAuth.OAuth2PasswordAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret",
-  "https://auth.example.com/token", "username", "password", [])
-client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.OAuth.OAuth2PasswordAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret",
+      "https://auth.example.com/token", "username", "password", [])
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
 ```
 
 {{/hasOAuth2Password}}
@@ -92,23 +122,33 @@ client = {{moduleName}}.{{clientClassName}}.new(authenticator)
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```elixir
-authenticator =
-  {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
-    "https://api.example.com", "client-id", "https://auth.example.com/authorize", [])
-  |> {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token("your-access-token")
-client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator =
+      {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+        "https://api.example.com", "client-id", "https://auth.example.com/authorize", [])
+      |> {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token("your-access-token")
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
 ```
 
 {{/hasOAuth2Implicit}}
 {{#hasOpenIdConnect}}
 ### OpenID Connect
 
-```elixir
-authenticator = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.new(
-  "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
-  "client-id", "client-secret", "https://app.example.com/callback", [])
-client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.new(
+      "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+      "client-id", "client-secret", "https://app.example.com/callback", [])
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
 ```
 
 {{/hasOpenIdConnect}}
@@ -144,10 +184,14 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```elixir
-authenticator = {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
-  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [],
-  client_auth_method: :basic)
+```elixir file
+defmodule BasicClientAuthentication do
+  def authenticator do
+    {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [],
+      client_auth_method: :basic)
+  end
+end
 ```
 
 {{/hasAnyOAuth2}}
@@ -156,9 +200,13 @@ authenticator = {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.n
 
 If the OpenAPI spec defines multiple servers, the generated `{{moduleName}}.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`, plus a `{{moduleName}}.Servers.all/0` list. Pass the desired server's URL to the client:
 
-```elixir
-url = {{moduleName}}.Servers.server_0() |> {{moduleName}}.ServerConfiguration.url()
-client = {{moduleName}}.{{clientClassName}}.with_token(url, "your-token")
+```elixir file
+defmodule ServerClient do
+  def client do
+    url = {{moduleName}}.Servers.server_0() |> {{moduleName}}.ServerConfiguration.url()
+    {{moduleName}}.{{clientClassName}}.with_token(url, "your-token")
+  end
+end
 ```
 
 {{/hasServers}}
@@ -167,7 +215,7 @@ client = {{moduleName}}.{{clientClassName}}.with_token(url, "your-token")
 
 The `Authenticator` behaviour is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```elixir
+```elixir file
 defmodule FakeAuthenticator do
   @behaviour {{moduleName}}.Auth.Authenticator
 
@@ -186,7 +234,9 @@ defmodule FakeAuthenticator do
   def cookie_params(_), do: %{}
 end
 
-client = {{moduleName}}.{{clientClassName}}.new(%FakeAuthenticator{})
+defmodule FakeClient do
+  def client, do: {{moduleName}}.{{clientClassName}}.new(%FakeAuthenticator{})
+end
 ```
 
 ## Error Handling
@@ -222,32 +272,36 @@ Every failure the SDK raises or returns is one of the exceptions listed by `{{mo
     - `NetworkError` (no HTTP response, status 0)
       - `NetworkTimeoutError` (the request timed out, status 0)
 
-```elixir
-case {{moduleName}}.Api.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}(client.{{clientPropertyName}}{{#operation}}{{#-first}}{{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}, {{paramName}}{{/isPath}}{{#isBody}}, {{paramName}}{{/isBody}}{{#isOptions}}{{#vendorExtensions.op.optionsParamRequired}}, options{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}) do
-  {:ok, result} ->
-    IO.inspect(result)
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}```elixir file
+defmodule ErrorHandling do
+  def {{operationId}}_or_report(client{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}{{#vendorExtensions.op.optionsParamRequired}}options{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}) do
+    case {{moduleName}}.Api.{{classname}}.{{operationId}}(client.{{clientPropertyName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) do
+      {:ok, result} ->
+        IO.inspect(result)
 
-  {:error, %{{moduleName}}.Errors.NotFoundError{} = e} ->
-    IO.puts("Not found: #{e.message}")
+      {:error, %{{moduleName}}.Errors.NotFoundError{} = e} ->
+        IO.puts("Not found: #{e.message}")
 
-  # Elixir has no inheritance: each error in the hierarchy above has a
-  # predicate that is true for it and for every error below it.
-  {:error, e} ->
-    cond do
-      {{moduleName}}.Errors.ClientError.client_error?(e) ->
-        IO.puts("Client error #{e.status_code}: #{e.message}")
+      # Elixir has no inheritance: each error in the hierarchy above has a
+      # predicate that is true for it and for every error below it.
+      {:error, e} ->
+        cond do
+          {{moduleName}}.Errors.ClientError.client_error?(e) ->
+            IO.puts("Client error #{e.status_code}: #{e.message}")
 
-      {{moduleName}}.Errors.ServerError.server_error?(e) ->
-        IO.puts("Server error: #{e.message}")
+          {{moduleName}}.Errors.ServerError.server_error?(e) ->
+            IO.puts("Server error: #{e.message}")
 
-      {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(e) ->
-        IO.puts("SDK error: #{Exception.message(e)}")
+          {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(e) ->
+            IO.puts("SDK error: #{Exception.message(e)}")
 
-      true ->
-        IO.puts("Error: #{Exception.message(e)}")
+          true ->
+            IO.puts("Error: #{Exception.message(e)}")
+        end
     end
+  end
 end
-```
+```{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 
 An error that answers a request carries `request_method` (`"GET"`) and `request_path` (the path without the query string); its message has a `Request: GET /path` line after the status line.
 
@@ -257,51 +311,80 @@ The text of an `ApiError` (`Exception.message/1`) cuts the response body at 1 Ki
 
 ### Custom Transport Options
 
-```elixir
-transport = {{moduleName}}.TransportOptions.new(
-  proxy: "http://proxy:3128",
-  timeout: 5000
-)
+```elixir file
+defmodule ProxiedClient do
+  def client do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
 
-client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+    transport =
+      {{moduleName}}.TransportOptions.new(
+        proxy: "http://proxy:3128",
+        timeout: 5000
+      )
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+  end
+end
 ```
 
 ### Retries
 
 `max_retries` on `TransportOptions` is how many times a failed call is tried again (default `2`; `0` turns retries off). A call is retried after a network error that happened before any response, and after a response with status 408, 409, 429 or 500 to 599 other than 501 (a timeout, 400, 401, 403, 404, 422 and 501 are not retried). The wait starts at 0.5 s and doubles up to 8 s, less up to 25% jitter; a `Retry-After` header (seconds or an HTTP date) replaces it, capped at 60 s. Every retry is a fresh request: headers, authentication included, are rebuilt. Retries share the single end-to-end `timeout` and never extend it.
 
-```elixir
-transport = {{moduleName}}.TransportOptions.new(max_retries: 0)
-client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+```elixir file
+defmodule NoRetriesClient do
+  def client do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+    transport = {{moduleName}}.TransportOptions.new(max_retries: 0)
+    {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+  end
+end
 ```
 
 ### Custom HTTP client
 
 Pass Req options such as an `:adapter` function or a `:plug` through `req_options`. The SDK's own settings (timeouts, redirect policy, proxy, TLS, user agent) are applied on top, and the SDK never closes anything you supply. Combining `:connect_options` or `:finch` with `proxy`, `ca_cert_path` or `verify_ssl: false` raises `ArgumentError`.
 
-```elixir
-transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: &MyApp.Http.adapter/1])
-
-client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+```elixir file
+defmodule AdapterClient do
+  def client do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+    adapter = fn request -> {request, Req.Response.new(status: 200)} end
+    transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter])
+    {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+  end
+end
 ```
 
 ### Per-call options
 
 Every operation takes an optional options struct, even one with no query, header, form or cookie parameter. It carries `timeout` (milliseconds), `headers` (a map) and `max_retries`; there is no per-call credential. The same three settings can be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list, which wins over the struct. Each replaces the client's own setting for that one call.
 
-```elixir
-options = %{{moduleName}}.Api.Options.GetItemOptions{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
-{{moduleName}}.Api.ItemsApi.get_item(client.items, 7, options)
-{{moduleName}}.Api.ItemsApi.get_item(client.items, 7, nil, timeout: 5_000)
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```elixir file
+defmodule PerCall do
+  def call(client) do
+    options = %{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
+    {{moduleName}}.Api.{{#exampleOperationGroup}}{{classname}}{{/exampleOperationGroup}}.{{operationId}}(client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}, options)
+    {{moduleName}}.Api.{{#exampleOperationGroup}}{{classname}}{{/exampleOperationGroup}}.{{operationId}}(client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}, nil, timeout: 5_000)
+  end
+end
 ```
+{{/exampleOperation}}
+{{/hasExampleOperation}}
 
 ### Credentials
 
 {{#hasClientSchemes}}
 The client takes one optional credential for each security scheme, named after the scheme, in the keyword list that is its third argument: {{#clientSchemes}}`{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}`{{^-last}}, {{/-last}}{{/clientSchemes}}. An operation uses the credential of the first scheme its own security requirement lists that the client holds; the authenticator in the first argument serves an operation that none of them matches, and an operation declared `security: []` sends no credential. There is no per-call override, and the client is refused when it gets no credential at all.
 
-```elixir
-client = {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
+```elixir file
+defmodule SchemeCredential do
+  def client(credential) do
+    {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
+  end
+end
 ```
 
 {{/hasClientSchemes}}
@@ -319,8 +402,12 @@ Each security scheme reads its own variables, named `{{envVarPrefix}}_<FIELD>`, 
 An authenticator you build without a scheme (`BearerAuthenticator`, `BasicAuthenticator`, `ApiKeyAuthenticator`) reads `{{envVarPrefix}}_TOKEN`, `{{envVarPrefix}}_USERNAME`, `{{envVarPrefix}}_PASSWORD` or `{{envVarPrefix}}_API_KEY`. Set `envVarPrefix` when generating to change the `{{envVarPrefix}}` prefix.
 {{/hasSecuritySchemeEnvVars}}
 
-```elixir
-authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", fn -> MyApp.Tokens.current() end)
+```elixir file
+defmodule RotatingToken do
+  def authenticator do
+    {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", fn -> System.fetch_env!("{{envVarPrefix}}_TOKEN") end)
+  end
+end
 ```
 
 ### Cancellation
@@ -333,7 +420,7 @@ Every operation calls one small, optional hook around the call. The hook can edi
 
 A hook is a module that implements the `{{moduleName}}.CallHook` behaviour, or `{module, opts}`. `start(info, headers)` returns the headers to send and a state, or `nil`. `info` is a `CallInfo` (`operation_id`, `method`, `url_template`, `url`, `server_address`), `headers` is the final request header map and `outcome` is a `CallOutcome` (`status_code`, `headers`, `error`). `start` runs once per call, `finish(state, outcome)` exactly once on every way the call can end, an error raised by `start` reaches the caller and an error raised by `finish` is swallowed. `CallHook.chain([first, second])` runs several hooks in order.
 
-```elixir
+```elixir file
 defmodule TenantHook do
   @behaviour {{moduleName}}.CallHook
 
@@ -344,7 +431,11 @@ defmodule TenantHook do
   def finish(_state, _outcome), do: :ok
 end
 
-client = {{moduleName}}.{{clientClassName}}.with_token("{{{basePath}}}", "token", nil, call_hook: TenantHook)
+defmodule TenantClient do
+  def build do
+    {{moduleName}}.{{clientClassName}}.with_token("https://api.example.com", "token", nil, call_hook: TenantHook)
+  end
+end
 ```
 
 For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCallHook` recipe that records one span, one request count and one duration per call.
@@ -353,8 +444,10 @@ For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCal
 
 `{{moduleName}}.{{clientClassName}}.close/1` closes the client and is idempotent. A call already in flight finishes, and a call that starts after it raises `RuntimeError` ("ApiClient has been closed and can no longer send requests"). The processes the SDK started (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. A transport you supply through `req_options` is never closed by the SDK.
 
-```elixir
-:ok = {{moduleName}}.{{clientClassName}}.close(client)
+```elixir file
+defmodule Closing do
+  def close(client), do: :ok = {{moduleName}}.{{clientClassName}}.close(client)
+end
 ```
 
 ### Cookie parameters
@@ -371,22 +464,21 @@ Each API group is exposed as a typed field on the client (e.g., `client.{{#apiIn
 
 ## Models
 
-Models are generated as Elixir structs under the `{{moduleName}}.Models` namespace. A property the spec marks required (and that has no default) is an enforced key: the struct cannot be built without it, so the example gives each one; replace `nil` with a value of the field's type.
+Models are generated as Elixir structs under the `{{moduleName}}.Models` namespace. A property the spec marks required (and that has no default) is an enforced key: the struct cannot be built without it.
 
-```elixir
-{{#models}}{{#model}}{{#-first}}model = %{{moduleName}}.Models.{{classname}}{
-{{#requiredVars}}
-{{^defaultValue}}
-  {{name}}: nil,
-{{/defaultValue}}
-{{#defaultValue}}
-{{#isDiscriminator}}
-  {{name}}: nil,
-{{/isDiscriminator}}
-{{/defaultValue}}
-{{/requiredVars}}
-}{{/-first}}{{/model}}{{/models}}
+{{#models}}{{#model}}{{#-first}}
+```elixir file
+defmodule ModelCopy do
+  def copy_of(%{{moduleName}}.Models.{{classname}}{} = model) do
+{{#vars}}
+{{#-first}}
+    %{model | {{name}}: model.{{name}}}
+{{/-first}}
+{{/vars}}
+  end
+end
 ```
+{{/-first}}{{/model}}{{/models}}
 
 Models never change in place. Make a changed copy with the struct update syntax: `%{model | name: "new"}`.
 

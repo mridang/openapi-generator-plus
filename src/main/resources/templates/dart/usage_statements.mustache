@@ -1,0 +1,27 @@
+final host = Platform.environment['{{envVarPrefix}}_BASE_URL'];
+if (host == null) {
+  throw StateError('{{envVarPrefix}}_BASE_URL is not set');
+}
+final token = Platform.environment['{{envVarPrefix}}_TOKEN'];
+if (token == null) {
+  throw StateError('{{envVarPrefix}}_TOKEN is not set');
+}
+final client = {{clientClassName}}.withToken(host: host, accessToken: token);
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+try {
+{{#returnType}}
+  final result = await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}({{#vendorExtensions.op.signatureArgs}}null{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}});
+  print(result);
+{{/returnType}}
+{{^returnType}}
+  await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}({{#vendorExtensions.op.signatureArgs}}null{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}});
+{{/returnType}}
+} finally {
+  client.close();
+}
+{{/exampleOperation}}
+{{/hasExampleOperation}}
+{{^hasExampleOperation}}
+client.close();
+{{/hasExampleOperation}}

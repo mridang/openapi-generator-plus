@@ -354,7 +354,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      */
     @Override
     protected List<SupportingFileSpec> getSupportingFileSpecs() {
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("api_client.mustache", "src", "api-client.ts"),
@@ -419,7 +419,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
-        );
+        ));
+        if (generateExamples) {
+            /* Outside src/: tsconfig.examples.json compiles it against the built package,
+             * which it imports by its own name, so it never ships in dist. */
+            specs.add(new SupportingFileSpec("examples/quickstart.mustache", "examples", "quickstart.ts"));
+            specs.add(new SupportingFileSpec("tsconfig_examples.mustache", "", "tsconfig.examples.json"));
+        }
+        return specs;
     }
 
     /** Base classes the barrel already exports, so a per-scheme class of the same name is skipped. */

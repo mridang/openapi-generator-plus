@@ -571,7 +571,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return new String[] {
             "apt-get update -qq && apt-get install -qq -y git > /dev/null 2>&1",
             "git init -q .",
-            "swift format --in-place --recursive Sources/ Tests/",
+            "swift format --in-place --recursive Sources/ Tests/"
+                + (generateExamples ? " examples/" : ""),
             "rm -rf .git"
         };
     }
@@ -636,7 +637,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 .orElse(packageName);
         final String srcDir = Path.of("Sources", pkg).toString();
         final String errorsDir = Path.of(srcDir, "Errors").toString();
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("configuration.mustache", srcDir, "Configuration.swift"),
@@ -698,7 +699,12 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES"),
             new SupportingFileSpec("swiftlint_yml.mustache", "", ".swiftlint.yml"),
             new SupportingFileSpec("swift_format_json.mustache", "", ".swift-format")
-        );
+        ));
+        if (generateExamples) {
+            /* The package declares examples/ as the executable target Quickstart. */
+            specs.add(new SupportingFileSpec("examples/quickstart.mustache", "examples", "quickstart.swift"));
+        }
+        return specs;
     }
 
     @Override

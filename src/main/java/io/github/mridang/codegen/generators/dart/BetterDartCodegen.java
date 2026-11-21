@@ -418,7 +418,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         final String errorsDir = Path.of(srcDir, "errors").toString();
         final String pkg = Optional.ofNullable((String) additionalProperties.get("packageName"))
                 .orElse(packageName);
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("configuration.mustache", srcDir, "configuration.dart"),
@@ -479,7 +479,13 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
-        );
+        ));
+        if (generateExamples) {
+            /* Outside lib/, so it never ships as package API; it imports the package by
+             * its own name, and dart analyze covers the directory with the package rules. */
+            specs.add(new SupportingFileSpec("examples/quickstart.mustache", "examples", "quickstart.dart"));
+        }
+        return specs;
     }
 
     @Override

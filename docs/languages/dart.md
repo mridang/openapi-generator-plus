@@ -76,6 +76,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - OpenTelemetry is a recipe, not a shipped adapter: the `opentelemetry` package is pre-1.0, offers no histogram, its SDK counter records nothing and Dart cannot declare an optional dependency. The generated README holds the recipe, `OpenTelemetryCallHook`, which records one span per call and hands the request count and the duration in seconds to two functions you supply; the generated test suite compiles and runs that same text.
 - An absent optional server description is an empty string, not `null`. It never goes on the wire.
 - Testing your code: `abstract interface class <Group>ApiInterface` in the group file and `ClientInterface` in `client.dart`. `BaseApi` is public, so the implicit interface of the class would force a fake to implement its members; the explicit interface avoids that. A fake implements the interface and forwards `noSuchMethod`. The tests read the source files, because Dart has no run-time reflection.
+- With `generateExamples` on, the package ships `examples/quickstart.dart`, an `async main` that imports the package by its own name, builds a client with `Client.withToken` from `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN` (a missing variable throws a `StateError`), calls the example operation and closes the client in a `finally` block. `make examples` runs `dart analyze --fatal-warnings --fatal-infos` over `examples/`, and `make examples-run` runs it with `dart run`. The README Usage fence is the quickstart's statements.
 
 ## Recipes
 

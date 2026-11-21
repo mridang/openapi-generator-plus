@@ -103,6 +103,16 @@ final class FileRoleNormaliser {
   private static final Set<String> PACKAGE_INDEX_NAMES =
       new HashSet<>(Arrays.asList("init", "index", "mod", "lib", "petstoreclient"));
 
+  /**
+   * Per language: a configuration file that exists only to build the examples, emitted with them
+   * when {@code generateExamples} is on (node type-checks {@code examples/} with its own tsconfig).
+   */
+  private static final Map<String, Set<String>> EXAMPLE_CONFIGS = new LinkedHashMap<>();
+
+  static {
+    EXAMPLE_CONFIGS.put("node", new HashSet<>(Arrays.asList("tsconfig.examples.json")));
+  }
+
   /** Per language: a file name that is the same role as another name in the other languages. */
   private static final Map<String, Map<String, String>> ALIASES = new LinkedHashMap<>();
 
@@ -252,7 +262,9 @@ final class FileRoleNormaliser {
     if (isTest(segments)) {
       return new Classified(Kind.TEST, baseName(file), "under a test folder or named as a test");
     }
-    if (path.startsWith("examples/") || path.startsWith("src/examples/")) {
+    if (path.startsWith("examples/")
+        || path.startsWith("src/examples/")
+        || EXAMPLE_CONFIGS.getOrDefault(language, Collections.emptySet()).contains(path)) {
       return new Classified(Kind.EXAMPLE, baseName(file), "shipped example program");
     }
     if (path.endsWith(".rbs") || path.startsWith("sig/")) {

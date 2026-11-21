@@ -1,4 +1,4 @@
-.PHONY: all get test lint analyze format docs clean
+.PHONY: all get test lint analyze format docs clean{{#generateExamples}} examples examples-run{{/generateExamples}}
 
 all: get
 
@@ -34,3 +34,12 @@ clean:
 	rm -rf .dart_tool/
 	rm -rf build/
 	rm -rf doc/
+{{#generateExamples}}
+
+# Analyses every file under examples with the package's analyzer rules.
+examples: get
+	dart analyze --fatal-warnings --fatal-infos examples
+
+examples-run: examples
+	{{envVarPrefix}}_BASE_URL="$(API_BASE_URL)" {{envVarPrefix}}_TOKEN=placeholder dart run examples/quickstart.dart
+{{/generateExamples}}

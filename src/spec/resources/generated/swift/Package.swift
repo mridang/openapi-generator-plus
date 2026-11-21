@@ -55,6 +55,12 @@ let package = Package(
             path: "Sources",
             swiftSettings: strictSettings
         ),
+        .executableTarget(
+            name: "Quickstart",
+            dependencies: ["PetstoreClient"],
+            path: "examples",
+            swiftSettings: strictSettings
+        ),
         .testTarget(
             name: "PetstoreClientTests",
             dependencies: [

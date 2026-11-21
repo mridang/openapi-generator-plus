@@ -1,0 +1,19 @@
+host = System.fetch_env!("{{envVarPrefix}}_BASE_URL")
+token = System.fetch_env!("{{envVarPrefix}}_TOKEN")
+client = {{moduleName}}.{{clientClassName}}.with_token(host, token)
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+
+try do
+  {:ok, result} =
+    {{moduleName}}.Api.{{#exampleOperationGroup}}{{classname}}{{/exampleOperationGroup}}.{{operationId}}(client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}})
+
+  IO.inspect(result)
+after
+  :ok = {{moduleName}}.{{clientClassName}}.close(client)
+end
+{{/exampleOperation}}
+{{/hasExampleOperation}}
+{{^hasExampleOperation}}
+:ok = {{moduleName}}.{{clientClassName}}.close(client)
+{{/hasExampleOperation}}

@@ -8,7 +8,7 @@ This generator (`dart-plus`, class `BetterDartCodegen`) emits a pure Dart packag
 - Repository root: [../../../../../../../../../AGENTS.md](../../../../../../../../../AGENTS.md)
 - Codegen class: [BetterDartCodegen.java](BetterDartCodegen.java)
 - Templates: [../../../../../../../resources/templates/dart/](../../../../../../../resources/templates/dart/)
-- Spec classes: [../../../../../../../spec/java/io/github/mridang/codegen/spec/dart/](../../../../../../../../spec/java/io/github/mridang/codegen/spec/dart/) (`DartSpec` is the shared interface; `DartClientSpec` runs `dart test`, `DartLintingSpec` runs `dart analyze --fatal-warnings --fatal-infos`, `DartFormattingSpec` checks `dart format`, `DartWasmSpec` runs `dart compile wasm`, `DartReservedWordsSpec` checks the keyword list)
+- Spec classes: [../../../../../../../spec/java/io/github/mridang/codegen/spec/dart/](../../../../../../../../spec/java/io/github/mridang/codegen/spec/dart/) (`DartSpec` is the shared interface; `DartClientSpec` runs `dart test`, `DartLintingSpec` runs `dart analyze --fatal-warnings --fatal-infos`, `DartFormattingSpec` checks `dart format`, `DartWasmSpec` runs `dart compile wasm`, `DartReservedWordsSpec` checks the keyword list, `DartExamplesSpec` builds and runs `examples/` and analyses the README and SKILLS fences)
 - Golden: [../../../../../../../spec/resources/generated/dart/](../../../../../../../../spec/resources/generated/dart/) (never hand-edit; regenerate)
 
 ## Layout
@@ -306,6 +306,14 @@ Why: Dart's lack of reflection, protected visibility and overloads forces each o
 
 ### Mock seam (mocking001 to 009, issue #122 and the Invoker line of #131)
 Rule: every API group has an interface and the client has one where the language can state it, additive next to the existing classes, using only SDK and standard-library types. `abstract interface class <Group>ApiInterface` in the group file and `ClientInterface` in `client.dart`. `BaseApi` is public, so the implicit interface of the class would force a fake to implement its members; the explicit interface avoids that. A fake implements the interface and forwards `noSuchMethod`. The tests read the source files, because Dart has no run-time reflection. Tests: test/client_test.mustache (001, 002, 007, 008), test/api/pet_api_test.mustache (003 to 006). Where: the templates named above, `BetterDartCodegen`, the README template (`Testing your code`), `docs/languages/dart.md`.
+
+## Compiled examples (#111)
+
+- `examples/quickstart.dart` (`templates/dart/examples/quickstart.mustache`, registered by `BetterDartCodegen.getSupportingFileSpecs` when `generateExamples` is on) imports `dart:io` and the package barrel and runs the statements of `usage_statements.mustache` in `Future<void> main() async`; an error escapes uncaught with its own type. The README Usage fence and the SKILLS Quick Start fence include the same partial (`langdart089`), and the README and SKILLS per-call fences share `per_call_options_fence.mustache` (a function calling the example operation with a `const` options object; omitted when there is none).
+- `dart analyze` already covers `examples/` (only dot directories are skipped), so `make analyze`, `make lint` and `DartLintingSpec` see the quickstart with the package rules; no analysis config changed. The golden formatter's `dart fix` and `dart format` also run over it, but never over the README or SKILLS, so fence text must be clean as written.
+- `unused_local_variable` is a warning and `--fatal-warnings` makes it fatal, so a fence that only builds a value is a `file` fence with a function returning it (`newClient()`, `newTransport()`, `newAuthenticator()`), the form the go fences use; the testing fence declares the fake and a `newTestClient()` function. The model fence takes a model and calls `copyWith()`, so no fence builds a model from nothing; trailing `//` comments in fences became own-line block comments, as the SKILLS comment style asks.
+- `DartExamplesSpec` writes every `dart` fence to `.out/fences/<file>_<nn>.dart`: a `file` fence as written, a `statements` fence with its leading imports on top and the rest inside `Future<void> fence() async`. The files sit inside the package, so `package:` imports resolve through `.dart_tool/package_config.json` and the root `analysis_options.yaml` applies; it runs `dart analyze --fatal-warnings --fatal-infos .out/fences`. Behaviours `langdart087` to `langdart092` are in `test/metadata_test.mustache` (group `examples`), under `{{#generateExamples}}`; `langdart091` reads the model class names from `lib/src/models`.
+- SKILLS rendered "Credentials from the environment" twice; the duplicate block is gone.
 
 ## Known limitations and out of scope
 

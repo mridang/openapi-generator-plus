@@ -75,6 +75,8 @@ class FileRoleNormaliserTest {
             row("php", "examples/quickstart.php", Kind.EXAMPLE, "quickstart"),
             row("csharp", "examples/Quickstart/Quickstart.csproj", Kind.EXAMPLE, "quickstart"),
             row("java", "src/examples/java/com/example/petstore/examples/Quickstart.java", Kind.EXAMPLE, "quickstart"),
+            row("node", "tsconfig.examples.json", Kind.EXAMPLE, "tsconfigexamples"),
+            row("rust", "examples/quickstart.rs", Kind.EXAMPLE, "quickstart"),
             row("java", "pom.xml", Kind.MANIFEST, "pomxml"),
             row("go", "go.mod", Kind.MANIFEST, "gomod"),
             row("java", "stray-build-output.log", Kind.UNKNOWN, "straybuildoutput"))

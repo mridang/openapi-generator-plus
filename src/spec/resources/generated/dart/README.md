@@ -38,16 +38,26 @@ Then run `dart pub get`.
 
 ## Usage
 
-```dart
+```dart statements
+import 'dart:io';
+
 import 'package:petstore_client/petstore_client.dart';
 
-final client = Client.withToken(
-  host: 'https://api.example.com',
-  accessToken: 'your-token',
-);
-
-// Every operation is a method on an API group, for example
-// client.pet.addPet(...).
+final host = Platform.environment['SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL'];
+if (host == null) {
+  throw StateError('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set');
+}
+final token = Platform.environment['SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN'];
+if (token == null) {
+  throw StateError('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set');
+}
+final client = Client.withToken(host: host, accessToken: token);
+try {
+  final result = await client.store.getDefaults(null);
+  print(result);
+} finally {
+  client.close();
+}
 ```
 
 Close the client with `client.close()` to release its connections. Errors derive
@@ -80,8 +90,12 @@ the request timeout: a wait that would outlast it is not taken and the last
 error is reported. A call with a multipart body is never retried. Every retry
 is a new request and asks the authenticator for its headers again.
 
-```dart
-final transport = TransportOptions.builder().maxRetries(0).build();
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+TransportOptions newTransport() {
+  return TransportOptions.builder().maxRetries(0).build();
+}
 ```
 
 ### Expired tokens
@@ -123,7 +137,7 @@ proxy and TLS settings, combining it with `proxy`, `caCertPath` or
 
 Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```dart
+```dart file
 import 'package:petstore_client/petstore_client.dart';
 
 // Code under test takes the group interface, never the generated class.
@@ -151,13 +165,18 @@ replacing the transport's), `headers` (a header already set, in any case, is
 replaced) and `maxRetries` (replacing the transport's; `0` turns retries off).
 A negative `timeout` or `maxRetries` is refused with an `ArgumentError`.
 
-```dart
-// SomeOperationOptions stands for the options class of any operation.
-const options = SomeOperationOptions(
-  timeout: 2000,
-  headers: {'X-Trace': 'abc'},
-  maxRetries: 0,
-);
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+Future<void> getDefaultsWithinTwoSeconds(Client client) async {
+  await client.store.getDefaults(
+    const GetDefaultsOptions(
+      timeout: 2000,
+      headers: {'X-Trace': 'abc'},
+      maxRetries: 0,
+    ),
+  );
+}
 ```
 
 ### Errors
@@ -208,11 +227,15 @@ The authenticator of each security scheme reads its own variables:
 `Client.withToken` uses. Set the `envVarPrefix` option to change the prefix.
 The browser has no environment: pass `environment:` a map.
 
-```dart
-final client = Client.withToken(
-  host: 'https://api.example.com',
-  tokenProvider: () async => await vault.currentToken(),
-);
+```dart file
+import 'package:petstore_client/petstore_client.dart';
+
+Client clientWithRotatingToken(Future<String> Function() readToken) {
+  return Client.withToken(
+    host: 'https://api.example.com',
+    tokenProvider: () async => await readToken(),
+  );
+}
 ```
 
 ### Credentials per security scheme
@@ -251,7 +274,7 @@ credential headers redacted in `toString()`. Set
 
 Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it once on the client or on the `Configuration`, and combine several with `chainCallHooks`, which starts them in the order given and finishes their observers in the reverse order.
 
-```dart
+```dart file
 import 'package:petstore_client/petstore_client.dart';
 
 class SourceHook implements CallHook {
@@ -273,7 +296,9 @@ final client = Client.withToken(
 
 To record one span, one request count and one duration per call, give the SDK a hook built on the OpenTelemetry API. The SDK itself has no OpenTelemetry dependency and Dart cannot detect an optional package, so this is a recipe you copy into your project rather than a class the SDK ships. It names the span after the operation id with kind client, sets `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code for a status of 400 or more, else `timeout`, `network_error`, `serialization_error` or `_OTHER`), and writes the `traceparent` of the client span into the request itself. The `opentelemetry` package offers no histogram and its SDK counter records nothing, so the count and the duration go to the functions you pass as `onRequest` and `onDuration`; forward them to your metrics library.
 
-```dart
+The function at the end of the recipe passes it as the `callHook`, with your tracer provider and propagator.
+
+```dart file
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:petstore_client/petstore_client.dart';
 
@@ -389,14 +414,8 @@ class _HeaderSetter implements otel.TextMapSetter<Map<String, String>> {
     carrier[key] = value;
   }
 }
-```
 
-Pass it as the `callHook`, with your tracer provider and propagator:
-
-```dart
-import 'package:opentelemetry/api.dart' as otel;
-
-final client = Client.withToken(
+Client tracedClient() => Client.withToken(
   host: 'https://api.example.com',
   accessToken: 'your-token',
   callHook: OpenTelemetryCallHook(

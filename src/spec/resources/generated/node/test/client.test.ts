@@ -1109,8 +1109,12 @@ describe("generated documentation", () => {
   });
 
   test("bhv langnode 043 SKILLS error handling calls the first operation with real arguments and ends in an ApiError arm", () => {
+    const errorHandling = skills.slice(
+      skills.indexOf("## Error Handling"),
+      skills.indexOf("## Configuration"),
+    );
     const call = /const result = await client\.(\w+)\.(\w+)\((.*)\);/.exec(
-      skills,
+      errorHandling,
     );
     expect(call?.[1]).toBe("pet");
     expect(call?.[2]).toBe("addPet");
@@ -1161,15 +1165,18 @@ describe("generated documentation", () => {
     expect(readme).not.toContain("no cancellation API");
   });
 
-  test("bhv langnode 045 README opens with a quick start that installs the package by name and catches ApiError", () => {
+  test("bhv langnode 045 README opens with an installation by package name, a Usage section and the error root", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
     );
 
-    expect(readme).toContain("## Quick start");
+    expect(readme).toContain("## Installation");
+    expect(readme).toContain("## Usage");
     expect(readme).toContain("npm install petstore-client");
-    expect(readme).toContain("if (error instanceof ApiError) {");
+    expect(readme).toContain(
+      "Every error the SDK raises derives from `OpenAPIError`",
+    );
     expect(readme).toContain("[SKILLS.md](SKILLS.md)");
   });
 
@@ -1213,6 +1220,100 @@ describe("generated documentation", () => {
     expect(() =>
       TransportOptions.builder().proxy("socks5://proxy:1080"),
     ).toThrow(TypeError);
+  });
+
+  const rootFile = (name: string): string =>
+    fs.readFileSync(path.join(process.cwd(), name), "utf8");
+  const typescriptFences = (
+    text: string,
+  ): Array<{ info: string; body: string }> =>
+    [...text.matchAll(/^```(typescript[^\n]*)\n([\s\S]*?)^```/gm)].map((m) => ({
+      info: m[1],
+      body: m[2],
+    }));
+  const quickstart = rootFile("examples/quickstart.ts");
+
+  test("bhv langnode 175 ships a quickstart that builds a client, calls an operation and closes it", () => {
+    expect(quickstart).toContain("petstore-client");
+    expect(quickstart).toContain("Client.withToken(host, token)");
+    expect(quickstart).toContain("client.store.getDefaults(");
+    expect(quickstart).toContain("await client.close();");
+  });
+
+  test("bhv langnode 176 reads the host and the token from the variables the README names", () => {
+    const readme = rootFile("README.md");
+
+    for (const name of [
+      "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL",
+      "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN",
+    ]) {
+      expect(quickstart).toContain(`process.env.${name}`);
+      expect(readme).toContain(name);
+    }
+    expect(quickstart).not.toContain("your-token");
+  });
+
+  test("bhv langnode 177 holds the statements of the README Usage fence in the quickstart, in order", () => {
+    const readme = rootFile("README.md");
+    const usage = readme.slice(readme.indexOf("\n## Usage\n"));
+    const fence = typescriptFences(
+      usage.slice(0, usage.indexOf("\n## ", 1)),
+    )[0];
+    expect(fence).toBeDefined();
+    let position = 0;
+    for (const line of fence.body.split("\n").map((l) => l.trim())) {
+      if (line === "" || line.startsWith("import ")) {
+        continue;
+      }
+      const found = quickstart.indexOf(line, position);
+      expect({ line, found: found >= 0 }).toEqual({ line, found: true });
+      position = found + line.length;
+    }
+  });
+
+  test("bhv langnode 178 declares the kind of every typescript fence of README.md and SKILLS.md", () => {
+    for (const name of ["README.md", "SKILLS.md"]) {
+      for (const { info } of typescriptFences(rootFile(name))) {
+        expect({
+          name,
+          info: ["typescript file", "typescript statements"].includes(info),
+        }).toEqual({ name, info: true });
+      }
+    }
+  });
+
+  test("bhv langnode 179 leaves no placeholder line and no model built from nothing in a typescript fence", () => {
+    const exported = new Set(Object.keys(entryPoint));
+    const found: string[] = [];
+    for (const name of ["README.md", "SKILLS.md"]) {
+      for (const { body } of typescriptFences(rootFile(name))) {
+        for (const line of body.split("\n").map((l) => l.trim())) {
+          if (
+            line === "..." ||
+            line === "// ..." ||
+            /^<\w+>$/.test(line) ||
+            /(^|[^\w])<[A-Z]\w*>/.test(line)
+          ) {
+            found.push(`${name}: ${line}`);
+          }
+          for (const match of line.matchAll(/new (\w+)\(\)/g)) {
+            if (exported.has(match[1])) {
+              found.push(`${name}: ${line}`);
+            }
+          }
+        }
+      }
+    }
+    expect(found).toEqual([]);
+  });
+
+  test("bhv langnode 180 has Makefile targets that build and run the examples directory", () => {
+    const makefile = rootFile("Makefile");
+
+    expect(makefile).toContain("\nexamples: build\n");
+    expect(makefile).toContain("\nexamples-run: examples\n");
+    expect(makefile).toContain("npx tsc -p tsconfig.examples.json");
+    expect(rootFile("tsconfig.examples.json")).toContain('"examples/**/*.ts"');
   });
 });
 

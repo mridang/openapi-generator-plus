@@ -12,10 +12,10 @@ If using locally, add it as a file dependency in your `package.json`.
 
 ## Quick Start
 
-```typescript
+```typescript statements
 import { {{clientClassName}} } from '{{npmName}}';
 
-const client = {{clientClassName}}.withToken('https://api.example.com', 'your-token');
+{{>usage_statements}}
 ```
 
 ## Authentication
@@ -25,7 +25,7 @@ All authentication is handled via `Authenticator` implementations passed to the 
 {{#hasBearerAuth}}
 ### Bearer Token
 
-```typescript
+```typescript statements
 import { BearerAuthenticator, {{clientClassName}} } from '{{npmName}}';
 
 const authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
@@ -36,8 +36,8 @@ const client = new {{clientClassName}}(authenticator);
 {{#hasBasicAuth}}
 ### Basic Auth
 
-```typescript
-import { BasicAuthenticator } from '{{npmName}}';
+```typescript statements
+import { BasicAuthenticator, {{clientClassName}} } from '{{npmName}}';
 
 const authenticator = new BasicAuthenticator('https://api.example.com', 'username', 'password');
 const client = new {{clientClassName}}(authenticator);
@@ -47,8 +47,8 @@ const client = new {{clientClassName}}(authenticator);
 {{#hasApiKeyAuth}}
 ### API Key
 
-```typescript
-import { ApiKeyAuthenticator, ApiKeyLocation } from '{{npmName}}';
+```typescript statements
+import { ApiKeyAuthenticator, ApiKeyLocation, {{clientClassName}} } from '{{npmName}}';
 
 const authenticator = new ApiKeyAuthenticator('https://api.example.com', 'key-name', 'key-value', ApiKeyLocation.HEADER);
 const client = new {{clientClassName}}(authenticator);
@@ -58,8 +58,8 @@ const client = new {{clientClassName}}(authenticator);
 {{#hasOAuth2ClientCredentials}}
 ### OAuth2 Client Credentials
 
-```typescript
-import { OAuth2ClientCredentialsAuthenticator } from '{{npmName}}';
+```typescript statements
+import { OAuth2ClientCredentialsAuthenticator, {{clientClassName}} } from '{{npmName}}';
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
   'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read']);
@@ -70,8 +70,8 @@ const client = new {{clientClassName}}(authenticator);
 {{#hasOAuth2AuthorizationCode}}
 ### OAuth2 Authorization Code
 
-```typescript
-import { OAuth2AuthorizationCodeAuthenticator } from '{{npmName}}';
+```typescript statements
+import { OAuth2AuthorizationCodeAuthenticator, {{clientClassName}} } from '{{npmName}}';
 
 const authenticator = new OAuth2AuthorizationCodeAuthenticator(
   'https://api.example.com', 'client-id', 'client-secret',
@@ -84,8 +84,8 @@ const client = new {{clientClassName}}(authenticator);
 {{#hasOAuth2Password}}
 ### OAuth2 Password
 
-```typescript
-import { OAuth2PasswordAuthenticator } from '{{npmName}}';
+```typescript statements
+import { OAuth2PasswordAuthenticator, {{clientClassName}} } from '{{npmName}}';
 
 const authenticator = new OAuth2PasswordAuthenticator(
   'https://api.example.com', 'client-id', 'client-secret',
@@ -99,8 +99,8 @@ const client = new {{clientClassName}}(authenticator);
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```typescript
-import { OAuth2ImplicitAuthenticator } from '{{npmName}}';
+```typescript statements
+import { OAuth2ImplicitAuthenticator, {{clientClassName}} } from '{{npmName}}';
 
 const authenticator = new OAuth2ImplicitAuthenticator(
   'https://api.example.com',
@@ -116,8 +116,8 @@ const client = new {{clientClassName}}(authenticator);
 {{#hasOpenIdConnect}}
 ### OpenID Connect
 
-```typescript
-import { OpenIdConnectAuthenticator } from '{{npmName}}';
+```typescript statements
+import { OpenIdConnectAuthenticator, {{clientClassName}} } from '{{npmName}}';
 
 const authenticator = new OpenIdConnectAuthenticator(
   'https://api.example.com', 'https://auth.example.com/.well-known/openid-configuration',
@@ -159,7 +159,7 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```typescript
+```typescript statements
 import { ClientAuthMethod, OAuth2ClientCredentialsAuthenticator } from '{{npmName}}';
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
@@ -174,7 +174,7 @@ const authenticator = new OAuth2ClientCredentialsAuthenticator(
 
 If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` static property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` array. Pass the desired server's URL to the client:
 
-```typescript
+```typescript statements
 import { {{clientClassName}}, Servers } from '{{npmName}}';
 
 const client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), 'your-token');
@@ -186,7 +186,7 @@ const client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), 'your-to
 
 To stub responses, pass your own `fetch` through `TransportOptions` and return a canned `Response`; to control credentials, substitute a fake `Authenticator` that returns a known header map. Together they let a test run without a network.
 
-```typescript
+```typescript statements
 import { {{clientClassName}}, type Authenticator } from '{{npmName}}';
 
 const fake: Authenticator = {
@@ -206,13 +206,15 @@ const client = new {{clientClassName}}(fake);
 
 Stubbing the transport so that every call receives a canned response:
 
-```typescript
-import { {{clientClassName}}, TransportOptions } from '{{npmName}}';
+```typescript file
+import { {{clientClassName}}, TransportOptions, type Authenticator } from '{{npmName}}';
 
-const stub: typeof fetch = async () =>
-  new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
-const transport = TransportOptions.builder().fetch(stub).build();
-const client = new {{clientClassName}}(fake, transport);
+function stubbedClient(fake: Authenticator): {{clientClassName}} {
+  const stub: typeof fetch = async () =>
+    new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const transport = TransportOptions.builder().fetch(stub).build();
+  return new {{clientClassName}}(fake, transport);
+}
 ```
 
 ## Error Handling
@@ -248,33 +250,36 @@ Every error the SDK raises derives from `{{errorPrefix}}Error`. The error hierar
   - `OAuth2ServerError` (the token endpoint answered with a non-2xx status)
   - `OAuth2TokenError` (the token endpoint answered 2xx with an unusable body)
 
-```typescript
-import { ApiError, ClientError, NotFoundError, ServerError, {{errorPrefix}}Error{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}, {{{dataType}}}{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} } from '{{npmName}}';
+```typescript file
+import { ApiError, ClientError, {{clientClassName}}, NotFoundError, ServerError, {{errorPrefix}}Error{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}, {{{dataType}}}{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} } from '{{npmName}}';
 
-try {
-  const result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
-} catch (error) {
-  if (error instanceof NotFoundError) {
-    console.log(`Not found: ${error.message}`);
-  } else if (error instanceof ClientError) {
-    console.log(`Client error ${error.statusCode}: ${error.message}`);
-  } else if (error instanceof ServerError) {
-    console.log(`Server error: ${error.message}`);
-  } else if (error instanceof ApiError) {
-    console.log(`API error: ${error.message}`);
-  } else if (error instanceof {{errorPrefix}}Error) {
-    console.log(`SDK error: ${error.message}`);
-  } else {
-    throw error;
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}async function {{nickname}}OrReport(client: {{clientClassName}}{{#pathParams}}, {{paramName}}: {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{paramName}}: {{{dataType}}}{{/bodyParam}}): Promise<void> {
+  try {
+    const result = await client.{{clientPropertyName}}.{{nickname}}({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}});
+    console.log(result);
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      console.log(`Not found: ${error.message}`);
+    } else if (error instanceof ClientError) {
+      console.log(`Client error ${error.statusCode}: ${error.message}`);
+    } else if (error instanceof ServerError) {
+      console.log(`Server error: ${error.message}`);
+    } else if (error instanceof ApiError) {
+      console.log(`API error: ${error.message}`);
+    } else if (error instanceof {{errorPrefix}}Error) {
+      console.log(`SDK error: ${error.message}`);
+    } else {
+      throw error;
+    }
   }
-}
+}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 ```
 
 ## Configuration
 
 ### Custom Transport Options
 
-```typescript
+```typescript statements
 import { BearerAuthenticator, {{clientClassName}}, TransportOptions } from '{{npmName}}';
 
 const authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
@@ -292,7 +297,9 @@ const client = new {{clientClassName}}(authenticator, transport);
 
 ### Custom HTTP client
 
-```typescript
+```typescript statements
+import { TransportOptions } from '{{npmName}}';
+
 const transport = TransportOptions.builder()
   .fetch((input, init) => fetch(input, init))
   .build();
@@ -326,12 +333,23 @@ A cookie parameter is sent raw when every character is an RFC 6265 cookie-octet 
 
 Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSignal }` plus the per-call options above). A client-level signal goes in the third constructor argument and is merged with the per-call signal; either one cancels the call. Cancellation rejects with the signal's reason (an `AbortError` by default), never `NetworkTimeoutError`.
 
-```typescript
-const controller = new AbortController();
-// An operation with optional parameters takes them before the signal: pass `undefined` to skip them.
-const perCall = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{ signal: controller.signal }){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
-const cancellable = new {{clientClassName}}(authenticator, undefined, { signal: controller.signal });
+An operation with optional parameters takes them before the signal: pass `undefined` to skip them.
+
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```typescript file
+import { {{clientClassName}}, type Authenticator } from '{{npmName}}';
+
+async function {{nickname}}Cancelled(client: {{clientClassName}}, authenticator: Authenticator): Promise<void> {
+  const controller = new AbortController();
+  const perCall = client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{nickname}}({{#vendorExtensions.op.requestWrapperFields}}{{^-last}}undefined, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}{ signal: controller.signal });
+  const cancellable = new {{clientClassName}}(authenticator, undefined, { signal: controller.signal });
+  controller.abort();
+  await perCall;
+}
 ```
+{{/exampleOperation}}
+{{/hasExampleOperation}}
 
 ### Raw responses, timeouts and the request id
 
@@ -353,11 +371,15 @@ All API methods are asynchronous; call them with `await`.
 
 Models are generated as TypeScript classes in the `src/models/` directory. Every field is `readonly`; `model.with({ field: value })` returns a copy with the fields replaced. A model constructor validates nothing; a missing required field, a wrong type or an unknown enum string fails when a response is decoded. A `format: date` field or parameter is a plain `YYYY-MM-DD` string (a `Date` is accepted on input and sent as its UTC date); `format: date-time` is a `Date`.
 
-```typescript
-{{#models}}{{#model}}{{#-first}}import { {{classname}} } from '{{npmName}}';
+{{#models}}{{#model}}{{#-first}}
+```typescript file
+import { {{classname}} } from '{{npmName}}';
 
-const model = new {{classname}}();{{/-first}}{{/model}}{{/models}}
+function copyOf(model: {{classname}}): {{classname}} {
+  return model.with({});
+}
 ```
+{{/-first}}{{/model}}{{/models}}
 
 ## Binary / File Uploads
 

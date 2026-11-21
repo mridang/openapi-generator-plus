@@ -8,7 +8,7 @@
 - Repository root: `/AGENTS.md` (workflow, commands, guardrails)
 - Codegen class: `BetterRustCodegen.java` (this folder)
 - Templates: `src/main/resources/templates/rust/`
-- Specs: `src/spec/java/io/github/mridang/codegen/spec/rust/` (`RustSpec`, `RustBuildSpec`, `RustClientSpec`, `RustFormattingSpec`, `RustLintingSpec`, `RustReservedWordsSpec`)
+- Specs: `src/spec/java/io/github/mridang/codegen/spec/rust/` (`RustSpec`, `RustBuildSpec`, `RustClientSpec`, `RustExamplesSpec`, `RustFormattingSpec`, `RustLintingSpec`, `RustReservedWordsSpec`)
 - Golden: `src/spec/resources/generated/rust/`
 
 ## Layout
@@ -467,3 +467,10 @@ Where: `errors/api_error.mustache`, `errors/schema_error.mustache`, `errors/root
 - **D110 wasm32 browser target is not supported.** The crate depends on reqwest with `rustls-tls-native-roots`, Tokio and `flate2`/`brotli`/`zstd`; no build or spec targets `wasm32-unknown-unknown`. Do not add cfg branches or a browser transport. Documented in `docs/languages/rust.md` and the generated README ("Not supported").
 - **D111 async only.** Operations are `async fn`; there is no blocking variant.
 - **D112 no three-state optional.** An optional nullable property is `Option<T>`; absent and `null` are both `None`.
+
+## Compiled examples (#111)
+
+- `examples/quickstart.rs` (`templates/rust/examples/quickstart.mustache`, registered by `BetterRustCodegen` when `generateExamples` is on) is a `#[tokio::main] async fn main() -> Result<(), Box<dyn Error + Send + Sync>>` holding the README Usage statements, so `?` and `.await` are legal in them. The statements live once in `usage_statements.mustache`, included by the README Usage fence, the SKILLS Quick Start fence and the quickstart (`langrust090`). The host and token are read with `std::env::var("{envPrefix}_BASE_URL")` and `..._ACCESS_TOKEN` and passed to `with_token`; the call result is kept, the client is closed, then `?` lets the typed error escape. Cargo discovers `examples/*.rs` with no `Cargo.toml` entry, and the `[lints]` tables apply to the example targets too.
+- `RustExamplesSpec` turns every `rust` fence into a module of one cargo example target, `examples/fences/main.rs` (`mod readme_01;` and so on, plus an empty `main`). A `file` fence is the module body as written; a `statements` fence is placed in `pub async fn fence() -> Result<(), Box<dyn Error + Send + Sync>>`, and its `use` lines stay in the function body, which Rust allows. The target is checked with `cargo clippy --example fences -- -D warnings`, so an unused import, an uninlined format argument or an undeclared name fails; `dead_code` is already allowed by `[lints]`, so the fence functions need no caller.
+- A fence that calls an operation is an `async fn <operation>_or_report(client: &Client, <signatureArgs as typed arguments>)`, imports emitted only for what the first operation uses (its options struct, a model body, a server trait), because an unused import fails `-D warnings`. Constructor fences are `fn new_client() -> Result<Client, ConfigurationError>` (or `-> Client` when the authenticator cannot fail); no fence builds a model from nothing (the Models fence copies one with `clone`). Behaviours `langrust088` to `langrust093` are in `test/metadata_test.mustache`, behind `generateExamples`.
+- `make examples` is `cargo build --examples`; `make examples-run` maps `API_BASE_URL` to `{envPrefix}_BASE_URL` with a placeholder `{envPrefix}_ACCESS_TOKEN` and runs `cargo run --example quickstart`. The spec runs both with `CARGO_BUILD_JOBS=2`.

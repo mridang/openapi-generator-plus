@@ -4,7 +4,7 @@
 
 Add to your `Package.swift`:
 
-```swift
+```text
 dependencies: [
     .package(url: "https://github.com/your-org/PetstoreClient", from: "1.0.0")
 ]
@@ -14,10 +14,21 @@ Then add `PetstoreClient` as a dependency of your target.
 
 ## Quick Start
 
-```swift
+```swift statements
+import Foundation
 import PetstoreClient
 
-let client = try Client(host: "https://api.example.com", accessToken: "your-token")
+let environment = ProcessInfo.processInfo.environment
+guard let host = environment["SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"] else {
+    throw ConfigurationError.invalidArgument("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set")
+}
+guard let token = environment["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"] else {
+    throw ConfigurationError.invalidArgument("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set")
+}
+let client = try Client.withToken(host: host, accessToken: token)
+defer { client.close() }
+let result = try await client.store.getDefaults()
+print(result)
 ```
 
 ## Authentication
@@ -26,86 +37,118 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```swift
-let authenticator = try BearerAuthenticator(host: "https://api.example.com", token: "your-token")
-let client = try Client(authenticator: authenticator)
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = try BearerAuthenticator(host: "https://api.example.com", token: "your-token")
+    return try Client(authenticator: authenticator)
+}
 ```
 
 ### Basic Auth
 
-```swift
-let authenticator = try BasicAuthenticator(host: "https://api.example.com", username: "username", password: "password")
-let client = try Client(authenticator: authenticator)
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = try BasicAuthenticator(host: "https://api.example.com", username: "username", password: "password")
+    return try Client(authenticator: authenticator)
+}
 ```
 
 ### API Key
 
-```swift
-let authenticator = try ApiKeyAuthenticator(
-    host: "https://api.example.com", keyParamName: "key-name", apiKey: "key-value", location: .header)
-let client = try Client(authenticator: authenticator)
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = try ApiKeyAuthenticator(
+        host: "https://api.example.com", keyParamName: "key-name", apiKey: "key-value", location: .header)
+    return try Client(authenticator: authenticator)
+}
 ```
 
 ### OAuth2 Client Credentials
 
-```swift
-let authenticator = OAuth2ClientCredentialsAuthenticator(
-    host: "https://api.example.com",
-    clientID: "client-id",
-    clientSecret: "client-secret",
-    tokenURL: "https://auth.example.com/token")
-let client = try Client(authenticator: authenticator)
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OAuth2ClientCredentialsAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        tokenURL: "https://auth.example.com/token")
+    return try Client(authenticator: authenticator)
+}
 ```
 
 ### OAuth2 Authorization Code
 
-```swift
-let authenticator = OAuth2AuthorizationCodeAuthenticator(
-    host: "https://api.example.com",
-    clientID: "client-id",
-    clientSecret: "client-secret",
-    authorizationURL: "https://auth.example.com/authorize",
-    tokenURL: "https://auth.example.com/token",
-    redirectURI: "https://app.example.com/callback")
-let client = try Client(authenticator: authenticator)
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OAuth2AuthorizationCodeAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        authorizationURL: "https://auth.example.com/authorize",
+        tokenURL: "https://auth.example.com/token",
+        redirectURI: "https://app.example.com/callback")
+    return try Client(authenticator: authenticator)
+}
 ```
 
 ### OAuth2 Password
 
-```swift
-let authenticator = OAuth2PasswordAuthenticator(
-    host: "https://api.example.com",
-    clientID: "client-id",
-    clientSecret: "client-secret",
-    tokenURL: "https://auth.example.com/token",
-    username: "username",
-    password: "password")
-let client = try Client(authenticator: authenticator)
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OAuth2PasswordAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        tokenURL: "https://auth.example.com/token",
+        username: "username",
+        password: "password")
+    return try Client(authenticator: authenticator)
+}
 ```
 
 ### OAuth2 Implicit
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```swift
-let authenticator = OAuth2ImplicitAuthenticator(
-    host: "https://api.example.com",
-    clientID: "client-id",
-    authorizationURL: "https://auth.example.com/authorize")
-try authenticator.setAccessToken("your-access-token")
-let client = try Client(authenticator: authenticator)
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OAuth2ImplicitAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        authorizationURL: "https://auth.example.com/authorize")
+    try authenticator.setAccessToken("your-access-token")
+    return try Client(authenticator: authenticator)
+}
 ```
 
 ### OpenID Connect
 
-```swift
-let authenticator = OpenIdConnectAuthenticator(
-    host: "https://api.example.com",
-    openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
-    clientID: "client-id",
-    clientSecret: "client-secret",
-    redirectURI: "https://app.example.com/callback")
-let client = try Client(authenticator: authenticator)
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    let authenticator = OpenIdConnectAuthenticator(
+        host: "https://api.example.com",
+        openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        redirectURI: "https://app.example.com/callback")
+    return try Client(authenticator: authenticator)
+}
 ```
 
 ### OAuth2 token lifecycle
@@ -131,28 +174,38 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```swift
-let authenticator = OAuth2ClientCredentialsAuthenticator(
-    host: "https://api.example.com",
-    clientID: "client-id",
-    clientSecret: "client-secret",
-    tokenURL: "https://auth.example.com/token",
-    clientAuthMethod: .basic)
+```swift file
+import PetstoreClient
+
+func makeAuthenticator() -> OAuth2ClientCredentialsAuthenticator {
+    OAuth2ClientCredentialsAuthenticator(
+        host: "https://api.example.com",
+        clientID: "client-id",
+        clientSecret: "client-secret",
+        tokenURL: "https://auth.example.com/token",
+        clientAuthMethod: .basic)
+}
 ```
 
 ## Servers
 
 If the OpenAPI spec defines multiple servers, the generated `Servers` enum exposes each as a `ServerConfiguration` static property (e.g., `Servers.server0`, `Servers.server1`, ...) plus a `Servers.all` array. Pass the desired server's URL to the client:
 
-```swift
-let client = try Client(host: Servers.server0.url(), accessToken: "your-token")
+```swift file
+import PetstoreClient
+
+func makeClient() throws -> Client {
+    try Client(host: Servers.server0.url(), accessToken: "your-token")
+}
 ```
 
 ## Testing
 
 The `Authenticator` protocol is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```swift
+```swift file
+import PetstoreClient
+
 struct FakeAuthenticator: Authenticator {
     func host() -> String { "https://api.example.com" }
     func authHeaders() async throws -> [String: String] {
@@ -162,7 +215,9 @@ struct FakeAuthenticator: Authenticator {
     func cookieParams() -> [String: String] { [:] }
 }
 
-let client = try Client(authenticator: FakeAuthenticator())
+func makeClient() throws -> Client {
+    try Client(authenticator: FakeAuthenticator())
+}
 ```
 
 ## Error Handling
@@ -198,23 +253,28 @@ Every error the SDK raises for a call derives from the root error `OpenAPIError`
     - `NetworkError` (no HTTP response, status 0)
       - `NetworkTimeoutError` (the request timed out, status 0)
 
-```swift
-do {
-    let result = try await client.pet.addPet(pet: pet)
-} catch let error as NotFoundError {
-    print("Not found: \(error)")
-} catch let error as ClientError {
-    print("Client error \(error.statusCode): \(error)")
-} catch let error as ServerError {
-    print("Server error: \(error)")
-} catch let error as ApiError {
-    print("API error: \(error)")
-} catch let error as SerializationError {
-    print("Body could not be encoded or decoded: \(error)")
-} catch let error as OAuth2ServerError {
-    print("Token request refused with status \(error.statusCode): \(error)")
-} catch let error as OAuth2TokenError {
-    print("Unusable token response: \(error)")
+```swift file
+import PetstoreClient
+
+func addPetOrReport(client: Client, pet: Pet, options: AddPetOptions?) async throws {
+    do {
+        let result = try await client.pet.addPet(pet: pet, options: options)
+        print(result)
+    } catch let error as NotFoundError {
+        print("Not found: \(error)")
+    } catch let error as ClientError {
+        print("Client error \(error.statusCode): \(error)")
+    } catch let error as ServerError {
+        print("Server error: \(error)")
+    } catch let error as ApiError {
+        print("API error: \(error)")
+    } catch let error as SerializationError {
+        print("Body could not be encoded or decoded: \(error)")
+    } catch let error as OAuth2ServerError {
+        print("Token request refused with status \(error.statusCode): \(error)")
+    } catch let error as OAuth2TokenError {
+        print("Unusable token response: \(error)")
+    }
 }
 ```
 
@@ -226,13 +286,17 @@ A mistake in how the SDK is configured or called (a bad proxy URL, a missing req
 
 ### Custom Transport Options
 
-```swift
-let transport = try TransportOptions.builder()
-    .proxy("http://proxy:3128")
-    .timeout(5000)
-    .build()
+```swift file
+import PetstoreClient
 
-let client = try Client(authenticator: authenticator, transportOptions: transport)
+func makeClient(authenticator: any Authenticator) throws -> Client {
+    let transport = try TransportOptions.builder()
+        .proxy("http://proxy:3128")
+        .timeout(5000)
+        .build()
+
+    return try Client(authenticator: authenticator, transportOptions: transport)
+}
 ```
 
 ### Custom HTTP client
@@ -301,7 +365,9 @@ Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult` with t
 
 Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it with `callHook:` on the client or `.callHook(hook)` on the `ConfigurationBuilder`, and combine several with `CallHooks.chain`.
 
-```swift
+```swift file
+import PetstoreClient
+
 struct SourceHook: CallHook {
     func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
         headers["X-Source"] = "nightly-job"
@@ -315,10 +381,12 @@ struct Watcher: CallObserver {
     }
 }
 
-let client = try Client(
-    authenticator: authenticator,
-    callHook: SourceHook()
-)
+func hookedClient(authenticator: any Authenticator) throws -> Client {
+    try Client(
+        authenticator: authenticator,
+        callHook: SourceHook()
+    )
+}
 ```
 
 `start` runs once per call, after the trace context is injected, with the final header set, and `finish` runs exactly once with the status code (0 when no response arrived), the lower-cased response headers (`nil` when no response arrived) and the error the caller receives. An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed. A header the hook sets is on every send of the call. The README shows a recipe that records a span, a request count and a duration with the OpenTelemetry API.
@@ -333,8 +401,12 @@ All API methods are asynchronous; call them with `try await`.
 
 Models are generated as Swift structs in the `Models` directory.
 
-```swift
-let model = Account(username: "example")
+```swift file
+import PetstoreClient
+
+func copyOf(_ model: Account) -> Account {
+    model.copy()
+}
 ```
 
 Building a model never validates or throws (an unknown enum string builds no enum); a payload is checked when it is decoded, and an unknown enum string, a missing required property or a `format: uri` that is not an absolute URI throws `SerializationError`. A model is immutable: its properties are `let`. `model.copy(name: "x")` returns a copy with the given properties replaced (pass `.some(nil)` to clear an optional one). A `oneOf` union is built with `Union.fromVariant(value)` and read with `isVariant` and `asVariant`; an operation with several 2xx schemas returns such a union, decoded by the status that arrived.

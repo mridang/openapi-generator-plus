@@ -282,10 +282,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
          * bare `mix format` consults its own manifest and skips the file it
          * just wrote. The spec runs `--check-formatted` over the committed
          * output, so it has to be settled here. */
-        return new String[] {
-            "mix format '{mix,.formatter}.exs' '{config,lib,test}/**/*.{ex,exs}'",
-            "mix format '{mix,.formatter}.exs' '{config,lib,test}/**/*.{ex,exs}'"
-        };
+        final String inputs = generateExamples
+                ? "'{mix,.formatter}.exs' '{config,lib,test,examples}/**/*.{ex,exs}'"
+                : "'{mix,.formatter}.exs' '{config,lib,test}/**/*.{ex,exs}'";
+        return new String[] {"mix format " + inputs, "mix format " + inputs};
     }
 
     /** {@inheritDoc} */
@@ -357,7 +357,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         final String apiDir = Path.of(libDir, "api").toString();
         final String modelsDir = Path.of(libDir, "models").toString();
         final String errorsDir = Path.of(libDir, "errors").toString();
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("api_module.mustache", apiDir, "api_module.ex"),
@@ -417,7 +417,13 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
             new SupportingFileSpec(
                 "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES")
-        );
+        ));
+        if (generateExamples) {
+            /* examples/ sits outside elixirc_paths, so the package never compiles or ships it;
+             * `make examples` compiles it with elixirc against the built package. */
+            specs.add(new SupportingFileSpec("examples/quickstart.mustache", "examples", "quickstart.ex"));
+        }
+        return specs;
     }
 
     @Override

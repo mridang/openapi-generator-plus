@@ -681,4 +681,139 @@ void main() {
       },
     );
   });
+
+  group('examples', () {
+    String rootFile(String name) =>
+        File('${Directory.current.path}/$name').readAsStringSync();
+    List<({String info, String body})> dartFences(String text) =>
+        RegExp(r'^```(dart[^\n]*)\n([\s\S]*?)^```', multiLine: true)
+            .allMatches(text)
+            .map((m) => (info: m.group(1)!, body: m.group(2)!))
+            .toList();
+    final quickstart = rootFile('examples/quickstart.dart');
+
+    test(
+      'bhv langdart 087 ships a quickstart that builds a client, calls an operation and closes it',
+      () {
+        expect(
+          quickstart,
+          contains("import 'package:petstore_client/petstore_client.dart';"),
+        );
+        expect(
+          quickstart,
+          contains('Client.withToken(host: host, accessToken: token)'),
+        );
+        expect(quickstart, contains('client.store.getDefaults('));
+        expect(quickstart, contains('client.close();'));
+      },
+    );
+
+    test(
+      'bhv langdart 088 reads the host and the token from the variables the README names',
+      () {
+        final readme = rootFile('README.md');
+
+        for (final name in [
+          'SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL',
+          'SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN',
+        ]) {
+          expect(quickstart, contains("Platform.environment['$name']"));
+          expect(readme, contains(name));
+        }
+        expect(quickstart, isNot(contains('your-token')));
+      },
+    );
+
+    test(
+      'bhv langdart 089 holds the statements of the README Usage fence in the quickstart, in order',
+      () {
+        final readme = rootFile('README.md');
+        final usage = readme.substring(readme.indexOf('\n## Usage\n'));
+        final fences = dartFences(
+          usage.substring(0, usage.indexOf('\n## ', 1)),
+        );
+        expect(fences, isNotEmpty);
+        var position = 0;
+        for (final line in fences.first.body.split('\n').map((l) => l.trim())) {
+          if (line.isEmpty || line.startsWith('import ')) {
+            continue;
+          }
+          final found = quickstart.indexOf(line, position);
+          expect((line: line, found: found >= 0), (line: line, found: true));
+          position = found + line.length;
+        }
+      },
+    );
+
+    test(
+      'bhv langdart 090 declares the kind of every dart fence of README.md and SKILLS.md',
+      () {
+        for (final name in ['README.md', 'SKILLS.md']) {
+          final fences = dartFences(rootFile(name));
+          expect(fences, isNotEmpty);
+          for (final fence in fences) {
+            expect(
+              (name: name, info: fence.info),
+              anyOf(
+                (name: name, info: 'dart file'),
+                (name: name, info: 'dart statements'),
+              ),
+            );
+          }
+        }
+      },
+    );
+
+    test(
+      'bhv langdart 091 leaves no placeholder line and no model built from nothing in a dart fence',
+      () {
+        final models = <String>{
+          for (final file in Directory(
+            '${Directory.current.path}/lib/src/models',
+          ).listSync().whereType<File>())
+            for (final match in RegExp(
+              r'^class (\w+)',
+              multiLine: true,
+            ).allMatches(file.readAsStringSync()))
+              match.group(1)!,
+        };
+        expect(models, isNotEmpty);
+        final found = <String>[];
+        for (final name in ['README.md', 'SKILLS.md']) {
+          for (final fence in dartFences(rootFile(name))) {
+            for (final line in fence.body.split('\n').map((l) => l.trim())) {
+              if (line == '...' ||
+                  line == '// ...' ||
+                  RegExp(r'(^|[^\w])<[A-Z]\w*>').hasMatch(line)) {
+                found.add('$name: $line');
+              }
+              for (final match in RegExp(
+                r'(?<![\w.])([A-Z]\w*)\(',
+              ).allMatches(line)) {
+                if (models.contains(match.group(1))) {
+                  found.add('$name: $line');
+                }
+              }
+            }
+          }
+        }
+        expect(found, isEmpty);
+      },
+    );
+
+    test(
+      'bhv langdart 092 has Makefile targets that build and run the examples directory',
+      () {
+        final makefile = rootFile('Makefile');
+
+        expect(makefile, contains('\nexamples: get\n'));
+        expect(makefile, contains('\nexamples-run: examples\n'));
+        expect(
+          makefile,
+          contains('dart analyze --fatal-warnings --fatal-infos examples\n'),
+        );
+        expect(makefile, contains('dart run examples/quickstart.dart'));
+      },
+    );
+  });
 }

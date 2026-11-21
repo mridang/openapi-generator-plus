@@ -646,3 +646,151 @@ fn test_bhv_serialization_121_a_model_sent_as_a_multipart_part_uses_wire_names_a
     assert_eq!(parsed["createdAt"], "2024-01-02T03:04:05.000+00:00", "got: {part}");
     assert!(parsed.get("created_at").is_none(), "snake_case key leaked into the part: {part}");
 }
+{{#generateExamples}}
+
+fn read_root_file(name: &str) -> String {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(name);
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("failed to read {name}: {e}"))
+}
+
+/* Every fence of a markdown file whose info string starts with the word rust, as the
+ * info string and the body; the bodies of other fences are skipped. */
+fn rust_fences(text: &str) -> Vec<(String, String)> {
+    let mut fences = Vec::new();
+    let mut open: Option<(String, String)> = None;
+    let mut in_other = false;
+    for line in text.lines() {
+        if let Some((info, mut body)) = open.take() {
+            if line.starts_with("```") {
+                fences.push((info, body));
+            } else {
+                body.push_str(line);
+                body.push('\n');
+                open = Some((info, body));
+            }
+        } else if in_other {
+            in_other = !line.starts_with("```");
+        } else if let Some(info) = line.strip_prefix("```") {
+            if info == "rust" || info.starts_with("rust ") {
+                open = Some((info.to_string(), String::new()));
+            } else {
+                in_other = true;
+            }
+        }
+    }
+    assert!(open.is_none() && !in_other, "a fence is not closed");
+    fences
+}
+
+#[test]
+fn test_bhv_langrust_088_ships_a_quickstart_that_builds_a_client_calls_an_operation_and_closes_it() {
+    let quickstart = read_root_file("examples/quickstart.rs");
+
+    assert!(quickstart.contains("use {{packageName}}::{{clientClassName}};"));
+    assert!(quickstart.contains("async fn main()"));
+    assert!(quickstart.contains("{{clientClassName}}::with_token(Some(&host), Some(&token), None)?"));
+{{#hasExampleOperation}}
+    assert!(quickstart.contains("client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{#exampleOperation}}{{operationId}}{{/exampleOperation}}("));
+{{/hasExampleOperation}}
+    assert!(quickstart.contains("client.close();"));
+}
+
+#[test]
+fn test_bhv_langrust_089_reads_the_host_and_the_token_from_the_variables_the_readme_names() {
+    let quickstart = read_root_file("examples/quickstart.rs");
+    let readme = read_root_file("README.md");
+
+    for name in ["{{envPrefix}}_BASE_URL", "{{envPrefix}}_ACCESS_TOKEN"] {
+        assert!(
+            quickstart.contains(&format!("std::env::var(\"{name}\")")),
+            "the quickstart reads {name}"
+        );
+        assert!(readme.contains(name), "the README names {name}");
+    }
+    assert!(!quickstart.contains("your-token"));
+}
+
+#[test]
+fn test_bhv_langrust_090_holds_the_statements_of_the_readme_usage_fence_in_the_quickstart_in_order() {
+    let quickstart = read_root_file("examples/quickstart.rs");
+    let readme = read_root_file("README.md");
+    let usage = &readme[readme.find("\n## Usage\n").expect("a Usage section")..];
+    let section = &usage[..usage[1..].find("\n## ").map_or(usage.len(), |end| end + 1)];
+    let fences = rust_fences(section);
+    assert!(!fences.is_empty(), "the Usage section has a rust fence");
+
+    let mut position = 0;
+    for line in fences[0].1.lines().map(str::trim) {
+        if line.is_empty() || line.starts_with("use ") {
+            continue;
+        }
+        let found = quickstart[position..].find(line);
+        assert!(found.is_some(), "the quickstart lacks, in order, the line: {line}");
+        position += found.unwrap_or(0) + line.len();
+    }
+}
+
+#[test]
+fn test_bhv_langrust_091_declares_the_kind_of_every_rust_fence_of_readme_and_skills() {
+    for name in ["README.md", "SKILLS.md"] {
+        let fences = rust_fences(&read_root_file(name));
+        assert!(!fences.is_empty(), "{name} has a rust fence");
+        for (info, _) in fences {
+            assert!(
+                info == "rust file" || info == "rust statements",
+                "{name}: the fence `{info}` declares no kind, file or statements"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_bhv_langrust_092_leaves_no_placeholder_line_and_no_model_built_from_nothing_in_a_rust_fence() {
+    let declaration = regex::Regex::new(r"(?m)^pub (?:struct|enum) (\w+)").expect("valid pattern");
+    /* A bare `<Name>`; a generic argument follows an identifier and a turbofish `::`. */
+    let placeholder = regex::Regex::new(r"(^|[^\w:])<[A-Z]\w*>").expect("valid pattern");
+    let mut models = std::collections::HashSet::new();
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/models");
+    for entry in std::fs::read_dir(&dir).expect("failed to read src/models") {
+        let source = std::fs::read_to_string(entry.expect("a directory entry").path())
+            .expect("failed to read a model file");
+        for found in declaration.captures_iter(&source) {
+            models.insert(found[1].to_string());
+        }
+    }
+    assert!(!models.is_empty(), "src/models declares models");
+
+    let mut problems = Vec::new();
+    for name in ["README.md", "SKILLS.md"] {
+        for (_, body) in rust_fences(&read_root_file(name)) {
+            for line in body.lines().map(str::trim) {
+                if line == "..." || line == "/* ... */" || placeholder.is_match(line) {
+                    problems.push(format!("{name}: {line}"));
+                }
+                if line.contains("..Default::default()") {
+                    problems.push(format!("{name}: {line}"));
+                }
+                for model in &models {
+                    if line.contains(&format!("= {model} {}", '{'))
+                        || line.contains(&format!("{model}::new("))
+                        || line.contains(&format!("{model}::default()"))
+                    {
+                        problems.push(format!("{name}: {line}"));
+                    }
+                }
+            }
+        }
+    }
+    assert!(problems.is_empty(), "placeholders or models built from nothing: {problems:?}");
+}
+
+#[test]
+fn test_bhv_langrust_093_has_makefile_targets_that_build_and_run_the_examples_directory() {
+    let makefile = read_root_file("Makefile");
+
+    assert!(makefile.contains("\nexamples:\n\tcargo build --examples\n"));
+    assert!(makefile.contains("\nexamples-run: examples\n"));
+    assert!(makefile.contains("cargo run --example quickstart\n"));
+    assert!(makefile.contains("# Builds every program under examples/"));
+}
+{{/generateExamples}}

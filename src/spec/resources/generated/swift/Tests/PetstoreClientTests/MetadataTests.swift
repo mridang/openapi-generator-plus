@@ -422,6 +422,126 @@ import Testing
     #expect(try readme().contains("- License: MIT"))
   }
 
+  // MARK: - Compiled examples
+
+  private func rootFile(_ name: String) throws -> String {
+    let file = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      .appendingPathComponent(name)
+    return try String(contentsOf: file, encoding: .utf8)
+  }
+
+  /* Every fence of a markdown file whose info string starts with the word swift, as the
+     info string and the body; the bodies of other fences are skipped. */
+  private func swiftFences(_ text: String) -> [(info: String, body: String)] {
+    var fences: [(info: String, body: String)] = []
+    var open: String?
+    var body: [String] = []
+    for line in text.components(separatedBy: "\n") {
+      if line.hasPrefix("```") {
+        if let info = open {
+          if info.split(separator: " ").first == "swift" {
+            fences.append((info, body.joined(separator: "\n")))
+          }
+          open = nil
+          body = []
+        } else {
+          open = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+        }
+      } else if open != nil {
+        body.append(line)
+      }
+    }
+    return fences
+  }
+
+  @Test func testBhvLangswift086ShipsAQuickstartThatBuildsAClientCallsAnOperationAndClosesIt()
+    throws
+  {
+    let quickstart = try rootFile("examples/quickstart.swift")
+    #expect(quickstart.contains("import PetstoreClient"))
+    #expect(quickstart.contains("Client.withToken(host: host, accessToken: token)"))
+    #expect(quickstart.contains("client.store.getDefaults("))
+    #expect(quickstart.contains("client.close()"))
+  }
+
+  @Test func testBhvLangswift087ReadsTheHostAndTheTokenFromTheVariablesTheReadmeNames() throws {
+    let quickstart = try rootFile("examples/quickstart.swift")
+    let text = try readme()
+    for name in ["SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"] {
+      #expect(quickstart.contains("environment[\"\(name)\"]"))
+      #expect(text.contains(name))
+    }
+    #expect(!quickstart.contains("your-token"))
+  }
+
+  @Test func testBhvLangswift088HoldsTheStatementsOfTheReadmeUsageFenceInTheQuickstartInOrder()
+    throws
+  {
+    let quickstart = try rootFile("examples/quickstart.swift")
+    let text = try readme()
+    let usage = try #require(text.range(of: "\n## Usage\n"))
+    let rest = String(text[usage.upperBound...])
+    let section = rest.range(of: "\n## ").map { String(rest[..<$0.lowerBound]) } ?? rest
+    let fence = try #require(swiftFences(section).first)
+    var position = quickstart.startIndex
+    for line in fence.body.components(separatedBy: "\n") {
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      if trimmed.isEmpty || trimmed.hasPrefix("import ") {
+        continue
+      }
+      let found = try #require(quickstart.range(of: trimmed, range: position..<quickstart.endIndex))
+      position = found.upperBound
+    }
+  }
+
+  @Test func testBhvLangswift089DeclaresTheKindOfEverySwiftFenceOfReadmeAndSkills() throws {
+    for name in ["README.md", "SKILLS.md"] {
+      for fence in swiftFences(try rootFile(name)) {
+        #expect(["swift file", "swift statements"].contains(fence.info), "\(name): \(fence.info)")
+      }
+    }
+  }
+
+  @Test func testBhvLangswift090LeavesNoPlaceholderLineAndNoModelBuiltFromNothingInASwiftFence()
+    throws
+  {
+    let models: [String] = [
+      "Account", "ApiResponse", "AttachPetFilesRequest", "Availability", "BinaryVault", "Blobs",
+      "Car", "Category", "Circle", "Color", "Counters", "Defaults", "Department", "DryFood",
+      "EdgeCases", "Employee", "Freeform", "Ledger", "Medication", "MemberNotFound", "Metadata",
+      "ModelError", "ModelResult", "Moments", "NativeValues", "Order", "Pet", "PetCriteria",
+      "PetFood", "PetPassport", "PetTreatment", "PetWithOwner", "Photo", "PhotoMetadata",
+      "PhotoMetadataLocation", "Priority", "ProjectNotFound", "Rank", "RejectedRequest",
+      "RequiredNullable", "Reservation", "ReservationReceipt", "ReserveStockResponse", "Roster",
+      "Separator", "SetPetAvatarRequest", "SetPetAvatarThumbnailRequest", "Shape", "Sparse",
+      "Square", "Stage", "StateConflict", "StockItem", "StrictTag", "Subscription", "Surgery",
+      "Swatch", "Tag", "Tier", "TreatmentRecord", "TreeNode", "Truck", "UnexpectedFailure",
+      "UpstreamFailure", "Vehicle", "WetFood",
+    ]
+    for name in ["README.md", "SKILLS.md"] {
+      for fence in swiftFences(try rootFile(name)) {
+        for line in fence.body.components(separatedBy: "\n") {
+          let trimmed = line.trimmingCharacters(in: .whitespaces)
+          #expect(trimmed != "..." && trimmed != "// ...", "\(name): \(line)")
+          #expect(!(trimmed.hasPrefix("<") && trimmed.hasSuffix(">")), "\(name): \(line)")
+          for model in models {
+            #expect(
+              line.range(of: "\\b\(model)\\(\\)", options: .regularExpression) == nil,
+              "\(name): \(line)")
+          }
+        }
+      }
+    }
+  }
+
+  @Test func testBhvLangswift091HasMakefileTargetsThatBuildAndRunTheExamplesDirectory() throws {
+    let makefile = try rootFile("Makefile")
+    #expect(makefile.contains("\nexamples:\n"))
+    #expect(makefile.contains("\nexamples-run: examples\n"))
+    #expect(makefile.contains("swift build --product Quickstart"))
+    #expect(try rootFile("Package.swift").contains("path: \"examples\""))
+  }
+
   // MARK: - Behaviour catalogue: model construction, copies and additional properties
 
   /* A newly built model's additional properties start as an empty collection. */
