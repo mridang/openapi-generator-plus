@@ -4533,25 +4533,30 @@ func TestBhvMisc216_BaseApi_BinaryResponseIsReturnedAsAByteStreamWithAnEmptyRawB
 	}
 }
 
-func TestBhvMisc217_BaseApi_BinaryUploadAcceptsInMemoryBytesAndSendsThem(t *testing.T) {
+func TestBhvMisc217_BaseApi_BinaryUploadAcceptsInMemoryBytesAndAStreamAndSendsThem(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
-	var received []byte
+	var received [][]byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		mu.Lock()
-		received = body
+		received = append(received, body)
 		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	}))
 	t.Cleanup(server.Close)
 	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
 
-	_, _ = api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: bytes.NewReader([]byte("document-bytes"))})
+	if err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromBytes([]byte("document-bytes"))); err != nil {
+		t.Fatalf("expected the in-memory bytes to be sent, got %v", err)
+	}
+	if err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(io.MultiReader(strings.NewReader("stream-bytes")))); err != nil {
+		t.Fatalf("expected the stream to be sent, got %v", err)
+	}
 	mu.Lock()
 	defer mu.Unlock()
-	if !bytes.Contains(received, []byte("document-bytes")) {
-		t.Errorf("expected the in-memory bytes in the upload, got %q", received)
+	if len(received) != 2 || string(received[0]) != "document-bytes" || string(received[1]) != "stream-bytes" {
+		t.Errorf("expected the bytes and the stream as given, got %q", received)
 	}
 }
 

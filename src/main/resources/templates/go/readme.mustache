@@ -54,7 +54,7 @@ Every operation has a `...WithHTTPInfo` variant returning an `*ApiResult[T]` wit
 
 ### Retries
 
-A failed request is retried automatically, up to `MaxRetries` times (default 2; `MaxRetries(0)` disables retries). The retry applies to a network error that happened before a response and to the statuses 408, 409, 429 and 500-599 except 501. The wait starts at 0.5 seconds, doubles up to 8 seconds and loses up to 25% to jitter; a `Retry-After` header (seconds or an HTTP date, capped at 60 seconds) replaces it. The retries never extend the end-to-end `Timeout`: a wait that would outlast it ends the retries and the last failure is returned. Cancelling the context stops them. Every retry is a fresh request, so the authentication headers are applied again. A `multipart/form-data` request is sent once and never retried, because its file parts are streams.
+A failed request is retried automatically, up to `MaxRetries` times (default 2; `MaxRetries(0)` disables retries). The retry applies to a network error that happened before a response and to the statuses 408, 409, 429 and 500-599 except 501. The wait starts at 0.5 seconds, doubles up to 8 seconds and loses up to 25% to jitter; a `Retry-After` header (seconds or an HTTP date, capped at 60 seconds) replaces it. The retries never extend the end-to-end `Timeout`: a wait that would outlast it ends the retries and the last failure is returned. Cancelling the context stops them. Every retry is a fresh request, so the authentication headers are applied again. A request whose body is a single-use `BodySource`, and a `multipart/form-data` request, is sent once and never retried.
 
 ```go file
 import "{{packageName}}/pkg"
@@ -129,6 +129,8 @@ func saveTo(ctx context.Context, client *{{packageName}}.{{clientClassName}}{{#v
 {{/hasBinaryStreamOperation}}
 
 The call `timeout` covers the wait for the response headers and stops there. `IdleTimeout` (on `TransportOptionsBuilder`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.Close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `SendStreaming` fails a stream call with `ErrStreamingUnsupported` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodyFromBytes(bytes)`, `BodyFromFile(path)`, `BodyFromReadSeeker(stream)` or `BodyFromFactory(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodyFromReader(stream)` (a reader that can seek is replayable). The body is sent as it is read: a known length (bytes, a file, or a length you pass with `WithLength`) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `BodyFromReader` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
 
 An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and the call options, and returns a `*JsonLinesStream[T]` of the schema type or a `*SseStream[T]` of `ServerSentEvent[T]` (`ID`, `Event`, `Data`, `Retry` and the `Raw` data text; `T` is the schema of the `data`, or a string). Range over its `All()` method, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `WithMaxEventBytes` (1 MiB), raise `SerializationError` and end the stream.
 {{#hasJsonLinesStreamOperation}}
@@ -209,6 +211,51 @@ func readEvents(ctx context.Context, client *{{packageName}}.{{clientClassName}}
 {{/hasSseStreamOperation}}
 
 An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `WithReconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `WithMaxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.Close()`. An event named `error` raises `ApiError` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. The call options `WithIdleTimeout` and `WithLastEventID` also apply.
+
+### Pagination
+
+An operation that returns a list one page at a time has a `<operation>Pages` method next to its plain method. It takes the same parameters in the same order and returns a `*Paginator[T, C]`, where `T` is the item type and `C` is the type of the cursor parameter. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Range over `Items()` for the items, or over `Pages()` for `*Page[T, C]` values with `Items`, `NextCursor` and `Result`, an `ApiResult` that holds the status, the headers, the raw body and the decoded body of the page, so the status and headers stay reachable. Iterating again starts again from the starting position.
+{{#hasPagedOperation}}
+
+```go file
+import (
+	"context"
+	"fmt"
+
+	"{{packageName}}/pkg"
+{{#pagedOperation}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+	opts "{{packageName}}/pkg/options"
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+)
+
+func listEverything(ctx context.Context, client *{{packageName}}.{{clientClassName}}{{#vendorExtensions.op.signatureArgs}}, {{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}) error {
+	list := client.{{#pagedGroup}}{{baseName}}{{/pagedGroup}}.{{vendorExtensions.op.pagesMethodName}}(ctx{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}})
+	for item, err := range list.Items() {
+		if err != nil {
+			return err
+		}
+		fmt.Println(item)
+	}
+	for page, err := range list.Pages() {
+		if err != nil {
+			return err
+		}
+		fmt.Println(len(page.Items), "items, status", page.Result.StatusCode)
+	}
+	return nil
+}
+```
+{{/pagedOperation}}
+{{/hasPagedOperation}}
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is yielded from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `nil` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent yields a `PaginationError`, a direct child of `{{errorPrefix}}Error`, after its items were delivered, instead of looping. There is no total limit and no collect-all: break out of the loop.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationError` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+The generator finds a paged operation by its names: a GET with one JSON 2xx response that has one array property, and either one cursor query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker` paired with one next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type, or a `Link` header declared on the response. An operation that is ambiguous, or is streamed, keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty}`) wins over a hint and over inference, and `pagination=off` switches the feature off.
 
 ### Custom HTTP client
 

@@ -1,0 +1,27 @@
+{{>api_info}}
+package {{packageName}}
+
+import "testing"
+
+func TestLinkNext_ReadsTheNextLinkOfAHeaderPerRfc8288(t *testing.T) {
+	t.Parallel()
+	for header, want := range map[string]string{
+		`<https://api.example.com/items?page=2>; rel="next"`:                                  "https://api.example.com/items?page=2",
+		`<https://a/x?p=1>; rel="prev", <https://a/x?p=3>; rel="next"`:                        "https://a/x?p=3",
+		`<https://a/x?p=2>; rel=next`:                                                         "https://a/x?p=2",
+		`<https://a/x?p=2>; REL="Next"`:                                                       "https://a/x?p=2",
+		`<https://a/x?p=2>; rel="last next"`:                                                  "https://a/x?p=2",
+		`<https://a/x?a=1,b=2>; title="one, two; three"; rel="next"`:                          "https://a/x?a=1,b=2",
+		`garbage, <https://a/x?p=2>; rel="next"`:                                              "https://a/x?p=2",
+		`<https://a/x?p=1>; rel="prev"`:                                                       "",
+		``:                                                                                    "",
+		`<https://a/x?p=2`:                                                                    "",
+		`<https://a/x?p=2>; anchor="#frag"; rel="next"; hreflang=en`:                          "https://a/x?p=2",
+		`<https://a/x?p=2>; title="a \"quoted\" word", <https://a/x?p=3>; rel="next"`:         "https://a/x?p=3",
+	} {
+		got, found := linkNext(header)
+		if got != want || found != (want != "") {
+			t.Errorf("%q: expected %q, got %q (found %v)", header, want, got, found)
+		}
+	}
+}

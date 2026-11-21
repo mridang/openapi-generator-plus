@@ -250,9 +250,9 @@ func removeHeader(headers map[string]string, name string) {
 
 // prepareRequest merges the headers of a request and turns its body into a
 // reader: the part a buffered call and a streaming call share. It returns the
-// merged headers, the body reader (nil for no body) and an error for a body that
-// cannot be built.
-func (c *DefaultApiClient) prepareRequest(method string, headers map[string]string, body any, opts *RequestOptions) (map[string]string, io.Reader, error) {
+// merged headers, the body reader (nil for no body), the BodySource of a streamed
+// body (nil for any other) and an error for a body that cannot be built.
+func (c *DefaultApiClient) prepareRequest(method string, headers map[string]string, body any, opts *RequestOptions) (map[string]string, io.Reader, *BodySource, error) {
 	merged := make(map[string]string)
 	if opts == nil || (!opts.NoDefaultHeaders && (opts.Context == nil || opts.Context.Value(authRequestContextKey{}) == nil)) {
 		mergeHeaders(merged, c.transportOptions.DefaultHeaders())
@@ -269,10 +269,17 @@ func (c *DefaultApiClient) prepareRequest(method string, headers map[string]stri
 	}
 
 	var bodyReader io.Reader
+	var source *BodySource
 	switch b := body.(type) {
 	case nil:
 		// no body -- remove Content-Type to avoid sending it without a body
 		removeHeader(merged, "Content-Type")
+	case *BodySource:
+		if b == nil {
+			removeHeader(merged, "Content-Type")
+		} else {
+			source = b
+		}
 	case []byte:
 		/* A generated operation without a body passes a typed nil slice, not an
 		 * untyped nil, so it takes the same path as no body at all. */
@@ -283,12 +290,12 @@ func (c *DefaultApiClient) prepareRequest(method string, headers map[string]stri
 	case map[string]any:
 		buf, contentType, err := buildTransportMultipartBody(b)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to build multipart body: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to build multipart body: %w", err)
 		}
 		bodyReader = buf
 		mergeHeaders(merged, map[string]string{"Content-Type": contentType})
 	default:
-		return nil, nil, fmt.Errorf("%w: unsupported body type %T", ErrInvalidRequest, body)
+		return nil, nil, nil, fmt.Errorf("%w: unsupported body type %T", ErrInvalidRequest, body)
 	}
 
 	// Some servers / WAFs treat POST/PUT/PATCH with no body and no
@@ -296,21 +303,89 @@ func (c *DefaultApiClient) prepareRequest(method string, headers map[string]stri
 	// inconsistently. Attach an empty bytes.Reader on body-bearing
 	// verbs so net/http emits an explicit `Content-Length: 0`, matching
 	// Kotlin's `ByteArray(0)` and the other 11 SDKs.
-	if bodyReader == nil {
+	if bodyReader == nil && source == nil {
 		upper := strings.ToUpper(method)
 		if upper == "POST" || upper == "PUT" || upper == "PATCH" {
 			bodyReader = bytes.NewReader(nil)
 		}
 	}
 
-	return merged, bodyReader, nil
+	return merged, bodyReader, source, nil
+}
+
+// newRequest builds the net/http request of a call. A streamed body is opened
+// here, for this send: its length (Content-Length, or chunked when unknown), its
+// stream (closed by net/http when the request is done) and, for a replayable
+// body, the function that opens it again for a 307 or 308 redirect.
+func newRequest(ctx context.Context, method, url string, reader io.Reader, source *BodySource) (*http.Request, error) {
+	if source == nil {
+		req, err := http.NewRequestWithContext(ctx, method, url, reader)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+		}
+		return req, nil
+	}
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+	}
+	stream, length, err := source.Open()
+	if err != nil {
+		return nil, fmt.Errorf("%w: cannot open the request body: %w", ErrInvalidRequest, err)
+	}
+	switch {
+	case length == 0:
+		_ = stream.Close()
+		req.Body = http.NoBody
+		req.ContentLength = 0
+	case length > 0:
+		req.Body = stream
+		req.ContentLength = length
+	default:
+		req.Body = stream
+		req.ContentLength = -1
+	}
+	if source.Replayable() {
+		req.GetBody = func() (io.ReadCloser, error) {
+			again, againLength, openErr := source.Open()
+			if openErr != nil {
+				return nil, openErr
+			}
+			if againLength == 0 {
+				_ = again.Close()
+				return http.NoBody, nil
+			}
+			return again, openErr
+		}
+	}
+	return req, nil
+}
+
+// refusesToReplay reports whether a response is a 307 or 308 redirect that this
+// client would follow with a body that can be sent only once. net/http returns
+// such a response as it is; the call refuses it instead of treating a redirect as
+// a success.
+func (c *DefaultApiClient) refusesToReplay(source *BodySource, resp *http.Response, opts *RequestOptions) bool {
+	if source == nil || source.Replayable() || !c.transportOptions.FollowRedirects() {
+		return false
+	}
+	if opts != nil && opts.NoRedirect {
+		return false
+	}
+	return (resp.StatusCode == http.StatusTemporaryRedirect || resp.StatusCode == http.StatusPermanentRedirect) &&
+		resp.Header.Get("Location") != ""
+}
+
+// replayRefusal is the error of a redirect that would send a single use body again.
+func replayRefusal(resp *http.Response) error {
+	return errors_pkg.NewApiError(resp.StatusCode, "Refusing to replay a streamed request body", "", refusedResponseHeaders(resp.Header), nil, nil)
 }
 
 func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
 	if c.closed.Load() {
 		return nil, ErrClientClosed
 	}
-	merged, bodyReader, err := c.prepareRequest(method, headers, body, opts)
+	merged, bodyReader, source, err := c.prepareRequest(method, headers, body, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -352,9 +427,9 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	if opts != nil && opts.NoRedirect {
 		ctx = context.WithValue(ctx, noRedirectContextKey{}, true)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+	req, err := newRequest(ctx, method, url, bodyReader, source)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+		return nil, err
 	}
 
 	for k, v := range merged {
@@ -384,6 +459,9 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		return nil, newTransportError(fmt.Sprintf("request failed: %s", redactedTransportMessage(err)), err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if c.refusesToReplay(source, resp, opts) {
+		return nil, replayRefusal(resp)
+	}
 
 	// A failure reading the body AFTER headers were received (connection reset,
 	// truncated chunked encoding, a timeout) is a transport failure like a
@@ -446,7 +524,7 @@ func (c *DefaultApiClient) SendStreaming(method, url string, headers map[string]
 	if c.closed.Load() {
 		return nil, ErrClientClosed
 	}
-	merged, bodyReader, err := c.prepareRequest(method, headers, body, opts)
+	merged, bodyReader, source, err := c.prepareRequest(method, headers, body, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -493,11 +571,11 @@ func (c *DefaultApiClient) SendStreaming(method, url string, headers map[string]
 	stopHeaderTimer := func() bool {
 		return headerTimer == nil || headerTimer.Stop()
 	}
-	req, err := http.NewRequestWithContext(reqCtx, method, url, bodyReader)
+	req, err := newRequest(reqCtx, method, url, bodyReader, source)
 	if err != nil {
 		stopHeaderTimer()
 		cancel()
-		return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+		return nil, err
 	}
 	for k, v := range merged {
 		req.Header.Set(k, v)
@@ -528,6 +606,12 @@ func (c *DefaultApiClient) SendStreaming(method, url string, headers map[string]
 			return nil, errors_pkg.NewNetworkTimeoutError("request failed: timed out waiting for the response headers", context.DeadlineExceeded)
 		}
 		return nil, newTransportError(fmt.Sprintf("request failed: %s", redactedTransportMessage(err)), err)
+	}
+	if c.refusesToReplay(source, resp, opts) {
+		stopHeaderTimer()
+		_ = resp.Body.Close()
+		cancel()
+		return nil, replayRefusal(resp)
 	}
 	if !stopHeaderTimer() {
 		/* The deadline fired as the headers arrived: the request context is

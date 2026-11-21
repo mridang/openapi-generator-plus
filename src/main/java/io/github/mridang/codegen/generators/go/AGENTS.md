@@ -406,7 +406,7 @@ Inside the generated module: `make lint`, `make vet`, `make staticcheck`, `make 
 
 ## Batch 5 (landed)
 
-- F826: `format: binary` request bodies and upload fields are `io.Reader` (`typeMapping` `file`), arrays are `[]io.Reader`; an `*os.File` still satisfies it and keeps its real filename and sniffed MIME in the multipart part. Tests: `test/api/pet_api_test.mustache` (`...AcceptsAnIoReader`), `test/skills_test.mustache`.
+- F826: multipart upload fields are `io.Reader` (a raw `format: binary` request body is a `*BodySource` since capability 3) (`typeMapping` `file`), arrays are `[]io.Reader`; an `*os.File` still satisfies it and keeps its real filename and sniffed MIME in the multipart part. Tests: `test/api/pet_api_test.mustache` (`...AcceptsAnIoReader`), `test/skills_test.mustache`.
 - F831: `TooManyRequestsError` (429, a `ClientError`) selected by `FromResponse`; test rows in `test/api_error_test.mustache`.
 - F833: see Content parameters above; test `TestEncodeContentCookieValue_UsesTheUnreservedSetOnly` in `test/object_serializer_test.mustache`.
 - F839: `CheckRedirect` restores the method and body on 301/302 for every method except POST (net/http demotes all of them); 303 and 307/308 already conform. Test `TestDefaultApiClient_RedirectMethodRewriting`.
@@ -459,6 +459,35 @@ Rule: `invokeSse` builds the opener: every connection is `invokeApiForStream` wi
 Where: `sse_stream.mustache`, `base_api.mustache` (`invokeSse`, `invokeJsonLines`).
 Test: `default_api_client_unit_test.mustache` (`bhvSse007`, `015`, `018`), `base_api_unit_test.mustache` (`bhvSse006`, `012`, `013`, `020`).
 
+## Streaming: uploads (capability 3 of #114, D121 item 6)
+
+### `BodySource` is the body type of a raw binary request
+Rule: `BodySource` (`body_source.mustache`, a struct in the SDK package) has the replayable constructors `BodyFromBytes` (the slice is not copied), `BodyFromFile` (opened and closed per send, length is the size), `BodyFromReadSeeker` (rewound to its start offset, never closed) and `BodyFromFactory` (every stream it returns is closed by the SDK), the single-use `BodyFromReader` (a reader that is an `io.ReadSeeker` becomes `BodyFromReadSeeker`; a second `Open` returns `ErrBodyConsumed`), `WithLength`, `Replayable`, `Length`, `Open` (public, for a custom `ApiClient`) and a `String` of kind and length only. `BetterGoCodegen.markBinaryUpload` runs before the shared pass and sets the body parameter type to `*BodySource` when the request body is binary and not multipart or form. `baseApi.invokeCall` passes the `*BodySource` to the transport as the body under any selected content type and treats it as `streamBody` (no retry, no 401 replay) when it is single use.
+Where: `BetterGoCodegen`, `body_source.mustache`, `base_api.mustache`.
+Test: golden `api/pet_api_test.mustache` (the avatar rows), `base_api_test.mustache` (`bhvMisc217`).
+
+### The transport sends it as it is read
+Rule: `DefaultApiClient.prepareRequest` hands a `*BodySource` on and `newRequest` opens it for the send: a known length sets `ContentLength` (0 is `http.NoBody`), an unknown one `-1` (chunked), and a replayable body gets a `GetBody` that opens it again, which is what net/http uses for a 307 or 308 redirect. net/http returns a 307 or 308 with a body and no `GetBody` as an ordinary response, so `refusesToReplay` turns it into an `*ApiError` with the redirect status and `Refusing to replay a streamed request body` when redirects are followed; the body is never buffered. The retry loop stays in `baseApi`, so each retry opens the source again.
+Where: `default_api_client.mustache`.
+Test: `default_api_client_unit_test.mustache` (`bhvStreaming023`, `024`, `025`, `027`, `bhvRetries032`), `base_api_unit_test.mustache` (`bhvStreaming026`).
+
+### An event stream request with a single-use body never reconnects
+Rule: `openSse` takes `singleUse`; when true `maxReconnects` is 0 whatever the options say. `invokeSse` passes `singleUseBody(params.body)`.
+Where: `sse_stream.mustache`, `base_api.mustache`.
+Test: `event_stream_test.mustache` (`bhvSse016`).
+
+## Pagination (capability 4 of #114, D123, D124)
+
+### `Paginator[T, C]`, `Page[T, C]` and the Pages methods
+Rule: for an operation with `vendorExtensions.op.hasPagesMethod` the api template emits `<Op>Pages(ctx, ...args, options, callOptions...)` (and the same line in `<Group>ApiInterface`, through `operation_pages_interface.mustache`) returning `*Paginator[Item, Cursor]`, with `NoCursor` as the cursor type of a `Link` list. `BetterGoCodegen.markPaged` adds `goPaginatorType`, `goCursorType` and `goCursorField` (the options struct field) to the shared `pagination` map. Go has no generic default, so `Paginator` and `Page` carry two type parameters (the design table writes one): the cursor must be typed like the request parameter (`*string`, `*int32`, `*int64`), and `Page.Result` is an `*ApiResult[any]` because a third parameter would make every signature unreadable. `Items()` and `Pages()` are `iter.Seq2` with the error as the second value; each range builds new state, so re-iteration restarts. The options struct is copied by value (`base := *options`) and the cursor set on the copy for each page. `pageItems` and `pageCursor` read the page property whether it is a value or a pointer and convert an integer cursor property to the integer type of the parameter.
+Where: `BetterGoCodegen`, `paginator.mustache`, `page.mustache`, `api/api.mustache`, `api/operation_pages.mustache`, `api/operation_pages_interface.mustache`.
+Test: `test/paginator_test.mustache` (the mirror test file of `paginator.go`: `bhvPagination001` to `003`, `007` to `028`, `030` to `032`).
+
+### Link header lists and the loop guard
+Rule: a `Link` operation is split into `<Op>WithHTTPInfo` and a private `fetch<Op>Page(..., pageURL *string, ...)` that replaces the path with the URL and clears the query parameters; `invokeCall` appends the authentication query to a URL that already has a query with `&`. `linkNext` (`link_header.mustache`, tested in `link_header_test.mustache`) reads RFC 8288. `newLinkPaginator` resolves a relative link against the previous page URL (the base URL for the first page), refuses a scheme, host or port other than the client's with `*PaginationError` before anything is sent, and treats a link to the page just read as a repeat. `newCursorPaginator` ends on a nil or empty cursor and yields `*PaginationError` after the page whose cursor equals the one sent. `PaginationError` (`errors/pagination_error.mustache`) satisfies the root error directly, not `*ApiError` or `*NetworkError`.
+Where: `paginator.mustache`, `link_header.mustache`, `errors/pagination_error.mustache`, `base_api.mustache`.
+Test: `bhvPagination007`, `008`, `014`, `023`, `031`.
+
 ## Gate lessons (what broke the gate and how to avoid it)
 
 - Generated code is verified only by the Docker specs, so a template edit is unproven until `etc/ci-local.sh check Go` is green (GoFormattingSpec, GoLintingSpec, GoClientSpec). Run it before every push; the quick mode skips the integration specs and lets lint failures through.
@@ -469,7 +498,7 @@ Test: `default_api_client_unit_test.mustache` (`bhvSse007`, `015`, `018`), `base
 - A `[16]byte` (`uuid.UUID`) is a scalar, not a list: check it before the array/slice branch in `value_serializer.mustache` or it serializes as 16 numbers. Catch: a uuid parameter in GoClientSpec.
 - Stub clients and canned responses in test templates must return a body the generated decoder accepts (a valid `Pet` object, not `""` or `{}` once required fields are enforced), or the test fails in `UnmarshalJSON`, not in the code under test. Catch: `go test ./...` in GoClientSpec.
 - Encode once, at the URL builder: never strip or add percent-encoding in `SerializeValue`/`SerializeStyled` (double encoding). Catch: the path-encoding tests in GoClientSpec.
-- Do not rename the response DTO to `ApiResponse` (it collides with the spec model through the dot-import). A binary request body and a multipart file are `io.Reader`, and a binary response is `*ByteStream`; neither is `[]byte`. Catch: `go build`.
+- Do not rename the response DTO to `ApiResponse` (it collides with the spec model through the dot-import). A multipart file is `io.Reader`, a raw binary request body is `*BodySource` and a binary response is `*ByteStream`; none is `[]byte`. Catch: `go build`.
 - Every `{{#is...}}` branch of a hand-rolled `UnmarshalJSON` needs the same required-field check (the `isUnevaluatedPropertiesFalse` branch once skipped it); enum defaults map the var name to the wire value through `enumVars`, never lowercase it. Catch: a fixture with an additionalProperties-only model and a non-lowercase enum value.
 - Spec-enforced comment text: grep `src/spec` for `contains("` before rewording or deleting a "cruft" comment (the `preSeed` wording is asserted case-sensitively). gofmt rejects a raw U+FEFF, so write the escape in the test template.
 - `devbox run` hijacks `go` and golangci-lint is not installed locally, so Go is checked in Docker through the specs. Redirect guards compare against the previous hop, not `via[0]`.

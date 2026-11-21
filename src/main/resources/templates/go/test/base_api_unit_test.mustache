@@ -2,6 +2,7 @@
 package {{packageName}}
 
 import (
+	"bytes"
 	"{{packageName}}/pkg/auth"
 	"{{packageName}}/pkg/models"
 	"context"
@@ -10,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 	"os"
 	"errors"
@@ -652,5 +654,67 @@ func TestBhvStreaming028_BaseApi_AnOperationWithAStreamingMediaTypeGetsAStreamMe
 	notices, _ := api.MethodByName("WatchNoticesStream")
 	if !strings.Contains(export.Type.Out(0).String(), "JsonLinesStream") || !strings.Contains(notices.Type.Out(0).String(), "SseStream") {
 		t.Errorf("expected the carriers, got %v and %v", export.Type.Out(0), notices.Type.Out(0))
+	}
+}
+
+func uploadParams(body *BodySource) invokeApiParams {
+	return invokeApiParams{
+		method:      "PUT",
+		path:        "/items/blob",
+		contentType: "application/octet-stream",
+		rawBody:     true,
+		body:        body,
+		call:        &callState{},
+	}
+}
+
+func TestBhvStreaming026_BaseApi_AReplayableUploadIsRewoundAndRetriedAfterA503AndASingleUseUploadIsNotRetriedAndSurfacesTheOriginalError(t *testing.T) {
+	t.Parallel()
+	data := patterned(20_000)
+	var mu sync.Mutex
+	var seen []upload
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		received := readRawUpload(conn, head, func() {})
+		mu.Lock()
+		seen = append(seen, received)
+		mu.Unlock()
+		if hit == 1 {
+			rawReply(conn, 503, "Retry-After: 0")
+			return
+		}
+		rawReply(conn, 200)
+	})
+	var opens atomic.Int32
+	replayable := BodyFromFactory(func() (io.ReadCloser, error) {
+		opens.Add(1)
+		return io.NopCloser(bytes.NewReader(data)), nil
+	})
+
+	response, err := streamBase(t, server, nil, nil).invokeApiForResult(uploadParams(replayable))
+
+	if err != nil || response.StatusCode != 200 {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	if got := server.hits.Load(); got != 2 || opens.Load() != 2 {
+		t.Errorf("expected the 503 retried with the source opened again, got %d requests and %d opens", got, opens.Load())
+	}
+	mu.Lock()
+	if len(seen) != 2 || !bytes.Equal(seen[0].bytes, data) || !bytes.Equal(seen[1].bytes, data) {
+		t.Errorf("expected the retry to carry the whole body")
+	}
+	mu.Unlock()
+
+	failing := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		readRawUpload(conn, head, func() {})
+		rawReply(conn, 503, "Retry-After: 0")
+	})
+	_, err = streamBase(t, failing, nil, nil).invokeApiForResult(uploadParams(BodyFromReader(io.MultiReader(bytes.NewReader(data)))))
+
+	var unavailable *pkgerrors.ServiceUnavailableError
+	if !errors.As(err, &unavailable) {
+		t.Fatalf("expected the original 503 error, got %T: %v", err, err)
+	}
+	if got := failing.hits.Load(); got != 1 {
+		t.Errorf("expected a single use body to be sent once, got %d requests", got)
 	}
 }

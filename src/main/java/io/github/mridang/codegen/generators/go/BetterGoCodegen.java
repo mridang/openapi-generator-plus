@@ -620,6 +620,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/event_stream_test.mustache", "pkg", "event_stream_test.go"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/paginator_test.mustache", "pkg", "paginator_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/link_header_test.mustache", "pkg", "link_header_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/default_api_client_unit_test.mustache",
                             "pkg",
                             "default_api_client_unit_test.go"));
@@ -713,6 +719,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec(
                         "errors/stream_error.mustache", "pkg/errors", "stream_error.go"),
                 new SupportingFileSpec(
+                        "errors/pagination_error.mustache", "pkg/errors", "pagination_error.go"),
+                new SupportingFileSpec(
                         "errors/serialization_error.mustache",
                         "pkg/errors",
                         "serialization_error.go"),
@@ -738,6 +746,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("api_result.mustache", "pkg", "api_result.go"),
                 new SupportingFileSpec(
                         "api_stream_response.mustache", "pkg", "api_stream_response.go"),
+                new SupportingFileSpec("body_source.mustache", "pkg", "body_source.go"),
+                new SupportingFileSpec("page.mustache", "pkg", "page.go"),
+                new SupportingFileSpec("paginator.mustache", "pkg", "paginator.go"),
+                new SupportingFileSpec("link_header.mustache", "pkg", "link_header.go"),
                 new SupportingFileSpec("byte_stream.mustache", "pkg", "byte_stream.go"),
                 new SupportingFileSpec("event_stream.mustache", "pkg", "event_stream.go"),
                 new SupportingFileSpec(
@@ -1659,13 +1671,93 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     op.vendorExtensions.put(
                             "hasMultipleConsumes", hasMultipleConsumes);
                     stampContentParams(op);
+                    markBinaryUpload(op);
                 }
             }
         }
         final OperationsMap processed = super.postProcessOperationsWithModels(objs, allModels);
         reorderServerBeforeOptions(processed);
         markBinaryStreams(processed);
+        markPagination(processed);
         return processed;
+    }
+
+    /**
+     * Gives a paged operation the Go names the templates need: the paginator type, the cursor type
+     * ({@code NoCursor} for a list that is followed by {@code Link} header) and the field of the
+     * options struct that holds the cursor. The shared detector has already decided which operations
+     * are paged.
+     *
+     * @param objs the processed operations map
+     */
+    @SuppressWarnings("unchecked")
+    private static void markPagination(final OperationsMap objs) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null) {
+            return;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        for (final CodegenOperation op : ops) {
+            markPaged(op);
+        }
+    }
+
+    /**
+     * Stamps the Go names of one paged operation.
+     *
+     * @param op the operation
+     */
+    @SuppressWarnings("unchecked")
+    static void markPaged(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Object pagination = ((Map<String, Object>) decorators).get("pagination");
+        if (!(pagination instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        final boolean link = Boolean.TRUE.equals(p.get("isLink"));
+        final String cursorType = link ? "NoCursor" : String.valueOf(p.get("cursorType"));
+        p.put("goCursorType", cursorType);
+        p.put("goPaginatorType", "*Paginator[" + p.get("itemType") + ", " + cursorType + "]");
+        if (!link) {
+            p.put("goCursorField", optionsFieldName(String.valueOf(p.get("requestParamName"))));
+        }
+    }
+
+    /**
+     * A raw binary request body is a {@code *BodySource}: the operation takes it, in every
+     * signature, instead of an {@code io.Reader}. It runs before the shared pass, which copies
+     * the body type into the signature arguments. Multipart and every other body kind keep the
+     * type the spec maps.
+     *
+     * @param op the operation
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "*BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "*BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "*BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "*BodySource";
+                }
+            }
+        }
     }
 
     /**
@@ -1748,8 +1840,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(final Map<String, Object> objs) {
-        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
-        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
         for (int kind = 0; kind < flags.length; kind++) {
             CodegenOperation found = null;
             Object group = null;
