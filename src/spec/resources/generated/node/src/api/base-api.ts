@@ -579,7 +579,8 @@ export abstract class BaseApi {
       })
       .join("&");
     if (filteredParams) {
-      url += "?" + filteredParams;
+      /* A Link page URL already has a query; an authentication query joins it. */
+      url += (url.includes("?") ? "&" : "?") + filteredParams;
     }
 
     const isMultipart = contentType === "multipart/form-data";

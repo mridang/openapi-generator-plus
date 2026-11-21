@@ -3,6 +3,9 @@
 import type { ApiClient, RequestOptions } from '../api-client{{importFileExtension}}';
 import { ApiError } from '../errors/api-error{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
+{{#hasPagedOperation}}
+import { Paginator } from '../paginator{{importFileExtension}}';
+{{/hasPagedOperation}}
 {{#hasBinaryUpload}}
 import type { BodySource } from '../body-source{{importFileExtension}}';
 {{/hasBinaryUpload}}
@@ -121,6 +124,12 @@ export interface {{classname}}Interface {
   /** @deprecated This operation is deprecated. */
 {{/isDeprecated}}
   {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>>;
+{{#vendorExtensions.op.hasPagesMethod}}
+{{#isDeprecated}}
+  /** @deprecated This operation is deprecated. */
+{{/isDeprecated}}
+  {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): {{{vendorExtensions.op.pagination.paginatorType}}};
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
@@ -320,11 +329,28 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
    * @deprecated This operation is deprecated.
 {{/isDeprecated}}
    */
+{{#vendorExtensions.op.pagination.isLink}}
   async {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+    return await this.{{nickname}}Page({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}});
+  }
+
+  /* One page of the list: the first when pageUrl is not given, else the URL the Link header named. */
+  private async {{nickname}}Page({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}, {{/vendorExtensions.op.requestWrapperFields}}pageUrl?: string): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+{{/vendorExtensions.op.pagination.isLink}}
+{{^vendorExtensions.op.pagination.isLink}}
+  async {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+{{/vendorExtensions.op.pagination.isLink}}
 {{>api/operation_prelude}}
+{{#vendorExtensions.op.pagination.isLink}}
+    if (pageUrl !== undefined) {
+      for (const name of Object.keys(queryParams)) {
+        delete queryParams[name];
+      }
+    }
+{{/vendorExtensions.op.pagination.isLink}}
     return await this.{{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{/vendorExtensions.op.streamsBinary}}(
       '{{httpMethod}}',
-      {{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,
+      {{#vendorExtensions.op.pagination.isLink}}pageUrl ?? {{/vendorExtensions.op.pagination.isLink}}{{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,
       queryParams,
       headerParams,
       {{#hasFormParams}}{{#vendorExtensions.op.hasContentTypeSelector}}requestBody{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}formBody{{/vendorExtensions.op.hasContentTypeSelector}}{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
@@ -379,6 +405,66 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
       {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
     );
   }
+{{#vendorExtensions.op.hasPagesMethod}}
+
+  /**
+{{#summary}}
+   * {{&summary}}
+{{/summary}}
+   *
+   * Returns the items as a lazy {@link Paginator}: no request is sent until you first read an item
+   * or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link {{nickname}}WithHttpInfo}, with the same options on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+   * The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is where the
+   * list starts, and the page after each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}`
+   * it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+   * The page after each one is the `rel="next"` link of its `Link` header, followed only within
+   * the origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+   *
+{{#pathParams}}
+   * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}
+{{/pathParams}}
+{{#bodyParam}}
+   * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+   * @param options options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+   * @param requestOptions optional per-call options, repeated on every page request: `signal` cancels the iteration, `timeout`, `maxRetries` and `headers` apply to each page
+   * @returns the paginator over the items
+{{#isDeprecated}}
+   * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+   */
+  {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): {{{vendorExtensions.op.pagination.paginatorType}}} {
+{{#vendorExtensions.op.pagination.isToken}}
+    return Paginator.ofCursor<{{{vendorExtensions.op.pagination.itemType}}}, {{{vendorExtensions.op.pagination.cursorType}}}, {{{returnType}}}>(
+      options?.{{vendorExtensions.op.pagination.requestParamName}},
+      (cursor) => this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{#isOptions}}{ ...options, {{vendorExtensions.op.pagination.requestParamName}}: cursor }{{/isOptions}}{{^isOptions}}{{name}}{{/isOptions}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}),
+      (page) => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+      (page) => page.{{vendorExtensions.op.pagination.responsePropertyName}},
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
+    );
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+    return Paginator.ofLink<{{{vendorExtensions.op.pagination.itemType}}}, {{{returnType}}}>(
+      this.config.baseUrl,
+      (pageUrl) => this.{{nickname}}Page({{#vendorExtensions.op.requestWrapperFields}}{{name}}, {{/vendorExtensions.op.requestWrapperFields}}pageUrl),
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+      (page) => page,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+      (page) => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
+    );
+{{/vendorExtensions.op.pagination.isLink}}
+  }
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
   {{/operation}}
 }

@@ -37,6 +37,7 @@ export { InternalServerError } from "./internal-server-error.js";
 export { NetworkError } from "./network-error.js";
 export { NetworkTimeoutError } from "./network-timeout-error.js";
 export { StreamError } from "./stream-error.js";
+export { PaginationError } from "./pagination-error.js";
 export { SerializationError } from "./serialization-error.js";
 export type { SerializationErrorResponse } from "./serialization-error.js";
 export { OAuth2ServerError } from "./oauth2-server-error.js";

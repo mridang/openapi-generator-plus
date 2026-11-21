@@ -50,6 +50,8 @@ export type {
 } from "./body-source.js";
 export { ByteStream } from "./byte-stream.js";
 export { JsonLinesStream } from "./json-lines-stream.js";
+export { Paginator } from "./paginator.js";
+export type { Page } from "./paginator.js";
 export { SseStream } from "./sse-stream.js";
 export type { ServerSentEvent } from "./server-sent-event.js";
 export type { StreamOptions } from "./stream-options.js";

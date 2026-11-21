@@ -548,3 +548,20 @@ Test: `test/default-api-client-unit.test.mustache` (`bhv streaming 023` to `027`
 Rule: `SseStream.open` takes `singleUseBody` after `hasBody`; when it is true `maxReconnects` is 0 whatever the options say. `invokeApiForSse` passes `body instanceof BodySource && !body.replayable`.
 Where: `sse_stream.mustache`, `base_api.mustache`.
 Test: `test/event-stream.test.mustache` (`bhv sse 016`).
+
+## Pagination (#163, D123, D124)
+
+### The detector is shared, the Node templates only render it
+Rule: `AbstractBetterCodegen.populatePaginationDecorators` computes `vendorExtensions.op.pagination` (`style`, `isToken`, `isLink`, `source`, `requestParam`, `requestParamName`, `cursorType`, `responseProperty`, `responsePropertyName`, `itemsProperty`, `itemsPropertyName`, `itemsFromBody`, `itemType`, `itemModel`) and `hasPagesMethod`/`pagesMethodName`; `BetterNodeCodegen.markPagedOperation` adds `paginatorType` (`Paginator<Item, Cursor>`, cursor `never` for a `Link` list), `hasPagedOperation` (the `Paginator` import) and `addPagedItemImports` imports the item model, which no other signature names. The options entry of `requestWrapperFields` carries `isOptions`, so the Pages method can replace the options argument with `{ ...options, <cursor>: cursor }`. Model properties keep the spec's names, so the templates read `page.<propertyName>`.
+Where: `AbstractBetterCodegen`, `BetterNodeCodegen`, `api/apis.mustache`.
+Test: `OperationDecoratorTest`.
+
+### `Paginator<T, C>`, `Page<T, C>`, `PaginationError`
+Rule: `Paginator` (`paginator.mustache`) is a class implementing `AsyncIterable<T>` with `items()` and `pages()`; `ofCursor(start, fetch, items, next, path)` and `ofLink(baseUrl, fetch, items, path)` are the two factories the generated `...Pages` methods call. Both views are async generators over a source built on every call, so nothing is read before the first `next()`, one request is made per page, there is no read-ahead and a second loop starts again. An end is an absent, `null` or empty cursor, or no `rel="next"`. A cursor equal to the one just sent (or a `Link` to the page just read, or a foreign origin) is held back: the page it arrived with is delivered and the next read raises `PaginationError`. Any failure of a fetch ends the iteration. `Page` is an interface (`items` frozen, `nextCursor`, `result`). `PaginationError` (`errors/pagination-error.mustache`) extends the root error directly and carries `requestPath` without the query.
+Where: `paginator.mustache`, `link_header.mustache`, `errors/pagination-error.mustache`, `index.mustache`.
+Test: `test/base-api.test.mustache` (`BaseApi paged lists`: `bhv pagination 001` to `032`).
+
+### Each page is an ordinary call; a `Link` page replaces the path
+Rule: a token page calls `<op>WithHttpInfo({ ...options, cursor }, requestOptions)`, so retries, timeouts, redirects, authentication, redaction and per-call options apply to every page. A `Link` operation's `WithHttpInfo` delegates to a private `<op>Page(...args, pageUrl?)` whose body is the buffered call; when `pageUrl` is set it replaces the path and clears the query, and `invokeCall` joins an authentication query to a URL that already has one with `&`. The origin of a next URL is checked against `config.baseUrl`; an operation with a server of its own is not paged.
+Where: `api/apis.mustache`, `base_api.mustache`, `paginator.mustache`.
+Test: `test/base-api.test.mustache` (`bhv pagination 007`, `008`, `023`, `027`).

@@ -972,7 +972,7 @@ describe('mockable client', () => {
 {{#apis}}
 {{#operations}}
     const {{clientPropertyName}}Group: {{classname}}Interface = client.{{clientPropertyName}};
-    const {{clientPropertyName}}Listed = [{{#operation}}{{#vendorExtensions.op.streamOnly}}'{{vendorExtensions.op.streamMethodName}}', {{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}'{{nickname}}', '{{nickname}}WithHttpInfo', {{/vendorExtensions.op.streamOnly}}{{/operation}}];
+    const {{clientPropertyName}}Listed = [{{#operation}}{{#vendorExtensions.op.streamOnly}}'{{vendorExtensions.op.streamMethodName}}', {{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}'{{nickname}}', '{{nickname}}WithHttpInfo', {{#vendorExtensions.op.hasPagesMethod}}'{{vendorExtensions.op.pagesMethodName}}', {{/vendorExtensions.op.hasPagesMethod}}{{/vendorExtensions.op.streamOnly}}{{/operation}}];
     for (const name of {{clientPropertyName}}Listed) {
       expect(typeof ({{clientPropertyName}}Group as unknown as Record<string, unknown>)[name]).toBe('function');
     }
@@ -988,7 +988,7 @@ describe('mockable client', () => {
     const {{clientPropertyName}}Class = Object.getOwnPropertyNames({{classname}}.prototype)
       .filter(name => name !== 'constructor')
       .sort();
-    expect({{clientPropertyName}}Class).toEqual([{{#operation}}{{#vendorExtensions.op.streamOnly}}'{{vendorExtensions.op.streamMethodName}}', {{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}'{{nickname}}', '{{nickname}}WithHttpInfo', {{/vendorExtensions.op.streamOnly}}{{/operation}}].sort());
+    expect({{clientPropertyName}}Class).toEqual([{{#operation}}{{#vendorExtensions.op.streamOnly}}'{{vendorExtensions.op.streamMethodName}}', {{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}'{{nickname}}', '{{nickname}}WithHttpInfo', {{#vendorExtensions.op.hasPagesMethod}}'{{vendorExtensions.op.pagesMethodName}}', {{/vendorExtensions.op.hasPagesMethod}}{{#vendorExtensions.op.pagination.isLink}}'{{nickname}}Page', {{/vendorExtensions.op.pagination.isLink}}{{/vendorExtensions.op.streamOnly}}{{/operation}}].sort());
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
