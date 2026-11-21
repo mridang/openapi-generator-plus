@@ -514,8 +514,13 @@ public sealed class ClientTest : IDisposable
         Assert.True(typeof(I{{classname}}).IsAssignableFrom(typeof({{classname}})));
         var {{clientPropertyName}}Listed = typeof(I{{classname}}).GetMethods().Select(m => m.Name).ToHashSet();
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        Assert.Contains("{{operationId}}StreamAsync", {{clientPropertyName}}Listed);
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
         Assert.Contains("{{operationId}}Async", {{clientPropertyName}}Listed);
         Assert.Contains("{{operationId}}WithHttpInfoAsync", {{clientPropertyName}}Listed);
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

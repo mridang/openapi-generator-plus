@@ -473,31 +473,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 continue;
             }
-            string value = entry.Value.Trim();
-            if (
-                double.TryParse(
-                    value,
-                    System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out double seconds
-                )
-                && double.IsFinite(seconds)
-                && seconds >= 0
-            )
+            if (ParseRetryAfter(entry.Value, now) is { } waited)
             {
-                return TimeSpan.FromSeconds(Math.Min(seconds, MaxRetryAfterSeconds));
-            }
-            if (
-                DateTimeOffset.TryParse(
-                    value,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.AssumeUniversal,
-                    out DateTimeOffset date
-                )
-            )
-            {
-                double until = (date - now).TotalSeconds;
-                return TimeSpan.FromSeconds(Math.Clamp(until, 0, MaxRetryAfterSeconds));
+                return waited;
             }
         }
         double backoff = Math.Min(
@@ -507,8 +485,43 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         return TimeSpan.FromSeconds(backoff * (1 - 0.25 * jitter));
     }
 
+    /// <summary>
+    /// A <c>Retry-After</c> value (seconds or an HTTP date, capped at 60 s) as a wait, or null
+    /// when it is not usable.
+    /// </summary>
+    internal static TimeSpan? ParseRetryAfter(string header, DateTimeOffset now)
+    {
+        string value = header.Trim();
+        if (
+            double.TryParse(
+                value,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out double seconds
+            )
+            && double.IsFinite(seconds)
+            && seconds >= 0
+        )
+        {
+            return TimeSpan.FromSeconds(Math.Min(seconds, MaxRetryAfterSeconds));
+        }
+        if (
+            DateTimeOffset.TryParse(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal,
+                out DateTimeOffset date
+            )
+        )
+        {
+            double until = (date - now).TotalSeconds;
+            return TimeSpan.FromSeconds(Math.Clamp(until, 0, MaxRetryAfterSeconds));
+        }
+        return null;
+    }
+
     /// <summary>A random sample in [0, 1) for the backoff jitter.</summary>
-    private static double Jitter()
+    internal static double Jitter()
     {
         return System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1000) / 1000d;
     }

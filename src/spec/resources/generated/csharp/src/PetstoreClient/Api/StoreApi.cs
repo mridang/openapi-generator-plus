@@ -254,49 +254,13 @@ public class StoreApi : BaseApi, IStoreApi
     /// Exports every order as JSON Lines
     /// </summary>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="streamOptions">The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
-    /// <returns><![CDATA[Order]]></returns>
+    /// <returns>The open stream; dispose it (<c>await using</c>) when you stop early.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Order> ExportOrdersAsync(
+    public async Task<JsonLinesStream<Order>> ExportOrdersStreamAsync(
         ExportOrdersOptions? options = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        Task<ApiResult<Order>> task = ExportOrdersWithHttpInfoAsync(options, cancellationToken);
-        ApiResult<Order> result = await task.ConfigureAwait(false);
-        /* convenience-empty-body-handling: a body-returning operation that
-         * receives no decodable body surfaces the same typed, catchable
-         * ApiException as any other API failure (carrying the status code,
-         * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. The
-         * presence of a body is gated on the raw payload rather than on
-         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
-         * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. A bare
-         * JSON null payload is an absent body too: its raw text is non-empty
-         * but it decodes to a null reference, so reference-type returns also
-         * check the decoded value (boxed, so a value-type return compiles). */
-        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
-        {
-            throw new ApiException(
-                result.StatusCode,
-                "Expected a response body for ExportOrders but received none",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody
-            );
-        }
-        return result.Data!;
-    }
-
-    /// <summary>
-    /// Exports every order as JSON Lines (with HTTP info)
-    /// </summary>
-    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
-    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
-    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
-    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Order>> ExportOrdersWithHttpInfoAsync(
-        ExportOrdersOptions? options = null,
+        StreamOptions? streamOptions = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -305,7 +269,7 @@ public class StoreApi : BaseApi, IStoreApi
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
 
-        return await InvokeApiForResultAsync<Order>(
+        return await InvokeApiForJsonLinesAsync<Order>(
                 "GET",
                 path,
                 queryParams,
@@ -313,12 +277,12 @@ public class StoreApi : BaseApi, IStoreApi
                 null,
                 ExportOrdersAccepts,
                 "application/json",
-                typeof(Order),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.ExportOrders",
                 operationId: "exportOrders",
                 urlTemplate: "/store/orders/export",
+                streamOptions: streamOptions,
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -1992,49 +1956,13 @@ public class StoreApi : BaseApi, IStoreApi
     /// Streams plain text notices as server-sent events
     /// </summary>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="streamOptions">The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
-    /// <returns><![CDATA[string]]></returns>
+    /// <returns>The open stream; dispose it (<c>await using</c>) when you stop early.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<string> WatchNoticesAsync(
+    public async Task<SseStream<string>> WatchNoticesStreamAsync(
         WatchNoticesOptions? options = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        Task<ApiResult<string>> task = WatchNoticesWithHttpInfoAsync(options, cancellationToken);
-        ApiResult<string> result = await task.ConfigureAwait(false);
-        /* convenience-empty-body-handling: a body-returning operation that
-         * receives no decodable body surfaces the same typed, catchable
-         * ApiException as any other API failure (carrying the status code,
-         * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. The
-         * presence of a body is gated on the raw payload rather than on
-         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
-         * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. A bare
-         * JSON null payload is an absent body too: its raw text is non-empty
-         * but it decodes to a null reference, so reference-type returns also
-         * check the decoded value (boxed, so a value-type return compiles). */
-        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
-        {
-            throw new ApiException(
-                result.StatusCode,
-                "Expected a response body for WatchNotices but received none",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody
-            );
-        }
-        return result.Data!;
-    }
-
-    /// <summary>
-    /// Streams plain text notices as server-sent events (with HTTP info)
-    /// </summary>
-    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
-    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
-    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
-    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<string>> WatchNoticesWithHttpInfoAsync(
-        WatchNoticesOptions? options = null,
+        StreamOptions? streamOptions = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -2043,7 +1971,7 @@ public class StoreApi : BaseApi, IStoreApi
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
 
-        return await InvokeApiForResultAsync<string>(
+        return await InvokeApiForSseAsync<string>(
                 "GET",
                 path,
                 queryParams,
@@ -2051,12 +1979,14 @@ public class StoreApi : BaseApi, IStoreApi
                 null,
                 WatchNoticesAccepts,
                 "application/json",
-                typeof(string),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.WatchNotices",
                 operationId: "watchNotices",
                 urlTemplate: "/store/notices",
+                terminator: null,
+                text: true,
+                streamOptions: streamOptions,
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -2068,49 +1998,13 @@ public class StoreApi : BaseApi, IStoreApi
     /// Streams order changes as server-sent events
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="streamOptions">The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
-    /// <returns><![CDATA[Order]]></returns>
+    /// <returns>The open stream; dispose it (<c>await using</c>) when you stop early.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Order> WatchOrdersAsync(
+    public async Task<SseStream<Order>> WatchOrdersStreamAsync(
         WatchOrdersOptions? options = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        Task<ApiResult<Order>> task = WatchOrdersWithHttpInfoAsync(options, cancellationToken);
-        ApiResult<Order> result = await task.ConfigureAwait(false);
-        /* convenience-empty-body-handling: a body-returning operation that
-         * receives no decodable body surfaces the same typed, catchable
-         * ApiException as any other API failure (carrying the status code,
-         * headers and raw body) — never a silent null or a non-SDK
-         * exception type. Matches the harmonised cross-SDK canonical. The
-         * presence of a body is gated on the raw payload rather than on
-         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
-         * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. A bare
-         * JSON null payload is an absent body too: its raw text is non-empty
-         * but it decodes to a null reference, so reference-type returns also
-         * check the decoded value (boxed, so a value-type return compiles). */
-        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
-        {
-            throw new ApiException(
-                result.StatusCode,
-                "Expected a response body for WatchOrders but received none",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody
-            );
-        }
-        return result.Data!;
-    }
-
-    /// <summary>
-    /// Streams order changes as server-sent events (with HTTP info)
-    /// </summary>
-    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
-    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
-    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
-    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Order>> WatchOrdersWithHttpInfoAsync(
-        WatchOrdersOptions? options = null,
+        StreamOptions? streamOptions = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -2134,7 +2028,7 @@ public class StoreApi : BaseApi, IStoreApi
         }
         Dictionary<string, string> headerParams = [];
 
-        return await InvokeApiForResultAsync<Order>(
+        return await InvokeApiForSseAsync<Order>(
                 "GET",
                 path,
                 queryParams,
@@ -2142,12 +2036,13 @@ public class StoreApi : BaseApi, IStoreApi
                 null,
                 WatchOrdersAccepts,
                 "application/json",
-                typeof(Order),
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.WatchOrders",
                 operationId: "watchOrders",
                 urlTemplate: "/store/orders/events",
+                terminator: null,
+                streamOptions: streamOptions,
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries

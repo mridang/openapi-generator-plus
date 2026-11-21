@@ -45,6 +45,24 @@ public class BaseApiTest
         public TestableApi(IApiClient apiClient, string baseUrl, IAuthenticator? authenticator)
             : base(apiClient, new Configuration(baseUrl), authenticator) { }
 
+        public Task<SseStream<string>> EventsAsync(
+            Dictionary<string, string> headerParams,
+            StreamOptions? streamOptions
+        )
+        {
+            return InvokeApiForSseAsync<string>(
+                "GET",
+                "/items/events",
+                new Dictionary<string, object?>(),
+                headerParams,
+                null,
+                ["text/event-stream"],
+                "application/json",
+                text: true,
+                streamOptions: streamOptions
+            );
+        }
+
         public Task<ApiResult<ByteStream>> StreamAsync(
             string method,
             string path,
@@ -1811,6 +1829,200 @@ public class BaseApiTest
             "application/json"
         );
         Assert.EndsWith("/test/echo", transport.SentUrl!.AbsolutePath, StringComparison.Ordinal);
+    }
+
+    /// <summary>Answers each event stream call with the next scripted body and keeps the headers it was sent.</summary>
+    private sealed class EventStreamClient(params string[] bodies) : IApiClient
+    {
+        public List<Dictionary<string, string>> SentHeaders { get; } = [];
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ApiStreamResponse> SendStreamingAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            int? idleTimeout,
+            CancellationToken cancellationToken
+        )
+        {
+            int index = Math.Min(SentHeaders.Count, bodies.Length - 1);
+            SentHeaders.Add(new Dictionary<string, string>(headers));
+            string text = bodies[index];
+            if (text.Length == 0)
+            {
+                return Task.FromResult(
+                    new ApiStreamResponse(204, new Dictionary<string, string>(), new MemoryStream())
+                );
+            }
+            return Task.FromResult(
+                new ApiStreamResponse(
+                    200,
+                    new Dictionary<string, string> { { "content-type", "text/event-stream" } },
+                    new MemoryStream(Encoding.UTF8.GetBytes(text))
+                )
+            );
+        }
+    }
+
+    private sealed class RotatingAuthenticator : IAuthenticator
+    {
+        private int _counter;
+
+        public string GetHost() => "";
+
+        public Dictionary<string, string> GetAuthHeaders() =>
+            new() { ["Authorization"] = "Bearer t" + Interlocked.Increment(ref _counter) };
+
+        public Dictionary<string, string> GetQueryParams() => [];
+
+        public Dictionary<string, string> GetCookieParams() => [];
+    }
+
+    private static string? HeaderOf(Dictionary<string, string> headers, string name)
+    {
+        foreach (KeyValuePair<string, string> entry in headers)
+        {
+            if (string.Equals(entry.Key, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return entry.Value;
+            }
+        }
+        return null;
+    }
+
+    private static async Task DrainAsync(SseStream<string> stream)
+    {
+        await foreach (ServerSentEvent<string> item in stream)
+        {
+            Assert.NotNull(item);
+        }
+    }
+
+    [Fact]
+    public void BhvStreaming028AStreamingOperationGetsAStreamMethodAndNoBufferedMethod()
+    {
+        var names = typeof(StoreApi).GetMethods().Select(m => m.Name).ToHashSet();
+        foreach (string operation in new[] { "ExportOrders", "WatchOrders", "WatchNotices" })
+        {
+            Assert.Contains(operation + "StreamAsync", names);
+            Assert.DoesNotContain(operation + "Async", names);
+            Assert.DoesNotContain(operation + "WithHttpInfoAsync", names);
+        }
+        Type Item(string method) =>
+            typeof(StoreApi).GetMethod(method)!.ReturnType.GetGenericArguments()[0];
+        Assert.Equal(
+            typeof(JsonLinesStream<>),
+            Item("ExportOrdersStreamAsync").GetGenericTypeDefinition()
+        );
+        Assert.Equal(
+            typeof(SseStream<>),
+            Item("WatchNoticesStreamAsync").GetGenericTypeDefinition()
+        );
+    }
+
+    [Fact]
+    public async Task BhvSse006AnSseRequestSendsTheEventStreamHeadersUnlessTheCallerSetThem()
+    {
+        var client = new EventStreamClient("data: a\n\n", "");
+        await DrainAsync(await new TestableApi(client, "http://localhost").EventsAsync([], null));
+        Dictionary<string, string> sent = client.SentHeaders[0];
+        Assert.Equal("text/event-stream", HeaderOf(sent, "Accept"));
+        Assert.Equal("no-cache", HeaderOf(sent, "Cache-Control"));
+        Assert.Equal("identity", HeaderOf(sent, "Accept-Encoding"));
+
+        var own = new EventStreamClient("data: a\n\n", "");
+        var configured = new TestableApi(
+            own,
+            new Configuration(
+                "http://localhost",
+                new Dictionary<string, string> { ["accept-encoding"] = "gzip" }
+            )
+        );
+        await DrainAsync(
+            await configured.EventsAsync(
+                new Dictionary<string, string> { ["cache-control"] = "max-age=0" },
+                null
+            )
+        );
+        Dictionary<string, string> chosen = own.SentHeaders[0];
+        Assert.Equal("max-age=0", HeaderOf(chosen, "Cache-Control"));
+        Assert.Equal(
+            1,
+            chosen.Keys.Count(k =>
+                string.Equals(k, "cache-control", StringComparison.OrdinalIgnoreCase)
+            )
+        );
+        Assert.Equal("gzip", HeaderOf(chosen, "Accept-Encoding"));
+        Assert.Equal(
+            1,
+            chosen.Keys.Count(k =>
+                string.Equals(k, "accept-encoding", StringComparison.OrdinalIgnoreCase)
+            )
+        );
+    }
+
+    [Fact]
+    public async Task BhvSse012AnSseStreamSendsTheInitialLastEventIdOnItsFirstRequest()
+    {
+        var client = new EventStreamClient("data: a\n\n", "");
+
+        await DrainAsync(
+            await new TestableApi(client, "http://localhost").EventsAsync(
+                [],
+                new StreamOptions { LastEventId = "42" }
+            )
+        );
+
+        Assert.Equal("42", HeaderOf(client.SentHeaders[0], "Last-Event-ID"));
+    }
+
+    [Fact]
+    public async Task BhvSse013AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent()
+    {
+        var client = new EventStreamClient("data: a\n\n", "");
+
+        await DrainAsync(
+            await new TestableApi(
+                client,
+                "http://localhost",
+                new RotatingAuthenticator()
+            ).EventsAsync([], new StreamOptions { ReconnectDelay = 1 })
+        );
+
+        Assert.Equal(2, client.SentHeaders.Count);
+        Assert.Equal("Bearer t1", HeaderOf(client.SentHeaders[0], "Authorization"));
+        Assert.Equal("Bearer t2", HeaderOf(client.SentHeaders[1], "Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvSse020AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty()
+    {
+        var client = new EventStreamClient("data: a\n\n", "id: 5\ndata: b\n\n", "");
+
+        await DrainAsync(
+            await new TestableApi(client, "http://localhost").EventsAsync(
+                [],
+                new StreamOptions { ReconnectDelay = 1 }
+            )
+        );
+
+        Assert.Equal(3, client.SentHeaders.Count);
+        Assert.Null(HeaderOf(client.SentHeaders[0], "Last-Event-ID"));
+        Assert.Null(HeaderOf(client.SentHeaders[1], "Last-Event-ID"));
+        Assert.Equal("5", HeaderOf(client.SentHeaders[2], "Last-Event-ID"));
     }
 
     private sealed class StatusSequenceApiClient(params int[] statuses) : IApiClient
