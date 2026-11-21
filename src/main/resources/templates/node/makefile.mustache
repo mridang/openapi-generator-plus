@@ -1,4 +1,4 @@
-.PHONY: install build test lint format typecheck audit docs clean
+.PHONY: install build test lint format typecheck audit docs clean{{#generateExamples}} examples examples-run{{/generateExamples}}
 
 install:
 	npm install
@@ -27,3 +27,13 @@ docs: install
 
 clean:
 	rm -rf node_modules dist coverage .out/docs
+{{#generateExamples}}
+
+# Type-checks and compiles every file under examples against the built package,
+# which the examples import by its own name.
+examples: build
+	npx tsc -p tsconfig.examples.json
+
+examples-run: examples
+	{{envVarPrefix}}_BASE_URL="$(API_BASE_URL)" {{envVarPrefix}}_TOKEN=placeholder node .out/examples/quickstart.js
+{{/generateExamples}}

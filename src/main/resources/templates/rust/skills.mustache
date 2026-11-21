@@ -11,10 +11,10 @@ Add to your `Cargo.toml`:
 
 ## Quick Start
 
-```rust
+```rust statements
 use {{packageName}}::{{clientClassName}};
 
-let client = {{clientClassName}}::with_token(Some("https://api.example.com"), Some("your-token"), None)?;
+{{>usage_statements}}
 ```
 
 ## Authentication
@@ -23,12 +23,15 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```rust
+```rust file
 use {{packageName}}::auth::BearerAuthenticator;
 use {{packageName}}::{{clientClassName}};
+use {{packageName}}::ConfigurationError;
 
-let authenticator = BearerAuthenticator::new("https://api.example.com", "your-token")?;
-let client = {{clientClassName}}::new(Box::new(authenticator), None);
+fn new_client() -> Result<{{clientClassName}}, ConfigurationError> {
+    let authenticator = BearerAuthenticator::new("https://api.example.com", "your-token")?;
+    Ok({{clientClassName}}::new(Box::new(authenticator), None))
+}
 ```
 
 `with_token(host, access_token, transport_options)` takes `Option<&str>` values: an argument wins, then `{{envPrefix}}_BASE_URL` and `{{envPrefix}}_ACCESS_TOKEN` are read once at construction (an empty variable is unset), and a value that is neither passed nor set fails with `ConfigurationError::InvalidArgument`. `with_token_provider(host, provider, transport_options)` takes an `Arc<dyn Fn() -> String + Send + Sync>` that is called for every request.
@@ -61,66 +64,78 @@ Responses are decoded from gzip, deflate, br and zstd. The crate does not log; w
 {{#hasBasicAuth}}
 ### Basic Auth
 
-```rust
+```rust file
 use {{packageName}}::auth::BasicAuthenticator;
 use {{packageName}}::{{clientClassName}};
+use {{packageName}}::ConfigurationError;
 
-let authenticator = BasicAuthenticator::new("https://api.example.com", "username", "password")?;
-let client = {{clientClassName}}::new(Box::new(authenticator), None);
+fn new_client() -> Result<{{clientClassName}}, ConfigurationError> {
+    let authenticator = BasicAuthenticator::new("https://api.example.com", "username", "password")?;
+    Ok({{clientClassName}}::new(Box::new(authenticator), None))
+}
 ```
 
 {{/hasBasicAuth}}
 {{#hasApiKeyAuth}}
 ### API Key
 
-```rust
+```rust file
 use {{packageName}}::auth::{ApiKeyAuthenticator, ApiKeyLocation};
 use {{packageName}}::{{clientClassName}};
+use {{packageName}}::ConfigurationError;
 
-let authenticator = ApiKeyAuthenticator::new("https://api.example.com", "key-name", "key-value", ApiKeyLocation::Header)?;
-let client = {{clientClassName}}::new(Box::new(authenticator), None);
+fn new_client() -> Result<{{clientClassName}}, ConfigurationError> {
+    let authenticator = ApiKeyAuthenticator::new("https://api.example.com", "key-name", "key-value", ApiKeyLocation::Header)?;
+    Ok({{clientClassName}}::new(Box::new(authenticator), None))
+}
 ```
 
 {{/hasApiKeyAuth}}
 {{#hasOAuth2ClientCredentials}}
 ### OAuth2 Client Credentials
 
-```rust
+```rust file
 use {{packageName}}::auth::oauth::OAuth2ClientCredentialsAuthenticator;
 use {{packageName}}::{{clientClassName}};
 
-let authenticator = OAuth2ClientCredentialsAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![]);
-let client = {{clientClassName}}::new(Box::new(authenticator), None);
+fn new_client() -> {{clientClassName}} {
+    let authenticator = OAuth2ClientCredentialsAuthenticator::new(
+        "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![]);
+    {{clientClassName}}::new(Box::new(authenticator), None)
+}
 ```
 
 {{/hasOAuth2ClientCredentials}}
 {{#hasOAuth2AuthorizationCode}}
 ### OAuth2 Authorization Code
 
-```rust
+```rust file
 use {{packageName}}::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
 use {{packageName}}::{{clientClassName}};
 
-let authenticator = OAuth2AuthorizationCodeAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/authorize", "https://auth.example.com/token",
-    "https://app.example.com/callback", vec![], "");
-let client = {{clientClassName}}::new(Box::new(authenticator), None);
+fn new_client() -> {{clientClassName}} {
+    let authenticator = OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com", "client-id", "client-secret",
+        "https://auth.example.com/authorize", "https://auth.example.com/token",
+        "https://app.example.com/callback", vec![], "");
+    {{clientClassName}}::new(Box::new(authenticator), None)
+}
 ```
 
 {{/hasOAuth2AuthorizationCode}}
 {{#hasOAuth2Password}}
 ### OAuth2 Password
 
-```rust
+```rust file
 use {{packageName}}::auth::oauth::OAuth2PasswordAuthenticator;
 use {{packageName}}::{{clientClassName}};
 
-let authenticator = OAuth2PasswordAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password", vec![], "");
-let client = {{clientClassName}}::new(Box::new(authenticator), None);
+fn new_client() -> {{clientClassName}} {
+    let authenticator = OAuth2PasswordAuthenticator::new(
+        "https://api.example.com", "client-id", "client-secret",
+        "https://auth.example.com/token", "username", "password", vec![], "");
+    {{clientClassName}}::new(Box::new(authenticator), None)
+}
 ```
 
 {{/hasOAuth2Password}}
@@ -129,28 +144,33 @@ let client = {{clientClassName}}::new(Box::new(authenticator), None);
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```rust
+```rust file
 use {{packageName}}::auth::oauth::OAuth2ImplicitAuthenticator;
 use {{packageName}}::{{clientClassName}};
+use {{packageName}}::ConfigurationError;
 
-let authenticator = OAuth2ImplicitAuthenticator::new(
-    "https://api.example.com", "client-id", "https://auth.example.com/authorize", vec![]);
-authenticator.set_access_token("your-access-token")?;
-let client = {{clientClassName}}::new(Box::new(authenticator), None);
+fn new_client() -> Result<{{clientClassName}}, ConfigurationError> {
+    let authenticator = OAuth2ImplicitAuthenticator::new(
+        "https://api.example.com", "client-id", "https://auth.example.com/authorize", vec![]);
+    authenticator.set_access_token("your-access-token")?;
+    Ok({{clientClassName}}::new(Box::new(authenticator), None))
+}
 ```
 
 {{/hasOAuth2Implicit}}
 {{#hasOpenIdConnect}}
 ### OpenID Connect
 
-```rust
+```rust file
 use {{packageName}}::auth::oauth::OpenIdConnectAuthenticator;
 use {{packageName}}::{{clientClassName}};
 
-let authenticator = OpenIdConnectAuthenticator::new(
-    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
-    "client-id", "client-secret", "https://app.example.com/callback", vec![]);
-let client = {{clientClassName}}::new(Box::new(authenticator), None);
+fn new_client() -> {{clientClassName}} {
+    let authenticator = OpenIdConnectAuthenticator::new(
+        "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+        "client-id", "client-secret", "https://app.example.com/callback", vec![]);
+    {{clientClassName}}::new(Box::new(authenticator), None)
+}
 ```
 
 {{/hasOpenIdConnect}}
@@ -182,12 +202,14 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```rust
+```rust file
 use {{packageName}}::auth::oauth::{ClientAuthMethod, OAuth2ClientCredentialsAuthenticator};
 
-let authenticator = OAuth2ClientCredentialsAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![])
-    .with_client_auth_method(ClientAuthMethod::Basic);
+fn new_authenticator() -> OAuth2ClientCredentialsAuthenticator {
+    OAuth2ClientCredentialsAuthenticator::new(
+        "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![])
+        .with_client_auth_method(ClientAuthMethod::Basic)
+}
 ```
 
 {{/hasAnyOAuth2}}
@@ -200,13 +222,17 @@ One optional hook runs around every call: `client.with_call_hook(Arc::new(hook))
 
 If the OpenAPI spec defines multiple servers, the generated `{{packageName}}::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`, plus an `all_servers()` function returning a `Vec` of them. Pass the desired server's URL to the client:
 
-```rust
+```rust file
 use std::collections::HashMap;
 
 use {{packageName}}::servers::server_0;
 use {{packageName}}::{{clientClassName}};
+use {{packageName}}::ConfigurationError;
 
-let client = {{clientClassName}}::with_token(Some(&server_0().url(&HashMap::new())?), Some("your-token"), None)?;
+fn new_client() -> Result<{{clientClassName}}, ConfigurationError> {
+    let url = server_0().url(&HashMap::new())?;
+    {{clientClassName}}::with_token(Some(&url), Some("your-token"), None)
+}
 ```
 
 {{/hasServers}}
@@ -215,10 +241,11 @@ let client = {{clientClassName}}::with_token(Some(&server_0().url(&HashMap::new(
 
 The `Authenticator` trait is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```rust
+```rust file
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+
 use {{packageName}}::auth::Authenticator;
 use {{packageName}}::{{clientClassName}};
 
@@ -236,7 +263,9 @@ impl Authenticator for FakeAuthenticator {
     }
 }
 
-let client = {{clientClassName}}::new(Box::new(FakeAuthenticator), None);
+fn new_test_client() -> {{clientClassName}} {
+    {{clientClassName}}::new(Box::new(FakeAuthenticator), None)
+}
 ```
 
 ## Error Handling
@@ -272,9 +301,29 @@ Every failure the SDK produces implements the `{{errorPrefix}}Error` marker trai
     - `NetworkError` (no HTTP response, status 0)
       - `NetworkTimeoutError` (the request timed out, status 0)
 
-```rust
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+{{#operation}}
+{{#-first}}
+```rust file
 use std::error::Error;
 
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+use {{packageName}}::api::options::{{{dataType}}};
+{{/isOptions}}
+{{#isServer}}
+use {{packageName}}::api::{{{dataType}}};
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#bodyParam}}
+{{#isModel}}
+use {{packageName}}::models::{{{dataType}}};
+{{/isModel}}
+{{/bodyParam}}
+use {{packageName}}::{{clientClassName}};
 use {{packageName}}::{ClientError, NotFoundError, ServerError};
 
 /// Whether `err` is a `T`. Rust has no inheritance: each error's `source()` is
@@ -283,46 +332,96 @@ fn is_a<T: Error + 'static>(err: &(dyn Error + 'static)) -> bool {
     std::iter::successors(Some(err), |&e| e.source()).any(|e| e.is::<T>())
 }
 
-match client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}None{{/isOptions}}{{#isServer}}None{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes.1}}, None{{/consumes.1}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}.await {
-    Ok(value) => println!("Found: {:?}", value),
-    Err(e) if is_a::<NotFoundError>(&*e) => println!("Not found: {}", e),
-    Err(e) if is_a::<ClientError>(&*e) => println!("Client error: {}", e),
-    Err(e) if is_a::<ServerError>(&*e) => println!("Server error: {}", e),
-    Err(e) => println!("Error: {}", e),
+async fn {{operationId}}_or_report(
+    client: &{{clientClassName}},
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+    {{paramName}}: {{{dataType}}},
+{{/isPath}}
+{{#isBody}}
+    {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isServer}}
+    server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+    options: Option<&{{{dataType}}}>,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+    request_content_type: Option<&str>,
+{{/consumes.1}}
+) {
+    match client.{{clientPropertyName}}.{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^isServer}}{{^isOptions}}{{paramName}}, {{/isOptions}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}server, {{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}{{#consumes.1}}, request_content_type{{/consumes.1}}).await {
+{{#returnType}}
+        Ok(value) => println!("Found: {value:?}"),
+{{/returnType}}
+{{^returnType}}
+        Ok(()) => println!("Done"),
+{{/returnType}}
+        Err(e) if is_a::<NotFoundError>(&*e) => println!("Not found: {e}"),
+        Err(e) if is_a::<ClientError>(&*e) => println!("Client error: {e}"),
+        Err(e) if is_a::<ServerError>(&*e) => println!("Server error: {e}"),
+        Err(e) => println!("Error: {e}"),
+    }
 }
 ```
+{{/-first}}
+{{/operation}}
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
 
 ## Configuration
 
 ### Custom Transport Options
 
-```rust
-use {{packageName}}::TransportOptions;
+```rust file
+use {{packageName}}::auth::Authenticator;
 use {{packageName}}::{{clientClassName}};
+use {{packageName}}::{ConfigurationError, TransportOptions};
 
-let transport = TransportOptions::builder()
-    .proxy("http://proxy:3128")
-    .timeout(Some(5000))
-    .build()?;
+fn new_client(authenticator: Box<dyn Authenticator>) -> Result<{{clientClassName}}, ConfigurationError> {
+    let transport = TransportOptions::builder()
+        .proxy("http://proxy:3128")
+        .timeout(Some(5000))
+        .build()?;
 
-let client = {{clientClassName}}::new(Box::new(authenticator), Some(transport));
+    Ok({{clientClassName}}::new(authenticator, Some(transport)))
+}
 ```
 
 ### Retries
 
 A call is retried up to `max_retries` times (default 2; `.max_retries(0)` disables it) after a network error before a response, and after a status of 408, 409, 429 or 500-599 except 501. The wait is 0.5 s doubling to 8 s with 25% jitter, or the `Retry-After` header (at most 60 s). Each retry is a fresh request with its authentication headers rebuilt, all inside the one `timeout`; a multipart body is never retried.
 
-```rust
-let transport = TransportOptions::builder().max_retries(0).build()?;
+```rust file
+use {{packageName}}::{ConfigurationError, TransportOptions};
+
+fn new_transport() -> Result<TransportOptions, ConfigurationError> {
+    TransportOptions::builder().max_retries(0).build()
+}
 ```
 
 ### Custom HTTP client
 
-```rust
-let http = reqwest::Client::builder()
-    .redirect(reqwest::redirect::Policy::none())
-    .build()?;
-let client = {{clientClassName}}::with_http_client(Box::new(authenticator), http, None)?;
+```rust file
+use std::error::Error;
+
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::{{clientClassName}};
+
+fn new_client(authenticator: Box<dyn Authenticator>) -> Result<{{clientClassName}}, Box<dyn Error + Send + Sync>> {
+    let http = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()?;
+    Ok({{clientClassName}}::with_http_client(authenticator, http, None)?)
+}
 ```
 
 The SDK sends every request through your `reqwest::Client` and never shuts it down. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(false)` fails with `ConfigurationError::InvalidArgument`.
@@ -345,12 +444,12 @@ All API methods are asynchronous; call them with `.await`.
 
 Models are generated as Rust structs in the `models` module.
 
-```rust
+```rust file
 {{#models}}{{#model}}{{#-first}}use {{packageName}}::models::{{classname}};
 
-let model = {{classname}} {
-    ..Default::default()
-};{{/-first}}{{/model}}{{/models}}
+fn copy_of(model: &{{classname}}) -> {{classname}} {
+    model.clone()
+}{{/-first}}{{/model}}{{/models}}
 ```
 
 ## Binary / File Uploads

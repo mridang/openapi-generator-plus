@@ -29,23 +29,31 @@ charset decoding, and header injection are identical everywhere:
   relies on reading `Location` from a `redirect: 'manual'` response, which CORS
   makes opaque.
 
-## Quick start
+## Installation
 
 ```bash
 npm install petstore-client
 ```
 
-```typescript
-import { ApiError, Client } from "petstore-client";
+## Usage
 
-const client = Client.withToken("https://api.example.com", "your-token");
+```typescript statements
+import { Client } from "petstore-client";
 
+const host = process.env.SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL;
+if (host === undefined) {
+  throw new Error("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set");
+}
+const token = process.env.SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN;
+if (token === undefined) {
+  throw new Error("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set");
+}
+const client = Client.withToken(host, token);
 try {
-  const result = await client.pet.addPet(new Pet());
-} catch (error) {
-  if (error instanceof ApiError) {
-    console.log(`API error ${error.statusCode}: ${error.message}`);
-  }
+  const result = await client.store.getDefaults();
+  console.log(result);
+} finally {
+  await client.close();
 }
 ```
 
@@ -127,12 +135,16 @@ and `maxRetries` for the call; `headers` replace a client default or an operatio
 of the same name, whatever its case, but never the authentication headers. A value that
 is not valid throws a `TypeError` before anything is sent.
 
-```typescript
-await client.pet.addPet(new Pet(), {
-  timeout: 2000,
-  maxRetries: 0,
-  headers: { "X-Trace-Id": "abc" },
-});
+```typescript file
+import { Client } from "petstore-client";
+
+async function getDefaultsWithinTwoSeconds(client: Client): Promise<void> {
+  await client.store.getDefaults({
+    timeout: 2000,
+    maxRetries: 0,
+    headers: { "X-Trace-Id": "abc" },
+  });
+}
 ```
 
 ### Credentials
@@ -164,19 +176,29 @@ credential that is missing from both throws a `TypeError` when the authenticator
 is built, never at the first call. `BearerAuthenticator` and `withToken` also take a function in place
 of the token; it is called for every request, so a token that rotates is always current:
 
-```typescript
-const client = Client.withToken(
-  "https://api.example.com",
-  async () => await readTokenFromVault(),
-);
+```typescript file
+import { Client } from "petstore-client";
+
+function clientWithRotatingToken(readToken: () => Promise<string>): Client {
+  return Client.withToken(
+    "https://api.example.com",
+    async () => await readToken(),
+  );
+}
 ```
 
 ### Credentials per security scheme
 
 `Client` takes one optional credential for each security scheme of the API, named after the scheme: `petStoreBasic`, `adminBasic`, `petStoreBearer`, `serviceToken`, `apiKeyHeader`, `internalApiKey`, `apiKeyQuery`, `sessionCookie`, `machineAuth`, `legacyAuth`, `userAuth`, `browserAuth`, `ssoAuth`. Pass them as an object in place of the authenticator:
 
-```typescript
-const client = new Client({ petStoreBasic: schemeAuthenticator });
+```typescript file
+import { Client, type Authenticator } from "petstore-client";
+
+function clientWithSchemeCredential(
+  schemeAuthenticator: Authenticator,
+): Client {
+  return new Client({ petStoreBasic: schemeAuthenticator });
+}
 ```
 
 Each operation uses the credential of the first scheme in its own security requirement that you gave, so a credential is only sent to an operation whose spec names its scheme, and there is no per-call override. An optional `authenticator` in the same object serves any operation none of your scheme credentials matches. An operation the spec marks as needing no authentication never sends a credential. The client takes its base URL from the first credential given (`authenticator` first), and is refused with a `TypeError` when it gets none.
@@ -196,8 +218,12 @@ copy with the given fields replaced and leaves the original alone. Building a mo
 nothing: the constructor accepts any value and never throws, so the types you wrote are the only
 check until the model is decoded (see "Unknown enum values and discriminators").
 
-```typescript
-const renamed = original.with({ name: "new name" });
+```typescript file
+import { Account } from "petstore-client";
+
+function copyOf(original: Account): Account {
+  return original.with({});
+}
 ```
 
 ### Dates
@@ -212,13 +238,18 @@ a date goes in, and is sent as its UTC date. A `format: date-time` value is a `D
 Every operation takes a trailing `RequestOptions` object carrying an
 `AbortSignal`; aborting it cancels that call:
 
-```typescript
-const controller = new AbortController();
-// An operation with optional parameters takes them before the signal: pass
-// `undefined` to skip them.
-const pending = client.pet.addPet(new Pet(), { signal: controller.signal });
-controller.abort();
-await pending; // rejects with the signal's reason (an AbortError by default)
+An operation with optional parameters takes them before the signal: pass `undefined` to skip
+them. The cancelled call rejects with the signal's reason (an `AbortError` by default).
+
+```typescript file
+import { Client } from "petstore-client";
+
+async function getDefaultsCancelled(client: Client): Promise<void> {
+  const controller = new AbortController();
+  const pending = client.store.getDefaults({ signal: controller.signal });
+  controller.abort();
+  await pending;
+}
 ```
 
 Pass a client-level signal as the third constructor argument
@@ -240,7 +271,7 @@ those belong on the `fetch` you provide.
 
 Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```typescript
+```typescript file
 import type {
   PetApiInterface,
   ProblemsApiInterface,
@@ -257,9 +288,9 @@ const fake = {} as Partial<PetApiInterface> as PetApiInterface;
 use(fake);
 
 const client: ClientInterface = {
-  pet: fake as PetApiInterface,
-  problems: fake as ProblemsApiInterface,
-  store: fake as StoreApiInterface,
+  pet: fake as unknown as PetApiInterface,
+  problems: fake as unknown as ProblemsApiInterface,
+  store: fake as unknown as StoreApiInterface,
   close: async () => {
     calls.push("close");
   },
@@ -273,8 +304,13 @@ A new operation in the API adds a member to the interface, so a fake typed as th
 
 A call hook is one small, optional object that runs around every operation call. Before the request is sent it can read and edit the request headers, and when the call ends it is told the status or the error. A client with no hook does nothing extra. The hook runs once per call, however many sends happen inside it (transport retries, the one replay after a 401), and also when you supply the transport.
 
-```typescript
-import { Client, type CallHook } from "petstore-client";
+```typescript file
+import { BearerAuthenticator, Client, type CallHook } from "petstore-client";
+
+const authenticator = new BearerAuthenticator(
+  "https://api.example.com",
+  "your-token",
+);
 
 const timing: CallHook = {
   start(info, headers) {
@@ -299,8 +335,14 @@ const client = new Client(authenticator, undefined, { callHook: timing });
 
 For OpenTelemetry, the `petstore-client/opentelemetry` entry point provides `createOpenTelemetryCallHook()`. It records one span named with the operation id (kind client), one `http.client.request.count` and one `http.client.request.duration` (seconds) per call, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` and `error.type` attributes, and writes `traceparent` itself. It is built on `@opentelemetry/api`, an optional peer dependency, and records nothing when no provider is registered. Pass `{ tracerProvider, meterProvider }` to use providers other than the global ones.
 
-```typescript
+```typescript file
+import { BearerAuthenticator, Client } from "petstore-client";
 import { createOpenTelemetryCallHook } from "petstore-client/opentelemetry";
+
+const authenticator = new BearerAuthenticator(
+  "https://api.example.com",
+  "your-token",
+);
 
 const traced = new Client(authenticator, undefined, {
   callHook: createOpenTelemetryCallHook(),

@@ -455,6 +455,13 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         supportingFiles.add(
                 new SupportingFile("client.mustache", "src", clientClassFile + ".rs"));
 
+        if (generateExamples) {
+            /* Cargo builds every examples/*.rs as an example target with no manifest
+             * entry, and clippy --all-targets lints it with the crate's own [lints]. */
+            supportingFiles.add(
+                    new SupportingFile("examples/quickstart.mustache", "examples", "quickstart.rs"));
+        }
+
         if (emitUnitTests()) {
             supportingFiles.add(
                     new SupportingFile(

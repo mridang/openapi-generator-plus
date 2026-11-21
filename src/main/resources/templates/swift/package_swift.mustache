@@ -55,6 +55,14 @@ let package = Package(
             path: "Sources",
             swiftSettings: strictSettings
         ),
+{{#generateExamples}}
+        .executableTarget(
+            name: "Quickstart",
+            dependencies: ["{{packageName}}"],
+            path: "examples",
+            swiftSettings: strictSettings
+        ),
+{{/generateExamples}}
         .testTarget(
             name: "{{packageName}}Tests",
             dependencies: [

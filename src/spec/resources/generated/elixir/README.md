@@ -59,8 +59,19 @@ mix hex.audit
 
 Add `{:petstore_client, "~> 1.0.0"}` to the `deps` in `mix.exs`, then:
 
-```elixir
-client = PetstoreClient.Client.with_token("https://api.example.com", "your-token")
+```elixir statements
+host = System.fetch_env!("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL")
+token = System.fetch_env!("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+client = PetstoreClient.Client.with_token(host, token)
+
+try do
+  {:ok, result} =
+    PetstoreClient.Api.StoreApi.get_defaults(client.store)
+
+  IO.inspect(result)
+after
+  :ok = PetstoreClient.Client.close(client)
+end
 ```
 
 [SKILLS.md](SKILLS.md) covers authentication, error handling, transport options and models.
@@ -73,45 +84,61 @@ Pass Req options such as an `:adapter` or a `:plug` through `TransportOptions.ne
 
 Every API group has an interface (`PetstoreClient.Api.PetApiBehaviour`) and the client is a struct of the group structs, so a test can replace a group with a hand-written fake module: no mocking library, no network.
 
-```elixir
+```elixir file
 defmodule FakeGroup do
   @behaviour PetstoreClient.Api.PetApiBehaviour
 
-  # Implement the callbacks your code calls; the compiler lists the ones still missing.
+  # Every callback gets a stub; replace the ones your code calls with the answers your test needs.
+  for {name, arity} <- PetstoreClient.Api.PetApiBehaviour.behaviour_info(:callbacks) do
+    arguments = for index <- 1..arity//1, do: Macro.var(:"_argument#{index}", __MODULE__)
+
+    @impl true
+    def unquote(name)(unquote_splicing(arguments)), do: {:error, :not_faked}
+  end
 end
 
 defmodule Subject do
   # Code under test takes the group module, never the generated one.
-  def fetch(group, api), do: group
+  def fetch(group, api), do: group.url(api)
 end
 ```
 
-A new operation in the API adds a callback to the behaviour, so a fake module that implements the whole behaviour warns about the missing callback after you regenerate; keep one fake module in your test support code so only the operation you fake is written.
+A new operation in the API adds a callback to the behaviour, and the loop above gives it a stub the moment you regenerate, so a fake module that implements the whole behaviour never warns about a missing callback; keep one fake module in your test support code so only the operation you fake is written.
 
 ### Retries
 
 A failed call is retried up to `max_retries` times (default `2`; `0` turns retries off): after a network error that happened before any response, and after a response with status 408, 409, 429 or 500 to 599 other than 501. The wait starts at 0.5 s and doubles up to 8 s, less up to 25% jitter, and a `Retry-After` header (seconds or an HTTP date, capped at 60 s) replaces it. Every retry is a fresh request with its authentication headers rebuilt, and no retry runs past the end-to-end `timeout`. A 401 on a call authenticated by OAuth2 or OpenID Connect drops the cached access token (the refresh token is kept) and replays the request once, rebuilt; a second 401 is the usual `UnauthorizedError`.
 
-```elixir
-transport = PetstoreClient.TransportOptions.new(max_retries: 0)
+```elixir file
+defmodule Retries do
+  def transport, do: PetstoreClient.TransportOptions.new(max_retries: 0)
+end
 ```
 
 ### Per-call options
 
 Every operation takes an optional options struct, even one with no query, header, form or cookie parameter. It carries the per-call settings `timeout` (milliseconds), `headers` (a map) and `max_retries`; there is no per-call credential (see Credentials). The same three settings can also be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list. A setting replaces the client's own for that call only; the `opts` key wins over the options struct. `headers` are merged after the default headers and before the authentication headers, and replace a header of the same name in any casing.
 
-```elixir
-options = %PetstoreClient.Api.Options.GetItemOptions{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
-PetstoreClient.Api.ItemsApi.get_item(api, 7, options)
-PetstoreClient.Api.ItemsApi.get_item(api, 7, nil, timeout: 5_000)
+```elixir file
+defmodule PerCall do
+  def call(api) do
+    options = %PetstoreClient.Api.Options.GetDefaultsOptions{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
+    PetstoreClient.Api.StoreApi.get_defaults(api, options)
+    PetstoreClient.Api.StoreApi.get_defaults(api, nil, timeout: 5_000)
+  end
+end
 ```
 
 ### Credentials
 
 `PetstoreClient.Client.new/3` takes one optional credential for each security scheme of the API, named after the scheme in a keyword list: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. Each is an authenticator. An operation uses the credential of the first scheme its own security requirement lists that the client holds, and there is no per-call override. The optional first argument, the authenticator, serves an operation that none of the scheme credentials matches. An operation whose spec says `security: []` sends no credential. The base URL comes from the first credential given, the authenticator first. The client is refused (`ArgumentError`) when it gets no credential at all, or a key that names no scheme of this API.
 
-```elixir
-client = PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
+```elixir file
+defmodule SchemeCredential do
+  def client(credential) do
+    PetstoreClient.Client.new(nil, nil, pet_store_basic: credential)
+  end
+end
 ```
 
 An authenticator takes its credentials as arguments. A credential you do not pass (a `nil`) is read, once, when the authenticator is built, from an environment variable; an argument you pass always wins, and an empty variable counts as unset. A required credential found in neither place raises `ArgumentError` when the authenticator, and so the client, is built. A bearer token or an API key may also be a zero-argument function, called for every request, so a token that rotates is read fresh each time.
@@ -172,7 +199,7 @@ A hook is a module that implements the `PetstoreClient.CallHook` behaviour, or `
 
 `start` runs once per operation call, however many times the transport sends the request, and `finish` runs exactly once on every way the call can end. A header the hook sets is on every send of the call, and the fresh credentials of the one replay after a 401 still replace a header of the same name. An error raised by `start` reaches the caller unchanged and nothing is sent. An error raised by `finish` is swallowed. The hook runs above the transport, so it also runs when you supply your own, and it runs inline in the calling process, so it must not block. Headers are a plain map: reuse the spelling of an existing name to replace it.
 
-```elixir
+```elixir file
 defmodule TenantHook do
   @behaviour PetstoreClient.CallHook
 
@@ -183,14 +210,18 @@ defmodule TenantHook do
   def finish(_state, _outcome), do: :ok
 end
 
-client = PetstoreClient.Client.with_token("/api/v3", "token", nil, call_hook: TenantHook)
+defmodule TenantClient do
+  def build do
+    PetstoreClient.Client.with_token("https://api.example.com", "token", nil, call_hook: TenantHook)
+  end
+end
 ```
 
 #### OpenTelemetry
 
-This SDK ships no OpenTelemetry adapter and the SDK itself depends on no OpenTelemetry package: the Elixir OpenTelemetry metrics API is not stable yet, so the same hook is shown as a recipe instead. It records one span per call, named with the operation id, of kind client, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code as text for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). It also records the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) with the same attributes, under an instrumentation scope named after the package and carrying its version. It injects the `traceparent` header itself, so the span sent to the server is the client span. Add `opentelemetry_api` and `opentelemetry_api_experimental` to your own `mix.exs`; without an OpenTelemetry SDK it does nothing.
+This SDK ships no OpenTelemetry adapter and the SDK itself depends on no OpenTelemetry package: the Elixir OpenTelemetry metrics API is not stable yet, so the same hook is shown as a recipe instead. It records one span per call, named with the operation id, of kind client, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code as text for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). It also records the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) with the same attributes, under an instrumentation scope named after the package and carrying its version. It injects the `traceparent` header itself, so the span sent to the server is the client span. Add `opentelemetry_api` and `opentelemetry_api_experimental` to your own `mix.exs`; without an OpenTelemetry SDK it does nothing. The module at the end of the recipe passes it as the `call_hook`.
 
-```elixir
+```elixir file
 defmodule TelemetryCallHook do
   @moduledoc """
   A call hook that records one span, one request count and one duration per
@@ -302,10 +333,12 @@ defmodule TelemetryCallHook do
   defp error_type(%{error: {:exit, _reason}}), do: "cancelled"
   defp error_type(_outcome), do: "_OTHER"
 end
-```
 
-```elixir
-client = PetstoreClient.Client.with_token("/api/v3", "token", nil, call_hook: TelemetryCallHook)
+defmodule TelemetryClient do
+  def build do
+    PetstoreClient.Client.with_token("https://api.example.com", "token", nil, call_hook: TelemetryCallHook)
+  end
+end
 ```
 
 ### Response compression

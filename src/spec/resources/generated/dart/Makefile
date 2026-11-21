@@ -1,4 +1,4 @@
-.PHONY: all get test lint analyze format docs clean
+.PHONY: all get test lint analyze format docs clean examples examples-run
 
 all: get
 
@@ -34,3 +34,10 @@ clean:
 	rm -rf .dart_tool/
 	rm -rf build/
 	rm -rf doc/
+
+# Analyses every file under examples with the package's analyzer rules.
+examples: get
+	dart analyze --fatal-warnings --fatal-infos examples
+
+examples-run: examples
+	SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL="$(API_BASE_URL)" SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN=placeholder dart run examples/quickstart.dart

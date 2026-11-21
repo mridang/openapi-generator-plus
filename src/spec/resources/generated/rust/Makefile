@@ -1,4 +1,4 @@
-.PHONY: all build test lint format audit docs clean
+.PHONY: all build test lint format audit docs clean examples examples-run
 
 all: build
 
@@ -25,3 +25,10 @@ docs:
 
 clean:
 	cargo clean
+
+# Builds every program under examples/ as a cargo example target.
+examples:
+	cargo build --examples
+
+examples-run: examples
+	PETSTORE_BASE_URL="$(API_BASE_URL)" PETSTORE_ACCESS_TOKEN=placeholder cargo run --example quickstart

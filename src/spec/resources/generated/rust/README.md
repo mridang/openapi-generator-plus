@@ -27,10 +27,16 @@ petstore = "1.0.0"
 
 ## Usage
 
-```rust
+```rust statements
 use petstore::Client;
 
-let client = Client::with_token(Some("https://api.example.com"), Some("your-token"), None)?;
+let host = std::env::var("PETSTORE_BASE_URL")?;
+let token = std::env::var("PETSTORE_ACCESS_TOKEN")?;
+let client = Client::with_token(Some(&host), Some(&token), None)?;
+let result = client.store.get_defaults(None).await;
+client.close();
+let value = result?;
+println!("{value:?}");
 ```
 
 Every operation is an `async` method on a typed API group, for example
@@ -108,7 +114,7 @@ built.
 
 Every API group has an interface (`PetApiTrait`) and the client has one (`ClientTrait`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```rust
+```rust file
 use petstore::api::PetApiTrait;
 
 // Code under test takes the group trait, never the generated struct.
@@ -187,11 +193,12 @@ parameters. Authentication headers are applied after it.
 
 One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `_with_http_info` variant alike, and also when you supply your own transport.
 
-```rust,ignore
+```rust file
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use petstore::{CallHook, CallInfo, CallObserver, CallOutcome};
+use petstore::{CallHook, CallInfo, CallObserver, CallOutcome, ConfigurationError};
+use petstore::Client;
 
 struct Timing;
 struct Finish {
@@ -212,17 +219,27 @@ impl CallObserver for Finish {
     }
 }
 
-let client = Client::with_token(Some("https://api.example.com"), Some("token"), None)?
-    .with_call_hook(Arc::new(Timing));
+fn timed_client() -> Result<Client, ConfigurationError> {
+    let client = Client::with_token(Some("https://api.example.com"), Some("token"), None)?
+        .with_call_hook(Arc::new(Timing));
+    Ok(client)
+}
 ```
 
 `start(info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `operation_id` (as written in the spec), `method`, `url_template`, `url` (without query string and fragment) and `server_address`. It returns the observer to call when the call ends, or `None`. `finish(outcome)` runs exactly once on every way the call can end, with `status_code` (`0` when no response arrived), the lower-cased response `headers` (`None` when no response arrived) and the `error` the caller receives (`None` on success); a call whose future is dropped finishes with `CallCancelled`. An error thrown by `start` (a panic) reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook never changes the result or the error of the call. Combine several hooks with `call_hook::chain(vec![first, second])`: they start in the order given and finish in the reverse order. Set a hook with `Client::with_call_hook` or `ConfigurationBuilder::call_hook`.
 
 `OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Enable the `opentelemetry` feature (the SDK itself does not need the OpenTelemetry SDK), then pass `OpenTelemetryCallHook::new()` for the global providers or `OpenTelemetryCallHook::with_providers(&tracer_provider, &meter_provider)` for your own.
 
-```rust,ignore
-let client = Client::with_token(Some("https://api.example.com"), Some("token"), None)?
-    .with_call_hook(Arc::new(petstore::OpenTelemetryCallHook::new()));
+```rust file
+use std::sync::Arc;
+use petstore::Client;
+use petstore::ConfigurationError;
+
+fn traced_client() -> Result<Client, ConfigurationError> {
+    let client = Client::with_token(Some("https://api.example.com"), Some("token"), None)?
+        .with_call_hook(Arc::new(petstore::OpenTelemetryCallHook::new()));
+    Ok(client)
+}
 ```
 
 The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.

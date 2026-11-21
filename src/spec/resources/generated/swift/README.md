@@ -17,7 +17,7 @@ Auto-generated Swift SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 Add the package to your `Package.swift`, using the Git URL it is published at:
 
-```swift
+```text
 dependencies: [
     .package(url: "https://github.com/your-org/PetstoreClient", from: "1.0.0")
 ]
@@ -32,10 +32,21 @@ Create a client from an authenticator and call the operations with `try await`
 reference: every authentication scheme, transport options, error handling and
 models.
 
-```swift
+```swift statements
+import Foundation
 import PetstoreClient
 
-let client = try Client(host: "https://api.example.com", accessToken: "your-token")
+let environment = ProcessInfo.processInfo.environment
+guard let host = environment["SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"] else {
+    throw ConfigurationError.invalidArgument("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set")
+}
+guard let token = environment["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"] else {
+    throw ConfigurationError.invalidArgument("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set")
+}
+let client = try Client.withToken(host: host, accessToken: token)
+defer { client.close() }
+let result = try await client.store.getDefaults()
+print(result)
 ```
 
 ## Build
@@ -103,9 +114,14 @@ request timeout on `TransportOptions`; a call that exceeds it fails with
 `NetworkTimeoutError`. A call that is waiting for an OAuth2 token another call
 is already fetching stops waiting at once; the fetch finishes for the others.
 
-```swift
-let task = Task { try await client.someApi.someOperation() }
-task.cancel()
+```swift file
+import PetstoreClient
+
+func getDefaultsCancelled(client: Client) async {
+    let task = Task { _ = try await client.store.getDefaults() }
+    task.cancel()
+    _ = await task.result
+}
 ```
 
 ## Custom HTTP client
@@ -121,7 +137,7 @@ session itself; `build()` throws a `ConfigurationError` naming the conflict.
 
 Every API group has an interface (`PetApiProtocol`) and the client has one (`ClientProtocol`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```swift
+```swift file
 import PetstoreClient
 
 // Code under test takes the group interface, never the generated class.
@@ -177,8 +193,12 @@ An API that declares several security schemes does not need one authenticator th
 fits them all. `Client(host:...)` takes one optional credential per scheme,
 each named after its scheme, and any ``Authenticator`` will do:
 
-```swift
-let client = try Client(host: "https://api.example.com", petStoreBasic: authenticator)
+```swift file
+import PetstoreClient
+
+func clientWithSchemeCredential(authenticator: any Authenticator) throws -> Client {
+    try Client(host: "https://api.example.com", petStoreBasic: authenticator)
+}
 ```
 
 | Scheme | Argument | Typical authenticator |
@@ -237,7 +257,7 @@ string is left out so a key or token sent in it never reaches a log.
 
 Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it once on the client or on the `Configuration`, and combine several with `CallHooks.chain`, which starts them in the order given and finishes their observers in the reverse order.
 
-```swift
+```swift file
 import Foundation
 import PetstoreClient
 
@@ -248,18 +268,20 @@ struct SourceHook: CallHook {
     }
 }
 
-let client = try Client.withToken(
-    host: "https://api.example.com",
-    accessToken: "your-token",
-    callHook: SourceHook()
-)
+func hookedClient() throws -> Client {
+    try Client.withToken(
+        host: "https://api.example.com",
+        accessToken: "your-token",
+        callHook: SourceHook()
+    )
+}
 ```
 
 `start` runs once per call, however many sends the call takes, right after the trace context is injected, so `headers` is the final header set: authentication and default headers included, and any of them can be replaced. A header you set is on every send of the call, retries and the replay after a 401 included; the fresh authentication headers of a replay still replace a header of the same name. `start` returns a `CallObserver`, or `nil` when it has nothing to observe, and `CallObserver.finish` is called exactly once when the call has ended, with a `CallOutcome`: the `statusCode` (0 when no response arrived), the lower-cased response `headers` (`nil` when no response arrived) and the `error`, the very error the caller receives. `CallInfo` carries the `operationId` as written in the spec, the upper-case `method`, the `urlTemplate`, the `url` without its query string and the `serverAddress`. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook runs above the transport, so it also fires with a `URLSession` you supplied.
 
-To record one span, one request count and one duration per call, give the SDK a hook built on the OpenTelemetry API. The SDK itself has no OpenTelemetry dependency and a Swift package cannot declare an optional one, so this is a recipe you copy into your project rather than a class the SDK ships. It names the span after the operation id with kind client, sets `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code for a status of 400 or more, else `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`), and writes the `traceparent` of the client span into the request itself. The metrics API of opentelemetry-swift has no way to name a unit, so the count and the duration go to the closures you pass as `onRequest` and `onDuration`; forward them to your metrics library.
+To record one span, one request count and one duration per call, give the SDK a hook built on the OpenTelemetry API. The SDK itself has no OpenTelemetry dependency and a Swift package cannot declare an optional one, so this is a recipe you copy into your project rather than a class the SDK ships. It names the span after the operation id with kind client, sets `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code for a status of 400 or more, else `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`), and writes the `traceparent` of the client span into the request itself. The metrics API of opentelemetry-swift has no way to name a unit, so the count and the duration go to the closures you pass as `onRequest` and `onDuration`; forward them to your metrics library. The function at the end of the recipe passes it as the `callHook`, with your tracer provider and propagator.
 
-```swift
+```swift file
 import Foundation
 import OpenTelemetryApi
 import PetstoreClient
@@ -387,21 +409,17 @@ private final class SpanObserver: CallObserver, @unchecked Sendable {
         return "_OTHER"
     }
 }
-```
 
-Pass it as the `callHook`, with your tracer provider and propagator:
-
-```swift
-import OpenTelemetryApi
-
-let client = try Client.withToken(
-    host: "https://api.example.com",
-    accessToken: "your-token",
-    callHook: OpenTelemetryCallHook(
-        tracerProvider: OpenTelemetry.instance.tracerProvider,
-        propagator: W3CTraceContextPropagator()
+func tracedClient() throws -> Client {
+    try Client.withToken(
+        host: "https://api.example.com",
+        accessToken: "your-token",
+        callHook: OpenTelemetryCallHook(
+            tracerProvider: OpenTelemetry.instance.tracerProvider,
+            propagator: W3CTraceContextPropagator()
+        )
     )
-)
+}
 ```
 
 ## Immutable models

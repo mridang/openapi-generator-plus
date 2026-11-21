@@ -1236,7 +1236,7 @@ fn test_bhv_langrust_076_skills_error_handling_example_has_the_common_catch_arms
         "Err(e) if is_a::<NotFoundError>(&*e) =>",
         "Err(e) if is_a::<ClientError>(&*e) =>",
         "Err(e) if is_a::<ServerError>(&*e) =>",
-        "Err(e) => println!(\"Error: {}\", e),",
+        "Err(e) => println!(\"Error: {e}\"),",
     ] {
         assert!(
             skills.contains(arm),

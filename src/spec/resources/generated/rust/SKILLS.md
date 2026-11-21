@@ -11,10 +11,16 @@ petstore = "1.0.0"
 
 ## Quick Start
 
-```rust
+```rust statements
 use petstore::Client;
 
-let client = Client::with_token(Some("https://api.example.com"), Some("your-token"), None)?;
+let host = std::env::var("PETSTORE_BASE_URL")?;
+let token = std::env::var("PETSTORE_ACCESS_TOKEN")?;
+let client = Client::with_token(Some(&host), Some(&token), None)?;
+let result = client.store.get_defaults(None).await;
+client.close();
+let value = result?;
+println!("{value:?}");
 ```
 
 ## Authentication
@@ -23,12 +29,15 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```rust
+```rust file
 use petstore::auth::BearerAuthenticator;
 use petstore::Client;
+use petstore::ConfigurationError;
 
-let authenticator = BearerAuthenticator::new("https://api.example.com", "your-token")?;
-let client = Client::new(Box::new(authenticator), None);
+fn new_client() -> Result<Client, ConfigurationError> {
+    let authenticator = BearerAuthenticator::new("https://api.example.com", "your-token")?;
+    Ok(Client::new(Box::new(authenticator), None))
+}
 ```
 
 `with_token(host, access_token, transport_options)` takes `Option<&str>` values: an argument wins, then `PETSTORE_BASE_URL` and `PETSTORE_ACCESS_TOKEN` are read once at construction (an empty variable is unset), and a value that is neither passed nor set fails with `ConfigurationError::InvalidArgument`. `with_token_provider(host, provider, transport_options)` takes an `Arc<dyn Fn() -> String + Send + Sync>` that is called for every request.
@@ -77,84 +86,101 @@ Responses are decoded from gzip, deflate, br and zstd. The crate does not log; w
 
 ### Basic Auth
 
-```rust
+```rust file
 use petstore::auth::BasicAuthenticator;
 use petstore::Client;
+use petstore::ConfigurationError;
 
-let authenticator = BasicAuthenticator::new("https://api.example.com", "username", "password")?;
-let client = Client::new(Box::new(authenticator), None);
+fn new_client() -> Result<Client, ConfigurationError> {
+    let authenticator = BasicAuthenticator::new("https://api.example.com", "username", "password")?;
+    Ok(Client::new(Box::new(authenticator), None))
+}
 ```
 
 ### API Key
 
-```rust
+```rust file
 use petstore::auth::{ApiKeyAuthenticator, ApiKeyLocation};
 use petstore::Client;
+use petstore::ConfigurationError;
 
-let authenticator = ApiKeyAuthenticator::new("https://api.example.com", "key-name", "key-value", ApiKeyLocation::Header)?;
-let client = Client::new(Box::new(authenticator), None);
+fn new_client() -> Result<Client, ConfigurationError> {
+    let authenticator = ApiKeyAuthenticator::new("https://api.example.com", "key-name", "key-value", ApiKeyLocation::Header)?;
+    Ok(Client::new(Box::new(authenticator), None))
+}
 ```
 
 ### OAuth2 Client Credentials
 
-```rust
+```rust file
 use petstore::auth::oauth::OAuth2ClientCredentialsAuthenticator;
 use petstore::Client;
 
-let authenticator = OAuth2ClientCredentialsAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![]);
-let client = Client::new(Box::new(authenticator), None);
+fn new_client() -> Client {
+    let authenticator = OAuth2ClientCredentialsAuthenticator::new(
+        "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![]);
+    Client::new(Box::new(authenticator), None)
+}
 ```
 
 ### OAuth2 Authorization Code
 
-```rust
+```rust file
 use petstore::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
 use petstore::Client;
 
-let authenticator = OAuth2AuthorizationCodeAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/authorize", "https://auth.example.com/token",
-    "https://app.example.com/callback", vec![], "");
-let client = Client::new(Box::new(authenticator), None);
+fn new_client() -> Client {
+    let authenticator = OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com", "client-id", "client-secret",
+        "https://auth.example.com/authorize", "https://auth.example.com/token",
+        "https://app.example.com/callback", vec![], "");
+    Client::new(Box::new(authenticator), None)
+}
 ```
 
 ### OAuth2 Password
 
-```rust
+```rust file
 use petstore::auth::oauth::OAuth2PasswordAuthenticator;
 use petstore::Client;
 
-let authenticator = OAuth2PasswordAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password", vec![], "");
-let client = Client::new(Box::new(authenticator), None);
+fn new_client() -> Client {
+    let authenticator = OAuth2PasswordAuthenticator::new(
+        "https://api.example.com", "client-id", "client-secret",
+        "https://auth.example.com/token", "username", "password", vec![], "");
+    Client::new(Box::new(authenticator), None)
+}
 ```
 
 ### OAuth2 Implicit
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```rust
+```rust file
 use petstore::auth::oauth::OAuth2ImplicitAuthenticator;
 use petstore::Client;
+use petstore::ConfigurationError;
 
-let authenticator = OAuth2ImplicitAuthenticator::new(
-    "https://api.example.com", "client-id", "https://auth.example.com/authorize", vec![]);
-authenticator.set_access_token("your-access-token")?;
-let client = Client::new(Box::new(authenticator), None);
+fn new_client() -> Result<Client, ConfigurationError> {
+    let authenticator = OAuth2ImplicitAuthenticator::new(
+        "https://api.example.com", "client-id", "https://auth.example.com/authorize", vec![]);
+    authenticator.set_access_token("your-access-token")?;
+    Ok(Client::new(Box::new(authenticator), None))
+}
 ```
 
 ### OpenID Connect
 
-```rust
+```rust file
 use petstore::auth::oauth::OpenIdConnectAuthenticator;
 use petstore::Client;
 
-let authenticator = OpenIdConnectAuthenticator::new(
-    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
-    "client-id", "client-secret", "https://app.example.com/callback", vec![]);
-let client = Client::new(Box::new(authenticator), None);
+fn new_client() -> Client {
+    let authenticator = OpenIdConnectAuthenticator::new(
+        "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+        "client-id", "client-secret", "https://app.example.com/callback", vec![]);
+    Client::new(Box::new(authenticator), None)
+}
 ```
 
 ### OAuth2 token lifecycle
@@ -184,12 +210,14 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```rust
+```rust file
 use petstore::auth::oauth::{ClientAuthMethod, OAuth2ClientCredentialsAuthenticator};
 
-let authenticator = OAuth2ClientCredentialsAuthenticator::new(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![])
-    .with_client_auth_method(ClientAuthMethod::Basic);
+fn new_authenticator() -> OAuth2ClientCredentialsAuthenticator {
+    OAuth2ClientCredentialsAuthenticator::new(
+        "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", vec![])
+        .with_client_auth_method(ClientAuthMethod::Basic)
+}
 ```
 
 ### Hooks and telemetry
@@ -200,23 +228,28 @@ One optional hook runs around every call: `client.with_call_hook(Arc::new(hook))
 
 If the OpenAPI spec defines multiple servers, the generated `petstore::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`, plus an `all_servers()` function returning a `Vec` of them. Pass the desired server's URL to the client:
 
-```rust
+```rust file
 use std::collections::HashMap;
 
 use petstore::servers::server_0;
 use petstore::Client;
+use petstore::ConfigurationError;
 
-let client = Client::with_token(Some(&server_0().url(&HashMap::new())?), Some("your-token"), None)?;
+fn new_client() -> Result<Client, ConfigurationError> {
+    let url = server_0().url(&HashMap::new())?;
+    Client::with_token(Some(&url), Some("your-token"), None)
+}
 ```
 
 ## Testing
 
 The `Authenticator` trait is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```rust
+```rust file
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+
 use petstore::auth::Authenticator;
 use petstore::Client;
 
@@ -234,7 +267,9 @@ impl Authenticator for FakeAuthenticator {
     }
 }
 
-let client = Client::new(Box::new(FakeAuthenticator), None);
+fn new_test_client() -> Client {
+    Client::new(Box::new(FakeAuthenticator), None)
+}
 ```
 
 ## Error Handling
@@ -270,9 +305,12 @@ Every failure the SDK produces implements the `OpenAPIError` marker trait, so a 
     - `NetworkError` (no HTTP response, status 0)
       - `NetworkTimeoutError` (the request timed out, status 0)
 
-```rust
+```rust file
 use std::error::Error;
 
+use petstore::api::options::AddPetOptions;
+use petstore::models::Pet;
+use petstore::Client;
 use petstore::{ClientError, NotFoundError, ServerError};
 
 /// Whether `err` is a `T`. Rust has no inheritance: each error's `source()` is
@@ -281,12 +319,18 @@ fn is_a<T: Error + 'static>(err: &(dyn Error + 'static)) -> bool {
     std::iter::successors(Some(err), |&e| e.source()).any(|e| e.is::<T>())
 }
 
-match client.pet.add_pet(pet, None).await {
-    Ok(value) => println!("Found: {:?}", value),
-    Err(e) if is_a::<NotFoundError>(&*e) => println!("Not found: {}", e),
-    Err(e) if is_a::<ClientError>(&*e) => println!("Client error: {}", e),
-    Err(e) if is_a::<ServerError>(&*e) => println!("Server error: {}", e),
-    Err(e) => println!("Error: {}", e),
+async fn add_pet_or_report(
+    client: &Client,
+    pet: Pet,
+    options: Option<&AddPetOptions>,
+) {
+    match client.pet.add_pet(pet, options).await {
+        Ok(value) => println!("Found: {value:?}"),
+        Err(e) if is_a::<NotFoundError>(&*e) => println!("Not found: {e}"),
+        Err(e) if is_a::<ClientError>(&*e) => println!("Client error: {e}"),
+        Err(e) if is_a::<ServerError>(&*e) => println!("Server error: {e}"),
+        Err(e) => println!("Error: {e}"),
+    }
 }
 ```
 
@@ -294,33 +338,47 @@ match client.pet.add_pet(pet, None).await {
 
 ### Custom Transport Options
 
-```rust
-use petstore::TransportOptions;
+```rust file
+use petstore::auth::Authenticator;
 use petstore::Client;
+use petstore::{ConfigurationError, TransportOptions};
 
-let transport = TransportOptions::builder()
-    .proxy("http://proxy:3128")
-    .timeout(Some(5000))
-    .build()?;
+fn new_client(authenticator: Box<dyn Authenticator>) -> Result<Client, ConfigurationError> {
+    let transport = TransportOptions::builder()
+        .proxy("http://proxy:3128")
+        .timeout(Some(5000))
+        .build()?;
 
-let client = Client::new(Box::new(authenticator), Some(transport));
+    Ok(Client::new(authenticator, Some(transport)))
+}
 ```
 
 ### Retries
 
 A call is retried up to `max_retries` times (default 2; `.max_retries(0)` disables it) after a network error before a response, and after a status of 408, 409, 429 or 500-599 except 501. The wait is 0.5 s doubling to 8 s with 25% jitter, or the `Retry-After` header (at most 60 s). Each retry is a fresh request with its authentication headers rebuilt, all inside the one `timeout`; a multipart body is never retried.
 
-```rust
-let transport = TransportOptions::builder().max_retries(0).build()?;
+```rust file
+use petstore::{ConfigurationError, TransportOptions};
+
+fn new_transport() -> Result<TransportOptions, ConfigurationError> {
+    TransportOptions::builder().max_retries(0).build()
+}
 ```
 
 ### Custom HTTP client
 
-```rust
-let http = reqwest::Client::builder()
-    .redirect(reqwest::redirect::Policy::none())
-    .build()?;
-let client = Client::with_http_client(Box::new(authenticator), http, None)?;
+```rust file
+use std::error::Error;
+
+use petstore::auth::Authenticator;
+use petstore::Client;
+
+fn new_client(authenticator: Box<dyn Authenticator>) -> Result<Client, Box<dyn Error + Send + Sync>> {
+    let http = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()?;
+    Ok(Client::with_http_client(authenticator, http, None)?)
+}
 ```
 
 The SDK sends every request through your `reqwest::Client` and never shuts it down. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(false)` fails with `ConfigurationError::InvalidArgument`.
@@ -343,12 +401,12 @@ All API methods are asynchronous; call them with `.await`.
 
 Models are generated as Rust structs in the `models` module.
 
-```rust
+```rust file
 use petstore::models::Account;
 
-let model = Account {
-    ..Default::default()
-};
+fn copy_of(model: &Account) -> Account {
+    model.clone()
+}
 ```
 
 ## Binary / File Uploads

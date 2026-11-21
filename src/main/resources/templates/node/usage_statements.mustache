@@ -1,0 +1,27 @@
+const host = process.env.{{envVarPrefix}}_BASE_URL;
+if (host === undefined) {
+  throw new Error('{{envVarPrefix}}_BASE_URL is not set');
+}
+const token = process.env.{{envVarPrefix}}_TOKEN;
+if (token === undefined) {
+  throw new Error('{{envVarPrefix}}_TOKEN is not set');
+}
+const client = {{clientClassName}}.withToken(host, token);
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+try {
+{{#returnType}}
+  const result = await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{nickname}}();
+  console.log(result);
+{{/returnType}}
+{{^returnType}}
+  await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{nickname}}();
+{{/returnType}}
+} finally {
+  await client.close();
+}
+{{/exampleOperation}}
+{{/hasExampleOperation}}
+{{^hasExampleOperation}}
+await client.close();
+{{/hasExampleOperation}}

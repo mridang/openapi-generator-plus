@@ -12,10 +12,24 @@ If using locally, add it as a file dependency in your `package.json`.
 
 ## Quick Start
 
-```typescript
+```typescript statements
 import { Client } from "petstore-client";
 
-const client = Client.withToken("https://api.example.com", "your-token");
+const host = process.env.SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL;
+if (host === undefined) {
+  throw new Error("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set");
+}
+const token = process.env.SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN;
+if (token === undefined) {
+  throw new Error("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set");
+}
+const client = Client.withToken(host, token);
+try {
+  const result = await client.store.getDefaults();
+  console.log(result);
+} finally {
+  await client.close();
+}
 ```
 
 ## Authentication
@@ -24,7 +38,7 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```typescript
+```typescript statements
 import { BearerAuthenticator, Client } from "petstore-client";
 
 const authenticator = new BearerAuthenticator(
@@ -36,8 +50,8 @@ const client = new Client(authenticator);
 
 ### Basic Auth
 
-```typescript
-import { BasicAuthenticator } from "petstore-client";
+```typescript statements
+import { BasicAuthenticator, Client } from "petstore-client";
 
 const authenticator = new BasicAuthenticator(
   "https://api.example.com",
@@ -49,8 +63,8 @@ const client = new Client(authenticator);
 
 ### API Key
 
-```typescript
-import { ApiKeyAuthenticator, ApiKeyLocation } from "petstore-client";
+```typescript statements
+import { ApiKeyAuthenticator, ApiKeyLocation, Client } from "petstore-client";
 
 const authenticator = new ApiKeyAuthenticator(
   "https://api.example.com",
@@ -63,8 +77,8 @@ const client = new Client(authenticator);
 
 ### OAuth2 Client Credentials
 
-```typescript
-import { OAuth2ClientCredentialsAuthenticator } from "petstore-client";
+```typescript statements
+import { OAuth2ClientCredentialsAuthenticator, Client } from "petstore-client";
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
   "https://api.example.com",
@@ -78,8 +92,8 @@ const client = new Client(authenticator);
 
 ### OAuth2 Authorization Code
 
-```typescript
-import { OAuth2AuthorizationCodeAuthenticator } from "petstore-client";
+```typescript statements
+import { OAuth2AuthorizationCodeAuthenticator, Client } from "petstore-client";
 
 const authenticator = new OAuth2AuthorizationCodeAuthenticator(
   "https://api.example.com",
@@ -95,8 +109,8 @@ const client = new Client(authenticator);
 
 ### OAuth2 Password
 
-```typescript
-import { OAuth2PasswordAuthenticator } from "petstore-client";
+```typescript statements
+import { OAuth2PasswordAuthenticator, Client } from "petstore-client";
 
 const authenticator = new OAuth2PasswordAuthenticator(
   "https://api.example.com",
@@ -114,8 +128,8 @@ const client = new Client(authenticator);
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```typescript
-import { OAuth2ImplicitAuthenticator } from "petstore-client";
+```typescript statements
+import { OAuth2ImplicitAuthenticator, Client } from "petstore-client";
 
 const authenticator = new OAuth2ImplicitAuthenticator(
   "https://api.example.com",
@@ -129,8 +143,8 @@ const client = new Client(authenticator);
 
 ### OpenID Connect
 
-```typescript
-import { OpenIdConnectAuthenticator } from "petstore-client";
+```typescript statements
+import { OpenIdConnectAuthenticator, Client } from "petstore-client";
 
 const authenticator = new OpenIdConnectAuthenticator(
   "https://api.example.com",
@@ -174,7 +188,7 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```typescript
+```typescript statements
 import {
   ClientAuthMethod,
   OAuth2ClientCredentialsAuthenticator,
@@ -194,7 +208,7 @@ const authenticator = new OAuth2ClientCredentialsAuthenticator(
 
 If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` static property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` array. Pass the desired server's URL to the client:
 
-```typescript
+```typescript statements
 import { Client, Servers } from "petstore-client";
 
 const client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
@@ -204,7 +218,7 @@ const client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
 
 To stub responses, pass your own `fetch` through `TransportOptions` and return a canned `Response`; to control credentials, substitute a fake `Authenticator` that returns a known header map. Together they let a test run without a network.
 
-```typescript
+```typescript statements
 import { Client, type Authenticator } from "petstore-client";
 
 const fake: Authenticator = {
@@ -230,16 +244,18 @@ const client = new Client(fake);
 
 Stubbing the transport so that every call receives a canned response:
 
-```typescript
-import { Client, TransportOptions } from "petstore-client";
+```typescript file
+import { Client, TransportOptions, type Authenticator } from "petstore-client";
 
-const stub: typeof fetch = async () =>
-  new Response("{}", {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
-const transport = TransportOptions.builder().fetch(stub).build();
-const client = new Client(fake, transport);
+function stubbedClient(fake: Authenticator): Client {
+  const stub: typeof fetch = async () =>
+    new Response("{}", {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  const transport = TransportOptions.builder().fetch(stub).build();
+  return new Client(fake, transport);
+}
 ```
 
 ## Error Handling
@@ -275,31 +291,35 @@ Every error the SDK raises derives from `OpenAPIError`. The error hierarchy is:
   - `OAuth2ServerError` (the token endpoint answered with a non-2xx status)
   - `OAuth2TokenError` (the token endpoint answered 2xx with an unusable body)
 
-```typescript
+```typescript file
 import {
   ApiError,
   ClientError,
+  Client,
   NotFoundError,
   ServerError,
   OpenAPIError,
   Pet,
 } from "petstore-client";
 
-try {
-  const result = await client.pet.addPet(new Pet());
-} catch (error) {
-  if (error instanceof NotFoundError) {
-    console.log(`Not found: ${error.message}`);
-  } else if (error instanceof ClientError) {
-    console.log(`Client error ${error.statusCode}: ${error.message}`);
-  } else if (error instanceof ServerError) {
-    console.log(`Server error: ${error.message}`);
-  } else if (error instanceof ApiError) {
-    console.log(`API error: ${error.message}`);
-  } else if (error instanceof OpenAPIError) {
-    console.log(`SDK error: ${error.message}`);
-  } else {
-    throw error;
+async function addPetOrReport(client: Client, pet: Pet): Promise<void> {
+  try {
+    const result = await client.pet.addPet(pet);
+    console.log(result);
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      console.log(`Not found: ${error.message}`);
+    } else if (error instanceof ClientError) {
+      console.log(`Client error ${error.statusCode}: ${error.message}`);
+    } else if (error instanceof ServerError) {
+      console.log(`Server error: ${error.message}`);
+    } else if (error instanceof ApiError) {
+      console.log(`API error: ${error.message}`);
+    } else if (error instanceof OpenAPIError) {
+      console.log(`SDK error: ${error.message}`);
+    } else {
+      throw error;
+    }
   }
 }
 ```
@@ -308,7 +328,7 @@ try {
 
 ### Custom Transport Options
 
-```typescript
+```typescript statements
 import { BearerAuthenticator, Client, TransportOptions } from "petstore-client";
 
 const authenticator = new BearerAuthenticator(
@@ -329,7 +349,9 @@ const client = new Client(authenticator, transport);
 
 ### Custom HTTP client
 
-```typescript
+```typescript statements
+import { TransportOptions } from "petstore-client";
+
 const transport = TransportOptions.builder()
   .fetch((input, init) => fetch(input, init))
   .build();
@@ -361,13 +383,23 @@ A cookie parameter is sent raw when every character is an RFC 6265 cookie-octet 
 
 Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSignal }` plus the per-call options above). A client-level signal goes in the third constructor argument and is merged with the per-call signal; either one cancels the call. Cancellation rejects with the signal's reason (an `AbortError` by default), never `NetworkTimeoutError`.
 
-```typescript
-const controller = new AbortController();
-// An operation with optional parameters takes them before the signal: pass `undefined` to skip them.
-const perCall = client.pet.addPet(new Pet(), { signal: controller.signal });
-const cancellable = new Client(authenticator, undefined, {
-  signal: controller.signal,
-});
+An operation with optional parameters takes them before the signal: pass `undefined` to skip them.
+
+```typescript file
+import { Client, type Authenticator } from "petstore-client";
+
+async function getDefaultsCancelled(
+  client: Client,
+  authenticator: Authenticator,
+): Promise<void> {
+  const controller = new AbortController();
+  const perCall = client.store.getDefaults({ signal: controller.signal });
+  const cancellable = new Client(authenticator, undefined, {
+    signal: controller.signal,
+  });
+  controller.abort();
+  await perCall;
+}
 ```
 
 ### Raw responses, timeouts and the request id
@@ -390,10 +422,12 @@ All API methods are asynchronous; call them with `await`.
 
 Models are generated as TypeScript classes in the `src/models/` directory. Every field is `readonly`; `model.with({ field: value })` returns a copy with the fields replaced. A model constructor validates nothing; a missing required field or a wrong type fails when a response is decoded, and an unknown enum string decodes to the catch-all member `UNKNOWN_DEFAULT_OPEN_API`. A `format: date` field or parameter is a plain `YYYY-MM-DD` string (a `Date` is accepted on input and sent as its UTC date); `format: date-time` is a `Date`.
 
-```typescript
+```typescript file
 import { Account } from "petstore-client";
 
-const model = new Account();
+function copyOf(model: Account): Account {
+  return model.with({});
+}
 ```
 
 ## Binary / File Uploads
