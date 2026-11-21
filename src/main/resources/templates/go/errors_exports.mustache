@@ -57,6 +57,8 @@ type (
 	NetworkError = errors_pkg.NetworkError
 	// NetworkTimeoutError is a request that timed out.
 	NetworkTimeoutError = errors_pkg.NetworkTimeoutError
+	// StreamError is a response body that failed after its headers arrived.
+	StreamError = errors_pkg.StreamError
 	// SerializationError is a value that could not be encoded or decoded.
 	SerializationError = errors_pkg.SerializationError
 	// OAuth2ServerError is a non-2xx answer from the OAuth2 token endpoint.

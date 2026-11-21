@@ -156,6 +156,11 @@ var _ {{classname}}Interface = (*{{classname}})(nil)
 //   - HTTP {{status}}: *{{#hasSchema}}{{{schemaClassName}}}, whose Body is a {{{schemaName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}}
 {{/vendorExtensions.op.errorResponses}}
 {{/vendorExtensions.op.hasErrorResponses}}
+{{#vendorExtensions.op.streamsBinary}}
+//
+// The response body is returned unread as a *ByteStream: read it, then Close it
+// (Close aborts the connection, so close it when you stop early too).
+{{/vendorExtensions.op.streamsBinary}}
 //
 // {{httpMethod}} {{{path}}}
 {{#isDeprecated}}
@@ -613,7 +618,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 {{/hasFormParams}}
 {{/vendorExtensions.hasMultipleConsumes}}
 
-	response, err := a.invokeApi(invokeApiParams{
+	{{#vendorExtensions.op.streamsBinary}}streamed, err := a.invokeApiForStream({{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}response, err := a.invokeApi({{/vendorExtensions.op.streamsBinary}}invokeApiParams{
 		ctx:          ctx,
 		settings:     settings,
 		operationID:  "{{#goStringLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/goStringLiteral}}",
@@ -655,6 +660,18 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		return nil, err
 	}
 
+{{#vendorExtensions.op.streamsBinary}}
+	/* The success response is binary: the body is handed over unread, as a
+	 * ByteStream the caller reads and closes, never buffered here. */
+	data := NewByteStream(streamed.StatusCode, streamed.Headers, streamed.Body)
+	return &ApiResult[ByteStream]{
+		StatusCode: streamed.StatusCode,
+		Data:       data,
+		RawBody:    "",
+		Headers:    data.Headers(),
+	}, nil
+{{/vendorExtensions.op.streamsBinary}}
+{{^vendorExtensions.op.streamsBinary}}
 {{#returnType}}
 	var data {{{.}}}
 {{#vendorExtensions.op.hasMultiple2xx}}
@@ -768,6 +785,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		Headers:    response.Headers,
 	}, nil
 {{/returnType}}
+{{/vendorExtensions.op.streamsBinary}}
 }
 {{/operation}}
 {{/operations}}
