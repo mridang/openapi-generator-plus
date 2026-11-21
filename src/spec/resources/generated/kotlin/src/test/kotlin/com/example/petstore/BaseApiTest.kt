@@ -10,6 +10,8 @@ package com.example.petstore
 import com.example.petstore.api.PetApi
 import com.example.petstore.api.StoreApi
 import com.example.petstore.api.options.FindPetsByStatusOptions
+import com.example.petstore.api.options.ListPetCatalogOptions
+import com.example.petstore.api.options.ListPetFeedOptions
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.errors.*
 import io.ktor.client.HttpClient
@@ -32,9 +34,14 @@ import kotlinx.coroutines.ThreadContextElement
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -4126,6 +4133,695 @@ class BaseApiTest {
             assertNull(headerOf(client.sentHeaders[0], "Last-Event-ID"))
             assertNull(headerOf(client.sentHeaders[1], "Last-Event-ID"), "no id yet, so none is sent")
             assertEquals("5", headerOf(client.sentHeaders[2], "Last-Event-ID"))
+        }
+    }
+
+    /** One request a paged-list server saw: the path, the decoded query and the headers (lower-cased names). */
+    class SeenRequest(
+        val path: String,
+        val query: Map<String, String>,
+        val headers: Map<String, String>,
+    ) {
+        fun param(name: String): String? = query[name]
+    }
+
+    /** What a paged-list server answers: a status, a JSON body, extra headers and a delay before it answers. */
+    class Reply(
+        val status: Int,
+        val body: String,
+        val headers: Map<String, String> = emptyMap(),
+        val delayMillis: Long = 0,
+    ) {
+        fun after(millis: Long): Reply = Reply(status, body, headers, millis)
+
+        companion object {
+            fun ok(
+                body: String,
+                headers: Map<String, String> = emptyMap(),
+            ): Reply = Reply(200, body, headers)
+
+            fun status(status: Int): Reply = Reply(status, "{}", mapOf("Retry-After" to "0"))
+        }
+    }
+
+    /**
+     * An in-process server whose answer depends on the request it gets and on how many it has had,
+     * which the shared mock cannot do. It records every request in arrival order.
+     */
+    class PagedServer(
+        private val handler: (SeenRequest, Int) -> Reply,
+    ) : AutoCloseable {
+        val seen = java.util.concurrent.CopyOnWriteArrayList<SeenRequest>()
+        private val raw =
+            DefaultApiClientUnitTest.RawServer.serve { _, socket, hit, head ->
+                val lines = head.split("\r\n")
+                val target = lines[0].split(" ")[1]
+                val query = LinkedHashMap<String, String>()
+                for (pair in target.substringAfter('?', "").split("&").filter { it.isNotEmpty() }) {
+                    val key = pair.substringBefore('=')
+                    val value = pair.substringAfter('=', "")
+                    query[java.net.URLDecoder.decode(key, Charsets.UTF_8)] = java.net.URLDecoder.decode(value, Charsets.UTF_8)
+                }
+                val headers = HashMap<String, String>()
+                for (line in lines.drop(1).filter { it.contains(':') }) {
+                    headers[line.substringBefore(':').lowercase()] = line.substringAfter(':').trim()
+                }
+                val request = SeenRequest(target.substringBefore('?'), query, headers)
+                seen.add(request)
+                answer(socket, handler(request, hit))
+            }
+
+        private fun answer(
+            socket: java.net.Socket,
+            reply: Reply,
+        ) {
+            if (reply.delayMillis > 0) {
+                Thread.sleep(reply.delayMillis)
+            }
+            val bytes = reply.body.toByteArray(Charsets.UTF_8)
+            val head = StringBuilder("HTTP/1.1 ${reply.status} Test\r\nContent-Type: application/json\r\n")
+            for ((name, value) in reply.headers) {
+                head
+                    .append(name)
+                    .append(": ")
+                    .append(value)
+                    .append("\r\n")
+            }
+            head.append("Content-Length: ${bytes.size}\r\nConnection: close\r\n\r\n")
+            val out = socket.getOutputStream()
+            out.write(head.toString().toByteArray(Charsets.ISO_8859_1))
+            out.write(bytes)
+            out.flush()
+        }
+
+        fun url(): String = raw.url("")
+
+        override fun close() = raw.close()
+    }
+
+    private fun petJson(name: String): String = "{\"id\":1,\"name\":\"$name\",\"photoUrls\":[]}"
+
+    /** A catalog page: the pets of page [page] of [size], and the cursor of the page after it. */
+    private fun catalogBody(
+        page: Int,
+        size: Int,
+        pages: Int,
+    ): String {
+        val items = (0 until size).joinToString(",") { petJson("p$page-$it") }
+        val next = if (page + 1 < pages) ",\"next_cursor\":\"c${page + 1}\"" else ""
+        return "{\"items\":[$items]$next}"
+    }
+
+    /** A catalog of [pages] pages of [size] pets; the cursor of page n is "c" followed by n. */
+    private fun catalogServer(
+        pages: Int,
+        size: Int,
+    ): PagedServer =
+        PagedServer { request, _ ->
+            val page = request.param("cursor")?.substring(1)?.toInt() ?: 0
+            Reply.ok(catalogBody(page, size, pages))
+        }
+
+    private fun petApi(
+        server: PagedServer,
+        transport: TransportOptions = TransportOptions.builder().maxRetries(0).build(),
+        defaultHeaders: Map<String, String> = emptyMap(),
+    ): PetApi =
+        PetApi(
+            DefaultApiClient(transport),
+            Configuration
+                .builder()
+                .baseUrl(server.url())
+                .defaultHeaders(defaultHeaders)
+                .build(),
+        )
+
+    private fun feedServer(
+        pages: Int,
+        link: (Int) -> String,
+    ): PagedServer =
+        PagedServer { request, _ ->
+            val index = request.param("page")?.toInt() ?: 0
+            val headers = if (index + 1 < pages) mapOf("Link" to link(index + 1)) else emptyMap()
+            Reply.ok("[${petJson("f$index")}]", headers)
+        }
+
+    private fun sameOriginFeed(pages: Int): PagedServer {
+        var self: PagedServer? = null
+        val server = feedServer(pages) { next -> "<${self!!.url()}/pet/feed?page=$next&secret=s3>; rel=\"next\"" }
+        self = server
+        return server
+    }
+
+    private fun paramsSeen(
+        server: PagedServer,
+        name: String,
+    ): List<String?> = server.seen.map { it.param(name) }
+
+    @Nested
+    @DisplayName("paged lists")
+    inner class PagedLists {
+        private suspend fun names(list: kotlinx.coroutines.flow.Flow<com.example.petstore.models.Pet>): List<String> =
+            list.toList().map { it.name }
+
+        @Test
+        @DisplayName("bhvPagination001 a paged operation reads no page until the first item or page is requested")
+        fun bhvPagination001APagedOperationReadsNoPageUntilTheFirstRead() {
+            catalogServer(2, 2).use { server ->
+                val paginator = petApi(server).listPetCatalogPages()
+                assertEquals(0, server.seen.size, "the method sends nothing")
+                paginator.items()
+                paginator.pages()
+                assertEquals(0, server.seen.size, "getting a view sends nothing")
+                runBlocking { paginator.items().first() }
+                assertEquals(1, server.seen.size, "the first read sends the first request")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination002 a token-cursor operation yields every item of every page in order and sends the next page's cursor")
+        fun bhvPagination002ATokenCursorOperationYieldsEveryItemInOrder() {
+            catalogServer(3, 2).use { server ->
+                assertEquals(
+                    listOf("p0-0", "p0-1", "p1-0", "p1-1", "p2-0", "p2-1"),
+                    runBlocking { names(petApi(server).listPetCatalogPages().items()) },
+                )
+                assertEquals(listOf(null, "c1", "c2"), paramsSeen(server, "cursor"))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination003 the next request is sent only when the consumer asks for more items")
+        fun bhvPagination003TheNextRequestIsSentOnlyWhenTheConsumerAsksForMore() {
+            catalogServer(3, 2).use { server ->
+                val sizes = mutableListOf<Int>()
+                runBlocking {
+                    petApi(server)
+                        .listPetCatalogPages()
+                        .items()
+                        .take(3)
+                        .collect { sizes.add(server.seen.size) }
+                }
+                assertEquals(listOf(1, 1, 2), sizes, "the third item needed the second page and nothing was read ahead")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination007 a Link-header operation follows rel=next and ends when it is absent")
+        fun bhvPagination007ALinkHeaderOperationFollowsRelNextAndEndsWhenItIsAbsent() {
+            sameOriginFeed(3).use { server ->
+                assertEquals(listOf("f0", "f1", "f2"), runBlocking { names(petApi(server).listPetFeedPages().items()) })
+                assertEquals(listOf(null, "1", "2"), paramsSeen(server, "page"))
+                assertEquals("/pet/feed", server.seen[2].path)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination008 a Link next URL on another origin is refused and no credentials are sent to it")
+        fun bhvPagination008ALinkNextUrlOnAnotherOriginIsRefusedAndNoCredentialsAreSentToIt() {
+            PagedServer { _, _ -> Reply.ok("[${petJson("stolen")}]") }.use { elsewhere ->
+                PagedServer { _, _ ->
+                    Reply.ok("[${petJson("f0")}]", mapOf("Link" to "<${elsewhere.url()}/pet/feed?page=1>; rel=\"next\""))
+                }.use { origin ->
+                    val api = petApi(origin, defaultHeaders = mapOf("Authorization" to "Bearer secret"))
+                    val delivered = mutableListOf<String>()
+                    val refused =
+                        assertThrows(PaginationException::class.java) {
+                            runBlocking { api.listPetFeedPages().items().collect { delivered.add(it.name) } }
+                        }
+                    assertEquals(listOf("f0"), delivered, "the page before the foreign link is delivered")
+                    assertEquals("Bearer secret", origin.seen[0].headers["authorization"])
+                    assertFalse(refused.message!!.contains("page=1"), "the message holds no query")
+                    assertEquals(0, elsewhere.seen.size, "nothing was sent to the other origin")
+                    assertEquals(1, origin.seen.size)
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination009 an empty page with a next cursor continues and an absent, null or empty cursor ends")
+        fun bhvPagination009AnEmptyPageWithANextCursorContinuesAndAnAbsentNullOrEmptyCursorEnds() {
+            for (end in listOf("", ",\"next_cursor\":null", ",\"next_cursor\":\"\"")) {
+                PagedServer { request, _ ->
+                    Reply.ok(
+                        if (request.param("cursor") == null) {
+                            "{\"items\":[],\"next_cursor\":\"c1\"}"
+                        } else {
+                            "{\"items\":[${petJson("only")}]$end}"
+                        },
+                    )
+                }.use { server ->
+                    assertEquals(listOf("only"), runBlocking { names(petApi(server).listPetCatalogPages().items()) }, end)
+                    assertEquals(2, server.seen.size, "the empty page continued and the end ended: $end")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination010 pages yields one page per response with its items, status, headers, decoded body and next cursor")
+        fun bhvPagination010PagesYieldsOnePagePerResponseWithItsItemsStatusHeadersBodyAndNextCursor() {
+            PagedServer { request, _ ->
+                val page = request.param("cursor")?.substring(1)?.toInt() ?: 0
+                Reply.ok(catalogBody(page, 2, 2), mapOf("X-Page" to page.toString()))
+            }.use { server ->
+                val pages = runBlocking { petApi(server).listPetCatalogPages().pages().toList() }
+                assertEquals(2, pages.size)
+                assertEquals(listOf("p0-0", "p0-1"), pages[0].items.map { it.name })
+                assertEquals(200, pages[0].result.statusCode)
+                assertEquals("0", pages[0].result.headers["x-page"])
+                assertEquals("1", pages[1].result.headers["x-page"])
+                assertTrue(pages[0].result.data is com.example.petstore.models.PetCatalogPage)
+                assertEquals("c1", pages[0].nextCursor)
+                assertNull(pages[1].nextCursor)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination011 the cursor passed to the paged method is the starting position and the first request sends it")
+        fun bhvPagination011TheCursorPassedToThePagedMethodIsTheStartingPosition() {
+            catalogServer(3, 1).use { server ->
+                assertEquals(
+                    listOf("p1-0", "p2-0"),
+                    runBlocking { names(petApi(server).listPetCatalogPages(ListPetCatalogOptions(cursor = "c1")).items()) },
+                )
+                assertEquals("c1", server.seen[0].param("cursor"))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination012 resuming with the next cursor of a page continues with the following page")
+        fun bhvPagination012ResumingWithTheNextCursorOfAPageContinuesWithTheFollowingPage() {
+            catalogServer(3, 1).use { server ->
+                val api = petApi(server)
+                val resume =
+                    runBlocking {
+                        api
+                            .listPetCatalogPages()
+                            .pages()
+                            .first()
+                            .nextCursor
+                    }
+                assertEquals("c1", resume)
+                assertEquals(
+                    listOf("p1-0", "p2-0"),
+                    runBlocking { names(api.listPetCatalogPages(ListPetCatalogOptions(cursor = resume)).items()) },
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination013 every other parameter, including the page size, is repeated unchanged on each page request")
+        fun bhvPagination013EveryOtherParameterIsRepeatedUnchangedOnEachPageRequest() {
+            catalogServer(3, 1).use { server ->
+                runBlocking {
+                    names(petApi(server).listPetCatalogPages(ListPetCatalogOptions(limit = 1, headers = mapOf("X-Keep" to "yes"))).items())
+                }
+                assertEquals(3, server.seen.size)
+                for (request in server.seen) {
+                    assertEquals("1", request.param("limit"))
+                    assertEquals("yes", request.headers["x-keep"])
+                }
+                assertEquals(listOf(null, "c1", "c2"), paramsSeen(server, "cursor"))
+            }
+        }
+
+        @Test
+        @DisplayName(
+            "bhvPagination014 a cursor equal to the one just sent, or an offset that did not advance, raises a PaginationError instead of looping",
+        )
+        fun bhvPagination014ACursorEqualToTheOneJustSentRaisesAPaginationErrorInsteadOfLooping() {
+            PagedServer { _, number -> Reply.ok("{\"items\":[${petJson("p$number")}],\"next_cursor\":\"c1\"}") }.use { server ->
+                val delivered = mutableListOf<String>()
+                val failure =
+                    assertThrows(PaginationException::class.java) {
+                        runBlocking { petApi(server).listPetCatalogPages().items().collect { delivered.add(it.name) } }
+                    }
+                assertEquals(listOf("p1", "p2"), delivered, "the page that repeated the cursor is still delivered")
+                assertEquals("/pet/catalog", failure.requestPath)
+                assertEquals(2, server.seen.size, "nothing was asked for after the repeat")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination015 an error on a later page is raised after the earlier pages' items were delivered and ends iteration")
+        fun bhvPagination015AnErrorOnALaterPageIsRaisedAfterTheEarlierItemsWereDelivered() {
+            PagedServer { request, _ ->
+                if (request.param("cursor") ==
+                    null
+                ) {
+                    Reply.ok(catalogBody(0, 2, 3))
+                } else {
+                    Reply(404, "{}")
+                }
+            }.use { server ->
+                val delivered = mutableListOf<String>()
+                val failure =
+                    assertThrows(NotFoundException::class.java) {
+                        runBlocking { petApi(server).listPetCatalogPages().items().collect { delivered.add(it.name) } }
+                    }
+                assertEquals(listOf("p0-0", "p0-1"), delivered)
+                assertEquals(404, failure.statusCode)
+                assertEquals(2, server.seen.size, "the iteration ended with the error")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination016 a 503 on the second page is retried under the retry rules and iteration continues")
+        fun bhvPagination016A503OnTheSecondPageIsRetriedAndIterationContinues() {
+            PagedServer { _, number ->
+                if (number ==
+                    2
+                ) {
+                    Reply.status(503)
+                } else {
+                    Reply.ok(catalogBody(if (number == 1) 0 else 1, 1, 2))
+                }
+            }.use { server ->
+                val api = petApi(server, TransportOptions.builder().maxRetries(2).build())
+                assertEquals(listOf("p0-0", "p1-0"), runBlocking { names(api.listPetCatalogPages().items()) })
+                assertEquals(listOf(null, "c1", "c1"), paramsSeen(server, "cursor"))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination017 the per-call timeout, headers and retry count apply to each page request")
+        fun bhvPagination017ThePerCallTimeoutHeadersAndRetryCountApplyToEachPageRequest() {
+            PagedServer { _, number ->
+                if (number % 2 ==
+                    1
+                ) {
+                    Reply.status(503)
+                } else {
+                    Reply.ok(catalogBody(if (number == 2) 0 else 1, 1, 2))
+                }
+            }.use { server ->
+                runBlocking {
+                    names(
+                        petApi(
+                            server,
+                        ).listPetCatalogPages(ListPetCatalogOptions(maxRetries = 1, headers = mapOf("X-Trace" to "t1"))).items(),
+                    )
+                }
+                assertEquals(4, server.seen.size, "each page was tried twice: one try and one retry")
+                for (request in server.seen) {
+                    assertEquals("t1", request.headers["x-trace"])
+                }
+            }
+            PagedServer { request, _ ->
+                if (request.param("cursor") == null) Reply.ok(catalogBody(0, 1, 2)) else Reply.ok(catalogBody(1, 1, 2)).after(1500)
+            }.use { slow ->
+                val delivered = mutableListOf<String>()
+                assertThrows(NetworkTimeoutException::class.java) {
+                    runBlocking {
+                        petApi(
+                            slow,
+                        ).listPetCatalogPages(ListPetCatalogOptions(timeout = 300)).items().collect { delivered.add(it.name) }
+                    }
+                }
+                assertEquals(listOf("p0-0"), delivered, "the first page answers within its own budget")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination018 stopping early sends no further request and leaves nothing to close")
+        fun bhvPagination018StoppingEarlySendsNoFurtherRequestAndLeavesNothingToClose() {
+            catalogServer(3, 2).use { server ->
+                assertEquals(
+                    "p0-0",
+                    runBlocking {
+                        petApi(server)
+                            .listPetCatalogPages()
+                            .items()
+                            .first()
+                            .name
+                    },
+                )
+                assertEquals(1, server.seen.size)
+                assertEquals(
+                    2,
+                    runBlocking {
+                        petApi(server)
+                            .listPetCatalogPages()
+                            .items()
+                            .take(2)
+                            .toList()
+                            .size
+                    },
+                )
+                assertEquals(2, server.seen.size, "take(2) read exactly one more page")
+                assertFalse(AutoCloseable::class.java.isAssignableFrom(Paginator::class.java))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination019 cancelling mid-iteration aborts the in-flight page request and is not reported as a timeout")
+        fun bhvPagination019CancellingMidIterationAbortsTheInFlightPageRequest() {
+            PagedServer { request, _ ->
+                if (request.param("cursor") == null) Reply.ok(catalogBody(0, 1, 2)) else Reply.ok(catalogBody(1, 1, 2)).after(8000)
+            }.use { server ->
+                val api =
+                    petApi(
+                        server,
+                        TransportOptions
+                            .builder()
+                            .maxRetries(0)
+                            .timeout(20000)
+                            .build(),
+                    )
+                runBlocking {
+                    var failure: Throwable? = null
+                    val job =
+                        launch(Dispatchers.Default) {
+                            try {
+                                names(api.listPetCatalogPages().items())
+                            } catch (e: Throwable) {
+                                failure = e
+                                throw e
+                            }
+                        }
+                    withTimeout(5000) {
+                        while (server.seen.size < 2) {
+                            delay(20)
+                        }
+                    }
+                    withTimeout(5000) { job.cancelAndJoin() }
+                    assertTrue(job.isCancelled, "the cancelled iteration stops promptly")
+                    assertTrue(failure is kotlinx.coroutines.CancellationException, "the cancellation surfaced as a cancellation: $failure")
+                    assertFalse(failure is NetworkTimeoutException, "a cancellation is not a timeout")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination020 iterating a second time starts again from the starting position")
+        fun bhvPagination020IteratingASecondTimeStartsAgainFromTheStartingPosition() {
+            catalogServer(2, 2).use { server ->
+                val paginator = petApi(server).listPetCatalogPages()
+                val first = runBlocking { names(paginator.items()) }
+                val second = runBlocking { names(paginator.items()) }
+                assertEquals(first, second)
+                assertEquals(4, server.seen.size, "the second loop read both pages again")
+                assertEquals(listOf(null, "c1", null, "c1"), paramsSeen(server, "cursor"))
+            }
+        }
+
+        @Test
+        @DisplayName(
+            "bhvPagination021 a page that does not decode on a later page fails with the serialization error after the earlier items were delivered",
+        )
+        fun bhvPagination021APageThatDoesNotDecodeOnALaterPageFailsWithTheSerializationError() {
+            PagedServer { _, number ->
+                if (number == 1) {
+                    Reply.ok(catalogBody(0, 1, 2))
+                } else {
+                    Reply.ok("{\"items\":[{\"id\":\"not a number\",\"name\":\"x\",\"photoUrls\":[]}]}")
+                }
+            }.use { server ->
+                val delivered = mutableListOf<String>()
+                assertThrows(SerializationException::class.java) {
+                    runBlocking { petApi(server).listPetCatalogPages().items().collect { delivered.add(it.name) } }
+                }
+                assertEquals(listOf("p0-0"), delivered)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination022 a refreshed credential is used for the next page")
+        fun bhvPagination022ARefreshedCredentialIsUsedForTheNextPage() {
+            catalogServer(3, 1).use { server ->
+                val rotating =
+                    object : Authenticator {
+                        var issued = 0
+
+                        override fun getHost(): String = server.url()
+
+                        override suspend fun getAuthHeaders(): Map<String, String> {
+                            issued++
+                            return mapOf("Authorization" to "Bearer token-$issued")
+                        }
+                    }
+                val api =
+                    PetApi(
+                        DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+                        Configuration.builder().baseUrl(server.url()).build(),
+                        rotating,
+                    )
+                runBlocking { names(api.listPetCatalogPages().items()) }
+                assertEquals("Bearer token-1", server.seen[0].headers["authorization"])
+                assertEquals("Bearer token-2", server.seen[1].headers["authorization"])
+                assertEquals("Bearer token-3", server.seen[2].headers["authorization"])
+            }
+            sameOriginFeed(2).use { feed ->
+                val keyed =
+                    object : Authenticator {
+                        override fun getHost(): String = feed.url()
+
+                        override suspend fun getAuthHeaders(): Map<String, String> = emptyMap()
+
+                        override fun getQueryParams(): Map<String, String> = mapOf("api_key" to "k1")
+                    }
+                val api =
+                    PetApi(
+                        DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+                        Configuration.builder().baseUrl(feed.url()).build(),
+                        keyed,
+                    )
+                runBlocking { names(api.listPetFeedPages().items()) }
+                assertEquals("k1", feed.seen[1].param("api_key"), "a credential in the query joins the next URL")
+                assertEquals("1", feed.seen[1].param("page"))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination023 an error from a Link-driven page request carries the path without the query")
+        fun bhvPagination023AnErrorFromALinkDrivenPageRequestCarriesThePathWithoutTheQuery() {
+            PagedServer { request, _ ->
+                if (request.param("page") != null) {
+                    Reply(500, "{}")
+                } else {
+                    Reply.ok("[${petJson("f0")}]", mapOf("Link" to "</pet/feed?page=1&secret=s3>; rel=\"next\""))
+                }
+            }.use { server ->
+                val delivered = mutableListOf<String>()
+                val failure =
+                    assertThrows(ApiException::class.java) {
+                        runBlocking { petApi(server).listPetFeedPages().items().collect { delivered.add(it.name) } }
+                    }
+                assertEquals(listOf("f0"), delivered)
+                assertEquals(500, failure.statusCode)
+                assertEquals("/pet/feed", failure.requestPath)
+                assertFalse(failure.message.orEmpty().contains("s3"))
+            }
+        }
+
+        private fun pagesMethodsOf(type: Class<*>): Set<String> =
+            type.methods
+                .map { it.name }
+                .filter { it.endsWith("Pages") }
+                .toSortedSet()
+
+        @Test
+        @DisplayName(
+            "bhvPagination024 an operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method",
+        )
+        fun bhvPagination024AnOperationThatIsAmbiguousOrNotAGetGetsNoPagedMethod() {
+            assertEquals(
+                setOf("listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages"),
+                pagesMethodsOf(PetApi::class.java),
+            )
+            assertTrue(PetApi::class.java.methods.any { it.name == "listPetMatches" }, "the ambiguous operation keeps its base method")
+        }
+
+        @Test
+        @DisplayName(
+            "bhvPagination025 a paged method has the same parameters in the same order as the base method and the base method is unchanged",
+        )
+        fun bhvPagination025APagedMethodHasTheSameParametersAsTheBaseMethod() {
+            for (pages in PetApi::class.java.methods.filter { it.name.endsWith("Pages") }) {
+                val base = pages.name.removeSuffix("Pages")
+                val buffered =
+                    PetApi::class.java.methods.firstOrNull {
+                        // a suspend function takes its continuation as the last parameter
+                        it.name == base && it.parameterTypes.dropLast(1) == pages.parameterTypes.toList()
+                    }
+                assertNotNull(buffered, "no base method with the parameters of ${pages.name}")
+                assertFalse(Paginator::class.java.isAssignableFrom(buffered!!.returnType), "the base method still returns the page body")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination026 the generator option overrides inference and can switch an operation or the whole feature off")
+        fun bhvPagination026TheGeneratorOptionOverridesInferenceAndCanSwitchAnOperationOff() {
+            val names =
+                PetApi::class.java.methods
+                    .map { it.name }
+                    .toSet()
+            assertTrue("listPetEventsPages" in names, "an operation the option names is paged")
+            assertFalse("listPetArchivePages" in names, "an operation the option sets to none is not")
+            assertTrue("listPetArchive" in names, "its base method remains")
+        }
+
+        @Test
+        @DisplayName("bhvPagination027 headers and options given to the paged method are sent on every page request")
+        fun bhvPagination027HeadersAndOptionsGivenToThePagedMethodAreSentOnEveryPageRequest() {
+            sameOriginFeed(3).use { server ->
+                runBlocking {
+                    names(
+                        petApi(server).listPetFeedPages(ListPetFeedOptions(limit = 1, headers = mapOf("X-Keep" to "yes"))).items(),
+                    )
+                }
+                assertEquals(3, server.seen.size)
+                for (request in server.seen) {
+                    assertEquals("yes", request.headers["x-keep"])
+                }
+                assertEquals("1", server.seen[0].param("limit"), "the first page carries the page size")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination028 the cursor for the next page is taken from the accepted response, never from a retried attempt")
+        fun bhvPagination028TheNextCursorIsTakenFromTheAcceptedResponseNeverFromARetriedAttempt() {
+            PagedServer { request, number ->
+                if (number == 1) {
+                    Reply(503, "{\"items\":[],\"next_cursor\":\"WRONG\"}", mapOf("Retry-After" to "0"))
+                } else {
+                    Reply.ok(catalogBody(if (request.param("cursor") == null) 0 else 1, 1, 2))
+                }
+            }.use { server ->
+                val api = petApi(server, TransportOptions.builder().maxRetries(2).build())
+                assertEquals(listOf("p0-0", "p1-0"), runBlocking { names(api.listPetCatalogPages().items()) })
+                assertEquals(listOf(null, null, "c1"), paramsSeen(server, "cursor"))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination030 a vendor extension on an operation is read as a hint, and the override option wins over it")
+        fun bhvPagination030AVendorExtensionOnAnOperationIsReadAsAHint() {
+            assertTrue(
+                PetApi::class.java.methods.any { it.name == "listPetNotesPages" },
+                "the operation whose names are no known cursor is paged by its hint",
+            )
+        }
+
+        @Test
+        @DisplayName("bhvPagination031 the repeated-cursor failure is a PaginationError and is not a network error or an API error")
+        fun bhvPagination031TheRepeatedCursorFailureIsAPaginationErrorAndNotANetworkOrApiError() {
+            assertEquals(com.example.petstore.errors.OpenAPIException::class.java, PaginationException::class.java.superclass)
+            PagedServer { _, _ -> Reply.ok("{\"items\":[],\"next_cursor\":\"c1\"}") }.use { server ->
+                val failure =
+                    assertThrows(OpenAPIException::class.java) {
+                        runBlocking { names(petApi(server).listPetCatalogPages(ListPetCatalogOptions(cursor = "c1")).items()) }
+                    }
+                assertTrue(failure is PaginationException)
+                assertFalse(failure is ApiException)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination032 an operation that is streamed is never also given a paged method")
+        fun bhvPagination032AnOperationThatIsStreamedIsNeverAlsoGivenAPagedMethod() {
+            assertTrue(pagesMethodsOf(StoreApi::class.java).isEmpty())
+            assertTrue(StoreApi::class.java.methods.any { it.name == "exportOrdersStream" })
         }
     }
 }

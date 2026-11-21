@@ -12,6 +12,7 @@ package com.example.petstore.api
 import com.example.petstore.ApiResult
 import com.example.petstore.BodySource
 import com.example.petstore.ByteStream
+import com.example.petstore.Paginator
 import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.AddPetTreatmentOptions
@@ -377,17 +378,35 @@ interface PetApiInterface {
     /** The `listPetCatalog` operation with its status code, headers and body. */
     suspend fun listPetCatalogWithHttpInfo(options: ListPetCatalogOptions? = null): ApiResult<PetCatalogPage>
 
+    /**
+     * The `listPetCatalog` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetCatalogWithHttpInfo].
+     */
+    fun listPetCatalogPages(options: ListPetCatalogOptions? = null): Paginator<Pet, String>
+
     /** The `listPetEvents` operation. */
     suspend fun listPetEvents(options: ListPetEventsOptions? = null): PetEventPage
 
     /** The `listPetEvents` operation with its status code, headers and body. */
     suspend fun listPetEventsWithHttpInfo(options: ListPetEventsOptions? = null): ApiResult<PetEventPage>
 
+    /**
+     * The `listPetEvents` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetEventsWithHttpInfo].
+     */
+    fun listPetEventsPages(options: ListPetEventsOptions? = null): Paginator<String, String>
+
     /** The `listPetFeed` operation. */
     suspend fun listPetFeed(options: ListPetFeedOptions? = null): List<Pet>
 
     /** The `listPetFeed` operation with its status code, headers and body. */
     suspend fun listPetFeedWithHttpInfo(options: ListPetFeedOptions? = null): ApiResult<List<Pet>>
+
+    /**
+     * The `listPetFeed` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetFeedWithHttpInfo].
+     */
+    fun listPetFeedPages(options: ListPetFeedOptions? = null): Paginator<Pet, Unit>
 
     /** The `listPetMatches` operation. */
     suspend fun listPetMatches(options: ListPetMatchesOptions? = null): PetMatchPage
@@ -400,6 +419,12 @@ interface PetApiInterface {
 
     /** The `listPetNotes` operation with its status code, headers and body. */
     suspend fun listPetNotesWithHttpInfo(options: ListPetNotesOptions? = null): ApiResult<PetNotePage>
+
+    /**
+     * The `listPetNotes` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetNotesWithHttpInfo].
+     */
+    fun listPetNotesPages(options: ListPetNotesOptions? = null): Paginator<String, String>
 
     /** The `setPetAvatar` operation. */
     suspend fun setPetAvatar(

@@ -13,6 +13,9 @@ import {{invokerPackage}}.ByteStream
 {{#hasJsonLinesStream}}
 import {{invokerPackage}}.JsonLinesStream
 {{/hasJsonLinesStream}}
+{{#hasPaginator}}
+import {{invokerPackage}}.Paginator
+{{/hasPaginator}}
 {{#hasSseStream}}
 import {{invokerPackage}}.SseStream
 {{/hasSseStream}}
@@ -81,6 +84,9 @@ interface {{classname}}Interface {
 {{/isDeprecated}}
     suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}>
 {{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/operation}}
 }
 {{/operations}}

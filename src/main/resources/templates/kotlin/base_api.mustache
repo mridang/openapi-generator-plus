@@ -370,7 +370,7 @@ abstract class BaseApi {
 
         val query = buildQueryString(queryParams)
         if (query.isNotEmpty()) {
-            url += "?$query"
+            url += (if (url.contains('?')) "&" else "?") + query
         }
 
         val isMultipart = "multipart/form-data" == contentType

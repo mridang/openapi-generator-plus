@@ -490,3 +490,21 @@ Rule: `sendWithRetries` sets `maxRetries` to 0 for a single-use body, so the fir
 Where: `default_api_client.mustache`, `base_api.mustache`, `sse_stream.mustache`.
 Test: `DefaultApiClientUnitTest` (`bhvStreaming026`, `027`), `EventStreamTest` (`bhvSse016`).
 
+## Pagination (#163, D123, D124)
+
+### The detector is shared, the Kotlin templates only render it
+Rule: `AbstractBetterCodegen.populatePaginationDecorators` computes `vendorExtensions.op.pagination` and `hasPagesMethod`/`pagesMethodName`; `BetterKotlinCodegen.markPaginator` adds `kotlinPaginatorType` (`Paginator<Item, Cursor>`, `Unit` as the cursor of a `Link` list), imports the item model when the API class does not, and the per-API flag `hasPaginator` gates the `Paginator` import. Model properties are Kotlin properties, so the templates read `page.<propertyName>` (nullable: a missing array is an empty page).
+Where: `BetterKotlinCodegen.java`, `api/operation_pages.mustache`, `api/operation_pages_interface.mustache`.
+Test: `OperationDecoratorTest`.
+
+### `Paginator<T, C>`, `Page<T, C>`, `PaginationException`
+Rule: `Paginator` (`paginator.mustache`) is a final class that is not a `Flow` (a `Flow` is not stable for inheritance) with two cold flows, `items()` and `pages()`; the `internal` factories `ofCursor(start, fetch, items, next, requestPath)` and `ofLink(baseUrl, fetch, items, requestPath)` are what the generated `...Pages` functions call. The flows hold no state outside their block, so nothing is read before the first collection, one request is made per page, there is no read-ahead and a second collection restarts. `fetch` is a `suspend` lambda over the operation's `...WithHttpInfo`, so cancelling the collector cancels the request in flight (the transport rethrows `CancellationException`). An end is an absent, `null` or empty cursor, or no `rel="next"`. A cursor equal to the one just sent (or a `Link` to the page just read, or a foreign origin) is delivered with its page and the same collection then raises `PaginationException` (`errors/PaginationException.mustache`, a direct child of the root exception, `requestPath` without the query). Any failure of a fetch ends the collection. `Page` is a class (`items` copied read-only, `nextCursor`, `result`), its `toString()` shows counts, never items.
+Why: `Paginator<T, C>` takes the cursor type as a second parameter so `nextCursor` is typed like the request parameter; the pages function is not `suspend` because it sends nothing.
+Where: `paginator.mustache`, `page.mustache`, `errors/PaginationException.mustache`, `link_header.mustache`.
+Test: `BaseApiTest$PagedLists` (`bhvPagination001` to `032`).
+
+### Each page is an ordinary call; a `Link` page replaces the path
+Rule: a token page calls `<op>WithHttpInfo` with `pageOptions.copy(<cursor> = pageCursor)`, where the Options class of a paged operation has an `internal fun copy(...)` (`options.mustache`, `hasCopy`) whose parameters default to the current values, so retries, timeouts, redirects, authentication, redaction and per-call options apply to every page. A `Link` operation's `WithHttpInfo` delegates to a private `suspend fun <op>Page(...args, pageUrl: String?)` whose body is the buffered call; when `pageUrl` is set it replaces `path` and clears the query, and `invokeApiForResult` joins an authentication query to a URL that already has one with `&`. The origin of a next URL is checked against `config.baseUrl`; an operation with a server of its own is not paged.
+Where: `api/api.mustache`, `base_api.mustache`, `paginator.mustache`, `link_header.mustache`.
+Test: `BaseApiTest$PagedLists` (`bhvPagination007`, `008`, `023`, `027`).
+

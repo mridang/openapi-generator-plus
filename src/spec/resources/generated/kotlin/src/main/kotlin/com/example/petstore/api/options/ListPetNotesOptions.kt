@@ -22,4 +22,22 @@ class ListPetNotesOptions(
      * client's setting.
      */
     val maxRetries: Int? = null,
-)
+) {
+    /**
+     * Returns a copy of these options with the given values: every parameter, the timeout, the retry
+     * count and the headers keep the value they have here unless a new one is passed. A paged list
+     * uses it to send each page with its own cursor and leaves the caller's options untouched.
+     */
+    internal fun copy(
+        pos: String? = this.pos,
+        timeout: Long? = this.timeout,
+        headers: Map<String, String>? = this.headers,
+        maxRetries: Int? = this.maxRetries,
+    ): ListPetNotesOptions =
+        ListPetNotesOptions(
+            pos = pos,
+            timeout = timeout,
+            headers = headers,
+            maxRetries = maxRetries,
+        )
+}

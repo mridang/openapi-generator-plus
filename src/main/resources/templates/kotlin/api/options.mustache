@@ -115,4 +115,29 @@ class {{className}}(
      * client's setting.
      */
     val maxRetries: Int? = null,
-)
+){{#hasCopy}} {
+    /**
+     * Returns a copy of these options with the given values: every parameter, the timeout, the retry
+     * count and the headers keep the value they have here unless a new one is passed. A paged list
+     * uses it to send each page with its own cursor and leaves the caller's options untouched.
+     */
+    internal fun copy(
+{{#requiredParams}}
+        {{paramName}}: {{{dataType}}}{{#requiredNullable}}?{{/requiredNullable}} = this.{{paramName}},
+{{/requiredParams}}
+{{#optionalParams}}
+        {{paramName}}: {{{dataType}}}? = this.{{paramName}},
+{{/optionalParams}}
+        timeout: Long? = this.timeout,
+        headers: Map<String, String>? = this.headers,
+        maxRetries: Int? = this.maxRetries,
+    ): {{className}} =
+        {{className}}(
+{{#params}}
+            {{paramName}} = {{paramName}},
+{{/params}}
+            timeout = timeout,
+            headers = headers,
+            maxRetries = maxRetries,
+        )
+}{{/hasCopy}}

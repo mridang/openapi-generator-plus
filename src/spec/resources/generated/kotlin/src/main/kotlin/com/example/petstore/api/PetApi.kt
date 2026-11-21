@@ -14,6 +14,7 @@ import com.example.petstore.ApiResult
 import com.example.petstore.BodySource
 import com.example.petstore.ByteStream
 import com.example.petstore.Configuration
+import com.example.petstore.Paginator
 import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
@@ -1787,6 +1788,31 @@ class PetApi :
     }
 
     /**
+     * Lists the pet catalog one page at a time with a next-cursor token
+     *
+     * Returns the items as a lazy [Paginator]: no request is sent until you first collect its items
+     * or its pages, and each next page is requested only when you ask for more. Every page is an
+     * ordinary call of [listPetCatalogWithHttpInfo], with the same options on each page.
+     * The value of the `cursor` option is where the list
+     * starts, and the page after each one is requested with the `next_cursor`
+     * it returned.
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+     * @return the paginator over the items
+     */
+    override fun listPetCatalogPages(options: ListPetCatalogOptions?): Paginator<Pet, String> {
+        val pageOptions = options ?: ListPetCatalogOptions()
+        return Paginator.ofCursor<Pet, String, PetCatalogPage>(
+            start = pageOptions.cursor,
+            fetch = { pageCursor ->
+                listPetCatalogWithHttpInfo(pageOptions.copy(cursor = pageCursor))
+            },
+            items = { page -> page.items },
+            next = { page -> page.nextCursor },
+            requestPath = "/pet/catalog",
+        )
+    }
+
+    /**
      * Lists pet events; only the generator option says it is paged
      * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
@@ -1839,6 +1865,31 @@ class PetApi :
     }
 
     /**
+     * Lists pet events; only the generator option says it is paged
+     *
+     * Returns the items as a lazy [Paginator]: no request is sent until you first collect its items
+     * or its pages, and each next page is requested only when you ask for more. Every page is an
+     * ordinary call of [listPetEventsWithHttpInfo], with the same options on each page.
+     * The value of the `since` option is where the list
+     * starts, and the page after each one is requested with the `upto`
+     * it returned.
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+     * @return the paginator over the items
+     */
+    override fun listPetEventsPages(options: ListPetEventsOptions?): Paginator<String, String> {
+        val pageOptions = options ?: ListPetEventsOptions()
+        return Paginator.ofCursor<String, String, PetEventPage>(
+            start = pageOptions.since,
+            fetch = { pageCursor ->
+                listPetEventsWithHttpInfo(pageOptions.copy(since = pageCursor))
+            },
+            items = { page -> page.events },
+            next = { page -> page.upto },
+            requestPath = "/pet/events",
+        )
+    }
+
+    /**
      * Lists the pet feed one page at a time with a Link header
      * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
@@ -1856,7 +1907,13 @@ class PetApi :
         }
 
     /** Same as [listPetFeed] but returns the full [ApiResult] (status code, headers and body). */
-    override suspend fun listPetFeedWithHttpInfo(options: ListPetFeedOptions?): ApiResult<List<Pet>> {
+    override suspend fun listPetFeedWithHttpInfo(options: ListPetFeedOptions?): ApiResult<List<Pet>> = listPetFeedPage(options, null)
+
+    // One page of the list: the first when pageUrl is null, else the URL the Link header named.
+    private suspend fun listPetFeedPage(
+        options: ListPetFeedOptions?,
+        pageUrl: String?,
+    ): ApiResult<List<Pet>> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -1872,6 +1929,10 @@ class PetApi :
         }
         val headerParams = mutableMapOf<String, String>()
 
+        if (pageUrl != null) {
+            path = pageUrl
+            queryParams.clear()
+        }
         return invokeApiForResult<List<Pet>>(
             "GET",
             path,
@@ -1889,6 +1950,25 @@ class PetApi :
             urlTemplate = "/pet/feed",
         )
     }
+
+    /**
+     * Lists the pet feed one page at a time with a Link header
+     *
+     * Returns the items as a lazy [Paginator]: no request is sent until you first collect its items
+     * or its pages, and each next page is requested only when you ask for more. Every page is an
+     * ordinary call of [listPetFeedWithHttpInfo], with the same options on each page.
+     * The page after each one is the `rel="next"` link of its `Link` header, followed only within
+     * the origin of the client.
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+     * @return the paginator over the items
+     */
+    override fun listPetFeedPages(options: ListPetFeedOptions?): Paginator<Pet, Unit> =
+        Paginator.ofLink<Pet, List<Pet>>(
+            baseUrl = config.baseUrl,
+            fetch = { pageUrl -> listPetFeedPage(options, pageUrl) },
+            items = { page -> page },
+            requestPath = "/pet/feed",
+        )
 
     /**
      * Finds pets and their owners; two lists make it ambiguous, so it is not paged
@@ -1991,6 +2071,31 @@ class PetApi :
             callMaxRetries = callMaxRetries,
             operationId = "listPetNotes",
             urlTemplate = "/pet/notes",
+        )
+    }
+
+    /**
+     * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+     *
+     * Returns the items as a lazy [Paginator]: no request is sent until you first collect its items
+     * or its pages, and each next page is requested only when you ask for more. Every page is an
+     * ordinary call of [listPetNotesWithHttpInfo], with the same options on each page.
+     * The value of the `pos` option is where the list
+     * starts, and the page after each one is requested with the `following`
+     * it returned.
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+     * @return the paginator over the items
+     */
+    override fun listPetNotesPages(options: ListPetNotesOptions?): Paginator<String, String> {
+        val pageOptions = options ?: ListPetNotesOptions()
+        return Paginator.ofCursor<String, String, PetNotePage>(
+            start = pageOptions.pos,
+            fetch = { pageCursor ->
+                listPetNotesWithHttpInfo(pageOptions.copy(pos = pageCursor))
+            },
+            items = { page -> page.rows },
+            next = { page -> page.following },
+            requestPath = "/pet/notes",
         )
     }
 
