@@ -7,7 +7,7 @@ rust | misc163 | The Rust request body is Bytes or Multipart only; there is no o
 dart | transport083 | The Dart client returns plain Futures and exposes no cancellation token, so an in-flight request cannot be aborted from outside
 dart | transport084 | The Dart client exposes no call handle, so an in-flight request cannot be cancelled through a handle or by dropping it
 dart | transport085 | The Dart client has no cancellation token or signal to supply, so a timeout is the only way to end a request early
-dart | transport091 | Dart request bodies are in-memory values, so the SDK never takes a caller-owned upload stream that it could leave open
+dart | transport091 | Dart multipart file parts are in-memory values, so the SDK never takes a caller-owned stream there; the stream of a raw binary upload is covered by streaming025
 dart | serialization129 | Dart Duration stops at microseconds, so a nanosecond-precision duration cannot be constructed
 # language | behaviour id | specific reason
 node | transport049 | Node fetch (undici) decodes a headerless raw DEFLATE body under Content-Encoding: deflate without error, so the SDK never receives a decode failure to wrap as ApiError

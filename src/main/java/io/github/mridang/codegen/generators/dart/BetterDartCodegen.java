@@ -465,6 +465,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("api_response.mustache", srcDir, "api_http_response.dart"),
             new SupportingFileSpec("api_result.mustache", srcDir, "api_result.dart"),
             new SupportingFileSpec("api_stream_response.mustache", srcDir, "api_stream_response.dart"),
+            new SupportingFileSpec("body_source.mustache", srcDir, "body_source.dart"),
+            new SupportingFileSpec("body_source_files_io.mustache", srcDir, "body_source_files_io.dart"),
+            new SupportingFileSpec("body_source_files_web.mustache", srcDir, "body_source_files_web.dart"),
             new SupportingFileSpec("byte_stream.mustache", srcDir, "byte_stream.dart"),
             new SupportingFileSpec("event_stream.mustache", srcDir, "event_stream.dart"),
             new SupportingFileSpec("server_sent_event.mustache", srcDir, "server_sent_event.dart"),
@@ -1335,6 +1338,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> uploads = (Map<String, Object>) objs.get("operations");
+        if (uploads != null && uploads.get("operation") instanceof List) {
+            for (final CodegenOperation op : (List<CodegenOperation>) uploads.get("operation")) {
+                markBinaryUpload(op);
+            }
+        }
         objs = super.postProcessOperationsWithModels(objs, allModels);
 
         // Optional request-content-type selector (decision H3). An operation
@@ -1422,6 +1431,34 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         }
         return objs;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of a {@code Uint8List}. It runs before the shared pass, which copies the
+     * body type into the signature arguments. Multipart and every other body kind keep the type
+     * the spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
     }
 
     /**

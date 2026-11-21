@@ -18,6 +18,7 @@ import '../api_result.dart';
 import '../api_stream_response.dart';
 import '../auth/authenticator.dart';
 import '../auth/http_aware_authenticator.dart';
+import '../body_source.dart';
 import '../byte_stream.dart';
 import '../call_hook.dart';
 import '../call_info.dart';
@@ -362,7 +363,7 @@ class BaseApi {
       TraceContextUtil.injectTraceContext(headers);
       run.beforeSend(method, targetUrl, headers, authNames);
 
-      final Uint8List? serializedBody;
+      final Object? serializedBody;
       if (multipartType != null && body is Map<String, Object?>) {
         final boundary = _generateUuid();
         headers['Content-Type'] = '$multipartType; boundary=$boundary';
@@ -406,8 +407,11 @@ class BaseApi {
 
     final maxRetriesLeft =
         maxRetries ?? (client is RetryingApiClient ? client.maxRetries : 0);
-    /* A multipart body is never sent twice. */
-    final replayable = multipartType == null;
+    /* A multipart body is never sent twice, and neither is a single-use body
+     * source: the one stream was read to its end by the first send, so it is
+     * never retried, replayed after a 401 or buffered to make that possible. */
+    final replayable =
+        multipartType == null && !(body is BodySource && !body.isReplayable);
     var retries = 0;
     var reauthenticated = false;
     final Object? credential = effectiveAuth;
@@ -530,7 +534,7 @@ class BaseApi {
     required String method,
     required String url,
     required Map<String, String> headers,
-    required Uint8List? body,
+    required Object? body,
     required int? timeout,
     required int? idleTimeout,
   }) async {
@@ -785,6 +789,7 @@ class BaseApi {
       terminator: terminator,
       options: options,
       hasBody: body != null,
+      singleUseBody: body is BodySource && !body.isReplayable,
       method: method,
       path: _requestPathOf(_urlFor(config.baseUrl, path)),
     );
@@ -1190,12 +1195,15 @@ class BaseApi {
   /// binary`, so caller-supplied bytes go out verbatim whatever content type
   /// was selected (including `application/json`); the selector only changes
   /// the Content-Type header and the bytes are never JSON-encoded.
-  Uint8List? _serializeBody(
+  Object? _serializeBody(
     Object? body,
     String contentType, {
     bool rawBody = false,
   }) {
     if (body == null) return null;
+
+    /* A body source is sent as it is read, never serialized or buffered. */
+    if (body is BodySource) return body;
 
     if (rawBody) {
       if (body is Uint8List) return body;

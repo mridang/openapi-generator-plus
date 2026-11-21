@@ -1,0 +1,10 @@
+{{>api_info}}
+/// The browser has no file system to read a request body from.
+Stream<List<int>> openFileStream(String path) => throw UnsupportedError(
+    'A file body is not available in the browser: use BodySource.of or '
+    'BodySource.fromFactory');
+
+/// The browser has no file system to read a request body from.
+int fileLength(String path) => throw UnsupportedError(
+    'A file body is not available in the browser: use BodySource.of or '
+    'BodySource.fromFactory');

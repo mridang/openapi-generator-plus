@@ -87,7 +87,7 @@ with status 408, 409, 429 or 500-599 (not 501). The wait starts at 0.5 seconds,
 doubles up to 8 seconds and carries up to 25% jitter; a `Retry-After` header
 (seconds or an HTTP date, at most 60 seconds) replaces it. Retries never extend
 the request timeout: a wait that would outlast it is not taken and the last
-error is reported. A call with a multipart body is never retried. Every retry
+error is reported. A call with a multipart body or a single-use `BodySource` is never retried. Every retry
 is a new request and asks the authenticator for its headers again.
 
 ```dart file
@@ -104,7 +104,7 @@ When an OAuth2 or OpenID Connect call answers 401, the SDK drops the cached
 access token (the refresh token is kept), obtains a new one and sends the
 request once more. A second 401 is reported as `UnauthorizedException`. API-key,
 basic and bearer authenticators are never replayed, and neither is a multipart
-body. `invalidateAccessToken()` on the OAuth2 and OpenID Connect authenticators
+or a single-use body. `invalidateAccessToken()` on the OAuth2 and OpenID Connect authenticators
 does the same on demand.
 
 The authorization-code flow (also through OpenID Connect) is protected with
@@ -147,6 +147,8 @@ Future<void> saveTo(Client client, int petId, int documentId, DownloadPetDocumen
 ```
 
 The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `UnsupportedError` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(bytes)`, `BodySource.ofFile(path)` or `BodySource.fromFactory(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
 
 An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Iterate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationException` and end the stream.
 

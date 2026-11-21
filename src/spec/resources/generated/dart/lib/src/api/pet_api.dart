@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import '../api_result.dart';
 import '../auth/authenticator.dart';
+import '../body_source.dart';
 import '../byte_stream.dart';
 import 'base_api.dart';
 import '../object_serializer.dart';
@@ -16,6 +17,11 @@ import '../value_serializer.dart';
 import '../errors/api_exception.dart';
 import '../models/api_response.dart';
 import '../models/pet.dart';
+import '../models/pet_archive_page.dart';
+import '../models/pet_catalog_page.dart';
+import '../models/pet_event_page.dart';
+import '../models/pet_match_page.dart';
+import '../models/pet_note_page.dart';
 import '../models/pet_passport.dart';
 import '../models/pet_treatment.dart';
 import '../models/photo.dart';
@@ -40,6 +46,12 @@ import 'options/get_pet_photo_options.dart';
 import 'options/get_pet_summary_options.dart';
 import 'options/get_pet_tag_options.dart';
 import 'options/get_staging_pet_info_options.dart';
+import 'options/list_pet_archive_options.dart';
+import 'options/list_pet_catalog_options.dart';
+import 'options/list_pet_events_options.dart';
+import 'options/list_pet_feed_options.dart';
+import 'options/list_pet_matches_options.dart';
+import 'options/list_pet_notes_options.dart';
 import 'options/set_pet_avatar_options.dart';
 import 'options/set_pet_avatar_thumbnail_options.dart';
 import 'options/set_pet_preferences_options.dart';
@@ -396,16 +408,46 @@ abstract interface class PetApiInterface {
     GetStagingPetInfoServer? server,
     GetStagingPetInfoOptions? options,
   );
+  Future<PetArchivePage> listPetArchive(ListPetArchiveOptions? options);
+
+  Future<ApiResult<PetArchivePage>> listPetArchiveWithHttpInfo(
+    ListPetArchiveOptions? options,
+  );
+  Future<PetCatalogPage> listPetCatalog(ListPetCatalogOptions? options);
+
+  Future<ApiResult<PetCatalogPage>> listPetCatalogWithHttpInfo(
+    ListPetCatalogOptions? options,
+  );
+  Future<PetEventPage> listPetEvents(ListPetEventsOptions? options);
+
+  Future<ApiResult<PetEventPage>> listPetEventsWithHttpInfo(
+    ListPetEventsOptions? options,
+  );
+  Future<List<Pet>> listPetFeed(ListPetFeedOptions? options);
+
+  Future<ApiResult<List<Pet>>> listPetFeedWithHttpInfo(
+    ListPetFeedOptions? options,
+  );
+  Future<PetMatchPage> listPetMatches(ListPetMatchesOptions? options);
+
+  Future<ApiResult<PetMatchPage>> listPetMatchesWithHttpInfo(
+    ListPetMatchesOptions? options,
+  );
+  Future<PetNotePage> listPetNotes(ListPetNotesOptions? options);
+
+  Future<ApiResult<PetNotePage>> listPetNotesWithHttpInfo(
+    ListPetNotesOptions? options,
+  );
   Future<void> setPetAvatar(
     int petId,
-    Uint8List body,
+    BodySource body,
     SetPetAvatarOptions? options, [
     String? requestContentType,
   ]);
 
   Future<ApiResult<void>> setPetAvatarWithHttpInfo(
     int petId,
-    Uint8List body,
+    BodySource body,
     SetPetAvatarOptions? options, [
     String? requestContentType,
   ]);
@@ -2585,6 +2627,463 @@ class PetApi extends BaseApi implements PetApiInterface {
     );
   }
 
+  /// Lists archived pets; it looks paged, and the generator option says it is not
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Future<PetArchivePage> listPetArchive(ListPetArchiveOptions? options) async {
+    final result = await listPetArchiveWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as PetArchivePage` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for listPetArchive but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the listPetArchive operation and returns the full API result.
+  @override
+  Future<ApiResult<PetArchivePage>> listPetArchiveWithHttpInfo(
+    ListPetArchiveOptions? options,
+  ) async {
+    final Authenticator? auth = schemeAuthenticator(const ['petStoreBearer']);
+
+    var path = '/pet/archive';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.cursor != null) {
+      queryParams['cursor'] = maybeAllowReserved(
+        serializeStyled(
+          'cursor',
+          options.cursor,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<PetArchivePage>(
+      method: 'GET',
+      operation: 'PetApi.listPetArchive',
+      operationId: 'listPetArchive',
+      urlTemplate: '/pet/archive',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'PetArchivePage',
+      auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) =>
+          deserialize(body, PetArchivePage.fromJson) as PetArchivePage,
+    );
+  }
+
+  /// Lists the pet catalog one page at a time with a next-cursor token
+  /// `limit` The number of pets on a page
+  /// `cursor` Where to continue, as returned in next_cursor of the previous page
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Future<PetCatalogPage> listPetCatalog(ListPetCatalogOptions? options) async {
+    final result = await listPetCatalogWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as PetCatalogPage` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for listPetCatalog but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the listPetCatalog operation and returns the full API result.
+  @override
+  Future<ApiResult<PetCatalogPage>> listPetCatalogWithHttpInfo(
+    ListPetCatalogOptions? options,
+  ) async {
+    final Authenticator? auth = schemeAuthenticator(const ['petStoreBearer']);
+
+    var path = '/pet/catalog';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.limit != null) {
+      queryParams['limit'] = maybeAllowReserved(
+        serializeStyled(
+          'limit',
+          options.limit,
+          'query',
+          'int',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+    if (options != null && options.cursor != null) {
+      queryParams['cursor'] = maybeAllowReserved(
+        serializeStyled(
+          'cursor',
+          options.cursor,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<PetCatalogPage>(
+      method: 'GET',
+      operation: 'PetApi.listPetCatalog',
+      operationId: 'listPetCatalog',
+      urlTemplate: '/pet/catalog',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'PetCatalogPage',
+      auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) =>
+          deserialize(body, PetCatalogPage.fromJson) as PetCatalogPage,
+    );
+  }
+
+  /// Lists pet events; only the generator option says it is paged
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Future<PetEventPage> listPetEvents(ListPetEventsOptions? options) async {
+    final result = await listPetEventsWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as PetEventPage` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for listPetEvents but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the listPetEvents operation and returns the full API result.
+  @override
+  Future<ApiResult<PetEventPage>> listPetEventsWithHttpInfo(
+    ListPetEventsOptions? options,
+  ) async {
+    final Authenticator? auth = schemeAuthenticator(const ['petStoreBearer']);
+
+    var path = '/pet/events';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.since != null) {
+      queryParams['since'] = maybeAllowReserved(
+        serializeStyled(
+          'since',
+          options.since,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<PetEventPage>(
+      method: 'GET',
+      operation: 'PetApi.listPetEvents',
+      operationId: 'listPetEvents',
+      urlTemplate: '/pet/events',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'PetEventPage',
+      auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) =>
+          deserialize(body, PetEventPage.fromJson) as PetEventPage,
+    );
+  }
+
+  /// Lists the pet feed one page at a time with a Link header
+  /// `limit` The number of pets on a page
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Future<List<Pet>> listPetFeed(ListPetFeedOptions? options) async {
+    final result = await listPetFeedWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<Pet>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for listPetFeed but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the listPetFeed operation and returns the full API result.
+  @override
+  Future<ApiResult<List<Pet>>> listPetFeedWithHttpInfo(
+    ListPetFeedOptions? options,
+  ) async {
+    final Authenticator? auth = schemeAuthenticator(const ['petStoreBearer']);
+
+    var path = '/pet/feed';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.limit != null) {
+      queryParams['limit'] = maybeAllowReserved(
+        serializeStyled(
+          'limit',
+          options.limit,
+          'query',
+          'int',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<List<Pet>>(
+      method: 'GET',
+      operation: 'PetApi.listPetFeed',
+      operationId: 'listPetFeed',
+      urlTemplate: '/pet/feed',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'List<Pet>',
+      auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) => deserializeList(body, Pet.fromJson) as List<Pet>,
+    );
+  }
+
+  /// Finds pets and their owners; two lists make it ambiguous, so it is not paged
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Future<PetMatchPage> listPetMatches(ListPetMatchesOptions? options) async {
+    final result = await listPetMatchesWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as PetMatchPage` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for listPetMatches but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the listPetMatches operation and returns the full API result.
+  @override
+  Future<ApiResult<PetMatchPage>> listPetMatchesWithHttpInfo(
+    ListPetMatchesOptions? options,
+  ) async {
+    final Authenticator? auth = schemeAuthenticator(const ['petStoreBearer']);
+
+    var path = '/pet/matches';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.cursor != null) {
+      queryParams['cursor'] = maybeAllowReserved(
+        serializeStyled(
+          'cursor',
+          options.cursor,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<PetMatchPage>(
+      method: 'GET',
+      operation: 'PetApi.listPetMatches',
+      operationId: 'listPetMatches',
+      urlTemplate: '/pet/matches',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'PetMatchPage',
+      auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) =>
+          deserialize(body, PetMatchPage.fromJson) as PetMatchPage,
+    );
+  }
+
+  /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Future<PetNotePage> listPetNotes(ListPetNotesOptions? options) async {
+    final result = await listPetNotesWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as PetNotePage` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for listPetNotes but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the listPetNotes operation and returns the full API result.
+  @override
+  Future<ApiResult<PetNotePage>> listPetNotesWithHttpInfo(
+    ListPetNotesOptions? options,
+  ) async {
+    final Authenticator? auth = schemeAuthenticator(const ['petStoreBearer']);
+
+    var path = '/pet/notes';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.pos != null) {
+      queryParams['pos'] = maybeAllowReserved(
+        serializeStyled(
+          'pos',
+          options.pos,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<PetNotePage>(
+      method: 'GET',
+      operation: 'PetApi.listPetNotes',
+      operationId: 'listPetNotes',
+      urlTemplate: '/pet/notes',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'PetNotePage',
+      auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) =>
+          deserialize(body, PetNotePage.fromJson) as PetNotePage,
+    );
+  }
+
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
   /// `options` options carrying the per-call timeout, headers and retry budget
@@ -2592,7 +3091,7 @@ class PetApi extends BaseApi implements PetApiInterface {
   @override
   Future<void> setPetAvatar(
     int petId,
-    Uint8List body,
+    BodySource body,
     SetPetAvatarOptions? options, [
     String? requestContentType,
   ]) async {
@@ -2604,7 +3103,7 @@ class PetApi extends BaseApi implements PetApiInterface {
   @override
   Future<ApiResult<void>> setPetAvatarWithHttpInfo(
     int petId,
-    Uint8List body,
+    BodySource body,
     SetPetAvatarOptions? options, [
     String? requestContentType,
   ]) async {

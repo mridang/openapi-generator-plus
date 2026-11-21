@@ -44,11 +44,14 @@ final class SseStream<T> extends Stream<ServerSentEvent<T>> {
     this._terminator,
     StreamOptions given,
     bool hasBody,
+    bool singleUseBody,
     this._method,
     this._path,
     ByteStream first,
     this._lastEventId,
-  ) : _maxReconnects = given.maxReconnects ?? (hasBody ? 0 : 5),
+  ) : _maxReconnects = singleUseBody
+          ? 0
+          : (given.maxReconnects ?? (hasBody ? 0 : 5)),
       _reconnectDelay = given.reconnectDelay ?? 1000,
       _maxEventBytes = given.maxEventBytes ?? 1024 * 1024,
       _current = first {
@@ -83,13 +86,16 @@ final class SseStream<T> extends Stream<ServerSentEvent<T>> {
   /// [decoder] decodes the `data` field, or is null to hand it over as a
   /// string. [terminator] is a `data` value that ends the stream and is not
   /// delivered. [hasBody] says the request has a body, which turns reconnecting
-  /// off by default; [method] and [path] name the request in errors.
+  /// off by default, and [singleUseBody] says the body can be sent only once,
+  /// which turns it off whatever the options say. [method] and [path] name the
+  /// request in errors.
   static Future<SseStream<T>> open<T>({
     required Future<ByteStream> Function(String lastEventId) opener,
     T Function(String data)? decoder,
     String? terminator,
     StreamOptions? options,
     bool hasBody = false,
+    bool singleUseBody = false,
     required String method,
     required String path,
   }) async {
@@ -102,6 +108,7 @@ final class SseStream<T> extends Stream<ServerSentEvent<T>> {
       terminator,
       given,
       hasBody,
+      singleUseBody,
       method,
       path,
       first,

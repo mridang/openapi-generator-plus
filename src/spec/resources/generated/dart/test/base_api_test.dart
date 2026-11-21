@@ -2039,9 +2039,9 @@ void main() {
     );
 
     test(
-      'bhv misc 217 a binary upload sends in-memory bytes as the exact raw body',
+      'bhv misc 217 a binary upload sends in-memory bytes and a body source as given',
       () async {
-        final client = _ScriptedApiClient([_reply(200)]);
+        final client = _ScriptedApiClient([_reply(200), _reply(200)]);
         final api = _RecordingApi(client);
 
         await api.invokeApi(
@@ -2050,11 +2050,20 @@ void main() {
           body: Uint8List.fromList([0, 255, 1]),
           contentType: 'application/octet-stream',
         );
+        final source = BodySource.once(Stream<List<int>>.value([0, 255, 1]));
+        await api.invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: source,
+          contentType: 'application/octet-stream',
+          rawBody: true,
+        );
 
         expect(
-          client.sentBodies.single,
+          client.sentBodies.first,
           equals(Uint8List.fromList([0, 255, 1])),
         );
+        expect(client.sentBodies.last, same(source));
       },
     );
 
@@ -4802,6 +4811,8 @@ void main() {
         for (final body in <Object?>[
           'text',
           Uint8List.fromList([1, 2]),
+          BodySource.of([1, 2]),
+          BodySource.fromFactory(() => const Stream<List<int>>.empty()),
           null,
         ]) {
           final client = _ScriptedApiClient([
@@ -4815,6 +4826,25 @@ void main() {
           expect(client.sentBodies, hasLength(2));
           expect(client.sentBodies.last, equals(client.sentBodies.first));
         }
+
+        final single = _ScriptedApiClient([
+          const NetworkException(message: 'connection reset'),
+          _reply(200),
+        ]);
+        await expectLater(
+          _RecordingApi(single).invokeApi(
+            method: 'PUT',
+            path: '/x',
+            body: BodySource.once(const Stream<List<int>>.empty()),
+            rawBody: true,
+          ),
+          throwsA(isA<NetworkException>()),
+        );
+        expect(
+          single.sentBodies,
+          hasLength(1),
+          reason: 'a single use body is never sent again',
+        );
       },
     );
 
@@ -7270,6 +7300,81 @@ void main() {
           endsWith('/items'),
           reason: 'the buffered call still works',
         );
+      },
+    );
+  });
+
+  group('BaseApi uploads', () {
+    test(
+      'bhv streaming 026 a replayable upload is rewound and retried after a 503 and a single use upload is not retried and surfaces the original error',
+      () async {
+        final data = patterned(20000);
+        final seen = <RawUpload>[];
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          seen.add(await rawUpload(self, hit));
+          await rawReply(socket, hit == 1 ? 503 : 200, ['Retry-After: 0']);
+        });
+        try {
+          var opens = 0;
+          final replayable = BodySource.fromFactory(() {
+            opens++;
+            return Stream<List<int>>.value(data);
+          });
+          final api = _ServerApi(server.url(''), DefaultApiClient());
+          final response = await api.invokeApi(
+            method: 'PUT',
+            path: '/items/blob',
+            body: replayable,
+            contentType: 'application/octet-stream',
+            rawBody: true,
+          );
+          expect(response.statusCode, equals(200));
+          expect(server.hits, equals(2), reason: 'the 503 was retried');
+          expect(
+            opens,
+            equals(2),
+            reason: 'the source was opened again for the retry',
+          );
+          expect(seen[0].bytes, equals(data));
+          expect(
+            seen[1].bytes,
+            equals(data),
+            reason: 'the retry carries the whole body',
+          );
+        } finally {
+          await server.close();
+        }
+
+        final failing = await RawServer.serve((self, socket, hit, head) async {
+          await rawUpload(self, hit);
+          await rawReply(socket, 503, ['Retry-After: 0']);
+        });
+        try {
+          final api = _ServerApi(failing.url(''), DefaultApiClient());
+          await expectLater(
+            api.invokeApi(
+              method: 'PUT',
+              path: '/items/blob',
+              body: BodySource.once(Stream<List<int>>.value(data)),
+              contentType: 'application/octet-stream',
+              rawBody: true,
+            ),
+            throwsA(
+              isA<ServiceUnavailableException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                503,
+              ),
+            ),
+          );
+          expect(
+            failing.hits,
+            equals(1),
+            reason: 'a single use body is sent once',
+          );
+        } finally {
+          await failing.close();
+        }
       },
     );
   });

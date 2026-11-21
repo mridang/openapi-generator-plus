@@ -343,11 +343,7 @@ void main() {
     test('bhv operations 070 setPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
-      await api.setPetAvatar(
-        1,
-        Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
-        null,
-      );
+      await api.setPetAvatar(1, BodySource.of([0xFF, 0xD8, 0xFF, 0xE0]), null);
     });
 
     test(
@@ -359,7 +355,7 @@ void main() {
         await expectLater(
           api.setPetAvatar(
             1,
-            Uint8List.fromList([0xFF, 0xD8, 0xFF]),
+            BodySource.of([0xFF, 0xD8, 0xFF]),
             null,
             'application/unknown-type',
           ),
@@ -466,7 +462,7 @@ void main() {
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
           // A non-trivial JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
-          final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+          final payload = BodySource.of([0xFF, 0xD8, 0xFF, 0xE0]);
           await api.setPetAvatar(1, payload, null);
 
           // (1) The body bytes are EXACTLY the raw payload — not a JSON
@@ -510,7 +506,7 @@ void main() {
               .build();
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-          final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+          final payload = BodySource.of([0xFF, 0xD8, 0xFF, 0xE0]);
 
           // (1) No selector — defaults to the first declared type (image/jpeg).
           await api.setPetAvatar(1, payload, null);
@@ -554,7 +550,7 @@ void main() {
 
           await api.setPetAvatar(
             1,
-            Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
+            BodySource.of([0xFF, 0xD8, 0xFF, 0xE0]),
             null,
             'application/json',
           );

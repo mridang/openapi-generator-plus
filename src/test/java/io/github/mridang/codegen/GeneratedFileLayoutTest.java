@@ -141,6 +141,13 @@ class GeneratedFileLayoutTest {
         "java",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a class of its own in Java");
+    allow(
+        ALLOWED_EXTRA,
+        "dart",
+        "bodysource",
+        "the body of a raw binary upload, replayable or single use, a class of its own in Dart");
+    allow(ALLOWED_EXTRA, "dart", "bodysourcefilesio", "dart:io file reading of a body source, chosen by conditional import");
+    allow(ALLOWED_EXTRA, "dart", "bodysourcefilesweb", "the browser stand-in for file reading of a body source, chosen by conditional import");
     allow(ALLOWED_EXTRA, "java", "paginator", "the lazy sequence a paged operation returns, a class of its own in Java (D123)");
     allow(ALLOWED_EXTRA, "java", "page", "the record one page of a paged list is, a class of its own in Java (D123)");
     allow(ALLOWED_EXTRA, "java", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
