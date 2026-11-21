@@ -9,6 +9,7 @@
 package com.example.petstore.api;
 
 import com.example.petstore.ApiResult;
+import com.example.petstore.ByteStream;
 import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.AddPetTreatmentOptions;
@@ -273,11 +274,11 @@ public interface PetApiInterface {
    *
    * @param petId (required)
    * @param documentId (required)
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  default InputStream downloadPetDocument(Long petId, Long documentId) {
+  default ByteStream downloadPetDocument(Long petId, Long documentId) {
     return downloadPetDocument(petId, documentId, null);
   }
 
@@ -290,11 +291,11 @@ public interface PetApiInterface {
    *
    * @param petId (required)
    * @param documentId (required)
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  default ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
+  default ApiResult<ByteStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
     return downloadPetDocumentWithHttpInfo(petId, documentId, null);
   }
 
@@ -305,11 +306,11 @@ public interface PetApiInterface {
    * @param petId (required)
    * @param documentId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  InputStream downloadPetDocument(
+  ByteStream downloadPetDocument(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options);
 
   /**
@@ -319,11 +320,11 @@ public interface PetApiInterface {
    * @param petId (required)
    * @param documentId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  ApiResult<InputStream> downloadPetDocumentWithHttpInfo(
+  ApiResult<ByteStream> downloadPetDocumentWithHttpInfo(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options);
 
   /**
@@ -609,11 +610,11 @@ public interface PetApiInterface {
    * configured settings apply.
    *
    * @param petId (required)
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  default InputStream getPetAvatar(Long petId) {
+  default ByteStream getPetAvatar(Long petId) {
     return getPetAvatar(petId, null);
   }
 
@@ -625,11 +626,11 @@ public interface PetApiInterface {
    * configured settings apply.
    *
    * @param petId (required)
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  default ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) {
+  default ApiResult<ByteStream> getPetAvatarWithHttpInfo(Long petId) {
     return getPetAvatarWithHttpInfo(petId, null);
   }
 
@@ -638,23 +639,22 @@ public interface PetApiInterface {
    *
    * @param petId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  InputStream getPetAvatar(Long petId, @Nullable GetPetAvatarOptions options);
+  ByteStream getPetAvatar(Long petId, @Nullable GetPetAvatarOptions options);
 
   /**
    * Get the pet's profile photo Returns the raw image bytes of the pet's current avatar.
    *
    * @param petId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  ApiResult<InputStream> getPetAvatarWithHttpInfo(
-      Long petId, @Nullable GetPetAvatarOptions options);
+  ApiResult<ByteStream> getPetAvatarWithHttpInfo(Long petId, @Nullable GetPetAvatarOptions options);
 
   /**
    * Get the pet's avatar thumbnail as base64
@@ -925,11 +925,11 @@ public interface PetApiInterface {
    *
    * @param petId (required)
    * @param photoId (required)
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  default InputStream getPetPhoto(Long petId, Long photoId) {
+  default ByteStream getPetPhoto(Long petId, Long photoId) {
     return getPetPhoto(petId, photoId, null);
   }
 
@@ -942,11 +942,11 @@ public interface PetApiInterface {
    *
    * @param petId (required)
    * @param photoId (required)
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  default ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
+  default ApiResult<ByteStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
     return getPetPhotoWithHttpInfo(petId, photoId, null);
   }
 
@@ -957,11 +957,11 @@ public interface PetApiInterface {
    * @param petId (required)
    * @param photoId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  InputStream getPetPhoto(Long petId, Long photoId, @Nullable GetPetPhotoOptions options);
+  ByteStream getPetPhoto(Long petId, Long photoId, @Nullable GetPetPhotoOptions options);
 
   /**
    * Get a photo or its metadata Returns the raw image bytes or JSON metadata depending on the
@@ -970,11 +970,11 @@ public interface PetApiInterface {
    * @param petId (required)
    * @param photoId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  ApiResult<InputStream> getPetPhotoWithHttpInfo(
+  ApiResult<ByteStream> getPetPhotoWithHttpInfo(
       Long petId, Long photoId, @Nullable GetPetPhotoOptions options);
 
   /**

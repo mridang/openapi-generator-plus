@@ -11,6 +11,8 @@ package com.example.petstore.api;
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.ApiResult;
+import com.example.petstore.ApiStreamResponse;
+import com.example.petstore.ByteStream;
 import com.example.petstore.CallHook;
 import com.example.petstore.CallInfo;
 import com.example.petstore.CallObserver;
@@ -492,6 +494,102 @@ public abstract class BaseApi {
       @Nullable Map<String, ErrorFactory> errorSchemas,
       String specOperationId,
       String urlTemplate) {
+    return invokeCall(
+        false,
+        operationId,
+        method,
+        path,
+        queryParams,
+        headerParams,
+        body,
+        accepts,
+        contentType,
+        returnType,
+        auth,
+        timeoutMillis,
+        maxRetries,
+        successDecoder,
+        errorSchemas,
+        specOperationId,
+        urlTemplate);
+  }
+
+  /**
+   * Invoke an operation whose success response is binary and return its body as a stream, unread.
+   * Everything up to the response headers is the buffered call (the same retries, redirects,
+   * authentication, 401 replay, headers and call hook); a non-2xx status raises the same typed
+   * error as a buffered call, its body read up to 64 KiB, and no stream is returned.
+   *
+   * @param operationId operation id, named in errors
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param path URL path (with path params already substituted)
+   * @param queryParams query parameters
+   * @param headerParams custom header parameters
+   * @param body request body (model object or null)
+   * @param accepts acceptable response content types
+   * @param contentType request content type
+   * @param auth the credential for the scheme the operation requires, or {@code NO_AUTH}
+   * @param timeoutMillis timeout in milliseconds up to the response headers, or {@code null}
+   * @param maxRetries retry count for this call, or {@code null} to use the transport's
+   * @param errorSchemas the operation's error factories by declared status, or {@code null}
+   * @param specOperationId the operation id exactly as written in the spec, given to the hook
+   * @param urlTemplate the spec path template of the operation, given to the hook
+   * @return the result whose data is the open {@link ByteStream}; its raw body is empty
+   * @throws ApiException if the API call fails
+   */
+  protected ApiResult<ByteStream> invokeApiForStream(
+      String operationId,
+      String method,
+      String path,
+      Map<String, Object> queryParams,
+      Map<String, String> headerParams,
+      @Nullable Object body,
+      String[] accepts,
+      String contentType,
+      @Nullable Authenticator auth,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable Map<String, ErrorFactory> errorSchemas,
+      String specOperationId,
+      String urlTemplate) {
+    return invokeCall(
+        true,
+        operationId,
+        method,
+        path,
+        queryParams,
+        headerParams,
+        body,
+        accepts,
+        contentType,
+        null,
+        auth,
+        timeoutMillis,
+        maxRetries,
+        null,
+        errorSchemas,
+        specOperationId,
+        urlTemplate);
+  }
+
+  private <T> ApiResult<T> invokeCall(
+      boolean stream,
+      String operationId,
+      String method,
+      String path,
+      Map<String, Object> queryParams,
+      Map<String, String> headerParams,
+      @Nullable Object body,
+      String[] accepts,
+      String contentType,
+      @Nullable Type returnType,
+      @Nullable Authenticator auth,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable BiFunction<Integer, String, T> successDecoder,
+      @Nullable Map<String, ErrorFactory> errorSchemas,
+      String specOperationId,
+      String urlTemplate) {
 
     String url;
     if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -598,6 +696,7 @@ public abstract class BaseApi {
     }
     if (observer == null) {
       return sendAndDecode(
+          stream,
           operationId,
           method,
           url,
@@ -616,6 +715,7 @@ public abstract class BaseApi {
     try {
       result =
           sendAndDecode(
+              stream,
               operationId,
               method,
               url,
@@ -705,6 +805,7 @@ public abstract class BaseApi {
    * Encode the body, send the request and decode the response; the part of a call the hook wraps.
    */
   private <T> ApiResult<T> sendAndDecode(
+      boolean stream,
       String operationId,
       String method,
       String url,
@@ -783,6 +884,19 @@ public abstract class BaseApi {
     if (requestBody == null) {
       /* A default header may be spelled in any case, so drop every Content-Type name. */
       headers.keySet().removeIf(name -> name.equalsIgnoreCase("Content-Type"));
+    }
+
+    if (stream) {
+      return openStream(
+          method,
+          url,
+          headers,
+          requestBody,
+          effectiveAuth,
+          sentAuthHeaders,
+          timeoutMillis,
+          maxRetries,
+          errorSchemas);
     }
 
     ApiHttpResponse response =
@@ -911,6 +1025,73 @@ public abstract class BaseApi {
         data,
         response.body(),
         response.headers() != null ? response.headers() : Map.of());
+  }
+
+  /** The most of an error body a stream call reads before it raises the error. */
+  private static final int STREAM_ERROR_BODY_LIMIT = 64 * 1024;
+
+  /**
+   * Send the request for a stream result: a success hands back the open stream, any other status
+   * reads a bounded part of its body, closes it and raises the typed error of a buffered call.
+   */
+  @SuppressWarnings("unchecked")
+  private <T> ApiResult<T> openStream(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object requestBody,
+      @Nullable Authenticator auth,
+      Map<String, String> sentAuthHeaders,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable Map<String, ErrorFactory> errorSchemas) {
+    ApiStreamResponse response =
+        sendStreamReplayingOnUnauthorized(
+            method, url, headers, requestBody, auth, sentAuthHeaders, timeoutMillis, maxRetries);
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      ApiHttpResponse failed = response.readBounded(STREAM_ERROR_BODY_LIMIT);
+      throw ApiException.fromResponse(
+          method,
+          requestPathOf(url),
+          failed.statusCode(),
+          failed.headers(),
+          failed.body(),
+          errorSchemas);
+    }
+    ByteStream data = new ByteStream(response.statusCode(), response.headers(), response.body());
+    return new ApiResult<>(response.statusCode(), (T) data, "", response.headers());
+  }
+
+  /** {@link #sendReplayingOnUnauthorized} for a stream: the refused response is closed unread. */
+  private ApiStreamResponse sendStreamReplayingOnUnauthorized(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object requestBody,
+      @Nullable Authenticator auth,
+      Map<String, String> sentAuthHeaders,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries) {
+    ApiStreamResponse response =
+        apiClient.sendStreaming(method, url, headers, requestBody, timeoutMillis, maxRetries, null);
+    if (response.statusCode() != 401 || !(auth instanceof HttpAwareAuthenticator tokenAuth)) {
+      return response;
+    }
+    tokenAuth.invalidateAccessToken();
+    boolean replayable =
+        requestBody == null || requestBody instanceof String || requestBody instanceof byte[];
+    if (!replayable) {
+      return response;
+    }
+    Map<String, String> fresh = tokenAuth.getAuthHeaders();
+    if (fresh.equals(sentAuthHeaders)) {
+      return response;
+    }
+    response.close();
+    headers.keySet().removeIf(name -> fresh.keySet().stream().anyMatch(name::equalsIgnoreCase));
+    headers.putAll(fresh);
+    return apiClient.sendStreaming(
+        method, url, headers, requestBody, timeoutMillis, maxRetries, null);
   }
 
   /**

@@ -10,6 +10,7 @@ package com.example.petstore.api;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiResult;
+import com.example.petstore.ByteStream;
 import com.example.petstore.Configuration;
 import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
@@ -74,9 +75,6 @@ public class PetApi extends BaseApi implements PetApiInterface {
   private static final java.lang.reflect.Type attachPetFilesTypeRef =
       new TypeReference<ApiResponse>() {}.getType();
 
-  private static final java.lang.reflect.Type downloadPetDocumentTypeRef =
-      new TypeReference<InputStream>() {}.getType();
-
   private static final java.lang.reflect.Type findPetsBornOnTypeRef =
       new TypeReference<List<Pet>>() {}.getType();
 
@@ -88,9 +86,6 @@ public class PetApi extends BaseApi implements PetApiInterface {
 
   private static final java.lang.reflect.Type getMultiServerPetInfoTypeRef =
       new TypeReference<Pet>() {}.getType();
-
-  private static final java.lang.reflect.Type getPetAvatarTypeRef =
-      new TypeReference<InputStream>() {}.getType();
 
   private static final java.lang.reflect.Type getPetAvatarThumbnailTypeRef =
       new TypeReference<byte[]>() {}.getType();
@@ -106,9 +101,6 @@ public class PetApi extends BaseApi implements PetApiInterface {
 
   private static final java.lang.reflect.Type getPetPassportTypeRef =
       new TypeReference<PetPassport>() {}.getType();
-
-  private static final java.lang.reflect.Type getPetPhotoTypeRef =
-      new TypeReference<InputStream>() {}.getType();
 
   private static final java.lang.reflect.Type getPetSummaryTypeRef =
       new TypeReference<String>() {}.getType();
@@ -889,12 +881,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    *
    * @param petId (required)
    * @param documentId (required)
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public InputStream downloadPetDocument(Long petId, Long documentId) {
+  public ByteStream downloadPetDocument(Long petId, Long documentId) {
     return downloadPetDocument(petId, documentId, null);
   }
 
@@ -907,12 +899,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    *
    * @param petId (required)
    * @param documentId (required)
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
+  public ApiResult<ByteStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
     return downloadPetDocumentWithHttpInfo(petId, documentId, null);
   }
 
@@ -923,12 +915,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * @param petId (required)
    * @param documentId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public InputStream downloadPetDocument(
+  public ByteStream downloadPetDocument(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options) {
     return requireBody(
         downloadPetDocumentWithHttpInfo(petId, documentId, options), "downloadPetDocument");
@@ -941,12 +933,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * @param petId (required)
    * @param documentId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(
+  public ApiResult<ByteStream> downloadPetDocumentWithHttpInfo(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
@@ -976,7 +968,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
     if (callHeaders != null) {
       headerParams.putAll(callHeaders);
     }
-    return invokeApiForResult(
+    return invokeApiForStream(
         "downloadPetDocument",
         "GET",
         path,
@@ -985,11 +977,9 @@ public class PetApi extends BaseApi implements PetApiInterface {
         null,
         new String[] {"application/octet-stream"},
         "application/json",
-        downloadPetDocumentTypeRef,
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
-        null,
         null,
         "downloadPetDocument",
         "/pet/{petId}/documents/{documentId}");
@@ -1499,12 +1489,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * configured settings apply.
    *
    * @param petId (required)
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public InputStream getPetAvatar(Long petId) {
+  public ByteStream getPetAvatar(Long petId) {
     return getPetAvatar(petId, null);
   }
 
@@ -1516,12 +1506,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * configured settings apply.
    *
    * @param petId (required)
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) {
+  public ApiResult<ByteStream> getPetAvatarWithHttpInfo(Long petId) {
     return getPetAvatarWithHttpInfo(petId, null);
   }
 
@@ -1530,12 +1520,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    *
    * @param petId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public InputStream getPetAvatar(Long petId, @Nullable GetPetAvatarOptions options) {
+  public ByteStream getPetAvatar(Long petId, @Nullable GetPetAvatarOptions options) {
     return requireBody(getPetAvatarWithHttpInfo(petId, options), "getPetAvatar");
   }
 
@@ -1544,12 +1534,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    *
    * @param petId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public ApiResult<InputStream> getPetAvatarWithHttpInfo(
+  public ApiResult<ByteStream> getPetAvatarWithHttpInfo(
       Long petId, @Nullable GetPetAvatarOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
@@ -1570,7 +1560,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
     if (callHeaders != null) {
       headerParams.putAll(callHeaders);
     }
-    return invokeApiForResult(
+    return invokeApiForStream(
         "getPetAvatar",
         "GET",
         path,
@@ -1579,11 +1569,9 @@ public class PetApi extends BaseApi implements PetApiInterface {
         null,
         new String[] {"image/jpeg", "image/png"},
         "application/json",
-        getPetAvatarTypeRef,
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
-        null,
         null,
         "getPetAvatar",
         "/pet/{petId}/avatar");
@@ -2128,12 +2116,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    *
    * @param petId (required)
    * @param photoId (required)
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public InputStream getPetPhoto(Long petId, Long photoId) {
+  public ByteStream getPetPhoto(Long petId, Long photoId) {
     return getPetPhoto(petId, photoId, null);
   }
 
@@ -2146,12 +2134,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    *
    * @param petId (required)
    * @param photoId (required)
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
+  public ApiResult<ByteStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
     return getPetPhotoWithHttpInfo(petId, photoId, null);
   }
 
@@ -2162,12 +2150,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * @param petId (required)
    * @param photoId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return {@code InputStream}
+   * @return {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public InputStream getPetPhoto(Long petId, Long photoId, @Nullable GetPetPhotoOptions options) {
+  public ByteStream getPetPhoto(Long petId, Long photoId, @Nullable GetPetPhotoOptions options) {
     return requireBody(getPetPhotoWithHttpInfo(petId, photoId, options), "getPetPhoto");
   }
 
@@ -2178,12 +2166,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * @param petId (required)
    * @param photoId (required)
    * @param options options carrying the per-call timeout, retry count and headers
-   * @return the API result wrapping {@code InputStream}
+   * @return the API result wrapping {@code ByteStream}
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public ApiResult<InputStream> getPetPhotoWithHttpInfo(
+  public ApiResult<ByteStream> getPetPhotoWithHttpInfo(
       Long petId, Long photoId, @Nullable GetPetPhotoOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
@@ -2213,7 +2201,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
     if (callHeaders != null) {
       headerParams.putAll(callHeaders);
     }
-    return invokeApiForResult(
+    return invokeApiForStream(
         "getPetPhoto",
         "GET",
         path,
@@ -2222,11 +2210,9 @@ public class PetApi extends BaseApi implements PetApiInterface {
         null,
         new String[] {"image/jpeg", "image/png", "application/json"},
         "application/json",
-        getPetPhotoTypeRef,
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
-        null,
         null,
         "getPetPhoto",
         "/pet/{petId}/photos/{photoId}");

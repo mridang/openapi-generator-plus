@@ -461,6 +461,488 @@ public final class DefaultApiClient implements ApiClient {
         return send(method, url, headers, body, true, true, null, 0);
     }
 
+    /**
+     * Sends a request and returns once the response headers are accepted, with the body still
+     * unread. The header phase is the one the buffered call runs (retries, redirects, the budget,
+     * the header rules); the {@code timeout} stops at the headers, and the body is then bounded by
+     * the idle timeout alone. The caller owns the returned body and must close it; closing aborts
+     * the connection, and {@link #close()} cancels a body that is still open.
+     */
+    @Override
+    public ApiStreamResponse sendStreaming(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body,
+            @Nullable Integer timeoutMillis,
+            @Nullable Integer maxRetries,
+            @Nullable Integer idleTimeoutMillis) {
+        beginRequest();
+        boolean handedOver = false;
+        try {
+            final PreparedCall call =
+                    prepare(method, url, headers, body, false, false, timeoutMillis, maxRetries);
+            HttpResponse<InputStream> response =
+                    sendHeaderPhase(
+                            call,
+                            HttpResponse.BodyHandlers.ofInputStream(),
+                            DefaultApiClient::closeQuietly);
+            Integer idle =
+                    idleTimeoutMillis != null
+                            ? (idleTimeoutMillis == 0 ? null : idleTimeoutMillis)
+                            : transportOptions.getIdleTimeout();
+            ApiStreamResponse opened = openStream(call, response, idle);
+            handedOver = true;
+            return opened;
+        } catch (HttpTimeoutException e) {
+            throw new NetworkTimeoutException(e.toString(), e, method, url);
+        } catch (IOException e) {
+            throw new NetworkException(e.toString(), e, method, url);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            java.util.concurrent.CancellationException cancelled =
+                    new java.util.concurrent.CancellationException("request interrupted");
+            cancelled.initCause(e);
+            throw cancelled;
+        } finally {
+            if (!handedOver) {
+                endRequest();
+            }
+        }
+    }
+
+    private static void closeQuietly(HttpResponse<InputStream> response) {
+        try {
+            response.body().close();
+        } catch (IOException ignored) {
+            /* aborting a body that is being discarded: nothing is left to release */
+        }
+    }
+
+    /** Wraps the response of the header phase as a stream the client tracks. */
+    private ApiStreamResponse openStream(
+            PreparedCall call, HttpResponse<InputStream> response, @Nullable Integer idleMillis)
+            throws IOException {
+        final int status = response.statusCode();
+        Map<String, String> responseHeaders = copyResponseHeaders(response.headers());
+        String encoding =
+                response.headers()
+                        .firstValue("content-encoding")
+                        .orElse("identity")
+                        .trim()
+                        .toLowerCase(Locale.ROOT);
+        boolean hasBody =
+                !"HEAD".equalsIgnoreCase(call.method)
+                        && status != 204
+                        && status != 304
+                        && status >= 200;
+        long declaredLength = -1L;
+        if (hasBody) {
+            String declared = responseHeaders.get("content-length");
+            if (declared != null && declared.trim().chars().allMatch(c -> c >= '0' && c <= '9')
+                    && !declared.trim().isEmpty() && declared.trim().length() < 18) {
+                declaredLength = Long.parseLong(declared.trim());
+            }
+        }
+        boolean identity = encoding.isEmpty() || "identity".equals(encoding);
+        if (!identity) {
+            try {
+                requireDecoder(encoding);
+            } catch (IOException unsupported) {
+                closeQuietly(response);
+                throw new ApiException(
+                        status,
+                        "Failed to decompress " + encoding + " response body: " + unsupported,
+                        responseHeaders,
+                        null,
+                        null,
+                        unsupported);
+            }
+            /* D92: the headers describe the body the caller receives, so the wire
+             * encoding and length of an encoded body go. */
+            responseHeaders.remove("content-encoding");
+            responseHeaders.remove("content-length");
+        }
+        StreamBody body =
+                new StreamBody(
+                        call.method,
+                        call.url,
+                        status,
+                        responseHeaders,
+                        response.body(),
+                        declaredLength,
+                        identity ? null : encoding,
+                        idleMillis);
+        boolean registered;
+        synchronized (lifecycle) {
+            registered = !closed;
+            if (registered) {
+                openStreams.add(body);
+            }
+        }
+        if (!registered) {
+            closeQuietly(response);
+            throw new IllegalStateException(CLOSED_MESSAGE);
+        }
+        return new ApiStreamResponse(status, responseHeaders, body);
+    }
+
+    /** Fails when {@code encoding} names a codec this client cannot decode. */
+    private static void requireDecoder(String encoding) throws IOException {
+        switch (encoding) {
+            case "gzip", "x-gzip", "deflate" -> {}
+            case "br" -> requireCodecClass("br", "org.brotli.dec.BrotliInputStream");
+            case "zstd" -> requireCodecClass("zstd", "com.github.luben.zstd.ZstdInputStream");
+            default -> throw new IOException("Unsupported Content-Encoding '" + encoding + "'");
+        }
+    }
+
+    private static void requireCodecClass(String encoding, String className) throws IOException {
+        try {
+            Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            throw new IOException(
+                    "Received a " + encoding + "-encoded response but the " + encoding
+                            + " library is unavailable",
+                    e);
+        }
+    }
+
+    /** Opens the decoder of an encoded body over its wire bytes. */
+    private static InputStream openDecoder(String encoding, InputStream wire) throws IOException {
+        if ("gzip".equals(encoding) || "x-gzip".equals(encoding)) {
+            return new GZIPInputStream(wire);
+        }
+        if ("deflate".equals(encoding)) {
+            return new InflaterInputStream(wire);
+        }
+        String className =
+                "br".equals(encoding)
+                        ? "org.brotli.dec.BrotliInputStream"
+                        : "com.github.luben.zstd.ZstdInputStream";
+        try {
+            return Class.forName(className)
+                    .asSubclass(InputStream.class)
+                    .getConstructor(InputStream.class)
+                    .newInstance(wire);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            if (cause instanceof IOException io) {
+                throw io;
+            }
+            throw new IOException("Failed to decode " + encoding + "-encoded response", cause);
+        } catch (ReflectiveOperationException e) {
+            throw new IOException(
+                    "Received a " + encoding + "-encoded response but the " + encoding
+                            + " library is unavailable",
+                    e);
+        }
+    }
+
+    /** The one thread that fires idle timeouts; a read arms a timer and disarms it when it returns. */
+    private static final java.util.concurrent.ScheduledThreadPoolExecutor IDLE_TIMER = newIdleTimer();
+
+    private static java.util.concurrent.ScheduledThreadPoolExecutor newIdleTimer() {
+        java.util.concurrent.ScheduledThreadPoolExecutor timer =
+                new java.util.concurrent.ScheduledThreadPoolExecutor(
+                        1,
+                        task -> {
+                            Thread thread = new Thread(task, "sdk-stream-idle-timer");
+                            thread.setDaemon(true);
+                            return thread;
+                        });
+        timer.setRemoveOnCancelPolicy(true);
+        return timer;
+    }
+
+    /** What the client says to a read of a stream it cancelled when it was closed. */
+    private static final String CLOSED_MESSAGE =
+            "ApiClient has been closed and can no longer send requests";
+
+    /**
+     * The wire bytes of a streamed body. It counts them, remembers a failure of the connection
+     * and refuses to end quietly before the declared {@code Content-Length}.
+     */
+    private static final class WireGuard extends InputStream {
+        private final InputStream in;
+        private final long declaredLength;
+        private long seen;
+        @Nullable private volatile IOException failure;
+
+        WireGuard(InputStream in, long declaredLength) {
+            this.in = in;
+            this.declaredLength = declaredLength;
+        }
+
+        @Override
+        public int read() throws IOException {
+            byte[] one = new byte[1];
+            int n = read(one, 0, 1);
+            return n < 0 ? -1 : one[0] & 0xff;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            int n;
+            try {
+                n = in.read(buffer, offset, length);
+            } catch (IOException e) {
+                failure = e;
+                throw e;
+            }
+            if (n < 0) {
+                if (declaredLength >= 0 && seen != declaredLength) {
+                    IOException truncated =
+                            new IOException(
+                                    "The body ended after " + seen + " of " + declaredLength + " bytes");
+                    failure = truncated;
+                    throw truncated;
+                }
+                return -1;
+            }
+            seen += n;
+            return n;
+        }
+
+        @Override
+        public void close() throws IOException {
+            in.close();
+        }
+    }
+
+    /** Opens the decoder on the first read, so a body that is empty needs none. */
+    private static final class LazyDecoder extends InputStream {
+        private final java.io.PushbackInputStream wire;
+        private final String encoding;
+        @Nullable private InputStream decoder;
+        private boolean empty;
+
+        LazyDecoder(InputStream wire, String encoding) {
+            this.wire = new java.io.PushbackInputStream(wire, 1);
+            this.encoding = encoding;
+        }
+
+        @Override
+        public int read() throws IOException {
+            byte[] one = new byte[1];
+            int n = read(one, 0, 1);
+            return n < 0 ? -1 : one[0] & 0xff;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            if (empty) {
+                return -1;
+            }
+            InputStream current = decoder;
+            if (current == null) {
+                int first = wire.read();
+                if (first < 0) {
+                    empty = true;
+                    return -1;
+                }
+                wire.unread(first);
+                current = openDecoder(encoding, wire);
+                decoder = current;
+            }
+            return current.read(buffer, offset, length);
+        }
+
+        @Override
+        public void close() throws IOException {
+            InputStream current = decoder;
+            if (current != null) {
+                current.close();
+            } else {
+                wire.close();
+            }
+        }
+    }
+
+    /**
+     * An open streamed body, tracked by the client so {@link #close()} can cancel it. A read
+     * arms the idle timer and disarms it when it returns; a failure is raised as the SDK's own
+     * error, never as the raw I/O error of the JDK.
+     */
+    private final class StreamBody extends InputStream {
+        private final String method;
+        private final String url;
+        private final int status;
+        private final Map<String, String> headers;
+        private final InputStream raw;
+        private final WireGuard wire;
+        private final InputStream chain;
+        @Nullable private final String encoding;
+        @Nullable private final Integer idleMillis;
+        private final java.util.concurrent.atomic.AtomicBoolean released =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        private volatile boolean closed;
+        private volatile boolean cancelledByClient;
+        private volatile boolean idleExpired;
+        private boolean ended;
+        @Nullable private java.util.concurrent.ScheduledFuture<?> timer;
+
+        StreamBody(
+                String method,
+                String url,
+                int status,
+                Map<String, String> headers,
+                InputStream raw,
+                long declaredLength,
+                @Nullable String encoding,
+                @Nullable Integer idleMillis) {
+            this.method = method;
+            this.url = url;
+            this.status = status;
+            this.headers = headers;
+            this.raw = raw;
+            this.wire = new WireGuard(raw, declaredLength);
+            this.encoding = encoding;
+            this.chain = encoding == null ? wire : new LazyDecoder(wire, encoding);
+            this.idleMillis = idleMillis;
+        }
+
+        @Override
+        public int read() throws IOException {
+            byte[] one = new byte[1];
+            int n = read(one, 0, 1);
+            return n < 0 ? -1 : one[0] & 0xff;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            if (length == 0) {
+                return 0;
+            }
+            if (cancelledByClient) {
+                throw new IllegalStateException(CLOSED_MESSAGE);
+            }
+            if (closed) {
+                throw new IOException("Stream closed");
+            }
+            if (ended) {
+                return -1;
+            }
+            arm();
+            try {
+                int n = chain.read(buffer, offset, length);
+                if (n < 0) {
+                    ended = true;
+                    finish();
+                }
+                return n;
+            } catch (IOException failure) {
+                RuntimeException translated = translate(failure);
+                finish();
+                if (translated == null) {
+                    throw new IOException("Stream closed", failure);
+                }
+                throw translated;
+            } finally {
+                disarm();
+            }
+        }
+
+        /** Raises the SDK's error for a failed read, or {@code null} when the caller closed the stream. */
+        @Nullable
+        private RuntimeException translate(IOException failure) {
+            if (cancelledByClient) {
+                return new IllegalStateException(CLOSED_MESSAGE);
+            }
+            if (closed) {
+                return null;
+            }
+            if (idleExpired) {
+                return new NetworkTimeoutException(
+                        "The response body was silent for " + idleMillis + " ms",
+                        failure,
+                        method,
+                        url);
+            }
+            if (Thread.currentThread().isInterrupted()
+                    || failure instanceof java.io.InterruptedIOException
+                    || failure.getCause() instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+                java.util.concurrent.CancellationException cancelled =
+                        new java.util.concurrent.CancellationException("request interrupted");
+                cancelled.initCause(failure);
+                return cancelled;
+            }
+            IOException wireFailure = wire.failure;
+            if (wireFailure == null && encoding != null) {
+                return new ApiException(
+                        status,
+                        "Failed to decompress " + encoding + " response body: " + failure,
+                        headers,
+                        null,
+                        null,
+                        failure);
+            }
+            return new {{invokerPackage}}.errors.StreamException(
+                    "The response body was cut off after " + wire.seen + " bytes: "
+                            + (wireFailure != null ? wireFailure : failure),
+                    failure,
+                    method,
+                    url);
+        }
+
+        private void arm() {
+            if (idleMillis != null) {
+                timer =
+                        IDLE_TIMER.schedule(
+                                this::expire, idleMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
+            }
+        }
+
+        private void disarm() {
+            java.util.concurrent.ScheduledFuture<?> pending = timer;
+            if (pending != null) {
+                pending.cancel(false);
+                timer = null;
+            }
+        }
+
+        /** The body stayed silent for the idle timeout: abort it so the blocked read fails. */
+        private void expire() {
+            if (closed || cancelledByClient) {
+                return;
+            }
+            idleExpired = true;
+            abort();
+        }
+
+        private void abort() {
+            try {
+                raw.close();
+            } catch (IOException ignored) {
+                /* aborting: the connection is being dropped either way */
+            }
+        }
+
+        /** Ends the body: aborts what is left of the connection and returns the client's count. */
+        private void finish() {
+            abort();
+            if (released.compareAndSet(false, true)) {
+                synchronized (lifecycle) {
+                    openStreams.remove(this);
+                }
+                endRequest();
+            }
+        }
+
+        /** Called by {@link #close()} of the client: the next read raises the closed-client error. */
+        void cancel() {
+            cancelledByClient = true;
+            finish();
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+            finish();
+        }
+    }
+
     private ApiHttpResponse send(
             String method,
             String url,
@@ -481,6 +963,140 @@ public final class DefaultApiClient implements ApiClient {
     }
 
     private ApiHttpResponse sendRequestInFlight(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body,
+            boolean noRedirect,
+            boolean noDefaultHeaders,
+            @Nullable Integer timeoutOverride,
+            @Nullable Integer maxRetriesOverride) {
+        final PreparedCall call =
+                prepare(method, url, headers, body, noRedirect, noDefaultHeaders,
+                        timeoutOverride, maxRetriesOverride);
+        try {
+            HttpResponse<byte[]> response =
+                    sendHeaderPhase(call, HttpResponse.BodyHandlers.ofByteArray(), ignored -> {});
+
+            /* Gap BE+BF: response header keys are normalised to lowercase so
+               callers can look them up consistently regardless of the casing
+               the server used (HTTP header names are case-insensitive per
+               RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the
+               wire). Repeated header lines (for example multiple Link or
+               Set-Cookie headers) are joined with ", " to preserve order
+               per RFC 7230 section 3.2.2. The joined form is not directly
+               parseable for Set-Cookie; callers needing structured cookie
+               access should configure java.net.CookieManager on the
+               underlying HttpClient or read the raw HttpHeaders themselves. */
+            Map<String, String> responseHeaders = new HashMap<>();
+            response.headers()
+                    .map()
+                    .forEach(
+                            (name, values) -> {
+                                if (!values.isEmpty()) {
+                                    responseHeaders.put(
+                                            name.toLowerCase(java.util.Locale.ROOT),
+                                            String.join(", ", values));
+                                }
+                            });
+
+            String contentEncoding = response.headers()
+                    .firstValue("content-encoding").orElse("identity");
+            String contentType = response.headers()
+                    .firstValue("content-type").orElse("");
+            byte[] bodyBytes = response.body() != null ? response.body() : new byte[0];
+            byte[] decompressedBytes;
+            try {
+                decompressedBytes = decompressBody(bodyBytes, contentEncoding);
+            } catch (IOException e) {
+                /* A corrupt Content-Encoding body is not a transport failure:
+                 * a response did arrive, so keep it out of NetworkException. */
+                throw new ApiException(
+                        response.statusCode(),
+                        "Failed to decompress " + contentEncoding + " response body: " + e,
+                        responseHeaders,
+                        null,
+                        null,
+                        e);
+            }
+            if (!"identity".equalsIgnoreCase(contentEncoding.trim())) {
+                /* D92: the returned headers describe the body the caller
+                 * receives, so the encoding and length of the wire body go. */
+                responseHeaders.remove("content-encoding");
+                responseHeaders.remove("content-length");
+            }
+            Charset responseCharset = parseCharset(contentType);
+            String responseBody = isTextContentType(contentType)
+                    ? new String(decompressedBytes, responseCharset)
+                    : Base64.getEncoder().encodeToString(decompressedBytes);
+
+            return new ApiHttpResponse(
+                    response.statusCode(),
+                    responseBody,
+                    responseHeaders);
+        } catch (HttpTimeoutException e) {
+            /* Covers HttpConnectTimeoutException too: the request timed out
+             * before a response arrived. */
+            throw new NetworkTimeoutException(e.toString(), e, method, url);
+        } catch (IOException e) {
+            /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
+            throw new NetworkException(e.toString(), e, method, url);
+        } catch (InterruptedException e) {
+            /* Thread interruption is Java's cancellation signal, not an API
+             * failure: restore the interrupt flag and surface it as the
+             * platform's unchecked CancellationException (the interruption
+             * kept as its cause), never as an SDK error. */
+            Thread.currentThread().interrupt();
+            java.util.concurrent.CancellationException cancelled =
+                    new java.util.concurrent.CancellationException("request interrupted");
+            cancelled.initCause(e);
+            throw cancelled;
+        }
+    }
+
+    /**
+     * A request ready to send: the merged headers, the body publisher, the first
+     * {@link HttpRequest}, the end-to-end deadline and the retry settings. Building it is
+     * shared by the buffered and the streaming call, so both apply the same header rules.
+     */
+    private static final class PreparedCall {
+        final String method;
+        final String url;
+        final boolean noRedirect;
+        final Map<String, String> mergedHeaders;
+        final HttpRequest.BodyPublisher bodyPublisher;
+        final HttpRequest request;
+        @Nullable final Integer timeoutMillis;
+        final long deadlineNanos;
+        final boolean replayable;
+        final int maxRetries;
+
+        PreparedCall(
+                String method,
+                String url,
+                boolean noRedirect,
+                Map<String, String> mergedHeaders,
+                HttpRequest.BodyPublisher bodyPublisher,
+                HttpRequest request,
+                @Nullable Integer timeoutMillis,
+                long deadlineNanos,
+                boolean replayable,
+                int maxRetries) {
+            this.method = method;
+            this.url = url;
+            this.noRedirect = noRedirect;
+            this.mergedHeaders = mergedHeaders;
+            this.bodyPublisher = bodyPublisher;
+            this.request = request;
+            this.timeoutMillis = timeoutMillis;
+            this.deadlineNanos = deadlineNanos;
+            this.replayable = replayable;
+            this.maxRetries = maxRetries;
+        }
+    }
+
+    /** Merges the headers and builds the first request; the rules shared by every send path. */
+    private PreparedCall prepare(
             String method,
             String url,
             Map<String, String> headers,
@@ -605,230 +1221,192 @@ public final class DefaultApiClient implements ApiClient {
             }
         }
 
-        try {
-            HttpResponse<byte[]> response =
-                    sendWithBackoff(builder.build(), deadlineNanos, replayable, maxRetries);
+        return new PreparedCall(
+                method, url, noRedirect, mergedHeaders, bodyPublisher, builder.build(),
+                timeoutMillis, deadlineNanos, replayable, maxRetries);
+    }
 
-            /*
-             * Manual redirect handling when maxRedirects is configured. The
-             * underlying HttpClient has automatic redirects disabled in this
-             * case, so we follow Location headers ourselves up to the limit.
-             */
-            if (transportOptions.isFollowRedirects() && !noRedirect) {
-                int redirectsRemaining = transportOptions.getMaxRedirects() != null
-                        ? transportOptions.getMaxRedirects()
-                        : 20;
-                URI originalUri = URI.create(url);
-                String currentMethod = method;
-                HttpRequest.BodyPublisher currentBody = bodyPublisher;
-                Map<String, String> currentHeaders = new HashMap<>(mergedHeaders);
-                while (isRedirect(response.statusCode()) && redirectsRemaining > 0) {
-                    String location = response.headers()
-                            .firstValue("location").orElse(null);
-                    /* An empty or unresolvable Location is unusable: stop and
-                     * return the 3xx untouched, exactly like a missing one. */
-                    if (location == null || location.isEmpty()) {
-                        break;
-                    }
-                    URI redirectUri;
-                    try {
-                        redirectUri = resolveLocation(originalUri, location);
-                    } catch (IllegalArgumentException unusableLocation) {
-                        break;
-                    }
-                    /* Refuse non-HTTP(S) redirect schemes (javascript:, file:,
-                     * data:, etc.). URI.resolve() preserves whatever scheme the
-                     * server returned in Location, so a malicious or
-                     * misconfigured server could otherwise steer the client at
-                     * a local-file or scripting URL. */
-                    String redirectScheme = redirectUri.getScheme();
-                    if (!"http".equalsIgnoreCase(redirectScheme)
-                            && !"https".equalsIgnoreCase(redirectScheme)) {
-                        throw new ApiException(
-                                response.statusCode(),
-                                "Refusing to follow redirect to non-HTTP(S) URL: "
-                                        + withoutQuery(redirectUri),
-                                copyResponseHeaders(response.headers()),
-                                null);
-                    }
-                    boolean sameOrigin = sameOrigin(originalUri, redirectUri);
+    /**
+     * The header phase of a call: send the request, retry and follow redirects until a response
+     * whose headers are accepted for delivery arrives, then return it with its body unread.
+     * Both the buffered and the streaming call run it, so retries, redirects, the budget and
+     * the header stripping are one set of rules. A response that is retried or followed is handed
+     * to {@code discard}, which releases its body; the response returned is the caller's.
+     */
+    private <T> HttpResponse<T> sendHeaderPhase(
+            PreparedCall call,
+            HttpResponse.BodyHandler<T> handler,
+            java.util.function.Consumer<HttpResponse<T>> discard)
+            throws IOException, InterruptedException {
+        final String method = call.method;
+        final String url = call.url;
+        final boolean noRedirect = call.noRedirect;
+        final Map<String, String> mergedHeaders = call.mergedHeaders;
+        final HttpRequest.BodyPublisher bodyPublisher = call.bodyPublisher;
+        final Integer timeoutMillis = call.timeoutMillis;
+        final long deadlineNanos = call.deadlineNanos;
+        final boolean replayable = call.replayable;
+        final int maxRetries = call.maxRetries;
+        HttpResponse<T> response =
+                sendWithBackoff(call.request, deadlineNanos, replayable, maxRetries, handler, discard);
 
-                    /* Bucket 3.3 — refuse to replay a request body when the redirect
-                     * downgrades the scheme from HTTPS to HTTP. Round-4 already
-                     * strips Authorization on the downgrade; this additionally
-                     * prevents leaking a credentialed body (form fields, JSON
-                     * tokens, multipart parts) into cleartext. We only refuse
-                     * when the next-hop method would actually carry the original
-                     * body — that means 307/308 redirects of a body-bearing
-                     * request. 303 coerces to GET, so that case is safe. */
-                    if (shouldRefuseHttpsToHttpBodyReplay(
-                            originalUri, redirectUri, response.statusCode(),
-                            currentBody != NO_BODY && currentBody.contentLength() != 0)) {
-                        throw new ApiException(
-                                response.statusCode(),
-                                "Refusing to replay request body across HTTPS->HTTP redirect: "
-                                        + withoutQuery(originalUri) + " -> " + withoutQuery(redirectUri),
-                                copyResponseHeaders(response.headers()),
-                                null);
-                    }
-
-                    /* RFC 9110 section 15.4: pick the follow-up method and body.
-                     *   307 + 308: keep the method and body.
-                     *   303:       every method except HEAD becomes GET, body dropped.
-                     *   301 + 302: only POST becomes GET, body dropped; every other
-                     *              method keeps its method and body. */
-                    int statusCode = response.statusCode();
-                    String nextMethod;
-                    HttpRequest.BodyPublisher nextBody;
-                    boolean rewriteToGet =
-                            (statusCode == 303 && !"HEAD".equalsIgnoreCase(currentMethod))
-                                    || ((statusCode == 301 || statusCode == 302)
-                                            && "POST".equalsIgnoreCase(currentMethod));
-                    if (rewriteToGet) {
-                        nextMethod = "GET";
-                        nextBody = NO_BODY;
-                    } else {
-                        nextMethod = currentMethod;
-                        nextBody = currentBody;
-                    }
-
-                    Map<String, String> redirectHeaders = new HashMap<>(currentHeaders);
-                    if (!sameOrigin) {
-                        redirectHeaders.keySet().removeIf(
-                                k -> isSensitiveHeader(SENSITIVE_HEADER_NAMES, k));
-                    }
-                    /* The SDK's own Proxy-Authorization authenticates to the
-                     * proxy, which is the same on every hop, so it survives the
-                     * caller-credential strip. It is not re-added on a
-                     * cross-origin hop to https, where it would travel inside the
-                     * tunnel to an unrelated origin. */
-                    if (proxyAuthHeader != null
-                            && (sameOrigin || "http".equalsIgnoreCase(redirectUri.getScheme()))) {
-                        redirectHeaders.put("Proxy-Authorization", proxyAuthHeader);
-                    }
-                    if (nextBody == NO_BODY) {
-                        redirectHeaders.keySet().removeIf(
-                                DefaultApiClient::isEntityHeader);
-                    }
-
-                    HttpRequest.Builder redirectBuilder = HttpRequest.newBuilder(redirectUri);
-                    if (nextBody == NO_BODY && "GET".equals(nextMethod)) {
-                        redirectBuilder.GET();
-                    } else {
-                        redirectBuilder.method(nextMethod, nextBody);
-                    }
-                    if (timeoutMillis != null) {
-                        long remainingNanos = deadlineNanos - System.nanoTime();
-                        if (remainingNanos <= 0) {
-                            throw new HttpTimeoutException("request timed out");
-                        }
-                        redirectBuilder.timeout(Duration.ofNanos(remainingNanos));
-                    }
-                    for (Map.Entry<String, String> entry : redirectHeaders.entrySet()) {
-                        redirectBuilder.header(entry.getKey(), entry.getValue());
-                    }
-                    response = sendWithBackoff(redirectBuilder.build(), deadlineNanos, replayable, maxRetries);
-                    currentMethod = nextMethod;
-                    currentBody = nextBody;
-                    currentHeaders = redirectHeaders;
-                    originalUri = redirectUri;
-                    redirectsRemaining--;
+        /*
+         * Manual redirect handling when maxRedirects is configured. The
+         * underlying HttpClient has automatic redirects disabled in this
+         * case, so we follow Location headers ourselves up to the limit.
+         */
+        if (transportOptions.isFollowRedirects() && !noRedirect) {
+            int redirectsRemaining = transportOptions.getMaxRedirects() != null
+                    ? transportOptions.getMaxRedirects()
+                    : 20;
+            URI originalUri = URI.create(url);
+            String currentMethod = method;
+            HttpRequest.BodyPublisher currentBody = bodyPublisher;
+            Map<String, String> currentHeaders = new HashMap<>(mergedHeaders);
+            while (isRedirect(response.statusCode()) && redirectsRemaining > 0) {
+                String location = response.headers()
+                        .firstValue("location").orElse(null);
+                /* An empty or unresolvable Location is unusable: stop and
+                 * return the 3xx untouched, exactly like a missing one. */
+                if (location == null || location.isEmpty()) {
+                    break;
                 }
-                /* Redirect budget exhausted while the server is still
-                 * returning a 3xx: fail loudly rather than silently handing
-                 * the caller the final redirect response as if it were a
-                 * normal result. A 3xx without a Location header leaves the
-                 * loop early with budget to spare; that is a legitimate
-                 * terminal response and is returned as-is. */
-                if (redirectsRemaining <= 0 && isRedirect(response.statusCode())
-                        && hasUsableLocation(response, originalUri)) {
+                URI redirectUri;
+                try {
+                    redirectUri = resolveLocation(originalUri, location);
+                } catch (IllegalArgumentException unusableLocation) {
+                    break;
+                }
+                /* Refuse non-HTTP(S) redirect schemes (javascript:, file:,
+                 * data:, etc.). URI.resolve() preserves whatever scheme the
+                 * server returned in Location, so a malicious or
+                 * misconfigured server could otherwise steer the client at
+                 * a local-file or scripting URL. */
+                String redirectScheme = redirectUri.getScheme();
+                if (!"http".equalsIgnoreCase(redirectScheme)
+                        && !"https".equalsIgnoreCase(redirectScheme)) {
+                    Map<String, String> failedHeaders = copyResponseHeaders(response.headers());
+                    discard.accept(response);
                     throw new ApiException(
                             response.statusCode(),
-                            "Too many redirects (exceeded "
-                                    + (transportOptions.getMaxRedirects() != null
-                                            ? transportOptions.getMaxRedirects()
-                                            : 20)
-                                    + ")",
-                            copyResponseHeaders(response.headers()),
+                            "Refusing to follow redirect to non-HTTP(S) URL: "
+                                    + withoutQuery(redirectUri),
+                            failedHeaders,
                             null);
                 }
+                boolean sameOrigin = sameOrigin(originalUri, redirectUri);
+
+                /* Bucket 3.3 — refuse to replay a request body when the redirect
+                 * downgrades the scheme from HTTPS to HTTP. Round-4 already
+                 * strips Authorization on the downgrade; this additionally
+                 * prevents leaking a credentialed body (form fields, JSON
+                 * tokens, multipart parts) into cleartext. We only refuse
+                 * when the next-hop method would actually carry the original
+                 * body — that means 307/308 redirects of a body-bearing
+                 * request. 303 coerces to GET, so that case is safe. */
+                if (shouldRefuseHttpsToHttpBodyReplay(
+                        originalUri, redirectUri, response.statusCode(),
+                        currentBody != NO_BODY && currentBody.contentLength() != 0)) {
+                    Map<String, String> failedHeaders = copyResponseHeaders(response.headers());
+                    discard.accept(response);
+                    throw new ApiException(
+                            response.statusCode(),
+                            "Refusing to replay request body across HTTPS->HTTP redirect: "
+                                    + withoutQuery(originalUri) + " -> " + withoutQuery(redirectUri),
+                            failedHeaders,
+                            null);
+                }
+
+                /* RFC 9110 section 15.4: pick the follow-up method and body.
+                 *   307 + 308: keep the method and body.
+                 *   303:       every method except HEAD becomes GET, body dropped.
+                 *   301 + 302: only POST becomes GET, body dropped; every other
+                 *              method keeps its method and body. */
+                int statusCode = response.statusCode();
+                String nextMethod;
+                HttpRequest.BodyPublisher nextBody;
+                boolean rewriteToGet =
+                        (statusCode == 303 && !"HEAD".equalsIgnoreCase(currentMethod))
+                                || ((statusCode == 301 || statusCode == 302)
+                                        && "POST".equalsIgnoreCase(currentMethod));
+                if (rewriteToGet) {
+                    nextMethod = "GET";
+                    nextBody = NO_BODY;
+                } else {
+                    nextMethod = currentMethod;
+                    nextBody = currentBody;
+                }
+
+                Map<String, String> redirectHeaders = new HashMap<>(currentHeaders);
+                if (!sameOrigin) {
+                    redirectHeaders.keySet().removeIf(
+                            k -> isSensitiveHeader(SENSITIVE_HEADER_NAMES, k));
+                }
+                /* The SDK's own Proxy-Authorization authenticates to the
+                 * proxy, which is the same on every hop, so it survives the
+                 * caller-credential strip. It is not re-added on a
+                 * cross-origin hop to https, where it would travel inside the
+                 * tunnel to an unrelated origin. */
+                if (proxyAuthHeader != null
+                        && (sameOrigin || "http".equalsIgnoreCase(redirectUri.getScheme()))) {
+                    redirectHeaders.put("Proxy-Authorization", proxyAuthHeader);
+                }
+                if (nextBody == NO_BODY) {
+                    redirectHeaders.keySet().removeIf(
+                            DefaultApiClient::isEntityHeader);
+                }
+
+                HttpRequest.Builder redirectBuilder = HttpRequest.newBuilder(redirectUri);
+                if (nextBody == NO_BODY && "GET".equals(nextMethod)) {
+                    redirectBuilder.GET();
+                } else {
+                    redirectBuilder.method(nextMethod, nextBody);
+                }
+                if (timeoutMillis != null) {
+                    long remainingNanos = deadlineNanos - System.nanoTime();
+                    if (remainingNanos <= 0) {
+                        discard.accept(response);
+                        throw new HttpTimeoutException("request timed out");
+                    }
+                    redirectBuilder.timeout(Duration.ofNanos(remainingNanos));
+                }
+                for (Map.Entry<String, String> entry : redirectHeaders.entrySet()) {
+                    redirectBuilder.header(entry.getKey(), entry.getValue());
+                }
+                HttpRequest followUp = redirectBuilder.build();
+                discard.accept(response);
+                response = sendWithBackoff(followUp, deadlineNanos, replayable, maxRetries, handler, discard);
+                currentMethod = nextMethod;
+                currentBody = nextBody;
+                currentHeaders = redirectHeaders;
+                originalUri = redirectUri;
+                redirectsRemaining--;
             }
-
-            /* Gap BE+BF: response header keys are normalised to lowercase so
-               callers can look them up consistently regardless of the casing
-               the server used (HTTP header names are case-insensitive per
-               RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the
-               wire). Repeated header lines (for example multiple Link or
-               Set-Cookie headers) are joined with ", " to preserve order
-               per RFC 7230 section 3.2.2. The joined form is not directly
-               parseable for Set-Cookie; callers needing structured cookie
-               access should configure java.net.CookieManager on the
-               underlying HttpClient or read the raw HttpHeaders themselves. */
-            Map<String, String> responseHeaders = new HashMap<>();
-            response.headers()
-                    .map()
-                    .forEach(
-                            (name, values) -> {
-                                if (!values.isEmpty()) {
-                                    responseHeaders.put(
-                                            name.toLowerCase(java.util.Locale.ROOT),
-                                            String.join(", ", values));
-                                }
-                            });
-
-            String contentEncoding = response.headers()
-                    .firstValue("content-encoding").orElse("identity");
-            String contentType = response.headers()
-                    .firstValue("content-type").orElse("");
-            byte[] bodyBytes = response.body() != null ? response.body() : new byte[0];
-            byte[] decompressedBytes;
-            try {
-                decompressedBytes = decompressBody(bodyBytes, contentEncoding);
-            } catch (IOException e) {
-                /* A corrupt Content-Encoding body is not a transport failure:
-                 * a response did arrive, so keep it out of NetworkException. */
+            /* Redirect budget exhausted while the server is still
+             * returning a 3xx: fail loudly rather than silently handing
+             * the caller the final redirect response as if it were a
+             * normal result. A 3xx without a Location header leaves the
+             * loop early with budget to spare; that is a legitimate
+             * terminal response and is returned as-is. */
+            if (redirectsRemaining <= 0 && isRedirect(response.statusCode())
+                    && hasUsableLocation(response, originalUri)) {
+                Map<String, String> failedHeaders = copyResponseHeaders(response.headers());
+                discard.accept(response);
                 throw new ApiException(
                         response.statusCode(),
-                        "Failed to decompress " + contentEncoding + " response body: " + e,
-                        responseHeaders,
-                        null,
-                        null,
-                        e);
+                        "Too many redirects (exceeded "
+                                + (transportOptions.getMaxRedirects() != null
+                                        ? transportOptions.getMaxRedirects()
+                                        : 20)
+                                + ")",
+                        failedHeaders,
+                        null);
             }
-            if (!"identity".equalsIgnoreCase(contentEncoding.trim())) {
-                /* D92: the returned headers describe the body the caller
-                 * receives, so the encoding and length of the wire body go. */
-                responseHeaders.remove("content-encoding");
-                responseHeaders.remove("content-length");
-            }
-            Charset responseCharset = parseCharset(contentType);
-            String responseBody = isTextContentType(contentType)
-                    ? new String(decompressedBytes, responseCharset)
-                    : Base64.getEncoder().encodeToString(decompressedBytes);
-
-            return new ApiHttpResponse(
-                    response.statusCode(),
-                    responseBody,
-                    responseHeaders);
-        } catch (HttpTimeoutException e) {
-            /* Covers HttpConnectTimeoutException too: the request timed out
-             * before a response arrived. */
-            throw new NetworkTimeoutException(e.toString(), e, method, url);
-        } catch (IOException e) {
-            /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
-            throw new NetworkException(e.toString(), e, method, url);
-        } catch (InterruptedException e) {
-            /* Thread interruption is Java's cancellation signal, not an API
-             * failure: restore the interrupt flag and surface it as the
-             * platform's unchecked CancellationException (the interruption
-             * kept as its cause), never as an SDK error. */
-            Thread.currentThread().interrupt();
-            java.util.concurrent.CancellationException cancelled =
-                    new java.util.concurrent.CancellationException("request interrupted");
-            cancelled.initCause(e);
-            throw cancelled;
         }
+
+        return response;
     }
+
 
     /** First retry delay in milliseconds; each further retry doubles it. */
     private static final long BACKOFF_INITIAL_MILLIS = 500L;
@@ -851,17 +1429,22 @@ public final class DefaultApiClient implements ApiClient {
      * have acted on a POST or PATCH. A timeout, a TLS or certificate failure and
      * an interrupt are never retried.
      */
-    private HttpResponse<byte[]> sendWithBackoff(
-            HttpRequest request, long deadlineNanos, boolean replayable, int configuredRetries)
+    private <T> HttpResponse<T> sendWithBackoff(
+            HttpRequest request,
+            long deadlineNanos,
+            boolean replayable,
+            int configuredRetries,
+            HttpResponse.BodyHandler<T> handler,
+            java.util.function.Consumer<HttpResponse<T>> discard)
             throws IOException, InterruptedException {
         final int maxRetries = replayable ? configuredRetries : 0;
         int retries = 0;
         HttpRequest current = request;
         while (true) {
             final int attempt = retries;
-            HttpResponse<byte[]> response;
+            HttpResponse<T> response;
             try {
-                response = sendBounded(current);
+                response = sendBounded(current, handler);
             } catch (HttpTimeoutException | javax.net.ssl.SSLException notRetried) {
                 throw notRetried;
             } catch (IOException e) {
@@ -889,6 +1472,7 @@ public final class DefaultApiClient implements ApiClient {
             if (next == null) {
                 return response;
             }
+            discard.accept(response);
             current = next;
             retries++;
         }
@@ -1031,14 +1615,14 @@ public final class DefaultApiClient implements ApiClient {
      * stalls the body would otherwise block {@code send} indefinitely; the
      * timeout documented as end-to-end must cover the body read as well.
      */
-    private HttpResponse<byte[]> sendBounded(HttpRequest request)
+    private <T> HttpResponse<T> sendBounded(HttpRequest request, HttpResponse.BodyHandler<T> handler)
             throws IOException, InterruptedException {
         java.util.Optional<Duration> timeout = request.timeout();
         if (timeout.isEmpty()) {
-            return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            return httpClient.send(request, handler);
         }
-        java.util.concurrent.CompletableFuture<HttpResponse<byte[]>> pending =
-                httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray());
+        java.util.concurrent.CompletableFuture<HttpResponse<T>> pending =
+                httpClient.sendAsync(request, handler);
         try {
             return pending.get(timeout.get().toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
@@ -1066,7 +1650,7 @@ public final class DefaultApiClient implements ApiClient {
      * Whether a 3xx carries a Location that a further hop could follow. A
      * redirect without one is a terminal response, never "too many redirects".
      */
-    private static boolean hasUsableLocation(HttpResponse<byte[]> response, URI base) {
+    private static boolean hasUsableLocation(HttpResponse<?> response, URI base) {
         String location = response.headers().firstValue("location").orElse(null);
         if (location == null || location.isEmpty()) {
             return false;
@@ -1233,7 +1817,7 @@ public final class DefaultApiClient implements ApiClient {
      * @param contentType the raw Content-Type header value (possibly empty)
      * @return the resolved {@link Charset}, never {@code null}
      */
-    private static Charset parseCharset(String contentType) {
+    static Charset parseCharset(String contentType) {
         if (contentType == null || contentType.isEmpty()) {
             return StandardCharsets.UTF_8;
         }
@@ -1249,7 +1833,7 @@ public final class DefaultApiClient implements ApiClient {
         }
     }
 
-    private static boolean isTextContentType(String contentType) {
+    static boolean isTextContentType(String contentType) {
         int semi = contentType.indexOf(';');
         String mediaType = (semi >= 0 ? contentType.substring(0, semi) : contentType).trim().toLowerCase(Locale.ROOT);
         if (mediaType.isEmpty()) {
@@ -1658,12 +2242,20 @@ public final class DefaultApiClient implements ApiClient {
     @Override
     public void close() {
         boolean release;
+        List<StreamBody> open;
         synchronized (lifecycle) {
             if (closed) {
                 return;
             }
             closed = true;
             release = inFlight == 0;
+            open = new java.util.ArrayList<>(openStreams);
+        }
+        /* An open stream may never end (an endless feed), so a graceful wait would hang: cancel
+         * it. Its next read raises the closed-client error, and the last one released frees the
+         * transport. */
+        for (StreamBody stream : open) {
+            stream.cancel();
         }
         if (release) {
             releaseTransport();
@@ -1674,8 +2266,7 @@ public final class DefaultApiClient implements ApiClient {
     private void beginRequest() {
         synchronized (lifecycle) {
             if (closed) {
-                throw new IllegalStateException(
-                        "ApiClient has been closed and can no longer send requests");
+                throw new IllegalStateException(CLOSED_MESSAGE);
             }
             inFlight++;
         }
@@ -1710,6 +2301,8 @@ public final class DefaultApiClient implements ApiClient {
     private int inFlight;
     /** Set once by {@link #close()}; guarded by {@code lifecycle}. */
     private boolean closed;
+    /** The streamed bodies still open; guarded by {@code lifecycle}. */
+    private final java.util.Set<StreamBody> openStreams = new java.util.HashSet<>();
     private final java.util.concurrent.atomic.AtomicBoolean released =
             new java.util.concurrent.atomic.AtomicBoolean();
 }

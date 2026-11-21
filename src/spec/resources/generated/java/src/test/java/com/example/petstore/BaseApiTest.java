@@ -110,6 +110,10 @@ public class BaseApiTest {
       super(apiClient, config);
     }
 
+    TestableApi(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
+      super(apiClient, config, authenticator);
+    }
+
     TestableApi(ApiClient apiClient, Configuration config, Map<String, Authenticator> schemes) {
       super(apiClient, config, null, schemes);
     }
@@ -195,6 +199,24 @@ public class BaseApiTest {
           "/echo");
     }
 
+    com.example.petstore.ApiResult<ByteStream> stream(String method, String path) {
+      return invokeApiForStream(
+          "downloadOperation",
+          method,
+          path,
+          new HashMap<>(),
+          new HashMap<>(),
+          null,
+          new String[] {"application/octet-stream"},
+          "application/json",
+          null,
+          null,
+          null,
+          null,
+          "download_operation",
+          path);
+    }
+
     <T> com.example.petstore.ApiResult<T> callForResult(
         String method,
         String path,
@@ -233,6 +255,36 @@ public class BaseApiTest {
       this.capturedHeaders = headers;
       this.capturedBody = body;
       return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+    }
+
+    @Override
+    public ApiStreamResponse sendStreaming(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @Nullable Object body,
+        @Nullable Integer timeoutMillis,
+        @Nullable Integer maxRetries,
+        @Nullable Integer idleTimeoutMillis) {
+      this.capturedUrl = url;
+      this.capturedHeaders = headers;
+      this.capturedBody = body;
+      return new ApiStreamResponse(
+          200,
+          Map.of("content-type", "application/octet-stream"),
+          new java.io.ByteArrayInputStream(new byte[0]));
+    }
+  }
+
+  /** A transport written before streaming existed: it implements the buffered call only. */
+  static final class BufferedOnlyClient implements ApiClient {
+    String sentUrl = "";
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method, String url, Map<String, String> headers, @Nullable Object body) {
+      this.sentUrl = url;
+      return new ApiHttpResponse(200, "{}", Map.of("content-type", "application/json"));
     }
   }
 
@@ -3310,6 +3362,192 @@ public class BaseApiTest {
   @Test
   void bhvSerialization008ContentParameterIsJsonEncodedExactlyOnce() {
     assertEquals("%7B%22k%22%3A%22v%22%7D", TestableApi.encodeCookie("{\"k\":\"v\"}"));
+  }
+
+  /** Answers a stream call from a script of statuses and keeps what each call was sent. */
+  static final class ScriptedStreamingClient implements ApiClient {
+    final List<Map<String, String>> streamHeaders = new java.util.ArrayList<>();
+    final List<CloseTrackingBody> opened = new java.util.ArrayList<>();
+    private final int[] statuses;
+    private final byte[] body;
+    private final String contentType;
+
+    ScriptedStreamingClient(String contentType, byte[] body, int... statuses) {
+      this.contentType = contentType;
+      this.body = body;
+      this.statuses = statuses;
+    }
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method, String url, Map<String, String> headers, @Nullable Object body) {
+      return new ApiHttpResponse(200, "{}", Map.of("content-type", "application/json"));
+    }
+
+    @Override
+    public ApiStreamResponse sendStreaming(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @Nullable Object body,
+        @Nullable Integer timeoutMillis,
+        @Nullable Integer maxRetries,
+        @Nullable Integer idleTimeoutMillis) {
+      int index = Math.min(streamHeaders.size(), statuses.length - 1);
+      streamHeaders.add(new HashMap<>(headers));
+      CloseTrackingBody opening = new CloseTrackingBody(this.body);
+      opened.add(opening);
+      return new ApiStreamResponse(statuses[index], Map.of("content-type", contentType), opening);
+    }
+  }
+
+  /** A response body that remembers whether it was closed. */
+  static final class CloseTrackingBody extends java.io.ByteArrayInputStream {
+    boolean closed;
+
+    CloseTrackingBody(byte[] bytes) {
+      super(bytes);
+    }
+
+    @Override
+    public void close() {
+      closed = true;
+    }
+  }
+
+  private static com.example.petstore.ApiResult<ByteStream> streamCall(
+      ApiClient client, @Nullable Authenticator authenticator) {
+    return new TestableApi(client, "http://localhost", authenticator).stream("GET", "/items/blob");
+  }
+
+  @Nested
+  @DisplayName("binary streams")
+  class BinaryStreams {
+
+    @Test
+    @DisplayName(
+        "a non-2xx status raises the typed error with the error body and returns no stream")
+    void bhvStreaming008ANon2xxStreamingCallRaisesTheTypedErrorAndNeverReturnsAStream() {
+      var client =
+          new ScriptedStreamingClient(
+              "application/json",
+              "{\"message\":\"gone\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+              404);
+      NotFoundException failure =
+          assertThrowsExactly(NotFoundException.class, () -> streamCall(client, null));
+      assertEquals(404, failure.getStatusCode());
+      assertTrue(failure.getResponseBody().contains("gone"));
+      assertEquals("/items/blob", failure.getRequestPath());
+      assertTrue(client.opened.get(0).closed, "the connection was closed after the error body");
+
+      var large = new ScriptedStreamingClient("text/plain", new byte[200_000], 502);
+      ServerException bounded = assertThrows(ServerException.class, () -> streamCall(large, null));
+      assertEquals(64 * 1024, bounded.getResponseBody().length(), "the error body is bounded");
+    }
+
+    @Test
+    @DisplayName(
+        "a stream call sends the same user agent, request id, trace context and authentication as a"
+            + " buffered call")
+    void bhvStreaming017AStreamingCallSendsTheSameHeadersAsABufferedCall() throws Exception {
+      try (DefaultApiClientUnitTest.RawServer server =
+          DefaultApiClientUnitTest.RawServer.serve(DefaultApiClientUnitTest::replyOk)) {
+        RecordingHook trace = new RecordingHook();
+        trace.edit =
+            headers ->
+                headers.put(
+                    "traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
+        Configuration config = new Configuration(server.url(""), Map.of(), trace);
+        TestableApi api =
+            new TestableApi(
+                new DefaultApiClient(
+                    TransportOptions.builder().injectRequestId(true).maxRetries(0).build()),
+                config,
+                new ApiKeyAuthenticator(
+                    server.url(""), "X-Api-Key", "k-123", ApiKeyLocation.HEADER));
+        api.<String>callForResult(
+            "GET",
+            "/items/blob",
+            new HashMap<>(),
+            new HashMap<>(),
+            null,
+            new String[] {"application/octet-stream"},
+            "application/json",
+            STRING_TYPE,
+            null);
+        api.stream("GET", "/items/blob").data().close();
+
+        Map<String, String> buffered = headersOf(server.heads.get(0));
+        Map<String, String> streamed = headersOf(server.heads.get(1));
+        assertEquals(buffered.keySet(), streamed.keySet(), "the same header names are sent");
+        for (String name :
+            List.of("user-agent", "x-api-key", "traceparent", "accept", "accept-encoding")) {
+          assertNotNull(streamed.get(name), name);
+          assertEquals(buffered.get(name), streamed.get(name), name);
+        }
+        assertNotNull(streamed.get("x-request-id"));
+        assertTrue(
+            !streamed.get("x-request-id").equals(buffered.get("x-request-id")),
+            "each call has its own request id");
+      }
+    }
+
+    private Map<String, String> headersOf(String head) {
+      Map<String, String> headers = new java.util.TreeMap<>();
+      for (String line : head.split("\r\n", -1)) {
+        int colon = line.indexOf(':');
+        if (colon > 0 && !line.startsWith("GET ")) {
+          headers.put(
+              line.substring(0, colon).toLowerCase(java.util.Locale.ROOT),
+              line.substring(colon + 1).trim());
+        }
+      }
+      return headers;
+    }
+
+    @Test
+    @DisplayName(
+        "a 401 on a stream call refreshes the token and replays once before the stream is returned")
+    void bhvStreaming018A401OnAStreamingCallRefreshesTheTokenAndReplaysOnce() throws Exception {
+      var client =
+          new ScriptedStreamingClient(
+              "application/octet-stream",
+              "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+              401,
+              200);
+      var auth = new RotatingTokenAuthenticator(true);
+      ByteStream stream = streamCall(client, auth).data();
+      assertEquals(2, client.streamHeaders.size());
+      assertEquals("Bearer t1", client.streamHeaders.get(0).get("Authorization"));
+      assertEquals("Bearer t2", client.streamHeaders.get(1).get("Authorization"));
+      assertEquals(1, auth.invalidations);
+      assertTrue(client.opened.get(0).closed, "the refused response was closed unread");
+      assertEquals(
+          "ok", new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+
+      var refused = new ScriptedStreamingClient("application/octet-stream", new byte[0], 401);
+      assertThrowsExactly(
+          UnauthorizedException.class,
+          () -> streamCall(refused, new RotatingTokenAuthenticator(true)));
+      assertEquals(2, refused.streamHeaders.size(), "a second 401 is not replayed again");
+    }
+
+    @Test
+    @DisplayName(
+        "a transport that cannot stream fails a stream call naming itself, and buffered calls keep"
+            + " working")
+    void bhvStreaming030ATransportThatCannotStreamFailsAStreamCallAndStillServesBufferedCalls()
+        throws Exception {
+      var transport = new BufferedOnlyClient();
+      UnsupportedOperationException refused =
+          assertThrows(UnsupportedOperationException.class, () -> streamCall(transport, null));
+      assertTrue(refused.getMessage().contains(BufferedOnlyClient.class.getName()));
+      assertTrue(refused.getMessage().contains("cannot stream"));
+      assertEquals("", transport.sentUrl, "nothing was sent and nothing was buffered instead");
+
+      callWith(transport, null, null, "application/json");
+      assertTrue(transport.sentUrl.endsWith("/test/echo"), "the buffered call still works");
+    }
   }
 
   /** Records what a hook was told and how every call ended. */

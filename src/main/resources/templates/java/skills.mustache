@@ -353,6 +353,45 @@ class Transport {
 
 `maxRetries` (default `2`, `0` disables) retries a network error that happened before any response, and HTTP 408, 409, 429 and 500-599 except 501. The wait is 0.5 s doubling to 8 s with 25% jitter, or the `Retry-After` header (seconds or an HTTP date, capped at 60 s). Retries share the single end-to-end `timeout` and never extend it, a thread interrupt cancels the wait, and a stream body is never retried.
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (try-with-resources). `readAllBytes()` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```java file
+import {{invokerPackage}}.ByteStream;
+import {{invokerPackage}}.{{clientClassName}};
+{{#binaryStreamOperation}}
+{{#bodyParam}}
+{{#isModel}}
+import {{modelPackage}}.{{{dataType}}};
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+import {{apiPackage}}.options.{{{dataType}}};
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
+class Download {
+    static void saveTo({{clientClassName}} client{{#vendorExtensions.op.signatureArgsNoServer}}, {{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, Path target)
+            throws IOException {
+        try (ByteStream stream = client.{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}.{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})) {
+            System.out.println(stream.getStatusCode());
+            Files.copy(stream, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+}
+```
+{{/binaryStreamOperation}}
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `UnsupportedOperationException` naming it, and its buffered calls keep working.
+
 ### Custom HTTP client
 
 ```java statements
@@ -368,7 +407,7 @@ The SDK sends every request through your client and never closes it. Combining i
 
 ### Closing the client
 
-`close()` is graceful and idempotent: it marks the client closed and returns, requests already in flight finish, and the transport the SDK created is released when the last of them completes. A request issued after that throws `IllegalStateException` ("ApiClient has been closed and can no longer send requests"). A `java.net.http.HttpClient` you supplied is never closed.
+`close()` is graceful and idempotent: it marks the client closed and returns, requests already in flight finish, and the transport the SDK created is released when the last of them completes. A request issued after that throws `IllegalStateException` ("ApiClient has been closed and can no longer send requests"). Streams that are still open are cancelled. A `java.net.http.HttpClient` you supplied is never closed.
 
 ### Cookie parameters
 
@@ -436,7 +475,7 @@ A model that accepts extra keys reads them through `getAdditionalProperties()` (
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `java.io.InputStream` (`List<InputStream>` for a multi-file field). Binary response bodies are returned as `java.io.InputStream`.
+File upload parameters are typed as `java.io.InputStream` (`List<InputStream>` for a multi-file field). A binary response body is returned as a `ByteStream`, which is a `java.io.InputStream` (see Streaming).
 
 ## Comment Style
 

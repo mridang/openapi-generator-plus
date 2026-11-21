@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
+import com.example.petstore.ByteStream;
 import com.example.petstore.ChasmContainer;
 import com.example.petstore.Client;
 import com.example.petstore.Configuration;
@@ -230,8 +231,26 @@ class PetApiTest {
 
   @Test
   void bhvOperations045TestGetPetAvatar() throws Exception {
-    InputStream result = api.getPetAvatar(1L);
-    assertNotNull(result);
+    try (InputStream result = api.getPetAvatar(1L)) {
+      assertNotNull(result);
+    }
+  }
+
+  @Test
+  void bhvStreaming009ABinaryStreamExposesTheStatusAndTheLowerCasedResponseHeaders()
+      throws Exception {
+    try (ByteStream stream = api.getPetAvatar(1L)) {
+      assertThat(stream.getStatusCode()).isEqualTo(200);
+      assertThat(stream.getHeaders()).containsKey("content-type");
+      assertThat(stream.getHeaders().keySet())
+          .allMatch(name -> name.equals(name.toLowerCase(java.util.Locale.ROOT)));
+    }
+    com.example.petstore.ApiResult<ByteStream> result = api.getPetAvatarWithHttpInfo(1L);
+    try (ByteStream stream = result.data()) {
+      assertThat(result.statusCode()).isEqualTo(stream.getStatusCode());
+      assertThat(result.headers()).isEqualTo(stream.getHeaders());
+      assertThat(result.rawBody()).isEmpty();
+    }
   }
 
   @Test
@@ -302,14 +321,16 @@ class PetApiTest {
 
   @Test
   void bhvOperations035TestDownloadPetDocument() throws Exception {
-    InputStream result = api.downloadPetDocument(1L, 1L);
-    assertNotNull(result);
+    try (InputStream result = api.downloadPetDocument(1L, 1L)) {
+      assertNotNull(result);
+    }
   }
 
   @Test
   void bhvOperations055TestGetPetPhoto() throws Exception {
-    InputStream result = api.getPetPhoto(1L, 1L);
-    assertNotNull(result);
+    try (InputStream result = api.getPetPhoto(1L, 1L)) {
+      assertNotNull(result);
+    }
   }
 
   @Test
@@ -453,8 +474,11 @@ class PetApiTest {
   void bhvOperations034TestDownloadBinaryMock() throws Exception {
     PetApi mockApi = newPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
-    InputStream result = mockApi.getPetAvatar(1L);
-    assertNotNull(result);
+    try (InputStream result = mockApi.getPetAvatar(1L)) {
+      assertNotNull(result);
+      assertThat(new String(result.readAllBytes(), StandardCharsets.UTF_8))
+          .isEqualTo("FAKE_BINARY_DATA");
+    }
   }
 
   @Test
