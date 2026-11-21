@@ -129,24 +129,27 @@ void main() {
       expect(url, contains('state=my-state'));
     });
 
-    test('bhv authoidc 010 fetches discovery document', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"authorization_endpoint":"https://auth.example.com/authorize",'
-        '"token_endpoint":"https://auth.example.com/token"}',
-      );
+    test(
+      'bhv authoidc 010 the discovery document is fetched from the issuer',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.buildAuthorizationUrl();
+        await auth.buildAuthorizationUrl();
 
-      expect(client.lastMethod, equals('GET'));
-      expect(
-        client.lastUrl,
-        equals('https://auth.example.com/.well-known/openid-configuration'),
-      );
-    });
+        expect(client.lastMethod, equals('GET'));
+        expect(
+          client.lastUrl,
+          equals('https://auth.example.com/.well-known/openid-configuration'),
+        );
+      },
+    );
 
     test(
       'bhv authoidc 008 the discovery request leaves the transport default headers off',

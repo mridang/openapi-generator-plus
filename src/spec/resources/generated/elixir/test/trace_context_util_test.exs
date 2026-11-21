@@ -56,19 +56,19 @@ defmodule PetstoreClient.TraceContextUtilTest do
       refute Map.has_key?(result, "tracestate")
     end
 
-    test "bhv tracing 010 preserves Authorization header" do
+    test "bhv tracing 010 the Authorization header is preserved on the traced request" do
       headers = %{"Authorization" => "Bearer token123"}
       result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
       assert result["Authorization"] == "Bearer token123"
     end
 
-    test "bhv tracing 011 preserves Content-Type header" do
+    test "bhv tracing 011 the Content-Type header is preserved on the traced request" do
       headers = %{"Content-Type" => "application/json"}
       result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
       assert result["Content-Type"] == "application/json"
     end
 
-    test "bhv tracing 012 preserves X-Request-ID header" do
+    test "bhv tracing 012 the X-Request-ID header is preserved on the traced request" do
       headers = %{"X-Request-ID" => "req-12345"}
       result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
       assert result["X-Request-ID"] == "req-12345"

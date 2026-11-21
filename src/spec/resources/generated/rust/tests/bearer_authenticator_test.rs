@@ -171,7 +171,7 @@ async fn test_bhv_authbearer_015_a_token_that_merely_begins_with_bearer_is_kept_
 /// The default Debug representation must mask the stored token: the secret
 /// value must be absent and a `***` redaction marker present.
 #[test]
-fn test_bhv_authbearer_011_redacts_secret() {
+fn test_bhv_authbearer_011_redacts_the_token_in_tostring() {
     let auth = BearerAuthenticator::new("https://api.example.com", "xyz").unwrap();
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("token: \"xyz\""));

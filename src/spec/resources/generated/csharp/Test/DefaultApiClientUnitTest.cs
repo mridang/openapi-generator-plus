@@ -60,7 +60,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task BhvTransport051ReturnsResponseHeaders()
+    public async Task BhvTransport051ResponseHeadersAreReturnedWithTheResponse()
     {
         var headers = new Dictionary<string, string> { { "X-Test-Header", "test-value" } };
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "ok", headers);
@@ -159,7 +159,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task BhvTransport055SendsPutRequest()
+    public async Task BhvTransport055APUTRequestIsSentWithThePUTMethod()
     {
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"PUT\"}");
         var client = new DefaultApiClient(httpClient);
@@ -176,7 +176,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task BhvTransport053SendsDeleteRequest()
+    public async Task BhvTransport053ADELETERequestIsSentWithTheDELETEMethod()
     {
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"DELETE\"}");
         var client = new DefaultApiClient(httpClient);
@@ -437,7 +437,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task BhvTransport043InjectsRequestId()
+    public async Task BhvTransport043ARequestIdIsInjectedIntoTheRequestHeaders()
     {
         string? capturedRequestId = null;
         var handler = new CapturingHandler(req =>
@@ -1385,7 +1385,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public void BhvSerializationwire043MultipartFilenameCRLFRejected()
+    public void BhvSerializationwire043AMultipartFilenameWithACarriageReturnOrLineFeedIsRejected()
     {
         Assert.Throws<ArgumentException>(() =>
             DefaultApiClient.ValidateMultipartFilename("a\rb.pdf")

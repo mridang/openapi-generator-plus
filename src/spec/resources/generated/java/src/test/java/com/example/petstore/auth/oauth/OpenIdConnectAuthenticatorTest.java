@@ -86,7 +86,7 @@ class OpenIdConnectAuthenticatorTest {
   }
 
   @Test
-  void bhvAuthOidc010FetchesDiscoveryDocument() {
+  void bhvAuthOidc010TheDiscoveryDocumentIsFetchedFromTheIssuer() {
     AtomicReference<String> capturedMethod = new AtomicReference<>();
     AtomicReference<String> capturedUrl = new AtomicReference<>();
     ApiClient client =

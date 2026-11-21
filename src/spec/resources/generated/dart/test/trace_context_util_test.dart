@@ -66,29 +66,38 @@ void main() {
       expect(headers.containsKey('tracestate'), isFalse);
     });
 
-    test('bhv tracing 010 preserves Authorization header', () {
-      final headers = {'Authorization': 'Bearer token123'};
+    test(
+      'bhv tracing 010 the Authorization header is preserved on the traced request',
+      () {
+        final headers = {'Authorization': 'Bearer token123'};
 
-      TraceContextUtil.injectTraceContext(headers);
+        TraceContextUtil.injectTraceContext(headers);
 
-      expect(headers['Authorization'], equals('Bearer token123'));
-    });
+        expect(headers['Authorization'], equals('Bearer token123'));
+      },
+    );
 
-    test('bhv tracing 011 preserves Content-Type header', () {
-      final headers = {'Content-Type': 'application/json'};
+    test(
+      'bhv tracing 011 the Content-Type header is preserved on the traced request',
+      () {
+        final headers = {'Content-Type': 'application/json'};
 
-      TraceContextUtil.injectTraceContext(headers);
+        TraceContextUtil.injectTraceContext(headers);
 
-      expect(headers['Content-Type'], equals('application/json'));
-    });
+        expect(headers['Content-Type'], equals('application/json'));
+      },
+    );
 
-    test('bhv tracing 012 preserves X-Request-ID header', () {
-      final headers = {'X-Request-ID': 'req-12345'};
+    test(
+      'bhv tracing 012 the X-Request-ID header is preserved on the traced request',
+      () {
+        final headers = {'X-Request-ID': 'req-12345'};
 
-      TraceContextUtil.injectTraceContext(headers);
+        TraceContextUtil.injectTraceContext(headers);
 
-      expect(headers['X-Request-ID'], equals('req-12345'));
-    });
+        expect(headers['X-Request-ID'], equals('req-12345'));
+      },
+    );
 
     test('bhv tracing 009 preserves all existing headers', () {
       final headers = {

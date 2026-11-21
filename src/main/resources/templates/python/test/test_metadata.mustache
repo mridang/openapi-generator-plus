@@ -27,7 +27,7 @@ class TestMetadataTypedAdditionalProperties:
         result = ObjectSerializer().serialize(metadata)
         assert result is not None
 
-    def test_bhv_models_003_deserialize_empty_object(self) -> None:
+    def test_bhv_models_003_an_empty_object_deserializes_into_a_model_with_no_values(self) -> None:
         metadata = ObjectSerializer().deserialize('{}', 'Metadata')
         assert metadata is not None
 
@@ -452,7 +452,7 @@ class TestReadmeAndSkillsText:
 
 class TestOptionsImmutability:
 
-    def test_bhv_options_063_options_are_frozen(self) -> None:
+    def test_bhv_options_063_a_built_per_call_options_object_cannot_have_its_fields_changed(self) -> None:
         # Per-operation Options classes are frozen dataclasses so a caller
         # cannot mutate an Options instance after constructing it.
         from {{packageName}}.api.options.find_pets_by_status_options import (

@@ -146,7 +146,7 @@ class BearerAuthenticatorTest {
    */
   @Test
   @DisplayName("bhvAuthBearer011 toString() redacts the token and shows ***")
-  void bhvAuthBearer011RedactsSecret() {
+  void bhvAuthBearer011RedactsTheTokenInToString() {
     BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", "xyz");
     String repr = auth.toString();
     assertFalse(repr.contains("token=xyz"));

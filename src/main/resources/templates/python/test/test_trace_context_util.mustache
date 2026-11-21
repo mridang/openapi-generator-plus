@@ -37,7 +37,7 @@ class TestInjectTraceContext:
         inject_trace_context(headers)
         assert 'tracestate' not in headers
 
-    def test_bhv_tracing_010_preserves_authorization_header(self) -> None:
+    def test_bhv_tracing_010_the_authorization_header_is_preserved_on_the_traced_request(self) -> None:
         headers: dict[str, str] = {'Authorization': 'Bearer token123'}
         inject_trace_context(headers)
         assert headers['Authorization'] == 'Bearer token123'

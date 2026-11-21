@@ -130,21 +130,24 @@ void main() {
       },
     );
 
-    test('bhv authoauthtwotokenmgr 028 stores refresh token', () async {
-      final client = _FakeApiClient();
-      client.enqueue(
-        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
-      );
+    test(
+      'bhv authoauthtwotokenmgr 028 the refresh token from the token response is stored',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
 
-      final manager = OAuth2TokenManager();
-      manager.setApiClient(client);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
 
-      await manager.getAccessToken('https://auth.example.com/token', {
-        'grant_type': 'authorization_code',
-      });
+        await manager.getAccessToken('https://auth.example.com/token', {
+          'grant_type': 'authorization_code',
+        });
 
-      expect(manager.refreshToken, equals('ref1'));
-    });
+        expect(manager.refreshToken, equals('ref1'));
+      },
+    );
 
     test(
       'bhv authoauthtwotokenmgr 025 returns cached token when not expired',

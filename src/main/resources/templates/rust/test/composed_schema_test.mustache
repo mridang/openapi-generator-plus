@@ -1216,7 +1216,7 @@ fn test_bhv_serializationobject_029_building_a_model_never_validates_its_values(
 }
 
 #[test]
-fn test_bhv_serializationobject_047_declared_keys_decode() {
+fn test_bhv_serializationobject_047_declared_keys_decode_into_the_fields_of_the_model() {
     let order: Order =
         serde_json::from_str(r#"{"id":10,"petId":198772,"quantity":2}"#).expect("failed to decode Order");
     assert_eq!(Some(10), order.id);

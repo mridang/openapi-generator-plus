@@ -160,7 +160,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 2
   end
 
-  it 'bhv_authoauthtwotokenmgr_028 stores refresh token' do
+  it 'bhv_authoauthtwotokenmgr_028 the refresh token from the token response is stored' do
     client = FakeTokenClient.new([
                                    { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
                                  ])

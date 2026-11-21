@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use petstore::*;
 
 #[test]
-fn test_bhv_config_014_configuration_default_values() {
+fn test_bhv_config_014_a_default_configuration_carries_no_shared_state() {
     let config = Configuration::default();
 
     assert_eq!(config.base_url(), "/api/v3");
@@ -73,7 +73,7 @@ fn test_bhv_config_022_mutating_returned_default_headers_leaves_config_unchanged
 }
 
 #[test]
-fn test_bhv_config_005_builder_produces_correct_defaults() {
+fn test_bhv_config_005_the_builder_produces_the_default_values_when_nothing_is_set() {
     let config = ConfigurationBuilder::new().build();
 
     assert_eq!(config.base_url(), "/api/v3");

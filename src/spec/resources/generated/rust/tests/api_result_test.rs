@@ -29,7 +29,7 @@ fn test_bhv_results_003_exposes_status_code() {
 }
 
 #[test]
-fn test_bhv_results_004_exposes_data() {
+fn test_bhv_results_004_an_api_result_exposes_the_deserialized_data() {
     let result: ApiResult<String> = ApiResult::new(
         200,
         Some("payload".to_string()),
@@ -57,7 +57,7 @@ fn test_bhv_langrust_016_into_data_consumes_result() {
 }
 
 #[test]
-fn test_bhv_results_005_exposes_raw_body() {
+fn test_bhv_results_005_a_result_exposes_the_raw_response_body() {
     let result: ApiResult<String> = ApiResult::new(
         200,
         Some("ok".to_string()),
@@ -68,7 +68,7 @@ fn test_bhv_results_005_exposes_raw_body() {
 }
 
 #[test]
-fn test_bhv_results_002_exposes_headers() {
+fn test_bhv_results_002_a_result_exposes_the_response_headers() {
     let result: ApiResult<String> = ApiResult::new(
         200,
         Some("ok".to_string()),

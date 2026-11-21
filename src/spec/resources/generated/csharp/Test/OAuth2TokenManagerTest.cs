@@ -100,6 +100,28 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public async Task BhvMisc185StoppingTwiceIsANoOpAndALaterTokenRequestFailsWithAFixedMessage()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        manager.Stop();
+        manager.Stop();
+
+        var thrown = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
+            manager.GetAccessTokenAsync(
+                TokenUrl,
+                ClientCredentialsGrant(),
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal("The token manager has been stopped.", thrown.Message);
+        Assert.Equal(0, client.CallCount);
+    }
+
+    [Fact]
     public async Task BhvAuthoauthtwotokenmgr014ExtractsAccessTokenFromResponse()
     {
         var client = new FakeApiClient();
@@ -137,7 +159,7 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public async Task BhvAuthoauthtwotokenmgr028StoresRefreshToken()
+    public async Task BhvAuthoauthtwotokenmgr028TheRefreshTokenFromTheTokenResponseIsStored()
     {
         var client = new FakeApiClient();
         client.Enqueue(

@@ -359,7 +359,7 @@ test('bhv serializationobject 159 stringify array fallback', function (): void {
     expect($result)->toBe('["a","b","c"]');
 });
 
-test('bhv langphp 001 stringify object fallback', function (): void {
+test('bhv langphp 001 an object without a string form is stringified through its fallback', function (): void {
     $obj = new \stdClass();
     $obj->key = 'value';
     $result = ObjectSerializer::stringify($obj);

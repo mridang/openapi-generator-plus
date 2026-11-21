@@ -256,7 +256,7 @@ test('bhv authoidc 011 fetches discovery document only once', function (): void 
     expect($discoveryRequests)->toHaveCount(1);
 });
 
-test('bhv authoidc 010 fetches discovery document', function (): void {
+test('bhv authoidc 010 the discovery document is fetched from the issuer', function (): void {
     $client = makeOpenIdConnectMockClientWithDiscovery();
 
     $authenticator = new OpenIdConnectAuthenticator(

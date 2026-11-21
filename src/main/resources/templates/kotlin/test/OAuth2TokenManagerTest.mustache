@@ -80,6 +80,27 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    @DisplayName("bhvMisc185 stopping twice is a no-op and a later token request fails with a fixed message")
+    fun bhvMisc185StoppingTwiceIsANoOpAndALaterTokenRequestFailsWithAFixedMessage() {
+        var attempts = 0
+        val engine = MockEngine { _ ->
+            attempts++
+            respond("{\"access_token\":\"tok\",\"expires_in\":3600}", HttpStatusCode.OK, headersOf("Content-Type", "application/json"))
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, TransportOptions.builder().timeout(null).maxRetries(0).build())
+        manager.stop()
+        manager.stop()
+        val failure = assertThrows(OAuth2TokenException::class.java) {
+            runBlocking {
+                manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+            }
+        }
+        assertEquals("The token manager has been stopped.", failure.message)
+        assertEquals(0, attempts)
+    }
+
+    @Test
     @DisplayName("bhvMisc172 a token request is sent once and not retried when the server answers 503")
     fun bhvMisc172TokenRequestIsNotRetriedOn503() {
         var attempts = 0
@@ -239,7 +260,7 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun bhvAuthoauthtwotokenmgr028StoresRefreshToken() {
+    fun bhvAuthoauthtwotokenmgr028TheRefreshTokenFromTheTokenResponseIsStored() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
 

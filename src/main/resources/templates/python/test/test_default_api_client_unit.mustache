@@ -257,7 +257,7 @@ class TestDefaultApiClientUnit:
         assert body["method"] == "POST"
         assert "key" in body["body"]
 
-    def test_bhv_transport_051_returns_response_headers(self) -> None:
+    def test_bhv_transport_051_response_headers_are_returned_with_the_response(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
         lower_headers = {k.lower(): v for k, v in response.headers.items()}
@@ -321,14 +321,14 @@ class TestDefaultApiClientUnit:
         assert response.status_code == 404
         assert response.body == "not found"
 
-    def test_bhv_transport_055_sends_put_request(self) -> None:
+    def test_bhv_transport_055_a_put_request_is_sent_with_the_put_method(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("PUT", f"{self.base_url}/echo", {}, "update")
         assert response.status_code == 200
         body = json.loads(response.body)
         assert body["method"] == "PUT"
 
-    def test_bhv_transport_053_sends_delete_request(self) -> None:
+    def test_bhv_transport_053_a_delete_request_is_sent_with_the_delete_method(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("DELETE", f"{self.base_url}/echo", {}, None)
         assert response.status_code == 200
@@ -351,7 +351,7 @@ class TestDefaultApiClientUnit:
         assert body["headers"].get("user-agent") is not None
         assert len(body["headers"].get("user-agent", "")) > 0
 
-    def test_bhv_transport_043_injects_request_id(self) -> None:
+    def test_bhv_transport_043_a_request_id_is_injected_into_the_request_headers(self) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
@@ -2468,7 +2468,7 @@ class TestZstdDecompression:
 
         assert DefaultApiClient._decompress_body(compressed, "zstd") == payload
 
-    def test_bhv_errors_038_truncated_frame_raises(self) -> None:
+    def test_bhv_errors_038_a_body_truncated_after_the_headers_throws_networkerror_with_status_0(self) -> None:
         compressed = self._stream_compress(b"abcdefgh" * 100_000)
 
         with pytest.raises(ValueError, match="Truncated zstd frame"):

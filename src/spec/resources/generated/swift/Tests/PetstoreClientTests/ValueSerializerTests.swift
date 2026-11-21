@@ -487,7 +487,7 @@ import Testing
 
   // MARK: - SerializeDeepObject
 
-  @Test func testBhvSerializationparam111SerializeDeepObject() {
+  @Test func testBhvSerializationparam111ADeepObjectParameterWritesEachPropertyAsNamekey() {
     let result = ValueSerializer.serializeDeepObject(
       "filter",
       value: [

@@ -50,6 +50,7 @@ public sealed class OAuth2TokenManager
      * snapshot behind a single volatile reference, so the lock-free fast path
      * can never read a token paired with another token's expiry. */
     private volatile TokenSnapshot? _snapshot;
+    private volatile bool _stopped;
 
     /// <summary>An access token and the instant after which it must be refreshed (null: never).</summary>
     private sealed record TokenSnapshot(string AccessToken, DateTimeOffset? RefreshAt)
@@ -65,6 +66,19 @@ public sealed class OAuth2TokenManager
     {
         _apiClient = apiClient;
     }
+
+    /// <summary>
+    /// Stops the token manager. Any later token request fails with an
+    /// <see cref="OAuth2TokenException"/> saying the manager has been stopped;
+    /// stopping again does nothing.
+    /// </summary>
+    public void Stop()
+    {
+        _stopped = true;
+    }
+
+    private static Task<string> StoppedTask() =>
+        Task.FromException<string>(new OAuth2TokenException("The token manager has been stopped."));
 
     /// <summary>
     /// Returns a valid access token, fetching or refreshing as necessary.
@@ -103,6 +117,11 @@ public sealed class OAuth2TokenManager
     )
     {
         ArgumentNullException.ThrowIfNull(parameters);
+        if (_stopped)
+        {
+            return StoppedTask();
+        }
+
         TokenSnapshot? cached = _snapshot;
         if (cached is not null && cached.IsFresh())
         {
@@ -152,6 +171,11 @@ public sealed class OAuth2TokenManager
     )
     {
         ArgumentNullException.ThrowIfNull(parameters);
+        if (_stopped)
+        {
+            return StoppedTask();
+        }
+
         Task<string> task;
         lock (_stateLock)
         {

@@ -381,7 +381,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Success deserialization
 
-  test "bhv serializationwire 004 deserializes JSON response", %{state: state} do
+  test "bhv serializationwire 004 a JSON response is deserialized into the declared type", %{
+    state: state
+  } do
     assert {:ok, result} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -1546,7 +1548,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert captured_body() == "q=a%2Bb%2Fc"
   end
 
-  test "bhv serializationwire 021 serializes form-urlencoded body", %{state: state} do
+  test "bhv serializationwire 021 a form-urlencoded body is serialized as form fields", %{
+    state: state
+  } do
     body = %{"name" => "alice", "age" => "30"}
 
     result =
@@ -1686,7 +1690,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Auth header injection
 
-  test "bhv authintegration 010 forwards auth headers", %{state: state} do
+  test "bhv authintegration 010 auth headers are forwarded on the request", %{state: state} do
     assert {:ok, result} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,

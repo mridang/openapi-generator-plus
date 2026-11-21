@@ -10,20 +10,23 @@ import 'package:petstore_client/src/header_selector.dart';
 
 void main() {
   group('HeaderSelector', () {
-    test('bhv langdart 044 isJsonMime', () {
-      final hs = HeaderSelector();
+    test(
+      'bhv langdart 044 the JSON media type check recognises JSON content types',
+      () {
+        final hs = HeaderSelector();
 
-      expect(hs.isJsonMime('application/json'), isTrue);
-      expect(hs.isJsonMime('application/json; charset=utf-8'), isTrue);
-      expect(hs.isJsonMime('application/vnd.api+json'), isTrue);
-      expect(hs.isJsonMime('application/xml'), isFalse);
-      expect(hs.isJsonMime('text/plain'), isFalse);
-      expect(hs.isJsonMime(''), isFalse);
-      expect(hs.isJsonMime('application/octet-stream'), isFalse);
-      expect(hs.isJsonMime('application/hal+json'), isTrue);
-    });
+        expect(hs.isJsonMime('application/json'), isTrue);
+        expect(hs.isJsonMime('application/json; charset=utf-8'), isTrue);
+        expect(hs.isJsonMime('application/vnd.api+json'), isTrue);
+        expect(hs.isJsonMime('application/xml'), isFalse);
+        expect(hs.isJsonMime('text/plain'), isFalse);
+        expect(hs.isJsonMime(''), isFalse);
+        expect(hs.isJsonMime('application/octet-stream'), isFalse);
+        expect(hs.isJsonMime('application/hal+json'), isTrue);
+      },
+    );
 
-    test('bhv headers 021 isJsonMime case insensitive', () {
+    test('bhv headers 021 returns true for uppercase APPLICATIONJSON', () {
       final hs = HeaderSelector();
 
       expect(hs.isJsonMime('APPLICATION/JSON'), isTrue);
@@ -178,13 +181,16 @@ void main() {
       expect(headers.containsKey('Content-Type'), isFalse);
     });
 
-    test('bhv headers 001 selectHeaders default Content-Type', () {
-      final hs = HeaderSelector();
+    test(
+      'bhv headers 001 defaults Content-Type to applicationjson when empty',
+      () {
+        final hs = HeaderSelector();
 
-      final headers = hs.selectHeaders(['application/json'], '', false);
+        final headers = hs.selectHeaders(['application/json'], '', false);
 
-      expect(headers['Content-Type'], equals('application/json'));
-    });
+        expect(headers['Content-Type'], equals('application/json'));
+      },
+    );
 
     test('bhv headers 018 selectHeaders single non-JSON accept as-is', () {
       final hs = HeaderSelector();

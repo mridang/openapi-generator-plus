@@ -234,7 +234,7 @@ class ApiKeyAuthenticatorTest {
    */
   @Test
   @DisplayName("bhvAuthApiKey010 toString() redacts the API key and shows ***")
-  void bhvAuthApiKey010RedactsSecret() {
+  void bhvAuthApiKey010RedactsTheAPIKeyInToString() {
     ApiKeyAuthenticator auth =
         new ApiKeyAuthenticator(
             "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER);

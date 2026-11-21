@@ -20,7 +20,7 @@ void main() {
       },
     );
 
-    test('bhv config 014 default values', () {
+    test('bhv config 014 a default configuration carries no shared state', () {
       final config = Configuration.defaultConfiguration();
 
       expect(config.baseUrl, equals('/api/v3'));
@@ -54,7 +54,7 @@ void main() {
       },
     );
 
-    test('bhv config 011 builder sets baseUrl', () {
+    test('bhv config 011 the builder sets the base URL', () {
       final config = ConfigurationBuilder()
           .baseUrl('https://custom.example.com')
           .build();
@@ -95,7 +95,7 @@ void main() {
       },
     );
 
-    test('bhv config 008 server URL resolution', () {
+    test('bhv config 008 the builder resolves the server URL', () {
       final server = ServerConfiguration(
         urlTemplate: 'https://{env}.example.com/api/{version}',
         description: 'Test server',
@@ -142,7 +142,7 @@ void main() {
       },
     );
 
-    test('bhv config 001 baseUrl override', () {
+    test('bhv config 001 a base URL overrides the server', () {
       final config = ConfigurationBuilder()
           .baseUrl('https://original.example.com')
           .baseUrl('https://override.example.com')

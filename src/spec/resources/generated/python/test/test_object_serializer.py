@@ -29,12 +29,16 @@ class TestDateTimeOffsetPreservation:
         assert "2024-01-01T12:30:45" in result
         assert "+00:00" in result or result.endswith("Z")
 
-    def test_bhv_serializationobject_116_positive_offset_preserved(self) -> None:
+    def test_bhv_serializationobject_116_positive_offset_preserved_in_serialized_string(
+        self,
+    ) -> None:
         dt = datetime.datetime.fromisoformat("2024-01-01T12:30:45+05:30")
         result = ObjectSerializer.stringify(dt)
         assert "+05:30" in result
 
-    def test_bhv_serializationobject_107_negative_offset_preserved(self) -> None:
+    def test_bhv_serializationobject_107_negative_offset_preserved_in_serialized_string(
+        self,
+    ) -> None:
         dt = datetime.datetime.fromisoformat("2024-01-01T12:30:45-08:00")
         result = ObjectSerializer.stringify(dt)
         assert "-08:00" in result
@@ -424,7 +428,9 @@ class TestUriRoundTripsByteIdentical:
         assert restored is not None
         assert restored.thumbnail_ref == "/assets/thumb-fido.png"
 
-    def test_bhv_serializationobject_008_relative_reference_rejected(self) -> None:
+    def test_bhv_serializationobject_008_a_format_uri_model_field_rejects_a_relative_reference(
+        self,
+    ) -> None:
         wire = '{"name": "Fido", "photoUrls": [], "homepageUrl": "/relative"}'
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(wire, "Pet")
@@ -1317,7 +1323,9 @@ class TestUuidRoundtrip:
         assert isinstance(result, str)
         assert result == "550e8400-e29b-41d4-a716-446655440000"
 
-    def test_bhv_serializationobject_065_deserializes_uuid_string(self) -> None:
+    def test_bhv_serializationobject_065_a_uuid_string_deserializes_into_a_uuid_value(
+        self,
+    ) -> None:
         import uuid
 
         result = ObjectSerializer()._deserialize(
@@ -2113,7 +2121,9 @@ class TestNanInfinityRejection:
         assert str(exc_info.value).startswith("Failed to serialize object to JSON: ")
         assert "Out of range float values are not JSON compliant" in str(exc_info.value)
 
-    def test_bhv_serialization_035_deserialize_nan_raises(self) -> None:
+    def test_bhv_serialization_035_the_non_standard_nan_and_infinity_literals_are_refused_when_a_payload_is_decoded(
+        self,
+    ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"val": NaN}', "object")
 
@@ -2559,7 +2569,7 @@ class TestDurationFormat:
         out = ObjectSerializer.stringify(td)
         assert out == "273600s"
 
-    def test_bhv_serializationobject_181_stringify_zero_duration(self) -> None:
+    def test_bhv_serializationobject_181_zero_duration_stringifies_as_0s(self) -> None:
         td = datetime.timedelta(0)
         out = ObjectSerializer.stringify(td)
         # "0s" is the canonical zero-duration representation.
@@ -2571,7 +2581,9 @@ class TestDurationFormat:
         # One microsecond is 1000 nanos -> six fractional digits.
         assert out == "3600.000001s"
 
-    def test_bhv_serializationobject_105_stringify_negative_duration(self) -> None:
+    def test_bhv_serializationobject_105_negative_duration_carries_the_sign(
+        self,
+    ) -> None:
         td = datetime.timedelta(seconds=-1)
         out = ObjectSerializer.stringify(td)
         assert out == "-1s"
@@ -2587,14 +2599,18 @@ class TestDurationFormat:
         result = ObjectSerializer()._deserialize("5400s", "datetime.timedelta")
         assert result == datetime.timedelta(hours=1, minutes=30)
 
-    def test_bhv_serializationobject_054_deserialize_fractional_duration(self) -> None:
+    def test_bhv_serializationobject_054_deserialize_duration_parses_fractional_protobuf_seconds(
+        self,
+    ) -> None:
         result = ObjectSerializer()._deserialize(
             "3600.000000001s", "datetime.timedelta"
         )
         # Nanosecond precision below 1µs is truncated by timedelta resolution.
         assert result == datetime.timedelta(seconds=3600)
 
-    def test_bhv_serializationobject_113_parses_negative_durations(self) -> None:
+    def test_bhv_serializationobject_113_a_negative_protobuf_duration_parses_into_a_negative_value(
+        self,
+    ) -> None:
         result = ObjectSerializer()._deserialize("-5400.5s", "datetime.timedelta")
         assert result == datetime.timedelta(seconds=-5400.5)
 

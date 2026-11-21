@@ -506,7 +506,8 @@ public class BaseApiTest {
     @ParameterizedTest
     @MethodSource("statusToException")
     @DisplayName("bhvErrors037 throws correct exception for status code")
-    void bhvErrors037ThrowsCorrectException(int status, Class<? extends ApiException> expected) {
+    void bhvErrors037AnErrorResponseThrowsTheExceptionTypeMatchingItsStatus(
+        int status, Class<? extends ApiException> expected) {
       var ex =
           assertThrowsExactly(
               expected,
@@ -745,7 +746,7 @@ public class BaseApiTest {
 
     @Test
     @DisplayName("bhvErrors033 NotFoundException is ClientException is ApiException")
-    void bhvErrors033NotFoundHierarchy() {
+    void bhvErrors033NotFoundErrorIsClientErrorIsApiError() {
       var ex =
           assertThrowsExactly(
               NotFoundException.class,
@@ -822,7 +823,8 @@ public class BaseApiTest {
 
     @Test
     @DisplayName("bhvSerializationWire004 deserializes JSON response")
-    void bhvSerializationWire004DeserializesJsonResponse() throws ApiException {
+    void bhvSerializationWire004AJSONResponseIsDeserializedIntoTheDeclaredType()
+        throws ApiException {
       JsonNode result =
           api()
               .call(
@@ -970,7 +972,7 @@ public class BaseApiTest {
 
     @Test
     @DisplayName("bhvSerializationWire002 appends query params to URL")
-    void bhvSerializationWire002AppendsQueryParams() throws ApiException {
+    void bhvSerializationWire002AppendsQueryParamsToURL() throws ApiException {
       Map<String, Object> queryParams = new HashMap<>();
       queryParams.put("foo", "bar");
       Object result =
@@ -1514,7 +1516,7 @@ public class BaseApiTest {
 
     @Test
     @DisplayName("bhvAuthIntegration010 forwards auth headers")
-    void bhvAuthIntegration010ForwardsAuthHeaders() throws Exception {
+    void bhvAuthIntegration010AuthHeadersAreForwardedOnTheRequest() throws Exception {
       var auth = new TestAuthenticator(Map.of("X-Custom", "auth-value"), Map.of(), Map.of());
       JsonNode result =
           api()
@@ -1534,7 +1536,7 @@ public class BaseApiTest {
 
     @Test
     @DisplayName("bhvAuthIntegration017 sets Cookie header from auth cookies")
-    void bhvAuthIntegration017SetsCookieHeader() throws Exception {
+    void bhvAuthIntegration017SetsCookieHeaderFromAuthCookies() throws Exception {
       var auth = new TestAuthenticator(Map.of(), Map.of(), Map.of("session", "abc123"));
       JsonNode result =
           api()
@@ -2032,7 +2034,7 @@ public class BaseApiTest {
 
     @Test
     @DisplayName("bhvSerializationWire022 serializes JSON body for POST")
-    void bhvSerializationWire022SerializesJsonBody() throws Exception {
+    void bhvSerializationWire022SerializesJSONBodyForPOST() throws Exception {
       Map<String, String> body = Map.of("key", "value");
       JsonNode result =
           api()
@@ -2260,7 +2262,7 @@ public class BaseApiTest {
 
     @Test
     @DisplayName("bhvOperations014 passes binary body as-is")
-    void bhvOperations014PassesBinaryBody() throws ApiException {
+    void bhvOperations014PassesBinaryBodyAsIs() throws ApiException {
       var client = new CapturingApiClient();
       var testApi = new TestableApi(client, "http://localhost");
       byte[] binaryData = new byte[] {0x01, 0x02, 0x03};
@@ -2817,7 +2819,7 @@ public class BaseApiTest {
 
     @Test
     @DisplayName("bhvSerializationWire032 respects charset=ISO-8859-1 from Content-Type")
-    void bhvSerializationWire032RespectsIso88591Charset() throws Exception {
+    void bhvSerializationWire032DecodesIso88591BodyToUtf8WhenCharsetDeclared() throws Exception {
       // 0xE9 is "é" in ISO-8859-1 (would be invalid as UTF-8)
       byte[] bytes = new byte[] {(byte) 0xE9};
       String latin1 = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
@@ -3209,7 +3211,7 @@ public class BaseApiTest {
 
     @Test
     @DisplayName("bhvErrors029 getTypedErrorBody deserializes the raw body into the requested type")
-    void bhvErrors029DeserializesRawBody() {
+    void bhvErrors029GetTypedErrorBodyDeserializesTheRawBodyIntoTheRequestedType() {
       var ex = new BadRequestException("boom", Map.of(), "{\"id\":42,\"name\":\"Dogs\"}", null);
       com.example.petstore.models.Category typed =
           ex.getTypedErrorBody(com.example.petstore.models.Category.class);
@@ -3666,7 +3668,7 @@ public class BaseApiTest {
     @DisplayName(
         "bhvHooks018 an error thrown by start reaches the caller, nothing is sent and finish is not"
             + " called")
-    void bhvHooks018AStartErrorPropagates() {
+    void bhvHooks018AnErrorThrownByStartReachesTheCallerUnchanged() {
       var failure = new IllegalStateException("refused by the hook");
       var client = new FixedApiClient(200, "{}", JSON);
       CallHook hook =

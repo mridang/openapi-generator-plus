@@ -23,7 +23,7 @@ describe 'Metadata' do
     _(json).wont_be_nil
   end
 
-  it 'bhv_models_003 deserializes empty object' do
+  it 'bhv_models_003 an empty object deserializes into a model with no values' do
     metadata = Petstore::Client::ObjectSerializer.deserialize('{}', 'Metadata')
 
     _(metadata).wont_be_nil
@@ -208,7 +208,7 @@ describe 'Metadata', 'round-trip and constants' do
     _(first.eql?(other)).must_equal(false)
   end
 
-  it 'bhv_models_022 defines ADDITIONAL_PROPERTIES constant' do
+  it 'bhv_models_022 a generated model whose schema allows undeclared properties reports that it does' do
     _(Petstore::Client::Models::Metadata.const_defined?(:ADDITIONAL_PROPERTIES)).must_equal(true)
     _(Petstore::Client::Models::Metadata::ADDITIONAL_PROPERTIES).must_equal(true)
   end

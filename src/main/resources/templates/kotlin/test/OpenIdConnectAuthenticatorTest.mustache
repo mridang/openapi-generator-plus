@@ -100,7 +100,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun bhvAuthoidc010FetchesDiscoveryDocument() {
+    fun bhvAuthoidc010TheDiscoveryDocumentIsFetchedFromTheIssuer() {
         val client = FakeApiClient()
         client.enqueue(
             """{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""

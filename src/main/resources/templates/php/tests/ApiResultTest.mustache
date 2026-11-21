@@ -25,7 +25,7 @@ test('bhv results 003 exposes status code', function (): void {
     expect($result->statusCode)->toBe(200);
 });
 
-test('bhv results 004 exposes deserialized data', function (): void {
+test('bhv results 004 an API result exposes the deserialized data', function (): void {
     $data = ['id' => 1, 'name' => 'example'];
     $result = new ApiResult(statusCode: 200, data: $data, rawBody: '', headers: []);
 
@@ -38,13 +38,13 @@ test('bhv results 001 data may be null', function (): void {
     expect($result->data)->toBeNull();
 });
 
-test('bhv results 005 exposes raw body', function (): void {
+test('bhv results 005 a result exposes the raw response body', function (): void {
     $result = new ApiResult(statusCode: 200, data: null, rawBody: '{"id":1}', headers: []);
 
     expect($result->rawBody)->toBe('{"id":1}');
 });
 
-test('bhv results 002 exposes headers', function (): void {
+test('bhv results 002 a result exposes the response headers', function (): void {
     $headers = ['Content-Type' => 'application/json', 'X-Request-Id' => 'abc'];
     $result = new ApiResult(statusCode: 200, data: null, rawBody: '', headers: $headers);
 

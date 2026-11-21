@@ -95,6 +95,7 @@ The generated project also configures ktlint, detekt, Kover and Dokka, and tests
 - **Custom transport.** `TransportOptions.builder().httpClient(myKtorClient)` sends requests through your own Ktor `HttpClient`; combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails at `build()`.
 - Testing your code: `<Group>ApiInterface` (`...Interface.kt` per group) and `ClientInterface : AutoCloseable` with `val` per group; `Client` keeps the concrete type through a covariant `override val`. The default values of the parameters live on the interface, so the class overrides drop `= null`, and the forms without the server live on the interface as methods with bodies, not on the class. The tests rely on Kotlin 2.2 compiling interface bodies as JVM default methods so a `Proxy` can run them.
 - With `generateExamples` on, the project ships `src/examples/kotlin/<package>/examples/Quickstart.kt`, a `main` that builds a client from `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN`, calls the example operation inside `runBlocking` and closes the client with `use`. `build.gradle.kts` adds `src/examples/kotlin` as a `jvmTest` source root and to the detekt sources, so `make examples` (`gradle compileTestKotlinJvm`) builds it, ktlint and detekt check it, and it never ships in the jar; `make examples-run` runs it with the `runQuickstart` task.
+- `OAuth2TokenManager.stop()` ends the manager: a later token request throws `OAuth2TokenException` with the message "The token manager has been stopped." and sends nothing. Stopping twice does nothing.
 
 ## Recipes
 

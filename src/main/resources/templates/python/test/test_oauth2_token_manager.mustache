@@ -41,6 +41,19 @@ class TestOAuth2TokenManager:
             'Token request failed with status 400: invalid_grant -- refresh token expired'
         )
 
+    def test_bhv_misc_185_stopping_twice_is_a_no_op_and_a_later_token_request_fails_with_a_fixed_message(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        manager.set_api_client(mock_client)
+        manager.stop()
+        manager.stop()
+
+        with pytest.raises(OAuth2TokenException) as exc_info:
+            manager.get_access_token('https://auth.example.com/token', {'grant_type': 'client_credentials'})
+
+        assert str(exc_info.value) == 'The token manager has been stopped.'
+        mock_client.send_request.assert_not_called()
+
     def test_bhv_authoauthtwotokenmgr_043_token_body_keeps_the_fixed_parameter_order(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
@@ -143,7 +156,7 @@ class TestOAuth2TokenManager:
 
         assert token == 'my_access_token'
 
-    def test_bhv_authoauthtwotokenmgr_028_stores_refresh_token(self) -> None:
+    def test_bhv_authoauthtwotokenmgr_028_the_refresh_token_from_the_token_response_is_stored(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiHttpResponse(

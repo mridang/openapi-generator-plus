@@ -520,7 +520,7 @@ void main() {
       }
     });
 
-    test('bhv operations 110 serverError', () async {
+    test('bhv operations 110 getOrderById picks the status-specific error class for each typed status route', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/500')
           .build();

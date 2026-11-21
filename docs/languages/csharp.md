@@ -93,6 +93,7 @@ The model namespace is always `Models` and the API namespace is always `Api`; th
 - **Trimming.** The SDK works with `PublishTrimmed`; expect the `IL2026` and `IL2075` trim warnings that any reflection-based serializer produces.
 - Testing your code: `I<Group>Api` (file `I<Group>Api.cs`, named by an `apiFilename` override in `BetterCSharpCodegen`) and `IClient : IDisposable`. `Client` implements `IClient` and each group property through an explicit implementation, so `client.Pet` keeps its concrete type. The interface repeats the default parameter values of the class.
 - With `generateExamples` on, the project ships `examples/Quickstart/` (`Quickstart.csproj` and a top-level `Program.cs`) that builds a client with `Client.WithToken` from `{PREFIX}_HOST` and `{PREFIX}_TOKEN`, awaits the example operation and disposes the client with `using var`. It is a project of its own with the same analyzer settings as the SDK, the test project leaves `examples/**` out of its compile items, `make examples` builds it and `make examples-run` runs it.
+- `OAuth2TokenManager.Stop()` ends the manager: a later token request faults with `OAuth2TokenException` and the message "The token manager has been stopped." and sends nothing. Stopping twice does nothing.
 
 ## Recipes
 

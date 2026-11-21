@@ -89,7 +89,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void BhvTracing005ShouldIncludeTracestateWhenPresent()
+    public void BhvTracing005IncludesTracestateWhenPresentOnTheActiveSpan()
     {
         using var listener = new ActivityListener
         {
@@ -134,7 +134,7 @@ public class TraceContextUtilTest
     }
 
     [Fact]
-    public void BhvTracing004ShouldFormatTraceFlagsCorrectly()
+    public void BhvTracing004FormatsTraceFlagsCorrectlyOnTheActiveSpan()
     {
         using var listener = new ActivityListener
         {

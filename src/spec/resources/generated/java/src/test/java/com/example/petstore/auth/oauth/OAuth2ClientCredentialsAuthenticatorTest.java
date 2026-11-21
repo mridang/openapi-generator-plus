@@ -78,7 +78,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void bhvAuthOauthTwoClientCred013SendsScopes() {
+  void bhvAuthOauthTwoClientCred013TheConfiguredScopesAreSentInTheTokenRequest() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {

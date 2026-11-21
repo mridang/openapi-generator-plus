@@ -1226,36 +1226,39 @@ void main() {
       }
     });
 
-    test('bhv transport 051 returns response headers', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.add('X-Test-Header', 'test-value')
-          ..write('ok')
-          ..close();
-      });
+    test(
+      'bhv transport 051 response headers are returned with the response',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.add('X-Test-Header', 'test-value')
+            ..write('ok')
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        final resp = await client.sendRequest(
-          'GET',
-          'http://localhost:${server.port}/echo',
-          {},
-          null,
-        );
-        expect(resp.statusCode, equals(200));
-        final headerValue = resp.headers.entries
-            .firstWhere(
-              (e) => e.key.toLowerCase() == 'x-test-header',
-              orElse: () => const MapEntry('', ''),
-            )
-            .value;
-        expect(headerValue, equals('test-value'));
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/echo',
+            {},
+            null,
+          );
+          expect(resp.statusCode, equals(200));
+          final headerValue = resp.headers.entries
+              .firstWhere(
+                (e) => e.key.toLowerCase() == 'x-test-header',
+                orElse: () => const MapEntry('', ''),
+              )
+              .value;
+          expect(headerValue, equals('test-value'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test('bhv transport 050 returns non-2xx status code', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1281,55 +1284,61 @@ void main() {
       }
     });
 
-    test('bhv transport 055 sends PUT request', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"method":"PUT"}')
-          ..close();
-      });
+    test(
+      'bhv transport 055 a PUT request is sent with the PUT method',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"method":"PUT"}')
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        final resp = await client.sendRequest(
-          'PUT',
-          'http://localhost:${server.port}/echo',
-          {},
-          'update',
-        );
-        expect(resp.statusCode, equals(200));
-        expect(resp.body, contains('PUT'));
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'PUT',
+            'http://localhost:${server.port}/echo',
+            {},
+            'update',
+          );
+          expect(resp.statusCode, equals(200));
+          expect(resp.body, contains('PUT'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
-    test('bhv transport 053 sends DELETE request', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"method":"DELETE"}')
-          ..close();
-      });
+    test(
+      'bhv transport 053 a DELETE request is sent with the DELETE method',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"method":"DELETE"}')
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        final resp = await client.sendRequest(
-          'DELETE',
-          'http://localhost:${server.port}/echo',
-          {},
-          null,
-        );
-        expect(resp.statusCode, equals(200));
-        expect(resp.body, contains('DELETE'));
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'DELETE',
+            'http://localhost:${server.port}/echo',
+            {},
+            null,
+          );
+          expect(resp.statusCode, equals(200));
+          expect(resp.body, contains('DELETE'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test(
       'bhv serializationwire 051 returns JSON body for vendor JSON content type',

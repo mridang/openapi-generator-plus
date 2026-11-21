@@ -234,7 +234,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
                "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write"
     end
 
-    test "bhv authoauthtwoclientcred 013 sends scopes" do
+    test "bhv authoauthtwoclientcred 013 the configured scopes are sent in the token request" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{

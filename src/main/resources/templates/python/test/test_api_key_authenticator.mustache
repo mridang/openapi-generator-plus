@@ -181,7 +181,7 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.COOKIE,
             )
 
-    def test_bhv_authapikey_018_header_rejects_crlf(self) -> None:
+    def test_bhv_authapikey_018_rejects_a_cr_in_a_header_api_key_value_at_construction(self) -> None:
         # RFC 7230 §3.2.6 — HEADER location must reject anything outside
         # printable ASCII + TAB to prevent header injection (\r\n).
         with pytest.raises(ValueError):
@@ -201,7 +201,7 @@ class TestApiKeyAuthenticator:
                 location=ApiKeyLocation.HEADER,
             )
 
-    def test_bhv_authapikey_010_redacts_secret(self) -> None:
+    def test_bhv_authapikey_010_redacts_the_api_key_in_tostring(self) -> None:
         """The repr masks the API key as ``***`` and never leaks its value."""
         auth = ApiKeyAuthenticator(
             host='https://api.example.com',

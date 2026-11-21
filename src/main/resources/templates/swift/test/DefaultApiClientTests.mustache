@@ -175,7 +175,7 @@ import FoundationNetworking
         client.close()
     }
 
-    @Test func testBhvTransport005DecompressesGzipResponse() async throws {
+    @Test func testBhvTransport005AGzipResponseBodyIsDecompressed() async throws {
         let client = makeClient { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
         }
@@ -1248,7 +1248,7 @@ private final class StubURLProtocol: URLProtocol {
     }
 
     /* A brotli-encoded response is decoded before it is returned. */
-    @Test func testBhvTransport004DecompressesBrotliResponse() async throws {
+    @Test func testBhvTransport004ABrotliResponseBodyIsDecompressed() async throws {
         let response = try await DefaultApiClient().sendRequest(
             method: "GET", url: chasmHttpUrl + "/test/compressed/br",
             headers: ["Accept-Encoding": "br"], body: nil)
@@ -1257,7 +1257,7 @@ private final class StubURLProtocol: URLProtocol {
     }
 
     /* A zstd-encoded response is decoded before it is returned. */
-    @Test func testBhvTransport006DecompressesZstdResponse() async throws {
+    @Test func testBhvTransport006AZstdResponseBodyIsDecompressed() async throws {
         let response = try await DefaultApiClient().sendRequest(
             method: "GET", url: chasmHttpUrl + "/test/compressed/zstd",
             headers: ["Accept-Encoding": "zstd"], body: nil)

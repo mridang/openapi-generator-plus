@@ -100,7 +100,7 @@ fn test_bhv_auth_009_invalid_keys_are_invalid_arguments() {
 /// The default Debug representation must mask the stored API key: the secret
 /// value must be absent and a `***` redaction marker present.
 #[test]
-fn test_bhv_authapikey_010_redacts_secret() {
+fn test_bhv_authapikey_010_redacts_the_api_key_in_tostring() {
     let auth = ApiKeyAuthenticator::new(
         "https://api.example.com",
         "X-API-Key",

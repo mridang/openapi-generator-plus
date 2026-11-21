@@ -16,7 +16,7 @@ test('bhv config 018 default constructor uses spec base url', function (): void 
     expect($config->defaultHeaders)->toBe([]);
 });
 
-test('bhv config 005 builder produces correct defaults', function (): void {
+test('bhv config 005 the builder produces the default values when nothing is set', function (): void {
     $config = Configuration::builder()->build();
 
     expect($config->baseUrl)->toBe('{{{basePath}}}');
@@ -96,7 +96,7 @@ test('bhv config 012 builder sets multiple default headers', function (): void {
     ]);
 });
 
-test('bhv config 002 builder accumulates headers', function (): void {
+test('bhv config 002 the builder accumulates headers across calls', function (): void {
     $config = Configuration::builder()
         ->defaultHeader('X-First', 'one')
         ->defaultHeader('X-Second', 'two')
@@ -245,7 +245,7 @@ test('bhv config 022 mutating the returned default headers does not change the c
     expect($config->defaultHeaders)->toBe(['X-Key' => 'value']);
 });
 
-test('bhv config 017 configuration is immutable', function (): void {
+test('bhv config 017 a built configuration cannot be changed', function (): void {
     $config = Configuration::builder()
         ->defaultHeader('X-Key', 'value')
         ->build();
@@ -296,7 +296,7 @@ test('bhv config 015 debug output masks credential default headers', function ()
     expect($config->defaultHeaders['Authorization'])->toBe('Bearer s3cr3t');
 });
 
-test('bhv config 003 builder is fluent', function (): void {
+test('bhv config 003 every builder setter returns the same builder', function (): void {
     $builder = Configuration::builder();
 
     expect($builder->baseUrl('https://example.com'))->toBe($builder);

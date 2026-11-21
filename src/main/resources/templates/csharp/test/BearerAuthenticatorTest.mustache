@@ -104,7 +104,7 @@ public class BearerAuthenticatorTest
     /// must be absent and a *** redaction marker present.
     /// </summary>
     [Fact]
-    public void BhvAuthbearer011RedactsSecret()
+    public void BhvAuthbearer011RedactsTheTokenInToString()
     {
         var auth = new BearerAuthenticator("https://api.example.com", "xyz");
         string repr = auth.ToString();

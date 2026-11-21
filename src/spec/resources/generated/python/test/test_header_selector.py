@@ -56,7 +56,7 @@ class TestIsJsonMime:
     ) -> None:
         assert header_selector.is_json_mime("application/xml") is False
 
-    def test_bhv_headers_015_should_return_false_for_none(
+    def test_bhv_headers_015_a_missing_media_type_is_not_a_json_type(
         self, header_selector: Any
     ) -> None:
         assert header_selector.is_json_mime(None) is False
@@ -107,7 +107,7 @@ class TestSelectAcceptHeader:
     ) -> None:
         assert header_selector._select_accept_header(["text/html"]) == "text/html"
 
-    def test_bhv_headers_011_should_join_in_declaration_order(
+    def test_bhv_headers_011_joins_media_types_in_declaration_order_with(
         self, header_selector: Any
     ) -> None:
         result = header_selector._select_accept_header(
@@ -130,13 +130,13 @@ class TestSelectAcceptHeader:
         result = header_selector._select_accept_header(["", "application/json", None])
         assert result == "application/json"
 
-    def test_bhv_headers_008_should_drop_whitespace_only_entries(
+    def test_bhv_headers_008_whitespace_only_entries_are_dropped(
         self, header_selector: Any
     ) -> None:
         result = header_selector._select_accept_header(["   ", "application/json"])
         assert result == "application/json"
 
-    def test_bhv_headers_032_should_not_add_quality_weights(
+    def test_bhv_headers_032_the_accept_header_lists_media_types_without_quality(
         self, header_selector: Any
     ) -> None:
         result = header_selector._select_accept_header(

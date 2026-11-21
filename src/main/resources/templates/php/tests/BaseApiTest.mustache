@@ -69,7 +69,7 @@ test('bhv misc 025 a typed call fails when the server answers with a client erro
         ->toThrow(NotFoundException::class);
 });
 
-test('bhv errors 037 throws correct exception', function (int $status, string $expectedClass): void {
+test('bhv errors 037 an error response throws the exception type matching its status', function (int $status, string $expectedClass): void {
     try {
         makeBaseApiTestableApi()->call(
             'GET',
@@ -153,7 +153,7 @@ test('bhv errors 034 parses json error body', function (): void {
     }
 });
 
-test('bhv errors 033 not found hierarchy', function (): void {
+test('bhv errors 033 notFoundError is ClientError is ApiError', function (): void {
     try {
         makeBaseApiTestableApi()->call(
             'GET',
@@ -195,7 +195,7 @@ test('bhv errors 031 internal server error hierarchy', function (): void {
     }
 });
 
-test('bhv serializationwire 004 deserializes json response', function (): void {
+test('bhv serializationwire 004 a JSON response is deserialized into the declared type', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'GET',
         '/test/echo',
@@ -240,7 +240,7 @@ test('bhv operations 015 returns null when return type is null', function (): vo
     expect($result)->toBeNull();
 });
 
-test('bhv serializationwire 002 appends query params', function (): void {
+test('bhv serializationwire 002 appends query params to URL', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'GET',
         '/test/echo',
@@ -387,7 +387,7 @@ test('bhv serialization 010 a body is sent with exactly the content type the cal
     expect($headers['content-type'] ?? null)->toBe('text/plain');
 });
 
-test('bhv authintegration 010 forwards auth headers', function (): void {
+test('bhv authintegration 010 auth headers are forwarded on the request', function (): void {
     $auth = new TestAuthenticator(headers: ['X-Custom' => 'auth-value']);
     $result = makeBaseApiTestableApi()->call(
         'GET',
@@ -424,7 +424,7 @@ test('bhv serializationparam 107 a query value keeps only the unreserved set lit
     expect($client->capturedUrl)->toBe('http://localhost/test/echo?k%2A%27=a~b%2Ac%21d%27e%28f%29g%20h');
 });
 
-test('bhv authintegration 017 sets cookie header', function (): void {
+test('bhv authintegration 017 sets Cookie header from auth cookies', function (): void {
     $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
     $result = makeBaseApiTestableApi()->call(
         'GET',
@@ -806,7 +806,7 @@ test('bhv authintegration 012 configured bearer authenticator is applied on an i
     expect($client->capturedHeaders['Authorization'])->toBe('Bearer secret-jwt-token');
 });
 
-test('bhv serializationwire 022 serializes json body', function (): void {
+test('bhv serializationwire 022 serializes JSON body for POST', function (): void {
     $result = makeBaseApiTestableApi()->call(
         'POST',
         '/test/echo',

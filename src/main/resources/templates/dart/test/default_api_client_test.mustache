@@ -822,7 +822,7 @@ Future<void> main(List<String> args) async {
           reason: 'multipart body must be replayed intact across the 307 redirect');
     });
 
-    test('bhv redirects 006 respects maxRedirects limit', () async {
+    test('bhv redirects 006 following stops at the configured maximum number of redirects', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
           .maxRedirects(2)
@@ -951,7 +951,7 @@ Future<void> main(List<String> args) async {
       );
     });
 
-    test('bhv transport 005 decompresses gzip response', () async {
+    test('bhv transport 005 a gzip response body is decompressed', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',

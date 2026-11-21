@@ -203,7 +203,7 @@ class ComposedSchemaTest {
 
         @Test
         @DisplayName("bhvUnions304 a payload without its discriminator fails")
-        void bhvUnions304MissingDiscriminatorFails() {
+        void bhvUnions304AnAllOfBasePayloadWithoutItsDiscriminatorFails() {
             String json = "{\"plate\":\"AB-12\"}";
             assertThatThrownBy(() -> serializer.deserialize(json, VEHICLE_TYPE))
                     .isExactlyInstanceOf(SerializationException.class);
@@ -244,7 +244,7 @@ class ComposedSchemaTest {
 
         @Test
         @DisplayName("bhvUnions016 throws for unknown discriminator value")
-        void bhvUnions016TestUnknownDiscriminator() {
+        void bhvUnions016RaisesSerializationErrorForUnknownDiscriminatorValue() {
             // An unknown discriminator matches no listed subtype and must be
             // rejected (FAIL_ON_INVALID_SUBTYPE), matching the other 11 SDKs.
             String json = "{\"foodType\":\"raw\",\"calories\":300}";
@@ -690,7 +690,7 @@ class ComposedSchemaTest {
 
         @Test
         @DisplayName("bhvUnions004 deserializes all properties from allOf composition")
-        void bhvUnions004TestDeserialize() {
+        void bhvUnions004AllOfPetWithOwnerDeserializesAllProperties() {
             String json =
                     "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
             PetWithOwner result =

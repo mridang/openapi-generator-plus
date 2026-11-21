@@ -1090,7 +1090,7 @@ void main() {
       }
     });
 
-    test('bhv transport 051 returns response headers', () async {
+    test('bhv transport 051 response headers are returned with the response', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -1145,7 +1145,7 @@ void main() {
       }
     });
 
-    test('bhv transport 055 sends PUT request', () async {
+    test('bhv transport 055 a PUT request is sent with the PUT method', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -1170,7 +1170,7 @@ void main() {
       }
     });
 
-    test('bhv transport 053 sends DELETE request', () async {
+    test('bhv transport 053 a DELETE request is sent with the DELETE method', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response

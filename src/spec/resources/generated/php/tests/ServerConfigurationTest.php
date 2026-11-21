@@ -96,7 +96,7 @@ test('bhv servers 003 unconstrained variable accepts any override', function ():
     expect($server->getUrl(['env' => 'anything']))->toBe('https://anything.example.com');
 });
 
-test('bhv servers 006 exposes constructor fields', function (): void {
+test('bhv servers 006 exposes the raw template and description', function (): void {
     $variables = ['env' => new ServerVariable(defaultValue: 'api')];
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com',
