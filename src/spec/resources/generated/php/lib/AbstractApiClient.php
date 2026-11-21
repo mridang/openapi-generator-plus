@@ -340,6 +340,20 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
             $mergedHeaders['Accept-Encoding'] = $encodings;
         }
 
+        if ($body instanceof BodySource) {
+            /* A known length goes out as Content-Length and an unknown one is sent chunked, so
+             * a Content-Length the caller set is replaced and a stale one never rides along. */
+            foreach (array_keys($mergedHeaders) as $headerName) {
+                if (in_array(strtolower((string) $headerName), ['content-length', 'transfer-encoding'], true)) {
+                    unset($mergedHeaders[$headerName]);
+                }
+            }
+            $bodyLength = $body->length();
+            if ($bodyLength !== null) {
+                $mergedHeaders['Content-Length'] = (string) $bodyLength;
+            }
+        }
+
         if ($body === null) {
             foreach (array_keys($mergedHeaders) as $headerName) {
                 if (strtolower((string) $headerName) === 'content-type') {
@@ -481,6 +495,15 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                      * 3xx response surfaces to the caller. */
                     $prevScheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
                     $nextScheme = strtolower((string) $scheme);
+                    if ($currentBody instanceof BodySource && !$currentBody->isReplayable() && !$dropBody) {
+                        /* The one stream was read to its end by the first request, so there is
+                         * nothing to send again, and it is never buffered to make that possible. */
+                        throw new ApiException(
+                            $statusCode,
+                            'Refusing to replay a streamed request body',
+                            $this->joinedHeaders($response->headers)
+                        );
+                    }
                     $isDowngrade = $prevScheme === 'https' && $nextScheme === 'http';
                     $hasBody = $currentBody !== null;
                     /* misc124: a 301 or 302 downgrade is refused with a body too,
@@ -581,8 +604,8 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      * (seconds or an HTTP date, capped at 60 s) replaces it. The whole call,
      * waits included, stays inside the one request timeout: when the next wait
      * would outlast what is left, the last failure is returned or thrown. A body
-     * that is neither null nor a string (a stream or multipart parts) is not
-     * replayable and is sent once. Every attempt calls $headers again, so a
+     * that is neither null, a string nor a replayable {@see BodySource} (a stream or multipart parts)
+     * is not replayable and is sent once. Every attempt calls $headers again, so a
      * retry carries freshly built headers, authentication included.
      *
      * @param string                          $method  HTTP method
@@ -906,7 +929,10 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
         int $retries,
         \Closure $send,
     ): ApiHttpResponse|ByteStream {
-        $maxRetries = ($body === null || is_string($body)) ? $retries : 0;
+        /* A body that is a stream or multipart parts cannot be sent again; a body source can unless it is single use. */
+        $maxRetries = ($body === null || is_string($body) || ($body instanceof BodySource && $body->isReplayable()))
+            ? $retries
+            : 0;
         $budgetEnd = $timeout === null ? null : hrtime(true) / 1e9 + $timeout / 1000.0;
         $attempt = 0;
         while (true) {

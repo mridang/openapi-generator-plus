@@ -269,6 +269,32 @@ class DefaultApiClient extends AbstractApiClient
     }
 
     /**
+     * The body of a request that is read as it is sent: a reader the client calls for each chunk,
+     * or an empty string for a body of zero length.
+     *
+     * @return \Closure(int): string|string
+     */
+    private static function sourceReader(BodySource $source): \Closure|string
+    {
+        if ($source->length() === 0) {
+            return '';
+        }
+        $chunks = $source->chunks();
+        $started = false;
+
+        return static function (int $size) use ($chunks, &$started): string {
+            /* The chunk handed out last time is left current until now, so a stream is closed by the
+             * generator as soon as its end was read and no read goes ahead of the client. */
+            if ($started) {
+                $chunks->next();
+            }
+            $started = true;
+
+            return $chunks->valid() ? $chunks->current() : '';
+        };
+    }
+
+    /**
      * Builds the Symfony request options of one exchange: the headers and the body, with
      * multipart/form-data encoding when $body is an array, in which case the boundary-bearing
      * `Content-Type` header is owned here.
@@ -377,7 +403,12 @@ class DefaultApiClient extends AbstractApiClient
                 'headers' => $mergedHeaders,
             ];
 
-            if ($body !== null) {
+            if ($body instanceof BodySource) {
+                /* Sent as it is read, never buffered: the body is read in chunks while the request
+                 * goes out. A known length is the Content-Length header set by the base class, an
+                 * unknown one makes the client send it chunked. */
+                $options['body'] = self::sourceReader($body);
+            } elseif ($body !== null) {
                 $options['body'] = $body;
             } else {
                 /* A null body on a body-bearing verb is sent as an explicit

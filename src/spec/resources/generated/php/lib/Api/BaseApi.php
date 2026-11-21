@@ -19,6 +19,7 @@ use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\ApiResult;
+use PetstoreClient\BodySource;
 use PetstoreClient\ByteStream;
 use PetstoreClient\CallInfo;
 use PetstoreClient\CallObserver;
@@ -593,7 +594,16 @@ class BaseApi
             ? null
             : static fn (string $data): mixed => ObjectSerializer::deserialize($data, $itemType, []);
 
-        return SseStream::open($opener, $decoder, $terminator, $options, $body !== null, $method, $this->urlWithoutQuery($path));
+        return SseStream::open(
+            $opener,
+            $decoder,
+            $terminator,
+            $options,
+            $body !== null,
+            $method,
+            $this->urlWithoutQuery($path),
+            singleUseBody: $body instanceof BodySource && !$body->isReplayable()
+        );
     }
 
     /**
@@ -742,7 +752,8 @@ class BaseApi
 
         $query = $this->buildQuery($queryParams, false, $allowReservedKeys);
         if ($query !== '') {
-            $url .= '?' . $query;
+            /* A next-page URL taken from a Link header already carries a query. */
+            $url .= (str_contains($url, '?') ? '&' : '?') . $query;
         }
 
         $isMultipart = $contentType === 'multipart/form-data';
@@ -884,7 +895,7 @@ class BaseApi
                     $response->statusCode === 401
                     && $effectiveAuth instanceof Authenticator
                     && method_exists($effectiveAuth, 'invalidateAccessToken')
-                    && ($serializedBody === null || is_string($serializedBody))
+                    && $this->isReplayableBody($serializedBody)
                 ) {
                     /* A revoked or rotated token keeps failing while it is cached.
                      * Drop it, obtain a new one (a refresh grant first) and replay the
@@ -989,7 +1000,7 @@ class BaseApi
             $stream->statusCode === 401
             && $effectiveAuth instanceof Authenticator
             && method_exists($effectiveAuth, 'invalidateAccessToken')
-            && ($serializedBody === null || is_string($serializedBody))
+            && $this->isReplayableBody($serializedBody)
         ) {
             /* The same replay as a buffered call: drop the cached token, obtain a new one and send
              * the request once more. The refused response is closed unread. */
@@ -1497,6 +1508,11 @@ class BaseApi
             return null;
         }
 
+        /* A body source is sent as it is read: it is never read here. */
+        if ($body instanceof BodySource) {
+            return $body;
+        }
+
         if ($isMultipart) {
             return $body;
         }
@@ -1583,6 +1599,15 @@ class BaseApi
         }
 
         return ObjectSerializer::serialize($body);
+    }
+
+    /**
+     * Whether a request body can be sent again, which a replay after a token refresh needs: no body,
+     * bytes, or a replayable {@see BodySource}. A stream or multipart parts cannot.
+     */
+    private function isReplayableBody(mixed $body): bool
+    {
+        return $body === null || is_string($body) || ($body instanceof BodySource && $body->isReplayable());
     }
 
     /**

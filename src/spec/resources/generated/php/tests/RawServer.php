@@ -12,7 +12,8 @@ namespace PetstoreClient\Test;
  * reply with `reply()`, `chunk()` and `endChunks()`. Leaving the script closes the connection, so a
  * script that returns early cuts the body short. `awaitRelease()` blocks the script until the test
  * calls {@see release()}, `holdUntilGone()` waits silently until the client drops the connection, and `gone()` tells the test that the client dropped the connection.
- * Connections are served one at a time.
+ * `recordBody()` reads the request body and {@see body()} hands it to the test. Connections are served
+ * one at a time.
  */
 final class RawServer
 {
@@ -81,6 +82,52 @@ final class RawServer
                     }
                 }
             }
+        }
+
+        /**
+         * Reads the body of the request that the head announces (a Content-Length or a chunked
+         * body), saves it for the test and returns it. Answers `Expect: 100-continue` first.
+         *
+         * @param resource $socket
+         */
+        function recordBody($socket, string $head, int $hit): string
+        {
+            global $dir;
+            if (stripos($head, 'expect: 100-continue') !== false) {
+                @fwrite($socket, "HTTP/1.1 100 Continue\r\n\r\n");
+            }
+            $body = '';
+            if (preg_match('/^transfer-encoding:\s*chunked/im', $head) === 1) {
+                while (($size = stream_get_line($socket, 64, "\r\n")) !== false) {
+                    $length = (int) hexdec(trim(explode(';', $size)[0]));
+                    if ($length === 0) {
+                        stream_get_line($socket, 64, "\r\n");
+                        break;
+                    }
+                    $read = '';
+                    while (strlen($read) < $length) {
+                        $part = fread($socket, $length - strlen($read));
+                        if ($part === false || $part === '') {
+                            break;
+                        }
+                        $read .= $part;
+                    }
+                    $body .= $read;
+                    stream_get_line($socket, 64, "\r\n");
+                }
+            } elseif (preg_match('/^content-length:\s*(\d+)/im', $head, $match) === 1) {
+                $want = (int) $match[1];
+                while (strlen($body) < $want) {
+                    $part = fread($socket, $want - strlen($body));
+                    if ($part === false || $part === '') {
+                        break;
+                    }
+                    $body .= $part;
+                }
+            }
+            file_put_contents($dir . '/body.' . $hit, $body);
+
+            return $body;
         }
 
         function gone(): void
@@ -177,6 +224,20 @@ final class RawServer
         }
 
         return array_map(static fn (string $line): string => (string) base64_decode($line, true), $lines);
+    }
+
+    /**
+     * The request body a script read with recordBody() for a connection (1 for the first).
+     */
+    public function body(int $hit = 1): string
+    {
+        $file = $this->dir . '/body.' . $hit;
+        $until = microtime(true) + 5.0;
+        while (!file_exists($file) && microtime(true) < $until) {
+            usleep(10_000);
+        }
+
+        return (string) @file_get_contents($file);
     }
 
     /** Lets a script that waits in awaitRelease() carry on. */

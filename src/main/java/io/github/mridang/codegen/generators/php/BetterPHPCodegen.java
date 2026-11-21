@@ -64,11 +64,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     "object", "mixed", "never", "self", "parent");
 
     /**
-     * The declared type of a {@code format: binary} request body: a file for its name and MIME type,
-     * a PSR-7 stream, or the raw bytes as a string, so in-memory content needs no temporary file.
+     * The name of the body source class, which is the declared type of a raw {@code format: binary}
+     * request body: the content is sent as it is read, so it never has to fit in memory.
      */
-    private static final String BINARY_BODY_TYPE =
-            "\\SplFileObject|\\Psr\\Http\\Message\\StreamInterface|string";
+    private static final String BINARY_BODY_CLASS = "BodySource";
 
     /** The authenticators whose generated scheme class reads a credential from the environment when none is passed. */
     private static final Set<String> CREDENTIAL_FALLBACK_BASES =
@@ -471,6 +470,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("client_lifecycle.mustache", invokerFolder, "ClientLifecycle.php"),
             new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
             new SupportingFileSpec("raw_stream_response.mustache", invokerFolder, "RawStreamResponse.php"),
+            new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.php"),
             new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.php"),
             new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.php"),
             new SupportingFileSpec("server_sent_event.mustache", invokerFolder, "ServerSentEvent.php"),
@@ -2063,8 +2063,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     }
                     final boolean binaryBody =
                             op.bodyParam != null && "\\SplFileObject".equals(op.bodyParam.dataType);
+                    final String binaryBodyType = "\\" + invokerPackage + "\\" + BINARY_BODY_CLASS;
                     if (binaryBody) {
-                        op.bodyParam.dataType = BINARY_BODY_TYPE;
+                        op.bodyParam.dataType = binaryBodyType;
                     }
                     final Object deco = op.vendorExtensions.get("op");
                     if (deco instanceof Map) {
@@ -2076,7 +2077,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             if (binaryBody) {
                                 for (final Map<String, Object> arg : ordered) {
                                     if (Boolean.TRUE.equals(arg.get("isBody"))) {
-                                        arg.put("dataType", BINARY_BODY_TYPE);
+                                        arg.put("dataType", binaryBodyType);
                                     }
                                 }
                             }

@@ -72,8 +72,10 @@ final class SseStream implements \IteratorAggregate
         ByteStream $first,
         string $lastEventId,
         ?\Closure $pause,
+        bool $singleUseBody,
     ) {
-        $this->maxReconnects = $given->maxReconnects ?? ($hasBody ? 0 : 5);
+        /* A single use body was read by the first request, so a reconnect has nothing to send. */
+        $this->maxReconnects = $singleUseBody ? 0 : ($given->maxReconnects ?? ($hasBody ? 0 : 5));
         $this->reconnectDelay = $given->reconnectDelay ?? 1000;
         $this->maxEventBytes = $given->maxEventBytes ?? 1048576;
         $this->lastEventId = $lastEventId;
@@ -91,6 +93,8 @@ final class SseStream implements \IteratorAggregate
      * @param \Closure(string): mixed|null $decoder    decodes the data text, or null to hand it over as it is
      * @param string|null                  $terminator a data value that ends the stream
      * @param \Closure(int): void|null     $pause      waits for the given milliseconds; a seam for tests
+     * @param bool                         $singleUseBody whether the request body can be read only once, so
+     *                                                    the stream is never reconnected
      *
      * @return SseStream<mixed>
      *
@@ -105,12 +109,13 @@ final class SseStream implements \IteratorAggregate
         string $method,
         string $path,
         ?\Closure $pause = null,
+        bool $singleUseBody = false,
     ): self {
         $given = $options ?? new StreamOptions();
         $lastEventId = $given->lastEventId ?? '';
         $first = self::connectTo($opener, $lastEventId, $method, $path);
 
-        return new self($opener, $decoder, $terminator, $given, $hasBody, $method, $path, $first, $lastEventId, $pause);
+        return new self($opener, $decoder, $terminator, $given, $hasBody, $method, $path, $first, $lastEventId, $pause, $singleUseBody);
     }
 
     /** The status of the response of the connection that is open. */

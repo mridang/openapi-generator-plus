@@ -40,6 +40,12 @@ use PetstoreClient\Api\Options\GetPetPhotoOptions;
 use PetstoreClient\Api\Options\GetPetSummaryOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\GetStagingPetInfoOptions;
+use PetstoreClient\Api\Options\ListPetArchiveOptions;
+use PetstoreClient\Api\Options\ListPetCatalogOptions;
+use PetstoreClient\Api\Options\ListPetEventsOptions;
+use PetstoreClient\Api\Options\ListPetFeedOptions;
+use PetstoreClient\Api\Options\ListPetMatchesOptions;
+use PetstoreClient\Api\Options\ListPetNotesOptions;
 use PetstoreClient\Api\Options\SetPetAvatarOptions;
 use PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
@@ -2178,6 +2184,510 @@ class PetApi extends BaseApi implements PetApiInterface
     }
 
     /**
+     * Lists archived pets; it looks paged, and the generator option says it is not
+     * @param ListPetArchiveOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetArchive(?ListPetArchiveOptions $options = null): \PetstoreClient\Models\PetArchivePage
+    {
+        $apiResult = $this->listPetArchiveWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetArchive but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetArchivePage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetArchiveOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetArchivePage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetArchiveWithHttpInfo(?ListPetArchiveOptions $options = null): ApiResult
+    {
+        $path = '/pet/archive';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetArchiveOptions && $options->cursor !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'cursor', ValueSerializer::serializeStyled(
+                'cursor',
+                $options->cursor,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetArchivePage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\PetArchivePage::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetArchive',
+            urlTemplate: '/pet/archive',
+        );
+        return $result;
+    }
+
+    /**
+     * Lists the pet catalog one page at a time with a next-cursor token
+     * @param ListPetCatalogOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetCatalog(?ListPetCatalogOptions $options = null): \PetstoreClient\Models\PetCatalogPage
+    {
+        $apiResult = $this->listPetCatalogWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetCatalog but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetCatalogPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetCatalogOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetCatalogPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetCatalogWithHttpInfo(?ListPetCatalogOptions $options = null): ApiResult
+    {
+        $path = '/pet/catalog';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetCatalogOptions && $options->limit !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
+                'limit',
+                $options->limit,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetCatalogOptions && $options->cursor !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'cursor', ValueSerializer::serializeStyled(
+                'cursor',
+                $options->cursor,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetCatalogPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\PetCatalogPage::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetCatalog',
+            urlTemplate: '/pet/catalog',
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pet events; only the generator option says it is paged
+     * @param ListPetEventsOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetEvents(?ListPetEventsOptions $options = null): \PetstoreClient\Models\PetEventPage
+    {
+        $apiResult = $this->listPetEventsWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetEvents but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetEventPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetEventsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetEventPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetEventsWithHttpInfo(?ListPetEventsOptions $options = null): ApiResult
+    {
+        $path = '/pet/events';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetEventsOptions && $options->since !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'since', ValueSerializer::serializeStyled(
+                'since',
+                $options->since,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetEventPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\PetEventPage::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetEvents',
+            urlTemplate: '/pet/events',
+        );
+        return $result;
+    }
+
+    /**
+     * Lists the pet feed one page at a time with a Link header
+     * @param ListPetFeedOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \Ds\Vector<\PetstoreClient\Models\Pet>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetFeed(?ListPetFeedOptions $options = null): \Ds\Vector
+    {
+        $apiResult = $this->listPetFeedWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetFeed but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \Ds\Vector<\PetstoreClient\Models\Pet> $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetFeedOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetFeedWithHttpInfo(?ListPetFeedOptions $options = null): ApiResult
+    {
+        $path = '/pet/feed';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetFeedOptions && $options->limit !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
+                'limit',
+                $options->limit,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\Ds\Vector<Pet>',
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetFeed',
+            urlTemplate: '/pet/feed',
+        );
+        return $result;
+    }
+
+    /**
+     * Finds pets and their owners; two lists make it ambiguous, so it is not paged
+     * @param ListPetMatchesOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetMatches(?ListPetMatchesOptions $options = null): \PetstoreClient\Models\PetMatchPage
+    {
+        $apiResult = $this->listPetMatchesWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetMatches but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetMatchPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetMatchesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetMatchPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetMatchesWithHttpInfo(?ListPetMatchesOptions $options = null): ApiResult
+    {
+        $path = '/pet/matches';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetMatchesOptions && $options->cursor !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'cursor', ValueSerializer::serializeStyled(
+                'cursor',
+                $options->cursor,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetMatchPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\PetMatchPage::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetMatches',
+            urlTemplate: '/pet/matches',
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+     * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetNotes(?ListPetNotesOptions $options = null): \PetstoreClient\Models\PetNotePage
+    {
+        $apiResult = $this->listPetNotesWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetNotes but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetNotePage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetNotePage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetNotesWithHttpInfo(?ListPetNotesOptions $options = null): ApiResult
+    {
+        $path = '/pet/notes';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetNotesOptions && $options->pos !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'pos', ValueSerializer::serializeStyled(
+                'pos',
+                $options->pos,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetNotePage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\PetNotePage::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetNotes',
+            urlTemplate: '/pet/notes',
+        );
+        return $result;
+    }
+
+    /**
      * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
      * @param SetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
@@ -2186,7 +2696,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function setPetAvatar(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): void
+    public function setPetAvatar(int $petId, \PetstoreClient\BodySource $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): void
     {
         $this->setPetAvatarWithHttpInfo($petId, $body, $options, $requestContentType);
     }
@@ -2199,7 +2709,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): ApiResult
+    public function setPetAvatarWithHttpInfo(int $petId, \PetstoreClient\BodySource $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): ApiResult
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
