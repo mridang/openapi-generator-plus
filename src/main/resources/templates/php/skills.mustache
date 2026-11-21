@@ -308,6 +308,39 @@ use {{invokerPackage}}\TransportOptions;
 $transport = TransportOptions::builder()->maxRetries(0)->build();
 ```
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (try/finally). `readAll()` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```php file
+use {{invokerPackage}}\{{clientClassName}};
+{{#binaryStreamOperation}}
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+use {{invokerPackage}}\Api\Options\{{{dataType}}};
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+
+function saveTo({{clientClassName}} $client{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, string $target): void
+{
+    $stream = $client->{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}->{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}});
+    try {
+        $file = new \SplFileObject($target, 'wb');
+        echo $stream->statusCode . "\n";
+        while (!$stream->eof()) {
+            $file->fwrite($stream->read(8192));
+        }
+    } finally {
+        $stream->close();
+    }
+}
+{{/binaryStreamOperation}}
+```
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` (the `StreamingApiClient` interface) fails a stream call with `BadMethodCallException` naming it, and its buffered calls keep working.
+
 ### Custom HTTP client
 
 ```php file
@@ -380,7 +413,7 @@ function {{vendorExtensions.withMethod}}From({{classname}} $model, {{classname}}
 
 ## Binary / File Uploads
 
-A multipart file field is a `\SplFileObject` (or a PSR-7 stream). A binary request body is a `\SplFileObject`, a PSR-7 `StreamInterface` or a `string` of raw bytes, so in-memory content needs no temporary file. Binary response bodies are returned as `string`.
+A multipart file field is a `\SplFileObject` (or a PSR-7 stream). A binary request body is a `\SplFileObject`, a PSR-7 `StreamInterface` or a `string` of raw bytes, so in-memory content needs no temporary file. A binary response body is returned as a `ByteStream`, a PSR-7 `StreamInterface` (see Streaming).
 
 ## Comment Style
 

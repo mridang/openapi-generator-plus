@@ -56,7 +56,7 @@ try {
 }
 ```
 
-Closing the client is graceful: a request already sent finishes, every later request fails with a `\LogicException` (`client closed`), and only the transport the SDK built is released, never a client you supplied. Calling `close()` twice is harmless. Errors derive from `OpenAPIException`; `NetworkException` and `NetworkTimeoutException` mean no HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+Closing the client is graceful: a request already sent finishes, every later request fails with a `\LogicException` (`client closed`), and only the transport the SDK built is released, never a client you supplied. Calling `close()` twice is harmless. Streams that are still open are cancelled. Errors derive from `OpenAPIException`; `NetworkException` and `NetworkTimeoutException` mean no HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
 
 ### Raw responses
 
@@ -193,6 +193,31 @@ The span is named with the operation id, has kind client and carries `http.reque
 ### Logging
 
 The SDK does not log. To log requests and responses, wrap your own PSR-18 client with a logging decorator (PSR-3) and pass it as described under Custom HTTP client.
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (try/finally). `readAll()` reads the rest into memory and leaves the stream closed.
+
+```php file
+use PetstoreClient\Client;
+use PetstoreClient\Api\Options\DownloadPetDocumentOptions;
+
+function saveTo(Client $client, int $petId, int $documentId, ?DownloadPetDocumentOptions $options, string $target): void
+{
+    $stream = $client->pet->downloadPetDocument($petId, $documentId, $options);
+    try {
+        $file = new \SplFileObject($target, 'wb');
+        echo $stream->statusCode . "\n";
+        while (!$stream->eof()) {
+            $file->fwrite($stream->read(8192));
+        }
+    } finally {
+        $stream->close();
+    }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` (the `StreamingApiClient` interface) fails a stream call with `BadMethodCallException` naming it, and its buffered calls keep working.
 
 ### Custom HTTP client
 
@@ -345,10 +370,6 @@ loudly with `SerializationException`.
 ### Repeated response headers
 
 A header the server repeats arrives in `ApiResult::$headers` and in `ApiException::getResponseHeaders()` as one value joined with `, `, under its lower-cased name.
-
-### Streaming is not supported
-
-Request and response bodies are read into memory. To stream, supply your own transport (see Custom HTTP client).
 
 ### Configuration and transport options are separate
 

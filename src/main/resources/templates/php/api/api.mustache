@@ -6,6 +6,9 @@ namespace {{apiPackage}};
 use {{invokerPackage}}\ApiClient;
 use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\ApiResult;
+{{#hasBinaryStream}}
+use {{invokerPackage}}\ByteStream;
+{{/hasBinaryStream}}
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\ValueSerializer;
@@ -450,7 +453,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
         }
 {{/vendorExtensions.op.hasMultipleConsumes}}
         /** @var ApiResult<{{{vendorExtensions.phpDocReturnType}}}> $result */
-        $result = $this->invokeApiForResult(
+        $result = $this->{{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{/vendorExtensions.op.streamsBinary}}(
             '{{httpMethod}}',
             $path,
             $queryParams,
@@ -458,7 +461,9 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
             $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#vendorExtensions.op.hasMultipleConsumes}}$requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
+{{^vendorExtensions.op.streamsBinary}}
             '{{#returnContainer}}{{{returnType}}}<{{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}>{{/returnContainer}}{{^returnContainer}}{{#returnProperty}}{{#isByteArray}}byte{{/isByteArray}}{{^isByteArray}}{{{returnType}}}{{/isByteArray}}{{/returnProperty}}{{^returnProperty}}{{{returnType}}}{{/returnProperty}}{{/returnContainer}}',
+{{/vendorExtensions.op.streamsBinary}}
 {{#vendorExtensions.op.securityNone}}
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
@@ -473,6 +478,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
             $allowReservedKeys{{#bodyParam}}{{#isBinary}},
             rawBody: true{{/isBinary}}{{/bodyParam}},
 {{>per_call_arguments}}
+{{^vendorExtensions.op.streamsBinary}}
 {{#vendorExtensions.op.hasMultiple2xx}}
             successTypes: [
 {{#vendorExtensions.op.successResponses}}
@@ -480,6 +486,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
 {{/vendorExtensions.op.successResponses}}
             ],
 {{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
         );
         return $result;
     }
