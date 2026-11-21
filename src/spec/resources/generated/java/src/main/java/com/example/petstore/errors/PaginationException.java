@@ -20,6 +20,7 @@ import javax.annotation.Nullable;
 public class PaginationException extends OpenAPIException {
   @java.io.Serial private static final long serialVersionUID = 1L;
 
+  /** The path of the request whose response could not be followed, without its query. */
   @Nullable private final String requestPath;
 
   /**

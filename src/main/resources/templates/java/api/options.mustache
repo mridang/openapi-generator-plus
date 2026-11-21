@@ -145,12 +145,22 @@ public final class {{className}} {
         {{className}} copy = new {{className}}({{#requiredParams}}{{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}});
 {{#params}}
 {{^required}}
+{{#isMutableCollection}}
+        copy.{{paramName}} = this.{{paramName}} == null ? null : {{copyFactory}}.copyOf(this.{{paramName}});
+{{/isMutableCollection}}
+{{^isMutableCollection}}
+{{#isByteArrayParam}}
+        copy.{{paramName}} = this.{{paramName}} == null ? null : this.{{paramName}}.clone();
+{{/isByteArrayParam}}
+{{^isByteArrayParam}}
         copy.{{paramName}} = this.{{paramName}};
+{{/isByteArrayParam}}
+{{/isMutableCollection}}
 {{/required}}
 {{/params}}
         copy.timeout = timeout;
         copy.maxRetries = maxRetries;
-        copy.headers = headers;
+        copy.headers = headers == null ? null : java.util.Map.copyOf(headers);
         return copy;
     }
 {{/hasCopy}}

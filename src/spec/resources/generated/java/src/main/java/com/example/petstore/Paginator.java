@@ -38,9 +38,6 @@ import javax.annotation.Nullable;
  * @param <C> the cursor type, which is the type of the cursor request parameter; {@link Void} for a
  *     list that is followed by {@code Link} header
  */
-@edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-    value = {"THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
-    justification = "the SDK's error contract is built on unchecked exceptions")
 public final class Paginator<T, C> implements Iterable<T> {
 
   private final java.util.function.Supplier<Iterator<Page<T, C>>> source;

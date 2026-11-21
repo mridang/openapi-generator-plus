@@ -1253,6 +1253,7 @@ public interface PetApiInterface {
    * item or a page, and each next page is requested only when you ask for more. Every page is an
    * ordinary call of {@link #listPetCatalogWithHttpInfo}, with the same options on each page.
    *
+   * @param options options for query, header, form, and cookie parameters
    * @return the paginator over the items
    */
   Paginator<Pet, String> listPetCatalogPages(@Nullable ListPetCatalogOptions options);
@@ -1322,6 +1323,7 @@ public interface PetApiInterface {
    * item or a page, and each next page is requested only when you ask for more. Every page is an
    * ordinary call of {@link #listPetEventsWithHttpInfo}, with the same options on each page.
    *
+   * @param options options for query, header, form, and cookie parameters
    * @return the paginator over the items
    */
   Paginator<String, String> listPetEventsPages(@Nullable ListPetEventsOptions options);
@@ -1391,6 +1393,7 @@ public interface PetApiInterface {
    * item or a page, and each next page is requested only when you ask for more. Every page is an
    * ordinary call of {@link #listPetFeedWithHttpInfo}, with the same options on each page.
    *
+   * @param options options for query, header, form, and cookie parameters
    * @return the paginator over the items
    */
   Paginator<Pet, Void> listPetFeedPages(@Nullable ListPetFeedOptions options);
@@ -1506,6 +1509,7 @@ public interface PetApiInterface {
    * item or a page, and each next page is requested only when you ask for more. Every page is an
    * ordinary call of {@link #listPetNotesWithHttpInfo}, with the same options on each page.
    *
+   * @param options options for query, header, form, and cookie parameters
    * @return the paginator over the items
    */
   Paginator<String, String> listPetNotesPages(@Nullable ListPetNotesOptions options);

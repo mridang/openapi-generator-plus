@@ -45,7 +45,7 @@ public final class ListPetNotesOptions {
     copy.pos = this.pos;
     copy.timeout = timeout;
     copy.maxRetries = maxRetries;
-    copy.headers = headers;
+    copy.headers = headers == null ? null : java.util.Map.copyOf(headers);
     return copy;
   }
 

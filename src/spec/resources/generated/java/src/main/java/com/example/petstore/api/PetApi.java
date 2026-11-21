@@ -2885,6 +2885,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * value of the {@code cursor} option is where the list starts, and the page after each one is
    * requested with the {@code next_cursor} it returned.
    *
+   * @param options options for query, header, form, and cookie parameters
    * @return the paginator over the items
    */
   @Override
@@ -3008,6 +3009,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * value of the {@code since} option is where the list starts, and the page after each one is
    * requested with the {@code upto} it returned.
    *
+   * @param options options for query, header, form, and cookie parameters
    * @return the paginator over the items
    */
   @Override
@@ -3141,6 +3143,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * after each one is the {@code rel="next"} link of its {@code Link} header, followed only within
    * the origin of the client.
    *
+   * @param options options for query, header, form, and cookie parameters
    * @return the paginator over the items
    */
   @Override
@@ -3351,6 +3354,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * value of the {@code pos} option is where the list starts, and the page after each one is
    * requested with the {@code following} it returned.
    *
+   * @param options options for query, header, form, and cookie parameters
    * @return the paginator over the items
    */
   @Override

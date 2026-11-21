@@ -76,7 +76,7 @@ public final class ListPetCatalogOptions {
     copy.cursor = this.cursor;
     copy.timeout = timeout;
     copy.maxRetries = maxRetries;
-    copy.headers = headers;
+    copy.headers = headers == null ? null : java.util.Map.copyOf(headers);
     return copy;
   }
 
