@@ -382,20 +382,23 @@ module {{moduleName}}
                   "{{operationId}}; declared types are [#{declared_consumes.join(', ')}]"
           end
 
-        invoke_api_for_result(
+        {{#vendorExtensions.op.streamsBinary}}invoke_api_for_stream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invoke_api_for_result{{/vendorExtensions.op.streamsBinary}}(
           :{{httpMethod}}, path, query_params, header_params, request_body,
           [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
           resolved_content_type,
 {{/vendorExtensions.hasMultipleConsumes}}
 {{^vendorExtensions.hasMultipleConsumes}}
-        invoke_api_for_result(
+        {{#vendorExtensions.op.streamsBinary}}invoke_api_for_stream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invoke_api_for_result{{/vendorExtensions.op.streamsBinary}}(
           :{{httpMethod}}, path, query_params, header_params, request_body,
           [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
           '{{vendorExtensions.op.effectiveConsumes}}',
 {{/vendorExtensions.hasMultipleConsumes}}
+{{^vendorExtensions.op.streamsBinary}}
           {{#vendorExtensions.op.hasMultiple2xx}}{ {{#vendorExtensions.op.successResponses}}{{#isRange}}'{{statusCode}}'{{/isRange}}{{^isRange}}{{statusCode}}{{/isRange}} => '{{{returnType}}}'{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}} },
 {{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
-{{/vendorExtensions.op.hasMultiple2xx}}          {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}requirement_authenticator({{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}scheme_authenticator({{#vendorExtensions.op.securitySchemeOrder}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
+          {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}requirement_authenticator({{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}scheme_authenticator({{#vendorExtensions.op.securitySchemeOrder}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
           raw_body: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
 {{#vendorExtensions.op.hasErrorSchemaResponses}}
           error_schemas: {

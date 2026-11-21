@@ -6,6 +6,9 @@ import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.errors.ApiException;
 import {{invokerPackage}}.ApiResult;
 import {{invokerPackage}}.ByteStream;
+import {{invokerPackage}}.JsonLinesStream;
+import {{invokerPackage}}.SseStream;
+import {{invokerPackage}}.StreamOptions;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.auth.Authenticator;
 {{#imports}}import {{import}};
@@ -32,11 +35,18 @@ import javax.annotation.Nullable;
  */
 public class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#operation}}
+{{#vendorExtensions.op.streamTyped}}
+
+    private static final java.lang.reflect.Type {{operationId}}ItemType =
+            new TypeReference<{{{vendorExtensions.op.streamItemJava}}}>() {}.getType();
+{{/vendorExtensions.op.streamTyped}}
 {{#returnType}}
 {{^vendorExtensions.op.streamsBinary}}
+{{^vendorExtensions.op.streamOnly}}
 
     private static final java.lang.reflect.Type {{operationId}}TypeRef =
             new TypeReference<{{{returnType}}}>() {}.getType();
+{{/vendorExtensions.op.streamOnly}}
 {{/vendorExtensions.op.streamsBinary}}
 {{/returnType}}
 {{/operation}}
@@ -150,6 +160,62 @@ public class {{classname}} extends BaseApi implements {{classname}}Interface {
         super(apiClient, config, authenticator, schemeAuthenticators);
     }
     {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{#notes}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/notes}}
+     *
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+{{>api/operation_doc_server}}
+     * @param streamOptions the stream settings, or {@code null} for the defaults
+     * @return the open stream; close it when you stop early
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    @Override
+    public {{{returnType}}} {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable StreamOptions streamOptions) {
+{{>api/operation_prelude}}
+        return {{#vendorExtensions.op.streamsSse}}invokeApiForSse{{/vendorExtensions.op.streamsSse}}{{^vendorExtensions.op.streamsSse}}invokeApiForJsonLines{{/vendorExtensions.op.streamsSse}}(
+                "{{operationId}}",
+                "{{httpMethod}}",
+                path,
+                queryParams,
+                headerParams,
+                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+                new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
+                {{#vendorExtensions.hasMultipleConsumes}}effectiveRequestContentType{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
+                {{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}{{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}resolveRequirementAuth({{#vendorExtensions.op.securityAlternatives}}new String[] { {{#schemeIds}}"{{#lambda.javaString}}{{{schemeId}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/schemeIds}} }{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}resolveSchemeAuth({{#vendorExtensions.op.securitySchemeOrder}}"{{#lambda.javaString}}{{{schemeId}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}null{{/vendorExtensions.op.hasSecuritySchemes}}{{/vendorExtensions.op.securityNone}},
+                {{#vendorExtensions.op.optionsArgOptional}}callTimeout,
+                callMaxRetries,{{/vendorExtensions.op.optionsArgOptional}}{{^vendorExtensions.op.optionsArgOptional}}{{#vendorExtensions.op.optionsParamRequired}}callTimeout,
+                callMaxRetries,{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}null,
+                null,{{/vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsArgOptional}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+                java.util.Map.ofEntries(
+{{#vendorExtensions.op.errorSchemaResponses}}
+                        java.util.Map.entry("{{{status}}}", ({{{invokerPackage}}}.errors.ErrorFactory) {{{invokerPackage}}}.errors.{{{schemaClassName}}}::fromErrorResponse){{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+                ),
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{^vendorExtensions.op.hasErrorSchemaResponses}}
+                null,
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+                "{{#lambda.javaString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.javaString}}",
+                "{{#lambda.javaString}}{{{path}}}{{/lambda.javaString}}",
+                {{#vendorExtensions.op.streamTyped}}{{operationId}}ItemType{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}null{{/vendorExtensions.op.streamTyped}},
+{{#vendorExtensions.op.streamsSse}}
+                {{#hasSseTerminator}}"{{{sseTerminator}}}"{{/hasSseTerminator}}{{^hasSseTerminator}}null{{/hasSseTerminator}},
+{{/vendorExtensions.op.streamsSse}}
+                streamOptions);
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 
 {{#servers}}{{#-first}}
 {{>api/operation_doc_noserver}}
@@ -329,196 +395,7 @@ public class {{classname}} extends BaseApi implements {{classname}}Interface {
     @Override
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
 {{/vendorExtensions.hasMultipleConsumes}}
-{{#pathParams}}
-{{#required}}
-        if ({{paramName}} == null{{#isString}}{{^isUuid}} || {{paramName}}.isEmpty(){{/isUuid}}{{/isString}}) {
-            throw new IllegalArgumentException(
-                    "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-        }
-{{/required}}
-{{/pathParams}}
-{{#bodyParam}}
-{{#required}}
-        if ({{paramName}} == null) {
-            throw new IllegalArgumentException(
-                    "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-        }
-{{/required}}
-{{/bodyParam}}
-{{! A required Options object that is null reports the first required field, so each required check below tests the Options object itself. Objects.isNull rather than a plain comparison keeps SpotBugs from flagging the repeats as redundant. }}
-{{#queryParams}}
-{{#required}}
-{{#vendorExtensions.param.queryRequiredNullable}}
-        if (java.util.Objects.isNull(options){{#isString}}{{^isUuid}} || (options.{{paramName}}() != null && options.{{paramName}}().isEmpty()){{/isUuid}}{{/isString}}) {
-            throw new IllegalArgumentException(
-                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
-        }
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{^vendorExtensions.param.queryRequiredNullable}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
-            throw new IllegalArgumentException(
-                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
-        }
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{/required}}
-{{/queryParams}}
-{{#headerParams}}
-{{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
-            throw new IllegalArgumentException(
-                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
-        }
-{{/required}}
-{{/headerParams}}
-{{#formParams}}
-{{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
-            throw new IllegalArgumentException(
-                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
-        }
-{{/required}}
-{{/formParams}}
-{{#cookieParams}}
-{{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
-            throw new IllegalArgumentException(
-                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
-        }
-{{/required}}
-{{/cookieParams}}
-        String path{{^pathParams}} = "{{{path}}}";{{/pathParams}}{{#pathParams}}{{#-first}} =
-                "{{{path}}}"{{/-first}}
-                        .replace(
-                                "{" + "{{baseName}}" + "}",
-                                {{#vendorExtensions.param.queryContent}}ValueSerializer.encodePathSegment(objectSerializer.serialize({{{paramName}}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}(String) ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}}){{/vendorExtensions.param.queryContent}}){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
-{{#servers}}
-{{#-first}}
-        if (server != null) {
-            String serverUrl = server.getUrl();
-            if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
-                path = serverUrl + path;
-            }
-        }
-{{/-first}}
-{{/servers}}
-        Map<String, Object> queryParams = new LinkedHashMap<>();
-{{#queryParams}}
-{{#vendorExtensions.param.queryDeepObject}}
-        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
-            queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options.{{paramName}}()));
-        }
-{{/vendorExtensions.param.queryDeepObject}}
-{{#vendorExtensions.param.queryContent}}
-        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
-            queryParams.put("{{baseName}}", objectSerializer.serialize(options.{{paramName}}()));
-        }
-{{/vendorExtensions.param.queryContent}}
-{{#vendorExtensions.param.queryRequiredNullable}}
-        if (options.{{paramName}}() == null) {
-            queryParams.put("{{baseName}}", "");
-        } else {
-            ValueSerializer.putQuery(queryParams, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-        }
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{#vendorExtensions.param.queryStyledAllowEmpty}}
-        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
-            ValueSerializer.putQuery(queryParams, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-        }
-{{/vendorExtensions.param.queryStyledAllowEmpty}}
-{{#vendorExtensions.param.queryStyled}}
-        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
-            ValueSerializer.putQuery(queryParams, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-        }
-{{/vendorExtensions.param.queryStyled}}
-{{/queryParams}}
-        Map<String, String> headerParams = new HashMap<>();
-{{#headerParams}}
-        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
-            headerParams.put(
-                    "{{baseName}}", {{#vendorExtensions.param.queryContent}}objectSerializer.serialize(options.{{paramName}}()){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}(String) ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "header", "{{{dataType}}}", null, "{{style}}", {{isExplode}}){{/vendorExtensions.param.queryContent}});
-        }
-{{/headerParams}}
-{{#hasCookieParams}}
-        java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
-{{#cookieParams}}
-        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
-            String {{paramName}}CookieValue = {{#vendorExtensions.param.queryContent}}encodeContentCookie(objectSerializer.serialize(options.{{paramName}}())){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}String.valueOf(
-                    ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}})){{/vendorExtensions.param.queryContent}};
-            /* RFC 6265 — the value is sent exactly as given when every character is a
-             * legal cookie-octet (a value the caller percent-encoded stays as written),
-             * and is refused before any request otherwise: the SDK never encodes a
-             * cookie value, the caller does. The same rule guards the auth-provided
-             * cookie path in BaseApi, so a CR/LF or control character can never be
-             * interpolated into the Cookie request header (header injection). */
-            if (!isValidCookieName("{{baseName}}")) {
-                throw new IllegalArgumentException(
-                        "Cookie name '{{baseName}}' contains characters forbidden by RFC 6265");
-            }
-            if (!isValidCookieValue({{paramName}}CookieValue)) {
-                throw new IllegalArgumentException(
-                        "Cookie value for '{{baseName}}' contains characters outside the RFC 6265"
-                                + " cookie-octet set; percent-encode the value before passing it");
-            }
-            cookieJoiner.add("{{baseName}}=" + {{paramName}}CookieValue);
-        }
-{{/cookieParams}}
-        if (cookieJoiner.length() > 0) {
-            headerParams.put("Cookie", cookieJoiner.toString());
-        }
-{{/hasCookieParams}}
-{{#hasFormParams}}
-        Map<String, Object> formBody = new LinkedHashMap<>();
-{{#formParams}}
-{{#required}}
-        formBody.put("{{baseName}}", options.{{paramName}}());
-{{/required}}
-{{^required}}
-        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
-            formBody.put("{{baseName}}", options.{{paramName}}());
-        }
-{{/required}}
-{{/formParams}}
-
-{{/hasFormParams}}
-{{#vendorExtensions.hasMultipleConsumes}}
-        /* This operation declares more than one request content-type. The
-         * optional {@code requestContentType} selector lets the caller pick
-         * among the declared types; when unset (null) it defaults to the first
-         * declared type, preserving the historical single-type behaviour. An
-         * unrecognised selector is rejected client-side so a typo never rides
-         * the wire as an undeclared Content-Type. */
-        String effectiveRequestContentType = "{{vendorExtensions.op.effectiveConsumes}}";
-        if (requestContentType != null) {
-            java.util.List<String> declaredContentTypes =
-                    java.util.List.of({{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}});
-            if (!declaredContentTypes.contains(requestContentType)) {
-                throw new IllegalArgumentException(
-                        "Unsupported request content-type '"
-                                + requestContentType
-                                + "' for {{operationId}}; declared types are "
-                                + declaredContentTypes);
-            }
-            effectiveRequestContentType = requestContentType;
-        }
-{{/vendorExtensions.hasMultipleConsumes}}
-{{#vendorExtensions.op.optionsArgOptional}}
-        Integer callTimeout = options != null ? options.timeout() : null;
-        Integer callMaxRetries = options != null ? options.maxRetries() : null;
-        Map<String, String> callHeaders = options != null ? options.headers() : null;
-        if (callHeaders != null) {
-            headerParams.putAll(callHeaders);
-        }
-{{/vendorExtensions.op.optionsArgOptional}}
-{{^vendorExtensions.op.optionsArgOptional}}
-{{#vendorExtensions.op.optionsParamRequired}}
-        Integer callTimeout = options.timeout();
-        Integer callMaxRetries = options.maxRetries();
-        Map<String, String> callHeaders = options.headers();
-        if (callHeaders != null) {
-            headerParams.putAll(callHeaders);
-        }
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/vendorExtensions.op.optionsArgOptional}}
+{{>api/operation_prelude}}
 {{#vendorExtensions.op.hasMultiple2xx}}
         /* More than one 2xx response is declared with its own schema, so the body is
          * decoded as the schema of the status that arrived and wrapped in the union. */
@@ -575,6 +452,7 @@ public class {{classname}} extends BaseApi implements {{classname}}Interface {
                 "{{#lambda.javaString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.javaString}}",
                 "{{#lambda.javaString}}{{{path}}}{{/lambda.javaString}}");
     }
+{{/vendorExtensions.op.streamOnly}}
     {{/operation}}
 
     /**

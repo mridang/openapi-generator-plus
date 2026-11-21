@@ -30,7 +30,9 @@ export * from './models/index{{importFileExtension}}';
  * happens to be named `ApiResponse` (the model wins via the `./models` star
  * export).
  */
-export type { ApiClient, RequestOptions, SendRequestOptions } from './api-client{{importFileExtension}}';
+export type { ApiClient, RequestOptions, SendRequestOptions, SendStreamingOptions } from './api-client{{importFileExtension}}';
+export { ApiStreamResponse } from './api-stream-response{{importFileExtension}}';
+export { ByteStream } from './byte-stream{{importFileExtension}}';
 export type { ApiResult } from './api-result{{importFileExtension}}';
 export { DefaultApiClient } from '#transport';
 

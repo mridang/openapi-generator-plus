@@ -49,7 +49,10 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "mul
 flate2 = "1"
 brotli = "7"
 zstd = "0.13"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+bytes = "1"
+futures-core = "0.3"
+futures-util = "0.3"
 base64 = "0.22"
 sha2 = "0.10"
 uuid = { version = "1", features = ["serde", "v4"] }

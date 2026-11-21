@@ -374,6 +374,25 @@ describe 'Client' do
     _(error.message).must_include('closed')
   end
 
+  it 'bhv_streaming_021 closing the client cancels the open streams, their next read raises the closed-client error and new calls are refused' do
+    server = RawServer.serve { |*args| RawHttp.one_chunk_then_hold(*args) }
+    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
+    client = Petstore::Client::Petstore.new(authenticator)
+    api_client = client.instance_variable_get(:@api_client)
+    open_stream = api_client.send_streaming(:GET, server.url('/items/events'), {}, nil)
+    _(open_stream.body.read(4)).must_equal 'tick'
+
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    client.close
+    _(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).must_be :<, 5
+
+    cancelled = assert_raises(RuntimeError) { open_stream.body.read(1) }
+    _(cancelled.message).must_equal 'ApiClient has been closed and can no longer send requests'
+    assert_raises(RuntimeError) { api_client.send_streaming(:GET, server.url('/items/events'), {}, nil) }
+  ensure
+    server&.close
+  end
+
   it 'bhv_lifecycle_035 a request after close fails with the closed error and never reaches the transport' do
     reached = []
     conn = Faraday.new

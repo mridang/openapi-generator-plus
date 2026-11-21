@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiResult;
+use PetstoreClient\ByteStream;
 use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\AddPetTreatmentOptions;
@@ -138,11 +139,11 @@ interface PetApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function downloadPetDocument(int $petId, int $documentId, ?DownloadPetDocumentOptions $options = null): string;
+    public function downloadPetDocument(int $petId, int $documentId, ?DownloadPetDocumentOptions $options = null): ByteStream;
 
     /**
      * @param DownloadPetDocumentOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<string>
+     * @return ApiResult<ByteStream>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -220,11 +221,11 @@ interface PetApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function getPetAvatar(int $petId, ?GetPetAvatarOptions $options = null): string;
+    public function getPetAvatar(int $petId, ?GetPetAvatarOptions $options = null): ByteStream;
 
     /**
      * @param GetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<string>
+     * @return ApiResult<ByteStream>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -324,11 +325,11 @@ interface PetApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function getPetPhoto(int $petId, int $photoId, ?GetPetPhotoOptions $options = null): string;
+    public function getPetPhoto(int $petId, int $photoId, ?GetPetPhotoOptions $options = null): ByteStream;
 
     /**
      * @param GetPetPhotoOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<string>
+     * @return ApiResult<ByteStream>
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */

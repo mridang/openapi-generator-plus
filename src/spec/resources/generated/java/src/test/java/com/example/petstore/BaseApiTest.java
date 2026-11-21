@@ -199,6 +199,28 @@ public class BaseApiTest {
           "/echo");
     }
 
+    SseStream<String> events(
+        Map<String, String> headerParams, @Nullable StreamOptions streamOptions) {
+      return this.<String>invokeApiForSse(
+          "watchEvents",
+          "GET",
+          "/items/events",
+          new HashMap<>(),
+          headerParams,
+          null,
+          new String[] {"text/event-stream"},
+          "application/json",
+          null,
+          null,
+          null,
+          null,
+          "watch_events",
+          "/items/events",
+          null,
+          null,
+          streamOptions);
+    }
+
     com.example.petstore.ApiResult<ByteStream> stream(String method, String path) {
       return invokeApiForStream(
           "downloadOperation",
@@ -3547,6 +3569,162 @@ public class BaseApiTest {
 
       callWith(transport, null, null, "application/json");
       assertTrue(transport.sentUrl.endsWith("/test/echo"), "the buffered call still works");
+    }
+  }
+
+  /**
+   * Answers each event stream call with the next scripted body and keeps the headers it was sent.
+   */
+  static final class EventStreamClient implements ApiClient {
+    final List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+    private final String[] bodies;
+
+    EventStreamClient(String... bodies) {
+      this.bodies = bodies;
+    }
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method, String url, Map<String, String> headers, @Nullable Object body) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ApiStreamResponse sendStreaming(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @Nullable Object body,
+        @Nullable Integer timeoutMillis,
+        @Nullable Integer maxRetries,
+        @Nullable Integer idleTimeoutMillis) {
+      int index = Math.min(sentHeaders.size(), bodies.length - 1);
+      sentHeaders.add(new HashMap<>(headers));
+      String text = bodies[index];
+      if (text.isEmpty()) {
+        return new ApiStreamResponse(204, Map.of(), new java.io.ByteArrayInputStream(new byte[0]));
+      }
+      return new ApiStreamResponse(
+          200,
+          Map.of("content-type", "text/event-stream"),
+          new java.io.ByteArrayInputStream(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    }
+  }
+
+  private static @Nullable String headerOf(Map<String, String> headers, String name) {
+    for (Map.Entry<String, String> entry : headers.entrySet()) {
+      if (entry.getKey().equalsIgnoreCase(name)) {
+        return entry.getValue();
+      }
+    }
+    return null;
+  }
+
+  private static void drain(SseStream<String> stream) {
+    stream.forEachRemaining(event -> {});
+  }
+
+  @Nested
+  @DisplayName("event streams")
+  class EventStreams {
+
+    @Test
+    @DisplayName(
+        "an operation with a streaming media type gets a stream method, and an SSE or JSON Lines"
+            + " only operation gets no buffered method")
+    void bhvStreaming028AStreamingOperationGetsAStreamMethodAndNoBufferedMethod() {
+      java.util.Set<String> names = new java.util.TreeSet<>();
+      for (java.lang.reflect.Method method : StoreApi.class.getDeclaredMethods()) {
+        names.add(method.getName());
+      }
+      for (String operation : List.of("exportOrders", "watchOrders", "watchNotices")) {
+        assertTrue(names.contains(operation + "Stream"), operation + "Stream");
+        assertFalse(names.contains(operation), "no buffered " + operation);
+        assertFalse(names.contains(operation + "WithHttpInfo"), "no raw " + operation);
+      }
+      assertEquals(
+          JsonLinesStream.class,
+          java.util.Arrays.stream(StoreApi.class.getMethods())
+              .filter(m -> m.getName().equals("exportOrdersStream"))
+              .findFirst()
+              .orElseThrow()
+              .getReturnType());
+      assertEquals(
+          SseStream.class,
+          java.util.Arrays.stream(StoreApi.class.getMethods())
+              .filter(m -> m.getName().equals("watchNoticesStream"))
+              .findFirst()
+              .orElseThrow()
+              .getReturnType());
+    }
+
+    @Test
+    @DisplayName(
+        "an SSE request sends Accept text/event-stream, Cache-Control no-cache and identity"
+            + " encoding unless the caller set them")
+    void bhvSse006AnSseRequestSendsTheEventStreamHeadersUnlessTheCallerSetThem() {
+      var client = new EventStreamClient("data: a\n\n", "");
+      drain(new TestableApi(client, "http://localhost").events(new HashMap<>(), null));
+      Map<String, String> sent = client.sentHeaders.get(0);
+      assertEquals("text/event-stream", headerOf(sent, "Accept"));
+      assertEquals("no-cache", headerOf(sent, "Cache-Control"));
+      assertEquals("identity", headerOf(sent, "Accept-Encoding"));
+
+      var own = new EventStreamClient("data: a\n\n", "");
+      drain(
+          new TestableApi(
+                  own, new Configuration("http://localhost", Map.of("accept-encoding", "gzip")))
+              .events(new HashMap<>(Map.of("cache-control", "max-age=0")), null));
+      Map<String, String> chosen = own.sentHeaders.get(0);
+      assertEquals("max-age=0", headerOf(chosen, "Cache-Control"));
+      assertEquals(1, chosen.keySet().stream().filter("cache-control"::equalsIgnoreCase).count());
+      assertEquals(
+          "gzip", headerOf(chosen, "Accept-Encoding"), "the caller's own encoding is kept");
+      assertEquals(1, chosen.keySet().stream().filter("accept-encoding"::equalsIgnoreCase).count());
+    }
+
+    @Test
+    @DisplayName("an SSE stream sends the initial last event id of the call on its first request")
+    void bhvSse012AnSseStreamSendsTheInitialLastEventIdOnItsFirstRequest() {
+      var client = new EventStreamClient("data: a\n\n", "");
+      drain(
+          new TestableApi(client, "http://localhost")
+              .events(new HashMap<>(), new StreamOptions().lastEventId("42")));
+      assertEquals("42", headerOf(client.sentHeaders.get(0), "Last-Event-ID"));
+    }
+
+    @Test
+    @DisplayName("an SSE reconnect rebuilds the headers so a refreshed token is the one sent")
+    void bhvSse013AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent() {
+      var client = new EventStreamClient("data: a\n\n", "");
+      var counter = new java.util.concurrent.atomic.AtomicInteger();
+      Authenticator rotating =
+          new TestAuthenticator(Map.of(), Map.of(), Map.of()) {
+            @Override
+            public Map<String, String> getAuthHeaders() {
+              return Map.of("Authorization", "Bearer t" + counter.incrementAndGet());
+            }
+          };
+      drain(
+          new TestableApi(client, "http://localhost", rotating)
+              .events(new HashMap<>(), new StreamOptions().reconnectDelay(1)));
+      assertEquals(2, client.sentHeaders.size());
+      assertEquals("Bearer t1", headerOf(client.sentHeaders.get(0), "Authorization"));
+      assertEquals("Bearer t2", headerOf(client.sentHeaders.get(1), "Authorization"));
+    }
+
+    @Test
+    @DisplayName("an SSE reconnect sends Last-Event-ID only when the last event id is not empty")
+    void bhvSse020AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty() {
+      var client = new EventStreamClient("data: a\n\n", "id: 5\ndata: b\n\n", "");
+      drain(
+          new TestableApi(client, "http://localhost")
+              .events(new HashMap<>(), new StreamOptions().reconnectDelay(1)));
+      assertEquals(3, client.sentHeaders.size());
+      assertEquals(null, headerOf(client.sentHeaders.get(0), "Last-Event-ID"));
+      assertEquals(
+          null, headerOf(client.sentHeaders.get(1), "Last-Event-ID"), "no id yet, so none is sent");
+      assertEquals("5", headerOf(client.sentHeaders.get(2), "Last-Event-ID"));
     }
   }
 

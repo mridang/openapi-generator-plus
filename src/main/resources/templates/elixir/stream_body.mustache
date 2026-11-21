@@ -1,0 +1,487 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.StreamBody do
+  @moduledoc """
+  The unread body of a streamed response, as `#{inspect({{moduleName}}.DefaultApiClient)}`
+  hands it out: an `Enumerable` of binaries that is read as it is consumed.
+
+  Each body is owned by one process that makes the request with Req's `into: :self`
+  mode and relays what arrives, one read at a time, to whoever enumerates the
+  body. A process of its own, and not the caller's mailbox, keeps the body
+  readable from any process, lets a read stop at `idle_timeout`, and lets `close/1`
+  and the client's `close/1` abort the connection from outside. The owner
+  stops when the body is closed, when the client is closed (it keeps answering
+  reads with the closed-client error until then) and when the process that
+  opened it exits, which releases the connection.
+
+  A body that arrives encoded with gzip or deflate is decoded as it arrives. The
+  whole module is an internal detail of the transport; a custom transport
+  hands out any `Enumerable` of binaries instead.
+  """
+
+  @enforce_keys [:owner]
+  defstruct [:owner]
+
+  @type t :: %__MODULE__{owner: pid()}
+
+  @typedoc "What opening a body takes: the Req request, the options of this hop, the idle timeout and the owners table of the client."
+  @type spec :: %{
+          required(:req) => term(),
+          required(:options) => keyword(),
+          required(:method) => atom(),
+          required(:idle_timeout) => pos_integer() | nil,
+          required(:owners) => term()
+        }
+
+  # Read one status and header block, then answer reads. The reply to a read
+  # is `{:chunk, binary}`, `:done` or `{:error, exception}`.
+
+  @doc """
+  Makes the request and returns once the response headers have arrived, as
+  `{:ok, status, headers, body}`. `{:error, exception}` is a failure before
+  any response, and `:timeout` means that the headers did not arrive by
+  `deadline` (a `System.monotonic_time(:millisecond)` instant, or `nil`).
+  """
+  @spec open(spec(), integer() | nil) ::
+          {:ok, integer(), map(), t()} | {:error, Exception.t()} | :timeout
+  def open(spec, deadline) do
+    caller = self()
+    ref = make_ref()
+
+    # Linked, so that an owner still waiting for the headers (or for the next
+    # piece of the body) goes down with the process that opened it, whatever
+    # way that process ended.
+    {owner, monitor} = :erlang.spawn_opt(fn -> run(caller, ref, spec) end, [:link, :monitor])
+    register(spec.owners, owner)
+
+    receive do
+      {^ref, {:head, status, headers}} ->
+        Process.demonitor(monitor, [:flush])
+        {:ok, status, headers, %__MODULE__{owner: owner}}
+
+      {^ref, {:error, exception}} ->
+        Process.demonitor(monitor, [:flush])
+        unregister(spec.owners, owner)
+        {:error, exception}
+
+      {:DOWN, ^monitor, :process, ^owner, reason} ->
+        unregister(spec.owners, owner)
+
+        {:error,
+         {{moduleName}}.Errors.NetworkError.exception(
+           message: "The request stopped before the response headers arrived: #{inspect(reason)}",
+           status_code: 0
+         )}
+    after
+      remaining(deadline) ->
+        Process.demonitor(monitor, [:flush])
+        kill(owner)
+        unregister(spec.owners, owner)
+        :timeout
+    end
+  end
+
+  defp remaining(nil), do: :infinity
+  defp remaining(deadline), do: max(deadline - System.monotonic_time(:millisecond), 0)
+
+  @doc """
+  Reads the next piece of the body: `{:chunk, binary}`, `:done` at the end, or
+  `{:error, exception}`.
+  """
+  @spec read(t()) :: {:chunk, binary()} | :done | {:error, Exception.t()}
+  def read(%__MODULE__{owner: owner}) do
+    ref = make_ref()
+    monitor = Process.monitor(owner)
+    send(owner, {:read, ref, self()})
+
+    receive do
+      {^ref, reply} ->
+        Process.demonitor(monitor, [:flush])
+        reply
+
+      {:DOWN, ^monitor, :process, ^owner, _reason} ->
+        {:error,
+         {{moduleName}}.Errors.StreamError.exception(
+           message: "The response body is closed and can no longer be read",
+           status_code: 0
+         )}
+    end
+  end
+
+  @doc """
+  Closes the body and aborts the connection instead of draining it. Idempotent.
+  """
+  @spec close(t()) :: :ok
+  def close(%__MODULE__{owner: owner}) do
+    ref = make_ref()
+    monitor = Process.monitor(owner)
+    send(owner, {:close, ref, self()})
+
+    receive do
+      {^ref, :closed} -> :ok
+      {:DOWN, ^monitor, :process, ^owner, _reason} -> :ok
+    after
+      5_000 -> kill(owner)
+    end
+
+    Process.demonitor(monitor, [:flush])
+    :ok
+  end
+
+  # The owner is linked to the process that opened it; it is let go first, so
+  # that killing the owner does not take that process with it.
+  defp kill(owner) do
+    Process.unlink(owner)
+    Process.exit(owner, :kill)
+  end
+
+  @doc """
+  Tells every open body of a client to stop: their next read raises the
+  closed-client error.
+  """
+  @spec cancel_all(term()) :: :ok
+  def cancel_all(nil), do: :ok
+
+  def cancel_all(owners) do
+    for {owner} <- :ets.tab2list(owners), do: send(owner, {:cancel, :client_closed})
+    :ok
+  rescue
+    ArgumentError -> :ok
+  end
+
+  # The table is owned by the process that built the client; once that process
+  # has gone it is gone too, and a body is then cancelled only by the closed
+  # flag it checks on its next read.
+  defp register(nil, _owner), do: :ok
+
+  defp register(owners, owner) do
+    :ets.insert(owners, {owner})
+    :ok
+  rescue
+    ArgumentError -> :ok
+  end
+
+  defp unregister(nil, _owner), do: :ok
+
+  defp unregister(owners, owner) do
+    :ets.delete(owners, owner)
+    :ok
+  rescue
+    ArgumentError -> :ok
+  end
+
+  defimpl Enumerable do
+    def reduce(_body, {:halt, acc}, _fun), do: {:halted, acc}
+    def reduce(body, {:suspend, acc}, fun), do: {:suspended, acc, &reduce(body, &1, fun)}
+
+    def reduce(body, {:cont, acc}, fun) do
+      case {{moduleName}}.StreamBody.read(body) do
+        {:chunk, chunk} -> reduce(body, fun.(chunk, acc), fun)
+        :done -> {:done, acc}
+        {:error, exception} -> raise exception
+      end
+    end
+
+    def count(_body), do: {:error, __MODULE__}
+
+    def member?(_body, _value), do: {:error, __MODULE__}
+
+    def slice(_body), do: {:error, __MODULE__}
+  end
+
+  # ---------------------------------------------------------------------------
+  # The owner process
+  # ---------------------------------------------------------------------------
+
+  defp run(caller, ref, spec) do
+    monitor = Process.monitor(caller)
+
+    case Req.request(spec.req, spec.options ++ [into: :self]) do
+      {:ok, %Req.Response{} = response} ->
+        state = start_state(response, spec, monitor)
+        send(caller, {ref, {:head, response.status, state.headers}})
+        serve(state)
+
+      {:error, exception} ->
+        send(caller, {ref, {:error, exception}})
+    end
+  rescue
+    exception -> send(caller, {ref, {:error, exception}})
+  catch
+    kind, reason ->
+      send(
+        caller,
+        {ref,
+         {:error,
+          {{moduleName}}.Errors.NetworkError.exception(
+            message: "The request stopped before the response headers arrived: #{inspect({kind, reason})}",
+            status_code: 0
+          )}}
+      )
+  end
+
+  defp start_state(%Req.Response{} = response, spec, monitor) do
+    headers = {{moduleName}}.DefaultApiClient.normalize_headers(response.headers)
+    decoder = decoder_for(Map.get(headers, "content-encoding"))
+
+    {mode, pending} =
+      case response.body do
+        %Req.Response.Async{} -> {:async, []}
+        body when is_binary(body) and body != "" -> {:buffered, [body]}
+        _empty -> {:buffered, []}
+      end
+
+    %{
+      response: response,
+      mode: mode,
+      pending: pending,
+      status: response.status,
+      method: spec.method,
+      headers: shown_headers(headers, decoder),
+      decoder: decoder,
+      wire: 0,
+      declared: declared_length(spec.method, response.status, headers),
+      idle: spec.idle_timeout,
+      monitor: monitor,
+      owners: spec.owners,
+      terminal: nil
+    }
+  end
+
+  # Once the body is decoded the headers no longer describe it, so
+  # Content-Encoding and Content-Length are dropped.
+  defp shown_headers(headers, nil), do: headers
+  defp shown_headers(headers, _decoder), do: Map.drop(headers, ["content-encoding", "content-length"])
+
+  defp declared_length(method, status, headers) do
+    chunked? = headers |> Map.get("transfer-encoding", "") |> String.downcase() |> String.contains?("chunked")
+
+    with false <- chunked?,
+         false <- method == :head or status in [204, 304] or status < 200,
+         value when is_binary(value) <- Map.get(headers, "content-length"),
+         {length, ""} <- Integer.parse(String.trim(value)) do
+      length
+    else
+      _none -> nil
+    end
+  end
+
+  defp decoder_for(encoding) do
+    case encoding |> to_string() |> String.trim() |> String.downcase() do
+      encoding when encoding in ["", "identity"] -> nil
+      encoding when encoding in ["gzip", "x-gzip"] -> {:zlib, encoding, 31}
+      "deflate" -> {:zlib, "deflate", 15}
+      other -> {:unsupported, other}
+    end
+  end
+
+  defp serve(state) do
+    monitor = state.monitor
+
+    receive do
+      {:read, ref, from} -> read_request(state, ref, from)
+      {:close, ref, from} -> stop(state, {ref, from})
+      {:cancel, :client_closed} -> serve(finish(state, {:error, closed_error()}))
+      {:DOWN, ^monitor, :process, _pid, _reason} -> stop(state, nil)
+    end
+  end
+
+  defp read_request(%{terminal: nil} = state, ref, from), do: await(state, ref, from)
+
+  defp read_request(%{terminal: terminal} = state, ref, from) do
+    send(from, {ref, terminal})
+    serve(state)
+  end
+
+  # Waits for the next piece of a body that is still arriving, for at most the
+  # idle timeout, while still listening for a close, a cancel and the end of
+  # the process that opened the body.
+  defp await(%{mode: :buffered} = state, ref, from), do: deliver_buffered(state, ref, from)
+
+  defp await(state, ref, from) do
+    async_ref = state.response.body.ref
+    monitor = state.monitor
+
+    receive do
+      {^async_ref, _payload} = message ->
+        handle_wire(state, message, ref, from)
+
+      {:close, close_ref, closer} ->
+        send(from, {ref, {:error, closed_by_caller()}})
+        stop(state, {close_ref, closer})
+
+      {:cancel, :client_closed} ->
+        state = finish(state, {:error, closed_error()})
+        send(from, {ref, state.terminal})
+        serve(state)
+
+      {:DOWN, ^monitor, :process, _pid, _reason} ->
+        stop(state, nil)
+    after
+      state.idle || :infinity ->
+        state = finish(state, {:error, idle_error(state)})
+        send(from, {ref, state.terminal})
+        serve(state)
+    end
+  end
+
+  defp deliver_buffered(%{pending: [chunk | rest]} = state, ref, from) do
+    handle_data(%{state | pending: rest}, chunk, ref, from)
+  end
+
+  defp deliver_buffered(state, ref, from) do
+    state = finish_body(state)
+    send(from, {ref, state.terminal})
+    serve(state)
+  end
+
+  defp handle_wire(state, message, ref, from) do
+    case Req.parse_message(state.response, message) do
+      {:ok, [data: data]} ->
+        handle_data(state, data, ref, from)
+
+      {:ok, [:done]} ->
+        state = finish_body(state)
+        send(from, {ref, state.terminal})
+        serve(state)
+
+      {:error, reason} ->
+        state = finish(state, {:error, stream_error(state, reason)})
+        send(from, {ref, state.terminal})
+        serve(state)
+
+      _ignored ->
+        await(state, ref, from)
+    end
+  end
+
+  defp handle_data(state, data, ref, from) do
+    state = %{state | wire: state.wire + byte_size(data)}
+
+    case decode(state, data) do
+      {:ok, state, <<>>} ->
+        await(state, ref, from)
+
+      {:ok, state, chunk} ->
+        send(from, {ref, {:chunk, chunk}})
+        serve(state)
+
+      {:error, exception} ->
+        state = finish(state, {:error, exception})
+        send(from, {ref, state.terminal})
+        serve(state)
+    end
+  end
+
+  defp decode(state, data) do
+    case state.decoder do
+      nil ->
+        {:ok, state, data}
+
+      {:zlib, label, window_bits} ->
+        decode_zlib(state, label, window_bits, data)
+
+      {:unsupported, label} ->
+        {:error, decode_error("Unsupported Content-Encoding '#{label}' for a streamed body", state, nil)}
+
+      {:open, label, zstream} ->
+        inflate(state, label, zstream, data)
+    end
+  end
+
+  defp decode_zlib(state, label, window_bits, data) do
+    zstream = :zlib.open()
+    :ok = :zlib.inflateInit(zstream, window_bits)
+    inflate(%{state | decoder: {:open, label, zstream}}, label, zstream, data)
+  end
+
+  defp inflate(state, label, zstream, data) do
+    {:ok, state, IO.iodata_to_binary(:zlib.inflate(zstream, data))}
+  rescue
+    error -> {:error, decode_error("Failed to decompress #{label} response body: #{Exception.message(error)}", state, error)}
+  catch
+    kind, reason ->
+      {:error, decode_error("Failed to decompress #{label} response body: #{inspect({kind, reason})}", state, nil)}
+  end
+
+  defp decode_error(message, state, cause) do
+    {{moduleName}}.Errors.ApiError.exception(
+      message: message,
+      status_code: state.status,
+      response_headers: state.headers,
+      cause: cause
+    )
+  end
+
+  # The body ended (only a body that is still being read gets here): a body
+  # shorter than its declared length is never a short success, and the
+  # connection was already handed back, so there is nothing to cancel.
+  defp finish_body(state) do
+    if is_integer(state.declared) and state.wire < state.declared do
+      truncated = "The response body ended after #{state.wire} of the #{state.declared} bytes its Content-Length declared"
+      finish(state, {:error, {{moduleName}}.Errors.StreamError.exception(message: truncated, status_code: 0)})
+    else
+      release_decoder(state)
+      %{state | terminal: :done, decoder: nil}
+    end
+  end
+
+  # Moves to an end state that was reached before the body did: the connection
+  # is aborted, and the caller gets the same answer for every further read.
+  defp finish(state, terminal) do
+    if state.terminal == nil do
+      abort(state)
+      %{state | terminal: terminal, decoder: nil}
+    else
+      state
+    end
+  end
+
+  defp release_decoder(%{decoder: {:open, _label, zstream}}), do: :zlib.close(zstream)
+  defp release_decoder(_state), do: :ok
+
+  defp abort(state) do
+    release_decoder(state)
+    if state.mode == :async and state.terminal == nil, do: Req.cancel_async_response(state.response)
+    :ok
+  catch
+    _kind, _reason -> :ok
+  end
+
+  defp stop(state, closer) do
+    abort(state)
+
+    # The owner is going away: unlisting it keeps the client's table small.
+    unregister(state.owners, self())
+
+    case closer do
+      {ref, from} -> send(from, {ref, :closed})
+      nil -> :ok
+    end
+
+    :ok
+  end
+
+  defp stream_error(state, reason) do
+    {{moduleName}}.Errors.StreamError.exception(
+      message: "The response body failed after the headers: #{error_text(reason)}",
+      status_code: 0,
+      cause: if(is_exception(reason), do: reason),
+      response_headers: state.headers
+    )
+  end
+
+  defp error_text(reason) when is_exception(reason), do: Exception.message(reason)
+  defp error_text(reason), do: inspect(reason)
+
+  defp idle_error(state) do
+    {{moduleName}}.Errors.NetworkTimeoutError.exception(
+      message: "The response body stayed silent for longer than the idle timeout of #{state.idle}ms",
+      status_code: 0
+    )
+  end
+
+  defp closed_error, do: RuntimeError.exception({{moduleName}}.DefaultApiClient.closed_message())
+
+  defp closed_by_caller, do: RuntimeError.exception("The response body has been closed and can no longer be read")
+end

@@ -553,10 +553,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.kt"),
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.kt"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.kt"),
+            new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.kt"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.kt"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.kt"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.kt"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.kt"),
+            new SupportingFileSpec("api_stream_response.mustache", invokerFolder, "ApiStreamResponse.kt"),
+            new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.kt"),
             new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.kt"),
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.kt"),
             new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.kt"),
@@ -1399,12 +1402,15 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        boolean anyBinaryStream = false;
         if (result.getOperations() != null) {
             for (final CodegenOperation op : result.getOperations().getOperation()) {
                 if (op.vendorExtensions == null) {
                     continue;
                 }
                 final Object deco = op.vendorExtensions.get("op");
+                markBinaryStream(op);
+                anyBinaryStream |= "ByteStream".equals(op.returnType);
                 if (deco instanceof Map) {
                     final Map<String, Object> opDeco = (Map<String, Object>) deco;
                     final Object sigArgs = opDeco.get("signatureArgs");
@@ -1416,7 +1422,80 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 }
             }
         }
+        result.put("hasBinaryStream", anyBinaryStream);
         return result;
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator
+     * {@code streamsBinary} tells the templates to call {@code invokeApiForStream}.
+     *
+     * @param op the operation to mark
+     */
+    @SuppressWarnings("unchecked")
+    static void markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final boolean binary = "binary".equals(d.get("streamKind"));
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. Nothing is rendered when the spec has none.
+     *
+     * @param objs the supporting file data
+     * @return the data with the streaming example operation added
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(final Map<String, Object> objs) {
+        CodegenOperation found = null;
+        Object group = null;
+        final Object apiInfo = objs.get("apiInfo");
+        if (apiInfo instanceof Map) {
+            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+            if (apis instanceof List) {
+                for (final Object api : (List<Object>) apis) {
+                    final Object operations = ((Map<String, Object>) api).get("operations");
+                    if (!(operations instanceof Map)) {
+                        continue;
+                    }
+                    final Object list = ((Map<String, Object>) operations).get("operation");
+                    if (!(list instanceof List)) {
+                        continue;
+                    }
+                    for (final Object candidate : (List<Object>) list) {
+                        final CodegenOperation op = (CodegenOperation) candidate;
+                        final Object decorators =
+                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                        if (found == null
+                                && decorators instanceof Map
+                                && Boolean.TRUE.equals(
+                                        ((Map<String, Object>) decorators).get("streamsBinary"))) {
+                            found = op;
+                            group = operations;
+                        }
+                    }
+                }
+            }
+        }
+        objs.put("hasBinaryStreamOperation", found != null);
+        if (found != null) {
+            objs.put("binaryStreamOperation", found);
+            objs.put("binaryStreamGroup", group);
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**

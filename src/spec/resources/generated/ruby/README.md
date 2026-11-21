@@ -77,11 +77,29 @@ See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a w
 
 ### Closing the client
 
-`client.close` is graceful and idempotent. The client is marked closed at once and a request started afterwards raises a `RuntimeError` ("ApiClient has been closed and can no longer send requests"); a request already in flight finishes, and the connection the SDK built is released when the last one completes. A second `close` does nothing, and a `Faraday::Connection` you supplied is never closed.
+`client.close` is graceful and idempotent. The client is marked closed at once and a request started afterwards raises a `RuntimeError` ("ApiClient has been closed and can no longer send requests"); a request already in flight finishes, and the connection the SDK built is released when the last one completes. Streams that are still open are cancelled. A second `close` does nothing, and a `Faraday::Connection` you supplied is never closed.
 
 ### Cookie parameters
 
 A cookie parameter is sent as it is, without percent-encoding, when every character of its value is a legal RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash). Any other value raises an `ArgumentError` before the request is sent, so encode the value yourself first if it holds one of those characters.
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close` that aborts the connection instead of draining it, so close it when you stop early (`ensure`). `read_all` reads the rest into memory and leaves the stream closed.
+
+```ruby file
+require 'petstore_client'
+
+def save_to(client, pet_id, document_id, options, path)
+  stream = client.pet.download_pet_document(pet_id, document_id, options)
+  puts stream.status_code
+  File.open(path, 'wb') { |file| stream.each { |chunk| file.write(chunk) } }
+ensure
+  stream&.close
+end
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `NotImplementedError` naming it, and its buffered calls keep working.
 
 ### Custom HTTP client
 
@@ -241,10 +259,6 @@ end
 ```rb
 client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TelemetryCallHook.new)
 ```
-
-### Streaming
-
-Streaming request and response bodies are not supported: a response is read in full before it is returned and a request body is a string, a model or a file read in full. For a streaming transport, inject your own `Faraday::Connection`.
 
 ### Versioning
 

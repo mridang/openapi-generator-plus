@@ -35,6 +35,9 @@ namespace PetstoreClient;
  */
 final class TransportOptions
 {
+    /** @var int|null The longest a streamed response body may stay silent in milliseconds, or null when disabled. */
+    public readonly ?int $idleTimeout;
+
     /**
      * @param bool                  $verifySsl      Whether TLS certificate verification is enabled
      * @param string|null           $caCertPath     Path to a custom CA certificate bundle for TLS verification
@@ -62,6 +65,13 @@ final class TransportOptions
      *                                               after a 408, 409, 429 or 5xx (except 501) response,
      *                                               with exponential backoff and `Retry-After` honoured.
      *                                               A stream or multipart body is never retried
+     * @param int|null              $idleTimeout    The longest a streamed response body (a binary operation)
+     *                                               may stay silent, in milliseconds. The `timeout` stops at
+     *                                               the response headers and this bounds the gap between two
+     *                                               reads of the body; a stalled body raises
+     *                                               `NetworkTimeoutException`. Defaults to 60000 ms (60
+     *                                               seconds); 0 or `null` disables it (stored as `null`). A
+     *                                               buffered call is unaffected
      */
     public function __construct(
         public readonly bool $verifySsl = true,
@@ -74,6 +84,7 @@ final class TransportOptions
         public readonly array $defaultHeaders = [],
         public readonly bool $injectRequestId = false,
         public readonly int $maxRetries = 2,
+        ?int $idleTimeout = 60000,
     ) {
         self::assertValidProxy($proxy);
         if ($timeout !== null && $timeout <= 0) {
@@ -91,6 +102,12 @@ final class TransportOptions
                 "Invalid maxRetries: must not be negative (got $maxRetries)"
             );
         }
+        if ($idleTimeout !== null && $idleTimeout < 0) {
+            throw new \InvalidArgumentException(
+                "Invalid idleTimeout: must not be negative (got $idleTimeout)"
+            );
+        }
+        $this->idleTimeout = $idleTimeout === 0 ? null : $idleTimeout;
     }
 
     /**
@@ -172,6 +189,7 @@ final class TransportOptions
             'userAgent' => $this->userAgent,
             'injectRequestId' => $this->injectRequestId,
             'maxRetries' => $this->maxRetries,
+            'idleTimeout' => $this->idleTimeout,
             'defaultHeaders' => $headers,
         ];
     }

@@ -228,6 +228,38 @@ type errorFactory = errors_pkg.ErrorFactory
 // Returns the response, or an error if the API call fails (a non-2xx status is
 // returned as the matching *ApiError subclass).
 func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, error) {
+	response, _, err := b.invokeCall(params, false)
+	return response, err
+}
+
+// streamErrorBodyLimit is the most of an error body a stream call reads before
+// it raises the error.
+const streamErrorBodyLimit = 64 * 1024
+
+// invokeApiForStream invokes an operation whose success response is binary and
+// returns its body as an open stream, unread. Everything up to the response
+// headers is the buffered call (the same retries, redirects, authentication, 401
+// replay, headers and call hook); a non-2xx status raises the same typed error
+// as a buffered call, its body read up to 64 KiB and closed, and no stream is
+// returned. The caller owns the returned body and must close it.
+//
+// It returns ErrStreamingUnsupported, naming the transport, when the ApiClient
+// does not implement StreamingApiClient.
+func (b *baseApi) invokeApiForStream(params invokeApiParams) (*ApiStreamResponse, error) {
+	_, streamed, err := b.invokeCall(params, true)
+	return streamed, err
+}
+
+// invokeCall is the one call loop of invokeApiForResult and invokeApiForStream.
+// A stream call returns the open response and no buffered one.
+func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpResponse, *ApiStreamResponse, error) {
+	var streamer StreamingApiClient
+	if stream {
+		var ok bool
+		if streamer, ok = b.apiClient.(StreamingApiClient); !ok {
+			return nil, nil, fmt.Errorf("%w: %T does not implement SendStreaming, so an operation that returns a stream cannot be called through it", ErrStreamingUnsupported, b.apiClient)
+		}
+	}
 	requestURL := params.path
 	if !strings.HasPrefix(requestURL, "http://") && !strings.HasPrefix(requestURL, "https://") {
 		// Strip trailing slash from baseUrl when path starts with `/` so
@@ -290,6 +322,11 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	/* A stream is read after this call returns, so the transport gets the call
+	 * context itself and its own header-phase timer; the budget below only bounds
+	 * the work of this loop (authentication, the waits between retries). */
+	streamCtx := ctx
+	var budgetDeadline time.Time
 	var callTimeout *time.Duration
 	var callMaxRetries *int
 	var callHeaders map[string]string
@@ -506,6 +543,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
+		budgetDeadline, _ = ctx.Deadline()
 	}
 	invalidator, canReplay := effectiveAuth.(auth.AccessTokenInvalidator)
 	/* A multipart body is never replayed after a 401 and never retried after a
@@ -522,11 +560,36 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			/* Failing to authenticate a second time leaves the failure that
 			 * made it necessary as the answer. */
 			if lastFailure != nil {
-				return nil, lastFailure
+				return nil, nil, lastFailure
 			}
-			return nil, buildErr
+			return nil, nil, buildErr
 		}
-		response, err := b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: ctx, Timeout: callTimeout})
+		var response *ApiHttpResponse
+		var streamed *ApiStreamResponse
+		var err error
+		if stream {
+			/* One budget across the attempts: what is left of it is the header
+			 * deadline of this one. The timeout stops at the headers. */
+			attemptTimeout := callTimeout
+			if !budgetDeadline.IsZero() {
+				remaining := max(time.Until(budgetDeadline), time.Nanosecond)
+				attemptTimeout = &remaining
+			}
+			streamed, err = streamer.SendStreaming(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: streamCtx, Timeout: attemptTimeout})
+			if err == nil {
+				if streamed.StatusCode >= 200 && streamed.StatusCode < 300 {
+					response = &ApiHttpResponse{StatusCode: streamed.StatusCode, Headers: streamed.Headers}
+				} else {
+					/* Never a stream for a non-2xx: a bounded part of the error
+					 * body is read and the connection closed, and the typed error
+					 * is raised from it as for a buffered call. */
+					response = streamed.ReadBounded(streamErrorBodyLimit)
+					streamed = nil
+				}
+			}
+		} else {
+			response, err = b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: ctx, Timeout: callTimeout})
+		}
 		if params.call != nil {
 			params.call.record(response)
 		}
@@ -535,7 +598,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			if !streamBody && retries < maxRetries && isIdempotentMethod(params.method) && isRetryableTransportError(err) {
 				proceed, cancelErr := waitBeforeRetry(ctx, retries, nil)
 				if cancelErr != nil {
-					return nil, cancelErr
+					return nil, nil, cancelErr
 				}
 				if proceed {
 					retries++
@@ -543,12 +606,15 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 					continue
 				}
 			}
-			return nil, err
+			return nil, nil, err
 		}
 
 		/* Check for errors */
-		if response.StatusCode >= 200 && response.StatusCode < 400 {
-			return response, nil
+		if streamed != nil {
+			return response, streamed, nil
+		}
+		if !stream && response.StatusCode >= 200 && response.StatusCode < 400 {
+			return response, nil, nil
 		}
 		failure := throwAPIError(response, params.method, requestPath, params.errorFactories)
 		if response.StatusCode == http.StatusUnauthorized && canReplay && !replayed {
@@ -560,7 +626,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		if !streamBody && retries < maxRetries && isRetryableStatus(response.StatusCode) {
 			proceed, cancelErr := waitBeforeRetry(ctx, retries, response.Headers)
 			if cancelErr != nil {
-				return nil, cancelErr
+				return nil, nil, cancelErr
 			}
 			if proceed {
 				retries++
@@ -568,7 +634,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 				continue
 			}
 		}
-		return nil, failure
+		return nil, nil, failure
 	}
 }
 

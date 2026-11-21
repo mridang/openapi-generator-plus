@@ -43,6 +43,40 @@ interface ApiClient : AutoCloseable {
     ): ApiHttpResponse
 
     /**
+     * Send an HTTP request and return as soon as the response headers are accepted, with the body
+     * not read yet.
+     *
+     * The retry, redirect, authentication and header rules are those of [sendRequest], up to the
+     * headers; the call `timeout` stops at the headers, and [TransportOptions.idleTimeout] bounds
+     * the gap between two reads of the body. A request is never retried after the first body byte
+     * has been handed to the caller. A non-2xx response is returned like any other, with its body
+     * open.
+     *
+     * The default implementation throws [UnsupportedOperationException]: a transport that was
+     * written before streaming keeps working for every buffered call, and a call that needs a
+     * stream fails clearly instead of falling back to buffering (a buffered fallback would never
+     * end on an endless feed).
+     *
+     * @param method HTTP method
+     * @param url Fully qualified URL
+     * @param headers HTTP headers
+     * @param body Request body (may be null)
+     * @return the status, the lower-cased headers and the open body
+     * @throws UnsupportedOperationException if this transport cannot stream
+     * @throws ApiException if the request fails
+     */
+    suspend fun sendStreaming(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        body: Any?,
+    ): ApiStreamResponse =
+        throw UnsupportedOperationException(
+            "${javaClass.name} cannot stream: it does not implement sendStreaming, so an operation " +
+                "that returns a stream cannot be called through it",
+        )
+
+    /**
      * Send an OAuth2 token-endpoint request. It never follows a redirect, so the credentials in
      * the body are not replayed to another origin, and it is sent once and never retried.
      */
@@ -56,7 +90,8 @@ interface ApiClient : AutoCloseable {
     /**
      * Releases any resources held by this client (connection pool, executor
      * threads, sockets). Default implementation is a no-op; implementations
-     * that own a pooled HTTP client should override and dispose of it.
+     * that own a pooled HTTP client should override and dispose of it. A
+     * transport that hands out streams should cancel the ones still open.
      *
      * Use with Kotlin's `use { }`:
      * ```

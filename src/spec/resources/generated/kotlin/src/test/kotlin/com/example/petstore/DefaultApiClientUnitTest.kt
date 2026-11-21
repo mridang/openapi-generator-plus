@@ -8,7 +8,10 @@
 package com.example.petstore
 
 import com.example.petstore.errors.ApiException
+import com.example.petstore.errors.NetworkException
+import com.example.petstore.errors.NetworkTimeoutException
 import com.example.petstore.errors.OpenAPIException
+import com.example.petstore.errors.StreamException
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -5097,5 +5100,550 @@ class DefaultApiClientUnitTest {
             }
         runBlocking { DefaultApiClient(client).sendRequest("GET", "http://localhost/test", emptyMap(), null) }
         assertEquals("kept", seen)
+    }
+
+    /** What a scripted raw server does with one connection: the hit number and the request head. */
+    fun interface RawScript {
+        fun run(
+            server: RawServer,
+            socket: java.net.Socket,
+            hit: Int,
+            head: String,
+        )
+    }
+
+    /**
+     * An in-process HTTP/1.1 server on a raw socket, so a test can stall a body, cut it short or
+     * reset the connection, which neither the shared mock server nor a plain HTTP server can do.
+     */
+    class RawServer private constructor(
+        private val listener: java.net.ServerSocket,
+    ) : AutoCloseable {
+        val hits =
+            java.util.concurrent.atomic
+                .AtomicInteger()
+        val heads = java.util.concurrent.CopyOnWriteArrayList<String>()
+
+        /** Opened by a test, or by closing the server, to let a script that waits on it carry on. */
+        val release = java.util.concurrent.CountDownLatch(1)
+
+        /** Counted down by a script whose write failed because the client dropped the connection. */
+        val clientGone = java.util.concurrent.CountDownLatch(1)
+
+        fun url(path: String): String = "http://127.0.0.1:${listener.localPort}$path"
+
+        /** Waits until the test releases the script; true when it did, false when it timed out. */
+        fun awaitRelease(): Boolean = release.await(20, java.util.concurrent.TimeUnit.SECONDS)
+
+        private fun acceptLoop(script: RawScript) {
+            while (!listener.isClosed) {
+                try {
+                    val socket = listener.accept()
+                    kotlin.concurrent.thread(isDaemon = true) { handle(socket, script) }
+                } catch (_: java.io.IOException) {
+                    return
+                }
+            }
+        }
+
+        private fun handle(
+            socket: java.net.Socket,
+            script: RawScript,
+        ) {
+            try {
+                socket.use {
+                    val head = readHead(it.getInputStream())
+                    val hit = hits.incrementAndGet()
+                    heads.add(head)
+                    script.run(this, it, hit, head)
+                }
+            } catch (_: Exception) {
+                // A script that drops the connection ends here, which is what it wanted.
+            }
+        }
+
+        private fun readHead(input: java.io.InputStream): String {
+            val head = StringBuilder()
+            var value = input.read()
+            while (value >= 0) {
+                head.append(value.toChar())
+                if (head.endsWith("\r\n\r\n")) break
+                value = input.read()
+            }
+            return head.toString()
+        }
+
+        override fun close() {
+            release.countDown()
+            listener.close()
+        }
+
+        companion object {
+            /** Starts a server that runs [script] for every connection it accepts. */
+            fun serve(script: RawScript): RawServer {
+                val server = RawServer(java.net.ServerSocket(0, 50, java.net.InetAddress.getLoopbackAddress()))
+                kotlin.concurrent.thread(isDaemon = true) { server.acceptLoop(script) }
+                return server
+            }
+        }
+    }
+
+    companion object {
+        private fun rawHead(
+            socket: java.net.Socket,
+            status: Int,
+            vararg headers: String,
+        ) {
+            val head = StringBuilder("HTTP/1.1 $status Test\r\n")
+            for (header in headers) {
+                head.append(header).append("\r\n")
+            }
+            head.append("Connection: close\r\n\r\n")
+            socket.getOutputStream().write(head.toString().toByteArray(Charsets.ISO_8859_1))
+            socket.getOutputStream().flush()
+        }
+
+        private fun rawChunk(
+            socket: java.net.Socket,
+            data: String,
+        ) {
+            val bytes = data.toByteArray(Charsets.UTF_8)
+            val out = socket.getOutputStream()
+            out.write((Integer.toHexString(bytes.size) + "\r\n").toByteArray(Charsets.ISO_8859_1))
+            out.write(bytes)
+            out.write("\r\n".toByteArray(Charsets.ISO_8859_1))
+            out.flush()
+        }
+
+        private fun rawEnd(socket: java.net.Socket) {
+            socket.getOutputStream().write("0\r\n\r\n".toByteArray(Charsets.ISO_8859_1))
+            socket.getOutputStream().flush()
+        }
+
+        private fun rawBody(
+            socket: java.net.Socket,
+            data: ByteArray,
+        ) {
+            socket.getOutputStream().write(data)
+            socket.getOutputStream().flush()
+        }
+
+        /** Makes the next close of the socket reset the connection instead of ending it cleanly. */
+        private fun rawReset(socket: java.net.Socket) {
+            socket.setSoLinger(true, 0)
+        }
+
+        /** A script for other test classes: one chunk, then silence until the test releases the server. */
+        val oneChunkThenHold =
+            RawScript { server, socket, _, _ ->
+                rawHead(socket, 200, "Transfer-Encoding: chunked")
+                rawChunk(socket, "tick")
+                server.awaitRelease()
+            }
+
+        /** A script for other test classes: a complete two byte text response. */
+        val replyOk =
+            RawScript { _, socket, _, _ ->
+                rawHead(socket, 200, "Content-Type: text/plain", "Content-Length: 2")
+                rawBody(socket, "ok".toByteArray(Charsets.ISO_8859_1))
+            }
+    }
+
+    private fun streamingClient(options: TransportOptions = TransportOptions.builder().build()): DefaultApiClient =
+        DefaultApiClient(options)
+
+    private suspend fun streamOf(
+        server: RawServer,
+        path: String,
+    ): ApiStreamResponse = streamingClient().sendStreaming("GET", server.url(path), emptyMap(), null)
+
+    private fun text(bytes: ByteArray): String = String(bytes, Charsets.UTF_8)
+
+    /** Reads exactly [count] bytes of [body], which a single read need not deliver at once. */
+    private suspend fun readExactly(
+        body: ApiStreamBody,
+        count: Int,
+    ): ByteArray {
+        val collected = java.io.ByteArrayOutputStream()
+        while (collected.size() < count) {
+            val piece = ByteArray(count - collected.size())
+            val read = body.read(piece)
+            if (read < 0) break
+            collected.write(piece, 0, read)
+        }
+        return collected.toByteArray()
+    }
+
+    private fun byteStreamOf(response: ApiStreamResponse): ByteStream = ByteStream(response.statusCode, response.headers, response.body)
+
+    @Test
+    @DisplayName("bhvStreaming001 a binary stream delivers the bytes in order and returns before the body has ended")
+    fun bhvStreaming001ABinaryStreamDeliversTheBytesInOrderAndReturnsBeforeTheBodyHasEnded() {
+        RawServer
+            .serve { self, socket, _, _ ->
+                rawHead(socket, 200, "Content-Type: application/octet-stream", "Transfer-Encoding: chunked")
+                rawChunk(socket, "first-")
+                self.awaitRelease()
+                rawChunk(socket, "second")
+                rawEnd(socket)
+            }.use { server ->
+                runBlocking {
+                    val response = streamOf(server, "/items/blob")
+                    assertEquals(200, response.statusCode)
+                    assertEquals(1L, server.release.count, "the call returned while the body was unfinished")
+                    assertEquals("first-", text(readExactly(response.body, 6)), "the first chunk arrives first")
+                    server.release.countDown()
+                    assertEquals("second", text(byteStreamOf(response).readAll()), "then the rest, in order")
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming010 the call timeout bounds only the wait for the headers, not the body")
+    fun bhvStreaming010TheCallTimeoutBoundsOnlyTheWaitForTheHeadersNotTheBody() {
+        RawServer
+            .serve { _, socket, _, _ ->
+                rawHead(socket, 200, "Transfer-Encoding: chunked")
+                rawChunk(socket, "ab")
+                Thread.sleep(1200)
+                rawChunk(socket, "cd")
+                rawEnd(socket)
+            }.use { server ->
+                runBlocking {
+                    val response =
+                        kotlinx.coroutines.withContext(CallSettings(400L, 0)) {
+                            streamingClient().sendStreaming("GET", server.url("/items/blob"), emptyMap(), null)
+                        }
+                    assertEquals("abcd", text(byteStreamOf(response).readAll()), "the body outlived the 400 ms timeout")
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming011 the idle timeout raises a network timeout error when the server stalls in the middle of the body")
+    fun bhvStreaming011TheIdleTimeoutRaisesANetworkTimeoutErrorWhenTheServerStallsInTheBody() {
+        RawServer
+            .serve { self, socket, _, _ ->
+                rawHead(socket, 200, "Transfer-Encoding: chunked")
+                rawChunk(socket, "ab")
+                self.awaitRelease()
+            }.use { server ->
+                runBlocking {
+                    val client = streamingClient(TransportOptions.builder().idleTimeout(300).build())
+                    val response = client.sendStreaming("GET", server.url("/items/blob"), emptyMap(), null)
+                    assertEquals("ab", text(readExactly(response.body, 2)))
+                    val started = System.nanoTime()
+                    val timeout =
+                        assertThrows(NetworkTimeoutException::class.java) {
+                            runBlocking { response.body.read(ByteArray(8)) }
+                        }
+                    assertEquals(0, timeout.statusCode)
+                    assertTrue(
+                        System.nanoTime() - started <
+                            java.util.concurrent.TimeUnit.SECONDS
+                                .toNanos(5),
+                        "the stall ended by the idle timeout and not by the server",
+                    )
+                    assertEquals(1, server.hits.get(), "a stalled body is not retried")
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming012 a connection reset in the middle of the body raises a network error and is not retried")
+    fun bhvStreaming012AConnectionResetInTheMiddleOfTheBodyRaisesANetworkErrorAndIsNotRetried() {
+        RawServer
+            .serve { _, socket, _, _ ->
+                rawHead(socket, 200, "Transfer-Encoding: chunked")
+                rawChunk(socket, "ab")
+                Thread.sleep(100)
+                rawReset(socket)
+            }.use { server ->
+                runBlocking {
+                    val response = streamOf(server, "/items/blob")
+                    assertThrows(NetworkException::class.java) { runBlocking { byteStreamOf(response).readAll() } }
+                    assertEquals(1, server.hits.get(), "the default of two retries does not apply to a body")
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming013 a body shorter than its Content-Length raises a network error and never a short success")
+    fun bhvStreaming013ABodyShorterThanItsContentLengthRaisesANetworkErrorAndNeverAShortSuccess() {
+        RawServer
+            .serve { _, socket, _, _ ->
+                rawHead(socket, 200, "Content-Length: 10")
+                rawBody(socket, "abcd".toByteArray(Charsets.UTF_8))
+            }.use { server ->
+                runBlocking {
+                    val response = streamOf(server, "/items/blob")
+                    assertThrows(NetworkException::class.java) { runBlocking { byteStreamOf(response).readAll() } }
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming014 a streaming call retries a 503 before the headers and then streams the retried response")
+    fun bhvStreaming014AStreamingCallRetriesA503BeforeTheHeadersAndThenStreamsTheRetriedResponse() {
+        RawServer
+            .serve { _, socket, hit, _ ->
+                if (hit == 1) {
+                    rawHead(socket, 503, "Retry-After: 0", "Content-Length: 4")
+                    rawBody(socket, "nope".toByteArray(Charsets.UTF_8))
+                } else {
+                    rawHead(socket, 200, "Content-Length: 5")
+                    rawBody(socket, "hello".toByteArray(Charsets.UTF_8))
+                }
+            }.use { server ->
+                runBlocking {
+                    val response = streamOf(server, "/items/blob")
+                    assertEquals(200, response.statusCode)
+                    assertEquals("hello", text(byteStreamOf(response).readAll()))
+                    assertEquals(2, server.hits.get())
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming015 a streaming call never retries after the first body byte was delivered")
+    fun bhvStreaming015AStreamingCallNeverRetriesAfterTheFirstBodyByteWasDelivered() {
+        RawServer
+            .serve { _, socket, _, _ ->
+                rawHead(socket, 200, "Transfer-Encoding: chunked")
+                rawChunk(socket, "part")
+                Thread.sleep(100)
+                rawReset(socket)
+            }.use { server ->
+                runBlocking {
+                    val response = streamOf(server, "/items/blob")
+                    assertEquals("part", text(readExactly(response.body, 4)))
+                    assertThrows(NetworkException::class.java) { runBlocking { byteStreamOf(response).readAll() } }
+                    Thread.sleep(300)
+                    assertEquals(1, server.hits.get(), "no second request after the first body byte")
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming016 a streaming call follows a redirect before the body and strips credentials across origins")
+    fun bhvStreaming016AStreamingCallFollowsARedirectBeforeTheBodyAndStripsCredentialsAcrossOrigins() {
+        RawServer
+            .serve { _, socket, _, _ ->
+                rawHead(socket, 200, "Content-Length: 6")
+                rawBody(socket, "landed".toByteArray(Charsets.UTF_8))
+            }.use { target ->
+                RawServer
+                    .serve { _, socket, _, _ ->
+                        rawHead(socket, 302, "Location: ${target.url("/items/final")}", "Content-Length: 0")
+                    }.use { origin ->
+                        runBlocking {
+                            val response =
+                                streamingClient().sendStreaming(
+                                    "GET",
+                                    origin.url("/items/blob"),
+                                    mapOf("Authorization" to "Bearer secret-token", "Cookie" to "session=abc", "X-Trace" to "kept"),
+                                    null,
+                                )
+                            assertEquals("landed", text(byteStreamOf(response).readAll()))
+                            val sentToOrigin = origin.heads[0].lowercase()
+                            val sentToTarget = target.heads[0].lowercase()
+                            assertTrue(sentToOrigin.contains("authorization: bearer secret-token"))
+                            assertFalse(sentToTarget.contains("authorization"), "the credential stays on its origin")
+                            assertFalse(sentToTarget.contains("cookie"), "the cookie stays on its origin")
+                            assertTrue(sentToTarget.contains("x-trace: kept"), "other headers go with the redirect")
+                        }
+                    }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming019 closing a stream twice is safe and aborts the connection")
+    fun bhvStreaming019ClosingAStreamTwiceIsSafeAndAbortsTheConnection() {
+        RawServer
+            .serve { self, socket, _, _ ->
+                rawHead(socket, 200, "Transfer-Encoding: chunked")
+                try {
+                    while (true) {
+                        rawChunk(socket, "x".repeat(4096))
+                        Thread.sleep(5)
+                    }
+                } catch (_: java.io.IOException) {
+                    self.clientGone.countDown()
+                }
+            }.use { server ->
+                runBlocking {
+                    val response = streamOf(server, "/items/blob")
+                    val stream = byteStreamOf(response)
+                    assertEquals(4, readExactly(response.body, 4).size)
+                    stream.close()
+                    stream.close()
+                    response.close()
+                    assertTrue(
+                        server.clientGone.await(10, java.util.concurrent.TimeUnit.SECONDS),
+                        "the server saw the connection dropped and was not made to finish the body",
+                    )
+                    assertThrows(IllegalStateException::class.java) { runBlocking { stream.read(ByteArray(1)) } }
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming020 cancelling the call aborts the stream and is never raised as a timeout")
+    fun bhvStreaming020CancellingTheCallAbortsTheStreamAndIsNeverRaisedAsATimeout() {
+        RawServer.serve { self, _, _, _ -> self.awaitRelease() }.use { silent ->
+            RawServer
+                .serve { self, socket, _, _ ->
+                    rawHead(socket, 200, "Transfer-Encoding: chunked")
+                    rawChunk(socket, "ab")
+                    self.awaitRelease()
+                }.use { stalled ->
+                    runBlocking {
+                        val beforeHeaders = async(kotlinx.coroutines.Dispatchers.Default) { streamOf(silent, "/items/blob") }
+                        while (silent.hits.get() == 0) {
+                            kotlinx.coroutines.delay(10)
+                        }
+                        beforeHeaders.cancelAndJoin()
+                        assertTrue(beforeHeaders.isCancelled)
+                        assertThrows(kotlinx.coroutines.CancellationException::class.java) { runBlocking { beforeHeaders.await() } }
+
+                        val response = streamOf(stalled, "/items/blob")
+                        val inBody = async(kotlinx.coroutines.Dispatchers.Default) { readExactly(response.body, 100) }
+                        kotlinx.coroutines.delay(300)
+                        inBody.cancelAndJoin()
+                        val failure = assertThrows(kotlinx.coroutines.CancellationException::class.java) { runBlocking { inBody.await() } }
+                        assertNotEquals(NetworkTimeoutException::class.java, failure.javaClass)
+                    }
+                }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming022 the string form of a stream hides credentials, the query and the data")
+    fun bhvStreaming022TheStringFormOfAStreamHidesCredentialsTheQueryAndTheData() {
+        RawServer
+            .serve { _, socket, _, _ ->
+                rawHead(socket, 200, "Content-Length: 7", "Set-Cookie: sid=secret-cookie")
+                rawBody(socket, "payload".toByteArray(Charsets.UTF_8))
+            }.use { server ->
+                runBlocking {
+                    val response =
+                        streamingClient().sendStreaming(
+                            "GET",
+                            server.url("/items/blob?token=secret-query"),
+                            mapOf("Authorization" to "Bearer secret-token"),
+                            null,
+                        )
+                    val stream = byteStreamOf(response)
+                    assertEquals("payload", text(stream.readAll()))
+                    for (shown in listOf(stream.toString(), response.toString())) {
+                        assertFalse(shown.contains("secret"), shown)
+                        assertFalse(shown.contains("payload"), shown)
+                        assertFalse(shown.contains("token"), shown)
+                        assertFalse(shown.contains("items"), shown)
+                    }
+                    assertEquals("ByteStream(statusCode=200, bytesDelivered=7)", stream.toString())
+                    assertEquals("ApiStreamResponse(statusCode=200)", response.toString())
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming031 closing a live endless stream returns promptly and does not wait for the server")
+    fun bhvStreaming031ClosingALiveEndlessStreamReturnsPromptlyAndDoesNotWaitForTheServer() {
+        RawServer
+            .serve { self, socket, _, _ ->
+                rawHead(socket, 200, "Transfer-Encoding: chunked")
+                rawChunk(socket, "tick")
+                self.awaitRelease()
+            }.use { server ->
+                runBlocking {
+                    val response = streamOf(server, "/items/events")
+                    assertEquals("tick", text(readExactly(response.body, 4)))
+                    val started = System.nanoTime()
+                    response.close()
+                    assertTrue(
+                        System.nanoTime() - started <
+                            java.util.concurrent.TimeUnit.SECONDS
+                                .toNanos(2),
+                        "close aborted the connection instead of waiting for the endless body",
+                    )
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming032 a reset or truncation after the headers raises a StreamException that is a network error")
+    fun bhvStreaming032AResetOrTruncationAfterTheHeadersRaisesAStreamErrorThatIsANetworkError() {
+        RawServer
+            .serve { _, socket, _, _ ->
+                rawHead(socket, 200, "Transfer-Encoding: chunked")
+                rawChunk(socket, "ab")
+                Thread.sleep(100)
+                rawReset(socket)
+            }.use { reset ->
+                RawServer
+                    .serve { _, socket, _, _ ->
+                        rawHead(socket, 200, "Content-Length: 10")
+                        rawBody(socket, "abcd".toByteArray(Charsets.UTF_8))
+                    }.use { cut ->
+                        runBlocking {
+                            for (server in listOf(reset, cut)) {
+                                val stream = byteStreamOf(streamOf(server, "/items/blob"))
+                                val failure = assertThrows(StreamException::class.java) { runBlocking { stream.readAll() } }
+                                val asNetwork: NetworkException = failure
+                                assertEquals(0, asNetwork.statusCode)
+                            }
+                        }
+                    }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming033 stopping a stream early without reading it to the end releases the connection")
+    fun bhvStreaming033StoppingAStreamEarlyWithoutReadingItToTheEndReleasesTheConnection() {
+        RawServer
+            .serve { self, socket, _, _ ->
+                rawHead(socket, 200, "Transfer-Encoding: chunked")
+                try {
+                    while (true) {
+                        rawChunk(socket, "x".repeat(4096))
+                        Thread.sleep(5)
+                    }
+                } catch (_: java.io.IOException) {
+                    self.clientGone.countDown()
+                }
+            }.use { server ->
+                runBlocking {
+                    byteStreamOf(streamOf(server, "/items/events")).use { stream ->
+                        assertTrue(stream.read(ByteArray(10)) > 0)
+                    }
+                    assertTrue(
+                        server.clientGone.await(10, java.util.concurrent.TimeUnit.SECONDS),
+                        "leaving the scope dropped the connection",
+                    )
+                }
+            }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming029 the read-all helper of a byte stream returns every byte in order and leaves the stream closed")
+    fun bhvStreaming029TheReadAllHelperOfAByteStreamReturnsEveryByteInOrderAndLeavesItClosed() {
+        val payload = ByteArray(100_000) { (it * 31).toByte() }
+        RawServer
+            .serve { _, socket, _, _ ->
+                rawHead(socket, 200, "Content-Length: ${payload.size}")
+                rawBody(socket, payload)
+            }.use { server ->
+                runBlocking {
+                    val stream = byteStreamOf(streamOf(server, "/items/blob"))
+                    assertArrayEquals(payload, stream.readAll(), "every byte, in order")
+                    assertEquals("ByteStream(statusCode=200, bytesDelivered=100000)", stream.toString())
+                    assertThrows(
+                        IllegalStateException::class.java,
+                        { runBlocking { stream.read(ByteArray(1)) } },
+                        "the helper left the stream closed",
+                    )
+                }
+            }
     }
 }

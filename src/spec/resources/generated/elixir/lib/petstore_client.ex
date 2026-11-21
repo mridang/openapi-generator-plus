@@ -50,6 +50,7 @@ defmodule PetstoreClient do
       PetstoreClient.Errors.InternalServerError
       PetstoreClient.Errors.NetworkError   # no response at all
       PetstoreClient.Errors.NetworkTimeoutError
+      PetstoreClient.Errors.StreamError
       PetstoreClient.Errors.SerializationError
       PetstoreClient.Errors.OAuth2ServerError
       PetstoreClient.Errors.OAuth2TokenError

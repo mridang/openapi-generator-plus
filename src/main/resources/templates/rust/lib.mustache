@@ -12,8 +12,11 @@ pub mod api;
 pub mod api_client;
 pub mod client;
 pub mod auth;
+/* The carrier of a binary response, read as it arrives. */
+pub mod byte_stream;
 pub mod api_http_response;
 pub mod api_result;
+pub mod api_stream_response;
 /* The call hook that runs around every operation call. It names no
  * OpenTelemetry type: the adapter is its own module. */
 pub mod call_hook;
@@ -63,7 +66,9 @@ pub use client::{{clientClassName}};
 pub use client::{{clientClassName}}Trait;
 pub use api_http_response::ApiHttpResponse;
 pub use api_result::ApiResult;
+pub use api_stream_response::{ApiStreamResponse, BodyStream};
 pub use auth::Authenticator;
+pub use byte_stream::ByteStream;
 pub use call_hook::{CallCancelled, CallHook, CallInfo, CallObserver, CallOutcome};
 pub use configuration::{Configuration, ConfigurationBuilder};
 {{#hasSecuritySchemeEnvVars}}

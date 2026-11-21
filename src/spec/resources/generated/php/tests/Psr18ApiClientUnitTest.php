@@ -6,6 +6,7 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Errors\ApiException;
+use PetstoreClient\Errors\StreamException;
 use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
 use PetstoreClient\TransportOptionsBuilder;
@@ -849,4 +850,24 @@ test('bhv misc 267 the default headers of a caller supplied http client are sent
         expect($request->getHeaderLine('X-Caller-Default'))->toBe('on');
         expect($request->hasHeader('X-Sdk'))->toBeTrue();
     }
+});
+
+test('bhv streaming 001 a psr18 transport hands back the body of the response as a stream in order', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, 'payload', ['Content-Type' => 'application/octet-stream', 'X-Mixed-Case' => 'kept']));
+    $client = newPsr18Client($stub);
+
+    $stream = $client->sendStreaming('GET', 'http://example.com/items/blob', [], null);
+
+    expect($stream->statusCode)->toBe(200);
+    expect($stream->headers)->toHaveKey('x-mixed-case');
+    expect($stream->read(3))->toBe('pay');
+    expect($stream->readAll())->toBe('load');
+});
+
+test('bhv streaming 013 a psr18 stream that ends before its content length raises a stream error', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, 'abcd', ['Content-Length' => '10']));
+    $client = newPsr18Client($stub);
+    $stream = $client->sendStreaming('GET', 'http://example.com/items/blob', [], null);
+
+    expect(fn (): string => $stream->readAll())->toThrow(StreamException::class);
 });

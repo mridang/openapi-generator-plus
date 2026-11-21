@@ -97,6 +97,32 @@ without that, set the request timeout on `TransportOptions`; a call that
 exceeds it fails with `NetworkTimeoutError`. Cancellation is never reported as
 `NetworkTimeoutError`.
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (dropping it does the same). `read_all()` reads the rest into memory and leaves the stream closed.
+
+```rust file
+use futures_util::StreamExt as _;
+
+use petstore::Client;
+
+async fn download(
+    client: &Client,
+    pet_id: i64,
+    document_id: i64,
+) -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
+    let mut stream = client.pet.download_pet_document(pet_id, document_id, None).await?;
+    println!("{}", stream.status_code());
+    let mut size = 0;
+    while let Some(chunk) = stream.next().await {
+        size += chunk?.len() as u64;
+    }
+    Ok(size)
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `Some(0)` or `None` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with the `Unsupported` I/O error naming it, and its buffered calls keep working.
+
 ### Custom HTTP client
 
 The client's `with_http_client(authenticator, client, transport_options)` constructor sends
@@ -284,9 +310,6 @@ the inner type and stores `Some(value)`.
 - **Repeated response headers.** `ApiResult::headers()` is a map with one entry
   per lower-cased name, and a header the server sent more than once is joined
   into that entry with `, ` in wire order (RFC 9110 section 5.3).
-- **No streaming.** A response body is read into memory, and a request body is a
-  value, not a stream. To stream, send the request through your own
-  `reqwest::Client` (see Custom HTTP client) or through the injected transport.
 - **`Configuration` and `TransportOptions` are separate on purpose.**
   `Configuration` describes the API the operations talk to (the base URL and the
   headers an API group adds to its calls); `TransportOptions` configures the HTTP

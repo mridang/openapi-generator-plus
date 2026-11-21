@@ -20,7 +20,7 @@ The crate forbids `unsafe` code (`unsafe_code = "forbid"`).
 | `string` / `duration` | `chrono::TimeDelta` | Serialised through `crate::proto_duration` as the protobuf-JSON string such as `"3600s"`, not ISO 8601. |
 | `string` / `uuid` | `uuid::Uuid` | |
 | `string` / `byte` | `Vec<u8>` | Base64 through a serde adapter. |
-| `string` / `binary`, file bodies | `Vec<u8>` | Held fully in memory, for uploads and downloads. |
+| `string` / `binary`, file bodies | `Vec<u8>` for a request body; `ByteStream` (a `Stream` of `Bytes`) for a response | The response body is read as you consume it, see Streaming. |
 | `string` / `uri` | `String` | |
 | `integer` / `int32` | `i32` | `short` maps to `i16`. |
 | `integer` / `int64` | `i64` | |
@@ -88,6 +88,7 @@ The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example 
 - Every operation takes an optional trailing `options` argument (`Option<&...Options>`), even one with no parameters and no security. Besides the operation's own parameters the Options struct carries `timeout(Duration)`, `max_retries(u32)` (`0` turns retrying off) and `header(name, value)` for that one call. An Options struct for an operation with no parameters and no security has no `auth` field.
 
 - Operations return `Result<_, Box<dyn Error>>`. Caller mistakes are a typed `ConfigurationError`.
+- Streaming. An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns `ByteStream` from the one operation method (there is no second method), and `..._with_http_info` returns `ApiResult<ByteStream>` with an empty `raw_body()`. `ByteStream` is a `futures_core::Stream` of `Result<Bytes, Box<dyn Error + Send + Sync>>` with `status_code()`, the lower-cased `headers()`, an idempotent `close()` that aborts the connection instead of draining it (dropping it does the same), `is_closed()`, `bytes_delivered()` and `read_all(&mut self)` that reads the rest and leaves the stream closed; its `Debug` and `Display` show only the status and the bytes delivered. The transport gets `ApiClient::send_streaming(method, url, headers, body, &RequestOptions)`, which returns an `ApiStreamResponse` (status, headers, an unread body); its default implementation returns an `std::io::ErrorKind::Unsupported` error that names the transport, so an injected `ApiClient` keeps working for buffered calls. `TransportOptions::idle_timeout` (default `Some(60000)` ms, `Some(0)` or `None` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`; the call `timeout` stops at the headers. A reset or a body shorter than its `Content-Length` raises `StreamError`, a `NetworkError` with status 0. `Client::close()` cancels the open streams, whose next read raises `ConfigurationError::InvalidState`. The request asks for an unencoded body (`Accept-Encoding: identity`) and the stream hands the bytes on as the server sent them.
 - There is no cancellation API. Drop the future to cancel a call, and use the `timeout` setting to bound one.
 - `auth_headers()` is infallible, and `try_auth_headers()` is the variant that returns a `Result`.
 - Rust has no overloads or default arguments, so variants carry their own names, such as `*_with_content_type`, `get_access_token_with_refresh_url` and `send_request_with_options`.
@@ -174,7 +175,7 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 - An operation whose security requirement names two schemes sends both credentials; an alternative is used only when the client holds every scheme in it.
 
 - `format: decimal` and `number` are `f64` and lose exactness.
-- `Vec<u8>` bodies are in memory, so streaming large uploads or downloads is not possible.
+- A request body and a JSON, text or form response body are read whole into memory. Only a binary response is a stream; there is no JSON Lines or server-sent events API yet.
 - Typed maps (`HashMap`) do not keep key order, while `JsonValue` does.
 - An optional nullable property cannot tell an absent key from an explicit `null`. Both are `None`.
 - `allOf` with a discriminator is not implemented yet.

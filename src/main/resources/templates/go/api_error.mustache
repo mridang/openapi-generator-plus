@@ -346,6 +346,13 @@ func NewNetworkTimeoutError(msg string, cause error) *NetworkTimeoutError {
 	return &NetworkTimeoutError{NetworkError: NetworkError{ApiError: ApiError{msg: msg, cause: cause}}}
 }
 
+// NewStreamError creates the error for a response body that failed after its
+// headers arrived (a reset, or a body shorter than its Content-Length). The
+// status code is always 0; the underlying error is kept as the cause.
+func NewStreamError(msg string, cause error) *StreamError {
+	return &StreamError{NetworkError: NetworkError{ApiError: ApiError{msg: msg, cause: cause}}}
+}
+
 // FromResponse is the one status-to-error mapping in the SDK: the error a
 // non-2xx response with this status returns. The API classes and the OpenID
 // Connect discovery both use it, so this is the one place the mapping lives.

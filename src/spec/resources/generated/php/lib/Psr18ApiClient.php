@@ -15,6 +15,7 @@ namespace PetstoreClient;
 
 use PetstoreClient\Errors\NetworkException;
 use PetstoreClient\Errors\NetworkTimeoutException;
+use PetstoreClient\Errors\StreamException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -70,21 +71,18 @@ class Psr18ApiClient extends AbstractApiClient
     }
 
     /**
-     * Perform a single PSR-18 request with no automatic redirect following,
-     * returning the raw status, body, and multi-value headers.
-     *
-     * Handles multipart/form-data encoding when $body is an array, owning the
-     * boundary-bearing `Content-Type` header in that case.
+     * Builds the PSR-7 request of one exchange: the headers and the body, with multipart/form-data
+     * encoding when $body is an array, in which case the boundary-bearing `Content-Type` header is
+     * owned here.
      *
      * @param array<string, string> $headers
-     * @throws NetworkException if the request fails at the transport level
      */
-    protected function execute(
+    private function buildRequest(
         string $method,
         string $url,
         array $headers,
         mixed $body,
-    ): RawHttpResponse {
+    ): \Psr\Http\Message\RequestInterface {
         $request = $this->requestFactory->createRequest($method, $url);
         foreach ($headers as $name => $value) {
             $request = $request->withHeader($name, $value);
@@ -107,6 +105,27 @@ class Psr18ApiClient extends AbstractApiClient
             }
         }
 
+        return $request;
+    }
+
+    /**
+     * Perform a single PSR-18 request with no automatic redirect following,
+     * returning the raw status, body, and multi-value headers.
+     *
+     * Handles multipart/form-data encoding when $body is an array, owning the
+     * boundary-bearing `Content-Type` header in that case.
+     *
+     * @param array<string, string> $headers
+     * @throws NetworkException if the request fails at the transport level
+     */
+    protected function execute(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+    ): RawHttpResponse {
+        $request = $this->buildRequest($method, $url, $headers, $body);
+
         try {
             $response = $this->httpClient->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
@@ -115,10 +134,10 @@ class Psr18ApiClient extends AbstractApiClient
              * wraps it); anything else is a failure with no HTTP response. */
             for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
                 if ($cause instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface) {
-                    throw new NetworkTimeoutException("API Request timed out: " . $this->redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+                    throw new NetworkTimeoutException("API Request timed out: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
                 }
             }
-            throw new NetworkException("API Request failed: " . $this->redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+            throw new NetworkException("API Request failed: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
         }
 
         $rawHeaders = [];
@@ -134,6 +153,83 @@ class Psr18ApiClient extends AbstractApiClient
     }
 
     /**
+     * Perform the header phase of a single streaming PSR-18 request with no automatic redirect
+     * following: the request is built as {@see execute()} builds it and the body is left unread,
+     * read lazily from the PSR-7 stream of the response.
+     *
+     * A PSR-18 client may buffer the whole body before it returns, in which case the stream
+     * delivers it all at once, never a hang. PSR-18 carries no timeouts, so the idle timeout
+     * is not applied here: configure it on your own client.
+     *
+     * @param array<string, string> $headers
+     * @param float|null            $idleSeconds not applied, see above
+     * @throws NetworkException if the request fails at the transport level
+     */
+    protected function executeStreaming(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        ?float $idleSeconds,
+    ): RawStreamResponse {
+        $request = $this->buildRequest($method, $url, $headers, $body);
+        try {
+            $response = $this->httpClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
+                if ($cause instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface) {
+                    throw new NetworkTimeoutException("API Request timed out: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+                }
+            }
+            throw new NetworkException("API Request failed: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+        }
+
+        $rawHeaders = [];
+        foreach ($response->getHeaders() as $name => $values) {
+            $rawHeaders[strtolower($name)] = array_values($values);
+        }
+        $source = $response->getBody();
+        $path = self::redactUrlQuery($url, $url);
+        $finished = false;
+
+        return new RawStreamResponse(
+            $response->getStatusCode(),
+            $rawHeaders,
+            static function () use ($source, $method, $url, $path, &$finished): ?string {
+                if ($finished) {
+                    return null;
+                }
+                try {
+                    while (!$source->eof()) {
+                        $data = $source->read(65536);
+                        if ($data !== '') {
+                            return $data;
+                        }
+                    }
+                } catch (\RuntimeException $e) {
+                    $finished = true;
+                    throw new StreamException(
+                        'The response body failed after the headers: ' . self::redactUrlQuery($e->getMessage(), $url),
+                        $e,
+                        $method,
+                        $path
+                    );
+                }
+                $finished = true;
+
+                return null;
+            },
+            static function () use ($source): void {
+                try {
+                    $source->close();
+                } catch (\Throwable) {
+                    /* the connection is being dropped either way */
+                }
+            }
+        );
+    }
+
+    /**
      * Marks the client closed so a subsequent {@see sendRequest()} raises an
      * SDK-typed {@see \PetstoreClient\Errors\ApiException}, matching the use-after-close contract of
      * the other transports. The injected PSR-18 client is owned by the caller
@@ -141,6 +237,7 @@ class Psr18ApiClient extends AbstractApiClient
      */
     public function close(): void
     {
+        $this->cancelOpenStreams();
         $this->closed = true;
     }
 
@@ -234,7 +331,7 @@ class Psr18ApiClient extends AbstractApiClient
      * with the same URL minus its query string and fragment, so a secret carried
      * in the query never reaches an error message.
      */
-    private function redactUrlQuery(string $message, string $url): string
+    private static function redactUrlQuery(string $message, string $url): string
     {
         $withoutQuery = explode('?', explode('#', $url, 2)[0], 2)[0];
 
