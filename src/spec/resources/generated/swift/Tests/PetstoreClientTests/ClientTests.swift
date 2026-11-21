@@ -106,6 +106,39 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(ClientStubProtocol.lastRequest(host: "supplied-042.example.com") != nil)
   }
 
+  /* Closing the client cancels the streams that are open: the next read of each throws the closed-client error, and new calls are refused. */
+  @Test func testBhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Type: application/octet-stream", "Transfer-Encoding: chunked")
+      connection.chunk("tick")
+      connection.server.awaitRelease()
+    }
+    defer { server.stop() }
+    let client = try Client(
+      authenticator: try BearerAuthenticator(host: server.origin, token: "t"))
+    let stream = try await client.pet.getPetAvatar(petId: 1)
+    var iterator = stream.makeAsyncIterator()
+    let first = try #require(try await iterator.next())
+    #expect(String(decoding: first, as: UTF8.self) == "tick")
+
+    let started = Date()
+    client.close()
+    #expect(Date().timeIntervalSince(started) < 5, "closing did not wait for the endless stream")
+
+    let closed = ConfigurationError.invalidState(
+      "ApiClient has been closed and can no longer send requests")
+    let cancelled = await #expect(throws: ConfigurationError.self) {
+      _ = try await iterator.next()
+    }
+    #expect(cancelled == closed)
+    let refused = await #expect(throws: ConfigurationError.self) {
+      _ = try await client.pet.getPetAvatar(petId: 1)
+    }
+    #expect(refused == closed)
+  }
+
   /* A request after close never reaches the network. */
   @Test func testBhvLifecycle043ARequestAfterCloseNeverReachesTheNetwork() async throws {
     let host = "https://closed-043.example.com"
@@ -1487,7 +1520,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func downloadPetDocument(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
-  ) async throws -> Data {
+  ) async throws -> ByteStream {
     var parts: [String] = []
     parts.append(String(describing: petId))
     parts.append(String(describing: documentId))
@@ -1499,7 +1532,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func downloadPetDocumentWithHTTPInfo(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
-  ) async throws -> ApiResult<Data> {
+  ) async throws -> ApiResult<ByteStream> {
     var parts: [String] = []
     parts.append(String(describing: petId))
     parts.append(String(describing: documentId))
@@ -1594,7 +1627,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
-  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> Data {
+  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> ByteStream {
     var parts: [String] = []
     parts.append(String(describing: petId))
     var call = "getPetAvatar(" + parts.joined(separator: ",") + ")"
@@ -1604,7 +1637,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions?) async throws
-    -> ApiResult<Data>
+    -> ApiResult<ByteStream>
   {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -1720,7 +1753,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws
-    -> Data
+    -> ByteStream
   {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -1732,7 +1765,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?)
-    async throws -> ApiResult<Data>
+    async throws -> ApiResult<ByteStream>
   {
     var parts: [String] = []
     parts.append(String(describing: petId))

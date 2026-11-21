@@ -14,7 +14,8 @@ import Foundation
 /// route through one, a malformed argument (bad credentials, a missing
 /// required parameter, a value that would corrupt the HTTP message), or a
 /// call made in the wrong state (a closed client, an authenticator used
-/// before its API client or access token is set).
+/// before its API client or access token is set), or a transport that cannot
+/// stream asked for a stream.
 ///
 /// This is a programming error, not an API failure, so it conforms to plain
 /// `Error` and is deliberately not part of the SDK error hierarchy rooted at
@@ -39,6 +40,10 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
   /// The call was made in the wrong state: the client was closed, or an
   /// authenticator was used before its API client or access token was set.
   case invalidState(String)
+  /// The transport cannot do what the call needs: a custom ``ApiClient`` that
+  /// does not implement `sendStreaming` was asked for a stream. The value is
+  /// the complete message, which names the transport.
+  case unsupported(String)
 
   public var errorDescription: String? {
     switch self {
@@ -55,6 +60,8 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
       return "Invalid argument: \(reason)"
     case .invalidState(let reason):
       return "Invalid state: \(reason)"
+    case .unsupported(let message):
+      return message
     }
   }
 
