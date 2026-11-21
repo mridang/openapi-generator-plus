@@ -825,6 +825,7 @@ fn test_bhv_langrust_070_oauth2_authorization_code_error_is_a_plain_error() {
 fn test_bhv_langrust_071_network_errors_are_open_api_errors() {
     assert_type_is_open_api_error::<NetworkError>();
     assert_type_is_open_api_error::<NetworkTimeoutError>();
+    assert_type_is_open_api_error::<petstore::StreamError>();
 }
 
 #[test]
@@ -835,6 +836,11 @@ fn test_bhv_errors_020_network_errors_wrap_a_status_zero_api_error() {
     let timeout = NetworkTimeoutError::from(network.clone());
     assert_eq!(timeout.network_error().api_error().status_code(), 0);
     let source = std::error::Error::source(&timeout).expect("timeout wraps the network error");
+    assert!(source.downcast_ref::<NetworkError>().is_some());
+    let stream = petstore::StreamError::from(network);
+    assert_eq!(stream.network_error().api_error().status_code(), 0);
+    let source =
+        std::error::Error::source(&stream).expect("a stream error wraps the network error");
     assert!(source.downcast_ref::<NetworkError>().is_some());
 }
 
@@ -1178,6 +1184,7 @@ fn test_bhv_langrust_073_package_root_exports_the_whole_error_tree() {
     assert_type_is_open_api_error::<petstore::InternalServerError>();
     assert_type_is_open_api_error::<petstore::NetworkError>();
     assert_type_is_open_api_error::<petstore::NetworkTimeoutError>();
+    assert_type_is_open_api_error::<petstore::StreamError>();
     assert_type_is_open_api_error::<petstore::SerializationError>();
     assert_type_is_open_api_error::<petstore::OAuth2ServerError>();
     assert_type_is_open_api_error::<petstore::OAuth2TokenError>();
@@ -1374,6 +1381,10 @@ fn test_bhv_errors_044_every_error_lives_in_errors_and_the_root_exports_it() {
     assert_eq!(
         TypeId::of::<errors::NetworkTimeoutError>(),
         TypeId::of::<petstore::NetworkTimeoutError>()
+    );
+    assert_eq!(
+        TypeId::of::<errors::StreamError>(),
+        TypeId::of::<petstore::StreamError>()
     );
     assert_eq!(
         TypeId::of::<errors::OAuth2ServerError>(),
@@ -1891,6 +1902,7 @@ fn test_bhv_misc_283_package_root_exports_the_whole_error_tree() {
     exported::<petstore::ServerError>();
     exported::<petstore::NetworkError>();
     exported::<petstore::NetworkTimeoutError>();
+    exported::<petstore::StreamError>();
     exported::<petstore::BadRequestError>();
     exported::<petstore::UnauthorizedError>();
     exported::<petstore::ForbiddenError>();

@@ -75,6 +75,31 @@ Add `{:{{packageName}}, "~> {{packageVersion}}"}` to the `deps` in `mix.exs`, th
 
 [SKILLS.md](SKILLS.md) covers authentication, error handling, transport options and models.
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close/1` that aborts the connection instead of draining it, so close it when you stop early (in an `after` block). `read_all/1` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```elixir file
+defmodule Download do
+{{#binaryStreamOperation}}
+  def save_to(client{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, path) do
+    {:ok, stream} = {{moduleName}}.Api.{{#binaryStreamGroup}}{{classname}}{{/binaryStreamGroup}}.{{operationId}}(client.{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})
+
+    try do
+      IO.puts(stream.status_code)
+      Enum.into(stream, File.stream!(path))
+    after
+      {{moduleName}}.ByteStream.close(stream)
+    end
+  end
+{{/binaryStreamOperation}}
+end
+```
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `{{clientClassName}}.close/1` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `RuntimeError` naming it, and its buffered calls keep working.
+
 ### Custom HTTP client
 
 Pass Req options such as an `:adapter` or a `:plug` through `TransportOptions.new(req_options: [...])`. The SDK's own settings win and the SDK never closes a transport you supply.
@@ -170,7 +195,7 @@ There is no cancellation argument. A caller stops a call by terminating the proc
 
 ### Closing the client
 
-`{{moduleName}}.{{clientClassName}}.close/1` closes the client and is idempotent. A call already in flight finishes; a call that starts after it raises `RuntimeError` with the message "ApiClient has been closed and can no longer send requests". The processes the SDK started for the client (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. Req and Finch own the HTTP pool, and a transport you supply through `req_options` is never closed by the SDK.
+`{{moduleName}}.{{clientClassName}}.close/1` closes the client and is idempotent. A call already in flight finishes; a call that starts after it raises `RuntimeError` with the message "ApiClient has been closed and can no longer send requests". Streams that are still open are cancelled. The processes the SDK started for the client (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. Req and Finch own the HTTP pool, and a transport you supply through `req_options` is never closed by the SDK.
 
 ### Cookie parameters
 
@@ -239,7 +264,7 @@ A model is a struct, and a struct never changes in place. Make a changed copy wi
 - An optional property that is absent and a property that is `null` both decode to `nil`; the model cannot tell them apart. A required property that is also nullable must be present, and an explicit `null` is kept. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
 - An enum value the SDK does not know decodes to the catch-all member `:unknown_default_open_api`, which has no wire value, so writing it raises a `SerializationError`; a discriminator value the SDK does not know still raises a `SerializationError`.
 - A response header that repeats arrives as one entry in `headers`, its values joined with `, ` and its name in lower case.
-- Request and response bodies are held in memory. Streaming a body is not supported; to stream, pass your own transport through `req_options`.
+- A request body and a JSON, text or form response body are held in memory. Only a binary response is a stream (see the Streaming section); there is no JSON Lines or server-sent events API yet.
 - `Configuration` (the base URL and the headers of API calls) and `TransportOptions` (proxy, TLS, timeouts, retries) stay separate structs on purpose: the first describes the API, the second the connection.
 
 ## Caveats

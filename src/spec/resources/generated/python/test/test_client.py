@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import threading
+import time
 from typing import Any, Optional, cast
 
 import pytest
@@ -15,6 +16,7 @@ from petstore_client.api.pet_api import PetApi, PetApiProtocol
 from petstore_client.api.problems_api import ProblemsApi, ProblemsApiProtocol
 from petstore_client.api.store_api import StoreApi, StoreApiProtocol
 from petstore_client.client import Client, ClientProtocol
+from petstore_client.byte_stream import ByteStream
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.call_hook import CallInfo, CallObserver
 from petstore_client.transport_options import TransportOptions
@@ -941,3 +943,39 @@ class TestClientCloseState:
         client.close()
 
         client.close()
+
+
+class TestClientCloseCancelsStreams:
+    async def test_bhv_streaming_021_closing_the_client_cancels_the_open_streams_and_refuses_new_calls(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, "Transfer-Encoding: chunked")
+            connection.chunk("tick")
+            connection.hold()
+
+        server = raw_server(script)
+        client = Client(BearerAuthenticator("/api/v3", "test-token"))
+        url = server.url("/items/events")
+        response = await asyncio.to_thread(
+            client._api_client.send_streaming, "GET", url, {}, None
+        )
+        stream = ByteStream(response.status_code, response.headers, response.body)
+        assert await stream.read(4) == b"tick"
+
+        started = time.monotonic()
+        client.close()
+        assert time.monotonic() - started < 5, (
+            "closing did not wait for the endless stream"
+        )
+
+        with pytest.raises(RuntimeError) as cancelled:
+            await stream.read()
+        assert (
+            str(cancelled.value)
+            == "ApiClient has been closed and can no longer send requests"
+        )
+        with pytest.raises(RuntimeError):
+            await asyncio.to_thread(
+                client._api_client.send_streaming, "GET", url, {}, None
+            )

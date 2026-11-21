@@ -256,6 +256,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         + "when it is ready to keep the directory (default: false).")
                 .defaultValue("false"));
 
+        cliOptions.add(CliOption.newString("sseTerminator",
+                "The data value that ends a server-sent event stream when it arrives and "
+                        + "is not delivered, such as [DONE]. Printable ASCII without quotes, "
+                        + "backslashes or braces (default: none).")
+                .defaultValue(""));
+
         modifyFeatureSet(features -> features
 
                 // --- SecurityFeature ---
@@ -566,6 +572,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     Boolean.parseBoolean(additionalProperties.get("generateExamples").toString());
         }
         additionalProperties.put("generateExamples", generateExamples);
+
+        final Object terminator = additionalProperties.get("sseTerminator");
+        final String sseTerminator = terminator == null ? "" : terminator.toString();
+        if (!sseTerminator.matches("[ -~&&[^\"'\\\\{}$#]]*")) {
+            throw new IllegalArgumentException("sseTerminator must be printable ASCII without"
+                    + " quotes, backslashes, braces, $ or #: " + sseTerminator);
+        }
+        additionalProperties.put("sseTerminator", sseTerminator);
+        additionalProperties.put("hasSseTerminator", !sseTerminator.isEmpty());
 
         getPropertyOrDefault("clientClassName", "Client");
 

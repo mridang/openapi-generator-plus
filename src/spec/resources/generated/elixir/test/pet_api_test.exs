@@ -113,11 +113,28 @@ defmodule PetstoreClient.Api.PetApiTest do
   test "bhv operations 045 get_pet_avatar", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_avatar_with_http_info(api, pet_id)
-    assert is_binary(result.data)
-    # The transport base64-encodes the binary body into `raw_body`; the
-    # decoded `data` must round-trip back to it. This fails if the client
-    # returns the base64 string instead of the decoded bytes.
-    assert Base.encode64(result.data) == result.raw_body
+    assert %PetstoreClient.ByteStream{} = result.data
+    # A binary response is read as it arrives, so there is no raw body to carry.
+    assert result.raw_body == ""
+    assert {:ok, bytes} = PetstoreClient.ByteStream.read_all(result.data)
+    assert is_binary(bytes)
+  end
+
+  test "bhv streaming 009 a binary stream exposes the status and the lower-cased response headers",
+       %{api: api} do
+    assert {:ok, %PetstoreClient.ByteStream{} = stream} =
+             PetstoreClient.Api.PetApi.get_pet_avatar(api, 1)
+
+    assert stream.status_code == 200
+    assert Map.has_key?(stream.headers, "content-type")
+    assert Enum.all?(Map.keys(stream.headers), &(&1 == String.downcase(&1)))
+    assert PetstoreClient.ByteStream.close(stream) == :ok
+
+    assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_avatar_with_http_info(api, 1)
+    assert result.status_code == result.data.status_code
+    assert result.headers == result.data.headers
+    assert result.raw_body == ""
+    assert PetstoreClient.ByteStream.close(result.data) == :ok
   end
 
   test "bhv operations 046 get_pet_avatar_thumbnail", %{api: api} do
@@ -176,14 +193,14 @@ defmodule PetstoreClient.Api.PetApiTest do
     pet_id = :rand.uniform(1_000_000_000)
     doc_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.download_pet_document(api, pet_id, doc_id)
-    assert result != nil
+    assert {:ok, _bytes} = PetstoreClient.ByteStream.read_all(result)
   end
 
   test "bhv operations 055 get_pet_photo", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     photo_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = PetstoreClient.Api.PetApi.get_pet_photo(api, pet_id, photo_id)
-    assert result != nil
+    assert {:ok, _bytes} = PetstoreClient.ByteStream.read_all(result)
   end
 
   test "bhv operations 053 get_pet_passport", %{api: api} do
@@ -896,7 +913,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert {:ok, result} =
              PetstoreClient.Api.PetApi.get_pet_avatar(api, :rand.uniform(1_000_000_000))
 
-    assert result != nil
+    assert {:ok, "FAKE_BINARY_DATA"} = PetstoreClient.ByteStream.read_all(result)
   end
 
   test "bhv operations 089 upload multipart mock" do

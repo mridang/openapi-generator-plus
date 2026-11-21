@@ -22,6 +22,10 @@ class TestableApi < {{moduleName}}::Api::BaseApi
                                                                     spec_operation_id: spec_operation_id,
                                                                     url_template: url_template)
   end
+
+  def stream(method, path, auth = nil)
+    invoke_api_for_stream(method, path, {}, {}, nil, ['application/octet-stream'], 'application/json', auth)
+  end
 end
 
 CallOptions = Struct.new(:timeout, :headers, :max_retries)
@@ -120,13 +124,26 @@ end
 # Serves a scripted list of statuses for API calls and issues numbered tokens
 # at the token endpoint, recording what each received.
 class ReplayApiClient
-  attr_reader :api_requests, :token_requests
+  attr_reader :api_requests, :token_requests, :opened
 
   def initialize(api_statuses, token_statuses: [])
     @api_statuses = api_statuses
     @token_statuses = token_statuses
     @api_requests = []
     @token_requests = []
+    @opened = []
+  end
+
+  # A stream call is answered from the same list of statuses, with a body that
+  # remembers whether it was closed.
+  def send_streaming(_method, _url, headers, body, **_kwargs)
+    @api_requests << { headers: headers.dup, body: body }
+    status = @api_statuses[@api_requests.length - 1] || @api_statuses.last
+    opening = StringIO.new('ok')
+    @opened << opening
+    {{moduleName}}::ApiStreamResponse.new(
+      status_code: status, headers: { 'content-type' => 'application/octet-stream' }, body: opening
+    )
   end
 
   def send_request(_method, url, headers, body, **_kwargs)
@@ -152,6 +169,72 @@ class ReplayApiClient
     {{moduleName}}::ApiHttpResponse.new(
       status_code: status, body: payload.to_json, headers: { 'content-type' => 'application/json' }
     )
+  end
+end
+
+# Answers a stream call from a script: the statuses it replies with, one per
+# call, and the body each reply opens.
+class ScriptedStreamingClient
+  attr_reader :stream_headers, :opened
+
+  def initialize(content_type, body, *statuses)
+    @content_type = content_type
+    @body = body
+    @statuses = statuses
+    @stream_headers = []
+    @opened = []
+  end
+
+  def send_streaming(_method, _url, headers, _body, **_kwargs)
+    index = [@stream_headers.length, @statuses.length - 1].min
+    @stream_headers << headers.dup
+    opening = StringIO.new(@body)
+    @opened << opening
+    {{moduleName}}::ApiStreamResponse.new(
+      status_code: @statuses[index], headers: { 'content-type' => @content_type }, body: opening
+    )
+  end
+end
+
+# A transport written before streaming: it only answers buffered calls.
+class BufferedOnlyClient
+  attr_reader :sent_url
+
+  def initialize
+    @sent_url = ''
+  end
+
+  def send_request(_method, url, _headers, _body, **_kwargs)
+    @sent_url = url
+    {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
+  end
+end
+
+# The same, as a subclass of ApiClient that does not override send_streaming.
+class SubclassedBufferedClient < {{moduleName}}::ApiClient
+  attr_reader :sent_url
+
+  def initialize
+    super
+    @sent_url = ''
+  end
+
+  def send_request(_method, url, _headers, _body, **_kwargs)
+    @sent_url = url
+    {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
+  end
+end
+
+# A call hook that puts a trace context on the call.
+class TraceContextHook
+  def start(_info, headers)
+    headers['traceparent'] = '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01'
+    Observer.new
+  end
+
+  # The observer of a call that needs none.
+  class Observer
+    def finish(_outcome); end
   end
 end
 
@@ -2422,5 +2505,80 @@ describe {{moduleName}}::Api::BaseApi do
 
     _(hook.infos.first.operation_id).must_equal 'ItemApi.get_item'
     _(hook.infos.first.url_template).must_equal '/items/7'
+  end
+
+  # ── Binary streams ──
+
+  def header_map(head)
+    head.split("\r\n").drop(1).to_h do |line|
+      name, value = line.split(':', 2)
+      [name.to_s.downcase, value.to_s.strip]
+    end
+  end
+
+  it 'bhv_streaming_008 a non-2xx streaming call raises the typed error with the error body and never returns a stream' do
+    client = ScriptedStreamingClient.new('application/json', '{"message":"gone"}', 404)
+    api = TestableApi.new(client, {{moduleName}}::Configuration.builder.base_url('http://localhost').build)
+    failure = assert_raises({{moduleName}}::Errors::NotFoundError) { api.stream('GET', '/items/blob') }
+    _(failure.status_code).must_equal 404
+    _(failure.response_body).must_include 'gone'
+    _(failure.request_path).must_equal '/items/blob'
+    _(client.opened.first.closed?).must_equal true
+
+    large = ScriptedStreamingClient.new('text/plain', 'x' * 200_000, 502)
+    api = TestableApi.new(large, {{moduleName}}::Configuration.builder.base_url('http://localhost').build)
+    bounded = assert_raises({{moduleName}}::Errors::BadGatewayError) { api.stream('GET', '/items/blob') }
+    _(bounded.response_body.length).must_equal 64 * 1024
+  end
+
+  it 'bhv_streaming_017 a stream call sends the same user agent, request id, trace context and authentication as a buffered call' do
+    server = RawServer.serve { |*args| RawHttp.reply_ok(*args) }
+    config = {{moduleName}}::Configuration.builder.base_url(server.url('')).call_hook(TraceContextHook.new).build
+    transport = {{moduleName}}::DefaultApiClient.new(
+      {{moduleName}}::TransportOptions.builder.inject_request_id(true).max_retries(0).build
+    )
+    auth = {{moduleName}}::Auth::BearerAuthenticator.new(server.url(''), 'k-123')
+    api = TestableApi.new(transport, config, auth)
+    api.call_for_result('GET', '/items/blob', {}, {}, nil, ['application/octet-stream'], 'application/json', 'String')
+    api.stream('GET', '/items/blob').data.close
+
+    buffered = header_map(server.heads[0])
+    streamed = header_map(server.heads[1])
+    _(streamed.keys.sort).must_equal buffered.keys.sort
+    %w[user-agent authorization traceparent accept].each do |name|
+      _(streamed[name]).wont_be_nil
+      _(streamed[name]).must_equal buffered[name]
+    end
+    _(streamed['x-request-id']).wont_be_nil
+    _(streamed['x-request-id']).wont_equal buffered['x-request-id']
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_018 a 401 on a stream call refreshes the token and replays once before the stream is returned' do
+    client = ReplayApiClient.new([401, 200])
+    stream = replay_api(client, client_credentials_auth).stream('GET', '/items/blob').data
+    _(client.api_requests.map { |r| r[:headers]['Authorization'] }).must_equal ['Bearer tok1', 'Bearer tok2']
+    _(client.opened.first.closed?).must_equal true
+    _(stream.read_all).must_equal 'ok'
+
+    refused = ReplayApiClient.new([401, 401])
+    assert_raises({{moduleName}}::Errors::UnauthorizedError) do
+      replay_api(refused, client_credentials_auth).stream('GET', '/items/blob')
+    end
+    _(refused.api_requests.length).must_equal 2
+  end
+
+  it 'bhv_streaming_030 a transport that cannot stream fails a stream call naming itself, and buffered calls keep working' do
+    [BufferedOnlyClient.new, SubclassedBufferedClient.new].each_case do |transport|
+      api = TestableApi.new(transport, {{moduleName}}::Configuration.builder.base_url('http://localhost').build)
+      refused = assert_raises(NotImplementedError) { api.stream('GET', '/items/blob') }
+      _(refused.message).must_include transport.class.name
+      _(refused.message).must_include 'cannot stream'
+      _(transport.sent_url).must_equal ''
+
+      api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+      _(transport.sent_url).must_match(%r{/test/echo\z})
+    end
   end
 end

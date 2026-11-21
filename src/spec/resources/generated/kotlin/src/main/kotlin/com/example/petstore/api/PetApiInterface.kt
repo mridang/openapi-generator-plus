@@ -10,6 +10,7 @@
 package com.example.petstore.api
 
 import com.example.petstore.ApiResult
+import com.example.petstore.ByteStream
 import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.AddPetTreatmentOptions
@@ -119,14 +120,14 @@ interface PetApiInterface {
         petId: Long,
         documentId: Long,
         options: DownloadPetDocumentOptions? = null,
-    ): ByteArray
+    ): ByteStream
 
     /** The `downloadPetDocument` operation with its status code, headers and body. */
     suspend fun downloadPetDocumentWithHttpInfo(
         petId: Long,
         documentId: Long,
         options: DownloadPetDocumentOptions? = null,
-    ): ApiResult<ByteArray>
+    ): ApiResult<ByteStream>
 
     /** The `findPetsBornOn` operation. */
     suspend fun findPetsBornOn(
@@ -204,13 +205,13 @@ interface PetApiInterface {
     suspend fun getPetAvatar(
         petId: Long,
         options: GetPetAvatarOptions? = null,
-    ): ByteArray
+    ): ByteStream
 
     /** The `getPetAvatar` operation with its status code, headers and body. */
     suspend fun getPetAvatarWithHttpInfo(
         petId: Long,
         options: GetPetAvatarOptions? = null,
-    ): ApiResult<ByteArray>
+    ): ApiResult<ByteStream>
 
     /** The `getPetAvatarThumbnail` operation. */
     suspend fun getPetAvatarThumbnail(
@@ -289,14 +290,14 @@ interface PetApiInterface {
         petId: Long,
         photoId: Long,
         options: GetPetPhotoOptions? = null,
-    ): ByteArray
+    ): ByteStream
 
     /** The `getPetPhoto` operation with its status code, headers and body. */
     suspend fun getPetPhotoWithHttpInfo(
         petId: Long,
         photoId: Long,
         options: GetPetPhotoOptions? = null,
-    ): ApiResult<ByteArray>
+    ): ApiResult<ByteStream>
 
     /** The `getPetSummary` operation. */
     suspend fun getPetSummary(

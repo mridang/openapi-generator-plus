@@ -13,6 +13,11 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+mod raw_server;
+
+use futures_util::StreamExt as _;
+use raw_server::RawServer;
+
 use petstore::api_client::{RequestBody, RequestOptions};
 use petstore::*;
 
@@ -5176,4 +5181,544 @@ async fn test_bhv_misc_262_cancelling_a_pending_request_surfaces_the_cancellatio
     let join_error = task.await.expect_err("the task was cancelled");
     assert!(join_error.is_cancelled());
     assert!(!join_error.is_panic());
+}
+
+/* The streaming transport, against a scripted server on a raw socket: one that stalls a body,
+ * cuts it short, drops the connection or answers differently on the Nth request. */
+
+fn streaming_client() -> DefaultApiClient {
+    DefaultApiClient::new(None)
+}
+
+async fn open_stream(client: &DefaultApiClient, url: &str) -> ApiStreamResponse {
+    client
+        .send_streaming(
+            "GET",
+            url,
+            &HashMap::new(),
+            None,
+            &RequestOptions::default(),
+        )
+        .await
+        .expect("the stream opens once the headers have arrived")
+}
+
+fn byte_stream_of(response: ApiStreamResponse) -> ByteStream {
+    let (status, headers, body) = response.into_parts();
+    ByteStream::new(status, headers, body)
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_001_a_binary_stream_delivers_the_bytes_in_order_and_returns_before_the_body_has_ended(
+) {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(
+            200,
+            &[
+                "Content-Type: application/octet-stream",
+                "Transfer-Encoding: chunked",
+            ],
+        );
+        let _ = conn.chunk("first-");
+        conn.await_release();
+        let _ = conn.chunk("second");
+        let _ = conn.end();
+    });
+
+    let response = open_stream(&streaming_client(), &server.url("/items/blob")).await;
+    assert_eq!(200, response.status_code());
+    let mut stream = byte_stream_of(response);
+
+    /* The server holds the rest of the body until it is released, so the call returned with the body unfinished. */
+    let first = stream
+        .next()
+        .await
+        .expect("a first chunk")
+        .expect("no failure");
+    assert_eq!(b"first-", first.as_ref(), "the first chunk arrives first");
+    server.release();
+    assert_eq!(
+        b"second".to_vec(),
+        stream.read_all().await.expect("the rest"),
+        "then the rest, in order"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_010_the_call_timeout_bounds_only_the_wait_for_the_headers_not_the_body()
+{
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Transfer-Encoding: chunked"]);
+        let _ = conn.chunk("ab");
+        std::thread::sleep(std::time::Duration::from_millis(1200));
+        let _ = conn.chunk("cd");
+        let _ = conn.end();
+    });
+
+    let client = streaming_client();
+    let options = RequestOptions::new().deadline(Some(
+        std::time::Instant::now() + std::time::Duration::from_millis(400),
+    ));
+    let response = client
+        .send_streaming(
+            "GET",
+            &server.url("/items/blob"),
+            &HashMap::new(),
+            None,
+            &options,
+        )
+        .await
+        .expect("the headers arrive inside the call timeout");
+
+    let body = byte_stream_of(response)
+        .read_all()
+        .await
+        .expect("the body outlives the 400 ms timeout");
+    assert_eq!(b"abcd".to_vec(), body);
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_011_the_idle_timeout_raises_a_network_timeout_error_when_the_server_stalls_in_the_body(
+) {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Transfer-Encoding: chunked"]);
+        let _ = conn.chunk("ab");
+        conn.await_release();
+    });
+    assert_eq!(
+        Some(60_000),
+        TransportOptions::default().idle_timeout(),
+        "the default is 60 seconds"
+    );
+    assert_eq!(
+        None,
+        TransportOptions::builder()
+            .idle_timeout(Some(0))
+            .build()
+            .expect("valid")
+            .idle_timeout()
+    );
+    assert!(TransportOptions::builder()
+        .idle_timeout(Some(-1))
+        .build()
+        .is_err());
+
+    let options = TransportOptions::builder()
+        .idle_timeout(Some(300))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(options));
+    let mut stream = byte_stream_of(open_stream(&client, &server.url("/items/blob")).await);
+    assert_eq!(
+        b"ab",
+        stream
+            .next()
+            .await
+            .expect("a chunk")
+            .expect("no failure")
+            .as_ref()
+    );
+
+    let started = std::time::Instant::now();
+    let failure = stream
+        .next()
+        .await
+        .expect("the failure is an item")
+        .expect_err("a stalled body fails");
+    let timeout = failure
+        .downcast_ref::<NetworkTimeoutError>()
+        .unwrap_or_else(|| panic!("expected a NetworkTimeoutError, got: {failure}"));
+    assert_eq!(0, timeout.network_error().api_error().status_code());
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "the stall ended by the idle timeout and not by the server"
+    );
+    assert_eq!(1, server.hits(), "a stalled body is not retried");
+    assert!(
+        stream.next().await.is_none(),
+        "the stream ended with the failure"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_013_a_body_shorter_than_its_content_length_raises_a_network_error_and_never_a_short_success(
+) {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Length: 10"]);
+        let _ = conn.write(b"abcd");
+    });
+
+    let mut stream =
+        byte_stream_of(open_stream(&streaming_client(), &server.url("/items/blob")).await);
+    let failure = stream
+        .read_all()
+        .await
+        .expect_err("four bytes of ten are not a success");
+
+    assert!(
+        failure.downcast_ref::<StreamError>().is_some(),
+        "got: {failure}"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_016_a_streaming_call_follows_a_redirect_before_the_body_and_strips_credentials_across_origins(
+) {
+    let target = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Length: 6"]);
+        let _ = conn.write(b"landed");
+    });
+    let landing = target.url("/items/final");
+    let origin = RawServer::serve(move |conn| {
+        let location = format!("Location: {landing}");
+        let _ = conn.head(302, &[location.as_str(), "Content-Length: 0"]);
+    });
+
+    let mut headers = HashMap::new();
+    headers.insert(
+        "Authorization".to_string(),
+        "Bearer secret-token".to_string(),
+    );
+    headers.insert("Cookie".to_string(), "session=abc".to_string());
+    headers.insert("X-Trace".to_string(), "kept".to_string());
+    let response = streaming_client()
+        .send_streaming(
+            "GET",
+            &origin.url("/items/blob"),
+            &headers,
+            None,
+            &RequestOptions::default(),
+        )
+        .await
+        .expect("the redirect is followed before the stream is returned");
+
+    assert_eq!(
+        b"landed".to_vec(),
+        byte_stream_of(response).read_all().await.expect("the body")
+    );
+    let sent_to_origin = origin.heads()[0].to_lowercase();
+    let sent_to_target = target.heads()[0].to_lowercase();
+    assert!(sent_to_origin.contains("authorization: bearer secret-token"));
+    assert!(
+        !sent_to_target.contains("authorization"),
+        "the credential stays on its origin"
+    );
+    assert!(
+        !sent_to_target.contains("cookie"),
+        "the cookie stays on its origin"
+    );
+    assert!(
+        sent_to_target.contains("x-trace: kept"),
+        "other headers go with the redirect"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_019_closing_a_stream_twice_is_safe_and_aborts_the_connection() {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Transfer-Encoding: chunked"]);
+        conn.flood_until_gone();
+    });
+
+    let mut stream =
+        byte_stream_of(open_stream(&streaming_client(), &server.url("/items/blob")).await);
+    assert!(!stream
+        .next()
+        .await
+        .expect("a chunk")
+        .expect("no failure")
+        .is_empty());
+    stream.close();
+    stream.close();
+
+    assert!(stream.is_closed());
+    assert!(
+        server.await_gone(10).await,
+        "the server saw the connection dropped and was not made to finish the body"
+    );
+    assert!(stream.next().await.is_none(), "a closed stream has ended");
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_020_cancelling_the_call_aborts_the_stream_and_is_never_raised_as_a_timeout(
+) {
+    let silent = RawServer::serve(|conn| {
+        conn.watch_for_close();
+    });
+    let stalled = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Transfer-Encoding: chunked"]);
+        let _ = conn.chunk("ab");
+        conn.watch_for_close();
+    });
+    let client = streaming_client();
+
+    /* Before the headers: dropping the future is the cancellation, and nothing is raised. */
+    let before_headers = tokio::time::timeout(
+        std::time::Duration::from_millis(300),
+        client.send_streaming(
+            "GET",
+            &silent.url("/items/blob"),
+            &HashMap::new(),
+            None,
+            &RequestOptions::default(),
+        ),
+    )
+    .await;
+    assert!(
+        before_headers.is_err(),
+        "the caller's own timer ended the wait, not the SDK"
+    );
+    assert!(silent.await_gone(10).await, "the connection was aborted");
+
+    /* In the body: dropping the pending read and the stream aborts it the same way. */
+    let mut stream = byte_stream_of(open_stream(&client, &stalled.url("/items/blob")).await);
+    assert_eq!(
+        b"ab",
+        stream
+            .next()
+            .await
+            .expect("a chunk")
+            .expect("no failure")
+            .as_ref()
+    );
+    let in_body = tokio::time::timeout(std::time::Duration::from_millis(300), stream.next()).await;
+    assert!(
+        in_body.is_err(),
+        "the read was still waiting when the caller gave up"
+    );
+    drop(stream);
+    assert!(stalled.await_gone(10).await, "the connection was aborted");
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_022_the_string_form_of_a_stream_hides_credentials_the_query_and_the_data(
+) {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Length: 7", "Set-Cookie: sid=secret-cookie"]);
+        let _ = conn.write(b"payload");
+    });
+    let mut headers = HashMap::new();
+    headers.insert(
+        "Authorization".to_string(),
+        "Bearer secret-token".to_string(),
+    );
+    let response = streaming_client()
+        .send_streaming(
+            "GET",
+            &server.url("/items/blob?token=secret-query"),
+            &headers,
+            None,
+            &RequestOptions::default(),
+        )
+        .await
+        .expect("the stream opens");
+    let response_form = format!("{response:?}");
+    let mut stream = byte_stream_of(response);
+    assert_eq!(
+        b"payload".to_vec(),
+        stream.read_all().await.expect("the body")
+    );
+
+    for shown in [response_form, format!("{stream:?}"), format!("{stream}")] {
+        assert!(!shown.contains("secret"), "{shown}");
+        assert!(!shown.contains("payload"), "{shown}");
+        assert!(!shown.contains("token"), "{shown}");
+        assert!(!shown.contains("items"), "{shown}");
+    }
+    assert_eq!("ByteStream(status=200, bytes=7)", format!("{stream:?}"));
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_029_the_read_all_helper_of_a_byte_stream_returns_every_byte_in_order_and_leaves_it_closed(
+) {
+    let payload: Vec<u8> = (0..100_000u32).map(|i| (i * 31) as u8).collect();
+    let served = payload.clone();
+    let server = RawServer::serve(move |conn| {
+        let length = format!("Content-Length: {}", served.len());
+        let _ = conn.head(200, &[length.as_str()]);
+        let _ = conn.write(&served);
+    });
+
+    let mut stream =
+        byte_stream_of(open_stream(&streaming_client(), &server.url("/items/blob")).await);
+    assert_eq!(
+        payload,
+        stream.read_all().await.expect("every byte, in order")
+    );
+
+    assert_eq!(
+        "ByteStream(status=200, bytes=100000)",
+        format!("{stream:?}")
+    );
+    assert!(stream.is_closed(), "the helper left the stream closed");
+    assert!(stream.next().await.is_none());
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_031_closing_a_live_endless_stream_returns_promptly_and_does_not_wait_for_the_server(
+) {
+    let server = RawServer::serve(RawServer::one_chunk_then_hold);
+
+    let mut stream =
+        byte_stream_of(open_stream(&streaming_client(), &server.url("/items/events")).await);
+    assert_eq!(
+        b"tick",
+        stream
+            .next()
+            .await
+            .expect("a chunk")
+            .expect("no failure")
+            .as_ref()
+    );
+
+    let started = std::time::Instant::now();
+    stream.close();
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(2),
+        "close aborted the connection instead of waiting for the endless body"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_032_a_reset_or_truncation_after_the_headers_raises_a_stream_error_that_is_a_network_error(
+) {
+    let dropped = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Transfer-Encoding: chunked"]);
+        let _ = conn.chunk("ab");
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        conn.drop_connection();
+    });
+    let cut = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Length: 10"]);
+        let _ = conn.write(b"abcd");
+    });
+
+    for server in [&dropped, &cut] {
+        let mut stream =
+            byte_stream_of(open_stream(&streaming_client(), &server.url("/items/blob")).await);
+        let failure = stream
+            .read_all()
+            .await
+            .expect_err("the body did not arrive in full");
+        let stream_error = failure
+            .downcast_ref::<StreamError>()
+            .unwrap_or_else(|| panic!("expected a StreamError, got: {failure}"));
+        let network: &NetworkError = stream_error.network_error();
+        assert_eq!(0, network.api_error().status_code());
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_033_stopping_a_stream_early_without_reading_it_to_the_end_releases_the_connection(
+) {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Transfer-Encoding: chunked"]);
+        conn.flood_until_gone();
+    });
+
+    {
+        let mut stream =
+            byte_stream_of(open_stream(&streaming_client(), &server.url("/items/events")).await);
+        assert!(!stream
+            .next()
+            .await
+            .expect("a chunk")
+            .expect("no failure")
+            .is_empty());
+    }
+
+    assert!(
+        server.await_gone(10).await,
+        "leaving the scope dropped the connection"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_021_closing_the_client_cancels_the_open_streams_and_refuses_new_calls()
+{
+    let server = RawServer::serve(RawServer::one_chunk_then_hold);
+    let client: Arc<dyn ApiClient> = Arc::new(streaming_client());
+    let url = server.url("/items/events");
+    let mut waiting = byte_stream_of(
+        client
+            .send_streaming(
+                "GET",
+                &url,
+                &HashMap::new(),
+                None,
+                &RequestOptions::default(),
+            )
+            .await
+            .expect("opens"),
+    );
+    let mut idle = byte_stream_of(
+        client
+            .send_streaming(
+                "GET",
+                &url,
+                &HashMap::new(),
+                None,
+                &RequestOptions::default(),
+            )
+            .await
+            .expect("opens"),
+    );
+    assert_eq!(
+        b"tick",
+        waiting
+            .next()
+            .await
+            .expect("a chunk")
+            .expect("no failure")
+            .as_ref()
+    );
+    assert_eq!(
+        b"tick",
+        idle.next()
+            .await
+            .expect("a chunk")
+            .expect("no failure")
+            .as_ref()
+    );
+
+    /* One stream has a read pending when the client is closed, the other is read afterwards. */
+    let pending = tokio::spawn(async move { waiting.next().await });
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    let started = std::time::Instant::now();
+    client.close();
+
+    let woken = tokio::time::timeout(std::time::Duration::from_secs(5), pending)
+        .await
+        .expect("closing woke the read that was waiting")
+        .expect("the task finished");
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "closing did not wait for the endless stream"
+    );
+    for outcome in [woken, idle.next().await] {
+        let failure = outcome
+            .expect("the cancellation is an item")
+            .expect_err("the read was cancelled");
+        match failure.downcast_ref::<ConfigurationError>() {
+            Some(ConfigurationError::InvalidState(reason)) => {
+                assert!(reason.contains("closed"), "{reason}")
+            }
+            other => panic!("expected the closed-client error, got: {other:?}"),
+        }
+    }
+
+    let refused = client
+        .send_streaming(
+            "GET",
+            &url,
+            &HashMap::new(),
+            None,
+            &RequestOptions::default(),
+        )
+        .await
+        .expect_err("a call on a closed client is refused");
+    assert!(matches!(
+        refused.downcast_ref::<ConfigurationError>(),
+        Some(ConfigurationError::InvalidState(_))
+    ));
 }

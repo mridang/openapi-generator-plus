@@ -131,6 +131,31 @@ func {{#exampleOperation}}{{operationId}}{{/exampleOperation}}Cancelled(client: 
 ```
 {{/hasExampleOperation}}
 
+## Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`defer`). `readAll()` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```swift file
+import Foundation
+import {{packageName}}
+
+func saveDownload(client: {{clientClassName}}{{#binaryStreamOperation}}{{#vendorExtensions.op.signatureArgsRequired}}, {{paramName}}: {{{dataType}}}{{/vendorExtensions.op.signatureArgsRequired}}{{/binaryStreamOperation}}, to target: URL) async throws {
+    let stream = try await client.{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}.{{#binaryStreamOperation}}{{operationId}}({{#vendorExtensions.op.signatureArgsRequired}}{{^-first}}, {{/-first}}{{paramName}}: {{paramName}}{{/vendorExtensions.op.signatureArgsRequired}}){{/binaryStreamOperation}}
+    defer { stream.close() }
+    print(stream.statusCode)
+    _ = FileManager.default.createFile(atPath: target.path, contents: nil)
+    let handle = try FileHandle(forWritingTo: target)
+    defer { try? handle.close() }
+    for try await chunk in stream {
+        try handle.write(contentsOf: chunk)
+    }
+}
+```
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `ConfigurationError.unsupported` naming it, and its buffered calls keep working.
+
 ## Custom HTTP client
 
 `TransportOptionsBuilder.session(_:)` sends every request through your own `URLSession`
@@ -232,7 +257,8 @@ timeout settings.
 request made afterwards throws `ConfigurationError.invalidState` with the text
 `ApiClient has been closed and can no longer send requests`. A request already in
 flight finishes, retries included, and the `URLSession` the SDK built is released when
-the last of them ends (at once when none is running). A second `close()` does nothing,
+the last of them ends (at once when none is running). Streams that are still open are
+cancelled. A second `close()` does nothing,
 and a `URLSession` you supplied is never invalidated.
 
 ## Cookie parameters
@@ -376,12 +402,6 @@ loudly with `SerializationError`.
 lower-cased names. A header the server repeats (`Link`, `Set-Cookie`) is joined
 into one value with `, ` in the order it arrived, so a `Set-Cookie` value is not
 parsed for you.
-
-## Streaming
-
-Request and response bodies are read and sent whole; there is no streaming of a
-response body. Inject your own transport through `TransportOptionsBuilder.session(_:)`
-or `ApiClient` when you need to stream.
 
 ## Configuration and transport options
 

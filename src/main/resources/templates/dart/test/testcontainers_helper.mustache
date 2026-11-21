@@ -1,5 +1,7 @@
 {{>api_info}}
 {{#generateTests}}
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:testcontainers_core/testcontainers_core.dart';
@@ -122,5 +124,148 @@ Future<void> tearDownContainers() async {
   await _chasmContainer.stop();
   await _squidContainer.stop();
   await _network.remove();
+}
+
+/// What a [RawServer] does with one connection: [hit] counts the connections
+/// from 1 and [head] is the request line and headers the client sent.
+typedef RawScript = Future<void> Function(
+  RawServer server,
+  Socket socket,
+  int hit,
+  String head,
+);
+
+/// A scripted TCP server on the loopback interface, for the behaviours a
+/// stock HTTP server cannot produce: a body that stalls, a connection that is
+/// cut in the middle, a body shorter than its declared length, an answer that
+/// differs from one request to the next. The script writes the raw response.
+class RawServer {
+  RawServer._(this._server);
+
+  final ServerSocket _server;
+  final List<Socket> _sockets = [];
+  final Completer<void> _release = Completer<void>();
+  final Completer<void> _gone = Completer<void>();
+
+  /// The request head of every connection, in the order they arrived.
+  final List<String> heads = [];
+
+  /// How many connections were accepted.
+  int hits = 0;
+
+  /// Completes when a client dropped its connection while the script was
+  /// still running.
+  Future<void> get clientGone => _gone.future;
+
+  /// Starts a server that runs [script] on every connection.
+  static Future<RawServer> serve(RawScript script) async {
+    final raw = RawServer._(
+      await ServerSocket.bind(InternetAddress.loopbackIPv4, 0),
+    );
+    raw._server.listen((socket) {
+      final hit = ++raw.hits;
+      raw._sockets.add(socket);
+      final received = StringBuffer();
+      var started = false;
+      socket.listen(
+        (data) {
+          received.write(latin1.decode(data));
+          if (!started && received.toString().contains('\r\n\r\n')) {
+            started = true;
+            final head = received.toString();
+            raw.heads.add(head);
+            unawaited(() async {
+              try {
+                await script(raw, socket, hit, head);
+                await socket.close();
+              } catch (_) {
+                raw.markGone();
+              }
+            }());
+          }
+        },
+        onError: (Object _) => raw.markGone(),
+        onDone: raw.markGone,
+        cancelOnError: true,
+      );
+    });
+    return raw;
+  }
+
+  /// The URL of [path] on this server.
+  String url(String path) => 'http://127.0.0.1:${_server.port}$path';
+
+  /// Called by a script that found its client gone.
+  void markGone() {
+    if (!_gone.isCompleted) {
+      _gone.complete();
+    }
+  }
+
+  /// Waits until the test lets the script go on.
+  Future<void> awaitRelease() => _release.future;
+
+  /// Whether the test has let the script go on.
+  bool get released => _release.isCompleted;
+
+  /// Lets every script that waits in [awaitRelease] go on.
+  void release() {
+    if (!_release.isCompleted) {
+      _release.complete();
+    }
+  }
+
+  /// Stops the server and drops every connection.
+  Future<void> close() async {
+    release();
+    for (final socket in _sockets) {
+      socket.destroy();
+    }
+    await _server.close();
+  }
+}
+
+/// Writes a response head with [status] and [headers] and no body yet.
+Future<void> rawHead(Socket socket, int status, [List<String> headers = const []]) {
+  final head = StringBuffer('HTTP/1.1 $status Test\r\n');
+  for (final header in headers) {
+    head.write('$header\r\n');
+  }
+  head.write('Connection: close\r\n\r\n');
+  socket.add(latin1.encode(head.toString()));
+  return socket.flush();
+}
+
+/// Writes [data] as one chunk of a chunked body.
+Future<void> rawChunk(Socket socket, String data) {
+  final bytes = utf8.encode(data);
+  socket.add(latin1.encode('${bytes.length.toRadixString(16)}\r\n'));
+  socket.add(bytes);
+  socket.add(latin1.encode('\r\n'));
+  return socket.flush();
+}
+
+/// Ends a chunked body.
+Future<void> rawEnd(Socket socket) {
+  socket.add(latin1.encode('0\r\n\r\n'));
+  return socket.flush();
+}
+
+/// Writes [data] as plain body bytes.
+Future<void> rawBytes(Socket socket, List<int> data) {
+  socket.add(data);
+  return socket.flush();
+}
+
+/// A script for other test files: one chunk, then silence until released.
+Future<void> oneChunkThenHold(
+  RawServer server,
+  Socket socket,
+  int hit,
+  String head,
+) async {
+  await rawHead(socket, 200, ['Transfer-Encoding: chunked']);
+  await rawChunk(socket, 'tick');
+  await server.awaitRelease();
 }
 {{/generateTests}}

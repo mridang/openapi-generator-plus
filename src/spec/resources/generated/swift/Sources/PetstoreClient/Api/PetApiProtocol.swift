@@ -30,10 +30,10 @@ public protocol PetApiProtocol: Sendable {
     Void
   >
   func downloadPetDocument(petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?)
-    async throws -> Data
+    async throws -> ByteStream
   func downloadPetDocumentWithHTTPInfo(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
-  ) async throws -> ApiResult<Data>
+  ) async throws -> ApiResult<ByteStream>
   func findPetsBornOn(bornOn: String, options: FindPetsBornOnOptions?) async throws -> [Pet]
   func findPetsBornOnWithHTTPInfo(bornOn: String, options: FindPetsBornOnOptions?) async throws
     -> ApiResult<[Pet]>
@@ -55,9 +55,9 @@ public protocol PetApiProtocol: Sendable {
   func getMultiServerPetInfoWithHTTPInfo(
     petId: Int64, server: (any GetMultiServerPetInfoServer)?, options: GetMultiServerPetInfoOptions?
   ) async throws -> ApiResult<Pet>
-  func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> Data
+  func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> ByteStream
   func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions?) async throws
-    -> ApiResult<Data>
+    -> ApiResult<ByteStream>
   func getPetAvatarThumbnail(petId: Int64, options: GetPetAvatarThumbnailOptions?) async throws
     -> Data
   func getPetAvatarThumbnailWithHTTPInfo(petId: Int64, options: GetPetAvatarThumbnailOptions?)
@@ -77,9 +77,10 @@ public protocol PetApiProtocol: Sendable {
   func getPetPassport(petId: Int64, options: GetPetPassportOptions?) async throws -> PetPassport
   func getPetPassportWithHTTPInfo(petId: Int64, options: GetPetPassportOptions?) async throws
     -> ApiResult<PetPassport>
-  func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws -> Data
+  func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws
+    -> ByteStream
   func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?)
-    async throws -> ApiResult<Data>
+    async throws -> ApiResult<ByteStream>
   func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
     -> String
   func getPetSummaryWithHTTPInfo(petId: Int64, asOf: String, options: GetPetSummaryOptions)
@@ -187,13 +188,13 @@ extension PetApiProtocol {
   }
 
   /// The `downloadPetDocument` operation with every optional parameter left out.
-  public func downloadPetDocument(petId: Int64, documentId: Int64) async throws -> Data {
+  public func downloadPetDocument(petId: Int64, documentId: Int64) async throws -> ByteStream {
     try await downloadPetDocument(petId: petId, documentId: documentId, options: nil)
   }
 
   /// The `downloadPetDocumentWithHTTPInfo` operation with every optional parameter left out.
   public func downloadPetDocumentWithHTTPInfo(petId: Int64, documentId: Int64) async throws
-    -> ApiResult<Data>
+    -> ApiResult<ByteStream>
   {
     try await downloadPetDocumentWithHTTPInfo(petId: petId, documentId: documentId, options: nil)
   }
@@ -241,12 +242,12 @@ extension PetApiProtocol {
   }
 
   /// The `getPetAvatar` operation with every optional parameter left out.
-  public func getPetAvatar(petId: Int64) async throws -> Data {
+  public func getPetAvatar(petId: Int64) async throws -> ByteStream {
     try await getPetAvatar(petId: petId, options: nil)
   }
 
   /// The `getPetAvatarWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetAvatarWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
+  public func getPetAvatarWithHTTPInfo(petId: Int64) async throws -> ApiResult<ByteStream> {
     try await getPetAvatarWithHTTPInfo(petId: petId, options: nil)
   }
 
@@ -306,13 +307,14 @@ extension PetApiProtocol {
   }
 
   /// The `getPetPhoto` operation with every optional parameter left out.
-  public func getPetPhoto(petId: Int64, photoId: Int64) async throws -> Data {
+  public func getPetPhoto(petId: Int64, photoId: Int64) async throws -> ByteStream {
     try await getPetPhoto(petId: petId, photoId: photoId, options: nil)
   }
 
   /// The `getPetPhotoWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64) async throws -> ApiResult<Data>
-  {
+  public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64) async throws -> ApiResult<
+    ByteStream
+  > {
     try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId, options: nil)
   }
 

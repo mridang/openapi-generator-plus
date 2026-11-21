@@ -8,6 +8,7 @@
 import type { ApiClient, RequestOptions } from "../api-client.js";
 import { ApiError } from "../errors/api-error.js";
 import type { ApiResult } from "../api-result.js";
+import type { ByteStream } from "../byte-stream.js";
 import type { Authenticator } from "../auth/authenticator.js";
 import { BaseApi } from "./base-api.js";
 import { Configuration } from "../configuration.js";
@@ -271,12 +272,12 @@ export interface PetApiInterface {
     petId: number,
     documentId: number,
     requestOptions?: RequestOptions,
-  ): Promise<Buffer>;
+  ): Promise<ByteStream>;
   downloadPetDocumentWithHttpInfo(
     petId: number,
     documentId: number,
     requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Buffer>>;
+  ): Promise<ApiResult<ByteStream>>;
   findPetsBornOn(
     bornOn: string | Date,
     requestOptions?: RequestOptions,
@@ -315,11 +316,14 @@ export interface PetApiInterface {
     server?: GetMultiServerPetInfoServer,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<Pet>>;
-  getPetAvatar(petId: number, requestOptions?: RequestOptions): Promise<Buffer>;
+  getPetAvatar(
+    petId: number,
+    requestOptions?: RequestOptions,
+  ): Promise<ByteStream>;
   getPetAvatarWithHttpInfo(
     petId: number,
     requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Buffer>>;
+  ): Promise<ApiResult<ByteStream>>;
   getPetAvatarThumbnail(
     petId: number,
     requestOptions?: RequestOptions,
@@ -370,12 +374,12 @@ export interface PetApiInterface {
     petId: number,
     photoId: number,
     requestOptions?: RequestOptions,
-  ): Promise<Buffer>;
+  ): Promise<ByteStream>;
   getPetPhotoWithHttpInfo(
     petId: number,
     photoId: number,
     requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Buffer>>;
+  ): Promise<ApiResult<ByteStream>>;
   getPetSummary(
     petId: number,
     asOf: string | Date,
@@ -949,7 +953,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
    * @param petId  (required)
    * @param documentId  (required)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
-   * @return Buffer
+   * @return ByteStream
    * @throws {ApiError} if fails to make API call
    * @throws NotFoundError on HTTP 404
    */
@@ -957,7 +961,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
     petId: number,
     documentId: number,
     requestOptions?: RequestOptions,
-  ): Promise<Buffer> {
+  ): Promise<ByteStream> {
     const downloadPetDocumentResult =
       await this.downloadPetDocumentWithHttpInfo(
         petId,
@@ -976,7 +980,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
         null,
       );
     }
-    return downloadPetDocumentResult.data as Buffer;
+    return downloadPetDocumentResult.data as ByteStream;
   }
 
   /**
@@ -989,7 +993,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
     petId: number,
     documentId: number,
     requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Buffer>> {
+  ): Promise<ApiResult<ByteStream>> {
     if (petId == null) {
       throw new TypeError(
         "Missing the required parameter 'petId' when calling PetApi.downloadPetDocument",
@@ -1029,7 +1033,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return await this.invokeApiForResult(
+    return await this.invokeApiForStream(
       "GET",
       path,
       queryParams,
@@ -1037,10 +1041,8 @@ export class PetApi extends BaseApi implements PetApiInterface {
       null,
       ["application/octet-stream"],
       "application/json",
-      (json: unknown) => json as Buffer,
       this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
-      "binary",
       "downloadPetDocument",
       requestOptions,
       undefined,
@@ -1443,14 +1445,14 @@ export class PetApi extends BaseApi implements PetApiInterface {
    * Returns the raw image bytes of the pet's current avatar.
    * @param petId  (required)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
-   * @return Buffer
+   * @return ByteStream
    * @throws {ApiError} if fails to make API call
    * @throws NotFoundError on HTTP 404
    */
   async getPetAvatar(
     petId: number,
     requestOptions?: RequestOptions,
-  ): Promise<Buffer> {
+  ): Promise<ByteStream> {
     const getPetAvatarResult = await this.getPetAvatarWithHttpInfo(
       petId,
       requestOptions,
@@ -1467,7 +1469,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
         null,
       );
     }
-    return getPetAvatarResult.data as Buffer;
+    return getPetAvatarResult.data as ByteStream;
   }
 
   /**
@@ -1479,7 +1481,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
   async getPetAvatarWithHttpInfo(
     petId: number,
     requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Buffer>> {
+  ): Promise<ApiResult<ByteStream>> {
     if (petId == null) {
       throw new TypeError(
         "Missing the required parameter 'petId' when calling PetApi.getPetAvatar",
@@ -1501,7 +1503,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return await this.invokeApiForResult(
+    return await this.invokeApiForStream(
       "GET",
       path,
       queryParams,
@@ -1509,10 +1511,8 @@ export class PetApi extends BaseApi implements PetApiInterface {
       null,
       ["image/jpeg", "image/png"],
       "application/json",
-      (json: unknown) => json as Buffer,
       this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
-      "binary",
       "getPetAvatar",
       requestOptions,
       undefined,
@@ -2009,7 +2009,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
    * @param petId  (required)
    * @param photoId  (required)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
-   * @return Buffer
+   * @return ByteStream
    * @throws {ApiError} if fails to make API call
    * @throws NotFoundError on HTTP 404
    */
@@ -2017,7 +2017,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
     petId: number,
     photoId: number,
     requestOptions?: RequestOptions,
-  ): Promise<Buffer> {
+  ): Promise<ByteStream> {
     const getPetPhotoResult = await this.getPetPhotoWithHttpInfo(
       petId,
       photoId,
@@ -2035,7 +2035,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
         null,
       );
     }
-    return getPetPhotoResult.data as Buffer;
+    return getPetPhotoResult.data as ByteStream;
   }
 
   /**
@@ -2048,7 +2048,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
     petId: number,
     photoId: number,
     requestOptions?: RequestOptions,
-  ): Promise<ApiResult<Buffer>> {
+  ): Promise<ApiResult<ByteStream>> {
     if (petId == null) {
       throw new TypeError(
         "Missing the required parameter 'petId' when calling PetApi.getPetPhoto",
@@ -2088,7 +2088,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return await this.invokeApiForResult(
+    return await this.invokeApiForStream(
       "GET",
       path,
       queryParams,
@@ -2096,10 +2096,8 @@ export class PetApi extends BaseApi implements PetApiInterface {
       null,
       ["image/jpeg", "image/png", "application/json"],
       "application/json",
-      (json: unknown) => json as Buffer,
       this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
       false,
-      "binary",
       "getPetPhoto",
       requestOptions,
       undefined,

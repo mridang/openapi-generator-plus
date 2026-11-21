@@ -4,6 +4,9 @@
 package {{package}}
 
 import {{invokerPackage}}.ApiResult
+{{#hasBinaryStream}}
+import {{invokerPackage}}.ByteStream
+{{/hasBinaryStream}}
 {{#imports}}import {{import}}
 {{/imports}}
 {{#optionsImports}}

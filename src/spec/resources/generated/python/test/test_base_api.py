@@ -62,6 +62,9 @@ from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
 from petstore_client.api_http_response import ApiHttpResponse
+from petstore_client.api_result import ApiResult
+from petstore_client.api_stream_response import ApiStreamResponse
+from petstore_client.byte_stream import ByteStream
 from petstore_client.errors.serialization_exception import SerializationException
 from petstore_client.models import Category
 from petstore_client import servers as Servers
@@ -5542,3 +5545,343 @@ async def api_post_text(api: StubApi, text: str) -> Any:
     return await api.call(
         "POST", "/x", {}, {}, text, ["application/json"], "application/json", None
     )
+
+
+class _StreamApi(BaseApi):
+    """Concrete subclass exposing the stream invocation for direct testing."""
+
+    async def stream(
+        self,
+        method: str,
+        path: str,
+        auth: Union[Authenticator, _NoAuth, None] = None,
+        **extra: Any,
+    ) -> "ApiResult[ByteStream]":
+        return await self._invoke_api_for_stream(
+            method,
+            path,
+            {},
+            {},
+            None,
+            ["application/octet-stream"],
+            "application/json",
+            auth,
+            **extra,
+        )
+
+    async def buffered(
+        self, method: str, path: str, auth: Union[Authenticator, _NoAuth, None] = None
+    ) -> Any:
+        return await self._invoke_api(
+            method,
+            path,
+            {},
+            {},
+            None,
+            ["application/octet-stream"],
+            "application/json",
+            "str",
+            auth,
+        )
+
+
+class _CloseTrackingBody:
+    """A response body that remembers whether it was closed."""
+
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+        self.closed = False
+
+    def read(self, size: int = -1) -> bytes:
+        count = len(self._data) if size < 0 else size
+        chunk, self._data = self._data[:count], self._data[count:]
+        return chunk
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class _ScriptedStreamingClient:
+    """Answers a stream call from a script of statuses and keeps what each call was sent."""
+
+    def __init__(self, content_type: str, body: bytes, *statuses: int) -> None:
+        self._content_type = content_type
+        self._body = body
+        self._statuses = statuses
+        self.stream_headers: list[dict[str, str]] = []
+        self.opened: list[_CloseTrackingBody] = []
+
+    def send_request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+    ) -> ApiHttpResponse:
+        return ApiHttpResponse(
+            status_code=200, body="{}", headers={"content-type": "application/json"}
+        )
+
+    def send_streaming(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        body: Any = None,
+        idle_timeout: Optional[int] = None,
+    ) -> ApiStreamResponse:
+        status = self._statuses[min(len(self.stream_headers), len(self._statuses) - 1)]
+        self.stream_headers.append(dict(headers))
+        opening = _CloseTrackingBody(self._body)
+        self.opened.append(opening)
+        return ApiStreamResponse(status, {"content-type": self._content_type}, opening)
+
+    def close(self) -> None:
+        return None
+
+
+class _BufferedOnlyClient:
+    """A transport written before streaming existed: it implements the buffered call only."""
+
+    def __init__(self) -> None:
+        self.sent_url = ""
+
+    def send_request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+    ) -> ApiHttpResponse:
+        self.sent_url = url
+        return ApiHttpResponse(
+            status_code=200, body="ok", headers={"content-type": "text/plain"}
+        )
+
+
+def _stream_api(client: Any, base_url: str = "http://localhost") -> _StreamApi:
+    return _StreamApi(api_client=client, config=Configuration(base_url=base_url))
+
+
+def _request_headers(head: str) -> dict[str, str]:
+    headers: dict[str, str] = {}
+    for line in head.split("\r\n")[1:]:
+        name, separator, value = line.partition(":")
+        if separator:
+            headers[name.lower()] = value.strip()
+    return headers
+
+
+class TestBinaryStreams:
+    async def test_bhv_streaming_008_a_non_2xx_streaming_call_raises_the_typed_error_and_never_returns_a_stream(
+        self,
+    ) -> None:
+        client = _ScriptedStreamingClient(
+            "application/json", b'{"message":"gone"}', 404
+        )
+        with pytest.raises(NotFoundException) as failure:
+            await _stream_api(client).stream("GET", "/items/blob")
+        assert type(failure.value) is NotFoundException
+        assert failure.value.status_code == 404
+        assert "gone" in (failure.value.response_body or "")
+        assert failure.value.request_path == "/items/blob"
+        assert client.opened[0].closed, "the connection was closed after the error body"
+
+        large = _ScriptedStreamingClient("text/plain", b"x" * 200_000, 502)
+        with pytest.raises(ServerException) as bounded:
+            await _stream_api(large).stream("GET", "/items/blob")
+        assert len(bounded.value.response_body or "") == 64 * 1024, (
+            "the error body is bounded"
+        )
+
+    async def test_bhv_streaming_012_a_connection_reset_in_the_middle_of_the_body_raises_a_network_error_and_is_not_retried(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, "Transfer-Encoding: chunked")
+            connection.chunk("ab")
+            time.sleep(0.1)
+            connection.reset()
+
+        server = raw_server(script)
+        api = _stream_api(
+            DefaultApiClient(TransportOptions.builder().build()),
+            base_url=server.base_url,
+        )
+        result = await api.stream("GET", "/items/blob")
+        assert result.data is not None
+        with pytest.raises(NetworkException):
+            await result.data.read_all()
+        assert server.hits == 1, "the default of two retries does not apply to a body"
+
+    async def test_bhv_streaming_014_a_streaming_call_retries_a_503_before_the_headers_and_then_streams_the_retried_response(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            if connection.hit == 1:
+                connection.head(503, "Retry-After: 0", "Content-Length: 4")
+                connection.send("nope")
+                return
+            connection.head(200, "Content-Length: 5")
+            connection.send("hello")
+
+        server = raw_server(script)
+        api = _stream_api(
+            DefaultApiClient(TransportOptions.builder().build()),
+            base_url=server.base_url,
+        )
+        result = await api.stream("GET", "/items/blob")
+        assert result.status_code == 200
+        assert result.data is not None
+        assert await result.data.read_all() == b"hello"
+        assert server.hits == 2
+
+    async def test_bhv_streaming_015_a_streaming_call_never_retries_after_the_first_body_byte_was_delivered(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, "Transfer-Encoding: chunked")
+            connection.chunk("part")
+            time.sleep(0.1)
+            connection.reset()
+
+        server = raw_server(script)
+        api = _stream_api(
+            DefaultApiClient(TransportOptions.builder().build()),
+            base_url=server.base_url,
+        )
+        result = await api.stream("GET", "/items/blob")
+        stream = result.data
+        assert stream is not None
+        assert await stream.read(4) == b"part"
+        with pytest.raises(NetworkException):
+            await stream.read_all()
+        await asyncio.sleep(0.3)
+        assert server.hits == 1, "no second request after the first body byte"
+
+    async def test_bhv_streaming_017_a_streaming_call_sends_the_same_headers_as_a_buffered_call(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, "Content-Type: text/plain", "Content-Length: 2")
+            connection.send("ok")
+
+        server = raw_server(script)
+        hook = _RecordingHook(
+            edit=lambda headers: headers.update(
+                {
+                    "traceparent": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+                }
+            )
+        )
+        api = _StreamApi(
+            api_client=DefaultApiClient(
+                TransportOptions.builder()
+                .inject_request_id(True)
+                .max_retries(0)
+                .build()
+            ),
+            config=Configuration(base_url=server.base_url, call_hook=hook),
+        )
+        auth = StubAuthenticator({"X-Api-Key": "k-123"})
+
+        await api.buffered("GET", "/items/blob", auth)
+        result = await api.stream("GET", "/items/blob", auth)
+        assert result.data is not None
+        result.data.close()
+
+        buffered = _request_headers(server.heads[0])
+        streamed = _request_headers(server.heads[1])
+        assert set(buffered) == set(streamed), "the same header names are sent"
+        for name in (
+            "user-agent",
+            "x-api-key",
+            "traceparent",
+            "accept",
+            "accept-encoding",
+        ):
+            assert streamed[name], name
+            assert streamed[name] == buffered[name], name
+        assert streamed["x-request-id"] != buffered["x-request-id"], (
+            "each call has its own request id"
+        )
+
+    async def test_bhv_streaming_018_a_401_on_a_streaming_call_refreshes_the_token_and_replays_once_before_the_stream_is_returned(
+        self,
+    ) -> None:
+        client = _ScriptedStreamingClient("application/octet-stream", b"ok", 401, 200)
+        auth = OAuthStubAuthenticator()
+        result = await _stream_api(client).stream("GET", "/items/blob", auth)
+        assert len(client.stream_headers) == 2
+        assert client.stream_headers[0]["Authorization"] == "Bearer t1"
+        assert client.stream_headers[1]["Authorization"] == "Bearer t2"
+        assert auth.invalidations == 1
+        assert client.opened[0].closed, "the refused response was closed unread"
+        assert result.data is not None
+        assert await result.data.read_all() == b"ok"
+
+        refused = _ScriptedStreamingClient("application/octet-stream", b"", 401)
+        with pytest.raises(UnauthorizedException):
+            await _stream_api(refused).stream(
+                "GET", "/items/blob", OAuthStubAuthenticator()
+            )
+        assert len(refused.stream_headers) == 2, "a second 401 is not replayed again"
+
+    async def test_bhv_streaming_020_cancelling_the_call_aborts_the_stream_and_is_never_raised_as_a_timeout(
+        self, raw_server: Any
+    ) -> None:
+        silent = raw_server(lambda connection: connection.hold())
+
+        def stalled_script(connection: Any) -> None:
+            connection.head(200, "Transfer-Encoding: chunked")
+            connection.chunk("ab")
+            connection.hold()
+
+        stalled = raw_server(stalled_script)
+        client = DefaultApiClient(TransportOptions.builder().max_retries(0).build())
+
+        before_headers = asyncio.ensure_future(
+            _stream_api(client, base_url=silent.base_url).stream("GET", "/items/blob")
+        )
+        for _ in range(500):
+            if silent.hits:
+                break
+            await asyncio.sleep(0.01)
+        assert silent.hits == 1
+        before_headers.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await before_headers
+
+        result = await _stream_api(client, base_url=stalled.base_url).stream(
+            "GET", "/items/blob"
+        )
+        stream = result.data
+        assert stream is not None
+        assert await stream.read(100) == b"ab"
+        in_body = asyncio.ensure_future(stream.read())
+        await asyncio.sleep(0.3)
+        in_body.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await in_body
+        with pytest.raises(ValueError):
+            await stream.read()
+
+    async def test_bhv_streaming_030_a_transport_that_cannot_stream_fails_a_stream_call_and_still_serves_buffered_calls(
+        self,
+    ) -> None:
+        transport = _BufferedOnlyClient()
+        api = _stream_api(transport)
+        with pytest.raises(NotImplementedError) as refused:
+            await api.stream("GET", "/items/blob")
+        assert "_BufferedOnlyClient" in str(refused.value)
+        assert "cannot stream" in str(refused.value)
+        assert transport.sent_url == "", (
+            "nothing was sent and nothing was buffered instead"
+        )
+
+        assert await api.buffered("GET", "/items/blob") == "ok"
+        assert transport.sent_url.endswith("/items/blob"), (
+            "the buffered call still works"
+        )

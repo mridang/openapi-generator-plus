@@ -2,6 +2,7 @@
 
 require 'etc'
 require 'securerandom'
+require 'socket'
 
 # Every dependency an emitted test loads is listed, with the test that needs
 # it, in .openapi-generator/DEV-DEPENDENCIES. A client keep-lists its own
@@ -225,6 +226,136 @@ class RecordingCallObserver
 
   def finish(outcome)
     @hook.finished(outcome)
+  end
+end
+
+# An in-process HTTP/1.1 server on a raw socket, so a test can stall a body,
+# cut it short or reset the connection, which neither the shared mock server
+# nor a plain HTTP server can do. +script+ runs once per connection with the
+# server, the socket, the number of the hit and the request head.
+class RawServer
+  attr_reader :hits, :heads
+
+  # Starts a server that runs +script+ for every connection it accepts.
+  def self.serve(&)
+    new(&)
+  end
+
+  def initialize(&script)
+    @listener = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    @script = script
+    @lock = Mutex.new
+    @hits = 0
+    @heads = [] # : Array[String]
+    @release = Queue.new
+    @client_gone = Queue.new
+    @acceptor = Thread.new { accept_loop }
+  end
+
+  def port
+    @listener.addr[1]
+  end
+
+  def url(path)
+    "http://127.0.0.1:#{port}#{path}"
+  end
+
+  # Lets a script that waits on the test carry on; also done when the server closes.
+  def release!
+    @release.close
+  end
+
+  def released?
+    @release.closed?
+  end
+
+  # Waits until the test releases the script, or for 20 seconds.
+  def await_release
+    @release.pop(timeout: 20)
+    nil
+  end
+
+  # Called by a script whose write failed because the client dropped the connection.
+  def client_gone!
+    @client_gone.close
+  end
+
+  # Whether a script saw the client drop the connection, waiting up to +seconds+ for it.
+  def client_gone?(seconds = 10)
+    @client_gone.pop(timeout: seconds)
+    @client_gone.closed?
+  end
+
+  def close
+    release!
+    @listener.close
+    @acceptor.join(2)
+  end
+
+  private
+
+  def accept_loop
+    loop do
+      socket = @listener.accept
+      Thread.new(socket) { |connection| handle(connection) }
+    rescue IOError, SystemCallError
+      break
+    end
+  end
+
+  def handle(socket)
+    head = +''
+    head << socket.readpartial(1) until head.end_with?("\r\n\r\n")
+    hit = @lock.synchronize do
+      @heads << head
+      @hits += 1
+    end
+    @script.call(self, socket, hit, head)
+  rescue IOError, SystemCallError
+    nil
+  ensure
+    socket.close unless socket.closed?
+  end
+end
+
+# What a RawServer script writes.
+module RawHttp
+  # The status line and headers; the connection is closed after the body.
+  def self.head(socket, status, *headers)
+    lines = ["HTTP/1.1 #{status} Test", *headers, 'Connection: close', '', '']
+    socket.write(lines.join("\r\n"))
+    socket.flush
+  end
+
+  # One chunk of a chunked body.
+  def self.chunk(socket, data)
+    socket.write("#{data.bytesize.to_s(16)}\r\n#{data}\r\n")
+    socket.flush
+  end
+
+  # The last chunk of a chunked body.
+  def self.finish(socket)
+    socket.write("0\r\n\r\n")
+    socket.flush
+  end
+
+  # Makes the close of the socket reset the connection instead of ending it cleanly.
+  def self.reset(socket)
+    socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_LINGER, [1, 0].pack('ii'))
+    socket.close
+  end
+
+  # A script for other tests: one chunk, then silence until the test releases the server.
+  def self.one_chunk_then_hold(server, socket, _hit, _head)
+    head(socket, 200, 'Transfer-Encoding: chunked')
+    chunk(socket, 'tick')
+    server.await_release
+  end
+
+  # A script for other tests: a complete two byte text response.
+  def self.reply_ok(_server, socket, _hit, _head)
+    head(socket, 200, 'Content-Type: text/plain', 'Content-Length: 2')
+    socket.write('ok')
   end
 end
 

@@ -2,6 +2,9 @@
 namespace {{apiPackage}};
 
 use {{invokerPackage}}\ApiResult;
+{{#hasBinaryStream}}
+use {{invokerPackage}}\ByteStream;
+{{/hasBinaryStream}}
 {{#optionsImports}}
 use {{invokerPackage}}\Api\Options\{{optionsClassName}};
 {{/optionsImports}}

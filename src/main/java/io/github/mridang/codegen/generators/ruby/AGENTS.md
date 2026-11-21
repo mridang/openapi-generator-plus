@@ -18,6 +18,7 @@ This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an Open
 | `errors/*.mustache`, `errors/error_parent.mustache` | The error hierarchy, one class per file under `lib/<module>/errors/` | Error classes, messages, the `apiErrorParent` root |
 | `auth/*.mustache`, `auth/oauth/*.mustache` | Authenticator base, mixin `HttpAwareAuthenticator`, api-key, bearer, basic, per-scheme wrappers, OAuth2 flows, token manager, OIDC | Auth behaviour; scheme wrappers are rendered by `renderSchemeAuthenticator` in the codegen |
 | `default_api_client.mustache`, `transport_options.mustache` | Faraday transport: TLS, proxy, timeouts, redirects, decompression, injected connection | Transport options and wire behaviour |
+| `byte_stream.mustache`, `api_stream_response.mustache`, `stream_body.mustache`, `errors/stream_error.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), `StreamBody` (the open body, internal), `StreamError` | Streaming types |
 | `base_api.mustache`, `object_serializer.mustache`, `value_serializer.mustache`, `header_selector.mustache` | Parameter styles, query/form/multipart encoding, JSON (de)serialization, content negotiation | Anything about bytes on the wire |
 | `api/api.mustache`, `api/api_rbs.mustache`, `api/options*.mustache` | Per-tag API classes, their RBS, per-operation Options objects (also generated in `generateOptionsFileContent`) | Operation signatures and doc comments |
 | `models/model.mustache`, `models/model_rbs.mustache`, `types.mustache` | dry-struct models, enums as constant classes, oneOf/anyOf modules, `Types::Required` | Models and unions |
@@ -44,7 +45,7 @@ This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an Open
 | Entry class | `Petstore::Client::Client` (a class may share its namespace's name) | Ruby lets a class share its namespace's name |
 | Servers list | `Servers::ALL` | Constant naming |
 | Numbers | `format: number` and `decimal` are `BigDecimal` (exact, plain notation, no trailing zero kept); `ipv4`/`ipv6` are `IPAddr`; `Integer` is arbitrary precision so int64 is exact | typed fields are parsed with `decimal_class: BigDecimal`, an untyped number stays `Float` (D83, D95, D96) |
-| Binary responses | `File`/`StringIO` stream | Matches java/csharp stream typing |
+| Binary responses | `ByteStream` (D119) responding to `read`, `each`, `read_all` and `close` | The response is read as consumed; a request body stays `IO`/`StringIO` (capability 3) |
 | Case of names | snake_case operations, variables and files; enum constants upper case | Ruby convention |
 | Client credentials | `Client.new(authenticator = nil, transport_options = nil, <scheme>: nil, ...)`, one keyword per security scheme in snake case | Ruby has named arguments, so the credential of each scheme is a keyword named after it |
 | Server argument | `server:` is a keyword argument after `options` | A Ruby keyword argument follows every positional one; the call site names it |
@@ -453,7 +454,7 @@ F926 (token error sentences), F933 (depth and serialize sentences), F1065 (IPv6 
 
 ### Not done in ruby, with the reason
 - F229: keep-alive needs a new adapter dependency (#127); only the false code comment was corrected.
-- F912: Faraday's `net_http` read timeout bounds one read; an end-to-end deadline over a trickled body needs a streaming reader.
+- F912: Faraday's `net_http` read timeout bounds one read; an end-to-end deadline over a trickled body needs a streaming reader (a stream call has one: the idle timeout, see "Streaming: binary responses").
 - F1140: Faraday buffers each hop and `net_http` finishes the exchange, so an intermediate 3xx holds no connection to release.
 - F855 and F1180 are conforming since batch 9 (public `invalidate_access_token`, replay in `base_api.mustache`).
 
@@ -518,3 +519,30 @@ Every item of the wave-2 work list and of the owner decisions of 2026-11-17, wit
 - Trace context from the caller (#136): `OpenTelemetry.propagation.inject` reads `OpenTelemetry::Context.current` on the caller's thread (`Context.with_current`); no thread or fiber is created on the header path (D95).
 
 - **F865 (typed `additionalProperties`, #103), done.** The model gets `ADDITIONAL_PROPERTIES_TYPE`, and `ADDITIONAL_PROPERTIES_FORMAT` (`byte`, `uuid`) and `ADDITIONAL_PROPERTIES_NULLABLE` when the value schema needs them; `ObjectSerializer.deserialize_model` decodes each extra through `convert_to_type`, rejects a null unless nullable, and `sanitize_for_serialization` writes bytes as base64. The RBS is `Hash[String, V]?`.
+
+## Streaming: binary responses (capability 1 of #114, D118 to D122)
+
+### The transport returns an unread body
+Rule: `ApiClient#send_streaming(method, url, headers, body, timeout:, max_retries:, idle_timeout:)` returns an `ApiStreamResponse` (`status_code`, lower-cased `headers`, the open `body` that responds to `read(length)` and `close`, `read_bounded(max_bytes)`, an `inspect` of the status only). The default implementation raises `::NotImplementedError` with `<transport class> cannot stream: it does not implement send_streaming, ...`, and `BaseApi#dispatch_stream` raises the same for a transport object that has no `send_streaming` at all (a duck-typed client), so an injected `ApiClient` keeps working for buffered calls and never falls back to buffering. A non-2xx response is returned like any other (open body), as `send_request` returns it, and `BaseApi` reads at most 64 KiB of it, closes it and raises the typed error of a buffered call.
+Where: `api_client.mustache`, `api_stream_response.mustache`, `base_api.mustache` (`invoke_api_for_stream` is `invoke_api_for_result(stream: true)`, so the hook, the headers, the authentication and the 401 replay are the buffered code), `default_api_client.mustache`.
+Test: `default_api_client_unit_test` (`bhv_streaming_001` and the rest), `base_api_test` (008, 017, 018, 030), `client_test` (021), golden `pet_api_test` (009).
+
+### One header phase for both paths
+Rule: `transmit_with_retries`, `transmit` and `run_hop` take an optional `StreamSpec` (nil for a buffered call). The header merge, the retry loop, the redirect loop and the deadline are shared; only `run_hop` differs: for a stream it calls `open_hop`, which runs the Faraday request on a producer thread (`StreamBody#start`) and returns the `StreamBody` as soon as the status and headers are known, so the response that the retry and redirect code looks at has `status` and `headers` like a Faraday response and a hop that is retried or followed is closed (`abort_hop`). The call `timeout` is the wait for that head, so it stops at the headers. A stream call advertises `gzip, deflate` only. The head is reported by `DefaultApiClient::HeadSignal`, mixed into the SDK's own `Net::HTTP` object through the adapter block; a supplied connection has no such hook, so its head is reported with the first body chunk (or at the end of an empty body).
+Where: `default_api_client.mustache`.
+Test: every existing `default_api_client_unit_test` row, `bhv_streaming_010`, `014`, `016`.
+
+### The body: idle timeout, truncation, decoding, cancellation
+Rule: the producer pushes the head, the chunks (`on_data`) and the end through a `SizedQueue` of 8, so a slow reader makes it wait. A read waits on the queue for at most `idle_timeout` (`Queue#pop(timeout:)`, which is why the floor of Ruby 3.2 matters) and raises `NetworkTimeoutError`; the producer's own read timeout is set to a year, since the SDK bounds the wait itself. A producer failure after the head is raised from the read as `StreamError` (`NetworkTimeoutError` for a Faraday timeout, an `ApiError` with the real status for a gzip or deflate body that does not decode), and `net_http` already raises when a body ends before its `Content-Length` (`ignore_eof = false`). `close` and `cancel` stop the producer thread, which closes the socket without draining the body, and close the queue to wake a blocked reader; an exception raised into a reading thread (a cancel) aborts the stream and propagates as it is, never as a timeout. A stream that is not closed and not read to its end keeps its producer thread and socket until the process ends.
+Where: `stream_body.mustache`, `default_api_client.mustache`, `transport_options.mustache` (`idle_timeout`, milliseconds, default 60000, `0` or `nil` disables), `errors/stream_error.mustache`.
+Test: `default_api_client_unit_test` (`bhv_streaming_011`, `012`, `013`, `015`, `019`, `020`, `031`, `032`, `033`).
+
+### Closing the client cancels open streams
+Rule: `DefaultApiClient` counts an open stream as an in-flight request until it ends, is closed or is cancelled, and tracks it. `close` marks the client closed, cancels every open stream (each frees its count, the last one releases the connection) and returns; requests in flight that are not streams finish as before. A stream whose head arrives after `close` is closed and raises the closed-client error. The next read of a cancelled stream raises `RuntimeError` ("ApiClient has been closed and can no longer send requests").
+Where: `default_api_client.mustache`, `stream_body.mustache`.
+Test: `client_test` (`bhv_streaming_021`).
+
+### Binary operations return `ByteStream`
+Rule: `BetterRubyCodegen.markBinaryStream` sets `streamsBinary` on `vendorExtensions.op` and rewrites `returnType` to `ByteStream` (and clears `isResponseFile`) for an operation whose `streamKind` is `binary`, so the operation, `..._with_http_info`, the YARD tags and the RBS say `ByteStream` and `api.mustache` calls `invoke_api_for_stream`. `ByteStream` has `status_code`, `headers`, `bytes_delivered`, `read(length = nil, outbuf = nil)` (the semantics of `IO#read`), `each(chunk_size)`, an idempotent `close`, `closed?`, a `read_all` that reads everything and closes, and an `inspect` of status and bytes delivered; `ApiResult#raw_body` is empty. The README and SKILLS Streaming fence calls the first binary operation of the spec (`postProcessSupportingFileData`).
+Where: `BetterRubyCodegen`, `api/api.mustache`, `api/api_rbs.mustache`, `byte_stream.mustache`, `readme.mustache`, `skills.mustache`.
+Test: golden `pet_api_test` (`bhv_streaming_009`, the existing avatar, document and photo rows now close their stream), `default_api_client_unit_test` (`bhv_streaming_029`).

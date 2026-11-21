@@ -2,6 +2,7 @@
 {{#generateTests}}
 import Foundation
 import TestcontainersCore
+@testable import {{packageName}}
 
 #if canImport(Glibc)
 import Glibc
@@ -186,6 +187,271 @@ func tearDownContainers() async throws {
     }
     if let network = sharedNetwork {
         try await network.remove()
+    }
+}
+
+/// A streamed response as a stub transport hands it out: the status, the
+/// headers with lower-cased names and a body that is already complete.
+///
+/// - Parameter onClose: Runs when the response is closed.
+func stubStreamResponse(
+    status: Int, headers: [String: String], body: Data, onClose: (@Sendable () -> Void)? = nil
+) -> ApiStreamResponse {
+    let (stream, continuation) = AsyncThrowingStream<Data, Error>.makeStream()
+    if !body.isEmpty {
+        continuation.yield(body)
+    }
+    continuation.finish()
+    var lowered: [String: String] = [:]
+    for (name, value) in headers {
+        lowered[name.lowercased()] = value
+    }
+    return ApiStreamResponse(
+        statusCode: status, headers: lowered, body: stream, close: { onClose?() })
+}
+
+/// The bytes a stub transport serves for a canned response body: the text itself
+/// for a text content type, and the decoded Base64 for any other.
+func stubBodyBytes(_ body: String, contentType: String?) -> Data {
+    if DefaultApiClient.isTextContentType(contentType ?? "") {
+        return Data(body.utf8)
+    }
+    return Data(base64Encoded: body) ?? Data(body.utf8)
+}
+
+/// One connection of a ``RawServer``: what a script writes to the client.
+final class RawConnection: @unchecked Sendable {
+    let descriptor: Int32
+    let server: RawServer
+
+    init(descriptor: Int32, server: RawServer) {
+        self.descriptor = descriptor
+        self.server = server
+    }
+
+    /// Writes bytes; false when the client is no longer there.
+    @discardableResult
+    func send(_ data: Data) -> Bool {
+        return data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) -> Bool in
+            guard let base = raw.baseAddress else { return true }
+            var sent = 0
+            while sent < raw.count {
+                let written = Foundation.send(descriptor, base + sent, raw.count - sent, 0)
+                if written <= 0 { return false }
+                sent += written
+            }
+            return true
+        }
+    }
+
+    @discardableResult
+    func send(_ text: String) -> Bool {
+        return send(Data(text.utf8))
+    }
+
+    /// Writes the status line and the headers of a response.
+    func head(_ status: Int, _ headers: String...) {
+        var text = "HTTP/1.1 \(status) Test\r\n"
+        for header in headers { text += header + "\r\n" }
+        text += "Connection: close\r\n\r\n"
+        send(text)
+    }
+
+    /// Writes one chunk of a chunked body; false when the client is gone.
+    @discardableResult
+    func chunk(_ text: String) -> Bool {
+        let bytes = Data(text.utf8)
+        return send(Data((String(bytes.count, radix: 16) + "\r\n").utf8) + bytes + Data("\r\n".utf8))
+    }
+
+    /// Ends a chunked body.
+    func end() {
+        send("0\r\n\r\n")
+    }
+
+    /// Makes the close that follows the script reset the connection instead of
+    /// ending it cleanly.
+    func reset() {
+        var option = linger(l_onoff: 1, l_linger: 0)
+        setsockopt(descriptor, SOL_SOCKET, SO_LINGER, &option, socklen_t(MemoryLayout<linger>.size))
+    }
+}
+
+/// An HTTP/1.1 server on a raw loopback socket that runs a script for every
+/// connection, so a test can hold a body half-sent, stall it, cut it short or
+/// reset the connection, which neither the shared mock server nor
+/// ``LoopbackServer`` can do. The script gets the connection, the 1-based hit
+/// number and the request head.
+final class RawServer: @unchecked Sendable {
+    typealias Script = @Sendable (RawConnection, Int, String) -> Void
+
+    private let lock = NSLock()
+    private let releaseSignal = NSCondition()
+    private var headLog: [String] = []
+    private var stopped = false
+    private var released = false
+    private var gone = false
+    private let script: Script
+    private(set) var port: Int = 0
+
+    init(_ script: @escaping Script) throws {
+        self.script = script
+        signal(SIGPIPE, SIG_IGN)
+#if canImport(Glibc) || canImport(Musl)
+        let stream = Int32(SOCK_STREAM.rawValue)
+#else
+        let stream = SOCK_STREAM
+#endif
+        let fd = socket(AF_INET, stream, 0)
+        guard fd >= 0 else { throw LoopbackServer.LoopbackError.socket }
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, socklen_t(MemoryLayout<Int32>.size))
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = 0
+        address.sin_addr.s_addr = UInt32(0x7F00_0001).bigEndian
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bound == 0, listen(fd, 64) == 0 else {
+            close(fd)
+            throw LoopbackServer.LoopbackError.socket
+        }
+        var assigned = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        _ = withUnsafeMutablePointer(to: &assigned) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &length) }
+        }
+        port = Int(UInt16(bigEndian: assigned.sin_port))
+        let thread = Thread { [self] in acceptLoop(fd) }
+        thread.start()
+    }
+
+    /// The origin this server answers on.
+    var origin: String { return "http://127.0.0.1:\(port)" }
+
+    func url(_ path: String) -> String { return origin + path }
+
+    /// The number of connections served so far.
+    var hits: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return headLog.count
+    }
+
+    /// The request head of every connection, in arrival order.
+    var heads: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return headLog
+    }
+
+    /// Lets every script that waits in ``awaitRelease(timeout:)`` carry on.
+    func release() {
+        releaseSignal.lock()
+        released = true
+        releaseSignal.broadcast()
+        releaseSignal.unlock()
+    }
+
+    var isReleased: Bool {
+        releaseSignal.lock()
+        defer { releaseSignal.unlock() }
+        return released
+    }
+
+    /// Waits until the test releases the server; true when it did, false on timeout.
+    @discardableResult
+    func awaitRelease(timeout: TimeInterval = 20) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        releaseSignal.lock()
+        defer { releaseSignal.unlock() }
+        while !released {
+            if !releaseSignal.wait(until: deadline) { return released }
+        }
+        return true
+    }
+
+    /// Called by a script whose write failed because the client dropped the connection.
+    func markClientGone() {
+        lock.lock()
+        gone = true
+        lock.unlock()
+    }
+
+    /// Waits for a script to report that the client dropped the connection.
+    func waitForClientGone(timeout: TimeInterval = 10) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let seen = lock.withLock { gone }
+            if seen { return true }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        return false
+    }
+
+    /// Stops accepting connections and lets waiting scripts finish.
+    func stop() {
+        release()
+        lock.lock()
+        let wasStopped = stopped
+        stopped = true
+        lock.unlock()
+        if wasStopped { return }
+#if canImport(Glibc) || canImport(Musl)
+        let stream = Int32(SOCK_STREAM.rawValue)
+#else
+        let stream = SOCK_STREAM
+#endif
+        let wake = socket(AF_INET, stream, 0)
+        if wake < 0 { return }
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = UInt16(port).bigEndian
+        address.sin_addr.s_addr = UInt32(0x7F00_0001).bigEndian
+        _ = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(wake, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        close(wake)
+    }
+
+    deinit { stop() }
+
+    private func acceptLoop(_ fd: Int32) {
+        defer { close(fd) }
+        while true {
+            let client = accept(fd, nil, nil)
+            lock.lock()
+            let done = stopped
+            lock.unlock()
+            if client < 0 || done {
+                if client >= 0 { close(client) }
+                return
+            }
+            let thread = Thread { [self] in serve(client) }
+            thread.start()
+        }
+    }
+
+    private func serve(_ client: Int32) {
+        defer { close(client) }
+        var head = Data()
+        let terminator = Data("\r\n\r\n".utf8)
+        while head.range(of: terminator) == nil {
+            var chunk = [UInt8](repeating: 0, count: 4096)
+            let count = recv(client, &chunk, chunk.count, 0)
+            if count <= 0 { return }
+            head.append(contentsOf: chunk[0..<count])
+        }
+        lock.lock()
+        headLog.append(String(decoding: head, as: UTF8.self))
+        let hit = headLog.count
+        lock.unlock()
+        script(RawConnection(descriptor: client, server: self), hit, String(decoding: head, as: UTF8.self))
     }
 }
 

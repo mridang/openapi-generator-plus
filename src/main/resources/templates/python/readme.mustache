@@ -27,7 +27,36 @@ See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a w
 
 ## Configuration
 
-`TransportOptions.builder()` sets `timeout` (milliseconds, one end-to-end budget across redirects and retries; `None` or at least 1), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers`, `inject_request_id` and `max_retries`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. With `inject_request_id(True)` every request carries an `X-Request-ID` header unless you send one.
+`TransportOptions.builder()` sets `timeout` (milliseconds, one end-to-end budget across redirects and retries; `None` or at least 1), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers`, `inject_request_id`, `max_retries` and `idle_timeout`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. With `inject_request_id(True)` every request carries an `X-Request-ID` header unless you send one.
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`async with`). `read_all()` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```python file
+from pathlib import Path
+
+{{#binaryStreamExample}}
+{{#imports}}
+{{{.}}}
+{{/imports}}
+{{/binaryStreamExample}}
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
+
+
+{{#binaryStreamOperation}}async def save_to(client: {{clientClassName}}, {{#binaryStreamExample}}{{#hasParameters}}{{{parameters}}}, {{/hasParameters}}{{/binaryStreamExample}}target: Path) -> None:
+    stream = await client.{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}.{{operationId}}({{#binaryStreamExample}}{{{arguments}}}{{/binaryStreamExample}})
+    async with stream:
+        print(stream.status_code)
+        with target.open('wb') as file:
+            async for chunk in stream:
+                file.write(chunk)
+{{/binaryStreamOperation}}
+```
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `None` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `NotImplementedError` naming it, and its buffered calls keep working.
 
 ### Custom HTTP client
 
@@ -108,8 +137,8 @@ request timeout on `TransportOptions`; a call that exceeds it fails with
 It marks the client closed at once; calls already in flight, retries included,
 run to their end, and the transport the SDK created is released when the last
 of them completes. A call started afterwards raises `RuntimeError`
-(`ApiClient has been closed and can no longer send requests`). A
-`urllib3.PoolManager` you passed in is never closed.
+(`ApiClient has been closed and can no longer send requests`). Streams that
+are still open are cancelled. A `urllib3.PoolManager` you passed in is never closed.
 
 ### Credentials
 
@@ -236,7 +265,6 @@ The package version follows semantic versioning; the clients, Options objects, m
 - Optional and nullable: an optional property that is absent and one that is `null` both read as `None`, and `None` is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it. A required nullable query parameter is kept the same way: when its value is `None` the key is still sent, with an empty value (`?key=`).
 - Unknown enum values decode to the catch-all member `UNKNOWN_DEFAULT_OPEN_API`, which has no wire value, so writing it raises `SerializationException`; a discriminator value the SDK does not know still raises `SerializationException` and names the value.
 - Repeated response headers are joined into one value with `, ` in `headers` and `response_headers` (so repeated `Set-Cookie` or `Link` lines arrive as one string).
-- Streaming is not supported: a response is read whole before it is decoded, so server-sent events and JSON Lines are out of scope. Supply your own `ApiClient` or `urllib3.PoolManager` for those calls.
 - `Configuration` (base URL, default headers) and `TransportOptions` (timeout, proxy, TLS, retries) stay separate objects: the client builds the first from the authenticator's host and takes the second as an argument.
 
 ## Package

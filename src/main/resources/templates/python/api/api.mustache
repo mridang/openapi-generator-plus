@@ -499,6 +499,7 @@ class {{classname}}(BaseApi):
             )
 {{/vendorExtensions.hasMultipleConsumes}}
 
+{{^vendorExtensions.op.streamsBinary}}
 {{#vendorExtensions.op.hasMultiple2xx}}
         def decode_success(status_code: int, body: str) -> Any:
             """Decode the body by the status code the server answered with."""
@@ -509,11 +510,12 @@ class {{classname}}(BaseApi):
             return self._object_serializer.deserialize(body, '{{{vendorExtensions.op.successUnionType}}}')
 
 {{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
 {{#vendorExtensions.op.hasErrorSchemaResponses}}
         from .. import errors as _errors
 
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
-        return await self._invoke_api_for_result(
+        return await self._invoke_api_for_{{#vendorExtensions.op.streamsBinary}}stream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}result{{/vendorExtensions.op.streamsBinary}}(
             '{{httpMethod}}',
             path,
             query_params,
@@ -521,7 +523,9 @@ class {{classname}}(BaseApi):
             body,
             [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#vendorExtensions.hasMultipleConsumes}}content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
+{{^vendorExtensions.op.streamsBinary}}
             {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
+{{/vendorExtensions.op.streamsBinary}}
             {{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}{{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}self._requirement_authenticator({{#vendorExtensions.op.securityAlternatives}}({{#schemeIds}}"{{{schemeLiteral}}}",{{^-last}} {{/-last}}{{/schemeIds}}){{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}self._scheme_authenticator({{#vendorExtensions.op.securitySchemeOrder}}"{{{schemeLiteral}}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}None{{/vendorExtensions.op.hasSecuritySchemes}}{{/vendorExtensions.op.securityNone}},
 {{#bodyParam}}
 {{#isBinary}}
@@ -532,9 +536,11 @@ class {{classname}}(BaseApi):
             operation_id={{#lambda.quotedLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.quotedLiteral}},
             url_template={{#lambda.quotedLiteral}}{{{path}}}{{/lambda.quotedLiteral}},
             request_options=options,
+{{^vendorExtensions.op.streamsBinary}}
 {{#vendorExtensions.op.hasMultiple2xx}}
             decode_success=decode_success,
 {{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
 {{#vendorExtensions.op.hasErrorSchemaResponses}}
             error_schemas={
 {{#vendorExtensions.op.errorSchemaResponses}}

@@ -24,6 +24,7 @@ use PetstoreClient\Api\GetMultiServerPetInfoServerRegional;
 use PetstoreClient\Api\GetMultiServerPetInfoServerRegionalRegion;
 use PetstoreClient\Api\PetApi;
 use PetstoreClient\ApiResult;
+use PetstoreClient\ByteStream;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\Test\CapturingApiClient;
@@ -84,7 +85,7 @@ test('bhv langphp 026 data methods declare a native return type', function (stri
     ['getPetById', Pet::class],
     ['addPet', Pet::class],
     ['findPetsByStatus', \Ds\Vector::class],
-    ['downloadPetDocument', 'string'],
+    ['downloadPetDocument', ByteStream::class],
     ['deletePet', 'void'],
 ]);
 
@@ -265,22 +266,33 @@ test('bhv operations 076 set pet avatar rejects an unrecognised request content-
 test('bhv operations 045 get pet avatar', function (): void {
     $result = $this->api->getPetAvatar(1);
 
-    expect($result)->not->toBeNull();
-    expect($result)->toBeString();
+    expect($result)->toBeInstanceOf(ByteStream::class);
+    $result->close();
 });
 
-test('bhv langphp 028 get pet avatar returns decoded bytes not base64 string', function (): void {
-    /* The transport base64-encodes binary response bodies for transit. A
-     * binary operation must hand back the DECODED raw bytes, so re-encoding
-     * the returned value as base64 must reproduce the raw (still-encoded)
-     * body exposed on the ApiResult. If the decode regressed and the base64
-     * STRING leaked through, base64_encode($data) would double-encode and
-     * never equal $rawBody. */
+test('bhv streaming 009 a binary stream exposes the status and the lower cased response headers', function (): void {
+    $stream = $this->api->getPetAvatar(1);
+
+    expect($stream->statusCode)->toBe(200);
+    expect($stream->headers)->toHaveKey('content-type');
+    foreach (array_keys($stream->headers) as $name) {
+        expect($name)->toBe(strtolower((string) $name));
+    }
+    $stream->close();
+});
+
+test('bhv langphp 028 get pet avatar hands back the bytes unencoded and an empty raw body', function (): void {
+    /* The result of a binary operation holds the open stream as its data; its raw body is empty,
+     * because the body is read as it is consumed and never held. */
     $result = $this->api->getPetAvatarWithHttpInfo(1);
 
-    expect($result->data)->toBeString();
-    expect($result->rawBody)->not->toBeNull();
-    expect(base64_encode((string) $result->data))->toBe($result->rawBody);
+    expect($result->data)->toBeInstanceOf(ByteStream::class);
+    expect($result->rawBody)->toBe('');
+    $stream = $result->data;
+    assert($stream instanceof ByteStream);
+    expect($result->statusCode)->toBe($stream->statusCode);
+    expect($result->headers)->toBe($stream->headers);
+    expect($stream->readAll())->toBeString()->not->toBe('');
 });
 
 test('bhv operations 046 get pet avatar thumbnail', function (): void {
@@ -373,15 +385,15 @@ test('bhv operations 023 add pet photos', function (): void {
 test('bhv operations 035 download pet document', function (): void {
     $result = $this->api->downloadPetDocument(1, 1);
 
-    expect($result)->not->toBeNull();
-    expect($result)->toBeString();
+    expect($result)->toBeInstanceOf(ByteStream::class);
+    $result->close();
 });
 
 test('bhv operations 055 get pet photo', function (): void {
     $result = $this->api->getPetPhoto(1, 1);
 
-    expect($result)->not->toBeNull();
-    expect($result)->toBeString();
+    expect($result)->toBeInstanceOf(ByteStream::class);
+    $result->close();
 });
 
 test('bhv operations 061 get external pet info uses per operation server url', function (): void {
@@ -1322,8 +1334,7 @@ test('bhv operations 034 download binary mock', function (): void {
 
     $result = $api->getPetAvatar(1);
 
-    expect($result)->not->toBeNull();
-    expect($result)->toBe($binaryData);
+    expect($result->readAll())->toBe($binaryData);
 });
 
 test('bhv operations 089 upload multipart mock', function (): void {

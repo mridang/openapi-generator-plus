@@ -3748,4 +3748,220 @@ class BaseApiTest {
             }
         assertEquals(302, ex.statusCode)
     }
+
+    /** A response body that remembers whether it was closed. */
+    class CloseTrackingBody(
+        private val bytes: ByteArray,
+    ) : ApiStreamBody {
+        var closed = false
+        private var position = 0
+
+        override suspend fun read(buffer: ByteArray): Int {
+            if (position >= bytes.size) {
+                return -1
+            }
+            val count = minOf(buffer.size, bytes.size - position)
+            System.arraycopy(bytes, position, buffer, 0, count)
+            position += count
+            return count
+        }
+
+        override fun close() {
+            closed = true
+        }
+    }
+
+    /** Answers a stream call from a script of statuses and keeps what each call was sent. */
+    class ScriptedStreamingClient(
+        private val contentType: String,
+        private val payload: ByteArray,
+        private vararg val statuses: Int,
+    ) : ApiClient {
+        val streamHeaders = mutableListOf<Map<String, String>>()
+        val opened = mutableListOf<CloseTrackingBody>()
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean,
+        ): ApiHttpResponse = ApiHttpResponse(200, "{}", mapOf("content-type" to "application/json"))
+
+        override suspend fun sendStreaming(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+        ): ApiStreamResponse {
+            val index = minOf(streamHeaders.size, statuses.size - 1)
+            streamHeaders.add(headers.toMap())
+            val opening = CloseTrackingBody(payload)
+            opened.add(opening)
+            return ApiStreamResponse(statuses[index], mapOf("content-type" to contentType), opening)
+        }
+    }
+
+    /** A transport written before streaming existed: it implements the buffered call only. */
+    class BufferedOnlyClient : ApiClient {
+        var sentUrl = ""
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean,
+        ): ApiHttpResponse {
+            sentUrl = url
+            return ApiHttpResponse(200, "{}", mapOf("content-type" to "application/json"))
+        }
+    }
+
+    class TestableStreamApi(
+        client: ApiClient,
+        config: Configuration,
+    ) : com.example.petstore.api.BaseApi(client, config) {
+        constructor(client: ApiClient, baseUrl: String) : this(client, Configuration.builder().baseUrl(baseUrl).build())
+
+        suspend fun stream(
+            path: String,
+            auth: Authenticator? = null,
+        ): ApiResult<ByteStream> =
+            invokeApiForStream(
+                "GET",
+                path,
+                mutableMapOf(),
+                mutableMapOf(),
+                null,
+                arrayOf("application/octet-stream"),
+                "application/json",
+                auth,
+            )
+
+        suspend fun buffered(
+            path: String,
+            auth: Authenticator? = null,
+        ): ApiHttpResponse =
+            invokeApi(
+                "GET",
+                path,
+                mutableMapOf(),
+                mutableMapOf(),
+                null,
+                arrayOf("application/octet-stream"),
+                "application/json",
+                auth,
+            )
+    }
+
+    private fun streamCall(
+        client: ApiClient,
+        auth: Authenticator? = null,
+    ): ApiResult<ByteStream> = runBlocking { TestableStreamApi(client, "http://localhost").stream("/items/blob", auth) }
+
+    @Nested
+    @DisplayName("binary streams")
+    inner class BinaryStreams {
+        @Test
+        @DisplayName("bhvStreaming008 a non-2xx streaming call raises the typed error and never returns a stream")
+        fun bhvStreaming008ANon2xxStreamingCallRaisesTheTypedErrorAndNeverReturnsAStream() {
+            val client = ScriptedStreamingClient("application/json", """{"message":"gone"}""".toByteArray(Charsets.UTF_8), 404)
+            val failure = assertThrowsExactly(NotFoundException::class.java) { streamCall(client) }
+            assertEquals(404, failure.statusCode)
+            assertTrue(failure.responseBody!!.contains("gone"))
+            assertEquals("/items/blob", failure.requestPath)
+            assertTrue(client.opened[0].closed, "the connection was closed after the error body")
+
+            val large = ScriptedStreamingClient("text/plain", ByteArray(200_000), 502)
+            val bounded = assertThrows(ServerException::class.java) { streamCall(large) }
+            assertEquals(64 * 1024, bounded.responseBody!!.length, "the error body is bounded")
+        }
+
+        @Test
+        @DisplayName(
+            "bhvStreaming017 a stream call sends the same user agent, request id, trace context and authentication as a buffered call",
+        )
+        fun bhvStreaming017AStreamingCallSendsTheSameHeadersAsABufferedCall() {
+            DefaultApiClientUnitTest.RawServer.serve(DefaultApiClientUnitTest.replyOk).use { server ->
+                val trace = RecordingHook { it["traceparent"] = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01" }
+                val config =
+                    Configuration
+                        .builder()
+                        .baseUrl(server.url(""))
+                        .callHook(trace)
+                        .build()
+                val api =
+                    TestableStreamApi(
+                        DefaultApiClient(
+                            TransportOptions
+                                .builder()
+                                .injectRequestId(true)
+                                .maxRetries(0)
+                                .build(),
+                        ),
+                        config,
+                    )
+                val auth = TestAuthenticator(mapOf("X-Api-Key" to "k-123"), emptyMap(), emptyMap())
+                runBlocking {
+                    api.buffered("/items/blob", auth)
+                    api.stream("/items/blob", auth).data!!.close()
+                }
+
+                val buffered = headersOf(server.heads[0])
+                val streamed = headersOf(server.heads[1])
+                assertEquals(buffered.keys, streamed.keys, "the same header names are sent")
+                for (name in listOf("user-agent", "x-api-key", "traceparent", "accept", "accept-encoding")) {
+                    assertNotNull(streamed[name], name)
+                    assertEquals(buffered[name], streamed[name], name)
+                }
+                assertNotNull(streamed["x-request-id"])
+                assertNotEquals(buffered["x-request-id"], streamed["x-request-id"], "each call has its own request id")
+            }
+        }
+
+        private fun headersOf(head: String): Map<String, String> {
+            val headers = java.util.TreeMap<String, String>()
+            for (line in head.split("\r\n")) {
+                val colon = line.indexOf(':')
+                if (colon > 0 && !line.startsWith("GET ")) {
+                    headers[line.substring(0, colon).lowercase()] = line.substring(colon + 1).trim()
+                }
+            }
+            return headers
+        }
+
+        @Test
+        @DisplayName(
+            "bhvStreaming018 a 401 on a stream call authenticated by OAuth2 refreshes the token and replays once before the stream is returned",
+        )
+        fun bhvStreaming018A401OnAStreamingCallRefreshesTheTokenAndReplaysOnce() {
+            val client = ScriptedStreamingClient("application/octet-stream", "ok".toByteArray(Charsets.UTF_8), 401, 200)
+            val auth = RotatingOAuthAuthenticator()
+            val stream = streamCall(client, auth).data!!
+            assertEquals(2, client.streamHeaders.size)
+            assertEquals("Bearer t1", client.streamHeaders[0]["Authorization"])
+            assertEquals("Bearer t2", client.streamHeaders[1]["Authorization"])
+            assertEquals(1, auth.invalidations)
+            assertTrue(client.opened[0].closed, "the refused response was closed unread")
+            assertEquals("ok", String(runBlocking { stream.readAll() }, Charsets.UTF_8))
+
+            val refused = ScriptedStreamingClient("application/octet-stream", ByteArray(0), 401)
+            assertThrowsExactly(UnauthorizedException::class.java) { streamCall(refused, RotatingOAuthAuthenticator()) }
+            assertEquals(2, refused.streamHeaders.size, "a second 401 is not replayed again")
+        }
+
+        @Test
+        @DisplayName("bhvStreaming030 a transport that cannot stream fails a stream call naming itself, and buffered calls keep working")
+        fun bhvStreaming030ATransportThatCannotStreamFailsAStreamCallAndStillServesBufferedCalls() {
+            val transport = BufferedOnlyClient()
+            val refused = assertThrows(UnsupportedOperationException::class.java) { streamCall(transport) }
+            assertTrue(refused.message!!.contains(BufferedOnlyClient::class.java.name))
+            assertTrue(refused.message!!.contains("cannot stream"))
+            assertEquals("", transport.sentUrl, "nothing was sent and nothing was buffered instead")
+
+            runBlocking { TestableStreamApi(transport, "http://localhost").buffered("/items/blob") }
+            assertTrue(transport.sentUrl.endsWith("/items/blob"), "the buffered call still works")
+        }
+    }
 }

@@ -53,6 +53,32 @@ class DefaultApiClient extends AbstractApiClient {
     super.ownsClient,
   ]);
 
+  /// Decodes a streamed body with the dart:io codecs as it arrives. An empty
+  /// or `identity` encoding passes the body through; any other encoding
+  /// (`br`, `zstd`, or an unrecognised coding) raises a typed [ApiException]
+  /// rather than handing out still-encoded bytes.
+  @override
+  Stream<List<int>> decompressStream(
+    Stream<List<int>> body,
+    String contentEncoding,
+  ) {
+    switch (contentEncoding) {
+      case '':
+      case 'identity':
+        return body;
+      case 'gzip':
+      case 'x-gzip':
+        return gzip.decoder.bind(body);
+      case 'deflate':
+        return zlib.decoder.bind(body);
+      default:
+        throw ApiException(
+          statusCode: 0,
+          message: "Unsupported Content-Encoding '$contentEncoding'",
+        );
+    }
+  }
+
   /// A raw `dart:io` socket, TLS or HTTP error means no HTTP response
   /// arrived, so it surfaces as a `NetworkException`.
   @override

@@ -3249,3 +3249,33 @@ streaming030 | A transport that does not implement the streaming method makes a 
 streaming031 | Closing a live endless stream returns promptly and does not wait for the server to finish
 streaming032 | A reset or truncation after the headers raises a StreamError, and a StreamError is a network error
 streaming033 | Stopping a stream early without reading it to the end releases the connection
+streaming002 | A JSON Lines stream yields one decoded item per line and skips blank lines
+streaming003 | A JSON Lines stream accepts CRLF line ends and a last line without a newline
+streaming004 | A JSON Lines line that does not decode raises a serialization error naming the 1-based line and ends the stream after the items before it
+streaming005 | A line or event longer than the limit raises a serialization error and ends the stream
+streaming006 | A gzip encoded stream is decoded incrementally, so the first item arrives before the body ends
+streaming007 | A corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried
+streaming028 | An operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method
+sse001 | An SSE stream yields the id, event, data and retry fields of each event, with message as the default event
+sse002 | An SSE stream joins consecutive data lines with a newline and skips comment lines
+sse003 | An SSE stream drops a leading byte order mark, accepts CR, LF and CRLF line ends and removes one space after the colon
+sse004 | An SSE event with an empty data buffer is not delivered but its id is kept
+sse005 | An SSE data payload is decoded as the declared schema, and a payload that does not decode raises a serialization error and ends the stream
+sse006 | An SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them
+sse007 | An SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID
+sse008 | An SSE reconnect waits the server retry value, else the reconnect delay doubling to a cap
+sse009 | An SSE GET stream stops after five consecutive failed reconnects by default and raises the last failure
+sse010 | An SSE reconnect counter resets after an event is received
+sse011 | An SSE stream does not reconnect after a 204, a 4xx status or a response that is not text/event-stream
+sse012 | An SSE stream sends the initial last event id of the call on its first request
+sse013 | An SSE reconnect rebuilds the headers so a refreshed token is the one sent
+sse014 | An SSE retry field that is not digits and an id containing NUL are ignored
+sse015 | An idle timeout on an SSE stream counts as a lost connection and reconnects
+sse016 | An SSE request that has a body is not reconnected unless the caller turns reconnect on, and a single use body is never reconnected
+sse017 | An SSE event with an id and no data is not dispatched but updates the last event id, and a reconnect resumes from it
+sse018 | An SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout
+sse019 | An SSE event cut off by the end of the connection is discarded
+sse020 | An SSE reconnect sends Last-Event-ID only when the last event id is not empty
+sse021 | The configured SSE terminator ends the stream and is not delivered
+sse022 | An SSE event named error raises the SDK API error with the response status and the data as its body and is not reconnected, and an event with any other name is an item
+sse023 | An unknown SSE field is ignored
