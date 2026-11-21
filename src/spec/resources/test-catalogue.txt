@@ -3279,3 +3279,8 @@ sse020 | An SSE reconnect sends Last-Event-ID only when the last event id is not
 sse021 | The configured SSE terminator ends the stream and is not delivered
 sse022 | An SSE event named error raises the SDK API error with the response status and the data as its body and is not reconnected, and an event with any other name is an item
 sse023 | An unknown SSE field is ignored
+streaming023 | A streamed upload of unknown length is sent chunked and arrives intact
+streaming024 | A streamed upload with a known length sends Content-Length
+streaming025 | A caller supplied upload stream is never closed by the SDK
+streaming026 | A replayable upload is rewound and retried after a 503, and a single use upload is not retried and surfaces the original error
+streaming027 | A 307 or 308 with a single use upload is refused and the body is never buffered
