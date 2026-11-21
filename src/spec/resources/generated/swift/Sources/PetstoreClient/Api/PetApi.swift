@@ -1781,6 +1781,26 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: PetCatalogPage.self)
   }
 
+  /// Lists the pet catalog one page at a time with a next-cursor token
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetCatalogWithHTTPInfo`, with the same options on each page.
+  /// The value of the `cursor` option is where the list starts, and the
+  /// page after each one is requested with the `next_cursor` it returned.
+  public func listPetCatalogPages(options: ListPetCatalogOptions? = nil) -> Paginator<Pet, String> {
+    return Paginator<Pet, String>.ofCursor(
+      start: options?.cursor,
+      requestPath: "/pet/catalog",
+      fetch: { cursor in
+        let pageOptions =
+          cursor.map { (options ?? ListPetCatalogOptions()).withCursor($0) } ?? options
+        return try await self.listPetCatalogWithHTTPInfo(options: pageOptions)
+      },
+      items: { $0.items },
+      next: { $0.nextCursor })
+  }
+
   /// Lists pet events; only the generator option says it is paged
   ///
   /// - Parameters:
@@ -1837,6 +1857,27 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: PetEventPage.self)
   }
 
+  /// Lists pet events; only the generator option says it is paged
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetEventsWithHTTPInfo`, with the same options on each page.
+  /// The value of the `since` option is where the list starts, and the
+  /// page after each one is requested with the `upto` it returned.
+  public func listPetEventsPages(options: ListPetEventsOptions? = nil) -> Paginator<String, String>
+  {
+    return Paginator<String, String>.ofCursor(
+      start: options?.since,
+      requestPath: "/pet/events",
+      fetch: { cursor in
+        let pageOptions =
+          cursor.map { (options ?? ListPetEventsOptions()).withCursor($0) } ?? options
+        return try await self.listPetEventsWithHTTPInfo(options: pageOptions)
+      },
+      items: { $0.events },
+      next: { $0.upto })
+  }
+
   /// Lists the pet feed one page at a time with a Link header
   ///
   /// - Parameters:
@@ -1858,6 +1899,13 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   public func listPetFeedWithHTTPInfo(options: ListPetFeedOptions? = nil) async throws -> ApiResult<
     [Pet]
   > {
+    return try await listPetFeedPage(options: options, pageURL: nil)
+  }
+
+  /* One page of the list: the first when `pageURL` is nil, else the URL the Link header named. */
+  func listPetFeedPage(options: ListPetFeedOptions?, pageURL: String?) async throws -> ApiResult<
+    [Pet]
+  > {
 
     let path = "/pet/feed"
 
@@ -1874,8 +1922,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     let requestBody: Any? = nil
     let params = InvokeAPIParams(
       method: "GET",
-      path: path,
-      queryParams: queryParams,
+      path: pageURL ?? path,
+      queryParams: pageURL == nil ? queryParams : [:],
       headerParams: headerParams,
       body: requestBody,
       accepts: ["application/json"],
@@ -1891,6 +1939,23 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     )
 
     return try await invokeAPIForResult(params, as: [Pet].self)
+  }
+
+  /// Lists the pet feed one page at a time with a Link header
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetFeedWithHTTPInfo`, with the same options on each page.
+  /// The page after each one is the `rel="next"` link of its `Link` header, followed only within
+  /// the origin of the client.
+  public func listPetFeedPages(options: ListPetFeedOptions? = nil) -> Paginator<Pet, Void> {
+    return Paginator<Pet, Void>.ofLink(
+      baseURL: config.baseURL,
+      requestPath: "/pet/feed",
+      fetch: { pageURL in
+        try await self.listPetFeedPage(options: options, pageURL: pageURL)
+      },
+      items: { $0 })
   }
 
   /// Finds pets and their owners; two lists make it ambiguous, so it is not paged
@@ -2005,6 +2070,26 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: PetNotePage.self)
   }
 
+  /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetNotesWithHTTPInfo`, with the same options on each page.
+  /// The value of the `pos` option is where the list starts, and the
+  /// page after each one is requested with the `following` it returned.
+  public func listPetNotesPages(options: ListPetNotesOptions? = nil) -> Paginator<String, String> {
+    return Paginator<String, String>.ofCursor(
+      start: options?.pos,
+      requestPath: "/pet/notes",
+      fetch: { cursor in
+        let pageOptions =
+          cursor.map { (options ?? ListPetNotesOptions()).withCursor($0) } ?? options
+        return try await self.listPetNotesWithHTTPInfo(options: pageOptions)
+      },
+      items: { $0.rows },
+      next: { $0.following })
+  }
+
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
   ///
@@ -2017,7 +2102,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
   public func setPetAvatar(
-    petId: Int64, body: Data, options: SetPetAvatarOptions? = nil, requestContentType: String? = nil
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions? = nil,
+    requestContentType: String? = nil
   ) async throws {
     let result = try await setPetAvatarWithHTTPInfo(
       petId: petId, body: body, options: options, requestContentType: requestContentType)
@@ -2029,7 +2115,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
   public func setPetAvatarWithHTTPInfo(
-    petId: Int64, body: Data, options: SetPetAvatarOptions? = nil, requestContentType: String? = nil
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions? = nil,
+    requestContentType: String? = nil
   ) async throws -> ApiResult<Void> {
 
     var path = "/pet/{petId}/avatar"

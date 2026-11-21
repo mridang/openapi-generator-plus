@@ -130,14 +130,15 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
   /// Creates the data task for `request` on `session` and starts it. A task
   /// that follows a redirect the platform cannot follow itself is started
   /// again here with `hops` redirects already counted.
-  func start(_ request: URLRequest, in session: URLSession, hops: Int, onTask: Bool)
-    -> URLSessionTask
-  {
+  func start(
+    _ request: URLRequest, in session: URLSession, hops: Int, onTask: Bool,
+    source: BodySource? = nil
+  ) -> URLSessionTask {
     let created = session.dataTask(with: request)
     if onTask {
       created.delegate = self
     }
-    policy.remember(body: request.httpBody, hops: hops, for: created)
+    policy.remember(body: request.httpBody, source: source, hops: hops, for: created)
     let stopped: Bool = lock.withLock {
       task = created
       headersDelivered = false
@@ -505,6 +506,14 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
   ) {
     policy.urlSession(
       session, task: challenged, didReceive: challenge, completionHandler: completionHandler)
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    task resending: URLSessionTask,
+    needNewBodyStream completionHandler: @escaping @Sendable (InputStream?) -> Void
+  ) {
+    policy.urlSession(session, task: resending, needNewBodyStream: completionHandler)
   }
 
   #if canImport(Security)

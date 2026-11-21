@@ -1882,6 +1882,16 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func listPetCatalogPages(options: ListPetCatalogOptions?) -> Paginator<Pet, String> {
+    record("listPetCatalogPages")
+    return Paginator<Pet, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetCatalogPage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
   public func listPetEvents(options: ListPetEventsOptions?) async throws -> PetEventPage {
     var parts: [String] = []
     var call = "listPetEvents(" + parts.joined(separator: ",") + ")"
@@ -1900,6 +1910,16 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func listPetEventsPages(options: ListPetEventsOptions?) -> Paginator<String, String> {
+    record("listPetEventsPages")
+    return Paginator<String, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetEventPage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
   public func listPetFeed(options: ListPetFeedOptions?) async throws -> [Pet] {
     var parts: [String] = []
     var call = "listPetFeed(" + parts.joined(separator: ",") + ")"
@@ -1915,6 +1935,16 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     call += options == nil ? " options=none" : " options=set"
     record(call)
     throw NotFoundError(message: "missing")
+  }
+
+  public func listPetFeedPages(options: ListPetFeedOptions?) -> Paginator<Pet, Void> {
+    record("listPetFeedPages")
+    return Paginator<Pet, Void>.ofLink(
+      baseURL: "", requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<[Pet]> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil })
   }
 
   public func listPetMatches(options: ListPetMatchesOptions?) async throws -> PetMatchPage {
@@ -1953,8 +1983,18 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func listPetNotesPages(options: ListPetNotesOptions?) -> Paginator<String, String> {
+    record("listPetNotesPages")
+    return Paginator<String, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetNotePage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
   public func setPetAvatar(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -1965,7 +2005,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func setPetAvatarWithHTTPInfo(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws -> ApiResult<Void> {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -2771,14 +2811,18 @@ private func environmentClient(
     #expect(petListed.contains("listPetArchiveWithHTTPInfo"))
     #expect(petListed.contains("listPetCatalog"))
     #expect(petListed.contains("listPetCatalogWithHTTPInfo"))
+    #expect(petListed.contains("listPetCatalogPages"))
     #expect(petListed.contains("listPetEvents"))
     #expect(petListed.contains("listPetEventsWithHTTPInfo"))
+    #expect(petListed.contains("listPetEventsPages"))
     #expect(petListed.contains("listPetFeed"))
     #expect(petListed.contains("listPetFeedWithHTTPInfo"))
+    #expect(petListed.contains("listPetFeedPages"))
     #expect(petListed.contains("listPetMatches"))
     #expect(petListed.contains("listPetMatchesWithHTTPInfo"))
     #expect(petListed.contains("listPetNotes"))
     #expect(petListed.contains("listPetNotesWithHTTPInfo"))
+    #expect(petListed.contains("listPetNotesPages"))
     #expect(petListed.contains("setPetAvatar"))
     #expect(petListed.contains("setPetAvatarWithHTTPInfo"))
     #expect(petListed.contains("setPetAvatarThumbnail"))

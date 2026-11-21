@@ -102,12 +102,15 @@ public protocol PetApiProtocol: Sendable {
   func listPetCatalogWithHTTPInfo(options: ListPetCatalogOptions?) async throws -> ApiResult<
     PetCatalogPage
   >
+  func listPetCatalogPages(options: ListPetCatalogOptions?) -> Paginator<Pet, String>
   func listPetEvents(options: ListPetEventsOptions?) async throws -> PetEventPage
   func listPetEventsWithHTTPInfo(options: ListPetEventsOptions?) async throws -> ApiResult<
     PetEventPage
   >
+  func listPetEventsPages(options: ListPetEventsOptions?) -> Paginator<String, String>
   func listPetFeed(options: ListPetFeedOptions?) async throws -> [Pet]
   func listPetFeedWithHTTPInfo(options: ListPetFeedOptions?) async throws -> ApiResult<[Pet]>
+  func listPetFeedPages(options: ListPetFeedOptions?) -> Paginator<Pet, Void>
   func listPetMatches(options: ListPetMatchesOptions?) async throws -> PetMatchPage
   func listPetMatchesWithHTTPInfo(options: ListPetMatchesOptions?) async throws -> ApiResult<
     PetMatchPage
@@ -116,11 +119,12 @@ public protocol PetApiProtocol: Sendable {
   func listPetNotesWithHTTPInfo(options: ListPetNotesOptions?) async throws -> ApiResult<
     PetNotePage
   >
+  func listPetNotesPages(options: ListPetNotesOptions?) -> Paginator<String, String>
   func setPetAvatar(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?)
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?)
     async throws
   func setPetAvatarWithHTTPInfo(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws -> ApiResult<Void>
   func setPetAvatarThumbnail(
     petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
@@ -394,6 +398,11 @@ extension PetApiProtocol {
     try await listPetCatalogWithHTTPInfo(options: nil)
   }
 
+  /// The `listPetCatalogPages` operation with every optional parameter left out.
+  public func listPetCatalogPages() -> Paginator<Pet, String> {
+    listPetCatalogPages(options: nil)
+  }
+
   /// The `listPetEvents` operation with every optional parameter left out.
   public func listPetEvents() async throws -> PetEventPage {
     try await listPetEvents(options: nil)
@@ -404,6 +413,11 @@ extension PetApiProtocol {
     try await listPetEventsWithHTTPInfo(options: nil)
   }
 
+  /// The `listPetEventsPages` operation with every optional parameter left out.
+  public func listPetEventsPages() -> Paginator<String, String> {
+    listPetEventsPages(options: nil)
+  }
+
   /// The `listPetFeed` operation with every optional parameter left out.
   public func listPetFeed() async throws -> [Pet] {
     try await listPetFeed(options: nil)
@@ -412,6 +426,11 @@ extension PetApiProtocol {
   /// The `listPetFeedWithHTTPInfo` operation with every optional parameter left out.
   public func listPetFeedWithHTTPInfo() async throws -> ApiResult<[Pet]> {
     try await listPetFeedWithHTTPInfo(options: nil)
+  }
+
+  /// The `listPetFeedPages` operation with every optional parameter left out.
+  public func listPetFeedPages() -> Paginator<Pet, Void> {
+    listPetFeedPages(options: nil)
   }
 
   /// The `listPetMatches` operation with every optional parameter left out.
@@ -434,13 +453,20 @@ extension PetApiProtocol {
     try await listPetNotesWithHTTPInfo(options: nil)
   }
 
+  /// The `listPetNotesPages` operation with every optional parameter left out.
+  public func listPetNotesPages() -> Paginator<String, String> {
+    listPetNotesPages(options: nil)
+  }
+
   /// The `setPetAvatar` operation with every optional parameter left out.
-  public func setPetAvatar(petId: Int64, body: Data) async throws {
+  public func setPetAvatar(petId: Int64, body: BodySource) async throws {
     try await setPetAvatar(petId: petId, body: body, options: nil, requestContentType: nil)
   }
 
   /// The `setPetAvatarWithHTTPInfo` operation with every optional parameter left out.
-  public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data) async throws -> ApiResult<Void> {
+  public func setPetAvatarWithHTTPInfo(petId: Int64, body: BodySource) async throws -> ApiResult<
+    Void
+  > {
     try await setPetAvatarWithHTTPInfo(
       petId: petId, body: body, options: nil, requestContentType: nil)
   }

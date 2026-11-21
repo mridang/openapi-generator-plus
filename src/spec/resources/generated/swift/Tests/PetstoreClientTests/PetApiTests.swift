@@ -250,7 +250,7 @@ final class PetApiTests {
     let api = petApiForIntegration()
     let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
 
-    try await api.setPetAvatar(petId: 1, body: imageData)
+    try await api.setPetAvatar(petId: 1, body: BodySource.of(imageData))
   }
 
   @Test func testBhvOperations076SetPetAvatarRejectsUnknownContentType() async throws {
@@ -260,7 +260,7 @@ final class PetApiTests {
     // onto the wire as an undeclared Content-Type.
     await #expect(throws: ConfigurationError.self) {
       try await api.setPetAvatar(
-        petId: 1, body: imageData, requestContentType: "application/unknown-type")
+        petId: 1, body: BodySource.of(imageData), requestContentType: "application/unknown-type")
     }
   }
 
@@ -272,7 +272,7 @@ final class PetApiTests {
 
     let error = await #expect(throws: ConfigurationError.self) {
       try await api.setPetAvatar(
-        petId: 1, body: Data([0xFF]), requestContentType: "application/unknown-type")
+        petId: 1, body: BodySource.of(Data([0xFF])), requestContentType: "application/unknown-type")
     }
     guard case .invalidArgument(let message)? = error else {
       Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
@@ -305,7 +305,7 @@ final class PetApiTests {
 
     // setPetAvatar is a convenience method that parses the (empty) response;
     // capture-only, mirroring the neighbouring request-capture tests.
-    try? await api.setPetAvatar(petId: 1, body: imageData)
+    try? await api.setPetAvatar(petId: 1, body: BodySource.of(imageData))
 
     #expect(
       mockClient.lastBody == imageData,
@@ -334,7 +334,7 @@ final class PetApiTests {
     let defaultConfig = ConfigurationBuilder().baseURL("https://example.com").build()
     let defaultApi = PetApi(apiClient: defaultClient, config: defaultConfig)
 
-    try? await defaultApi.setPetAvatar(petId: 1, body: imageData)
+    try? await defaultApi.setPetAvatar(petId: 1, body: BodySource.of(imageData))
 
     #expect(
       defaultClient.lastHeaders["Content-Type"] == "image/jpeg",
@@ -349,7 +349,8 @@ final class PetApiTests {
     let pngConfig = ConfigurationBuilder().baseURL("https://example.com").build()
     let pngApi = PetApi(apiClient: pngClient, config: pngConfig)
 
-    try? await pngApi.setPetAvatar(petId: 1, body: imageData, requestContentType: "image/png")
+    try? await pngApi.setPetAvatar(
+      petId: 1, body: BodySource.of(imageData), requestContentType: "image/png")
 
     #expect(
       pngClient.lastBody == imageData,
@@ -371,7 +372,8 @@ final class PetApiTests {
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: client, config: config)
 
-    try? await api.setPetAvatar(petId: 1, body: imageData, requestContentType: "application/json")
+    try? await api.setPetAvatar(
+      petId: 1, body: BodySource.of(imageData), requestContentType: "application/json")
 
     #expect(client.lastBody == imageData)
     #expect(client.lastHeaders["Content-Type"] == "application/json")
@@ -2189,7 +2191,7 @@ private final class MockApiClient: ApiClient, @unchecked Sendable {
     lastMethod = method
     lastURL = url
     lastHeaders = headers
-    lastBody = body as? Data
+    lastBody = body as? Data ?? (body as? BodySource).flatMap { try? $0.open().data }
     return ApiHttpResponse(
       statusCode: responseStatusCode,
       body: responseBody,
@@ -2204,7 +2206,7 @@ private final class MockApiClient: ApiClient, @unchecked Sendable {
     lastMethod = method
     lastURL = url
     lastHeaders = headers
-    lastBody = body as? Data
+    lastBody = body as? Data ?? (body as? BodySource).flatMap { try? $0.open().data }
     let contentType = responseHeaders.first { $0.key.lowercased() == "content-type" }?.value
     return stubStreamResponse(
       status: responseStatusCode, headers: responseHeaders,
@@ -2705,6 +2707,16 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func listPetCatalogPages(options: ListPetCatalogOptions?) -> Paginator<Pet, String> {
+    record("listPetCatalogPages")
+    return Paginator<Pet, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetCatalogPage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
   public func listPetEvents(options: ListPetEventsOptions?) async throws -> PetEventPage {
     var parts: [String] = []
     var call = "listPetEvents(" + parts.joined(separator: ",") + ")"
@@ -2723,6 +2735,16 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func listPetEventsPages(options: ListPetEventsOptions?) -> Paginator<String, String> {
+    record("listPetEventsPages")
+    return Paginator<String, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetEventPage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
   public func listPetFeed(options: ListPetFeedOptions?) async throws -> [Pet] {
     var parts: [String] = []
     var call = "listPetFeed(" + parts.joined(separator: ",") + ")"
@@ -2738,6 +2760,16 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     call += options == nil ? " options=none" : " options=set"
     record(call)
     throw NotFoundError(message: "missing")
+  }
+
+  public func listPetFeedPages(options: ListPetFeedOptions?) -> Paginator<Pet, Void> {
+    record("listPetFeedPages")
+    return Paginator<Pet, Void>.ofLink(
+      baseURL: "", requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<[Pet]> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil })
   }
 
   public func listPetMatches(options: ListPetMatchesOptions?) async throws -> PetMatchPage {
@@ -2776,8 +2808,18 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func listPetNotesPages(options: ListPetNotesOptions?) -> Paginator<String, String> {
+    record("listPetNotesPages")
+    return Paginator<String, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetNotePage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
   public func setPetAvatar(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -2788,7 +2830,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func setPetAvatarWithHTTPInfo(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws -> ApiResult<Void> {
     var parts: [String] = []
     parts.append(String(describing: petId))

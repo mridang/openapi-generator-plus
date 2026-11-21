@@ -104,11 +104,11 @@ import Testing
 
   private func sse(
     _ script: Script, _ options: StreamOptions = EventStreamTests.fast, hasBody: Bool = false,
-    terminator: String? = nil
+    singleUseBody: Bool = false, terminator: String? = nil
   ) async throws -> SseStream<String> {
     return try await SseStream<String>.open(
       opener: { try await script.open($0) }, decode: { (text: String) -> String in text },
-      terminator: terminator, options: options, hasBody: hasBody,
+      terminator: terminator, options: options, hasBody: hasBody, singleUseBody: singleUseBody,
       method: hasBody ? "POST" : "GET", path: "/events")
   }
 
@@ -351,6 +351,12 @@ import Testing
     let reconnecting = try await sse(
       on, StreamOptions(maxReconnects: 2, reconnectDelay: 1), hasBody: true)
     #expect(try await data(of: reconnecting) == ["a", "b"])
+
+    let once = Script([.body("data: a\n\n"), .body("data: b\n\n"), .stream(noContent())])
+    let singleUse = try await sse(
+      once, StreamOptions(maxReconnects: 5, reconnectDelay: 1), hasBody: true, singleUseBody: true)
+    #expect(try await data(of: singleUse) == ["a"])
+    #expect(once.lastIds.count == 1, "a single use body is never sent again")
   }
 
   /* An SSE event with an id and no data is not dispatched but updates the last event id, and a reconnect resumes from it. */

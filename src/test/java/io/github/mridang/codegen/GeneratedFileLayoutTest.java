@@ -141,6 +141,15 @@ class GeneratedFileLayoutTest {
         "java",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a class of its own in Java");
+    allow(
+        ALLOWED_EXTRA,
+        "swift",
+        "bodysource",
+        "the body of a raw binary upload, replayable or single use, a class of its own in Swift");
+    allow(ALLOWED_EXTRA, "swift", "paginator", "the lazy sequences a paged operation returns, a struct of its own in Swift (D123)");
+    allow(ALLOWED_EXTRA, "swift", "page", "the value one page of a paged list is, a struct of its own in Swift (D123)");
+    allow(ALLOWED_EXTRA, "swift", "error:pagination", "the error of a list that cannot be followed, a direct child of the root error (D123)");
+    allow(ALLOWED_EXTRA, "swift", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a type of its own in Swift (D124)");
     allow(ALLOWED_EXTRA, "java", "paginator", "the lazy sequence a paged operation returns, a class of its own in Java (D123)");
     allow(ALLOWED_EXTRA, "java", "page", "the record one page of a paged list is, a class of its own in Java (D123)");
     allow(ALLOWED_EXTRA, "java", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
