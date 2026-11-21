@@ -56,6 +56,7 @@ impl UploadPetCertificateOptions {
             timeout: self.timeout,
             max_retries: self.max_retries,
             headers: self.headers.clone(),
+            idle_timeout: None,
         }
     }
 }

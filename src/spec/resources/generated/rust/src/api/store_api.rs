@@ -20,8 +20,11 @@ use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;
 use crate::errors::api_error::ApiError;
+use crate::json_lines_stream::JsonLinesStream;
 use crate::models::*;
 use crate::object_serializer;
+use crate::sse_stream::SseStream;
+use crate::stream_options::StreamOptions;
 use crate::value_serializer;
 use crate::value_serializer::SerializedValue;
 
@@ -250,39 +253,21 @@ impl StoreApi {
     }
 
     /// Exports every order as JSON Lines
+    ///
+    /// The response is returned as a stream that is read as it arrives; the call
+    /// returns once the response headers have arrived, and a status that is not a
+    /// success raises the usual typed error. There is no buffered form of this
+    /// operation.
     /// * `options`: Options for query, header, form, and cookie parameters.
-    pub async fn export_orders(
+    /// * `stream_options`: the stream settings, or `None` for the defaults.
+    pub async fn export_orders_stream(
         &self,
         options: Option<&ExportOrdersOptions>,
-    ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.export_orders_with_http_info(options).await?;
-        /* convenience-empty-body-handling: a body-returning operation that
-         * receives no decodable body must surface the SDK's typed ApiError
-         * (not a silent null / zero value), matching the other SDKs. */
-        let status_code = result.status_code();
-        let raw_body = result.raw_body().to_string();
-        let headers = result.headers().clone();
-        match result.into_data() {
-            Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
-                status_code,
-                "Expected a response body for export_orders but received none".to_string(),
-                Some(headers),
-                Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
-        }
-    }
 
-    /// Performs the export_orders operation and returns the full API result.
-    pub async fn export_orders_with_http_info(
-        &self,
-        options: Option<&ExportOrdersOptions>,
-    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The shared implementation below takes the resolved Content-Type as an
-         * argument. The first declared request content-type,
-         * application/json, is the default
-         * and this operation declares no alternative to select. */
-        self.export_orders_invoke(options, "application/json").await
+        stream_options: Option<&StreamOptions>,
+    ) -> Result<JsonLinesStream<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        self.export_orders_invoke(options, "application/json", stream_options)
+            .await
     }
 
     /// Shared implementation for the export_orders operation. The resolved
@@ -294,7 +279,8 @@ impl StoreApi {
         options: Option<&ExportOrdersOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        stream_options: Option<&StreamOptions>,
+    ) -> Result<JsonLinesStream<Order>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/orders/export".to_string();
 
         let mut query_params: Vec<(String, String, bool)> = Vec::new();
@@ -316,7 +302,7 @@ impl StoreApi {
             multipart,
             accepts: vec!["application/x-ndjson"],
             content_type: request_content_type,
-            return_type: "Order",
+            return_type: "JsonLinesStream<Order>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
             error_schemas: &[],
             /* security-none suppression: this operation is declared
@@ -327,7 +313,11 @@ impl StoreApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Order>(params).await
+        /* A JSON Lines response is returned as a stream of decoded items, not
+         * read yet; the call returns once the response headers have arrived. */
+        self.base
+            .invoke_api_for_json_lines::<Order>(params, stream_options, false)
+            .await
     }
 
     /// Read the audit trail, which needs a bearer token and an API key together
@@ -2218,39 +2208,21 @@ impl StoreApi {
     }
 
     /// Streams plain text notices as server-sent events
+    ///
+    /// The response is returned as a stream that is read as it arrives; the call
+    /// returns once the response headers have arrived, and a status that is not a
+    /// success raises the usual typed error. There is no buffered form of this
+    /// operation.
     /// * `options`: Options for query, header, form, and cookie parameters.
-    pub async fn watch_notices(
+    /// * `stream_options`: the stream settings, or `None` for the defaults.
+    pub async fn watch_notices_stream(
         &self,
         options: Option<&WatchNoticesOptions>,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.watch_notices_with_http_info(options).await?;
-        /* convenience-empty-body-handling: a body-returning operation that
-         * receives no decodable body must surface the SDK's typed ApiError
-         * (not a silent null / zero value), matching the other SDKs. */
-        let status_code = result.status_code();
-        let raw_body = result.raw_body().to_string();
-        let headers = result.headers().clone();
-        match result.into_data() {
-            Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
-                status_code,
-                "Expected a response body for watch_notices but received none".to_string(),
-                Some(headers),
-                Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
-        }
-    }
 
-    /// Performs the watch_notices operation and returns the full API result.
-    pub async fn watch_notices_with_http_info(
-        &self,
-        options: Option<&WatchNoticesOptions>,
-    ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The shared implementation below takes the resolved Content-Type as an
-         * argument. The first declared request content-type,
-         * application/json, is the default
-         * and this operation declares no alternative to select. */
-        self.watch_notices_invoke(options, "application/json").await
+        stream_options: Option<&StreamOptions>,
+    ) -> Result<SseStream<String>, Box<dyn std::error::Error + Send + Sync>> {
+        self.watch_notices_invoke(options, "application/json", stream_options)
+            .await
     }
 
     /// Shared implementation for the watch_notices operation. The resolved
@@ -2262,7 +2234,8 @@ impl StoreApi {
         options: Option<&WatchNoticesOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
+        stream_options: Option<&StreamOptions>,
+    ) -> Result<SseStream<String>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/notices".to_string();
 
         let mut query_params: Vec<(String, String, bool)> = Vec::new();
@@ -2284,7 +2257,7 @@ impl StoreApi {
             multipart,
             accepts: vec!["text/event-stream"],
             content_type: request_content_type,
-            return_type: "String",
+            return_type: "SseStream<String>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
             error_schemas: &[],
             /* security-none suppression: this operation is declared
@@ -2295,43 +2268,30 @@ impl StoreApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<String>(params).await
+        /* An event stream is returned as a stream of events that reconnects when
+         * the connection is lost; the call returns once the response headers of
+         * the first connection have arrived. */
+        self.base
+            .invoke_api_for_sse::<String>(params, None, stream_options, None, true)
+            .await
     }
 
     /// Streams order changes as server-sent events
+    ///
+    /// The response is returned as a stream that is read as it arrives; the call
+    /// returns once the response headers have arrived, and a status that is not a
+    /// success raises the usual typed error. There is no buffered form of this
+    /// operation.
     /// * `options`: Options for query, header, form, and cookie parameters.
-    pub async fn watch_orders(
+    /// * `stream_options`: the stream settings, or `None` for the defaults.
+    pub async fn watch_orders_stream(
         &self,
         options: Option<&WatchOrdersOptions>,
-    ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.watch_orders_with_http_info(options).await?;
-        /* convenience-empty-body-handling: a body-returning operation that
-         * receives no decodable body must surface the SDK's typed ApiError
-         * (not a silent null / zero value), matching the other SDKs. */
-        let status_code = result.status_code();
-        let raw_body = result.raw_body().to_string();
-        let headers = result.headers().clone();
-        match result.into_data() {
-            Some(data) => Ok(data),
-            None => Err(Box::new(ApiError::new(
-                status_code,
-                "Expected a response body for watch_orders but received none".to_string(),
-                Some(headers),
-                Some(raw_body),
-            )) as Box<dyn std::error::Error + Send + Sync>),
-        }
-    }
 
-    /// Performs the watch_orders operation and returns the full API result.
-    pub async fn watch_orders_with_http_info(
-        &self,
-        options: Option<&WatchOrdersOptions>,
-    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The shared implementation below takes the resolved Content-Type as an
-         * argument. The first declared request content-type,
-         * application/json, is the default
-         * and this operation declares no alternative to select. */
-        self.watch_orders_invoke(options, "application/json").await
+        stream_options: Option<&StreamOptions>,
+    ) -> Result<SseStream<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        self.watch_orders_invoke(options, "application/json", stream_options)
+            .await
     }
 
     /// Shared implementation for the watch_orders operation. The resolved
@@ -2343,7 +2303,8 @@ impl StoreApi {
         options: Option<&WatchOrdersOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        stream_options: Option<&StreamOptions>,
+    ) -> Result<SseStream<Order>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/orders/events".to_string();
 
         let mut query_params: Vec<(String, String, bool)> = Vec::new();
@@ -2395,7 +2356,7 @@ impl StoreApi {
             multipart,
             accepts: vec!["text/event-stream"],
             content_type: request_content_type,
-            return_type: "Order",
+            return_type: "SseStream<Order>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
             error_schemas: &[],
             /* security-none suppression: this operation is declared
@@ -2406,7 +2367,12 @@ impl StoreApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Order>(params).await
+        /* An event stream is returned as a stream of events that reconnects when
+         * the connection is lost; the call returns once the response headers of
+         * the first connection have arrived. */
+        self.base
+            .invoke_api_for_sse::<Order>(params, None, stream_options, None, false)
+            .await
     }
 }
 
@@ -2435,14 +2401,12 @@ pub trait StoreApiTrait {
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
     ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
-    fn export_orders(
+    fn export_orders_stream(
         &self,
         options: Option<&ExportOrdersOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
-    fn export_orders_with_http_info(
-        &self,
-        options: Option<&ExportOrdersOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<JsonLinesStream<Order>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_audit_trail(
         &self,
         options: Option<&GetAuditTrailOptions>,
@@ -2637,22 +2601,18 @@ pub trait StoreApiTrait {
         &self,
         options: Option<&SearchStoreOptions>,
     ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>;
-    fn watch_notices(
+    fn watch_notices_stream(
         &self,
         options: Option<&WatchNoticesOptions>,
-    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>>;
-    fn watch_notices_with_http_info(
-        &self,
-        options: Option<&WatchNoticesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>;
-    fn watch_orders(
+
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<SseStream<String>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn watch_orders_stream(
         &self,
         options: Option<&WatchOrdersOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
-    fn watch_orders_with_http_info(
-        &self,
-        options: Option<&WatchOrdersOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<SseStream<Order>, Box<dyn std::error::Error + Send + Sync>>>;
 }
 
 impl StoreApiTrait for StoreApi {
@@ -2687,19 +2647,14 @@ impl StoreApiTrait for StoreApi {
     ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
         StoreApi::delete_order_with_http_info(self, order_id, options)
     }
-    fn export_orders(
+    fn export_orders_stream(
         &self,
         options: Option<&ExportOrdersOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
-        StoreApi::export_orders(self, options)
-    }
 
-    fn export_orders_with_http_info(
-        &self,
-        options: Option<&ExportOrdersOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<JsonLinesStream<Order>, Box<dyn std::error::Error + Send + Sync>>>
     {
-        StoreApi::export_orders_with_http_info(self, options)
+        StoreApi::export_orders_stream(self, options, stream_options)
     }
     fn get_audit_trail(
         &self,
@@ -2999,32 +2954,22 @@ impl StoreApiTrait for StoreApi {
     {
         StoreApi::search_store_with_http_info(self, options)
     }
-    fn watch_notices(
+    fn watch_notices_stream(
         &self,
         options: Option<&WatchNoticesOptions>,
-    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>> {
-        StoreApi::watch_notices(self, options)
-    }
 
-    fn watch_notices_with_http_info(
-        &self,
-        options: Option<&WatchNoticesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<SseStream<String>, Box<dyn std::error::Error + Send + Sync>>>
     {
-        StoreApi::watch_notices_with_http_info(self, options)
+        StoreApi::watch_notices_stream(self, options, stream_options)
     }
-    fn watch_orders(
+    fn watch_orders_stream(
         &self,
         options: Option<&WatchOrdersOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
-        StoreApi::watch_orders(self, options)
-    }
 
-    fn watch_orders_with_http_info(
-        &self,
-        options: Option<&WatchOrdersOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<SseStream<Order>, Box<dyn std::error::Error + Send + Sync>>>
     {
-        StoreApi::watch_orders_with_http_info(self, options)
+        StoreApi::watch_orders_stream(self, options, stream_options)
     }
 }

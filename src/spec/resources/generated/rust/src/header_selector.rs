@@ -16,6 +16,7 @@ static JSON_MIME_RE: OnceLock<Regex> = OnceLock::new();
 
 /// Selects `Accept` and `Content-Type` headers for API requests based on the
 /// MIME types declared in the OpenAPI specification.
+#[derive(Clone)]
 pub struct HeaderSelector;
 
 impl HeaderSelector {

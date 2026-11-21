@@ -13,6 +13,9 @@ use crate::api_http_response::ApiHttpResponse;
 use crate::api_result::ApiResult;
 use crate::api_stream_response::ApiStreamResponse;
 use crate::byte_stream::ByteStream;
+use crate::json_lines_stream::JsonLinesStream;
+use crate::sse_stream::{EventOpener, SseStream};
+use crate::stream_options::StreamOptions;
 use crate::auth::Authenticator;
 use crate::call_hook::{CallInfo, CallScope};
 use crate::configuration::Configuration;
@@ -221,7 +224,114 @@ pub(crate) struct InvokeApiParams<'a> {
     /// The operation's own error factories by declared status (`"404"`,
     /// `"4XX"`, `"default"`), see [`ApiError::from_response_with`]. Empty when
     /// the operation declares no error schema.
-    pub error_schemas: &'a [(&'a str, crate::errors::api_error::ErrorFactory)],
+    pub error_schemas: &'static [(&'static str, crate::errors::api_error::ErrorFactory)],
+}
+
+/// The credential of a call, owned so that a reconnect can use it again.
+enum OwnedAuth {
+    /// No per-call credential: the client's own authenticator applies.
+    Inherit,
+    /// The operation is unauthenticated (`security: []`).
+    NoAuth,
+    /// The credential of the scheme the operation requires.
+    Given(Arc<dyn Authenticator>),
+}
+
+/// An owned copy of the parameters of a call, so that an event stream can send
+/// the same request again on every reconnect.
+struct StreamCall {
+    operation: String,
+    method: String,
+    path: String,
+    operation_id: String,
+    url_template: String,
+    query_params: Vec<(String, String, bool)>,
+    header_params: HashMap<String, String>,
+    body: Option<Vec<u8>>,
+    multipart: Option<Vec<(String, MultipartValue)>>,
+    accepts: Vec<String>,
+    content_type: String,
+    return_type: String,
+    auth: OwnedAuth,
+    call: CallOptions,
+    error_schemas: &'static [(&'static str, crate::errors::api_error::ErrorFactory)],
+}
+
+impl StreamCall {
+    fn of(params: InvokeApiParams<'_>, credential: Option<Arc<dyn Authenticator>>) -> Self {
+        let auth = match (params.auth, credential) {
+            (None, _) => OwnedAuth::Inherit,
+            (Some(a), _) if is_no_auth(a) => OwnedAuth::NoAuth,
+            (Some(_), Some(credential)) => OwnedAuth::Given(credential),
+            (Some(_), None) => OwnedAuth::Inherit,
+        };
+        Self {
+            operation: params.operation.to_string(),
+            method: params.method.to_string(),
+            path: params.path.to_string(),
+            operation_id: params.operation_id.to_string(),
+            url_template: params.url_template.to_string(),
+            query_params: params.query_params,
+            header_params: params.header_params,
+            body: params.body,
+            multipart: params.multipart,
+            accepts: params.accepts.iter().map(|a| a.to_string()).collect(),
+            content_type: params.content_type.to_string(),
+            return_type: params.return_type.to_string(),
+            auth,
+            call: params.call,
+            error_schemas: params.error_schemas,
+        }
+    }
+
+    /// The parameters of one request of the call, with `Last-Event-ID` when
+    /// `last_event_id` is not empty.
+    fn params(&self, last_event_id: &str) -> InvokeApiParams<'_> {
+        let mut header_params = self.header_params.clone();
+        if !last_event_id.is_empty() {
+            header_params.insert("Last-Event-ID".to_string(), last_event_id.to_string());
+        }
+        InvokeApiParams {
+            operation: &self.operation,
+            method: &self.method,
+            path: &self.path,
+            operation_id: &self.operation_id,
+            url_template: &self.url_template,
+            query_params: self.query_params.clone(),
+            header_params,
+            body: self.body.clone(),
+            multipart: self.multipart.clone(),
+            accepts: self.accepts.iter().map(String::as_str).collect(),
+            content_type: &self.content_type,
+            return_type: &self.return_type,
+            auth: match &self.auth {
+                OwnedAuth::Inherit => None,
+                OwnedAuth::NoAuth => Some(no_auth_sentinel()),
+                OwnedAuth::Given(credential) => Some(credential.as_ref()),
+            },
+            call: self.call.clone(),
+            error_schemas: self.error_schemas,
+        }
+    }
+}
+
+/// Decodes one JSON Lines line or one `data` field as `T`, or hands the text over
+/// as it is when `raw` is set (then `T` is a `String`).
+fn item_decoder<T>(raw: bool) -> Box<dyn Fn(&str) -> Result<T, crate::errors::serialization_error::SerializationError> + Send + Sync>
+where
+    T: DeserializeOwned,
+{
+    use crate::errors::serialization_error::SerializationError;
+    if raw {
+        return Box::new(|text| {
+            serde_json::from_value(serde_json::Value::String(text.to_string()))
+                .map_err(|e| SerializationError::new(e.to_string(), Some(Box::new(e))))
+        });
+    }
+    Box::new(|text| {
+        crate::object_serializer::deserialize::<T>(text.as_bytes())?
+            .ok_or_else(|| SerializationError::new("The value decoded to nothing".to_string(), None))
+    })
 }
 
 /// Per-call settings that override the client's for one operation: the
@@ -239,11 +349,15 @@ pub(crate) struct CallOptions {
     /// operation's own header parameters, so they win over both; the
     /// authentication headers are applied after them.
     pub headers: HashMap<String, String>,
+    /// Replaces the idle timeout of the stream this call opens; zero disables
+    /// it. Set by a stream method from its `StreamOptions`.
+    pub idle_timeout: Option<std::time::Duration>,
 }
 
 /// Base struct for all API groups. Provides the `invoke_api` method that
 /// handles URL construction, header selection, body serialization, request
 /// dispatch, and response deserialization.
+#[derive(Clone)]
 pub(crate) struct BaseApi {
     /// API-level configuration (base URL and default headers).
     config: Configuration,
@@ -573,7 +687,9 @@ impl BaseApi {
             .timeout
             .or_else(|| self.api_client.request_timeout())
             .map(|budget| std::time::Instant::now() + budget);
-        let send_options = RequestOptions::new().deadline(deadline);
+        let send_options = RequestOptions::new()
+            .deadline(deadline)
+            .idle_timeout(params.call.idle_timeout);
         let mut attempt: u32 = 0;
         let mut renewed_after_401 = false;
         let response = loop {
@@ -698,6 +814,113 @@ impl BaseApi {
             Ok(Delivered::Buffered(_)) => {
                 unreachable!("a stream call is sent through send_streaming")
             }
+            Err(err) => Err(err),
+        };
+        scope.finish(&result);
+        result
+    }
+
+    /// Invokes an operation whose success response is JSON Lines and returns its
+    /// items as a stream, not read yet. Everything up to the response headers is
+    /// the buffered call; a status that is not a success raises the typed error and
+    /// no stream is returned. With `raw` each line is handed over as a `String`
+    /// instead of being decoded as JSON.
+    pub async fn invoke_api_for_json_lines<T>(
+        &self,
+        mut params: InvokeApiParams<'_>,
+        options: Option<&StreamOptions>,
+        raw: bool,
+    ) -> Result<JsonLinesStream<T>, Box<dyn std::error::Error + Send + Sync>>
+    where
+        T: DeserializeOwned,
+    {
+        params.call.idle_timeout = options.and_then(|o| o.get_idle_timeout());
+        let max_line_bytes = options.and_then(|o| o.get_max_event_bytes()).unwrap_or(1024 * 1024);
+        let method = params.method.to_string();
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped_for(params, &mut scope, true).await {
+            Ok(Delivered::Streamed(response)) => Ok(response),
+            Ok(Delivered::Buffered(_)) => unreachable!("a stream call is sent through send_streaming"),
+            Err(err) => Err(err),
+        };
+        scope.finish(&result);
+        let (status, headers, body) = result?.into_parts();
+        Ok(JsonLinesStream::new(
+            ByteStream::new(status, headers, body),
+            item_decoder::<T>(raw),
+            max_line_bytes,
+            &method,
+            &request_path,
+        ))
+    }
+
+    /// Invokes an operation whose success response is server-sent events and
+    /// returns its events as a stream that reconnects. Each connection is a fresh
+    /// call, so the headers and the credential are built again and the call hook
+    /// runs again; the stream adds `Cache-Control: no-cache` and
+    /// `Accept-Encoding: identity` unless the caller set them, and
+    /// `Last-Event-ID` once it has an id. `credential` is the per-call
+    /// authenticator `params.auth` was taken from. With `raw` each `data` field is
+    /// handed over as a `String` instead of being decoded as JSON.
+    pub async fn invoke_api_for_sse<T>(
+        &self,
+        mut params: InvokeApiParams<'_>,
+        credential: Option<Arc<dyn Authenticator>>,
+        options: Option<&StreamOptions>,
+        terminator: Option<&str>,
+        raw: bool,
+    ) -> Result<SseStream<T>, Box<dyn std::error::Error + Send + Sync>>
+    where
+        T: DeserializeOwned + Send + 'static,
+    {
+        params.call.idle_timeout = options.and_then(|o| o.get_idle_timeout());
+        for (name, value) in [("Cache-Control", "no-cache"), ("Accept-Encoding", "identity")] {
+            let set = params
+                .header_params
+                .keys()
+                .chain(params.call.headers.keys())
+                .chain(self.config.default_headers().keys())
+                .any(|k| k.eq_ignore_ascii_case(name));
+            if !set {
+                params.header_params.insert(name.to_string(), value.to_string());
+            }
+        }
+        let has_body = params.body.is_some() || params.multipart.is_some();
+        let method = params.method.to_string();
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
+        let call = StreamCall::of(params, credential);
+        let base = self.clone();
+        let call = Arc::new(call);
+        let opener: EventOpener = Box::new(move |last_event_id: String| {
+            let base = base.clone();
+            let call = call.clone();
+            Box::pin(async move { base.open_event_stream(&call, &last_event_id).await })
+        });
+        SseStream::open(
+            opener,
+            item_decoder::<T>(raw),
+            terminator.map(str::to_string),
+            options,
+            has_body,
+            &method,
+            &request_path,
+        )
+        .await
+    }
+
+    /// Sends one request of an event stream: a whole call of its own, so the call
+    /// hook, the headers and the credential are the ones of a first request, plus
+    /// `Last-Event-ID` when there is an id.
+    async fn open_event_stream(
+        &self,
+        call: &StreamCall,
+        last_event_id: &str,
+    ) -> Result<ApiStreamResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let mut scope = CallScope::new();
+        let result = match self.invoke_scoped_for(call.params(last_event_id), &mut scope, true).await {
+            Ok(Delivered::Streamed(response)) => Ok(response),
+            Ok(Delivered::Buffered(_)) => unreachable!("a stream call is sent through send_streaming"),
             Err(err) => Err(err),
         };
         scope.finish(&result);
@@ -2956,5 +3179,110 @@ mod tests {
         assert_eq!(503, status_of(err.as_ref()));
         assert_eq!(3, log.lock().unwrap().len());
         assert!(started.elapsed() >= std::time::Duration::from_millis(1100), "{:?}", started.elapsed());
+    }
+
+    /* The headers each connection of an event stream was sent, and a token that is new on every request. */
+    struct EventClient {
+        sent: std::sync::Mutex<Vec<HashMap<String, String>>>,
+    }
+
+    impl ApiClient for EventClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(async { Ok(ApiHttpResponse::new(200, String::new(), HashMap::new())) })
+        }
+
+        fn send_streaming(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+            _options: &crate::api_client::RequestOptions,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<
+                            crate::api_stream_response::ApiStreamResponse,
+                            Box<dyn std::error::Error + Send + Sync>,
+                        >,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let first = {
+                let mut sent = self.sent.lock().unwrap();
+                sent.push(headers.clone());
+                sent.len() == 1
+            };
+            let response = if first {
+                crate::api_stream_response::ApiStreamResponse::new(
+                    200,
+                    HashMap::from([("content-type".to_string(), "text/event-stream".to_string())]),
+                    futures_util::stream::iter(vec![Ok(bytes::Bytes::from("data: a\n\n"))]),
+                )
+            } else {
+                crate::api_stream_response::ApiStreamResponse::new(
+                    204,
+                    HashMap::new(),
+                    futures_util::stream::iter(Vec::new()),
+                )
+            };
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    struct RotatingAuthenticator {
+        issued: std::sync::atomic::AtomicUsize,
+    }
+
+    impl crate::auth::Authenticator for RotatingAuthenticator {
+        fn host(&self) -> &str {
+            "http://localhost"
+        }
+
+        fn auth_headers<'a>(
+            &'a self,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>> {
+            Box::pin(async move {
+                let issued = self.issued.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                HashMap::from([("Authorization".to_string(), format!("Bearer t{issued}"))])
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_sse_013_an_sse_reconnect_rebuilds_the_headers_so_a_refreshed_token_is_the_one_sent() {
+        use futures_util::StreamExt as _;
+        let client = Arc::new(EventClient { sent: std::sync::Mutex::new(Vec::new()) });
+        let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+        let rotating = Arc::new(RotatingAuthenticator { issued: std::sync::atomic::AtomicUsize::new(0) });
+        let api = BaseApi::new(client.clone(), config, Some(rotating));
+        let options = crate::stream_options::StreamOptions::new().reconnect_delay(std::time::Duration::from_millis(1));
+
+        let mut stream = api
+            .invoke_api_for_sse::<String>(call_params(CallOptions::default()), None, Some(&options), None, true)
+            .await
+            .expect("the first connection opens");
+        while let Some(event) = stream.next().await {
+            event.expect("an event");
+        }
+
+        let sent = client.sent.lock().unwrap();
+        assert_eq!(2, sent.len(), "the stream asked again after the feed ended");
+        assert_eq!(Some(&"Bearer t1".to_string()), sent[0].get("Authorization"));
+        assert_eq!(Some(&"Bearer t2".to_string()), sent[1].get("Authorization"));
     }
 }
