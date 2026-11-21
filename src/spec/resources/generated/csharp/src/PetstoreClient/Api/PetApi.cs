@@ -887,23 +887,23 @@ public class PetApi : BaseApi, IPetApi
     /// <param name="documentId"></param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
-    /// <returns><![CDATA[System.IO.Stream]]></returns>
+    /// <returns><![CDATA[ByteStream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
-    public async Task<System.IO.Stream> DownloadPetDocumentAsync(
+    public async Task<ByteStream> DownloadPetDocumentAsync(
         long petId,
         long documentId,
         DownloadPetDocumentOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<System.IO.Stream>> task = DownloadPetDocumentWithHttpInfoAsync(
+        Task<ApiResult<ByteStream>> task = DownloadPetDocumentWithHttpInfoAsync(
             petId,
             documentId,
             options,
             cancellationToken
         );
-        ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
+        ApiResult<ByteStream> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
@@ -916,15 +916,6 @@ public class PetApi : BaseApi, IPetApi
          * JSON null payload is an absent body too: its raw text is non-empty
          * but it decodes to a null reference, so reference-type returns also
          * check the decoded value (boxed, so a value-type return compiles). */
-        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
-        {
-            throw new ApiException(
-                result.StatusCode,
-                "Expected a response body for DownloadPetDocument but received none",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody
-            );
-        }
         return result.Data!;
     }
 
@@ -939,7 +930,7 @@ public class PetApi : BaseApi, IPetApi
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
-    public async Task<ApiResult<System.IO.Stream>> DownloadPetDocumentWithHttpInfoAsync(
+    public async Task<ApiResult<ByteStream>> DownloadPetDocumentWithHttpInfoAsync(
         long petId,
         long documentId,
         DownloadPetDocumentOptions? options = null,
@@ -981,7 +972,7 @@ public class PetApi : BaseApi, IPetApi
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
 
-        return await InvokeApiForResultAsync<System.IO.Stream>(
+        return await InvokeApiForStreamAsync(
                 "GET",
                 path,
                 queryParams,
@@ -989,7 +980,6 @@ public class PetApi : BaseApi, IPetApi
                 null,
                 DownloadPetDocumentAccepts,
                 "application/json",
-                typeof(System.IO.Stream),
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.DownloadPetDocument",
@@ -1491,21 +1481,21 @@ public class PetApi : BaseApi, IPetApi
     /// <param name="petId"></param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
-    /// <returns><![CDATA[System.IO.Stream]]></returns>
+    /// <returns><![CDATA[ByteStream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
-    public async Task<System.IO.Stream> GetPetAvatarAsync(
+    public async Task<ByteStream> GetPetAvatarAsync(
         long petId,
         GetPetAvatarOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<System.IO.Stream>> task = GetPetAvatarWithHttpInfoAsync(
+        Task<ApiResult<ByteStream>> task = GetPetAvatarWithHttpInfoAsync(
             petId,
             options,
             cancellationToken
         );
-        ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
+        ApiResult<ByteStream> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
@@ -1518,15 +1508,6 @@ public class PetApi : BaseApi, IPetApi
          * JSON null payload is an absent body too: its raw text is non-empty
          * but it decodes to a null reference, so reference-type returns also
          * check the decoded value (boxed, so a value-type return compiles). */
-        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
-        {
-            throw new ApiException(
-                result.StatusCode,
-                "Expected a response body for GetPetAvatar but received none",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody
-            );
-        }
         return result.Data!;
     }
 
@@ -1540,7 +1521,7 @@ public class PetApi : BaseApi, IPetApi
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
-    public async Task<ApiResult<System.IO.Stream>> GetPetAvatarWithHttpInfoAsync(
+    public async Task<ApiResult<ByteStream>> GetPetAvatarWithHttpInfoAsync(
         long petId,
         GetPetAvatarOptions? options = null,
         CancellationToken cancellationToken = default
@@ -1566,7 +1547,7 @@ public class PetApi : BaseApi, IPetApi
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
 
-        return await InvokeApiForResultAsync<System.IO.Stream>(
+        return await InvokeApiForStreamAsync(
                 "GET",
                 path,
                 queryParams,
@@ -1574,7 +1555,6 @@ public class PetApi : BaseApi, IPetApi
                 null,
                 GetPetAvatarAccepts,
                 "application/json",
-                typeof(System.IO.Stream),
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetAvatar",
@@ -2234,23 +2214,23 @@ public class PetApi : BaseApi, IPetApi
     /// <param name="photoId"></param>
     /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
-    /// <returns><![CDATA[System.IO.Stream]]></returns>
+    /// <returns><![CDATA[ByteStream]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
-    public async Task<System.IO.Stream> GetPetPhotoAsync(
+    public async Task<ByteStream> GetPetPhotoAsync(
         long petId,
         long photoId,
         GetPetPhotoOptions? options = null,
         CancellationToken cancellationToken = default
     )
     {
-        Task<ApiResult<System.IO.Stream>> task = GetPetPhotoWithHttpInfoAsync(
+        Task<ApiResult<ByteStream>> task = GetPetPhotoWithHttpInfoAsync(
             petId,
             photoId,
             options,
             cancellationToken
         );
-        ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
+        ApiResult<ByteStream> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
          * ApiException as any other API failure (carrying the status code,
@@ -2263,15 +2243,6 @@ public class PetApi : BaseApi, IPetApi
          * JSON null payload is an absent body too: its raw text is non-empty
          * but it decodes to a null reference, so reference-type returns also
          * check the decoded value (boxed, so a value-type return compiles). */
-        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
-        {
-            throw new ApiException(
-                result.StatusCode,
-                "Expected a response body for GetPetPhoto but received none",
-                new Dictionary<string, string>(result.Headers),
-                result.RawBody
-            );
-        }
         return result.Data!;
     }
 
@@ -2286,7 +2257,7 @@ public class PetApi : BaseApi, IPetApi
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
-    public async Task<ApiResult<System.IO.Stream>> GetPetPhotoWithHttpInfoAsync(
+    public async Task<ApiResult<ByteStream>> GetPetPhotoWithHttpInfoAsync(
         long petId,
         long photoId,
         GetPetPhotoOptions? options = null,
@@ -2328,7 +2299,7 @@ public class PetApi : BaseApi, IPetApi
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
 
-        return await InvokeApiForResultAsync<System.IO.Stream>(
+        return await InvokeApiForStreamAsync(
                 "GET",
                 path,
                 queryParams,
@@ -2336,7 +2307,6 @@ public class PetApi : BaseApi, IPetApi
                 null,
                 GetPetPhotoAccepts,
                 "application/json",
-                typeof(System.IO.Stream),
                 null,
                 cancellationToken: cancellationToken,
                 operationName: "PetApi.GetPetPhoto",

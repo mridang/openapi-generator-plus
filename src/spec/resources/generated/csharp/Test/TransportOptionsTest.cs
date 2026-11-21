@@ -101,6 +101,7 @@ public class TransportOptionsTest
             null,
             null,
             3,
+            null,
             CancellationToken.None
         );
 

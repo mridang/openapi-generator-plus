@@ -84,7 +84,7 @@ public class TransportOptionsTest
         var fromBuilder = TransportOptions.Builder().MaxRetries(0).Build();
         var fromConstructor = new TransportOptions(
             true, null, null, 10000, true, null, null, new Dictionary<string, string>(),
-            false, null, null, 3, CancellationToken.None);
+            false, null, null, 3, null, CancellationToken.None);
 
         Assert.Equal(0, fromBuilder.MaxRetries);
         Assert.Equal(3, fromConstructor.MaxRetries);

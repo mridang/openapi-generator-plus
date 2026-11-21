@@ -267,7 +267,7 @@ public static class Transport
 }
 ```
 
-The client implements `IDisposable`. Use `using` statements or call `Dispose()` when done.
+The client implements `IDisposable`. Use `using` statements or call `Dispose()` when done. Streams that are still open are cancelled.
 
 ### Retries
 
@@ -315,6 +315,28 @@ Each per-scheme authenticator takes optional credential arguments. A value you p
 
 Every operation takes a trailing `CancellationToken cancellationToken = default`. Cancelling it raises `OperationCanceledException` (not `NetworkTimeoutException`). `TransportOptions.Builder().CancellationToken(token)` adds a client-level token linked with each call's token.
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `Dispose()` that aborts the connection instead of draining it, so close it when you stop early (`await using`). `ReadAllAsync()` reads the rest into memory and leaves the stream closed.
+
+```csharp file
+using PetstoreClient;
+using PetstoreClient.Api.Options;
+
+public static class Download
+{
+    public static async Task SaveToAsync(Client client, long petId, long documentId, DownloadPetDocumentOptions? options, string target)
+    {
+        await using ByteStream stream = await client.Pet.DownloadPetDocumentAsync(petId, documentId, options);
+        Console.WriteLine(stream.StatusCode);
+        await using FileStream file = File.Create(target);
+        await stream.CopyToAsync(file);
+    }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `IdleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.Dispose()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `SendStreamingAsync` fails a stream call with `NotSupportedException` naming it, and its buffered calls keep working.
+
 ### Custom HTTP transport
 
 `TransportOptions.Builder().HttpClient(httpClient)` or `.HttpMessageHandler(handler)` carries requests on your own transport. SDK defaults (timeout, user agent, default headers, redirect policy) still apply, the SDK never disposes it, and combining it with `Proxy`, `CaCertPath` or `VerifySsl(false)` throws `ArgumentException` in `Build()`.
@@ -341,7 +363,7 @@ public static class Copies
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `Stream`. Binary response bodies are returned as `byte[]`.
+File upload parameters are typed as `Stream`. A binary response body is returned as a `ByteStream`, which is a `Stream` (see Streaming).
 
 ## Comment Style
 

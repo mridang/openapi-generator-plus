@@ -136,6 +136,18 @@ public sealed class TransportOptions
     public int MaxRetries { get; }
 
     /// <summary>
+    /// The longest a streamed response body may stay silent, in milliseconds.
+    ///
+    /// Applies only to a call that returns a stream (a binary operation): the
+    /// <see cref="Timeout"/> stops at the response headers, and this value bounds
+    /// the gap between two reads of the body. A stalled body raises
+    /// <see cref="Errors.NetworkTimeoutException"/>. A buffered call is
+    /// unaffected. Defaults to <c>60000</c> ms (60 seconds); <c>null</c> means
+    /// the gap is not bounded.
+    /// </summary>
+    public int? IdleTimeout { get; }
+
+    /// <summary>
     /// Creates a new <see cref="TransportOptions"/> with the specified values.
     /// </summary>
     internal TransportOptions(
@@ -151,10 +163,12 @@ public sealed class TransportOptions
         HttpClient? httpClient,
         HttpMessageHandler? httpMessageHandler,
         int maxRetries,
+        int? idleTimeout,
         CancellationToken cancellationToken
     )
     {
         MaxRetries = maxRetries;
+        IdleTimeout = idleTimeout is null or 0 ? null : idleTimeout;
         CancellationToken = cancellationToken;
         HttpClient = httpClient;
         HttpMessageHandler = httpMessageHandler;
@@ -186,7 +200,7 @@ public sealed class TransportOptions
     /// </summary>
     public override string ToString()
     {
-        return $"{GetType().Name}(VerifySsl={VerifySsl}, Proxy={RedactProxy(Proxy)}, DefaultHeaders={RedactHeaders(DefaultHeaders)}, MaxRetries={MaxRetries})";
+        return $"{GetType().Name}(VerifySsl={VerifySsl}, Proxy={RedactProxy(Proxy)}, DefaultHeaders={RedactHeaders(DefaultHeaders)}, MaxRetries={MaxRetries}, IdleTimeout={IdleTimeout})";
     }
 
     /// <summary>
@@ -241,6 +255,7 @@ public sealed class TransportOptions
 ///   <item><description><c>InjectRequestId</c> -- <c>false</c></description></item>
 ///   <item><description><c>MaxRetries</c> -- <c>2</c></description></item>
 ///   <item><description><c>Timeout</c> -- <c>10000</c> (10 seconds)</description></item>
+///   <item><description><c>IdleTimeout</c> -- <c>60000</c> (60 seconds)</description></item>
 ///   <item><description><c>UserAgent</c> -- a package-specific default string</description></item>
 ///   <item><description>All other fields -- <c>null</c> or empty</description></item>
 /// </list>
@@ -257,6 +272,7 @@ public sealed class TransportOptionsBuilder
     private readonly Dictionary<string, string> _defaultHeaders = [];
     private bool _injectRequestId;
     private int _maxRetries = 2;
+    private int? _idleTimeout = 60000;
     private CancellationToken _cancellationToken;
     private HttpClient? _httpClient;
     private HttpMessageHandler? _httpMessageHandler;
@@ -303,6 +319,28 @@ public sealed class TransportOptionsBuilder
             );
         }
         _timeout = timeout;
+        return this;
+    }
+
+    /// <summary>
+    /// Set the longest a streamed response body may stay silent, in milliseconds.
+    /// </summary>
+    /// <param name="idleTimeout">
+    /// The gap in milliseconds (positive), or <c>0</c> or <c>null</c> to disable it;
+    /// the default is <c>60000</c>.
+    /// </param>
+    /// <returns>This builder.</returns>
+    /// <exception cref="ArgumentException">When <paramref name="idleTimeout"/> is negative.</exception>
+    public TransportOptionsBuilder IdleTimeout(int? idleTimeout)
+    {
+        if (idleTimeout is < 0)
+        {
+            throw new ArgumentException(
+                $"Invalid idleTimeout: must not be negative (got {idleTimeout})",
+                nameof(idleTimeout)
+            );
+        }
+        _idleTimeout = idleTimeout is null or 0 ? null : idleTimeout;
         return this;
     }
 
@@ -517,6 +555,7 @@ public sealed class TransportOptionsBuilder
             httpClient: _httpClient,
             httpMessageHandler: _httpMessageHandler,
             maxRetries: _maxRetries,
+            idleTimeout: _idleTimeout,
             cancellationToken: _cancellationToken
         );
     }

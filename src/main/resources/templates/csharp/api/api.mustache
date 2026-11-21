@@ -202,6 +202,7 @@ public class {{classname}} : BaseApi, I{{classname}}
          * JSON null payload is an absent body too: its raw text is non-empty
          * but it decodes to a null reference, so reference-type returns also
          * check the decoded value (boxed, so a value-type return compiles). */
+{{^vendorExtensions.op.streamsBinary}}
         if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
@@ -210,6 +211,7 @@ public class {{classname}} : BaseApi, I{{classname}}
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody);
         }
+{{/vendorExtensions.op.streamsBinary}}
         return result.Data!;
         {{/returnType}}
         {{^returnType}}
@@ -589,7 +591,7 @@ public class {{classname}} : BaseApi, I{{classname}}
             effectiveRequestContentType = requestContentType;
         }
 {{/-first}}{{/-last}}{{/consumes}}
-        return await InvokeApiForResultAsync<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>(
+        return await {{#vendorExtensions.op.streamsBinary}}InvokeApiForStreamAsync({{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}InvokeApiForResultAsync<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>({{/vendorExtensions.op.streamsBinary}}
                 "{{httpMethod}}",
                 path,
                 queryParams,
@@ -602,7 +604,9 @@ public class {{classname}} : BaseApi, I{{classname}}
     Single-consume operations keep the plain literal. The not-first gate on
     the last consume fires once only for two-or-more declared types. }}
 {{#consumes}}{{#-last}}{{^-first}}                effectiveRequestContentType,{{/-first}}{{#-first}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/consumes}}
+{{^vendorExtensions.op.streamsBinary}}
                 {{#returnType}}typeof({{{returnType}}}){{/returnType}}{{^returnType}}null{{/returnType}},
+{{/vendorExtensions.op.streamsBinary}}
 {{! Auth argument (F857). A secured operation uses the credential the client
     holds for the scheme its spec requires (ResolveSchemeAuth over the scheme
     names the operation lists); there is no per-call scheme override. When
@@ -616,7 +620,7 @@ public class {{classname}} : BaseApi, I{{classname}}
                 cancellationToken: cancellationToken,
                 operationName: "{{classname}}.{{operationId}}",
                 operationId: "{{#lambda.stringLiteral}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.stringLiteral}}",
-                urlTemplate: "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}"{{#vendorExtensions.op.hasMultiple2xx}},
+                urlTemplate: "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}"{{^vendorExtensions.op.streamsBinary}}{{#vendorExtensions.op.hasMultiple2xx}},
                 decodeByStatus: (status, body) =>
                 {
 {{#vendorExtensions.op.successResponses}}
@@ -646,7 +650,7 @@ public class {{classname}} : BaseApi, I{{classname}}
                     return lastVariant is null ? null : new {{{vendorExtensions.op.successUnionType}}}(lastVariant);
 {{/isLast}}
 {{/vendorExtensions.op.successResponses}}
-                }{{/vendorExtensions.op.hasMultiple2xx}},
+                }{{/vendorExtensions.op.hasMultiple2xx}}{{/vendorExtensions.op.streamsBinary}},
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries{{#vendorExtensions.op.hasErrorSchemaResponses}},
