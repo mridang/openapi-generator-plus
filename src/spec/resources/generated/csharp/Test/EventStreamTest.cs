@@ -94,7 +94,8 @@ public class EventStreamTest
     private static Task<SseStream<string>> SseAsync(
         Script script,
         StreamOptions options,
-        bool hasBody = false
+        bool hasBody = false,
+        bool singleUseBody = false
     )
     {
         return SseStream<string>.OpenAsync(
@@ -103,6 +104,7 @@ public class EventStreamTest
             null,
             options,
             hasBody,
+            singleUseBody,
             hasBody ? "POST" : "GET",
             "/events",
             default
@@ -270,6 +272,7 @@ public class EventStreamTest
             null,
             Fast(),
             false,
+            false,
             "GET",
             "/events",
             default
@@ -408,6 +411,20 @@ public class EventStreamTest
         {
             Assert.Equal(["a", "b"], await DataOfAsync(stream));
         }
+
+        Script once = new("data: a\n\n", "data: b\n\n", NoContent());
+        await using (
+            SseStream<string> stream = await SseAsync(
+                once,
+                new StreamOptions { ReconnectDelay = 1, MaxReconnects = 5 },
+                hasBody: true,
+                singleUseBody: true
+            )
+        )
+        {
+            Assert.Equal(["a"], await DataOfAsync(stream));
+        }
+        Assert.Single(once.LastIds);
     }
 
     [Fact]
@@ -440,6 +457,7 @@ public class EventStreamTest
             null,
             "[DONE]",
             Fast(),
+            false,
             false,
             "GET",
             "/events",

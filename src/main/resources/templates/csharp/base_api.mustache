@@ -403,7 +403,8 @@ public abstract class BaseApi
         }
         Func<string, T?>? decoder = text ? null : data => Serializer.Deserialize<T>(data);
         return SseStream<T>.OpenAsync(
-            OpenAsync, decoder, terminator, options, body is not null, method, RequestPathOf(path),
+            OpenAsync, decoder, terminator, options, body is not null,
+            body is BodySource { IsReplayable: false }, method, RequestPathOf(path),
             cancellationToken);
     }
 
@@ -499,7 +500,7 @@ public abstract class BaseApi
         string query = BuildQueryString(queryParams);
         if (!string.IsNullOrEmpty(query))
         {
-            url += "?" + query;
+            url += (url.Contains('?', StringComparison.Ordinal) ? "&" : "?") + query;
         }
 
         bool isMultipart = contentType == "multipart/form-data";
@@ -805,7 +806,7 @@ public abstract class BaseApi
         if (
             response.StatusCode == 401
             && effectiveAuth is IInvalidatableAuthenticator invalidatable
-            && requestBody is null or string or byte[]
+            && requestBody is null or string or byte[] or BodySource { IsReplayable: true }
         )
         {
             invalidatable.InvalidateAccessToken();
@@ -1418,7 +1419,7 @@ public abstract class BaseApi
     {
         foreach (object value in formBody.Values)
         {
-            if (value is System.IO.Stream || value is byte[])
+            if (value is System.IO.Stream || value is byte[] || value is BodySource)
             {
                 return value;
             }

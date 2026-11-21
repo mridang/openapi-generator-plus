@@ -4068,6 +4068,26 @@ public class DefaultApiClientUnitTest
         );
         _ = await SendGet(absentClient);
         Assert.Equal(2, absent.Requests.Count);
+
+        var factory = new SequenceHandler(_ => Respond(503));
+        var factoryClient = new DefaultApiClient(
+            new HttpClient(factory),
+            TransportOptions.Builder().MaxRetries(1).Build()
+        );
+        _ = await SendGet(
+            factoryClient,
+            BodySource.FromFactory(() => new MemoryStream([1, 2, 3])),
+            method: "POST"
+        );
+        Assert.Equal(2, factory.Requests.Count);
+
+        var once = new SequenceHandler(_ => Respond(503));
+        var onceClient = new DefaultApiClient(
+            new HttpClient(once),
+            TransportOptions.Builder().MaxRetries(1).Build()
+        );
+        _ = await SendGet(onceClient, BodySource.Once(new MemoryStream([1, 2, 3])), method: "POST");
+        Assert.Single(once.Requests);
     }
 
     [Fact]
@@ -5065,8 +5085,18 @@ public class DefaultApiClientUnitTest
             body: new MemoryStream(Encoding.UTF8.GetBytes("hello")),
             method: "POST"
         );
+        _ = await SendGet(
+            client,
+            body: BodySource.Of(Encoding.UTF8.GetBytes("hello")),
+            method: "POST"
+        );
+        _ = await SendGet(
+            client,
+            body: BodySource.Once(new MemoryStream(Encoding.UTF8.GetBytes("hello"))),
+            method: "POST"
+        );
 
-        Assert.Equal(new[] { "hello", "hello" }, handler.Bodies);
+        Assert.Equal(new[] { "hello", "hello", "hello", "hello" }, handler.Bodies);
     }
 
     [Fact]
@@ -5980,6 +6010,21 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(503, response.StatusCode);
         Assert.Single(handler.Requests);
+
+        var once = new SequenceHandler(_ => Respond(503));
+        var onceClient = new DefaultApiClient(
+            new HttpClient(once),
+            TransportOptions.Builder().Build()
+        );
+
+        var onceResponse = await SendGet(
+            onceClient,
+            BodySource.Once(new MemoryStream([1, 2, 3])),
+            method: "POST"
+        );
+
+        Assert.Equal(503, onceResponse.StatusCode);
+        Assert.Single(once.Requests);
     }
 
     [Fact]
@@ -7289,6 +7334,7 @@ public class DefaultApiClientUnitTest
             null,
             options,
             false,
+            false,
             "GET",
             "/items/events",
             default
@@ -7477,7 +7523,340 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(1, server.Hits);
     }
+
+    private static byte[] Patterned(int size)
+    {
+        byte[] data = new byte[size];
+        for (int index = 0; index < size; index++)
+        {
+            data[index] = unchecked((byte)((index * 31) + 7));
+        }
+        return data;
+    }
+
+    /// <summary>A stream that counts how often it is disposed.</summary>
+    private sealed class CountingStream(byte[] data) : MemoryStream(data)
+    {
+        private int _disposals;
+
+        public int Disposals => Volatile.Read(ref _disposals);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _ = Interlocked.Increment(ref _disposals);
+            }
+            base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>A stream whose second half cannot be read until the gate opens.</summary>
+    private sealed class GatedStream(byte[] data, Task gate) : Stream
+    {
+        private int _position;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            return ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+        }
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (_position >= data.Length)
+            {
+                return 0;
+            }
+            int half = data.Length / 2;
+            if (_position >= half)
+            {
+                await gate.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken);
+            }
+            int limit = _position < half ? half : data.Length;
+            int count = Math.Min(Math.Min(buffer.Length, 32768), limit - _position);
+            data.AsMemory(_position, count).CopyTo(buffer);
+            _position += count;
+            return count;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+    }
+
+    private static Task<ApiHttpResponse> PutAsync(
+        DefaultApiClient client,
+        RawServer server,
+        BodySource body
+    )
+    {
+        return client.SendRequestAsync(
+            "PUT",
+            new Uri(server.Url("/items/blob")),
+            new Dictionary<string, string>(),
+            body
+        );
+    }
+
+    [Fact]
+    public async Task BhvStreaming023AStreamedUploadOfUnknownLengthIsSentChunkedAndArrivesIntact()
+    {
+        byte[] data = Patterned(300_000);
+        TaskCompletionSource firstSeen = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Upload? seen = null;
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, head) =>
+            {
+                seen = await RawServer.ReadUploadAsync(
+                    socket,
+                    head,
+                    () => _ = firstSeen.TrySetResult()
+                );
+                await RawServer.ReplyAsync(socket, 200);
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().Build());
+
+        /* The second half is not readable until the server has the first, so a client that
+           buffered the stream before sending would wait here for good. */
+        ApiHttpResponse response = await PutAsync(
+            client,
+            server,
+            BodySource.Once(new GatedStream(data, firstSeen.Task))
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        string head = server.Heads[0];
+        Assert.Contains("transfer-encoding: chunked", head, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("content-length", head, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(seen);
+        Assert.True(seen.Chunked);
+        Assert.Equal(data, seen.Bytes);
+    }
+
+    [Fact]
+    public async Task BhvStreaming024AStreamedUploadWithAKnownLengthSendsContentLength()
+    {
+        byte[] data = Patterned(100_000);
+        string file = Path.GetTempFileName();
+        await File.WriteAllBytesAsync(file, data);
+        try
+        {
+            System.Collections.Concurrent.ConcurrentQueue<Upload> seen = new();
+            using RawServer server = RawServer.Serve(
+                async (_, socket, _, head) =>
+                {
+                    seen.Enqueue(await RawServer.ReadUploadAsync(socket, head));
+                    await RawServer.ReplyAsync(socket, 200);
+                }
+            );
+            using DefaultApiClient client = new(TransportOptions.Builder().Build());
+            BodySource[] sources =
+            [
+                BodySource.Of(data),
+                BodySource.OfFile(file),
+                BodySource.FromFactory(() => new MemoryStream(data), data.Length),
+                BodySource.Once(new MemoryStream(data), data.Length),
+            ];
+
+            foreach (BodySource source in sources)
+            {
+                Assert.Equal(200, (await PutAsync(client, server, source)).StatusCode);
+            }
+
+            Upload[] uploads = [.. seen];
+            Assert.Equal(sources.Length, uploads.Length);
+            for (int index = 0; index < sources.Length; index++)
+            {
+                string head = server.Heads[index];
+                Assert.Contains(
+                    "content-length: " + data.Length,
+                    head,
+                    StringComparison.OrdinalIgnoreCase
+                );
+                Assert.DoesNotContain(
+                    "transfer-encoding",
+                    head,
+                    StringComparison.OrdinalIgnoreCase
+                );
+                Assert.False(uploads[index].Chunked);
+                Assert.Equal(data, uploads[index].Bytes);
+            }
+            Assert.Equal("BodySource[bytes, 100000 bytes]", sources[0].ToString());
+            Assert.Equal("BodySource[single use, 100000 bytes]", sources[3].ToString());
+            Assert.Equal(
+                "BodySource[factory, length unknown]",
+                BodySource.FromFactory(() => new MemoryStream(data)).ToString()
+            );
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    [Fact]
+    public async Task BhvStreaming025ACallerSuppliedUploadStreamIsNeverClosedByTheSdk()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, hit, head) =>
+            {
+                _ = await RawServer.ReadUploadAsync(socket, head);
+                await RawServer.ReplyAsync(socket, hit == 2 ? 503 : 200, "Retry-After: 0");
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().Build());
+
+        using CountingStream callers = new(Patterned(5000));
+        Assert.Equal(200, (await PutAsync(client, server, BodySource.Once(callers))).StatusCode);
+        Assert.Equal(0, callers.Disposals);
+        Assert.Equal(callers.Length, callers.Position);
+
+        using CountingStream refused = new(Patterned(5000));
+        Assert.Equal(503, (await PutAsync(client, server, BodySource.Once(refused))).StatusCode);
+        Assert.Equal(0, refused.Disposals);
+
+        System.Collections.Concurrent.ConcurrentQueue<CountingStream> opened = new();
+        BodySource factory = BodySource.FromFactory(() =>
+        {
+            CountingStream stream = new(Patterned(5000));
+            opened.Enqueue(stream);
+            return stream;
+        });
+        _ = await PutAsync(client, server, factory);
+        Assert.NotEmpty(opened);
+        foreach (CountingStream stream in opened)
+        {
+            Assert.True(stream.Disposals >= 1, "what the SDK opened itself is closed by it");
+        }
+    }
+
+    [Fact]
+    public async Task BhvStreaming026AReplayableUploadIsRewoundAndRetriedAfterA503AndASingleUseUploadIsNotRetriedAndSurfacesTheOriginalError()
+    {
+        byte[] data = Patterned(20_000);
+        System.Collections.Concurrent.ConcurrentQueue<Upload> seen = new();
+        using RawServer server = RawServer.Serve(
+            async (_, socket, hit, head) =>
+            {
+                seen.Enqueue(await RawServer.ReadUploadAsync(socket, head));
+                if (hit == 1)
+                {
+                    await RawServer.ReplyAsync(socket, 503, "Retry-After: 0");
+                    return;
+                }
+                await RawServer.ReplyAsync(socket, 200);
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().Build());
+        int opens = 0;
+        BodySource replayable = BodySource.FromFactory(() =>
+        {
+            _ = Interlocked.Increment(ref opens);
+            return new MemoryStream(data);
+        });
+
+        ApiHttpResponse response = await PutAsync(client, server, replayable);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, server.Hits);
+        Assert.Equal(2, opens);
+        Upload[] uploads = [.. seen];
+        Assert.Equal(data, uploads[0].Bytes);
+        Assert.Equal(data, uploads[1].Bytes);
+
+        using RawServer failing = RawServer.Serve(
+            async (_, socket, _, head) =>
+            {
+                _ = await RawServer.ReadUploadAsync(socket, head);
+                await RawServer.ReplyAsync(socket, 503, "Retry-After: 0");
+            }
+        );
+        ApiHttpResponse unchanged = await PutAsync(
+            client,
+            failing,
+            BodySource.Once(new MemoryStream(data))
+        );
+
+        Assert.Equal(503, unchanged.StatusCode);
+        Assert.Equal(1, failing.Hits);
+    }
+
+    [Fact]
+    public async Task BhvStreaming027A307Or308WithASingleUseUploadIsRefusedAndTheBodyIsNeverBuffered()
+    {
+        byte[] data = Patterned(20_000);
+        foreach (int status in new[] { 307, 308 })
+        {
+            System.Collections.Concurrent.ConcurrentQueue<Upload> landed = new();
+            using RawServer target = RawServer.Serve(
+                async (_, socket, _, head) =>
+                {
+                    landed.Enqueue(await RawServer.ReadUploadAsync(socket, head));
+                    await RawServer.ReplyAsync(socket, 200);
+                }
+            );
+            using RawServer origin = RawServer.Serve(
+                async (_, socket, _, head) =>
+                {
+                    _ = await RawServer.ReadUploadAsync(socket, head);
+                    await RawServer.ReplyAsync(
+                        socket,
+                        status,
+                        "Location: " + target.Url("/items/final")
+                    );
+                }
+            );
+            using DefaultApiClient client = new(TransportOptions.Builder().Build());
+
+            using CountingStream once = new(data);
+            ApiException refused = await Assert.ThrowsAsync<ApiException>(() =>
+                PutAsync(client, origin, BodySource.Once(once))
+            );
+
+            Assert.Contains(
+                "Refusing to replay a streamed request body",
+                refused.Message,
+                StringComparison.Ordinal
+            );
+            Assert.Equal(status, refused.StatusCode);
+            Assert.Equal(0, target.Hits);
+            Assert.Equal(1, origin.Hits);
+            Assert.Equal(once.Length, once.Position);
+            Assert.Equal(0, once.Disposals);
+
+            ApiHttpResponse followed = await PutAsync(
+                client,
+                origin,
+                BodySource.FromFactory(() => new MemoryStream(data))
+            );
+            Assert.Equal(200, followed.StatusCode);
+            Assert.Equal(data, Assert.Single(landed).Bytes);
+        }
+    }
 }
+
+/// <summary>What a scripted raw server received as the body of one request.</summary>
+public sealed record Upload(byte[] Bytes, bool Chunked);
 
 /// <summary>
 /// What a scripted raw server does with one connection: the server, the socket, the
@@ -7566,6 +7945,79 @@ public sealed class RawServer : IDisposable
     {
         Task done = await Task.WhenAny(_clientGone.Task, Task.Delay(within));
         return done == _clientGone.Task;
+    }
+
+    /// <summary>
+    /// Reads the body that follows <paramref name="head"/>: a chunked one chunk by chunk and one
+    /// with a Content-Length to its end. <paramref name="onFirst"/> runs once the first bytes have
+    /// arrived, while the rest is still to come.
+    /// </summary>
+    public static async Task<Upload> ReadUploadAsync(
+        TcpClient socket,
+        string head,
+        Action? onFirst = null
+    )
+    {
+        NetworkStream stream = socket.GetStream();
+        using MemoryStream received = new();
+        if (head.Contains("transfer-encoding: chunked", StringComparison.OrdinalIgnoreCase))
+        {
+            byte[] one = new byte[1];
+            while (true)
+            {
+                StringBuilder size = new();
+                while (true)
+                {
+                    if (await stream.ReadAsync(one) == 0)
+                    {
+                        return new Upload(received.ToArray(), true);
+                    }
+                    if (one[0] == (byte)'\n')
+                    {
+                        break;
+                    }
+                    if (one[0] != (byte)'\r')
+                    {
+                        _ = size.Append((char)one[0]);
+                    }
+                }
+                int length = Convert.ToInt32(size.ToString().Trim(), 16);
+                if (length == 0)
+                {
+                    await stream.ReadExactlyAsync(new byte[2]);
+                    return new Upload(received.ToArray(), true);
+                }
+                byte[] chunk = new byte[length];
+                await stream.ReadExactlyAsync(chunk);
+                received.Write(chunk);
+                onFirst?.Invoke();
+                await stream.ReadExactlyAsync(new byte[2]);
+            }
+        }
+        System.Text.RegularExpressions.Match declared = System.Text.RegularExpressions.Regex.Match(
+            head,
+            "content-length: (\\d+)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        );
+        if (declared.Success)
+        {
+            byte[] body = new byte[
+                int.Parse(
+                    declared.Groups[1].Value,
+                    System.Globalization.CultureInfo.InvariantCulture
+                )
+            ];
+            await stream.ReadExactlyAsync(body);
+            received.Write(body);
+        }
+        onFirst?.Invoke();
+        return new Upload(received.ToArray(), false);
+    }
+
+    /// <summary>Answers with an empty body: the status, the given headers and <c>Content-Length: 0</c>.</summary>
+    public static Task ReplyAsync(TcpClient socket, int status, params string[] headers)
+    {
+        return HeadAsync(socket, status, [.. headers, "Content-Length: 0"]);
     }
 
     /// <summary>Writes a status line, the given headers and <c>Connection: close</c>.</summary>

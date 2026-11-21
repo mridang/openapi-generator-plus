@@ -1,0 +1,250 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>
+/// The body of a request that is sent as it is read, never buffered. An operation
+/// whose request body is raw binary takes one.
+///
+/// A body is either replayable or single use:
+/// <list type="bullet">
+/// <item><description><see cref="Of(byte[])"/>, <see cref="OfFile(string)"/> and
+/// <see cref="FromFactory(Func{Stream})"/> can be read again, so the SDK retries the request
+/// after a 5xx, a 429 or a network error and follows a 307 or 308 redirect.</description></item>
+/// <item><description><see cref="Once(Stream)"/> wraps a stream that can be read once. It is
+/// never retried (the original error is raised unchanged) and a redirect that would need it
+/// again is refused with <c>Refusing to replay a streamed request body</c>.</description></item>
+/// </list>
+///
+/// A known length is sent as <c>Content-Length</c>; an unknown length is sent chunked. The
+/// SDK never closes a stream you pass to <see cref="Once(Stream)"/>; it does close what it
+/// opened itself from a file or a factory.
+///
+/// <see cref="ToString"/> shows the kind and the length, never the content or the path.
+/// </summary>
+public sealed class BodySource
+{
+    private enum SourceKind
+    {
+        Bytes,
+        File,
+        Factory,
+        Once,
+    }
+
+    private readonly SourceKind _kind;
+    private readonly byte[]? _bytes;
+    private readonly string? _path;
+    private readonly Func<Stream>? _factory;
+    private readonly Stream? _stream;
+    private readonly long? _length;
+    private int _taken;
+
+    private BodySource(
+        SourceKind kind,
+        byte[]? bytes,
+        string? path,
+        Func<Stream>? factory,
+        Stream? stream,
+        long? length
+    )
+    {
+        _kind = kind;
+        _bytes = bytes;
+        _path = path;
+        _factory = factory;
+        _stream = stream;
+        _length = length;
+    }
+
+    /// <summary>A replayable body of bytes held in memory; its length is known.</summary>
+    /// <param name="bytes">The content (copied).</param>
+    /// <returns>The body.</returns>
+    public static BodySource Of(byte[] bytes)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        byte[] copy = (byte[])bytes.Clone();
+        return new BodySource(SourceKind.Bytes, copy, null, null, null, copy.Length);
+    }
+
+    /// <summary>
+    /// A replayable body read from a file, opened again for every send; its length is the
+    /// size of the file and the SDK closes what it opens.
+    /// </summary>
+    /// <param name="path">The file.</param>
+    /// <returns>The body.</returns>
+    public static BodySource OfFile(string path)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        return new BodySource(SourceKind.File, null, path, null, null, null);
+    }
+
+    /// <summary>
+    /// A replayable body of unknown length, made by a factory that opens a fresh stream every
+    /// time it is called. The SDK disposes each stream it opens.
+    /// </summary>
+    /// <param name="factory">Opens a fresh stream for every send.</param>
+    /// <returns>The body.</returns>
+    public static BodySource FromFactory(Func<Stream> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        return new BodySource(SourceKind.Factory, null, null, factory, null, null);
+    }
+
+    /// <summary>
+    /// A replayable body of known length, made by a factory that opens a fresh stream every
+    /// time it is called. The SDK disposes each stream it opens.
+    /// </summary>
+    /// <param name="factory">Opens a fresh stream for every send.</param>
+    /// <param name="length">The number of bytes every stream holds, sent as <c>Content-Length</c>.</param>
+    /// <returns>The body.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="length"/> is negative.</exception>
+    public static BodySource FromFactory(Func<Stream> factory, long length)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentOutOfRangeException.ThrowIfNegative(length);
+        return new BodySource(SourceKind.Factory, null, null, factory, null, length);
+    }
+
+    /// <summary>
+    /// A single-use body of unknown length, sent chunked. The stream is read once, never
+    /// buffered and never closed by the SDK.
+    /// </summary>
+    /// <param name="stream">The stream to send.</param>
+    /// <returns>The body.</returns>
+    public static BodySource Once(Stream stream)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        return new BodySource(SourceKind.Once, null, null, null, stream, null);
+    }
+
+    /// <summary>
+    /// A single-use body of known length, sent with <c>Content-Length</c>. The stream is read
+    /// once, never buffered and never closed by the SDK.
+    /// </summary>
+    /// <param name="stream">The stream to send.</param>
+    /// <param name="length">The number of bytes the stream holds.</param>
+    /// <returns>The body.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="length"/> is negative.</exception>
+    public static BodySource Once(Stream stream, long length)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentOutOfRangeException.ThrowIfNegative(length);
+        return new BodySource(SourceKind.Once, null, null, null, stream, length);
+    }
+
+    /// <summary>
+    /// Whether the body can be sent again, which is what a retry or a redirect needs.
+    /// It is false only for <see cref="Once(Stream)"/>.
+    /// </summary>
+    public bool IsReplayable => _kind != SourceKind.Once;
+
+    /// <summary>
+    /// The number of bytes, or null when the body is sent chunked. The length of a file is
+    /// its size at the time of the call.
+    /// </summary>
+    /// <exception cref="IOException">The size of a file cannot be read.</exception>
+    public long? Length
+    {
+        get
+        {
+            if (_kind == SourceKind.File)
+            {
+                return new FileInfo(_path!).Length;
+            }
+            return _length;
+        }
+    }
+
+    /// <summary>The bytes of an in-memory body, or null; shared with the transport, not copied.</summary>
+    internal byte[]? BytesOrNull => _bytes;
+
+    /// <summary>
+    /// Opens the content for one send; the caller of this method disposes the stream it
+    /// returns.
+    ///
+    /// A transport that is not the default one reads a body with this method. A replayable
+    /// body opens a fresh stream every time. A single-use body opens once (a second call
+    /// raises <see cref="InvalidOperationException"/>) and the stream it returns ignores
+    /// disposal, because the stream belongs to whoever passed it to <see cref="Once(Stream)"/>.
+    /// </summary>
+    /// <returns>A stream over the content.</returns>
+    /// <exception cref="IOException">A file cannot be opened or a factory returned nothing.</exception>
+    /// <exception cref="InvalidOperationException">A single-use body is opened a second time.</exception>
+    public Stream Open()
+    {
+        switch (_kind)
+        {
+            case SourceKind.Bytes:
+                return new MemoryStream(_bytes!, writable: false);
+            case SourceKind.File:
+                return new FileStream(
+                    _path!,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    bufferSize: 81920,
+                    useAsync: true
+                );
+            case SourceKind.Factory:
+                return _factory!() ?? throw new IOException("The stream factory of a request body returned null");
+            default:
+                if (Interlocked.Exchange(ref _taken, 1) != 0)
+                {
+                    throw new InvalidOperationException("A single use request body can be sent only once");
+                }
+                return new CallerOwnedStream(_stream!);
+        }
+    }
+
+    /// <summary>Shows the kind and the length, never the content or the path.</summary>
+    /// <returns>The description.</returns>
+    public override string ToString()
+    {
+        string kind = _kind switch
+        {
+            SourceKind.Bytes => "bytes",
+            SourceKind.File => "file",
+            SourceKind.Factory => "factory",
+            _ => "single use",
+        };
+        string size;
+        try
+        {
+            long? known = Length;
+            size = known.HasValue ? $"{known.Value} bytes" : "length unknown";
+        }
+        catch (IOException)
+        {
+            size = "length unknown";
+        }
+        return $"BodySource[{kind}, {size}]";
+    }
+
+    /// <summary>
+    /// A read-only view over a stream the caller owns: disposing it never reaches the inner
+    /// stream, so the SDK cannot close what it did not open.
+    /// </summary>
+    private sealed class CallerOwnedStream(Stream inner) : Stream
+    {
+        public override bool CanRead => inner.CanRead;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
+        public override int Read(Span<byte> buffer) => inner.Read(buffer);
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => inner.ReadAsync(buffer, offset, count, cancellationToken);
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => inner.ReadAsync(buffer, cancellationToken);
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+}
