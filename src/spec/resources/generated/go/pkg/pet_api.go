@@ -12,7 +12,6 @@ package petstore
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 
 	. "petstore/pkg/models"
@@ -245,8 +244,20 @@ type PetApiInterface interface {
 	GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName string, options *opts.GetPetTagOptions, callOptions ...RequestOption) (*ApiResult[Pet], error)
 	GetStagingPetInfo(ctx context.Context, petId int64, server GetStagingPetInfoServer, callOptions ...RequestOption) (*Pet, error)
 	GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64, server GetStagingPetInfoServer, callOptions ...RequestOption) (*ApiResult[Pet], error)
-	SetPetAvatar(ctx context.Context, petId int64, body io.Reader, callOptions ...RequestOption) error
-	SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body io.Reader, callOptions ...RequestOption) (*ApiResult[any], error)
+	ListPetArchive(ctx context.Context, options *opts.ListPetArchiveOptions, callOptions ...RequestOption) (*PetArchivePage, error)
+	ListPetArchiveWithHTTPInfo(ctx context.Context, options *opts.ListPetArchiveOptions, callOptions ...RequestOption) (*ApiResult[PetArchivePage], error)
+	ListPetCatalog(ctx context.Context, options *opts.ListPetCatalogOptions, callOptions ...RequestOption) (*PetCatalogPage, error)
+	ListPetCatalogWithHTTPInfo(ctx context.Context, options *opts.ListPetCatalogOptions, callOptions ...RequestOption) (*ApiResult[PetCatalogPage], error)
+	ListPetEvents(ctx context.Context, options *opts.ListPetEventsOptions, callOptions ...RequestOption) (*PetEventPage, error)
+	ListPetEventsWithHTTPInfo(ctx context.Context, options *opts.ListPetEventsOptions, callOptions ...RequestOption) (*ApiResult[PetEventPage], error)
+	ListPetFeed(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) ([]Pet, error)
+	ListPetFeedWithHTTPInfo(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) (*ApiResult[[]Pet], error)
+	ListPetMatches(ctx context.Context, options *opts.ListPetMatchesOptions, callOptions ...RequestOption) (*PetMatchPage, error)
+	ListPetMatchesWithHTTPInfo(ctx context.Context, options *opts.ListPetMatchesOptions, callOptions ...RequestOption) (*ApiResult[PetMatchPage], error)
+	ListPetNotes(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) (*PetNotePage, error)
+	ListPetNotesWithHTTPInfo(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) (*ApiResult[PetNotePage], error)
+	SetPetAvatar(ctx context.Context, petId int64, body *BodySource, callOptions ...RequestOption) error
+	SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body *BodySource, callOptions ...RequestOption) (*ApiResult[any], error)
 	SetPetAvatarThumbnail(ctx context.Context, petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest, callOptions ...RequestOption) error
 	SetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest, callOptions ...RequestOption) (*ApiResult[any], error)
 	SetPetPreferences(ctx context.Context, petId int64, options *opts.SetPetPreferencesOptions, callOptions ...RequestOption) (*ApiResponse, error)
@@ -3362,6 +3373,874 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 	}, nil
 }
 
+// ListPetArchive Lists archived pets; it looks paged, and the generator option says it is not
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/archive
+func (a *PetApi) ListPetArchive(ctx context.Context, options *opts.ListPetArchiveOptions, callOptions ...RequestOption) (*PetArchivePage, error) {
+	result, err := a.ListPetArchiveWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ListPetArchive", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ListPetArchiveWithHTTPInfo performs the ListPetArchive operation and returns the full API result.
+func (a *PetApi) ListPetArchiveWithHTTPInfo(ctx context.Context, options *opts.ListPetArchiveOptions, callOptions ...RequestOption) (_ *ApiResult[PetArchivePage], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/archive"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Cursor != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("cursor", options.Cursor, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["cursor"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetArchive",
+		urlTemplate:  "/pet/archive",
+		call:         call,
+		order:        []string{"cursor"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "PetArchivePage",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data PetArchivePage
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetArchivePage
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetArchivePage]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetArchive: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[PetArchivePage]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// ListPetCatalog Lists the pet catalog one page at a time with a next-cursor token
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/catalog
+func (a *PetApi) ListPetCatalog(ctx context.Context, options *opts.ListPetCatalogOptions, callOptions ...RequestOption) (*PetCatalogPage, error) {
+	result, err := a.ListPetCatalogWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ListPetCatalog", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ListPetCatalogWithHTTPInfo performs the ListPetCatalog operation and returns the full API result.
+func (a *PetApi) ListPetCatalogWithHTTPInfo(ctx context.Context, options *opts.ListPetCatalogOptions, callOptions ...RequestOption) (_ *ApiResult[PetCatalogPage], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/catalog"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Limit != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("limit", options.Limit, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["limit"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+	if options != nil && options.Cursor != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("cursor", options.Cursor, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["cursor"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetCatalog",
+		urlTemplate:  "/pet/catalog",
+		call:         call,
+		order:        []string{"limit", "cursor"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "PetCatalogPage",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data PetCatalogPage
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetCatalogPage
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetCatalogPage]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetCatalog: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[PetCatalogPage]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// ListPetEvents Lists pet events; only the generator option says it is paged
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/events
+func (a *PetApi) ListPetEvents(ctx context.Context, options *opts.ListPetEventsOptions, callOptions ...RequestOption) (*PetEventPage, error) {
+	result, err := a.ListPetEventsWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ListPetEvents", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ListPetEventsWithHTTPInfo performs the ListPetEvents operation and returns the full API result.
+func (a *PetApi) ListPetEventsWithHTTPInfo(ctx context.Context, options *opts.ListPetEventsOptions, callOptions ...RequestOption) (_ *ApiResult[PetEventPage], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/events"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Since != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("since", options.Since, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["since"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetEvents",
+		urlTemplate:  "/pet/events",
+		call:         call,
+		order:        []string{"since"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "PetEventPage",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data PetEventPage
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetEventPage
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetEventPage]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetEvents: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[PetEventPage]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// ListPetFeed Lists the pet feed one page at a time with a Link header
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/feed
+func (a *PetApi) ListPetFeed(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) ([]Pet, error) {
+	var empty []Pet
+	result, err := a.ListPetFeedWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return empty, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return empty, newEmptyBodyError("ListPetFeed", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return *result.Data, nil
+}
+
+// ListPetFeedWithHTTPInfo performs the ListPetFeed operation and returns the full API result.
+func (a *PetApi) ListPetFeedWithHTTPInfo(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) (_ *ApiResult[[]Pet], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/feed"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Limit != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("limit", options.Limit, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["limit"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetFeed",
+		urlTemplate:  "/pet/feed",
+		call:         call,
+		order:        []string{"limit"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "[]Pet",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data []Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *[]Pet
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetFeed: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[[]Pet]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// ListPetMatches Finds pets and their owners; two lists make it ambiguous, so it is not paged
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/matches
+func (a *PetApi) ListPetMatches(ctx context.Context, options *opts.ListPetMatchesOptions, callOptions ...RequestOption) (*PetMatchPage, error) {
+	result, err := a.ListPetMatchesWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ListPetMatches", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ListPetMatchesWithHTTPInfo performs the ListPetMatches operation and returns the full API result.
+func (a *PetApi) ListPetMatchesWithHTTPInfo(ctx context.Context, options *opts.ListPetMatchesOptions, callOptions ...RequestOption) (_ *ApiResult[PetMatchPage], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/matches"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Cursor != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("cursor", options.Cursor, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["cursor"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetMatches",
+		urlTemplate:  "/pet/matches",
+		call:         call,
+		order:        []string{"cursor"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "PetMatchPage",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data PetMatchPage
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetMatchPage
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetMatchPage]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetMatches: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[PetMatchPage]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// ListPetNotes Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/notes
+func (a *PetApi) ListPetNotes(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) (*PetNotePage, error) {
+	result, err := a.ListPetNotesWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ListPetNotes", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ListPetNotesWithHTTPInfo performs the ListPetNotes operation and returns the full API result.
+func (a *PetApi) ListPetNotesWithHTTPInfo(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) (_ *ApiResult[PetNotePage], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/notes"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Pos != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("pos", options.Pos, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["pos"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetNotes",
+		urlTemplate:  "/pet/notes",
+		call:         call,
+		order:        []string{"pos"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "PetNotePage",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data PetNotePage
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetNotePage
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetNotePage]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetNotes: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[PetNotePage]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // SetPetAvatar Set the pet's profile photo
 // Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
 //
@@ -3372,7 +4251,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 //   - HTTP 404: *NotFoundError
 //
 // PUT /pet/{petId}/avatar
-func (a *PetApi) SetPetAvatar(ctx context.Context, petId int64, body io.Reader, callOptions ...RequestOption) error {
+func (a *PetApi) SetPetAvatar(ctx context.Context, petId int64, body *BodySource, callOptions ...RequestOption) error {
 	result, err := a.SetPetAvatarWithHTTPInfo(ctx, petId, body, callOptions...)
 	if err != nil {
 		return err
@@ -3382,7 +4261,7 @@ func (a *PetApi) SetPetAvatar(ctx context.Context, petId int64, body io.Reader, 
 }
 
 // SetPetAvatarWithHTTPInfo performs the SetPetAvatar operation and returns the full API result.
-func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body io.Reader, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
+func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body *BodySource, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
 	/* The call hook follows the call to its end, the decoding of the response
 	 * included: it is told how the call ended when this method returns. */
 	call := &callState{}

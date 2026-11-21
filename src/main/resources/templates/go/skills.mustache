@@ -358,7 +358,7 @@ func newClient(authenticator {{packageName}}.Authenticator) (*{{packageName}}.Cl
 
 ### Retries
 
-A request is retried up to `MaxRetries` times (default 2; `MaxRetries(0)` disables retries) after a network error that happened before a response and after a 408, 409, 429 or 5xx (not 501) response. The wait starts at 0.5 seconds, doubles up to 8 seconds, loses up to 25% to jitter and is replaced by a `Retry-After` header (seconds or an HTTP date, at most 60 seconds). The retries never extend the end-to-end `Timeout`, a cancelled context stops them, and every retry rebuilds the headers, authentication included. A `multipart/form-data` request is sent once and never retried, because its file parts are streams.
+A request is retried up to `MaxRetries` times (default 2; `MaxRetries(0)` disables retries) after a network error that happened before a response and after a 408, 409, 429 or 5xx (not 501) response. The wait starts at 0.5 seconds, doubles up to 8 seconds, loses up to 25% to jitter and is replaced by a `Retry-After` header (seconds or an HTTP date, at most 60 seconds). The retries never extend the end-to-end `Timeout`, a cancelled context stops them, and every retry rebuilds the headers, authentication included. A request whose body is a single-use `BodySource`, and a `multipart/form-data` request, is sent once and never retried.
 
 ```go file
 import "{{packageName}}/pkg"
@@ -418,6 +418,8 @@ func saveTo(ctx context.Context, client *{{packageName}}.{{clientClassName}}{{#v
 {{/hasBinaryStreamOperation}}
 
 The call `timeout` covers the wait for the response headers and stops there. `IdleTimeout` (on `TransportOptionsBuilder`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.Close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `SendStreaming` fails a stream call with `ErrStreamingUnsupported` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodyFromBytes(bytes)`, `BodyFromFile(path)`, `BodyFromReadSeeker(stream)` or `BodyFromFactory(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodyFromReader(stream)` (a reader that can seek is replayable). The body is sent as it is read: a known length (bytes, a file, or a length you pass with `WithLength`) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `BodyFromReader` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
 
 An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and the call options, and returns a `*JsonLinesStream[T]` of the schema type or a `*SseStream[T]` of `ServerSentEvent[T]` (`ID`, `Event`, `Data`, `Retry` and the `Raw` data text; `T` is the schema of the `data`, or a string). Range over its `All()` method, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `WithMaxEventBytes` (1 MiB), raise `SerializationError` and end the stream.
 {{#hasJsonLinesStreamOperation}}
@@ -614,7 +616,7 @@ import "{{packageName}}/pkg/models"
 
 ## Binary / File Uploads
 
-File upload parameters and binary request bodies are typed as `io.Reader`; an `*os.File` satisfies it, and so does `bytes.NewReader` or `strings.NewReader`. A binary response body is returned as a `*ByteStream`, which is an `io.ReadCloser` (see Streaming).
+A raw binary request body is a `*BodySource` (see Streaming). Multipart file parameters are typed as `io.Reader`; an `*os.File` satisfies it, and so does `bytes.NewReader` or `strings.NewReader`. A binary response body is returned as a `*ByteStream`, which is an `io.ReadCloser` (see Streaming).
 
 ## Comment Style
 

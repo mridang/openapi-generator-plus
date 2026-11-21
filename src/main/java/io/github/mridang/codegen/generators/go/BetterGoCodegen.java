@@ -738,6 +738,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("api_result.mustache", "pkg", "api_result.go"),
                 new SupportingFileSpec(
                         "api_stream_response.mustache", "pkg", "api_stream_response.go"),
+                new SupportingFileSpec("body_source.mustache", "pkg", "body_source.go"),
                 new SupportingFileSpec("byte_stream.mustache", "pkg", "byte_stream.go"),
                 new SupportingFileSpec("event_stream.mustache", "pkg", "event_stream.go"),
                 new SupportingFileSpec(
@@ -1659,6 +1660,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     op.vendorExtensions.put(
                             "hasMultipleConsumes", hasMultipleConsumes);
                     stampContentParams(op);
+                    markBinaryUpload(op);
                 }
             }
         }
@@ -1666,6 +1668,36 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         reorderServerBeforeOptions(processed);
         markBinaryStreams(processed);
         return processed;
+    }
+
+    /**
+     * A raw binary request body is a {@code *BodySource}: the operation takes it, in every
+     * signature, instead of an {@code io.Reader}. It runs before the shared pass, which copies
+     * the body type into the signature arguments. Multipart and every other body kind keep the
+     * type the spec maps.
+     *
+     * @param op the operation
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "*BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "*BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "*BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "*BodySource";
+                }
+            }
+        }
     }
 
     /**

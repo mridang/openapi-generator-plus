@@ -71,8 +71,10 @@ type ApiClient interface {
 	 *   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
 	 *   - url: fully qualified URL
 	 *   - headers: HTTP headers
-	 *   - body: request body ([]byte for a serialized JSON or binary body,
-	 *           or map[string]any for multipart form data; may be nil)
+	 *   - body: request body ([]byte for a serialized JSON body,
+	 *           a *BodySource for a raw binary body, which is read as it is
+	 *           sent (call Open for each send), or map[string]any for
+	 *           multipart form data; may be nil)
 	 *
 	 * Returns an ApiHttpResponse containing status code, body, and headers,
 	 * and any error that occurred. */

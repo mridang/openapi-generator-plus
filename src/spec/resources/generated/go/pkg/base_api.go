@@ -311,7 +311,14 @@ func invokeSse[T any](b *baseApi, params invokeApiParams, decode func(string) (T
 		call.end(&err)
 		return response, err
 	}
-	return openSse(ctx, opener, decode, terminator, settings, params.body != nil, params.method, requestPathOf(params.path))
+	return openSse(ctx, opener, decode, terminator, settings, params.body != nil, singleUseBody(params.body), params.method, requestPathOf(params.path))
+}
+
+// singleUseBody reports whether a request body can be sent only once, so an
+// event stream that carries it cannot reconnect.
+func singleUseBody(body any) bool {
+	source, ok := body.(*BodySource)
+	return ok && source != nil && !source.Replayable()
 }
 
 // decodeItem decodes one line or one data field as JSON into a T.
@@ -417,6 +424,7 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 	 * is built once, because a body read from a reader can be read once; every
 	 * body is held in memory, so each attempt sends the same bytes. */
 	var serializedBody []byte
+	var bodySource *BodySource
 	var bodyContentType string
 	bodyBuilt := false
 	hook := b.config.CallHook()
@@ -564,7 +572,11 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 		/* Serialize body -- multipart/form-data is handled here so that
 		 * the boundary can be injected into the Content-Type header. */
 		if !bodyBuilt {
-			if mediaType, isMultipartBody := multipartMediaType(params.contentType); isMultipartBody && params.body != nil {
+			if source, isSource := params.body.(*BodySource); isSource {
+				/* A BodySource is sent as it is read, under whichever content type
+				 * was selected, and is never serialized or buffered. */
+				bodySource = source
+			} else if mediaType, isMultipartBody := multipartMediaType(params.contentType); isMultipartBody && params.body != nil {
 				formFields, ok := params.body.(map[string]any)
 				if !ok {
 					return "", nil, fmt.Errorf("multipart body must be map[string]any")
@@ -591,7 +603,7 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 
 		/* Drop Content-Type when there is no body (sending Content-Type without a
 		 * body is semantically wrong and rejected by some servers). */
-		if serializedBody == nil {
+		if serializedBody == nil && bodySource == nil {
 			delete(headers, "Content-Type")
 		}
 		return attemptURL, headers, nil
@@ -624,6 +636,11 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 	 * transient failure: its file parts are streams that the first attempt may
 	 * already have consumed, so it is sent once. */
 	_, streamBody := multipartMediaType(params.contentType)
+	/* A BodySource that can be read once only is no more replayable than a
+	 * multipart stream: the original error is returned unchanged. */
+	if source, isSource := params.body.(*BodySource); isSource && source != nil && !source.Replayable() {
+		streamBody = true
+	}
 	canReplay = canReplay && !streamBody
 	replayed := false
 	retries := 0
@@ -641,6 +658,10 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 		var response *ApiHttpResponse
 		var streamed *ApiStreamResponse
 		var err error
+		var sendBody any = serializedBody
+		if bodySource != nil {
+			sendBody = bodySource
+		}
 		if stream {
 			/* One budget across the attempts: what is left of it is the header
 			 * deadline of this one. The timeout stops at the headers. */
@@ -653,7 +674,7 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 			if params.settings != nil {
 				idleTimeout = params.settings.idleTimeout
 			}
-			streamed, err = streamer.SendStreaming(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: streamCtx, Timeout: attemptTimeout, IdleTimeout: idleTimeout})
+			streamed, err = streamer.SendStreaming(params.method, attemptURL, headers, sendBody, &RequestOptions{Context: streamCtx, Timeout: attemptTimeout, IdleTimeout: idleTimeout})
 			if err == nil {
 				if streamed.StatusCode >= 200 && streamed.StatusCode < 300 {
 					response = &ApiHttpResponse{StatusCode: streamed.StatusCode, Headers: streamed.Headers}
@@ -666,7 +687,7 @@ func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpRespo
 				}
 			}
 		} else {
-			response, err = b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: ctx, Timeout: callTimeout})
+			response, err = b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, sendBody, &RequestOptions{Context: ctx, Timeout: callTimeout})
 		}
 		if params.call != nil {
 			params.call.record(response)

@@ -10,6 +10,7 @@
 package petstore
 
 import (
+	"bufio"
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
@@ -40,6 +41,7 @@ import (
 	"petstore/pkg/auth/oauth"
 	pkgerrors "petstore/pkg/errors"
 	"petstore/pkg/models"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -3118,6 +3120,22 @@ func TestBhvRetries032_DefaultApiClientUnit_AStreamBodyIsNeverRetried(t *testing
 	if got := len(client.attempts); got != 1 {
 		t.Errorf("expected one attempt for a stream body, got %d", got)
 	}
+
+	once := &retryScriptClient{maxRetries: 2, replies: []retryScriptReply{
+		{status: 503, retryAfter: "0"}, {status: 200},
+	}}
+	params = retryScriptParams()
+	params.method = "PUT"
+	params.contentType = "application/octet-stream"
+	params.rawBody = true
+	params.body = BodyFromReader(io.MultiReader(strings.NewReader("payload")))
+
+	if err := retryScriptCall(once, nil, params); err == nil {
+		t.Fatal("expected the 503 to be returned for a single use body, got nil")
+	}
+	if got := len(once.attempts); got != 1 {
+		t.Errorf("expected one attempt for a single use body, got %d", got)
+	}
 }
 
 // Once the retries are spent the last network error is returned.
@@ -5023,7 +5041,7 @@ func TestBhvSse007_DefaultApiClientUnit_AnSseStreamReconnectsAfterTheConnectionD
 	client := NewDefaultApiClient(nil)
 	t.Cleanup(func() { _ = client.Close() })
 	delay := time.Millisecond
-	stream, err := openSse(context.Background(), eventOpener(client, server), decodeText, nil, &callSettings{reconnectDelay: &delay}, false, "GET", "/items/events")
+	stream, err := openSse(context.Background(), eventOpener(client, server), decodeText, nil, &callSettings{reconnectDelay: &delay}, false, false, "GET", "/items/events")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -5064,7 +5082,7 @@ func TestBhvSse015_DefaultApiClientUnit_AnIdleTimeoutOnAnSseStreamCountsAsALostC
 	}
 	client := NewDefaultApiClient(transport)
 	t.Cleanup(func() { _ = client.Close() })
-	stream, err := openSse(context.Background(), eventOpener(client, server), decodeText, nil, withReconnects(fast(), 1), false, "GET", "/items/events")
+	stream, err := openSse(context.Background(), eventOpener(client, server), decodeText, nil, withReconnects(fast(), 1), false, false, "GET", "/items/events")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -5102,7 +5120,7 @@ func TestBhvSse018_DefaultApiClientUnit_AnSseCommentLineSuchAsAHeartbeatIsSkippe
 	}
 	client := NewDefaultApiClient(transport)
 	t.Cleanup(func() { _ = client.Close() })
-	stream, err := openSse(context.Background(), eventOpener(client, server), decodeText, nil, withReconnects(fast(), 0), false, "GET", "/items/events")
+	stream, err := openSse(context.Background(), eventOpener(client, server), decodeText, nil, withReconnects(fast(), 0), false, false, "GET", "/items/events")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -5115,5 +5133,302 @@ func TestBhvSse018_DefaultApiClientUnit_AnSseCommentLineSuchAsAHeartbeatIsSkippe
 	}
 	if got := server.hits.Load(); got != 1 {
 		t.Errorf("expected no reconnect, got %d requests", got)
+	}
+}
+
+// upload is what a raw server received as the body of one request.
+type upload struct {
+	bytes   []byte
+	chunked bool
+}
+
+// readRawUpload reads the body that follows head: a chunked one chunk by chunk
+// and one with a Content-Length to its end. onFirst runs once the first bytes
+// have arrived, while the rest is still to come.
+func readRawUpload(conn net.Conn, head string, onFirst func()) upload {
+	lower := strings.ToLower(head)
+	received := &bytes.Buffer{}
+	reader := bufio.NewReader(conn)
+	if strings.Contains(lower, "transfer-encoding: chunked") {
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				return upload{received.Bytes(), true}
+			}
+			size, err := strconv.ParseInt(strings.TrimSpace(line), 16, 64)
+			if err != nil || size == 0 {
+				return upload{received.Bytes(), true}
+			}
+			chunk := make([]byte, size)
+			if _, err := io.ReadFull(reader, chunk); err != nil {
+				return upload{received.Bytes(), true}
+			}
+			received.Write(chunk)
+			_, _ = reader.Discard(2)
+			onFirst()
+		}
+	}
+	for _, line := range strings.Split(lower, "\r\n") {
+		if length, found := strings.CutPrefix(line, "content-length: "); found {
+			size, _ := strconv.ParseInt(strings.TrimSpace(length), 10, 64)
+			_, _ = io.CopyN(received, reader, size)
+		}
+	}
+	onFirst()
+	return upload{received.Bytes(), false}
+}
+
+// rawReply answers with status, an empty body and the given headers.
+func rawReply(conn net.Conn, status int, headers ...string) {
+	rawHead(conn, status, append(headers, "Content-Length: 0")...)
+}
+
+// patterned is size bytes that differ from one position to the next, so a body
+// that arrives out of order or short does not compare equal.
+func patterned(size int) []byte {
+	data := make([]byte, size)
+	for index := range data {
+		data[index] = byte(index*31 + 7)
+	}
+	return data
+}
+
+// closeCounter counts the closes of a stream a test passed in.
+type closeCounter struct {
+	io.Reader
+	closes atomic.Int32
+}
+
+func (c *closeCounter) Close() error {
+	c.closes.Add(1)
+	return nil
+}
+
+// seekCounter is a readable, seekable stream that counts its closes.
+type seekCounter struct {
+	*bytes.Reader
+	closes atomic.Int32
+}
+
+func (c *seekCounter) Close() error {
+	c.closes.Add(1)
+	return nil
+}
+
+// gatedReader delivers the first half of its data, then waits for the gate before
+// it delivers the rest, so a client that buffered the stream before sending would
+// wait here for good.
+type gatedReader struct {
+	data []byte
+	gate <-chan struct{}
+	pos  int
+}
+
+func (g *gatedReader) Read(p []byte) (int, error) {
+	if g.pos >= len(g.data) {
+		return 0, io.EOF
+	}
+	half := len(g.data) / 2
+	if g.pos >= half {
+		select {
+		case <-g.gate:
+		case <-time.After(15 * time.Second):
+			return 0, errors.New("the first half never reached the server")
+		}
+	}
+	limit := len(g.data)
+	if g.pos < half {
+		limit = half
+	}
+	n := copy(p[:min(len(p), 4096)], g.data[g.pos:limit])
+	g.pos += n
+	return n, nil
+}
+
+func TestBhvStreaming023_DefaultApiClientUnit_AStreamedUploadOfUnknownLengthIsSentChunkedAndArrivesIntact(t *testing.T) {
+	t.Parallel()
+	data := patterned(300_000)
+	firstSeen := make(chan struct{})
+	var once sync.Once
+	var seen atomic.Pointer[upload]
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		received := readRawUpload(conn, head, func() { once.Do(func() { close(firstSeen) }) })
+		seen.Store(&received)
+		rawReply(conn, 200)
+	})
+	client := NewDefaultApiClient(nil)
+	t.Cleanup(func() { _ = client.Close() })
+
+	response, err := client.SendRequest("PUT", server.url("/items/blob"), nil, BodyFromReader(&gatedReader{data: data, gate: firstSeen}))
+
+	if err != nil || response.StatusCode != 200 {
+		t.Fatalf("expected the upload to succeed, got %v", err)
+	}
+	head := strings.ToLower(server.headOf(0))
+	if !strings.Contains(head, "transfer-encoding: chunked") || strings.Contains(head, "content-length") {
+		t.Errorf("expected a chunked upload with no Content-Length, got %q", head)
+	}
+	if got := seen.Load(); got == nil || !got.chunked || !bytes.Equal(got.bytes, data) {
+		t.Errorf("expected every byte to arrive in order")
+	}
+}
+
+func TestBhvStreaming024_DefaultApiClientUnit_AStreamedUploadWithAKnownLengthSendsContentLength(t *testing.T) {
+	t.Parallel()
+	data := patterned(100_000)
+	path := filepath.Join(t.TempDir(), "upload.bin")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var mu sync.Mutex
+	var seen []upload
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		received := readRawUpload(conn, head, func() {})
+		mu.Lock()
+		seen = append(seen, received)
+		mu.Unlock()
+		rawReply(conn, 200)
+	})
+	client := NewDefaultApiClient(nil)
+	t.Cleanup(func() { _ = client.Close() })
+	sources := []*BodySource{
+		BodyFromBytes(data),
+		BodyFromFile(path),
+		BodyFromReader(bytes.NewReader(data)),
+		BodyFromFactory(func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(data)), nil }).WithLength(int64(len(data))),
+		BodyFromReader(io.MultiReader(bytes.NewReader(data))).WithLength(int64(len(data))),
+	}
+
+	for index, source := range sources {
+		if response, err := client.SendRequest("PUT", server.url("/items/blob"), nil, source); err != nil || response.StatusCode != 200 {
+			t.Fatalf("source %d: expected the upload to succeed, got %v", index, err)
+		}
+		head := strings.ToLower(server.headOf(index))
+		if !strings.Contains(head, fmt.Sprintf("content-length: %d", len(data))) || strings.Contains(head, "transfer-encoding") {
+			t.Errorf("source %d: expected Content-Length and no chunking, got %q", index, head)
+		}
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(seen) != len(sources) {
+		t.Fatalf("expected %d uploads, got %d", len(sources), len(seen))
+	}
+	for index, got := range seen {
+		if got.chunked || !bytes.Equal(got.bytes, data) {
+			t.Errorf("source %d: expected the whole body, not chunked", index)
+		}
+	}
+	if got := sources[0].String(); got != "BodySource(bytes, replayable, length 100000)" {
+		t.Errorf("unexpected string %q", got)
+	}
+	if got := sources[4].String(); got != "BodySource(once, single use, length 100000)" {
+		t.Errorf("unexpected string %q", got)
+	}
+	if got := BodyFromFactory(nil).String(); got != "BodySource(factory, replayable, length unknown)" {
+		t.Errorf("unexpected string %q", got)
+	}
+}
+
+func TestBhvStreaming025_DefaultApiClientUnit_ACallerSuppliedUploadStreamIsNeverClosedByTheSdk(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		readRawUpload(conn, head, func() {})
+		if hit == 2 {
+			rawReply(conn, 503, "Retry-After: 0")
+			return
+		}
+		rawReply(conn, 200)
+	})
+	client := NewDefaultApiClient(nil)
+	t.Cleanup(func() { _ = client.Close() })
+
+	callers := &closeCounter{Reader: strings.NewReader(string(patterned(5000)))}
+	if response, err := client.SendRequest("PUT", server.url("/items/blob"), nil, BodyFromReader(callers)); err != nil || response.StatusCode != 200 {
+		t.Fatalf("expected the upload to succeed, got %v", err)
+	}
+	refused := &closeCounter{Reader: strings.NewReader(string(patterned(5000)))}
+	if response, err := client.SendRequest("PUT", server.url("/items/blob"), nil, BodyFromReader(refused)); err != nil || response.StatusCode != 503 {
+		t.Fatalf("expected the 503 to come back, got %v", err)
+	}
+	seekable := &seekCounter{Reader: bytes.NewReader(patterned(5000))}
+	if _, err := client.SendRequest("PUT", server.url("/items/blob"), nil, BodyFromReader(seekable)); err != nil {
+		t.Fatalf("expected the upload to succeed, got %v", err)
+	}
+	if callers.closes.Load() != 0 || refused.closes.Load() != 0 || seekable.closes.Load() != 0 {
+		t.Errorf("expected the caller's streams to stay open, got %d, %d and %d closes", callers.closes.Load(), refused.closes.Load(), seekable.closes.Load())
+	}
+
+	var mu sync.Mutex
+	var opened []*closeCounter
+	factory := BodyFromFactory(func() (io.ReadCloser, error) {
+		stream := &closeCounter{Reader: bytes.NewReader(patterned(5000))}
+		mu.Lock()
+		opened = append(opened, stream)
+		mu.Unlock()
+		return stream, nil
+	})
+	if _, err := client.SendRequest("PUT", server.url("/items/blob"), nil, factory); err != nil {
+		t.Fatalf("expected the upload to succeed, got %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(opened) == 0 {
+		t.Fatal("expected the factory to be opened")
+	}
+	for index, stream := range opened {
+		if stream.closes.Load() < 1 {
+			t.Errorf("stream %d: expected what the SDK opened itself to be closed by it", index)
+		}
+	}
+}
+
+func TestBhvStreaming027_DefaultApiClientUnit_A307Or308WithASingleUseUploadIsRefusedAndTheBodyIsNeverBuffered(t *testing.T) {
+	t.Parallel()
+	data := patterned(20_000)
+	for _, status := range []int{307, 308} {
+		var mu sync.Mutex
+		var landed []upload
+		target := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+			received := readRawUpload(conn, head, func() {})
+			mu.Lock()
+			landed = append(landed, received)
+			mu.Unlock()
+			rawReply(conn, 200)
+		})
+		origin := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+			readRawUpload(conn, head, func() {})
+			rawReply(conn, status, "Location: "+target.url("/items/final"))
+		})
+		transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		client := NewDefaultApiClient(transport)
+		t.Cleanup(func() { _ = client.Close() })
+
+		once := &closeCounter{Reader: bytes.NewReader(data)}
+		_, err = client.SendRequest("PUT", origin.url("/items/blob"), nil, BodyFromReader(once).WithLength(int64(len(data))))
+
+		var apiErr *pkgerrors.ApiError
+		if !errors.As(err, &apiErr) || apiErr.StatusCode() != status || !strings.Contains(err.Error(), "Refusing to replay a streamed request body") {
+			t.Fatalf("%d: expected the refusal with the redirect status, got %v", status, err)
+		}
+		if got := target.hits.Load(); got != 0 {
+			t.Errorf("%d: expected nothing sent to the new location, got %d requests", status, got)
+		}
+		if once.closes.Load() != 0 {
+			t.Errorf("%d: expected the caller's stream to stay open", status)
+		}
+
+		response, err := client.SendRequest("PUT", origin.url("/items/blob"), nil, BodyFromFactory(func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(data)), nil }))
+		if err != nil || response.StatusCode != 200 {
+			t.Fatalf("%d: expected a replayable body to follow the redirect, got %v", status, err)
+		}
+		mu.Lock()
+		if len(landed) != 1 || !bytes.Equal(landed[0].bytes, data) {
+			t.Errorf("%d: expected the whole body at the new location", status)
+		}
+		mu.Unlock()
 	}
 }

@@ -91,7 +91,7 @@ func withReconnects(settings *callSettings, maxReconnects int) *callSettings {
 
 func sseOf(t *testing.T, opener func(string) (*ApiStreamResponse, error), settings *callSettings) *SseStream[string] {
 	t.Helper()
-	stream, err := openSse(context.Background(), opener, decodeText, nil, settings, false, "GET", "/events")
+	stream, err := openSse(context.Background(), opener, decodeText, nil, settings, false, false, "GET", "/events")
 	if err != nil {
 		t.Fatalf("unexpected error opening the stream: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestBhvSse005_EventStream_AnSseDataPayloadIsDecodedAndAPayloadThatDoesNotDe
 		}
 		return parsed, nil
 	}
-	stream, err := openSse(context.Background(), scripted("data: 1\n\ndata: oops\n\ndata: 3\n\n").open, number, nil, fast(), false, "GET", "/events")
+	stream, err := openSse(context.Background(), scripted("data: 1\n\ndata: oops\n\ndata: 3\n\n").open, number, nil, fast(), false, false, "GET", "/events")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -366,7 +366,7 @@ func TestBhvSse014_EventStream_AnSseRetryFieldThatIsNotDigitsAndAnIdContainingNu
 func TestBhvSse016_EventStream_AnSseRequestWithABodyIsNotReconnectedUnlessTheCallerTurnsReconnectOn(t *testing.T) {
 	t.Parallel()
 	off := scripted("data: a\n\n", "data: b\n\n")
-	stream, err := openSse(context.Background(), off.open, decodeText, nil, fast(), true, "POST", "/events")
+	stream, err := openSse(context.Background(), off.open, decodeText, nil, fast(), true, false, "POST", "/events")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -377,7 +377,7 @@ func TestBhvSse016_EventStream_AnSseRequestWithABodyIsNotReconnectedUnlessTheCal
 	}
 
 	on := scripted("data: a\n\n", "data: b\n\n", noContentResponse())
-	stream, err = openSse(context.Background(), on.open, decodeText, nil, withReconnects(fast(), 2), true, "POST", "/events")
+	stream, err = openSse(context.Background(), on.open, decodeText, nil, withReconnects(fast(), 2), true, false, "POST", "/events")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -385,6 +385,17 @@ func TestBhvSse016_EventStream_AnSseRequestWithABodyIsNotReconnectedUnlessTheCal
 	wantStrings(t, data, "a", "b")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+
+	single := scripted("data: a\n\n", "data: b\n\n", noContentResponse())
+	stream, err = openSse(context.Background(), single.open, decodeText, nil, withReconnects(fast(), 5), true, true, "POST", "/events")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err = dataOf(stream)
+	wantStrings(t, data, "a")
+	if err != nil || len(single.lastIDs) != 1 {
+		t.Errorf("expected a single use body never to be sent again, got %v after %d requests", err, len(single.lastIDs))
 	}
 }
 
@@ -414,7 +425,7 @@ func TestBhvSse019_EventStream_AnSseEventCutOffByTheEndOfTheConnectionIsDiscarde
 func TestBhvSse021_EventStream_TheConfiguredSseTerminatorEndsTheStreamAndIsNotDelivered(t *testing.T) {
 	t.Parallel()
 	terminator := "[DONE]"
-	stream, err := openSse(context.Background(), scripted("data: a\n\ndata: [DONE]\n\ndata: b\n\n").open, decodeText, &terminator, fast(), false, "GET", "/events")
+	stream, err := openSse(context.Background(), scripted("data: a\n\ndata: [DONE]\n\ndata: b\n\n").open, decodeText, &terminator, fast(), false, false, "GET", "/events")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

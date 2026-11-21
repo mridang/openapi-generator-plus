@@ -67,7 +67,7 @@ type SseStream[T any] struct {
 
 // openSse connects for the first time and returns the stream, or the failure of
 // the first request.
-func openSse[T any](ctx context.Context, opener func(string) (*ApiStreamResponse, error), decode func(string) (T, error), terminator *string, settings *callSettings, hasBody bool, method, path string) (*SseStream[T], error) {
+func openSse[T any](ctx context.Context, opener func(string) (*ApiStreamResponse, error), decode func(string) (T, error), terminator *string, settings *callSettings, hasBody, singleUse bool, method, path string) (*SseStream[T], error) {
 	s := &SseStream[T]{
 		opener:        opener,
 		decode:        decode,
@@ -96,6 +96,11 @@ func openSse[T any](ctx context.Context, opener func(string) (*ApiStreamResponse
 		if settings.lastEventID != nil {
 			s.lastEventID = *settings.lastEventID
 		}
+	}
+	/* A body that was read to its end has nothing to send again, whatever the
+	 * options say. */
+	if singleUse {
+		s.maxReconnects = 0
 	}
 	first, err := s.connect()
 	if err != nil {
