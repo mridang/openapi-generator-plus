@@ -95,6 +95,21 @@ class GeneratedFileLayoutTest {
             + " holds the status, headers and open body");
     allow(
         ALLOWED_MISSING,
+        "php",
+        "jsonlinesstream",
+        "a PHP JSON Lines stream is a plain Generator of items, so there is no class to hold");
+    allow(
+        ALLOWED_MISSING,
+        "elixir",
+        "streamoptions",
+        "the stream settings are a keyword list in the opts argument, as for every other Elixir call");
+    allow(
+        ALLOWED_MISSING,
+        "go",
+        "streamoptions",
+        "the stream settings are RequestOption values (WithIdleTimeout and friends), as for every other Go call setting");
+    allow(
+        ALLOWED_MISSING,
         "rust",
         "baseauthenticator",
         "rust has no class inheritance, so the shared authenticator behaviour is a trait default"
@@ -120,28 +135,9 @@ class GeneratedFileLayoutTest {
         "streamingapiclient",
         "PHP 8.3 interfaces cannot carry a default method, so the transport that can stream is a"
             + " second interface that the SDK checks at call time (D118)");
-    allow(
-        ALLOWED_EXTRA,
-        "php",
-        "eventstream",
-        "the line splitter and the server-sent events parser, one class per file in PHP");
-    allow(
-        ALLOWED_EXTRA,
-        "php",
-        "ssestream",
-        "the reconnecting stream of server-sent events, a class of its own in PHP");
-    allow(
-        ALLOWED_EXTRA,
-        "php",
-        "serversentevent",
-        "the envelope of one server-sent event, a class of its own in PHP");
-    allow(
-        ALLOWED_EXTRA,
-        "php",
-        "streamoptions",
-        "the settings of one JSON Lines or server-sent events call, a class of its own in PHP");
     allow(ALLOWED_EXTRA, "php", "rawstreamresponse", "the internal pair of status, headers and open body that a PHP transport hands to the ByteStream");
     allow(ALLOWED_EXTRA, "swift", "streamtransfer", "the URLSession delegate that feeds the AsyncThrowingStream, because AsyncBytes is absent on Linux");
+    allow(ALLOWED_EXTRA, "dart", "retryafter", "the Retry-After parser shared by the retry loop and the server-sent events reconnect");
     allow(ALLOWED_EXTRA, "go", "doc", "a go package description can only live in a package comment file");
     allow(
         ALLOWED_EXTRA,
