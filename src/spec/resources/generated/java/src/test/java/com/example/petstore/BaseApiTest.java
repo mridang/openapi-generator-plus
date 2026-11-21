@@ -4241,8 +4241,8 @@ public class BaseApiTest {
   }
 
   @Test
-  @DisplayName("bhvMisc217 a binary upload sends in-memory bytes and a stream as given")
-  void bhvMisc217ABinaryUploadSendsBytesAndAStreamAsGiven() throws ApiException {
+  @DisplayName("bhvMisc217 a binary upload sends in-memory bytes and a body source as given")
+  void bhvMisc217ABinaryUploadSendsBytesAndABodySourceAsGiven() throws ApiException {
     byte[] png = new byte[] {(byte) 0x89, 'P', 'N', 'G'};
     var client = new CapturingApiClient();
     var testApi = new TestableApi(client, "http://localhost");
@@ -4257,18 +4257,18 @@ public class BaseApiTest {
         null,
         null);
     assertArrayEquals(png, (byte[]) client.capturedBody);
-    var stream = new java.io.ByteArrayInputStream(png);
+    BodySource source = BodySource.once(new java.io.ByteArrayInputStream(png));
     testApi.call(
         "PUT",
         "/x",
         new HashMap<>(),
         new HashMap<>(),
-        stream,
+        source,
         new String[] {"application/json"},
         "image/png",
         null,
         null);
-    assertSame(stream, client.capturedBody);
+    assertSame(source, client.capturedBody);
   }
 
   @Test

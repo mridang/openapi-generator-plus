@@ -141,6 +141,11 @@ class GeneratedFileLayoutTest {
         "streamoptions",
         "the settings of one JSON Lines or server-sent events call, a class of its own in PHP");
     allow(ALLOWED_EXTRA, "php", "rawstreamresponse", "the internal pair of status, headers and open body that a PHP transport hands to the ByteStream");
+    allow(
+        ALLOWED_EXTRA,
+        "java",
+        "bodysource",
+        "the body of a raw binary upload, replayable or single use, a class of its own in Java");
     allow(ALLOWED_EXTRA, "swift", "streamtransfer", "the URLSession delegate that feeds the AsyncThrowingStream, because AsyncBytes is absent on Linux");
     allow(ALLOWED_EXTRA, "go", "doc", "a go package description can only live in a package comment file");
     allow(

@@ -216,6 +216,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                     final boolean hasMultipleConsumes =
                             op.consumes != null && op.consumes.size() > 1;
                     op.vendorExtensions.put("hasMultipleConsumes", hasMultipleConsumes);
+                    markBinaryUpload(op);
                 }
             }
         }
@@ -336,6 +337,34 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             d.put("streamItemJava", item);
             op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
             op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of an {@code InputStream}. It runs before the shared pass, which copies
+     * the body type into the signature arguments. Multipart and every other body kind keep the
+     * type the spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
         }
     }
 
@@ -633,6 +662,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.java"),
             new SupportingFileSpec(
                 "api_stream_response.mustache", invokerFolder, "ApiStreamResponse.java"),
+            new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.java"),
             new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.java"),
             new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.java"),
             new SupportingFileSpec(

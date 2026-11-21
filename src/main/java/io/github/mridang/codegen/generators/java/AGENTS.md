@@ -48,7 +48,7 @@ The java generator (`java-plus`) emits a Maven project for Java 21 or newer (the
 | Model named `Error` | generated as `ModelError` | would shadow `java.lang.Error` (Error Prone `JavaLangClash`) |
 | Reserved words | `true`, `false`, `null` and `_` are escaped too | they are illegal identifiers though not keywords (D44) |
 | `format: number`, `decimal` | `BigDecimal` | precision-preserving, like kotlin and csharp |
-| `format: binary` | `InputStream` for a request body, `ByteStream extends InputStream` for a success response (D119) | the response is read as consumed; the request side is capability 3 and unchanged |
+| `format: binary` | `BodySource` for a raw request body, `ByteStream extends InputStream` for a success response (D119, D121) | the response is read as consumed and the request is sent as it is read |
 | Doc comments | `///` markdown doc-comments allowed; `//` line comments rejected in `src/main` | Java 23+ markdown doc-comments and `JavaFormattingSpec` |
 
 ## Settled decisions (do not re-open in review)
@@ -255,7 +255,7 @@ These java gaps are known:
 - An optional request body can be omitted only on an operation that takes nothing else (`placeOrder()`), because an overload that drops the body from a longer signature makes a literal `null` ambiguous (D26, wave 2). With path, options, server or content-type arguments the body stays `@Nullable`.
 - A model with required properties has no no-argument constructor: it is built with its required-argument constructor or `builder()`, and a missing required property fails in `build()` (D68, wave 2).
 - `refreshUrl` keeps its position in the public OAuth2 constructors; moving it breaks positional callers.
-- `format: binary` stays `InputStream` for a request body, rather than `byte[]`; a binary response is `ByteStream` (see "Streaming: binary responses").
+- A raw `format: binary` request body is a `BodySource`, not `InputStream` or `byte[]`; a multipart file part stays `InputStream`; a binary response is `ByteStream` (see "Streaming: binary responses" and "Streaming: uploads").
 - Only a model named `Error` is prefixed (`ModelError`); other collisions with `java.lang` or SDK type names are unguarded (D45, open).
 - Object-valued query and header parameters are unsupported (D47, parked); `Set` order is unspecified (S6).
 - `BigDecimal` is written with `toString`, so a value such as `1E+3` may appear in exponent notation; `WRITE_BIGDECIMAL_AS_PLAIN` is not enabled (D83 proposed it).
@@ -553,6 +553,23 @@ Test: `EventStreamTest` (the one mirror file, `streaming002` to `005` and `sse00
 Rule: `SseStream.open` sends the first request (its failure is raised from the operation method) and checks the answer; each reconnect is `opener.apply(lastEventId)`, which `BaseApi` implements as a fresh `invokeCall` (so the headers and the credential are built again, and the call hook runs again) with `Last-Event-ID` added only when the id is not empty. `Cache-Control: no-cache` and `Accept-Encoding: identity` are added unless the caller or the default headers set them. A lost connection is a clean end, a `NetworkException` (a `StreamException`, an idle `NetworkTimeoutException`) or, on a reconnect, a 408, 429 or 5xx status; it counts one consecutive failure, reset by an event; a clean end that exhausts the budget raises a `StreamException`. `reconnectWaitMillis` (package-private, tested) is the server `retry` value, else `Retry-After`, else the delay doubling to 30 s less up to 25% jitter. An event named `error` raises `ApiException` with the real status and the data as the body; the terminator comes from the generator option `sseTerminator`; the SSE content type is checked on every connection and a mismatch is a `SerializationException`.
 Where: `sse_stream.mustache`, `base_api.mustache`.
 Test: `EventStreamTest`, `BaseApiTest$EventStreams`.
+
+## Streaming: uploads (capability 3 of #114, D121 item 6)
+
+### `BodySource` is the body type of a raw binary request
+Rule: `BodySource` (`body_source.mustache`, a `final` class in the SDK package) has the replayable constructors `of(byte[])` (copied, length known), `ofFile(Path)` (length is the file size, reopened per send) and `fromSupplier(Supplier<? extends InputStream>[, long length])`, and the single-use `once(InputStream[, long length])`; `isReplayable()`, `length()` (`OptionalLong`), `open()` (public, for a custom transport; a single-use body opens once and its stream ignores `close()`) and a `toString()` of kind and length only. `BetterJavaCodegen.markBinaryUpload` runs before the shared pass and sets the body parameter type to `BodySource` when the operation's request body is binary and not multipart or form, so the operation, `WithHttpInfo`, the interface and the signature arguments all say `BodySource`; a multipart `InputStream` part is unchanged. `BaseApi` passes the `BodySource` to the transport as the body under any selected request content type and treats it as replayable for the 401 replay only when `isReplayable()`.
+Where: `BetterJavaCodegen`, `body_source.mustache`, `api/api.mustache`, `api/api_interface.mustache`, `base_api.mustache`.
+Test: golden `PetApiTest` (the avatar rows `bhvOperations070`, `071`, `072`, `076`), `BaseApiTest` (`bhvMisc217`).
+
+### The transport sends it as it is read
+Rule: `DefaultApiClient.prepare` turns a `BodySource` into a publisher: in-memory bytes use `ofByteArray`, anything else `BodyPublishers.ofInputStream(supplier)` wrapped by `fromPublisher(publisher, length)` when the length is known (Content-Length) and left alone when it is not (chunked); a known length of 0 is `NO_BODY`. The JDK subscribes once per send, so a retry (`sendWithBackoff`) and a 307 or 308 follow-up open the source again. Every stream the supplier opens is recorded on the `PreparedCall` and closed when the next one opens and when the call ends (`closeOpenedBody`, in the `finally` of both send paths); a single-use body hands out a stream whose `close()` does nothing, so the JDK's own close at the end of the data never closes the caller's stream. `isReplayableBody` is `isReplayable()`, so a single-use body gets no retry. A redirect that would keep the body (not a 303, and not the 301 or 302 that turn a POST into a GET) with a single-use body raises `ApiException` with the redirect status and `Refusing to replay a streamed request body`; the body is never buffered. The `InputStream`, `File` and multipart branches are unchanged and still buffer.
+Where: `default_api_client.mustache`.
+Test: `DefaultApiClientUnitTest` (`bhvStreaming023` to `027`, `bhvRetries032`, `bhvMisc163`).
+
+### An event stream request with a single-use body never reconnects
+Rule: `SseStream.open` has an overload with `singleUseBody`; when it is true `maxReconnects` is 0 whatever the options say. `invokeApiForSse` passes `body instanceof BodySource source && !source.isReplayable()`.
+Where: `sse_stream.mustache`, `base_api.mustache`.
+Test: `EventStreamTest` (`bhvSse016`).
 
 ### Build lesson: the JDK 25 Unsafe notice
 Rule: NullAway runs data-flow analysis for some constructs (a local assigned `null`, a nullable field read after a check), which loads Guava's cache and makes the forked javac print a `sun.misc.Unsafe` notice that `failOnWarning` counts. The generated pom passes `-J--sun-misc-unsafe-memory-access=allow` to the forked compiler, so such code no longer fails the build; a real warning hidden behind that notice (an unused field, for example) shows once the flag is set.

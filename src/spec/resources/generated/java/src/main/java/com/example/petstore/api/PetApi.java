@@ -10,6 +10,7 @@ package com.example.petstore.api;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiResult;
+import com.example.petstore.BodySource;
 import com.example.petstore.ByteStream;
 import com.example.petstore.Configuration;
 import com.example.petstore.api.options.AddPetOptions;
@@ -47,7 +48,6 @@ import com.example.petstore.models.PetTreatment;
 import com.example.petstore.models.Photo;
 import com.example.petstore.models.SetPetAvatarThumbnailRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
-import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -2675,7 +2675,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public void setPetAvatar(Long petId, InputStream body) {
+  public void setPetAvatar(Long petId, BodySource body) {
     setPetAvatar(petId, body, null);
   }
 
@@ -2693,7 +2693,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body) {
+  public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, BodySource body) {
     return setPetAvatarWithHttpInfo(petId, body, null);
   }
 
@@ -2708,7 +2708,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Override
-  public void setPetAvatar(Long petId, InputStream body, @Nullable SetPetAvatarOptions options) {
+  public void setPetAvatar(Long petId, BodySource body, @Nullable SetPetAvatarOptions options) {
     setPetAvatarWithHttpInfo(petId, body, options);
   }
 
@@ -2730,7 +2730,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
   @Override
   public void setPetAvatar(
       Long petId,
-      InputStream body,
+      BodySource body,
       @Nullable SetPetAvatarOptions options,
       @Nullable String requestContentType) {
     setPetAvatarWithHttpInfo(petId, body, options, requestContentType);
@@ -2755,7 +2755,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
   @Override
   public ApiResult<Void> setPetAvatarWithHttpInfo(
       Long petId,
-      InputStream body,
+      BodySource body,
       @Nullable SetPetAvatarOptions options,
       @Nullable String requestContentType) {
     return setPetAvatarInternal(petId, body, options, requestContentType);
@@ -2774,13 +2774,13 @@ public class PetApi extends BaseApi implements PetApiInterface {
    */
   @Override
   public ApiResult<Void> setPetAvatarWithHttpInfo(
-      Long petId, InputStream body, @Nullable SetPetAvatarOptions options) {
+      Long petId, BodySource body, @Nullable SetPetAvatarOptions options) {
     return setPetAvatarInternal(petId, body, options, null);
   }
 
   private ApiResult<Void> setPetAvatarInternal(
       Long petId,
-      InputStream body,
+      BodySource body,
       @Nullable SetPetAvatarOptions options,
       @Nullable String requestContentType) {
     if (petId == null) {

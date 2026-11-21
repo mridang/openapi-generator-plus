@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import {{invokerPackage}}.BodySource;
 import {{invokerPackage}}.auth.ApiKeyAuthenticator;
 import {{invokerPackage}}.auth.ApiKeyLocation;
 import {{invokerPackage}}.auth.Authenticator;
@@ -3741,8 +3742,8 @@ public class BaseApiTest {
     }
 
     @Test
-    @DisplayName("bhvMisc217 a binary upload sends in-memory bytes and a stream as given")
-    void bhvMisc217ABinaryUploadSendsBytesAndAStreamAsGiven() throws ApiException {
+    @DisplayName("bhvMisc217 a binary upload sends in-memory bytes and a body source as given")
+    void bhvMisc217ABinaryUploadSendsBytesAndABodySourceAsGiven() throws ApiException {
         byte[] png = new byte[] {(byte) 0x89, 'P', 'N', 'G'};
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
@@ -3750,11 +3751,11 @@ public class BaseApiTest {
                 "PUT", "/x", new HashMap<>(), new HashMap<>(), png,
                 new String[] {"application/json"}, "image/png", null, null);
         assertArrayEquals(png, (byte[]) client.capturedBody);
-        var stream = new java.io.ByteArrayInputStream(png);
+        BodySource source = BodySource.once(new java.io.ByteArrayInputStream(png));
         testApi.call(
-                "PUT", "/x", new HashMap<>(), new HashMap<>(), stream,
+                "PUT", "/x", new HashMap<>(), new HashMap<>(), source,
                 new String[] {"application/json"}, "image/png", null, null);
-        assertSame(stream, client.capturedBody);
+        assertSame(source, client.capturedBody);
     }
 
     @Test

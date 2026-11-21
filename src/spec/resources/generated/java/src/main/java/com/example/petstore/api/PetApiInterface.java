@@ -9,6 +9,7 @@
 package com.example.petstore.api;
 
 import com.example.petstore.ApiResult;
+import com.example.petstore.BodySource;
 import com.example.petstore.ByteStream;
 import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
@@ -43,7 +44,6 @@ import com.example.petstore.models.PetPassport;
 import com.example.petstore.models.PetTreatment;
 import com.example.petstore.models.Photo;
 import com.example.petstore.models.SetPetAvatarThumbnailRequest;
-import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -1154,7 +1154,7 @@ public interface PetApiInterface {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  default void setPetAvatar(Long petId, InputStream body) {
+  default void setPetAvatar(Long petId, BodySource body) {
     setPetAvatar(petId, body, null);
   }
 
@@ -1171,7 +1171,7 @@ public interface PetApiInterface {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  default ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body) {
+  default ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, BodySource body) {
     return setPetAvatarWithHttpInfo(petId, body, null);
   }
 
@@ -1185,7 +1185,7 @@ public interface PetApiInterface {
    * @throws ApiException if fails to make API call
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
-  void setPetAvatar(Long petId, InputStream body, @Nullable SetPetAvatarOptions options);
+  void setPetAvatar(Long petId, BodySource body, @Nullable SetPetAvatarOptions options);
 
   /**
    * Set the pet's profile photo
@@ -1204,7 +1204,7 @@ public interface PetApiInterface {
    */
   void setPetAvatar(
       Long petId,
-      InputStream body,
+      BodySource body,
       @Nullable SetPetAvatarOptions options,
       @Nullable String requestContentType);
 
@@ -1226,7 +1226,7 @@ public interface PetApiInterface {
    */
   ApiResult<Void> setPetAvatarWithHttpInfo(
       Long petId,
-      InputStream body,
+      BodySource body,
       @Nullable SetPetAvatarOptions options,
       @Nullable String requestContentType);
 
@@ -1242,7 +1242,7 @@ public interface PetApiInterface {
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   ApiResult<Void> setPetAvatarWithHttpInfo(
-      Long petId, InputStream body, @Nullable SetPetAvatarOptions options);
+      Long petId, BodySource body, @Nullable SetPetAvatarOptions options);
 
   /**
    * Set the pet's avatar thumbnail as base64
