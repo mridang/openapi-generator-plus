@@ -1,0 +1,209 @@
+{{>api_info}}
+
+use std::fmt;
+use std::path::PathBuf;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+
+use bytes::Bytes;
+use futures_core::Stream;
+
+/// The chunks of a request body in order, ending after the last one. A read
+/// that fails is the last item and fails the request.
+pub type BodyChunks = Pin<Box<dyn Stream<Item = std::io::Result<Bytes>> + Send>>;
+
+/// Opens a fresh stream of the content every time it is called.
+type Factory = dyn Fn() -> BodyChunks + Send + Sync;
+
+/// How many bytes one read of a file asks for.
+const FILE_CHUNK: usize = 64 * 1024;
+
+#[derive(Clone)]
+enum Kind {
+    Bytes(Bytes),
+    Path(PathBuf),
+    Factory(Arc<Factory>),
+    Once(Arc<Mutex<Option<BodyChunks>>>),
+}
+
+/// The body of a request that is sent as it is read, never buffered. An
+/// operation whose request body is raw binary takes one.
+///
+/// A body is either *replayable* or *single use*:
+///
+/// * [`BodySource::from_bytes`], [`BodySource::from_path`] and
+///   [`BodySource::from_factory`] can be read again, so the SDK retries the
+///   request after a 5xx, a 429 or a network error and follows a 307 or 308
+///   redirect. `Vec<u8>` and `Bytes` convert into one with `.into()`.
+/// * [`BodySource::once`] wraps a stream that can be read once. It is never
+///   retried (the original error is returned unchanged) and a redirect that
+///   would need it again is refused with
+///   `Refusing to replay a streamed request body`.
+///
+/// A known length is sent as `Content-Length`; an unknown length is sent
+/// chunked. The SDK owns what it is given: a path and a factory are opened by
+/// the SDK for every send and dropped when the send ends, and a stream passed
+/// to [`BodySource::once`] is read as it is and never closed ahead of its end;
+/// whatever it wraps and the caller still holds, such as a shared handle, is
+/// left open.
+///
+/// The `Debug` form shows the kind and the length, never the content or a path.
+#[derive(Clone)]
+pub struct BodySource {
+    kind: Kind,
+    length: Option<u64>,
+}
+
+impl BodySource {
+    /// A replayable body of bytes held in memory; its length is known.
+    pub fn from_bytes(bytes: impl Into<Bytes>) -> Self {
+        let bytes = bytes.into();
+        Self {
+            length: Some(bytes.len() as u64),
+            kind: Kind::Bytes(bytes),
+        }
+    }
+
+    /// A replayable body read from a file, opened again for every send; its
+    /// length is the size of the file when it is opened.
+    pub fn from_path(path: impl Into<PathBuf>) -> Self {
+        Self {
+            kind: Kind::Path(path.into()),
+            length: None,
+        }
+    }
+
+    /// A replayable body of unknown length, made by a factory that returns a
+    /// fresh stream every time it is called. Add the length with
+    /// [`with_length`](Self::with_length) to send `Content-Length` instead of
+    /// chunking.
+    pub fn from_factory<F, S>(factory: F) -> Self
+    where
+        F: Fn() -> S + Send + Sync + 'static,
+        S: Stream<Item = std::io::Result<Bytes>> + Send + 'static,
+    {
+        Self {
+            kind: Kind::Factory(Arc::new(move || Box::pin(factory()) as BodyChunks)),
+            length: None,
+        }
+    }
+
+    /// A single-use body of unknown length, sent chunked. The stream is read
+    /// once and never buffered.
+    pub fn once<S>(stream: S) -> Self
+    where
+        S: Stream<Item = std::io::Result<Bytes>> + Send + 'static,
+    {
+        Self {
+            kind: Kind::Once(Arc::new(Mutex::new(Some(Box::pin(stream))))),
+            length: None,
+        }
+    }
+
+    /// Declares the number of bytes of a factory or single-use body, sent as
+    /// `Content-Length`. A body of bytes or a file knows its own length, so
+    /// this leaves it as it is.
+    pub fn with_length(mut self, length: u64) -> Self {
+        if matches!(self.kind, Kind::Factory(_) | Kind::Once(_)) {
+            self.length = Some(length);
+        }
+        self
+    }
+
+    /// Whether the body can be sent again, which is what a retry or a redirect
+    /// needs. `false` only for [`once`](Self::once).
+    pub fn is_replayable(&self) -> bool {
+        !matches!(self.kind, Kind::Once(_))
+    }
+
+    /// The number of bytes when it is known, or `None` when the body is sent
+    /// chunked. The length of a file is read from the file system.
+    pub fn length(&self) -> Option<u64> {
+        match &self.kind {
+            Kind::Bytes(bytes) => Some(bytes.len() as u64),
+            Kind::Path(path) => std::fs::metadata(path).ok().map(|meta| meta.len()),
+            Kind::Factory(_) | Kind::Once(_) => self.length,
+        }
+    }
+
+    /// Opens the content for one send and returns it with its length when that
+    /// is known.
+    ///
+    /// A transport that is not the default one reads a body with this method. A
+    /// replayable body opens a fresh stream every time; a single-use body opens
+    /// once, and a second call fails with an
+    /// [`std::io::ErrorKind::Other`] error.
+    pub async fn open(&self) -> std::io::Result<(BodyChunks, Option<u64>)> {
+        match &self.kind {
+            Kind::Bytes(bytes) => {
+                let chunk = bytes.clone();
+                Ok((
+                    Box::pin(futures_util::stream::once(std::future::ready(Ok(chunk)))),
+                    Some(bytes.len() as u64),
+                ))
+            }
+            Kind::Path(path) => {
+                let file = tokio::fs::File::open(path).await?;
+                let length = file.metadata().await?.len();
+                Ok((Box::pin(file_chunks(file)), Some(length)))
+            }
+            Kind::Factory(factory) => Ok((factory(), self.length)),
+            Kind::Once(cell) => {
+                let taken = cell
+                    .lock()
+                    .map_err(|_| std::io::Error::other("a single use request body was poisoned"))?
+                    .take();
+                match taken {
+                    Some(stream) => Ok((stream, self.length)),
+                    None => Err(std::io::Error::other(
+                        "A single use request body can be sent only once",
+                    )),
+                }
+            }
+        }
+    }
+}
+
+/// Reads a file in chunks; a failed read is the last item.
+fn file_chunks(file: tokio::fs::File) -> impl Stream<Item = std::io::Result<Bytes>> + Send {
+    futures_util::stream::unfold(Some(file), |state| async move {
+        use tokio::io::AsyncReadExt as _;
+        let mut file = state?;
+        let mut buffer = vec![0u8; FILE_CHUNK];
+        match file.read(&mut buffer).await {
+            Ok(0) => None,
+            Ok(read) => {
+                buffer.truncate(read);
+                Some((Ok(Bytes::from(buffer)), Some(file)))
+            }
+            Err(failure) => Some((Err(failure), None)),
+        }
+    })
+}
+
+impl From<Vec<u8>> for BodySource {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self::from_bytes(bytes)
+    }
+}
+
+impl From<Bytes> for BodySource {
+    fn from(bytes: Bytes) -> Self {
+        Self::from_bytes(bytes)
+    }
+}
+
+impl fmt::Debug for BodySource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let kind = match &self.kind {
+            Kind::Bytes(_) => "bytes",
+            Kind::Path(_) => "file",
+            Kind::Factory(_) => "factory",
+            Kind::Once(_) => "single use",
+        };
+        match self.length() {
+            Some(length) => write!(f, "BodySource[{kind}, {length} bytes]"),
+            None => write!(f, "BodySource[{kind}, length unknown]"),
+        }
+    }
+}

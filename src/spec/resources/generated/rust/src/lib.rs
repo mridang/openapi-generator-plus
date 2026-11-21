@@ -10,6 +10,8 @@ pub mod api;
 pub mod api_client;
 pub mod auth;
 pub mod client;
+/* The body of a raw binary request, sent as it is read. */
+pub mod body_source;
 /* The carrier of a binary response, read as it arrives. */
 pub mod byte_stream;
 /* The line splitter and the server-sent events parser behind the JSON Lines and
@@ -70,6 +72,7 @@ pub use api_http_response::ApiHttpResponse;
 pub use api_result::ApiResult;
 pub use api_stream_response::{ApiStreamResponse, BodyStream};
 pub use auth::Authenticator;
+pub use body_source::BodySource;
 pub use byte_stream::ByteStream;
 pub use call_hook::{CallCancelled, CallHook, CallInfo, CallObserver, CallOutcome};
 pub use client::Client;

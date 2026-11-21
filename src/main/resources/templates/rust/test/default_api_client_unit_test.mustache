@@ -4602,6 +4602,18 @@ async fn test_bhv_streaming_022_the_string_form_of_a_stream_hides_credentials_th
         assert!(!shown.contains("items"), "{shown}");
     }
     assert_eq!("ByteStream(status=200, bytes=7)", format!("{stream:?}"));
+
+    let once = BodySource::once(futures_util::stream::empty()).with_length(12);
+    assert_eq!("BodySource[single use, 12 bytes]", format!("{once:?}"));
+    assert_eq!("BodySource[bytes, 6 bytes]", format!("{:?}", BodySource::from_bytes("secret")));
+    assert_eq!(
+        "BodySource[file, length unknown]",
+        format!("{:?}", BodySource::from_path("/no/such/secret-path.bin"))
+    );
+    assert_eq!(
+        "BodySource[factory, length unknown]",
+        format!("{:?}", BodySource::from_factory(futures_util::stream::empty))
+    );
 }
 
 #[tokio::test]

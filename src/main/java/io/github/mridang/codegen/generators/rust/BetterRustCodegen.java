@@ -690,6 +690,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("api_result.mustache", "src", "api_result.rs"),
                 new SupportingFileSpec(
                         "api_stream_response.mustache", "src", "api_stream_response.rs"),
+                new SupportingFileSpec("body_source.mustache", "src", "body_source.rs"),
                 new SupportingFileSpec("byte_stream.mustache", "src", "byte_stream.rs"),
                 new SupportingFileSpec("event_stream.mustache", "src", "event_stream.rs"),
                 new SupportingFileSpec(
@@ -1211,9 +1212,20 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> incoming = (Map<String, Object>) objs.get("operations");
+        if (incoming != null) {
+            final List<CodegenOperation> incomingOps =
+                    (List<CodegenOperation>) incoming.get("operation");
+            if (incomingOps != null) {
+                for (final CodegenOperation op : incomingOps) {
+                    markBinaryUpload(op);
+                }
+            }
+        }
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
         final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
         boolean anyBinaryStream = false;
+        boolean anyBodySource = false;
         boolean anyEventStream = false;
         boolean anyJsonLines = false;
         if (operations != null) {
@@ -1234,6 +1246,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                     ? (Map<String, Object>) existing
                                     : new HashMap<>();
                     opDecorators.put("requiredMultipartBody", requiredMultipartBody);
+                    final boolean uploadsBodySource =
+                            op.bodyParam != null && "BodySource".equals(op.bodyParam.dataType);
+                    opDecorators.put("uploadsBodySource", uploadsBodySource);
+                    anyBodySource |= uploadsBodySource;
                     // The missing-body error names the first required form part, the
                     // canonical wording every other SDK uses, not the Options struct.
                     opDecorators.put(
@@ -1259,6 +1275,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 }
             }
             result.put("hasBinaryStream", anyBinaryStream);
+            result.put("hasBodySource", anyBodySource);
             result.put("hasSseStream", anyEventStream);
             result.put("hasJsonLinesStream", anyJsonLines);
             result.put("hasEventStream", anyEventStream || anyJsonLines);
@@ -1892,6 +1909,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
         putFirstStreamOperation(objs, "streamsBinary", "binaryStream");
+        putFirstStreamOperation(objs, "uploadsBodySource", "bodySource");
         putFirstStreamOperation(objs, "streamsSse", "sseStream");
         putFirstStreamOperation(objs, "streamsJsonLines", "jsonLinesStream");
         objs.put(
@@ -1910,6 +1928,34 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         }
         return super.postProcessSupportingFileData(objs);
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of a {@code Vec<u8>}. It runs before the shared pass, which copies the
+     * body type into the signature arguments. Multipart and every other body kind keep the type
+     * the spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
     }
 
     /**

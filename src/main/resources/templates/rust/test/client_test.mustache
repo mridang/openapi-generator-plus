@@ -5,6 +5,9 @@ use std::future::Future;
 use {{packageName}}::{{clientClassName}};
 use {{packageName}}::{{clientClassName}}Trait;
 use {{packageName}}::ApiResult;
+{{#hasBodySourceOperation}}
+use {{packageName}}::BodySource;
+{{/hasBodySourceOperation}}
 {{#hasBinaryStreamOperation}}
 use {{packageName}}::ByteStream;
 {{/hasBinaryStreamOperation}}

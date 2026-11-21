@@ -24,6 +24,7 @@ use crate::api_client::{
 };
 use crate::api_http_response::ApiHttpResponse;
 use crate::api_stream_response::{ApiStreamResponse, BodyStream};
+use crate::body_source::BodySource;
 use crate::errors::api_error::{ApiError, TransportFailure};
 use crate::errors::configuration_error::ConfigurationError;
 use crate::errors::{NetworkError, NetworkTimeoutError, StreamError};
@@ -222,8 +223,11 @@ impl DefaultApiClient {
          * Multipart bodies are serialized here (rather than handed to
          * reqwest::multipart::Form, which is not Clone) so the same bytes
          * and boundary can be re-sent on the follow-up request. */
-        let body_bytes: Option<Vec<u8>> = match &body {
-            Some(RequestBody::Bytes(b)) => Some(b.clone()),
+        let body_bytes: Option<Payload> = match &body {
+            Some(RequestBody::Bytes(b)) => Some(Payload::Bytes(b.clone())),
+            /* A body source is not read here: it is opened for every send, so it
+             * is sent as it is read and never buffered. */
+            Some(RequestBody::Source(source)) => Some(Payload::Source(source.clone())),
             Some(RequestBody::Multipart(fields)) => {
                 let boundary = format!("----RustFormBoundary{}", Uuid::new_v4().simple());
                 let serialized = serialize_multipart_body(fields, &boundary)
@@ -257,7 +261,7 @@ impl DefaultApiClient {
                     "Content-Type".to_string(),
                     format!("{}; boundary={}", subtype, boundary),
                 );
-                Some(serialized)
+                Some(Payload::Bytes(serialized))
             }
             None => None,
         };
@@ -323,8 +327,8 @@ impl DefaultApiClient {
             request_builder = request_builder.header(k.as_str(), v.as_str());
         }
 
-        if let Some(bytes) = &body_bytes {
-            request_builder = request_builder.body(bytes.clone());
+        if let Some(payload) = &body_bytes {
+            request_builder = attach_payload(request_builder, payload).await?;
         } else {
             /* Some servers / WAFs treat POST/PUT/PATCH with no body
              * and no Content-Length as malformed (411 Length
@@ -366,7 +370,7 @@ impl DefaultApiClient {
             let mut current_url = original_url.clone();
             let mut hops = 0usize;
             let mut current_method = method.to_string();
-            let mut current_body: Option<Vec<u8>> = body_bytes.clone();
+            let mut current_body: Option<Payload> = body_bytes.clone();
             let mut current_headers: std::collections::HashMap<String, String> = merged.clone();
             while is_redirect_status(response.status().as_u16()) && hops < max {
                 let status_code = response.status().as_u16();
@@ -428,13 +432,26 @@ impl DefaultApiClient {
                  *   301 + 302: only POST becomes GET (body dropped); every
                  *              other method keeps method and body. */
                 let next_method = redirect_next_method(status_code, &current_method);
-                let next_body: Option<Vec<u8>> = if status_code == 303 {
+                let next_body: Option<Payload> = if status_code == 303 {
                     None
                 } else if next_method == current_method {
                     current_body.clone()
                 } else {
                     None
                 };
+
+                /* A single-use body was read to its end by the request that was
+                 * just answered, so there is nothing left to send again, and it is
+                 * never buffered to make that possible. */
+                if matches!(&next_body, Some(Payload::Source(source)) if !source.is_replayable()) {
+                    return Err(Box::new(ApiError::new(
+                        status_code,
+                        "Refusing to replay a streamed request body".to_string(),
+                        Some(collect_headers(response.headers())),
+                        None,
+                    ))
+                        as Box<dyn std::error::Error + Send + Sync>);
+                }
 
                 let http_method = next_method.parse::<reqwest::Method>().map_err(|e| {
                     Box::new(ConfigurationError::InvalidArgument(format!(
@@ -472,8 +489,8 @@ impl DefaultApiClient {
                 for (k, v) in &redirect_headers {
                     redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
                 }
-                if let Some(b) = &next_body {
-                    redirect_builder = redirect_builder.body(b.clone());
+                if let Some(payload) = &next_body {
+                    redirect_builder = attach_payload(redirect_builder, payload).await?;
                 }
                 response = send_hop(redirect_builder, deadline, streaming).await?;
                 current_url = Some(next_url);
@@ -804,6 +821,41 @@ fn timed_out_error(message: &str) -> Box<dyn std::error::Error + Send + Sync> {
     match NetworkError::try_from(api_error) {
         Ok(network) => Box::new(NetworkTimeoutError::from(network)),
         Err(other) => Box::new(other),
+    }
+}
+
+/// What a request carries: bytes held in memory, or a body source that is
+/// opened for every send.
+#[derive(Clone)]
+enum Payload {
+    Bytes(Vec<u8>),
+    Source(BodySource),
+}
+
+/// Puts the payload on a request. A body source is sent as it is read: a known
+/// length is a `Content-Length` and an unknown one is sent chunked. A file or a
+/// factory is opened here for this send, so a retry or a redirect opens it again.
+async fn attach_payload(
+    builder: reqwest::RequestBuilder,
+    payload: &Payload,
+) -> Result<reqwest::RequestBuilder, Box<dyn std::error::Error + Send + Sync>> {
+    match payload {
+        Payload::Bytes(bytes) => Ok(builder.body(bytes.clone())),
+        Payload::Source(source) => {
+            let (chunks, length) = source.open().await.map_err(|e| {
+                Box::new(ConfigurationError::InvalidArgument(format!(
+                    "the request body could not be opened: {}",
+                    e
+                ))) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+            match length {
+                Some(0) => Ok(builder.body(Vec::<u8>::new())),
+                Some(length) => Ok(builder
+                    .header("Content-Length", length.to_string())
+                    .body(reqwest::Body::wrap_stream(chunks))),
+                None => Ok(builder.body(reqwest::Body::wrap_stream(chunks))),
+            }
+        }
     }
 }
 

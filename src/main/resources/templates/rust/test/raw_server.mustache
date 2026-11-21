@@ -65,6 +65,51 @@ impl Conn {
         self.write(b"0\r\n\r\n")
     }
 
+    /// Reads the request body that follows the head: the number of bytes `Content-Length`
+    /// announces, or the chunks of a chunked body up to its last chunk. A request with neither
+    /// has an empty body.
+    pub fn read_body(&mut self) -> Vec<u8> {
+        let head = self.head.to_ascii_lowercase();
+        let mut body = Vec::new();
+        if head.contains("transfer-encoding: chunked") {
+            loop {
+                let size = usize::from_str_radix(self.read_line().trim(), 16).unwrap_or(0);
+                if size == 0 {
+                    let _ = self.read_line();
+                    break;
+                }
+                let mut chunk = vec![0u8; size];
+                if self.stream.read_exact(&mut chunk).is_err() {
+                    break;
+                }
+                body.extend_from_slice(&chunk);
+                let _ = self.read_line();
+            }
+        } else if let Some(length) = head
+            .lines()
+            .find_map(|line| line.strip_prefix("content-length:"))
+            .and_then(|value| value.trim().parse::<usize>().ok())
+        {
+            body = vec![0u8; length];
+            if self.stream.read_exact(&mut body).is_err() {
+                body.clear();
+            }
+        }
+        body
+    }
+
+    fn read_line(&mut self) -> String {
+        let mut line = Vec::new();
+        let mut byte = [0u8; 1];
+        while self.stream.read(&mut byte).map(|n| n == 1).unwrap_or(false) {
+            line.push(byte[0]);
+            if line.ends_with(b"\r\n") {
+                break;
+            }
+        }
+        String::from_utf8_lossy(&line).into_owned()
+    }
+
     /// Waits until the test calls [`RawServer::release`]; true when it did, false after 20 s.
     pub fn await_release(&self) -> bool {
         let (lock, cvar) = &self.shared.released;

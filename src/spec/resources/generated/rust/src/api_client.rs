@@ -13,15 +13,21 @@ use std::pin::Pin;
 
 use crate::api_http_response::ApiHttpResponse;
 use crate::api_stream_response::ApiStreamResponse;
+use crate::body_source::BodySource;
 
 /// Represents the body of an HTTP request.
 ///
-/// Supports raw bytes, multipart form data (as ordered (field name, value) parts),
-/// or no body.
+/// Supports raw bytes, a [`BodySource`] that is sent as it is read, multipart form
+/// data (as ordered (field name, value) parts), or no body.
 #[derive(Debug, Clone)]
 pub enum RequestBody {
     /// Raw bytes body.
     Bytes(Vec<u8>),
+    /// A raw binary body sent as it is read, never buffered. A replayable
+    /// source is opened again for a retry or a redirect; a single-use one is
+    /// sent once. A transport that is not `DefaultApiClient` reads it with
+    /// [`BodySource::open`].
+    Source(BodySource),
     /// Multipart form data: ordered (field name, value) parts in
     /// declaration order. Values may be raw bytes
     /// (for file uploads), strings, or JSON-serializable objects.
@@ -107,7 +113,7 @@ pub trait ApiClient: Send + Sync {
     /// * `method` - HTTP method (GET, POST, PUT, DELETE, etc.)
     /// * `url` - Fully qualified URL
     /// * `headers` - HTTP headers
-    /// * `body` - Request body (raw bytes, or a map for multipart form data; may be `None`)
+    /// * `body` - Request body (raw bytes, a body source, or parts for multipart form data; may be `None`)
     ///
     /// # Returns
     ///

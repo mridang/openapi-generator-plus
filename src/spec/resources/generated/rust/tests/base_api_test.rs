@@ -477,7 +477,19 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
             Some(petstore::api_client::RequestBody::Bytes(b)) => Some(b.clone()),
             _ => None,
         };
-        Box::pin(async {
+        let source = match body {
+            Some(petstore::api_client::RequestBody::Source(source)) => Some(source.clone()),
+            _ => None,
+        };
+        Box::pin(async move {
+            if let Some(source) = source {
+                let (mut chunks, _) = source.open().await?;
+                let mut all = Vec::new();
+                while let Some(chunk) = chunks.next().await {
+                    all.extend_from_slice(&chunk?);
+                }
+                *self.captured_body.lock().unwrap() = Some(all);
+            }
             Ok(petstore::api_http_response::ApiHttpResponse::new(
                 200,
                 "{}".to_string(),
@@ -1866,7 +1878,9 @@ async fn test_bhv_operations_014_base_api_passes_a_binary_body_as_is() {
         .build();
     let api = PetApi::new(client.clone(), config, None);
     let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
-    let _ = api.set_pet_avatar(1, image_bytes.clone(), None, None).await;
+    let _ = api
+        .set_pet_avatar(1, BodySource::from(image_bytes.clone()), None, None)
+        .await;
     let body = client.captured_body.lock().unwrap();
     assert_eq!(
         body.as_deref(),
@@ -5372,4 +5386,351 @@ async fn test_bhv_sse_020_an_sse_reconnect_sends_last_event_id_only_when_the_las
         "no id yet, so none is sent"
     );
     assert_eq!(Some("5".to_string()), client.header(2, "Last-Event-ID"));
+}
+
+/// Serves every request with `status` after reading its whole body, and records what arrived.
+fn upload_server(status: u16, received: &Arc<std::sync::Mutex<Vec<Vec<u8>>>>) -> RawServer {
+    let received = received.clone();
+    RawServer::serve(move |conn| {
+        let body = conn.read_body();
+        received.lock().unwrap().push(body);
+        let _ = conn.head(status, &["Content-Length: 0"]);
+    })
+}
+
+fn chunks_of(
+    parts: &[&'static str],
+) -> impl futures_util::Stream<Item = std::io::Result<bytes::Bytes>> + Send + 'static {
+    futures_util::stream::iter(
+        parts
+            .iter()
+            .map(|part| Ok(bytes::Bytes::from_static(part.as_bytes())))
+            .collect::<Vec<_>>(),
+    )
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_023_a_streamed_upload_of_unknown_length_is_sent_chunked_and_arrives_intact(
+) {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(200, &received);
+    let body = BodySource::once(chunks_of(&["first ", "second ", "third"]));
+
+    raw_server_api(&server, 0)
+        .set_pet_avatar(1, body, None, None)
+        .await
+        .expect("the upload succeeds");
+
+    let head = server.heads()[0].to_ascii_lowercase();
+    assert!(head.contains("transfer-encoding: chunked"), "{head}");
+    assert!(!head.contains("content-length"), "{head}");
+    assert_eq!(
+        vec![b"first second third".to_vec()],
+        *received.lock().unwrap()
+    );
+
+    let factory = BodySource::from_factory(|| chunks_of(&["a", "b"]));
+    raw_server_api(&server, 0)
+        .set_pet_avatar(1, factory, None, None)
+        .await
+        .expect("a factory is sent chunked too");
+    assert!(server.heads()[1]
+        .to_ascii_lowercase()
+        .contains("transfer-encoding: chunked"));
+    assert_eq!(b"ab".to_vec(), received.lock().unwrap()[1]);
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_024_a_streamed_upload_with_a_known_length_sends_content_length() {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(200, &received);
+    let api = raw_server_api(&server, 0);
+    let path = std::env::temp_dir().join(format!("upload-{}.bin", std::process::id()));
+    std::fs::write(&path, b"from a file").expect("a scratch file");
+
+    api.set_pet_avatar(1, BodySource::from(vec![1u8, 2, 3, 4]), None, None)
+        .await
+        .expect("bytes");
+    api.set_pet_avatar(
+        1,
+        BodySource::once(chunks_of(&["abc", "de"])).with_length(5),
+        None,
+        None,
+    )
+    .await
+    .expect("a stream of declared length");
+    api.set_pet_avatar(1, BodySource::from_path(&path), None, None)
+        .await
+        .expect("a file");
+    std::fs::remove_file(&path).expect("remove the scratch file");
+
+    let heads: Vec<String> = server
+        .heads()
+        .iter()
+        .map(|head| head.to_ascii_lowercase())
+        .collect();
+    for (head, length) in heads.iter().zip(["4", "5", "11"]) {
+        assert!(
+            head.contains(&format!("content-length: {length}")),
+            "{head}"
+        );
+        assert!(!head.contains("transfer-encoding"), "{head}");
+    }
+    assert_eq!(
+        vec![
+            vec![1u8, 2, 3, 4],
+            b"abcde".to_vec(),
+            b"from a file".to_vec()
+        ],
+        *received.lock().unwrap()
+    );
+}
+
+/// A handle the caller owns and keeps: the SDK reads through a stream that wraps it, and nothing
+/// but the caller ever closes it.
+struct CallerHandle {
+    closed: std::sync::atomic::AtomicBool,
+    reads: std::sync::atomic::AtomicUsize,
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_025_a_caller_supplied_upload_stream_is_never_closed_by_the_sdk() {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(200, &received);
+    let handle = Arc::new(CallerHandle {
+        closed: std::sync::atomic::AtomicBool::new(false),
+        reads: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let wrapped =
+        futures_util::stream::unfold((handle.clone(), 0usize), |(handle, sent)| async move {
+            if sent == 3 {
+                return None;
+            }
+            handle
+                .reads
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Some((Ok(bytes::Bytes::from_static(b"data")), (handle, sent + 1)))
+        });
+
+    raw_server_api(&server, 0)
+        .set_pet_avatar(1, BodySource::once(wrapped), None, None)
+        .await
+        .expect("the upload succeeds");
+
+    assert_eq!(vec![b"datadatadata".to_vec()], *received.lock().unwrap());
+    assert_eq!(3, handle.reads.load(std::sync::atomic::Ordering::SeqCst));
+    assert!(
+        !handle.closed.load(std::sync::atomic::Ordering::SeqCst),
+        "the SDK never closes what the caller owns"
+    );
+    assert_eq!(
+        1,
+        Arc::strong_count(&handle),
+        "the SDK let go of its end of the stream"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_026_a_replayable_upload_is_rewound_and_retried_after_a_503_and_a_single_use_upload_is_not_retried_and_surfaces_the_original_error(
+) {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let flaky = {
+        let received = received.clone();
+        RawServer::serve(move |conn| {
+            received.lock().unwrap().push(conn.read_body());
+            let _ = conn.head(
+                if conn.hit == 1 { 503 } else { 200 },
+                &["Retry-After: 0", "Content-Length: 0"],
+            );
+        })
+    };
+    let opened = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counted = opened.clone();
+    let body = BodySource::from_factory(move || {
+        counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        chunks_of(&["rewound ", "body"])
+    });
+
+    raw_server_api(&flaky, 2)
+        .set_pet_avatar(1, body, None, None)
+        .await
+        .expect("the retry succeeds");
+
+    assert_eq!(2, flaky.hits());
+    assert_eq!(
+        2,
+        opened.load(std::sync::atomic::Ordering::SeqCst),
+        "the factory was opened again"
+    );
+    assert_eq!(vec![b"rewound body".to_vec(); 2], *received.lock().unwrap());
+
+    let single_received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let refusing = upload_server(503, &single_received);
+    let err = raw_server_api(&refusing, 2)
+        .set_pet_avatar(
+            1,
+            BodySource::once(chunks_of(&["only ", "once"])),
+            None,
+            None,
+        )
+        .await
+        .expect_err("the 503 is the result");
+
+    let unavailable = err
+        .downcast_ref::<ServiceUnavailableError>()
+        .unwrap_or_else(|| panic!("got: {err}"));
+    assert_eq!(503, unavailable.server_error().api_error().status_code());
+    assert_eq!(1, refusing.hits(), "a single use body is never sent again");
+    assert_eq!(
+        vec![b"only once".to_vec()],
+        *single_received.lock().unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_027_a_307_or_308_with_a_single_use_upload_is_refused_and_the_body_is_never_buffered(
+) {
+    for status in [307u16, 308] {
+        let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let server = {
+            let received = received.clone();
+            RawServer::serve(move |conn| {
+                received.lock().unwrap().push(conn.read_body());
+                let _ = conn.head(
+                    if conn.hit == 1 { status } else { 200 },
+                    &["Location: /next", "Content-Length: 0"],
+                );
+            })
+        };
+
+        let err = raw_server_api(&server, 0)
+            .set_pet_avatar(
+                1,
+                BodySource::once(chunks_of(&["single ", "use"])),
+                None,
+                None,
+            )
+            .await
+            .expect_err("the redirect is refused");
+
+        let api_error = err
+            .downcast_ref::<ApiError>()
+            .unwrap_or_else(|| panic!("got: {err}"));
+        assert_eq!(status, api_error.status_code());
+        assert_eq!(
+            "Refusing to replay a streamed request body",
+            api_error.message()
+        );
+        assert_eq!(1, server.hits(), "nothing is sent to the new location");
+
+        let replayable = RawServer::serve({
+            let received = received.clone();
+            move |conn| {
+                received.lock().unwrap().push(conn.read_body());
+                let _ = conn.head(
+                    if conn.hit == 1 { status } else { 200 },
+                    &["Location: /next", "Content-Length: 0"],
+                );
+            }
+        });
+        raw_server_api(&replayable, 0)
+            .set_pet_avatar(
+                1,
+                BodySource::from_factory(|| chunks_of(&["single ", "use"])),
+                None,
+                None,
+            )
+            .await
+            .expect("a replayable body follows the redirect");
+        assert_eq!(2, replayable.hits());
+        assert_eq!(b"single use".to_vec(), received.lock().unwrap()[2]);
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_163_a_request_body_holding_a_one_shot_stream_is_not_replayed_on_retry_while_bytes_and_an_absent_body_remain_replayable(
+) {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let busy = upload_server(503, &received);
+    let _ = raw_server_api(&busy, 2)
+        .set_pet_avatar(
+            1,
+            BodySource::once(chunks_of(&["one ", "shot"])),
+            None,
+            None,
+        )
+        .await
+        .expect_err("a 503");
+    assert_eq!(1, busy.hits(), "a one-shot stream is sent once");
+
+    let bytes_busy = upload_server(503, &received);
+    let _ = raw_server_api(&bytes_busy, 2)
+        .set_pet_avatar(1, BodySource::from(b"bytes".to_vec()), None, None)
+        .await
+        .expect_err("a 503");
+    assert_eq!(3, bytes_busy.hits(), "bytes are sent again for every retry");
+
+    let bodiless = upload_server(503, &received);
+    let _ = raw_server_api(&bodiless, 2)
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a 503");
+    assert_eq!(
+        3,
+        bodiless.hits(),
+        "an absent body is sent again for every retry"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_retries_032_a_stream_body_is_never_retried() {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(503, &received);
+    let err = raw_server_api(&server, 3)
+        .set_pet_avatar(
+            1,
+            BodySource::once(chunks_of(&["stream ", "body"])),
+            None,
+            None,
+        )
+        .await
+        .expect_err("a 503");
+
+    assert!(
+        err.downcast_ref::<ServiceUnavailableError>().is_some(),
+        "the original error: {err}"
+    );
+    assert_eq!(1, server.hits());
+}
+
+#[tokio::test]
+async fn test_bhv_transport_061_a_caller_supplied_stream_is_left_open_after_the_request_body_is_sent(
+) {
+    let received = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let server = upload_server(200, &received);
+    let handle = Arc::new(CallerHandle {
+        closed: std::sync::atomic::AtomicBool::new(false),
+        reads: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let wrapped =
+        futures_util::stream::unfold((handle.clone(), 0usize), |(handle, sent)| async move {
+            if sent == 2 {
+                return None;
+            }
+            handle
+                .reads
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Some((Ok(bytes::Bytes::from_static(b"sent")), (handle, sent + 1)))
+        });
+
+    raw_server_api(&server, 0)
+        .set_pet_avatar(1, BodySource::once(wrapped).with_length(8), None, None)
+        .await
+        .expect("the upload succeeds");
+
+    assert_eq!(vec![b"sentsent".to_vec()], *received.lock().unwrap());
+    assert!(
+        !handle.closed.load(std::sync::atomic::Ordering::SeqCst),
+        "the caller's handle is still open"
+    );
 }

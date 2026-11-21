@@ -8,6 +8,9 @@ use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
 use crate::api_client::ApiClient;
 use crate::api_client::MultipartValue;
+{{#hasBodySource}}
+use crate::body_source::BodySource;
+{{/hasBodySource}}
 use crate::errors::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
@@ -1000,24 +1003,25 @@ impl {{classname}} {
 {{#isBinary}}
 {{^required}}
         /* Optional binary (`type: string, format: binary`) request body. The
-         * parameter is `Option<Vec<u8>>` (raw bytes); when present we stream the
-         * bytes UNCHANGED — no JSON / base64 / byte-array re-encoding — so the
-         * declared Content-Type ({{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}) carries
-         * the exact octets. When `None` we send no body and invoke_api drops the
-         * Content-Type. (serialize_body passes image/\* and
-         * application/octet-stream bodies through verbatim.) */
-        let request_body = {{paramName}};
+         * parameter is `Option<BodySource>`; when present the body is sent as it
+         * is read, UNCHANGED and never buffered — no JSON / base64 / byte-array
+         * re-encoding — so the declared Content-Type
+         * ({{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}) carries the exact octets. When `None`
+         * we send no body and invoke_api drops the Content-Type. */
+        let request_source: Option<BodySource> = {{paramName}};
+        let request_body: Option<Vec<u8>> = None;
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 {{/required}}
 {{#required}}
         /* Binary (`type: string, format: binary`) request body. The parameter is
-         * `Vec<u8>` (raw bytes) and must be streamed UNCHANGED — JSON-serializing
-         * it would emit a byte array like `[255,216,...]` and base64 would
-         * re-encode it, either of which corrupts the payload. The raw octets are
-         * handed straight to invoke_api with the declared Content-Type
-         * ({{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}) preserved; serialize_body
-         * passes image/\* and application/octet-stream bodies through verbatim. */
-        let request_body = Some({{paramName}});
+         * a `BodySource`: a body of bytes, a file or a stream that is sent as it
+         * is read and must reach the wire UNCHANGED — JSON-serializing it would
+         * emit a byte array like `[255,216,...]` and base64 would re-encode it,
+         * either of which corrupts the payload. It goes straight to invoke_api
+         * with the declared Content-Type
+         * ({{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}) preserved. */
+        let request_source: Option<BodySource> = Some({{paramName}});
+        let request_body: Option<Vec<u8>> = None;
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 {{/required}}
 {{/isBinary}}
@@ -1055,6 +1059,7 @@ impl {{classname}} {
             query_params,
             header_params,
             body: request_body,
+            source: {{#vendorExtensions.op.uploadsBodySource}}request_source{{/vendorExtensions.op.uploadsBodySource}}{{^vendorExtensions.op.uploadsBodySource}}None{{/vendorExtensions.op.uploadsBodySource}},
             multipart,
             accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
             content_type: request_content_type,

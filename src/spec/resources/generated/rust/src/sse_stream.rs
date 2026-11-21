@@ -110,13 +110,15 @@ impl<T: Send + 'static> SseStream<T> {
     /// Opens the first connection of an event stream; a failure of that request
     /// is returned here. `terminator` is a `data` value that ends the stream and
     /// is not delivered. A request with a body does not reconnect unless the
-    /// options say how many times.
+    /// options say how many times. A single-use body, which the first request
+    /// read to its end, never reconnects, whatever the options say.
     pub(crate) async fn open(
         opener: EventOpener,
         decoder: DataDecoder<T>,
         terminator: Option<String>,
         options: Option<&StreamOptions>,
         has_body: bool,
+        single_use_body: bool,
         method: &str,
         path: &str,
     ) -> Result<Self, Failure> {
@@ -133,9 +135,14 @@ impl<T: Send + 'static> SseStream<T> {
             opener,
             decoder,
             terminator,
-            max_reconnects: given
-                .get_max_reconnects()
-                .unwrap_or(if has_body { 0 } else { 5 }),
+            /* A single use body has been read to its end, so a reconnect has nothing to send. */
+            max_reconnects: if single_use_body {
+                0
+            } else {
+                given
+                    .get_max_reconnects()
+                    .unwrap_or(if has_body { 0 } else { 5 })
+            },
             reconnect_delay: given
                 .get_reconnect_delay()
                 .unwrap_or(Duration::from_secs(1)),
@@ -615,6 +622,7 @@ mod tests {
             None,
             Some(&options),
             false,
+            false,
             "GET",
             "/events",
         )
@@ -686,6 +694,7 @@ mod tests {
             decoder,
             None,
             Some(&fast()),
+            false,
             false,
             "GET",
             "/events",
@@ -827,6 +836,7 @@ mod tests {
             None,
             Some(&fast()),
             true,
+            false,
             "POST",
             "/events",
         )
@@ -847,12 +857,38 @@ mod tests {
             None,
             Some(&options),
             true,
+            false,
             "POST",
             "/events",
         )
         .await
         .expect("opens");
         assert_eq!(vec!["a", "b"], data_of(stream).await.expect("ends"));
+
+        let (single, ids) = script(vec![
+            Connection::Text("data: a\n\n"),
+            Connection::Text("data: b\n\n"),
+            Connection::NoContent,
+        ]);
+        let options = fast().max_reconnects(2);
+        let stream = SseStream::open(
+            single,
+            text_decoder(),
+            None,
+            Some(&options),
+            true,
+            true,
+            "POST",
+            "/events",
+        )
+        .await
+        .expect("opens");
+        assert_eq!(vec!["a"], data_of(stream).await.expect("ends"));
+        assert_eq!(
+            1,
+            ids.lock().expect("ids").len(),
+            "a single use body is never reconnected"
+        );
     }
 
     #[tokio::test]
@@ -883,6 +919,7 @@ mod tests {
             text_decoder(),
             Some("[DONE]".to_string()),
             Some(&fast()),
+            false,
             false,
             "GET",
             "/events",
