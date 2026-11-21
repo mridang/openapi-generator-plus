@@ -1,0 +1,292 @@
+{{>api_info}}
+
+import { ByteStream } from '../src/byte-stream{{importFileExtension}}';
+import { LineReader, SseParser, reconnectWaitMillis } from '../src/event-stream{{importFileExtension}}';
+import type { RawEvent } from '../src/event-stream{{importFileExtension}}';
+import { JsonLinesStream } from '../src/json-lines-stream{{importFileExtension}}';
+import { SseStream } from '../src/sse-stream{{importFileExtension}}';
+import type { StreamOptions } from '../src/stream-options{{importFileExtension}}';
+import { ApiError } from '../src/errors/api-error{{importFileExtension}}';
+import { NetworkError, SerializationError } from '../src/errors/index{{importFileExtension}}';
+
+/** A stream over canned bytes, delivered in the given pieces. */
+function sourceOf(...pieces: Array<string | Uint8Array>): ReadableStream<Uint8Array> {
+  let index = 0;
+  return new ReadableStream<Uint8Array>(
+    {
+      pull(controller): void {
+        if (index >= pieces.length) {
+          controller.close();
+          return;
+        }
+        const piece = pieces[index++]!;
+        controller.enqueue(typeof piece === 'string' ? Buffer.from(piece, 'utf8') : piece);
+      },
+    },
+    { highWaterMark: 0 }
+  );
+}
+
+function bytes(text: string): ByteStream {
+  return new ByteStream(200, { 'content-type': 'text/event-stream' }, sourceOf(text));
+}
+
+function noContent(): ByteStream {
+  return new ByteStream(204, {}, sourceOf());
+}
+
+async function parse(text: string): Promise<RawEvent[]> {
+  const parser = new SseParser(sourceOf(text).getReader(), 1024, null);
+  const events: RawEvent[] = [];
+  for (let event = await parser.next(); event !== null; event = await parser.next()) {
+    events.push(event);
+  }
+  return events;
+}
+
+async function lines(text: string): Promise<string[]> {
+  const stream = new JsonLinesStream<string>(bytes(text), (line) => line, 1024, 'GET', '/items');
+  const items: string[] = [];
+  for await (const item of stream) {
+    items.push(item);
+  }
+  return items;
+}
+
+/** Opens an event stream whose n-th connection (from 1) is the n-th script entry. */
+class Script {
+  readonly lastIds: string[] = [];
+  private readonly connections: Array<string | Error | ByteStream>;
+
+  constructor(...connections: Array<string | Error | ByteStream>) {
+    this.connections = connections;
+  }
+
+  readonly opener = async (lastEventId: string): Promise<ByteStream> => {
+    this.lastIds.push(lastEventId);
+    const next = this.connections[Math.min(this.lastIds.length, this.connections.length) - 1]!;
+    if (next instanceof Error) {
+      throw next;
+    }
+    if (next instanceof ByteStream) {
+      return next;
+    }
+    return bytes(next);
+  };
+}
+
+const fast: StreamOptions = { reconnectDelay: 1 };
+
+function sse<T = string>(script: Script, options: StreamOptions, hasBody = false, decoder: ((data: string) => T) | null = null, terminator: string | null = null): Promise<SseStream<T>> {
+  return SseStream.open<T>(script.opener, decoder, terminator, options, hasBody, 'GET', '/events');
+}
+
+async function dataOf(stream: SseStream<string>): Promise<string[]> {
+  const data: string[] = [];
+  for await (const event of stream) {
+    data.push(event.data);
+  }
+  return data;
+}
+
+function numberOf(text: string): number {
+  const value = Number(text);
+  if (Number.isNaN(value)) {
+    throw new Error('not a number');
+  }
+  return value;
+}
+
+describe('the line splitter and the JSON Lines stream', () => {
+  test('bhv streaming 002 a JSON Lines stream yields one decoded item per line and skips blank lines', async () => {
+    expect(await lines('a\n\n  \nb\nc\n')).toEqual(['a', 'b', 'c']);
+  });
+
+  test('bhv streaming 003 a JSON Lines stream accepts CRLF line ends and a last line without a newline', async () => {
+    expect(await lines('a\r\nb\r\nc')).toEqual(['a', 'b', 'c']);
+
+    const split = new LineReader(sourceOf('a\r', '\nb\r', '\n', 'c').getReader(), 1024);
+    const read: Array<string | null> = [];
+    for (let line = await split.readLine(); line !== null; line = await split.readLine()) {
+      read.push(line);
+    }
+    expect(read).toEqual(['a', 'b', 'c']);
+  });
+
+  test('bhv streaming 004 a JSON Lines line that does not decode raises a serialization error naming its line and ends the stream', async () => {
+    const stream = new JsonLinesStream<number>(bytes('1\n2\nnope\n4\n'), numberOf, 1024, 'GET', '/items');
+
+    expect((await stream.next()).value).toBe(1);
+    expect((await stream.next()).value).toBe(2);
+    const failure = await stream.next().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(SerializationError);
+    expect((failure as SerializationError).message).toContain('Line 3');
+    expect((await stream.next()).done).toBe(true);
+  });
+
+  test('bhv streaming 005 a line or event longer than the limit raises a serialization error and ends the stream', async () => {
+    const lineStream = new JsonLinesStream<string>(bytes(`ok\n${'x'.repeat(50)}\nlater\n`), (line) => line, 10, 'GET', '/items');
+    expect((await lineStream.next()).value).toBe('ok');
+    await expect(lineStream.next()).rejects.toBeInstanceOf(SerializationError);
+    expect((await lineStream.next()).done).toBe(true);
+
+    const events = await sse(new Script(`data: ${'y'.repeat(50)}\n\n`), { maxEventBytes: 10 });
+    await expect(events.next()).rejects.toBeInstanceOf(SerializationError);
+    expect((await events.next()).done).toBe(true);
+  });
+});
+
+describe('the server-sent events parser and stream', () => {
+  test('bhv sse 001 an SSE stream yields the id, event, data and retry fields of each event with message as the default event', async () => {
+    const events = await parse('id: 7\nevent: tick\nretry: 250\ndata: one\n\ndata: two\n\n');
+    expect(events).toHaveLength(2);
+    expect(events[0]).toEqual({ id: '7', event: 'tick', data: 'one', retry: 250 });
+    expect(events[1]!.event).toBe('message');
+    expect(events[1]!.data).toBe('two');
+    expect(events[1]!.id).toBe('7');
+
+    const stream = await sse(new Script('id: 7\nevent: tick\nretry: 250\ndata: one\n\n'), fast);
+    const event = (await stream.next()).value!;
+    expect(event.id).toBe('7');
+    expect(event.event).toBe('tick');
+    expect(event.data).toBe('one');
+    expect(event.retry).toBe(250);
+    expect(event.raw).toBe('one');
+  });
+
+  test('bhv sse 002 an SSE stream joins consecutive data lines with a newline and skips comment lines', async () => {
+    const events = await parse(': a comment\ndata: one\n: another\ndata: two\n\n');
+    expect(events).toHaveLength(1);
+    expect(events[0]!.data).toBe('one\ntwo');
+  });
+
+  test('bhv sse 003 an SSE stream drops a byte order mark, accepts every line end and removes one space after the colon', async () => {
+    for (const end of ['\n', '\r', '\r\n']) {
+      const events = await parse(`${String.fromCharCode(0xfeff)}data: a${end}data:  b${end}${end}`);
+      expect(events).toHaveLength(1);
+      expect(events[0]!.data).toBe('a\n b');
+    }
+    expect((await parse('data:x\n\n'))[0]!.data).toBe('x');
+  });
+
+  test('bhv sse 004 an SSE event with an empty data buffer is not delivered but its id is kept', async () => {
+    const parser = new SseParser(sourceOf('id: 9\n\n').getReader(), 1024, null);
+    expect(await parser.next()).toBeNull();
+    expect(parser.lastEventId).toBe('9');
+  });
+
+  test('bhv sse 005 an SSE data payload is decoded and a payload that does not decode raises a serialization error and ends the stream', async () => {
+    const stream = await sse<number>(new Script('data: 1\n\ndata: oops\n\ndata: 3\n\n'), fast, false, numberOf);
+
+    expect((await stream.next()).value!.data).toBe(1);
+    await expect(stream.next()).rejects.toBeInstanceOf(SerializationError);
+    expect((await stream.next()).done).toBe(true);
+  });
+
+  test('bhv sse 008 an SSE reconnect waits the server retry value, else the reconnect delay doubling to a cap', () => {
+    expect(reconnectWaitMillis(3, 1000, 250, null, 0)).toBe(250);
+    expect(reconnectWaitMillis(1, 1000, null, null, 0)).toBe(1000);
+    expect(reconnectWaitMillis(2, 1000, null, null, 0)).toBe(2000);
+    expect(reconnectWaitMillis(3, 1000, null, null, 0)).toBe(4000);
+    expect(reconnectWaitMillis(10, 1000, null, null, 0)).toBe(30_000);
+    expect(reconnectWaitMillis(1, 1000, null, null, 1)).toBe(750);
+    expect(reconnectWaitMillis(1, 1000, null, 5000, 0)).toBe(5000);
+  });
+
+  test('bhv sse 009 an SSE GET stream stops after five failed reconnects by default and raises the last failure', async () => {
+    const script = new Script('');
+    const stream = await sse(script, fast);
+
+    await expect(stream.next()).rejects.toBeInstanceOf(NetworkError);
+    expect(script.lastIds).toHaveLength(6);
+  });
+
+  test('bhv sse 010 an SSE reconnect counter resets after an event is received', async () => {
+    const script = new Script('data: a\n\n', 'data: b\n\n', 'data: c\n\n', '');
+    const stream = await sse(script, { reconnectDelay: 1, maxReconnects: 1 });
+    const seen: string[] = [];
+
+    await expect(
+      (async () => {
+        for await (const event of stream) {
+          seen.push(event.data);
+        }
+      })()
+    ).rejects.toBeInstanceOf(NetworkError);
+
+    expect(seen).toEqual(['a', 'b', 'c']);
+  });
+
+  test('bhv sse 011 an SSE stream does not reconnect after a 204, a 4xx status or a response that is not an event stream', async () => {
+    const none = new Script(noContent());
+    expect(await dataOf(await sse(none, fast))).toEqual([]);
+    expect(none.lastIds).toHaveLength(1);
+
+    const refused = new Script('data: a\n\n', new ApiError(404, 'missing', {}, '{}'));
+    const failure = await dataOf(await sse(refused, fast)).catch((error: unknown) => error);
+    expect((failure as ApiError).statusCode).toBe(404);
+
+    const wrongType = new Script('data: a\n\n', new ByteStream(200, { 'content-type': 'text/html' }, sourceOf()));
+    await expect(dataOf(await sse(wrongType, fast))).rejects.toBeInstanceOf(SerializationError);
+    expect(wrongType.lastIds).toHaveLength(2);
+  });
+
+  test('bhv sse 014 an SSE retry field that is not digits and an id containing NUL are ignored', async () => {
+    const parser = new SseParser(sourceOf('retry: 12x\nid: a\0b\ndata: x\n\n').getReader(), 1024, null);
+    const event = (await parser.next())!;
+
+    expect(event.data).toBe('x');
+    expect(event.id).toBeNull();
+    expect(parser.retry).toBeNull();
+  });
+
+  test('bhv sse 016 an SSE request with a body is not reconnected unless the caller turns reconnect on', async () => {
+    const off = new Script('data: a\n\n', 'data: b\n\n');
+    expect(await dataOf(await sse(off, fast, true))).toEqual(['a']);
+    expect(off.lastIds).toHaveLength(1);
+
+    const on = new Script('data: a\n\n', 'data: b\n\n', noContent());
+    expect(await dataOf(await sse(on, { reconnectDelay: 1, maxReconnects: 2 }, true))).toEqual(['a', 'b']);
+  });
+
+  test('bhv sse 017 an SSE event with an id and no data is not dispatched but updates the last event id and a reconnect resumes from it', async () => {
+    const script = new Script('data: a\nid: 1\n\nid: 2\n\n', 'data: b\nid: 3\n\n', noContent());
+    const stream = await sse(script, fast);
+
+    expect(await dataOf(stream)).toEqual(['a', 'b']);
+    expect(script.lastIds.slice(0, 2)).toEqual(['', '2']);
+  });
+
+  test('bhv sse 019 an SSE event cut off by the end of the connection is discarded', async () => {
+    const events = await parse('data: whole\n\ndata: cut off\n');
+    expect(events).toHaveLength(1);
+    expect(events[0]!.data).toBe('whole');
+    expect(await parse('data: no newline at all')).toEqual([]);
+  });
+
+  test('bhv sse 021 the configured SSE terminator ends the stream and is not delivered', async () => {
+    const stream = await sse(new Script('data: a\n\ndata: [DONE]\n\ndata: b\n\n'), fast, false, null, '[DONE]');
+
+    expect(await dataOf(stream)).toEqual(['a']);
+  });
+
+  test('bhv sse 022 an SSE event named error raises the API error with the status and data and any other name is an item', async () => {
+    const script = new Script('event: update\ndata: fine\n\nevent: error\ndata: {"why":"bad"}\n\n', 'data: again\n\n');
+    const stream = await sse(script, fast);
+
+    expect((await stream.next()).value!.event).toBe('update');
+    const failure = await stream.next().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).statusCode).toBe(200);
+    expect((failure as ApiError).responseBody).toBe('{"why":"bad"}');
+    expect(script.lastIds).toHaveLength(1);
+  });
+
+  test('bhv sse 023 an unknown SSE field is ignored', async () => {
+    const events = await parse('mystery: 1\ndata: x\nanother\n\n');
+    expect(events).toHaveLength(1);
+    expect(events[0]!.data).toBe('x');
+  });
+});

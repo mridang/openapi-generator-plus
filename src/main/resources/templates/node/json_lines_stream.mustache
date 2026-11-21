@@ -1,0 +1,155 @@
+{{>api_info}}
+
+import type { ByteStream } from './byte-stream{{importFileExtension}}';
+import { LineReader, TooLongError } from './event-stream{{importFileExtension}}';
+import { SerializationError } from './errors/serialization-error{{importFileExtension}}';
+
+/** What ends the iteration, distinct from any item a line can decode to. */
+const END = Symbol('end');
+
+/**
+ * The items of a JSON Lines response, decoded one per line as they arrive.
+ * Blank lines are skipped, and a last line without a newline counts. A line
+ * that does not decode raises a `SerializationError` that names its 1-based
+ * line number and ends the stream, as does a line over `maxEventBytes`.
+ *
+ * It is an `AsyncIterable` (`for await`), and {@link close} is idempotent and
+ * aborts the connection instead of draining it, so close it when you stop
+ * early (leaving a `for await` loop does it for you). Closing the client
+ * cancels the streams still open. The string form shows the status code and the
+ * lines read, never the content.
+ */
+export class JsonLinesStream<T> implements AsyncIterableIterator<T>, AsyncDisposable {
+  private readonly lines: LineReader;
+  private lineNumber = 0;
+  private done = false;
+
+  /**
+   * Wraps an open response body.
+   *
+   * @param source the open body; this stream closes it
+   * @param decoder decodes one line into an item; a failure is raised as a `SerializationError`
+   * @param maxLineBytes the longest a line may be
+   * @param method the HTTP method of the request, for errors
+   * @param path the path of the request, for errors
+   */
+  constructor(
+    private readonly source: ByteStream,
+    private readonly decoder: (line: string) => T,
+    maxLineBytes: number,
+    private readonly method: string,
+    private readonly path: string
+  ) {
+    this.lines = new LineReader(source.getReader(), maxLineBytes);
+  }
+
+  /** The HTTP status code of the response. */
+  get statusCode(): number {
+    return this.source.statusCode;
+  }
+
+  /** The lower-cased response headers. */
+  get headers(): Readonly<Record<string, string>> {
+    return this.source.headers;
+  }
+
+  private response(): { statusCode: number; responseHeaders: Record<string, string>; responseBody: null; requestMethod: string; requestPath: string } {
+    return {
+      statusCode: this.source.statusCode,
+      responseHeaders: { ...this.source.headers },
+      responseBody: null,
+      requestMethod: this.method,
+      requestPath: this.path
+    };
+  }
+
+  /** The next item, or the end of the stream. */
+  async next(): Promise<IteratorResult<T>> {
+    if (this.done) {
+      return { done: true, value: undefined };
+    }
+    try {
+      const item = await this.advance();
+      if (item === END) {
+        await this.close();
+        return { done: true, value: undefined };
+      }
+      return { done: false, value: item };
+    } catch (error) {
+      const wasClosed = this.done;
+      await this.close();
+      if (wasClosed) {
+        return { done: true, value: undefined };
+      }
+      throw error;
+    }
+  }
+
+  private async advance(): Promise<T | typeof END> {
+    for (;;) {
+      let line: string | null;
+      try {
+        line = await this.lines.readLine();
+      } catch (error) {
+        if (error instanceof TooLongError) {
+          throw new SerializationError(
+            `Line ${this.lineNumber + 1} of the JSON Lines response is too long: ${error.message}`,
+            error,
+            this.response()
+          );
+        }
+        throw error;
+      }
+      if (line === null) {
+        return END;
+      }
+      this.lineNumber++;
+      if (line.trim() === '') {
+        continue;
+      }
+      try {
+        return this.decoder(line);
+      } catch (error) {
+        const cause = error instanceof Error ? error : new Error(String(error));
+        throw new SerializationError(
+          `Line ${this.lineNumber} of the JSON Lines response does not decode: ${cause.message}`,
+          cause,
+          this.response()
+        );
+      }
+    }
+  }
+
+  /** Ends the iteration early and closes the stream (what leaving a `for await` loop does). */
+  async return(): Promise<IteratorResult<T>> {
+    await this.close();
+    return { done: true, value: undefined };
+  }
+
+  [Symbol.asyncIterator](): this {
+    return this;
+  }
+
+  /** Closes the stream and aborts the connection; later calls do nothing. */
+  async close(): Promise<void> {
+    this.done = true;
+    await this.source.close();
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
+  }
+
+  /** Describes the stream by its status code and the lines read, never the content. */
+  toString(): string {
+    return `JsonLinesStream{statusCode=${this.source.statusCode}, linesRead=${this.lineNumber}}`;
+  }
+
+  toJSON(): Record<string, unknown> {
+    return { statusCode: this.source.statusCode, linesRead: this.lineNumber };
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
+}

@@ -8,6 +8,8 @@ import * as path from 'node:path';
 import * as util from 'node:util';
 import * as zlib from 'node:zlib';
 import { ByteStream } from '../src/byte-stream{{importFileExtension}}';
+import { JsonLinesStream } from '../src/json-lines-stream{{importFileExtension}}';
+import { SseStream } from '../src/sse-stream{{importFileExtension}}';
 import { DefaultApiClient, SENSITIVE_HEADER_NAMES } from '../src/default-api-client{{importFileExtension}}';
 import { ApiError } from '../src/errors/api-error{{importFileExtension}}';
 import { {{errorPrefix}}Error, NetworkError, NetworkTimeoutError, StreamError } from '../src/errors/index{{importFileExtension}}';
@@ -4490,6 +4492,10 @@ function rawChunk(socket: net.Socket, data: string): void {
   socket.write(`${Buffer.byteLength(data).toString(16)}\r\n${data}\r\n`);
 }
 
+function rawChunkBytes(socket: net.Socket, data: Buffer): void {
+  socket.write(Buffer.concat([Buffer.from(`${data.length.toString(16)}\r\n`), data, Buffer.from('\r\n')]));
+}
+
 function rawEnd(socket: net.Socket): void {
   socket.end('0\r\n\r\n');
 }
@@ -4873,5 +4879,152 @@ describe('DefaultApiClient streaming', () => {
     }
 
     await within(server.gone, 10000, 'leaving the loop to drop the connection');
+  });
+
+  /** What an operation does for an event stream: one request per connection, over the transport. */
+  const eventOpener = (server: RawServer, options: TransportOptions) => {
+    const client = clientOf(options);
+    return async (lastEventId: string): Promise<ByteStream> => {
+      const headers: Record<string, string> = {};
+      if (lastEventId !== '') {
+        headers['Last-Event-ID'] = lastEventId;
+      }
+      const response = await client.sendStreaming('GET', server.url('/items/events'), headers, null, { maxRetries: 0 });
+      return new ByteStream(response.statusCode, response.headers, response.body);
+    };
+  };
+
+  const eventsHead = (socket: net.Socket): void =>
+    rawHead(socket, 200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked');
+
+  it('bhv streaming 006 a gzip encoded stream is decoded incrementally so the first item arrives before the body ends', async () => {
+    const gzip = zlib.createGzip();
+    const parts: Buffer[] = [];
+    gzip.on('data', (chunk: Buffer) => parts.push(chunk));
+    gzip.write('first\n');
+    await new Promise<void>((resolve) => gzip.flush(() => resolve()));
+    const head = Buffer.concat(parts.splice(0));
+    await new Promise<void>((resolve) => {
+      gzip.on('end', () => resolve());
+      gzip.end('second\n');
+      gzip.resume();
+    });
+    const rest = Buffer.concat(parts);
+    const server = await serve(async (self, socket) => {
+      rawHead(socket, 200, 'Content-Encoding: gzip', 'Transfer-Encoding: chunked');
+      rawChunkBytes(socket, head);
+      await self.release;
+      rawChunkBytes(socket, rest);
+      rawEnd(socket);
+    });
+
+    const response = await streamOf(server, '/items/export');
+    const items = new JsonLinesStream<string>(asByteStream(response), (line) => line, 1024, 'GET', '/items/export');
+
+    expect((await within(items.next(), 5000, 'the first item')).value).toBe('first');
+    expect(server.released).toBe(false);
+    server.letGo();
+    expect((await items.next()).value).toBe('second');
+    expect((await items.next()).done).toBe(true);
+  });
+
+  it('bhv streaming 007 a corrupt compressed stream raises an API error with the status and the decoder error and is not retried', async () => {
+    const server = await serve((_self, socket) => {
+      rawHead(socket, 200, 'Content-Encoding: gzip', 'Content-Length: 8');
+      socket.end('notgzip!');
+    });
+
+    const response = await streamOf(server, '/items/export');
+    const items = new JsonLinesStream<string>(asByteStream(response), (line) => line, 1024, 'GET', '/items/export');
+    const failure = await items.next().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect(failure).not.toBeInstanceOf(NetworkError);
+    expect((failure as ApiError).statusCode).toBe(200);
+    expect((failure as ApiError).cause).toBeDefined();
+    expect(server.hits).toBe(1);
+  });
+
+  it('bhv sse 007 an SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID', async () => {
+    const server = await serve((_self, socket, hit) => {
+      if (hit >= 3) {
+        rawHead(socket, 204);
+        return;
+      }
+      eventsHead(socket);
+      rawChunk(socket, hit === 1 ? 'id: 1\ndata: a\n\nid: 2\ndata: b\n\n' : 'id: 3\ndata: c\n\n');
+      rawEnd(socket);
+    });
+
+    const stream = await SseStream.open<string>(
+      eventOpener(server, TransportOptions.builder().build()),
+      null,
+      null,
+      { reconnectDelay: 1 },
+      false,
+      'GET',
+      '/items/events'
+    );
+    const data: string[] = [];
+    for await (const event of stream) {
+      data.push(event.data);
+    }
+
+    expect(data).toEqual(['a', 'b', 'c']);
+    expect(server.heads[0]!.toLowerCase()).not.toContain('last-event-id');
+    expect(server.heads[1]!.toLowerCase()).toContain('last-event-id: 2');
+    expect(server.heads[2]!.toLowerCase()).toContain('last-event-id: 3');
+  });
+
+  it('bhv sse 015 an idle timeout on an SSE stream counts as a lost connection and reconnects', async () => {
+    const server = await serve(async (self, socket, hit) => {
+      eventsHead(socket);
+      if (hit === 1) {
+        rawChunk(socket, 'id: 1\ndata: a\n\n');
+        await self.release;
+        return;
+      }
+      rawChunk(socket, 'id: 2\ndata: b\n\n');
+      rawEnd(socket);
+    });
+
+    const stream = await SseStream.open<string>(
+      eventOpener(server, TransportOptions.builder().idleTimeout(300).build()),
+      null,
+      null,
+      { reconnectDelay: 1, maxReconnects: 1 },
+      false,
+      'GET',
+      '/items/events'
+    );
+
+    expect((await stream.next()).value!.data).toBe('a');
+    expect((await stream.next()).value!.data).toBe('b');
+    expect(server.heads[1]!.toLowerCase()).toContain('last-event-id: 1');
+  });
+
+  it('bhv sse 018 an SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout', async () => {
+    const server = await serve(async (_self, socket) => {
+      eventsHead(socket);
+      for (let beat = 0; beat < 8; beat++) {
+        rawChunk(socket, ': heartbeat\n\n');
+        await pause(100);
+      }
+      rawChunk(socket, 'data: late\n\n');
+      rawEnd(socket);
+    });
+
+    const stream = await SseStream.open<string>(
+      eventOpener(server, TransportOptions.builder().idleTimeout(400).build()),
+      null,
+      null,
+      { reconnectDelay: 1, maxReconnects: 0 },
+      false,
+      'GET',
+      '/items/events'
+    );
+
+    expect((await stream.next()).value!.data).toBe('late');
+    expect(server.hits).toBe(1);
   });
 });
