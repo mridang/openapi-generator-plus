@@ -20,6 +20,7 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 | `templates/node/auth/**` | authenticators and `auth/oauth/*` token manager, flows, OIDC | auth behaviour |
 | `templates/node/abstract_api_client.mustache`, `default_api_client.mustache`, `web_api_client.mustache`, `transport_options.mustache` | redirects, timeout budget, decompression, cancellation, proxy and TLS, the two transports | transport options and wire behaviour |
 | `templates/node/byte_stream.mustache`, `api_stream_response.mustache`, `errors/stream-error.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), `StreamError` | streaming types |
+| `templates/node/body_source.mustache` | `BodySource` (the raw binary request body: replayable or single use) and `OpenedBody` | upload types |
 | `templates/node/event_stream.mustache`, `server_sent_event.mustache`, `stream_options.mustache`, `json_lines_stream.mustache`, `sse_stream.mustache` | the line splitter and SSE parser, `ServerSentEvent`, `StreamOptions`, `JsonLinesStream`, `SseStream` | JSON Lines and SSE behaviour |
 | `templates/node/object_serializer.mustache`, `value_serializer.mustache`, `base_api.mustache` | JSON decode and encode, path, query, header and form encoding, multipart | serialization |
 | `templates/node/models/model.mustache`, `deserialize_arg.mustache`, `brand.mustache`, `deep_input.mustache` | model classes, branded `UUID`/`URI`/`Email`/`Decimal`, `DeepInput` request types | models |
@@ -291,7 +292,7 @@ Rule: `DeepInput<T>` no longer makes every property optional; it keeps the model
 Where: `deep_input.mustache`. Test: `test/base-api.test.mustache` (`@ts-expect-error` on a body without `photoUrls`).
 
 ### Binary uploads accept a `Blob`
-Rule: file and binary parameters of an Options class are typed `Buffer | Blob` (`Array<Buffer | Blob>`); a `File` is a `Blob`. Response bodies stay `Buffer`. Request-body parameters are unchanged.
+Rule: file and binary parameters of an Options class are typed `Buffer | Blob` (`Array<Buffer | Blob>`); a `File` is a `Blob`. Response bodies stay `Buffer`. A raw `format: binary` request body is a `BodySource` (see "Streaming: uploads"); only the parts of a multipart body keep `Buffer | Blob`.
 Where: `BetterNodeCodegen.uploadType`, `api/apis.mustache` (`requestBody` union), `skills.mustache`. Test: `BetterNodeCodegenTest`.
 
 ### Constraints are documented, not enforced (S3 stands)
@@ -530,3 +531,37 @@ Test: `test/event-stream.test.mustache`, `test/base-api.test.mustache`.
 Rule: no exception is needed for `streaming006` and `007`: undici's `fetch` decodes `Content-Encoding` incrementally as the body arrives, so the first item is delivered before the body ends, and a corrupt gzip body fails the read with a zlib error code that the SDK raises as `ApiError` with the real status and the decoder error as its cause, without a retry.
 Where: `abstract_api_client.mustache` (`streamFailure`, `isDecodeFailure`).
 Test: `test/default-api-client-unit.test.mustache` (`bhv streaming 006`, `007`).
+
+## Streaming: uploads (capability 3 of #114, D121 item 6)
+
+### `BodySource` is the body type of a raw binary request
+Rule: `BodySource` (`body_source.mustache`, a class exported from the package, no `node:` import at load) has the replayable constructors `of(bytes)` (copied, length known), `ofFile(path)` (size read when opened, reopened per send, needs `node:fs`) and `fromFactory(factory, length?)` (a function that returns a fresh `Readable`, Web `ReadableStream` or async iterable, possibly in a promise), and the single-use `once(stream, length?)`; `replayable`, `length`, `open()` (public, for a custom transport; it returns `OpenedBody` with `content` (bytes, or a pull-based `ReadableStream` with a high-water mark of 0), `length` and an idempotent `close()`) and a `toString()` of kind and length only. A single-use body opens once; its `close()` never closes the caller's stream (an async iterator is never asked to `return()`, a Web stream only releases its lock), while a stream opened from a file or a factory is closed with the opening. `BetterNodeCodegen.markBinaryUpload` runs before the request wrapper is built and sets the body parameter type to `BodySource` when the operation's request body is binary and not multipart or form (`hasBinaryUpload` adds the import), so the operation, `WithHttpInfo` and the interface all say `BodySource`. `BaseApi.serializeBody` hands a `BodySource` to the transport under any selected content type; it is replayable for the 401 replay only when `replayable`.
+Where: `BetterNodeCodegen`, `body_source.mustache`, `api/apis.mustache`, `base_api.mustache`, `api_client.mustache`, `index.mustache`.
+Test: golden `test/api/pet-api.test.ts` (the avatar rows `bhv operations 070`, `071`, `072`, `073`, `076`), `test/base-api.test.ts` (`bhv operations 071`).
+
+### The transport sends it as it is read
+Rule: `AbstractApiClient.fetchHeaderPhase` opens the `BodySource` and hands fetch the bytes, or the stream with `duplex: 'half'`; a known length sets `Content-Length` (replacing a caller's), an unknown one removes it so undici sends the body chunked. Every opening is recorded and closed when the header phase ends (`fetchHeadersOnce` collects, `fetchHeaderPhase` releases in a `finally`). `withRetries` treats a single-use body as spent: no retry for a 5xx, a 429 or a network error, so the original response or failure is returned unchanged, and a `BodySource` is not mistaken for a multipart object. A 307 or 308 (and a 301 or 302 that keeps a non-POST body) with a single-use body raises `ApiError` with the redirect status and `Refusing to replay a streamed request body`; a replayable body is opened again for the next hop; the body is never buffered. The `Buffer`, string and multipart branches are unchanged and still buffer.
+Where: `abstract_api_client.mustache`.
+Test: `test/default-api-client-unit.test.mustache` (`bhv streaming 023` to `027` in the `DefaultApiClient uploads` suite over the raw server, `bhv retries 032`).
+
+### An event stream request with a single-use body never reconnects
+Rule: `SseStream.open` takes `singleUseBody` after `hasBody`; when it is true `maxReconnects` is 0 whatever the options say. `invokeApiForSse` passes `body instanceof BodySource && !body.replayable`.
+Where: `sse_stream.mustache`, `base_api.mustache`.
+Test: `test/event-stream.test.mustache` (`bhv sse 016`).
+
+## Pagination (#163, D123, D124)
+
+### The detector is shared, the Node templates only render it
+Rule: `AbstractBetterCodegen.populatePaginationDecorators` computes `vendorExtensions.op.pagination` (`style`, `isToken`, `isLink`, `source`, `requestParam`, `requestParamName`, `cursorType`, `responseProperty`, `responsePropertyName`, `itemsProperty`, `itemsPropertyName`, `itemsFromBody`, `itemType`, `itemModel`) and `hasPagesMethod`/`pagesMethodName`; `BetterNodeCodegen.markPagedOperation` adds `paginatorType` (`Paginator<Item, Cursor>`, cursor `never` for a `Link` list), `hasPagedOperation` (the `Paginator` import) and `addPagedItemImports` imports the item model, which no other signature names. The options entry of `requestWrapperFields` carries `isOptions`, so the Pages method can replace the options argument with `{ ...options, <cursor>: cursor }`. Model properties keep the spec's names, so the templates read `page.<propertyName>`.
+Where: `AbstractBetterCodegen`, `BetterNodeCodegen`, `api/apis.mustache`.
+Test: `OperationDecoratorTest`.
+
+### `Paginator<T, C>`, `Page<T, C>`, `PaginationError`
+Rule: `Paginator` (`paginator.mustache`) is a class implementing `AsyncIterable<T>` with `items()` and `pages()`; `ofCursor(start, fetch, items, next, path)` and `ofLink(baseUrl, fetch, items, path)` are the two factories the generated `...Pages` methods call. Both views are async generators over a source built on every call, so nothing is read before the first `next()`, one request is made per page, there is no read-ahead and a second loop starts again. An end is an absent, `null` or empty cursor, or no `rel="next"`. A cursor equal to the one just sent (or a `Link` to the page just read, or a foreign origin) is held back: the page it arrived with is delivered and the next read raises `PaginationError`. Any failure of a fetch ends the iteration. `Page` is an interface (`items` frozen, `nextCursor`, `result`). `PaginationError` (`errors/pagination-error.mustache`) extends the root error directly and carries `requestPath` without the query.
+Where: `paginator.mustache`, `link_header.mustache`, `errors/pagination-error.mustache`, `index.mustache`.
+Test: `test/base-api.test.mustache` (`BaseApi paged lists`: `bhv pagination 001` to `032`).
+
+### Each page is an ordinary call; a `Link` page replaces the path
+Rule: a token page calls `<op>WithHttpInfo({ ...options, cursor }, requestOptions)`, so retries, timeouts, redirects, authentication, redaction and per-call options apply to every page. A `Link` operation's `WithHttpInfo` delegates to a private `<op>Page(...args, pageUrl?)` whose body is the buffered call; when `pageUrl` is set it replaces the path and clears the query, and `invokeCall` joins an authentication query to a URL that already has one with `&`. The origin of a next URL is checked against `config.baseUrl`; an operation with a server of its own is not paged.
+Where: `api/apis.mustache`, `base_api.mustache`, `paginator.mustache`.
+Test: `test/base-api.test.mustache` (`bhv pagination 007`, `008`, `023`, `027`).

@@ -9,6 +9,8 @@ import { NetworkTimeoutError } from './errors/network-timeout-error{{importFileE
 import { StreamError } from './errors/stream-error{{importFileExtension}}';
 import type { ApiHttpResponse } from './api-http-response{{importFileExtension}}';
 import { ApiStreamResponse } from './api-stream-response{{importFileExtension}}';
+import { BodySource } from './body-source{{importFileExtension}}';
+import type { OpenedBody } from './body-source{{importFileExtension}}';
 import { ObjectSerializer, isTemporalValue } from './object-serializer{{importFileExtension}}';
 import { TransportOptions } from './transport-options{{importFileExtension}}';
 
@@ -320,8 +322,9 @@ export abstract class AbstractApiClient implements ApiClient {
    * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
    * @param url fully qualified URL
    * @param headers HTTP headers from the caller
-   * @param body request body (serialized JSON string, raw Buffer for binary, or a
-   *   `Record<string, unknown>` for multipart form data; may be null)
+   * @param body request body (serialized JSON string, raw Buffer for binary, a
+   *   `Record<string, unknown>` for multipart form data, or a {@link BodySource}, which is sent
+   *   as it is read and never buffered; may be null)
    * @param options optional per-call flags (e.g. redirect suppression)
    * @returns ApiHttpResponse containing status code, body, and headers
    */
@@ -329,7 +332,7 @@ export abstract class AbstractApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
     options?: SendRequestOptions
   ): Promise<ApiHttpResponse> {
     /* Using a client after close() is a wrong call order: the invalid-state
@@ -357,7 +360,7 @@ export abstract class AbstractApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
     options?: SendRequestOptions
   ): Promise<ApiHttpResponse> {
     /* One end-to-end deadline covers every attempt: a retry never extends it. */
@@ -394,7 +397,7 @@ export abstract class AbstractApiClient implements ApiClient {
   private async withRetries<R extends { readonly statusCode: number; readonly headers: Readonly<Record<string, string>> }>(
     method: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
     options: SendRequestOptions | undefined,
     timeout: number | null,
     deadline: AbortSignal | undefined,
@@ -411,7 +414,11 @@ export abstract class AbstractApiClient implements ApiClient {
       typeof body === 'object' &&
       !ArrayBuffer.isView(body) &&
       !(body instanceof ArrayBuffer) &&
-      !(body instanceof Blob);
+      !(body instanceof Blob) &&
+      !(body instanceof BodySource);
+    /* A single-use body has been read by the first attempt and cannot be sent
+     * again: the original answer or failure is what the caller gets. */
+    const spent = body instanceof BodySource && !body.replayable;
     /* A signal that has already fired cancels the call before any attempt: no request is sent. */
     if (callerSignal?.aborted) {
       throw callerSignal.reason;
@@ -440,7 +447,7 @@ export abstract class AbstractApiClient implements ApiClient {
         response != null
           ? AbstractApiClient.isRetryableStatus(response.statusCode)
           : AbstractApiClient.isRetryableFailure(failure, method);
-      if (!retryable || multipart || attemptNumber >= maxRetries) {
+      if (!retryable || multipart || spent || attemptNumber >= maxRetries) {
         return finish();
       }
       const delay = AbstractApiClient.retryDelayMs(attemptNumber, response?.headers);
@@ -480,8 +487,9 @@ export abstract class AbstractApiClient implements ApiClient {
    * @param method HTTP method
    * @param url fully qualified URL
    * @param headers HTTP headers from the caller
-   * @param body request body (serialized JSON string, raw Buffer for binary, or a
-   *   `Record<string, unknown>` for multipart form data; may be null)
+   * @param body request body (serialized JSON string, raw Buffer for binary, a
+   *   `Record<string, unknown>` for multipart form data, or a {@link BodySource}, which is sent
+   *   as it is read and never buffered; may be null)
    * @param options optional per-call flags and the idle timeout
    * @returns the status, the lower-cased headers and the open body
    */
@@ -489,7 +497,7 @@ export abstract class AbstractApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
     options?: SendStreamingOptions
   ): Promise<ApiStreamResponse> {
     if (this.closed) {
@@ -556,7 +564,7 @@ export abstract class AbstractApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
     options: SendStreamingOptions | undefined,
     deadline: AbortSignal | undefined,
     life: StreamLife,
@@ -890,7 +898,7 @@ export abstract class AbstractApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
     options: SendRequestOptions | undefined,
     deadline: AbortSignal | undefined
   ): Promise<ApiHttpResponse> {
@@ -1007,9 +1015,36 @@ export abstract class AbstractApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
     options: SendRequestOptions | undefined,
     extraSignals: readonly AbortSignal[]
+  ): Promise<Response> {
+    /* Every opening of a request body source is released when the header
+     * phase ends, however it ends; a single-use body never closes the
+     * caller's stream. */
+    const opened: OpenedBody[] = [];
+    try {
+      return await this.fetchHeadersOnce(method, url, headers, body, options, extraSignals, opened);
+    } finally {
+      for (const open of opened) {
+        await open.close();
+      }
+    }
+  }
+
+  /**
+   * The body of {@link fetchHeaderPhase}.
+   *
+   * @param opened collects every opening of a {@link BodySource} body, for the caller to release
+   */
+  private async fetchHeadersOnce(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+    options: SendRequestOptions | undefined,
+    extraSignals: readonly AbortSignal[],
+    opened: OpenedBody[]
   ): Promise<Response> {
     if (body instanceof Blob) {
       body = Buffer.from(await body.arrayBuffer());
@@ -1055,7 +1090,26 @@ export abstract class AbstractApiClient implements ApiClient {
       mergedHeaders['Content-Type'] = 'application/json';
     }
 
-    if (body != null && typeof body === 'object' && !Buffer.isBuffer(body)) {
+    /* What fetch is given as the body: the bytes or the stream a BodySource
+     * opened, or the request body itself. A streamed body is read as it is
+     * sent, with Content-Length when the length is known and chunked when not. */
+    let wireBody: unknown = body;
+    const openSource = async (
+      source: BodySource,
+      target: Record<string, string>
+    ): Promise<Uint8Array | ReadableStream<Uint8Array>> => {
+      const open = await source.open();
+      opened.push(open);
+      for (const key of Object.keys(target)) {
+        if (key.toLowerCase() === 'content-length') delete target[key];
+      }
+      if (open.length !== null) {
+        target['Content-Length'] = String(open.length);
+      }
+      return open.content;
+    };
+
+    if (body != null && typeof body === 'object' && !Buffer.isBuffer(body) && !(body instanceof BodySource)) {
       const boundary = globalThis.crypto.randomUUID();
       /* The declared multipart subtype (form-data, mixed, related, ...) is
        * kept; only the boundary is the SDK's own. */
@@ -1066,6 +1120,9 @@ export abstract class AbstractApiClient implements ApiClient {
       }
       mergedHeaders['Content-Type'] = `multipart/${subtype}; boundary=${boundary}`;
       body = await this.buildMultipartBody(body as Record<string, unknown>, boundary);
+      wireBody = body;
+    } else if (body instanceof BodySource) {
+      wireBody = await openSource(body, mergedHeaders);
     } else if (body == null) {
       for (const key of Object.keys(mergedHeaders)) {
         if (key.toLowerCase() === 'content-type') delete mergedHeaders[key];
@@ -1089,9 +1146,12 @@ export abstract class AbstractApiClient implements ApiClient {
     const fetchOptions: Record<string, unknown> = {
       method,
       headers: mergedHeaders,
-      body: body ?? undefined,
+      body: wireBody ?? undefined,
       redirect: 'manual'
     };
+    if (wireBody instanceof ReadableStream) {
+      fetchOptions.duplex = 'half';
+    }
 
     /* Caller-supplied fetch options sit under the SDK's own: the method,
      * headers, body, redirect policy, timeout and signal set here always win. */
@@ -1214,6 +1274,18 @@ export abstract class AbstractApiClient implements ApiClient {
             nextBody = currentBody;
           }
 
+          /* A single-use body was read by the request that was just answered:
+           * it is never buffered to be sent again. */
+          if (nextBody instanceof BodySource && !nextBody.replayable) {
+            throw new ApiError(
+              response.status,
+              'Refusing to replay a streamed request body',
+              AbstractApiClient.collectHeaders(response),
+              null,
+              null
+            );
+          }
+
           /* Gap 3.3: refuse to replay a request body across a transport
            * downgrade (HTTPS -> HTTP). Replaying the body in cleartext
            * after the original request was sent over TLS leaks whatever
@@ -1253,12 +1325,18 @@ export abstract class AbstractApiClient implements ApiClient {
             }
             redirectHeaders[k] = v;
           }
-          const redirectOptions = {
+          const nextWire = nextBody instanceof BodySource ? await openSource(nextBody, redirectHeaders) : nextBody;
+          const redirectOptions: Record<string, unknown> = {
             ...fetchOptions,
             method: nextMethod,
             headers: redirectHeaders,
-            body: nextBody
+            body: nextWire
           };
+          if (nextWire instanceof ReadableStream) {
+            redirectOptions.duplex = 'half';
+          } else {
+            delete redirectOptions.duplex;
+          }
           currentUrl = nextUrl;
           currentMethod = nextMethod;
           currentBody = nextBody;

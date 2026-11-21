@@ -64,13 +64,16 @@ export class SseStream<T>
     private readonly terminator: string | null,
     given: StreamOptions | undefined,
     hasBody: boolean,
+    singleUseBody: boolean,
     private readonly method: string,
     private readonly path: string,
     private readonly callerSignal: AbortSignal | undefined,
     first: ByteStream,
     lastEventId: string,
   ) {
-    this.maxReconnects = given?.maxReconnects ?? (hasBody ? 0 : 5);
+    this.maxReconnects = singleUseBody
+      ? 0
+      : (given?.maxReconnects ?? (hasBody ? 0 : 5));
     this.reconnectDelay = given?.reconnectDelay ?? 1000;
     this.maxEventBytes = given?.maxEventBytes ?? 1024 * 1024;
     this.lastId = lastEventId;
@@ -92,6 +95,8 @@ export class SseStream<T>
    * @param terminator a `data` value that ends the stream and is not delivered, or null
    * @param options the call's settings, if any
    * @param hasBody whether the request has a body, which turns reconnecting off by default
+   * @param singleUseBody whether the body can be read only once, which turns reconnecting off whatever
+   *   the options say, since a reconnect would need the body again
    * @param method the HTTP method, for errors
    * @param path the request path, for errors
    * @param signal the call's cancellation signal, which also ends a reconnect wait
@@ -103,6 +108,7 @@ export class SseStream<T>
     terminator: string | null,
     options: StreamOptions | undefined,
     hasBody: boolean,
+    singleUseBody: boolean,
     method: string,
     path: string,
     signal?: AbortSignal,
@@ -115,6 +121,7 @@ export class SseStream<T>
       terminator,
       options,
       hasBody,
+      singleUseBody,
       method,
       path,
       signal,

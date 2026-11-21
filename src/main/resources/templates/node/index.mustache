@@ -32,8 +32,12 @@ export * from './models/index{{importFileExtension}}';
  */
 export type { ApiClient, RequestOptions, SendRequestOptions, SendStreamingOptions } from './api-client{{importFileExtension}}';
 export { ApiStreamResponse } from './api-stream-response{{importFileExtension}}';
+export { BodySource } from './body-source{{importFileExtension}}';
+export type { BodyStream, BodyStreamFactory, OpenedBody } from './body-source{{importFileExtension}}';
 export { ByteStream } from './byte-stream{{importFileExtension}}';
 export { JsonLinesStream } from './json-lines-stream{{importFileExtension}}';
+export { Paginator } from './paginator{{importFileExtension}}';
+export type { Page } from './paginator{{importFileExtension}}';
 export { SseStream } from './sse-stream{{importFileExtension}}';
 export type { ServerSentEvent } from './server-sent-event{{importFileExtension}}';
 export type { StreamOptions } from './stream-options{{importFileExtension}}';

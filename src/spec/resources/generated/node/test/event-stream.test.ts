@@ -113,6 +113,7 @@ function sse<T = string>(
   hasBody = false,
   decoder: ((data: string) => T) | null = null,
   terminator: string | null = null,
+  singleUseBody = false,
 ): Promise<SseStream<T>> {
   return SseStream.open<T>(
     script.opener,
@@ -120,6 +121,7 @@ function sse<T = string>(
     terminator,
     options,
     hasBody,
+    singleUseBody,
     "GET",
     "/events",
   );
@@ -350,6 +352,21 @@ describe("the server-sent events parser and stream", () => {
         await sse(on, { reconnectDelay: 1, maxReconnects: 2 }, true),
       ),
     ).toEqual(["a", "b"]);
+
+    const onceBody = new Script("data: a\n\n", "data: b\n\n", noContent());
+    expect(
+      await dataOf(
+        await sse(
+          onceBody,
+          { reconnectDelay: 1, maxReconnects: 5 },
+          true,
+          null,
+          null,
+          true,
+        ),
+      ),
+    ).toEqual(["a"]);
+    expect(onceBody.lastIds).toHaveLength(1);
   });
 
   test("bhv sse 017 an SSE event with an id and no data is not dispatched but updates the last event id and a reconnect resumes from it", async () => {

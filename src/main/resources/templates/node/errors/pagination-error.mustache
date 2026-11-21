@@ -1,0 +1,28 @@
+{{>api_info}}
+
+import { {{errorPrefix}}Error } from './{{errorPrefixKebab}}-error{{importFileExtension}}';
+
+/**
+ * Raised when a paged list cannot be followed safely: the server returned the
+ * cursor that was just sent, so asking again would loop forever, or a `Link`
+ * header pointed to another origin, so following it would send the credentials
+ * there. It is not a network error and not an API error: it is a direct child of
+ * {@link {{errorPrefix}}Error}, and the items already delivered are complete and
+ * correct. A failed page request raises the SDK error of that failure instead.
+ */
+export class PaginationError extends {{errorPrefix}}Error {
+  /** The path of the request whose response could not be followed, without its query, or `null`. */
+  readonly requestPath: string | null;
+
+  /**
+   * Creates the error.
+   *
+   * @param message what made the list impossible to follow; it never holds a query string
+   * @param options the path of the request that returned the page, without its query, and the cause
+   */
+  constructor(message: string, options?: { requestPath?: string | null; cause?: unknown }) {
+    super(message, options?.cause === undefined ? undefined : { cause: options.cause });
+    this.name = 'PaginationError';
+    this.requestPath = options?.requestPath ?? null;
+  }
+}

@@ -363,7 +363,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("web_api_client.mustache", "src", "default-api-client.web.ts"),
             new SupportingFileSpec("api_response.mustache", "src", "api-http-response.ts"),
             new SupportingFileSpec("api_stream_response.mustache", "src", "api-stream-response.ts"),
+            new SupportingFileSpec("body_source.mustache", "src", "body-source.ts"),
             new SupportingFileSpec("byte_stream.mustache", "src", "byte-stream.ts"),
+            new SupportingFileSpec("paginator.mustache", "src", "paginator.ts"),
+            new SupportingFileSpec("link_header.mustache", "src", "link-header.ts"),
+            new SupportingFileSpec("errors/pagination-error.mustache", "src/errors", "pagination-error.ts"),
             new SupportingFileSpec("event_stream.mustache", "src", "event-stream.ts"),
             new SupportingFileSpec("server_sent_event.mustache", "src", "server-sent-event.ts"),
             new SupportingFileSpec("stream_options.mustache", "src", "stream-options.ts"),
@@ -991,10 +995,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             if (ops != null) {
                 boolean hasEnums = false;
                 boolean hasBinaryStream = false;
+                boolean hasBinaryUpload = false;
+                boolean hasPagedOperation = false;
                 boolean hasSseStream = false;
                 boolean hasJsonLinesStream = false;
                 for (final CodegenOperation op : ops) {
                     hasBinaryStream |= markBinaryStream(op);
+                    hasBinaryUpload |= markBinaryUpload(op);
+                    hasPagedOperation |= markPagedOperation(op);
                     final Object marked = op.vendorExtensions.get("op");
                     if (marked instanceof Map) {
                         hasSseStream |=
@@ -1023,6 +1031,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     }
                 }
                 objs.put("hasBinaryStream", hasBinaryStream);
+                objs.put("hasBinaryUpload", hasBinaryUpload);
+                objs.put("hasPagedOperation", hasPagedOperation);
                 objs.put("hasSseStream", hasSseStream);
                 objs.put("hasJsonLinesStream", hasJsonLinesStream);
                 objs.put("hasStreamOptions", hasSseStream || hasJsonLinesStream);
@@ -1064,6 +1074,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             final Set<String> named = namedInSignatures(objs);
             imports.removeIf(imp -> !named.contains(imp.get("className")));
             addSuccessVariantImports(objs, imports);
+            addPagedItemImports(objs, imports);
         }
         objs.put("usesValueSerializer", usesValueSerializer(objs));
         return objs;
@@ -1112,6 +1123,99 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return binary;
     }
 
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of a {@code Buffer}, so a large upload never has to fit in memory. It
+     * runs before the request wrapper is built from the body type. Multipart and every other body
+     * kind keep the type the spec maps.
+     *
+     * @return whether the operation takes a {@code BodySource}
+     */
+    static boolean markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return false;
+        }
+        body.dataType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * A paged operation gets a {@code <operation>Pages} method that returns a {@code Paginator}; this
+     * records the type of that return value as {@code paginatorType} on the pagination decorator, so
+     * the class and the interface both say it. A list that is followed by the {@code Link} header has
+     * no cursor, so its cursor type is {@code never}.
+     *
+     * @return whether the operation has a paged method
+     */
+    @SuppressWarnings("unchecked")
+    static boolean markPagedOperation(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return false;
+        }
+        final Object pagination = ((Map<String, Object>) decorators).get("pagination");
+        if (!(pagination instanceof Map)
+                || !Boolean.TRUE.equals(((Map<String, Object>) decorators).get("hasPagesMethod"))) {
+            return false;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        p.put(
+                "paginatorType",
+                "Paginator<"
+                        + p.get("itemType")
+                        + ", "
+                        + (Boolean.TRUE.equals(p.get("isLink")) ? "never" : p.get("cursorType"))
+                        + ">");
+        return true;
+    }
+
+    /**
+     * The item model of a paged operation is named by its {@code Paginator} return type, which no
+     * other signature of the operation needs to name, so it is imported here.
+     */
+    @SuppressWarnings("unchecked")
+    private static void addPagedItemImports(
+            OperationsMap objs, List<Map<String, String>> imports) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        final List<CodegenOperation> ops =
+                operations == null ? null : (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        final Set<String> present = new HashSet<>();
+        for (final Map<String, String> imp : imports) {
+            present.add(imp.get("className"));
+        }
+        for (final CodegenOperation op : ops) {
+            final Object deco = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            final Object pagination =
+                    deco instanceof Map ? ((Map<String, Object>) deco).get("pagination") : null;
+            if (!(pagination instanceof Map)) {
+                continue;
+            }
+            final Object model = ((Map<String, Object>) pagination).get("itemModel");
+            if (model != null && present.add(model.toString())) {
+                final Map<String, String> imp = new java.util.LinkedHashMap<>();
+                imp.put("className", model.toString());
+                imp.put("classname", model.toString());
+                imports.add(imp);
+            }
+        }
+    }
+
     /** Item types of a stream that are not generated model classes. */
     private static final Set<String> STREAM_ITEM_NON_MODELS =
             Set.of(
@@ -1128,8 +1232,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
-        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
         for (int kind = 0; kind < flags.length; kind++) {
             CodegenOperation found = null;
             Object group = null;
@@ -1354,7 +1458,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         }
         if (hasOptions) {
-            fields.add(wrapperField("options", optionsClassName, !optionsParamRequired));
+            final Map<String, Object> optionsField =
+                    wrapperField("options", optionsClassName, !optionsParamRequired);
+            optionsField.put("isOptions", true);
+            fields.add(optionsField);
         }
 
         // Optional request content-type selector. An operation that declares
@@ -1468,6 +1575,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * primitive-array bodies are returned unchanged — there is no class to relax.
      */
     private String deepInputType(CodegenParameter body) {
+        if ("BodySource".equals(body.dataType)) {
+            return body.dataType;
+        }
         final boolean elementIsModel =
                 body.items != null
                         && !body.items.isPrimitiveType

@@ -21,6 +21,7 @@ import { ApiError, SerializationError, OpenAPIError } from "../errors/index.js";
 import type { ErrorSchemas } from "../errors/index.js";
 import { AbstractApiClient } from "../abstract-api-client.js";
 import type { ApiStreamResponse } from "../api-stream-response.js";
+import { BodySource } from "../body-source.js";
 import { ByteStream } from "../byte-stream.js";
 import { JsonLinesStream } from "../json-lines-stream.js";
 import { SseStream } from "../sse-stream.js";
@@ -462,6 +463,7 @@ export abstract class BaseApi {
       terminator,
       streamOptions,
       body != null,
+      body instanceof BodySource && !body.replayable,
       method,
       BaseApi.pathOf(path),
       signal,
@@ -577,7 +579,8 @@ export abstract class BaseApi {
       })
       .join("&");
     if (filteredParams) {
-      url += "?" + filteredParams;
+      /* A Link page URL already has a query; an authentication query joins it. */
+      url += (url.includes("?") ? "&" : "?") + filteredParams;
     }
 
     const isMultipart = contentType === "multipart/form-data";
@@ -754,9 +757,7 @@ export abstract class BaseApi {
         response.statusCode === 401 &&
         effectiveAuth != null &&
         typeof renewable?.invalidateAccessToken === "function" &&
-        (serializedBody === null ||
-          typeof serializedBody === "string" ||
-          Buffer.isBuffer(serializedBody))
+        BaseApi.isReplayableBody(serializedBody)
       ) {
         renewable.invalidateAccessToken();
         let freshAuthHeaders: Record<string, string> | null;
@@ -907,6 +908,21 @@ export abstract class BaseApi {
     return result.data;
   }
 
+  /**
+   * Whether a request can be sent again with the same body, which is what a 401
+   * replay needs: no body, text, bytes, or a replayable {@link BodySource}.
+   */
+  private static isReplayableBody(
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
+  ): boolean {
+    return (
+      body === null ||
+      typeof body === "string" ||
+      Buffer.isBuffer(body) ||
+      (body instanceof BodySource && body.replayable)
+    );
+  }
+
   /** The most of an error body a stream call reads before it raises the error. */
   private static readonly STREAM_ERROR_BODY_LIMIT = 64 * 1024;
 
@@ -921,7 +937,8 @@ export abstract class BaseApi {
     method: string,
     url: string,
     headers: Record<string, string>,
-    serializedBody: string | Buffer | Record<string, unknown> | null,
+    serializedBody:
+      string | Buffer | Record<string, unknown> | BodySource | null,
     effectiveAuth: Authenticator | null,
     signal: AbortSignal | undefined,
     sendOptions: SendStreamingOptions,
@@ -947,9 +964,7 @@ export abstract class BaseApi {
       response.statusCode === 401 &&
       effectiveAuth != null &&
       typeof renewable?.invalidateAccessToken === "function" &&
-      (serializedBody === null ||
-        typeof serializedBody === "string" ||
-        Buffer.isBuffer(serializedBody))
+      BaseApi.isReplayableBody(serializedBody)
     ) {
       renewable.invalidateAccessToken();
       let freshAuthHeaders: Record<string, string> | null;
@@ -1299,13 +1314,17 @@ export abstract class BaseApi {
     body: unknown,
     contentType: string,
     rawBody = false,
-  ): string | Buffer | Record<string, unknown> | null {
+  ): string | Buffer | Record<string, unknown> | BodySource | null {
     if (body == null) {
       return null;
     }
     /* A `format: binary` request body is the caller's bytes, sent unchanged
      * under whichever declared Content-Type was selected (application/json
      * included): it is never routed through the JSON serializer. */
+    /* A BodySource is sent as it is read, whatever Content-Type was selected. */
+    if (body instanceof BodySource) {
+      return body;
+    }
     if (
       rawBody &&
       (Buffer.isBuffer(body) ||
