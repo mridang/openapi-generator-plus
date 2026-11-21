@@ -2841,7 +2841,7 @@ describe 'DefaultApiClientUnit' do
   end
 
   it 'bhv_misc_163 a one-shot stream body is not replayed on retry, while text, bytes and an absent body are' do
-    _outcome, envs, = run_retry_probe(verb: :put, body: StringIO.new('payload')) { [503, {}, 'busy'] }
+    _outcome, envs, = run_retry_probe(verb: :put, body: Petstore::Client::BodySource.once(StringIO.new('payload'))) { [503, {}, 'busy'] }
     _(envs.length).must_equal 1
 
     [nil, 'payload', 'payload'.b].each do |body|
@@ -3365,7 +3365,7 @@ describe 'DefaultApiClientUnit' do
   end
 
   it 'bhv_retries_032 never retries a stream body' do
-    outcome, envs, delays = run_retry_probe(verb: :post, body: StringIO.new('payload')) { [503, {}, 'busy'] }
+    outcome, envs, delays = run_retry_probe(verb: :post, body: Petstore::Client::BodySource.once(StringIO.new('payload'))) { [503, {}, 'busy'] }
 
     _(outcome.status_code).must_equal 503
     _(envs.length).must_equal 1
@@ -4208,6 +4208,128 @@ describe 'DefaultApiClientUnit' do
     _(server.client_gone?).must_equal true
   ensure
     server&.close
+  end
+
+  # A server that reads every request body, remembers it with the head that framed it, and answers
+  # with the status the +statuses+ list holds for that hit (the last one repeats).
+  def upload_server(*statuses, location: nil)
+    received = []
+    server = RawServer.serve do |_self_server, socket, hit, head|
+      received << [head, RawHttp.read_body(socket, head)]
+      status = statuses[[hit, statuses.length].min - 1]
+      extra = location ? ["Location: #{location}"] : []
+      RawHttp.head(socket, status, 'Content-Length: 0', *extra)
+    end
+    [server, received]
+  end
+
+  def uploading_client(follow_redirects: false)
+    client = Petstore::Client::DefaultApiClient.new(
+      Petstore::Client::TransportOptions.builder.follow_redirects(follow_redirects).build
+    )
+    client.define_singleton_method(:pause) { |_seconds| nil }
+    client
+  end
+
+  def upload(client, server, source, path = '/items/blob')
+    client.send_request(:PUT, server.url(path), { 'Content-Type' => 'application/octet-stream' }, source)
+  end
+
+  it 'bhv_streaming_023 a streamed upload of unknown length is sent chunked and arrives intact' do
+    payload = (0...200_000).map { |i| ((i * 7) % 256).chr }.join.b
+    server, received = upload_server(204)
+    upload(uploading_client, server, Petstore::Client::BodySource.once(StringIO.new(payload)))
+    head, body = received.first
+    _(head.downcase).must_include 'transfer-encoding: chunked'
+    _(head.downcase).wont_include 'content-length'
+    _(body).must_equal payload
+
+    received.clear
+    factory = Petstore::Client::BodySource.from_factory { StringIO.new(payload) }
+    upload(uploading_client, server, factory)
+    _(received.first.first.downcase).must_include 'transfer-encoding: chunked'
+    _(received.first.last).must_equal payload
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_024 a streamed upload with a known length sends Content-Length' do
+    payload = (0...150_000).map { |i| ((i * 13) % 256).chr }.join.b
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, 'payload.bin')
+      File.binwrite(path, payload)
+      sources = [
+        Petstore::Client::BodySource.of(payload),
+        Petstore::Client::BodySource.of_file(path),
+        Petstore::Client::BodySource.once(StringIO.new(payload), length: payload.bytesize),
+        Petstore::Client::BodySource.from_factory(length: payload.bytesize) { StringIO.new(payload) }
+      ]
+      sources.each_case do |source|
+        server, received = upload_server(204)
+        begin
+          upload(uploading_client, server, source)
+          head, body = received.first
+          _(head.downcase).must_include "content-length: #{payload.bytesize}"
+          _(head.downcase).wont_include 'transfer-encoding'
+          _(body).must_equal payload
+        ensure
+          server.close
+        end
+      end
+    end
+  end
+
+  it 'bhv_streaming_025 a caller supplied upload stream is never closed by the SDK' do
+    server, = upload_server(204, 204)
+    mine = StringIO.new('caller bytes')
+    upload(uploading_client, server, Petstore::Client::BodySource.once(mine))
+    _(mine.closed?).must_equal false
+
+    opened = []
+    factory = Petstore::Client::BodySource.from_factory { StringIO.new('factory bytes').tap { |io| opened << io } }
+    upload(uploading_client, server, factory)
+    _(opened.length).must_equal 1
+    _(opened.first.closed?).must_equal true
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_026 a replayable upload is rewound and retried after a 503 and a single use upload is not retried' do
+    payload = 'replayed bytes'
+    server, received = upload_server(503, 204)
+    factory = Petstore::Client::BodySource.from_factory(length: payload.bytesize) { StringIO.new(payload) }
+    _(upload(uploading_client, server, factory).status_code).must_equal 204
+    _(received.map(&:last)).must_equal [payload.b, payload.b]
+    server.close
+
+    server, received = upload_server(503, 204)
+    refused = upload(uploading_client, server, Petstore::Client::BodySource.once(StringIO.new(payload)))
+    _(refused.status_code).must_equal 503
+    _(received.length).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_027 a 307 or 308 with a single use upload is refused and the body is never buffered' do
+    [307, 308].each_case do |status|
+      server, received = upload_server(status, 204, location: '/final')
+      begin
+        error = assert_raises(Petstore::Client::Errors::ApiError) do
+          upload(uploading_client(follow_redirects: true), server, Petstore::Client::BodySource.once(StringIO.new('once')))
+        end
+        _(error.message).must_include 'Refusing to replay a streamed request body'
+        _(error.status_code).must_equal status
+        _(received.length).must_equal 1
+
+        server.close
+        server, received = upload_server(status, 204, location: '/final')
+        replayable = Petstore::Client::BodySource.from_factory { StringIO.new('again') }
+        _(upload(uploading_client(follow_redirects: true), server, replayable).status_code).must_equal 204
+        _(received.map(&:last)).must_equal %w[again again].map(&:b)
+      ensure
+        server.close
+      end
+    end
   end
 
   it 'bhv_streaming_029 the read-all helper of a byte stream returns every byte in order and leaves it closed' do

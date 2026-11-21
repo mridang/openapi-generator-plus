@@ -1,0 +1,30 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # One page of a paged list: the items it holds, the cursor of the page after
+  # it, and the result of the request that returned it. It is a frozen value.
+  class Page
+    # @return [Array] the items of this page, in order
+    attr_reader :items
+
+    # @return [Object, nil] the cursor of the next page, or nil on the last
+    #   page; always nil for a list that is followed by a +Link+ header
+    attr_reader :next_cursor
+
+    # @return [ApiResult] what the matching +_with_http_info+ method returns
+    #   for this page: the status, the headers, the raw body and the decoded body
+    attr_reader :result
+
+    # @param items [Array] the items of this page
+    # @param next_cursor [Object, nil] the cursor of the next page
+    # @param result [ApiResult] the result of the request
+    def initialize(items:, next_cursor:, result:)
+      @items = items.dup.freeze
+      @next_cursor = next_cursor
+      @result = result
+      freeze
+    end
+  end
+end

@@ -94,6 +94,9 @@ module {{moduleName}}
     # body byte is still to come.
     module HeadSignal
       def request(req, body = nil, &block)
+        # A streamed request body has been read once: the library must not send
+        # it again of its own accord after a dropped connection.
+        send(:max_retries=, 0) if req.body_stream
         sink = Thread.current[StreamBody::SINK_KEY]
         return super unless sink && block
 
@@ -539,6 +542,13 @@ module {{moduleName}}
               next_body = current_body
             end
 
+            # A single use body was read to its end by the request that was just
+            # answered, so there is nothing to send again, and it is never
+            # buffered to make that possible.
+            if !rewrite_to_get && !replayable_body?(next_body)
+              raise unusable_response(response, 'Refusing to replay a streamed request body')
+            end
+
             # Bucket 3.3: an HTTPS -> HTTP redirect is a TLS downgrade. If
             # the follow-up request still carries a body (the 307/308
             # path, or the GET/HEAD same-method path), replaying it over
@@ -690,8 +700,11 @@ module {{moduleName}}
       nil
     end
 
-    # Whether a request body can be sent a second time: none, or a string.
+    # Whether a request body can be sent a second time: none, a string, or a
+    # replayable body source.
     def replayable_body?(body)
+      return body.replayable? if body.is_a?(BodySource)
+
       body.nil? || body.is_a?(String)
     end
 
@@ -794,7 +807,36 @@ module {{moduleName}}
     # Faraday's +run_request+ refuses any verb outside its eight fixed ones,
     # so QUERY and other custom methods go through the same request build and
     # middleware stack below it.
-    def dispatch(method, url, body, headers, &block)
+    def dispatch(method, url, body, headers, &)
+      return dispatch_wire(method, url, body, headers, &) unless body.is_a?(BodySource)
+
+      # A body source is opened for this one send and read as it goes out: a
+      # known length is a Content-Length, an unknown one is chunked. What the
+      # SDK opened is closed when the send is over, and the caller's own
+      # stream never is.
+      opened = nil
+      begin
+        wire, framing = wire_body(body)
+        opened = wire unless wire.is_a?(String)
+        sent = headers.reject { |name, _value| %w[content-length transfer-encoding].include?(name.to_s.downcase) }
+        dispatch_wire(method, url, wire, sent.merge(framing), &)
+      ensure
+        body.release(opened)
+      end
+    end
+
+    # What goes to the HTTP library for a body source, and the headers that frame it.
+    def wire_body(source)
+      bytes = source.bytes
+      return [bytes, {}] if bytes
+
+      length = source.length
+      return ['', { 'Content-Length' => '0' }] if length&.zero?
+
+      [source.open, length ? { 'Content-Length' => length.to_s } : { 'Transfer-Encoding' => 'chunked' }]
+    end
+
+    def dispatch_wire(method, url, body, headers, &block)
       conn = connection
       return conn.run_request(method, url, body, headers, &block) if STANDARD_METHODS.include?(method)
 

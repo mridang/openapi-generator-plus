@@ -343,6 +343,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("errors/network_error.mustache", errorsPath, "network_error.rb"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsPath, "network_timeout_error.rb"),
             new SupportingFileSpec("errors/stream_error.mustache", errorsPath, "stream_error.rb"),
+            new SupportingFileSpec("errors/pagination_error.mustache", errorsPath, "pagination_error.rb"),
             new SupportingFileSpec("errors/serialization_error.mustache", errorsPath, "serialization_error.rb"),
             new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsPath, "oauth2_server_error.rb"),
             new SupportingFileSpec("errors/oauth2_token_error.mustache", errorsPath, "oauth2_token_error.rb"),
@@ -358,6 +359,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("api_response.mustache", libPath, "api_http_response.rb"),
             new SupportingFileSpec("api_result.mustache", libPath, "api_result.rb"),
             new SupportingFileSpec("api_stream_response.mustache", libPath, "api_stream_response.rb"),
+            new SupportingFileSpec("body_source.mustache", libPath, "body_source.rb"),
             new SupportingFileSpec("byte_stream.mustache", libPath, "byte_stream.rb"),
             new SupportingFileSpec("stream_body.mustache", libPath, "stream_body.rb"),
             new SupportingFileSpec("event_stream.mustache", libPath, "event_stream.rb"),
@@ -365,6 +367,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("stream_options.mustache", libPath, "stream_options.rb"),
             new SupportingFileSpec("json_lines_stream.mustache", libPath, "json_lines_stream.rb"),
             new SupportingFileSpec("sse_stream.mustache", libPath, "sse_stream.rb"),
+            new SupportingFileSpec("page.mustache", libPath, "page.rb"),
+            new SupportingFileSpec("link_header.mustache", libPath, "link_header.rb"),
+            new SupportingFileSpec("paginator.mustache", libPath, "paginator.rb"),
             new SupportingFileSpec("api_client.mustache", libPath, "api_client.rb"),
             new SupportingFileSpec("default_api_client.mustache", libPath, "default_api_client.rb"),
             new SupportingFileSpec("base_api.mustache", Path.of(libPath, "api").toString(), "base_api.rb"),
@@ -791,6 +796,12 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> early = (Map<String, Object>) objs.get("operations");
+        if (early != null && early.get("operation") != null) {
+            for (final CodegenOperation op : (List<CodegenOperation>) early.get("operation")) {
+                markBinaryUpload(op);
+            }
+        }
         objs = super.postProcessOperationsWithModels(objs, allModels);
         final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
         if (operations == null) {
@@ -833,6 +844,34 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             }
         }
         return objs;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of a {@code File}. It runs before the shared pass, which copies the body
+     * type into the signature arguments. Multipart and every other body kind keep the type the
+     * spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
     }
 
     /**
@@ -879,13 +918,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
      * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
      * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
      * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
-     * spec under generation. Nothing is rendered when the spec has none.
+     * spec under generation. The first paged operation is handed over the same way, as
+     * {@code pagedOperation}. Nothing is rendered when the spec has none.
      */
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(final Map<String, Object> objs) {
-        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
-        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
         for (int kind = 0; kind < flags.length; kind++) {
             CodegenOperation found = null;
             Object group = null;
@@ -1628,6 +1668,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         if (languageSpecificPrimitives.contains(type)) {
             return type;
         }
+        if ("BodySource".equals(type)) {
+            return "::" + Optional.ofNullable((String) additionalProperties.get(CodegenConstants.MODULE_NAME))
+                    .orElse(moduleName) + "::BodySource";
+        }
         return "Models::" + type;
     }
 
@@ -1656,6 +1700,15 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             return name;
         }
         return NamingConvention.SNAKE_CASE.apply(name);
+    }
+
+    /**
+     * Whether the operation gets a {@code _pages} method. A paged operation's Options object can
+     * copy itself with other values, so every page is sent with its own cursor.
+     */
+    private static boolean hasPagesMethod(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        return decorators instanceof Map && Boolean.TRUE.equals(((Map<?, ?>) decorators).get("hasPagesMethod"));
     }
 
     /** {@inheritDoc} */
@@ -1767,6 +1820,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         context.put("accessorList", accessors.toString());
         context.put("modelRequires", modelRequires);
         context.put("hasModelRequires", !modelRequires.isEmpty());
+        context.put("hasCopy", hasPagesMethod(op));
 
         generateOptionsRbsFile(op, optionsParams, className);
 
@@ -1861,6 +1915,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         context.put("moduleName", moduleName);
         context.put("params", params);
         context.put("initializeSignature", sig.toString());
+        context.put("hasCopy", hasPagesMethod(op));
 
         final String content = renderOptionsTemplate("api/options_rbs.mustache", context);
 

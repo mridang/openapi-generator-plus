@@ -1080,6 +1080,161 @@ paths:
 
   # ─── Per-operation servers ────────────────────────────────────────────────
 
+  # ─── Paged lists (design: docs/design/pagination.md) ─────────────────────────
+
+  /pet/catalog:
+    get:
+      tags:
+        - pet
+      summary: Lists the pet catalog one page at a time with a next-cursor token
+      operationId: listPetCatalog
+      security:
+        - petStoreBearer: []
+      parameters:
+        - name: limit
+          in: query
+          description: The number of pets on a page
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: cursor
+          in: query
+          description: Where to continue, as returned in next_cursor of the previous page
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of pets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetCatalogPage'
+
+  /pet/feed:
+    get:
+      tags:
+        - pet
+      summary: Lists the pet feed one page at a time with a Link header
+      operationId: listPetFeed
+      security:
+        - petStoreBearer: []
+      parameters:
+        - name: limit
+          in: query
+          description: The number of pets on a page
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: One page of pets, with the next page in the Link header
+          headers:
+            Link:
+              description: The next page as rel="next", when there is one
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+
+  /pet/matches:
+    get:
+      tags:
+        - pet
+      summary: Finds pets and their owners; two lists make it ambiguous, so it is not paged
+      operationId: listPetMatches
+      security:
+        - petStoreBearer: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pets and owners of one page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetMatchPage'
+
+  /pet/notes:
+    get:
+      tags:
+        - pet
+      summary: Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+      operationId: listPetNotes
+      security:
+        - petStoreBearer: []
+      x-fern-pagination:
+        cursor: $request.pos
+        next_cursor: $response.following
+        results: $response.rows
+      parameters:
+        - name: pos
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of notes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetNotePage'
+
+  /pet/events:
+    get:
+      tags:
+        - pet
+      summary: Lists pet events; only the generator option says it is paged
+      operationId: listPetEvents
+      security:
+        - petStoreBearer: []
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetEventPage'
+
+  /pet/archive:
+    get:
+      tags:
+        - pet
+      summary: Lists archived pets; it looks paged, and the generator option says it is not
+      operationId: listPetArchive
+      security:
+        - petStoreBearer: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of archived pets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetArchivePage'
+
   /pet/{petId}/external:
     get:
       servers:
@@ -2384,6 +2539,56 @@ components:
           maxLength: 8
           pattern: "^(?!admin)[a-z']+$"
 
+    PetCatalogPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pet'
+        next_cursor:
+          type: string
+          description: The cursor of the next page, absent on the last page
+    PetMatchPage:
+      type: object
+      properties:
+        pets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pet'
+        owners:
+          type: array
+          items:
+            type: string
+        next_cursor:
+          type: string
+    PetNotePage:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            type: string
+        following:
+          type: string
+    PetEventPage:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            type: string
+        upto:
+          type: string
+    PetArchivePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pet'
+        next_cursor:
+          type: string
     ApiResponse:
       type: object
       properties:

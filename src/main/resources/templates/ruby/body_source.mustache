@@ -1,0 +1,229 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'pathname'
+require 'stringio'
+
+module {{moduleName}}
+  # The body of a request that is sent as it is read, never buffered. An
+  # operation whose request body is raw binary takes one.
+  #
+  # A body is either replayable or single use:
+  #
+  # - {.of}, {.of_file} and {.from_factory} can be read again, so the SDK
+  #   retries the request after a 5xx, a 429 or a network error and follows a
+  #   307 or 308 redirect.
+  # - {.once} wraps a stream that can be read once. It is never retried (the
+  #   original error is raised unchanged) and a redirect that would need it
+  #   again is refused with +Refusing to replay a streamed request body+.
+  #
+  # A known length is sent as +Content-Length+; an unknown length is sent
+  # chunked. The SDK never closes a stream you pass to {.once}; it does close
+  # what it opened itself from a file or a factory.
+  #
+  # {.from} takes the native carriers, so the wrapper costs one line at the
+  # call site: a +String+ is bytes, a +Pathname+ is a file, an +IO+ or +File+ is
+  # a single use stream and a callable is a factory.
+  #
+  # {#to_s} and {#inspect} show the kind and the length, never the content or
+  # the path.
+  class BodySource
+    # What each kind is called in {#to_s}.
+    LABELS = { bytes: 'bytes', file: 'file', factory: 'factory', once: 'single use' }.freeze
+    private_constant :LABELS
+
+    # A replayable body of bytes held in memory; its length is known.
+    #
+    # @param bytes [String] the content (copied)
+    # @return [BodySource] the body
+    # @raise [ArgumentError] if +bytes+ is not a String
+    def self.of(bytes)
+      raise ArgumentError, 'The bytes of a request body must be a String' unless bytes.is_a?(String)
+
+      copy = bytes.dup.force_encoding(Encoding::BINARY).freeze
+      new(:bytes, bytes: copy, length: copy.bytesize)
+    end
+
+    # A replayable body read from a file, opened again for every send; its
+    # length is the size of the file and the SDK closes what it opens.
+    #
+    # @param path [String, Pathname] the file
+    # @return [BodySource] the body
+    # @raise [ArgumentError] if +path+ is not a String or a Pathname
+    def self.of_file(path)
+      raise ArgumentError, 'The path of a request body must be a String or a Pathname' unless path.is_a?(String) || path.is_a?(Pathname)
+
+      new(:file, path: path.to_s)
+    end
+
+    # A replayable body made by a factory that opens a fresh stream every time
+    # it is called. The SDK closes each stream it opens. Without a +length+ the
+    # body is sent chunked.
+    #
+    # @param factory [#call, nil] returns a fresh readable stream; a block does the same
+    # @param length [Integer, nil] the number of bytes every stream holds, sent as +Content-Length+
+    # @yieldreturn [#read] a fresh stream
+    # @return [BodySource] the body
+    # @raise [ArgumentError] if there is no factory or +length+ is negative
+    def self.from_factory(factory = nil, length: nil, &block)
+      callable = factory || block
+      raise ArgumentError, 'The factory of a request body must respond to call' unless callable.respond_to?(:call)
+
+      new(:factory, factory: callable, length: checked_length(length))
+    end
+
+    # A single use body. The stream is read once, never buffered and never
+    # closed by the SDK. Without a +length+ the body is sent chunked.
+    #
+    # @param stream [#read] the stream to send
+    # @param length [Integer, nil] the number of bytes the stream holds, sent as +Content-Length+
+    # @return [BodySource] the body
+    # @raise [ArgumentError] if +stream+ cannot be read or +length+ is negative
+    def self.once(stream, length: nil)
+      raise ArgumentError, 'The stream of a request body must respond to read' unless stream.respond_to?(:read)
+
+      new(:once, stream: stream, length: checked_length(length))
+    end
+
+    # The body for any of the native carriers: a +BodySource+ is returned as it
+    # is, a +String+ is bytes, a +Pathname+ is a file, a callable is a factory
+    # and a readable stream is a single use body.
+    #
+    # @param value [BodySource, String, Pathname, #call, #read] the carrier
+    # @param length [Integer, nil] the length of a factory or a stream
+    # @return [BodySource] the body
+    # @raise [ArgumentError] if +value+ is none of these
+    def self.from(value, length: nil)
+      case value
+      when BodySource then value
+      when String then of(value)
+      when Pathname then of_file(value)
+      else
+        return from_factory(value, length: length) if value.respond_to?(:call)
+        return once(value, length: length) if value.respond_to?(:read)
+
+        raise ArgumentError, "Cannot make a request body from #{value.class}"
+      end
+    end
+
+    # @api private
+    def self.checked_length(length)
+      return nil if length.nil?
+      raise ArgumentError, 'The length of a request body cannot be negative' unless length.is_a?(Integer) && length >= 0
+
+      length
+    end
+    private_class_method :new, :checked_length
+
+    # @api private
+    def initialize(kind, bytes: nil, path: nil, factory: nil, stream: nil, length: nil)
+      @kind = kind
+      @bytes = bytes
+      @path = path
+      @factory = factory
+      @stream = stream
+      @length = length
+      @taken = false
+      @lock = Mutex.new
+    end
+
+    # Whether the body can be sent again, which is what a retry or a redirect needs.
+    #
+    # @return [Boolean] false only for {.once}
+    def replayable?
+      @kind != :once
+    end
+
+    # The number of bytes, when it is known.
+    #
+    # @return [Integer, nil] the length, or nil when the body is sent chunked
+    # @raise [ArgumentError] if the size of a file cannot be read
+    def length
+      return @length unless @kind == :file
+
+      File.size(@path)
+    rescue SystemCallError
+      raise ArgumentError, 'Failed to read request body file'
+    end
+
+    # The content of an in-memory body, or nil for a stream; shared with the
+    # transport, not copied.
+    #
+    # @api private
+    # @return [String, nil] the bytes
+    attr_reader :bytes
+
+    # Opens the content for one send; hand the stream to {#release} when the
+    # send is over.
+    #
+    # A replayable body opens a fresh stream every time. A single use body opens
+    # once (a second call raises an +ArgumentError+) and hands back the caller's
+    # own stream.
+    #
+    # @api private
+    # @return [#read] a stream over the content
+    # @raise [ArgumentError] if a file cannot be opened, a factory returns something unreadable,
+    #   or a single use body is opened a second time
+    def open
+      case @kind
+      when :bytes then StringIO.new(@bytes.to_s)
+      when :file then open_file
+      when :factory then open_factory
+      else take_stream
+      end
+    end
+
+    # Ends one send: closes a stream the SDK opened itself (from a file or a
+    # factory) and never the caller's own.
+    #
+    # @api private
+    # @param stream [#read, nil] what {#open} returned
+    # @return [void]
+    def release(stream)
+      return unless stream && %i[file factory].include?(@kind)
+
+      stream.close if stream.respond_to?(:close)
+    rescue IOError, SystemCallError
+      nil
+    end
+
+    # Shows the kind and the length, never the content or the path.
+    #
+    # @return [String] the description
+    def to_s
+      size = begin
+        known = length
+        known ? "#{known} bytes" : 'length unknown'
+      rescue ArgumentError
+        'length unknown'
+      end
+      "BodySource[#{LABELS.fetch(@kind)}, #{size}]"
+    end
+    alias inspect to_s
+
+    private
+
+    def open_file
+      File.open(@path, 'rb')
+    rescue SystemCallError
+      raise ArgumentError, 'Failed to read request body file'
+    end
+
+    def open_factory
+      made = @factory.call
+      raise ArgumentError, 'The stream factory of a request body returned nothing readable' unless made.respond_to?(:read)
+
+      made
+    end
+
+    def take_stream
+      @lock.synchronize do
+        raise ArgumentError, 'A single use request body can be sent only once' if @taken
+
+        @taken = true
+      end
+      @stream
+    end
+  end
+end

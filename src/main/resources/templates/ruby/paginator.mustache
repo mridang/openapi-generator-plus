@@ -1,0 +1,231 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'uri'
+
+module {{moduleName}}
+  # The items of a paged list, read lazily. The method that returns it sends no
+  # request; the first request goes out when you first read an item or a page,
+  # and each next request goes out only when you ask for more. Every page is an
+  # ordinary call, so the retries, timeouts, redirects, authentication,
+  # redaction, headers and per-call options of the method apply to each one.
+  #
+  # Iterate it for the items (it includes +Enumerable+, so +first(n)+, +lazy+
+  # and +each_slice+ work), call {#items} for an +Enumerator+ of items, or
+  # {#pages} for an +Enumerator+ of {Page} values with their cursor and result.
+  # Each iteration starts again from the starting position, so two loops read
+  # the list twice. An iteration is not thread safe. Stopping early leaves
+  # nothing to close. A failed page request raises its SDK error from the read
+  # that needed it, after the items of the earlier pages were delivered, and
+  # ends that iteration; a cursor equal to the one just sent raises a
+  # {Errors::PaginationError} from the next read, after the items of the page
+  # that repeated it.
+  class Paginator
+    include Enumerable
+
+    # Creates a paginator that follows a token cursor. Used by the generated
+    # +_pages+ methods.
+    #
+    # @param start [Object, nil] the cursor of the first request, or nil to start at the beginning
+    # @param fetch [#call] sends the request for a cursor (nil for none) and returns its {ApiResult}
+    # @param items [#call] reads the items of a decoded page
+    # @param next_cursor [#call] reads the cursor of the next page from a decoded page; absent, nil or empty ends the list
+    # @param request_path [String] the path of the operation, for errors
+    # @return [Paginator] the paginator
+    def self.of_cursor(start:, fetch:, items:, next_cursor:, request_path:)
+      new(-> { CursorPages.new(start, fetch, items, next_cursor, request_path) })
+    end
+
+    # Creates a paginator that follows the +rel="next"+ link of the +Link+
+    # header. Used by the generated +_pages+ methods.
+    #
+    # @param base_url [String] the base URL of the client; a next URL that leaves its scheme, host or port is refused
+    # @param fetch [#call] sends the request for a URL (nil for the first page) and returns its {ApiResult}
+    # @param items [#call] reads the items of a decoded page
+    # @param request_path [String] the path of the operation, for errors
+    # @return [Paginator] the paginator
+    def self.of_link(base_url:, fetch:, items:, request_path:)
+      new(-> { LinkPages.new(base_url, fetch, items, request_path) })
+    end
+
+    # @api private
+    def initialize(walker)
+      @walker = walker
+    end
+
+    # Hands over every item, in order, starting at the starting position.
+    #
+    # @yieldparam item [Object] an item of the list
+    # @return [Paginator, Enumerator] self, or an enumerator without a block
+    def each(&block)
+      return items unless block
+
+      items.each(&block)
+      self
+    end
+
+    # The items, read lazily. Every call starts again at the starting position.
+    #
+    # @return [Enumerator] an enumerator of the items
+    def items
+      Enumerator.new do |yielder|
+        pages.each { |page| page.items.each { |item| yielder << item } }
+      end
+    end
+
+    # The pages, each with its items, next cursor and result. Every call starts
+    # again at the starting position.
+    #
+    # @return [Enumerator<Page>] an enumerator of pages
+    def pages
+      walker = @walker
+      Enumerator.new do |yielder|
+        walk = walker.call
+        while (page = walk.next_page)
+          yielder << page
+        end
+      end
+    end
+
+    # The pages of a token cursor list.
+    #
+    # @api private
+    class CursorPages
+      def initialize(start, fetch, items, next_cursor, request_path)
+        @sent = start
+        @fetch = fetch
+        @items = items
+        @next_cursor = next_cursor
+        @request_path = request_path
+        @repeated = nil
+        @done = false
+      end
+
+      # The next page, or nil when the list has ended.
+      def next_page
+        return nil if @done
+
+        if @repeated
+          @done = true
+          raise @repeated
+        end
+        result = fetch_page
+        body = result.data
+        list = body.nil? ? [] : @items.call(body) # : Array[untyped]?
+        following = body.nil? ? nil : @next_cursor.call(body)
+        if following.nil? || following == ''
+          @done = true
+          return Page.new(items: list || [], next_cursor: nil, result: result)
+        end
+        # The page itself is good: it is delivered, and the next read raises.
+        @repeated = repeated_error if following == @sent
+        @sent = following
+        Page.new(items: list || [], next_cursor: following, result: result)
+      end
+
+      private
+
+      def fetch_page
+        @fetch.call(@sent)
+      rescue StandardError
+        @done = true
+        raise
+      end
+
+      def repeated_error
+        Errors::PaginationError.new(
+          'The server returned the cursor that was just sent, so the list cannot advance', @request_path
+        )
+      end
+    end
+
+    # The pages of a list that is followed by the Link header.
+    #
+    # @api private
+    class LinkPages
+      def initialize(base_url, fetch, items, request_path)
+        @base_url = base_url
+        @fetch = fetch
+        @items = items
+        @request_path = request_path
+        @url = nil
+        @repeated = nil
+        @done = false
+      end
+
+      # The next page, or nil when the list has ended.
+      def next_page
+        return nil if @done
+
+        if @repeated
+          @done = true
+          raise @repeated
+        end
+        result = fetch_page
+        body = result.data
+        list = body.nil? ? [] : @items.call(body) # : Array[untyped]?
+        link = LinkHeader.next_target(link_header_of(result.headers))
+        if link.nil?
+          @done = true
+        else
+          # The page itself is good: it is delivered, and the next read raises.
+          begin
+            target = resolve(link)
+            raise repeated_error if target == @url
+
+            @url = target
+          rescue Errors::PaginationError => e
+            @repeated = e
+          end
+        end
+        Page.new(items: list || [], next_cursor: nil, result: result)
+      end
+
+      private
+
+      def fetch_page
+        @fetch.call(@url)
+      rescue StandardError
+        @done = true
+        raise
+      end
+
+      def link_header_of(headers)
+        found = headers.find { |name, _value| name.to_s.casecmp?('link') }
+        found&.last
+      end
+
+      def repeated_error
+        Errors::PaginationError.new(
+          'The server returned a next link to the page that was just read, so the list cannot advance',
+          @request_path
+        )
+      end
+
+      # Resolves a link against the page just read and refuses a scheme, host or port other than the client's.
+      def resolve(link)
+        base = URI.parse(@base_url)
+        target = URI.parse(@url || @base_url).merge(URI.parse(link.strip))
+        unless same_origin?(base, target)
+          raise Errors::PaginationError.new(
+            'The next link leaves the origin of the request and was not followed', @request_path
+          )
+        end
+        target.to_s
+      rescue URI::Error
+        raise Errors::PaginationError.new('The next link is not a valid URI', @request_path)
+      end
+
+      def same_origin?(left, right)
+        return false unless left.scheme.to_s.casecmp?(right.scheme.to_s)
+        return false unless %w[http https].include?(right.scheme.to_s.downcase)
+        return false if left.host.nil? || right.host.nil?
+
+        left.host.casecmp?(right.host) && left.port == right.port
+      end
+    end
+
+    private_constant :CursorPages, :LinkPages
+  end
+end

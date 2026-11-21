@@ -541,6 +541,30 @@ describe 'Client' do
     _(listed).must_include 'get_staging_pet_info_with_http_info'
     _(group).must_respond_to :get_staging_pet_info
     _(group).must_respond_to :get_staging_pet_info_with_http_info
+    _(listed).must_include 'list_pet_archive'
+    _(listed).must_include 'list_pet_archive_with_http_info'
+    _(group).must_respond_to :list_pet_archive
+    _(group).must_respond_to :list_pet_archive_with_http_info
+    _(listed).must_include 'list_pet_catalog'
+    _(listed).must_include 'list_pet_catalog_with_http_info'
+    _(group).must_respond_to :list_pet_catalog
+    _(group).must_respond_to :list_pet_catalog_with_http_info
+    _(listed).must_include 'list_pet_events'
+    _(listed).must_include 'list_pet_events_with_http_info'
+    _(group).must_respond_to :list_pet_events
+    _(group).must_respond_to :list_pet_events_with_http_info
+    _(listed).must_include 'list_pet_feed'
+    _(listed).must_include 'list_pet_feed_with_http_info'
+    _(group).must_respond_to :list_pet_feed
+    _(group).must_respond_to :list_pet_feed_with_http_info
+    _(listed).must_include 'list_pet_matches'
+    _(listed).must_include 'list_pet_matches_with_http_info'
+    _(group).must_respond_to :list_pet_matches
+    _(group).must_respond_to :list_pet_matches_with_http_info
+    _(listed).must_include 'list_pet_notes'
+    _(listed).must_include 'list_pet_notes_with_http_info'
+    _(group).must_respond_to :list_pet_notes
+    _(group).must_respond_to :list_pet_notes_with_http_info
     _(listed).must_include 'set_pet_avatar'
     _(listed).must_include 'set_pet_avatar_with_http_info'
     _(group).must_respond_to :set_pet_avatar

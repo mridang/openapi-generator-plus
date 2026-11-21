@@ -50,14 +50,16 @@ module Petstore::Client
     # @param terminator [String, nil] a +data+ value that ends the stream and is not delivered
     # @param options [StreamOptions, nil] the call's settings
     # @param has_body [Boolean] whether the request has a body, which turns reconnecting off by default
+    # @param single_use_body [Boolean] whether the body can be sent only once, which turns reconnecting
+    #   off whatever the options say
     # @param method [String] the HTTP method, for errors
     # @param path [String] the request path, for errors
     # @return [SseStream] the open stream
-    def self.open(opener:, decoder:, terminator:, options:, has_body:, method:, path:)
+    def self.open(opener:, decoder:, terminator:, options:, has_body:, method:, path:, single_use_body: false)
       given = options || StreamOptions.new
       last_event_id = given.last_event_id || ''
       first = connect_to(opener, last_event_id, method, path)
-      new(opener, decoder, terminator, given, has_body, method, path, first, last_event_id)
+      new(opener, decoder, terminator, given, has_body, single_use_body, method, path, first, last_event_id)
     end
 
     # Sends the request and checks that the answer is an event stream.
@@ -100,11 +102,13 @@ module Petstore::Client
     private_class_method :new
 
     # @api private
-    def initialize(opener, decoder, terminator, options, has_body, method, path, first, last_event_id)
+    def initialize(opener, decoder, terminator, options, has_body, single_use_body, method, path, first, last_event_id)
       @opener = opener
       @decoder = decoder
       @terminator = terminator
-      @max_reconnects = options.max_reconnects || (has_body ? 0 : 5)
+      # A single use body has been read to its end, so a reconnect has nothing to send.
+      default_reconnects = has_body ? 0 : 5
+      @max_reconnects = single_use_body ? 0 : (options.max_reconnects || default_reconnects)
       @reconnect_delay = options.reconnect_delay || 1000
       @max_event_bytes = options.max_event_bytes || (1024 * 1024)
       @method = method

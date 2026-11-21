@@ -179,6 +179,28 @@ module Petstore::Client
     def decode_text: (String, String) -> String
   end
 
+  class BodySource
+    LABELS: Hash[Symbol, String]
+    def self.of: (String) -> BodySource
+    def self.of_file: (String | Pathname) -> BodySource
+    def self.from_factory: (?untyped, ?length: Integer?) ?{ () -> untyped } -> BodySource
+    def self.once: (untyped, ?length: Integer?) -> BodySource
+    def self.from: (untyped, ?length: Integer?) -> BodySource
+    def self.checked_length: (Integer?) -> Integer?
+    attr_reader bytes: String?
+    def replayable?: () -> bool
+    def length: () -> Integer?
+    def open: () -> untyped
+    def release: (untyped) -> void
+    def to_s: () -> String
+    def inspect: () -> String
+    private
+    def initialize: (Symbol, ?bytes: String?, ?path: String?, ?factory: untyped, ?stream: untyped, ?length: Integer?) -> void
+    def open_file: () -> File
+    def open_factory: () -> untyped
+    def take_stream: () -> untyped
+  end
+
   class ByteStream
     CHUNK_SIZE: Integer
     attr_reader status_code: Integer
@@ -290,7 +312,7 @@ module Petstore::Client
     MAX_RECONNECT_DELAY_MS: Integer
     RETRY_AFTER_CAP_MS: Integer
     RECONNECTABLE_STATUSES: Array[Integer]
-    def self.open: (opener: _Opener, decoder: (^(String) -> untyped)?, terminator: String?, options: StreamOptions?, has_body: bool, method: String, path: String) -> SseStream
+    def self.open: (opener: _Opener, decoder: (^(String) -> untyped)?, terminator: String?, options: StreamOptions?, has_body: bool, method: String, path: String, ?single_use_body: bool) -> SseStream
     def self.connect_to: (_Opener, String, String, String) -> ByteStream
     def self.reconnect_wait_ms: (Integer, Integer, Integer?, Integer?, Float) -> Integer
     def status_code: () -> Integer
@@ -301,7 +323,7 @@ module Petstore::Client
     def inspect: () -> String
     def to_s: () -> String
     private
-    def initialize: (_Opener, (^(String) -> untyped)?, String?, StreamOptions, bool, String, String, ByteStream, String) -> void
+    def initialize: (_Opener, (^(String) -> untyped)?, String?, StreamOptions, bool, bool, String, String, ByteStream, String) -> void
     def read_next: () -> ServerSentEvent?
     def advance: () -> ServerSentEvent?
     def deliver: (EventStream::RawEvent) -> ServerSentEvent?
@@ -312,6 +334,58 @@ module Petstore::Client
     def pause: (Integer) -> void
     def finish: () -> void
     def serialization_error: (String, Exception) -> Errors::SerializationError
+  end
+
+  class Page[T, C]
+    attr_reader items: Array[T]
+    attr_reader next_cursor: C?
+    attr_reader result: ApiResult[untyped]
+    def initialize: (items: Array[T], next_cursor: C?, result: ApiResult[untyped]) -> void
+  end
+
+  module LinkHeader
+    class Link < Struct[untyped]
+      attr_accessor target: String
+      attr_accessor relations: Array[String]
+      def self.new: (String, Array[String]) -> Link
+    end
+    def self.next_target: (String?) -> String?
+    def self.parse: (String) -> Array[Link]
+    def self.read_parameters: (String, Integer) -> [Integer, Array[String]]
+    def self.read_value: (String, Integer) -> [String, Integer]
+    def self.skip_to_comma: (String, Integer) -> Integer
+  end
+
+  interface _PageWalker[T, C]
+    def next_page: () -> Page[T, C]?
+  end
+
+  class Paginator[T, C]
+    include Enumerable[T]
+    class CursorPages[T, C]
+      def initialize: (C?, ^(C?) -> ApiResult[untyped], ^(untyped) -> Array[T]?, ^(untyped) -> C?, String) -> void
+      def next_page: () -> Page[T, C]?
+      private
+      def fetch_page: () -> ApiResult[untyped]
+      def repeated_error: () -> Errors::PaginationError
+    end
+    class LinkPages[T]
+      def initialize: (String, ^(String?) -> ApiResult[untyped], ^(untyped) -> Array[T]?, String) -> void
+      def next_page: () -> Page[T, nil]?
+      private
+      def fetch_page: () -> ApiResult[untyped]
+      def link_header_of: (Hash[String, String]) -> String?
+      def repeated_error: () -> Errors::PaginationError
+      def resolve: (String) -> String
+      def same_origin?: (URI::Generic, URI::Generic) -> bool
+    end
+    def self.of_cursor: [T, C] (start: C?, fetch: ^(C?) -> ApiResult[untyped], items: untyped, next_cursor: untyped, request_path: String) -> Paginator[T, C]
+    def self.of_link: [T] (base_url: String, fetch: ^(String?) -> ApiResult[untyped], items: untyped, request_path: String) -> Paginator[T, nil]
+    def initialize: (^() -> _PageWalker[T, C]) -> void
+    def each: () { (T) -> void } -> self
+            | () -> Enumerator[T, void]
+    def items: () -> Enumerator[T, void]
+    def pages: () -> Enumerator[Page[T, C], void]
   end
 
   class StreamBody
@@ -471,6 +545,11 @@ module Petstore::Client
     class StreamError < NetworkError
     end
 
+    class PaginationError < ::Petstore::Client::Errors::OpenAPIError
+      attr_reader request_path: String?
+      def initialize: (String, ?String?) -> void
+    end
+
     class SerializationError < ::Petstore::Client::Errors::OpenAPIError
       attr_reader cause: Exception?
       attr_reader status_code: Integer?
@@ -584,6 +663,8 @@ module Petstore::Client
     def pause: (Float) -> void
     def run_hop: (Symbol, String, untyped, Hash[String, String], Float?, Numeric?, ?StreamSpec?) -> untyped
     def dispatch: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
+    def wire_body: (BodySource) -> [untyped, Hash[String, String]]
+    def dispatch_wire: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
     def header?: (Hash[String, String], String) -> bool
     def validate_header_values!: (Hash[String, untyped]) -> void
     def redact_url_text: (String?) -> String
