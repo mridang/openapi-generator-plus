@@ -49,6 +49,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
      after ``close()`` surfaces a ``ConfigurationError`` instead of a foreign
      URLSession "session invalidated" exception. */
   private let lifecycle = ClientLifecycle()
+  /* The streams handed out and not yet ended: ``close()`` cancels them. */
+  private let openStreams = OpenStreams()
   /* False when the caller supplied the session through
      ``TransportOptionsBuilder/session(_:)``: the caller owns its lifecycle,
      so ``close()`` must never invalidate it. */
@@ -379,27 +381,239 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         budget: callTimeout, perCallTimeout: callTimeout,
         sendDefaultHeaders: sendDefaultHeaders)
     }
-    let started = Date()
     let total: TimeInterval? =
       callTimeout ?? transportOptions.timeout.map { TimeInterval($0) / 1000.0 }
+    return try await withRetries(
+      method: method, headers: headers, maxRetries: maxRetries, total: total,
+      refreshHeaders: refreshHeaders,
+      statusCode: { $0.statusCode }, retryAfter: { $0.headers["retry-after"] },
+      discard: { _ in },
+      send: { current, remaining in
+        try await self.sendOnce(
+          method: method, url: url, headers: current, body: body, noRedirect: noRedirect,
+          budget: remaining, perCallTimeout: callTimeout,
+          sendDefaultHeaders: sendDefaultHeaders)
+      })
+  }
+
+  /// Sends a request and returns as soon as the response headers are
+  /// accepted, with the body not read yet. The retries, redirects and header
+  /// rules are those of ``sendRequest(method:url:headers:body:)``, up to the
+  /// headers; see ``sendStreaming(method:url:headers:body:timeout:maxRetries:idleTimeout:refreshHeaders:)``.
+  public func sendStreaming(
+    method: String, url: String, headers: [String: String], body: Any?,
+    timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+  ) async throws -> ApiStreamResponse {
+    return try await sendStreaming(
+      method: method, url: url, headers: headers, body: body, timeout: timeout,
+      maxRetries: maxRetries, idleTimeout: idleTimeout, refreshHeaders: nil)
+  }
+
+  /// Sends a request and returns as soon as the response headers are
+  /// accepted, with the body not read yet.
+  ///
+  /// The `timeout` (default: the transport's) is the one budget for the wait
+  /// for the headers, redirect hops and retries included, and stops there:
+  /// the body is not bounded by it. The `idleTimeout` bounds the gap between
+  /// two reads of the body. A request is retried as a buffered one is, but
+  /// never after the first body byte has been handed out. A status that is
+  /// not 2xx is returned with its body open, for the caller to read a bounded
+  /// part of and close.
+  ///
+  /// - Parameters:
+  ///   - method: The HTTP method of the request.
+  ///   - url: The absolute URL of the request.
+  ///   - headers: The request headers, before the defaults are applied.
+  ///   - body: The request body, or nil when there is none.
+  ///   - timeout: Per-call timeout in milliseconds up to the headers; nil keeps the transport's.
+  ///   - callRetries: Per-call retry limit; 0 turns retries off and nil keeps the transport's.
+  ///   - idleTimeout: The longest silence in the body in milliseconds; 0 turns
+  ///     the bound off and nil keeps the transport's.
+  ///   - refreshHeaders: Rebuilds the headers before each retry, or nil to reuse them.
+  /// - Returns: The status, the lower-cased headers and the open body.
+  public func sendStreaming(
+    method: String, url: String, headers: [String: String], body: Any?,
+    timeout: Int?, maxRetries callRetries: Int?, idleTimeout: Int?,
+    refreshHeaders: (@Sendable () async throws -> [String: String])?
+  ) async throws -> ApiStreamResponse {
+    /* A line break in a header value would start a header line of its own. */
+    for (name, value) in headers
+    where value.unicodeScalars.contains(where: { $0 == "\r" || $0 == "\n" }) {
+      throw ConfigurationError.invalidArgument(
+        "Header '\(name)' must not contain a carriage return or line feed")
+    }
+    /* The wait for the headers, retries included, counts as one request in
+       flight; the open stream is tracked on its own and cancelled by close(). */
+    guard lifecycle.enter() else {
+      throw DefaultApiClient.closedError
+    }
+    defer {
+      if lifecycle.leave() {
+        releaseTransport()
+      }
+    }
+    if let idle = idleTimeout, idle < 0 {
+      throw ConfigurationError.invalidArgument("idleTimeout must not be negative: \(idle)")
+    }
+    let idleMillis = idleTimeout ?? transportOptions.idleTimeout
+    let idle: TimeInterval? = idleMillis.flatMap { $0 > 0 ? TimeInterval($0) / 1000.0 : nil }
+    let limit = callRetries ?? transportOptions.maxRetries
+    let maxRetries = DefaultApiClient.isReplayable(body) ? limit : 0
+    let callTimeout: TimeInterval? = timeout.map { TimeInterval($0) / 1000.0 }
+    let total: TimeInterval? =
+      callTimeout ?? transportOptions.timeout.map { TimeInterval($0) / 1000.0 }
+    return try await withRetries(
+      method: method, headers: headers, maxRetries: maxRetries, total: total,
+      refreshHeaders: refreshHeaders,
+      statusCode: { $0.statusCode }, retryAfter: { $0.headers["retry-after"] },
+      discard: { $0.close() },
+      send: { current, remaining in
+        try await self.openStreamOnce(
+          method: method, url: url, headers: current, body: body, budget: remaining,
+          idle: idle)
+      })
+  }
+
+  /// One attempt of a stream call: sends the request, follows redirects and
+  /// returns once the final response headers are in.
+  private func openStreamOnce(
+    method: String, url: String, headers: [String: String], body: Any?,
+    budget: TimeInterval?, idle: TimeInterval?
+  ) async throws -> ApiStreamResponse {
+    let (request, _) = try buildRequest(
+      method: method, url: url, headers: headers, body: body, noRedirect: false,
+      sendDefaultHeaders: true, streaming: true, requestTimeout: StreamTransfer.noDeadline)
+
+    /* A session the SDK built is copied for the stream, with no deadline of
+       its own and the SDK's redirect rules, and is released when the stream
+       ends. A supplied session is used as it is, with the SDK's delegate on
+       the task. */
+    let policy: SessionDelegate
+    let transfer: StreamTransfer
+    let streamSession: URLSession
+    var built: URLSession?
+    if ownsSession {
+      let configuration = session.configuration
+      configuration.timeoutIntervalForRequest = StreamTransfer.noDeadline
+      configuration.timeoutIntervalForResource = StreamTransfer.noDeadline
+      policy = SessionDelegate(
+        verifySsl: transportOptions.verifySsl,
+        caCertPath: transportOptions.caCertPath,
+        followRedirects: transportOptions.followRedirects,
+        maxRedirects: transportOptions.maxRedirects,
+        proxyCredential: proxyCredential,
+        defaultHeaderNames: Array(transportOptions.defaultHeaders.keys)
+      )
+      transfer = StreamTransfer(policy: policy, idleTimeout: idle)
+      let created = URLSession(configuration: configuration, delegate: transfer, delegateQueue: nil)
+      built = created
+      streamSession = created
+    } else {
+      /* A supplied session always has the SDK's delegate (see init). */
+      policy =
+        sessionDelegate
+        ?? SessionDelegate(
+          verifySsl: true, caCertPath: nil, followRedirects: true, maxRedirects: nil)
+      transfer = StreamTransfer(policy: policy, idleTimeout: idle)
+      streamSession = session
+    }
+    let registry = openStreams
+    let invalidated = built
+    transfer.onEnd { [unowned transfer] in
+      registry.remove(transfer)
+      invalidated?.finishTasksAndInvalidate()
+    }
+
+    /* The call timeout covers the wait for the headers and stops there. */
+    let timer: Task<Void, Never>? = budget.map { seconds in
+      Task {
+        try? await Task.sleep(nanoseconds: UInt64(max(seconds, 0) * 1_000_000_000))
+        if !Task.isCancelled { transfer.expire() }
+      }
+    }
+    defer { timer?.cancel() }
+
+    let http: HTTPURLResponse
+    do {
+      var next = request
+      var followed = 0
+      while true {
+        let task = transfer.start(
+          next, in: streamSession, hops: followed, onTask: !ownsSession)
+        let received = try await transfer.awaitResponse()
+        if let refusal = policy.takeRedirectError(for: task) {
+          throw refusal
+        }
+        /* A redirect the delegate left for the caller to send (Linux,
+         * where a body cannot ride on the redirect URLSession follows). */
+        if let followUp = policy.takeFollowUp(for: task) {
+          transfer.discardCurrent()
+          next = followUp.request
+          followed = followUp.hops
+          continue
+        }
+        http = received
+        break
+      }
+    } catch let urlError as URLError {
+      transfer.abort(nil)
+      throw DefaultApiClient.transportError(urlError, requestURL: request.url)
+    } catch let cancellation as CancellationError {
+      transfer.abort(nil)
+      throw cancellation
+    } catch let apiError as ApiError {
+      transfer.abort(nil)
+      throw apiError
+    } catch {
+      transfer.abort(nil)
+      throw NetworkError(
+        statusCode: 0, message: error.localizedDescription, underlyingError: error)
+    }
+    timer?.cancel()
+
+    /* A client closed while the headers were coming cancels this stream too. */
+    guard openStreams.add(transfer) else {
+      transfer.abort(nil)
+      throw DefaultApiClient.closedError
+    }
+    let responseHeaders = DefaultApiClient.lowercasedHeaders(of: http)
+    transfer.commit()
+    return ApiStreamResponse(
+      statusCode: http.statusCode, headers: responseHeaders, body: transfer.takeStream(),
+      close: { transfer.abort(nil) }, control: transfer)
+  }
+
+  /// Runs `send` and sends it again after a retryable failure, within the one
+  /// end-to-end budget `total`; the response of the last attempt stands when
+  /// the retries are spent or the wait no longer fits.
+  ///
+  /// - Parameters:
+  ///   - statusCode: The status of a response, to tell a retryable one.
+  ///   - retryAfter: The `Retry-After` value of a response, if any.
+  ///   - discard: Releases a response that is retried instead of returned.
+  ///   - send: One attempt, given the headers and the budget left.
+  private func withRetries<R>(
+    method: String, headers: [String: String], maxRetries: Int, total: TimeInterval?,
+    refreshHeaders: (@Sendable () async throws -> [String: String])?,
+    statusCode: (R) -> Int, retryAfter: (R) -> String?, discard: (R) -> Void,
+    send: ([String: String], TimeInterval?) async throws -> R
+  ) async throws -> R {
+    let started = Date()
     var current = headers
     var attempt = 0
     while true {
       let remaining: TimeInterval? = total.map { $0 - Date().timeIntervalSince(started) }
       var delay: TimeInterval = 0
       var failure: Error?
-      var response: ApiHttpResponse?
+      var response: R?
       do {
-        let received = try await sendOnce(
-          method: method, url: url, headers: current, body: body, noRedirect: noRedirect,
-          budget: remaining, perCallTimeout: callTimeout,
-          sendDefaultHeaders: sendDefaultHeaders)
-        if attempt >= maxRetries || !DefaultApiClient.isRetryableStatus(received.statusCode) {
+        let received = try await send(current, remaining)
+        if attempt >= maxRetries || !DefaultApiClient.isRetryableStatus(statusCode(received)) {
           return received
         }
         response = received
         delay = DefaultApiClient.retryDelay(
-          attempt: attempt, retryAfter: received.headers["retry-after"])
+          attempt: attempt, retryAfter: retryAfter(received))
       } catch let error where DefaultApiClient.isRetryableError(error, method: method) {
         if attempt >= maxRetries { throw error }
         failure = error
@@ -411,6 +625,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         if let response = response { return response }
         throw failure ?? CancellationError()
       }
+      if let response = response { discard(response) }
       try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
       attempt += 1
       if let refresh = refreshHeaders {
@@ -489,83 +704,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
     budget: TimeInterval?, perCallTimeout: TimeInterval? = nil, sendDefaultHeaders: Bool = true
   ) async throws -> ApiHttpResponse {
-    guard let requestURL = URL(string: url),
-      let scheme = requestURL.scheme?.lowercased(),
-      scheme == "http" || scheme == "https"
-    else {
-      throw ConfigurationError.invalidArgument("malformed request URL: \(url)")
-    }
-
-    /* The token POST (noRedirect) goes to the identity provider, another
-     * origin: the caller's default headers (an API Authorization or key
-     * header) are not sent there. */
-    var merged = BaseApi.mergeHeaders(
-      noRedirect || !sendDefaultHeaders ? [:] : transportOptions.defaultHeaders,
-      overriding: headers)
-    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
-     * header in any case wins and nothing is injected beside it. */
-    func hasHeader(_ name: String) -> Bool {
-      merged.keys.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
-    }
-    if !hasHeader("User-Agent"), let ua = transportOptions.userAgent {
-      merged["User-Agent"] = ua
-    }
-    if !hasHeader("X-Request-ID") && transportOptions.injectRequestID {
-      merged["X-Request-ID"] = UUID().uuidString.lowercased()
-    }
-    /* Advertise only the codings this client can decode: gzip and deflate.
-     * An explicit Accept-Encoding stops URLSession from negotiating on its
-     * own, which also stops it adding br (and zstd) that the client cannot
-     * decode. Gzip bodies still carrying their magic bytes are inflated
-     * with zlib on Apple, and libcurl decodes the rest on Linux. A caller's
-     * own Accept-Encoding, in any case, is kept and the caller decodes. */
-    let advertisedEncoding = "gzip, deflate"
-    let callerManagedEncoding = hasHeader("Accept-Encoding")
-    if !callerManagedEncoding {
-      merged["Accept-Encoding"] = advertisedEncoding
-    }
-
-    var request = URLRequest(url: requestURL)
-    request.httpMethod = method
     /* A supplied session carries none of the SDK's timeouts (they are set
        on a session the SDK builds itself), so apply the timeout to the
        request. */
     let effectiveTimeout: TimeInterval? =
       budget ?? transportOptions.timeout.map { TimeInterval($0) / 1000.0 }
-    if !ownsSession || perCallTimeout != nil, let timeout = effectiveTimeout {
-      request.timeoutInterval = timeout
-    }
-
-    if let formParts = BaseApi.formFields(body) {
-      let boundary = UUID().uuidString
-      merged = BaseApi.mergeHeaders(
-        merged, overriding: ["Content-Type": "multipart/form-data; boundary=\(boundary)"])
-      request.httpBody = try DefaultApiClient.buildMultipartBody(
-        ordered: formParts, boundary: boundary)
-    } else if let data = body as? Data {
-      request.httpBody = data
-    } else if let text = body as? String {
-      /* A text body is sent as its UTF-8 bytes, the same on every attempt. */
-      request.httpBody = Data(text.utf8)
-    } else {
-      for name in merged.keys where name.caseInsensitiveCompare("Content-Type") == .orderedSame {
-        merged.removeValue(forKey: name)
-      }
-      /* Some servers / WAFs treat POST/PUT/PATCH with no body and
-         no Content-Length as malformed (411 Length Required) or
-         behave inconsistently. Attach an empty Data on body-bearing
-         verbs so URLSession emits an explicit `Content-Length: 0`,
-         matching Kotlin's `ByteArray(0)` and the other 11 SDKs. */
-      let upperMethod = method.uppercased()
-      if upperMethod == "POST" || upperMethod == "PUT" || upperMethod == "PATCH" {
-        request.httpBody = Data()
-        merged = BaseApi.mergeHeaders(merged, overriding: ["Content-Length": "0"])
-      }
-    }
-
-    for (k, v) in merged {
-      request.setValue(v, forHTTPHeaderField: k)
-    }
+    let (request, callerManagedEncoding) = try buildRequest(
+      method: method, url: url, headers: headers, body: body, noRedirect: noRedirect,
+      sendDefaultHeaders: sendDefaultHeaders, streaming: false,
+      requestTimeout: !ownsSession || perCallTimeout != nil ? effectiveTimeout : nil)
 
     var data: Data
     var response: URLResponse
@@ -762,6 +909,96 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       body: responseBody,
       headers: respHeaders
     )
+  }
+
+  /// Builds the request of one send: the headers merged in priority order,
+  /// the `User-Agent`, request id and `Accept-Encoding` rules, and the body.
+  ///
+  /// - Parameters:
+  ///   - streaming: True for a stream call, which asks for the response
+  ///     uncompressed (`Accept-Encoding: identity`) so that a body the server
+  ///     cuts short is told by its length, unless the caller set an
+  ///     `Accept-Encoding` of its own.
+  ///   - requestTimeout: The `timeoutInterval` of the request, or nil to leave it.
+  /// - Returns: The request, and whether the caller manages the encoding itself.
+  private func buildRequest(
+    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
+    sendDefaultHeaders: Bool, streaming: Bool, requestTimeout: TimeInterval?
+  ) throws -> (request: URLRequest, callerManagedEncoding: Bool) {
+    guard let requestURL = URL(string: url),
+      let scheme = requestURL.scheme?.lowercased(),
+      scheme == "http" || scheme == "https"
+    else {
+      throw ConfigurationError.invalidArgument("malformed request URL: \(url)")
+    }
+
+    /* The token POST (noRedirect) goes to the identity provider, another
+     * origin: the caller's default headers (an API Authorization or key
+     * header) are not sent there. */
+    var merged = BaseApi.mergeHeaders(
+      noRedirect || !sendDefaultHeaders ? [:] : transportOptions.defaultHeaders,
+      overriding: headers)
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
+     * header in any case wins and nothing is injected beside it. */
+    func hasHeader(_ name: String) -> Bool {
+      merged.keys.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+    }
+    if !hasHeader("User-Agent"), let ua = transportOptions.userAgent {
+      merged["User-Agent"] = ua
+    }
+    if !hasHeader("X-Request-ID") && transportOptions.injectRequestID {
+      merged["X-Request-ID"] = UUID().uuidString.lowercased()
+    }
+    /* Advertise only the codings this client can decode: gzip and deflate.
+     * An explicit Accept-Encoding stops URLSession from negotiating on its
+     * own, which also stops it adding br (and zstd) that the client cannot
+     * decode. Gzip bodies still carrying their magic bytes are inflated
+     * with zlib on Apple, and libcurl decodes the rest on Linux. A caller's
+     * own Accept-Encoding, in any case, is kept and the caller decodes. */
+    let advertisedEncoding = streaming ? "identity" : "gzip, deflate"
+    let callerManagedEncoding = hasHeader("Accept-Encoding")
+    if !callerManagedEncoding {
+      merged["Accept-Encoding"] = advertisedEncoding
+    }
+
+    var request = URLRequest(url: requestURL)
+    request.httpMethod = method
+    if let timeout = requestTimeout {
+      request.timeoutInterval = timeout
+    }
+
+    if let formParts = BaseApi.formFields(body) {
+      let boundary = UUID().uuidString
+      merged = BaseApi.mergeHeaders(
+        merged, overriding: ["Content-Type": "multipart/form-data; boundary=\(boundary)"])
+      request.httpBody = try DefaultApiClient.buildMultipartBody(
+        ordered: formParts, boundary: boundary)
+    } else if let data = body as? Data {
+      request.httpBody = data
+    } else if let text = body as? String {
+      /* A text body is sent as its UTF-8 bytes, the same on every attempt. */
+      request.httpBody = Data(text.utf8)
+    } else {
+      for name in merged.keys where name.caseInsensitiveCompare("Content-Type") == .orderedSame {
+        merged.removeValue(forKey: name)
+      }
+      /* Some servers / WAFs treat POST/PUT/PATCH with no body and
+         no Content-Length as malformed (411 Length Required) or
+         behave inconsistently. Attach an empty Data on body-bearing
+         verbs so URLSession emits an explicit `Content-Length: 0`,
+         matching Kotlin's `ByteArray(0)` and the other 11 SDKs. */
+      let upperMethod = method.uppercased()
+      if upperMethod == "POST" || upperMethod == "PUT" || upperMethod == "PATCH" {
+        request.httpBody = Data()
+        merged = BaseApi.mergeHeaders(merged, overriding: ["Content-Length": "0"])
+      }
+    }
+
+    for (k, v) in merged {
+      request.setValue(v, forHTTPHeaderField: k)
+    }
+
+    return (request, callerManagedEncoding)
   }
 
   /// Builds a multipart/form-data request body from a dictionary of form fields.
@@ -1412,12 +1649,17 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// invalidation exception. A request already in flight finishes, retries
   /// and token refreshes included, and the URLSession the SDK built is
   /// released (`finishTasksAndInvalidate()`) when the last of them ends, or
-  /// at once when none is running. A second call does nothing. A session
+  /// at once when none is running. A stream that is still open is cancelled:
+  /// its next read throws the same error. A second call does nothing. A session
   /// supplied through ``TransportOptionsBuilder/session(_:)`` belongs to the
   /// caller and is left untouched.
   public func close() {
+    let streams = openStreams.closeAll()
     if lifecycle.close() {
       releaseTransport()
+    }
+    for stream in streams {
+      stream.abort(DefaultApiClient.closedError)
     }
   }
 
