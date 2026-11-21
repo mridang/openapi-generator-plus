@@ -1,0 +1,46 @@
+{{>api_info}}
+
+use std::fmt;
+
+use crate::errors::network_error::NetworkError;
+
+/// Error for a response body that failed after the response headers had arrived:
+/// a connection reset, or a body that ends before its declared `Content-Length`.
+/// It is a [`NetworkError`] (status 0) and keeps the transport error as the
+/// source. A stall longer than the `idle_timeout` is a
+/// [`NetworkTimeoutError`](crate::errors::NetworkTimeoutError) instead.
+#[derive(Debug, Clone)]
+pub struct StreamError {
+    network_error: NetworkError,
+}
+
+impl StreamError {
+    /// Returns the underlying [`NetworkError`].
+    pub fn network_error(&self) -> &NetworkError {
+        &self.network_error
+    }
+
+    /// Records the request this error belongs to on the wrapped error.
+    pub(crate) fn with_request(mut self, method: &str, path: &str) -> Self {
+        self.network_error = self.network_error.with_request(method, path);
+        self
+    }
+}
+
+impl fmt::Display for StreamError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.network_error.api_error(), f)
+    }
+}
+
+impl std::error::Error for StreamError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.network_error)
+    }
+}
+
+impl From<NetworkError> for StreamError {
+    fn from(network_error: NetworkError) -> Self {
+        Self { network_error }
+    }
+}

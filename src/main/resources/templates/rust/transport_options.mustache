@@ -96,6 +96,15 @@ pub struct TransportOptions {
     /// 60 s) replaces it. The retries share the end-to-end `timeout`, and a
     /// request with a multipart body is never retried. Defaults to 2.
     max_retries: u32,
+
+    /// The longest a streamed response body may stay silent, in milliseconds.
+    ///
+    /// Applies only to a call that returns a stream (a binary operation): the
+    /// `timeout` stops at the response headers, and this value bounds the gap
+    /// between two reads of the body. A stalled body fails with
+    /// `NetworkTimeoutError`. A buffered call is unaffected. `None` disables
+    /// it; defaults to 60000.
+    idle_timeout: Option<i64>,
 }
 
 /// Returns `true` when a header name denotes a credential whose value must
@@ -166,6 +175,7 @@ impl std::fmt::Debug for TransportOptions {
             .field("default_headers", &redact_headers(&self.default_headers))
             .field("inject_request_id", &self.inject_request_id)
             .field("max_retries", &self.max_retries)
+            .field("idle_timeout", &self.idle_timeout)
             .finish()
     }
 }
@@ -230,6 +240,14 @@ impl TransportOptions {
     pub fn max_retries(&self) -> u32 {
         self.max_retries
     }
+
+    /// The longest a streamed response body may stay silent, in milliseconds,
+    /// or `None` when it is disabled (default `Some(60000)`). The `timeout`
+    /// stops at the response headers of a stream call; this value bounds the
+    /// gap between two reads of the body.
+    pub fn idle_timeout(&self) -> Option<i64> {
+        self.idle_timeout
+    }
 }
 
 /// Builder for creating immutable [`TransportOptions`] instances.
@@ -240,6 +258,7 @@ impl TransportOptions {
 /// - `inject_request_id`: `false`
 /// - `max_retries`: `2`
 /// - `timeout`: `10000` (10 seconds)
+/// - `idle_timeout`: `60000` (60 seconds)
 /// - `user_agent`: a package-specific default string
 /// - all other fields: `None` or empty
 pub struct TransportOptionsBuilder {
@@ -254,6 +273,7 @@ pub struct TransportOptionsBuilder {
     default_headers: HashMap<String, String>,
     inject_request_id: bool,
     max_retries: u32,
+    idle_timeout: Option<i64>,
 }
 
 impl TransportOptionsBuilder {
@@ -274,6 +294,7 @@ impl TransportOptionsBuilder {
             default_headers: HashMap::new(),
             inject_request_id: false,
             max_retries: 2,
+            idle_timeout: Some(60_000),
         }
     }
 
@@ -388,6 +409,15 @@ impl TransportOptionsBuilder {
         self
     }
 
+    /// Sets the longest a streamed response body may stay silent, in
+    /// milliseconds; `Some(0)` or `None` disables it. The default is
+    /// `Some(60000)`. A negative value is reported by [`build`](Self::build) as
+    /// [`ConfigurationError::InvalidArgument`].
+    pub fn idle_timeout(mut self, val: Option<i64>) -> Self {
+        self.idle_timeout = val;
+        self
+    }
+
     /// Validates the configuration and builds an immutable [`TransportOptions`]
     /// instance.
     ///
@@ -396,7 +426,8 @@ impl TransportOptionsBuilder {
     /// Returns [`ConfigurationError::InvalidProxy`] when the proxy URL is
     /// invalid, [`ConfigurationError::InvalidCaCertificate`] when the CA
     /// certificate file cannot be read or parsed, and
-    /// [`ConfigurationError::InvalidTimeout`] when the timeout is zero or negative.
+    /// [`ConfigurationError::InvalidTimeout`] when the timeout is zero or negative,
+    /// and [`ConfigurationError::InvalidArgument`] when the idle timeout is negative.
     pub fn build(self) -> Result<TransportOptions, ConfigurationError> {
         if let Some(e) = self.proxy_error {
             return Err(e);
@@ -404,6 +435,14 @@ impl TransportOptionsBuilder {
         if let Some(ms) = self.timeout {
             if ms <= 0 {
                 return Err(ConfigurationError::InvalidTimeout(ms));
+            }
+        }
+        if let Some(ms) = self.idle_timeout {
+            if ms < 0 {
+                return Err(ConfigurationError::InvalidArgument(format!(
+                    "Invalid idle_timeout: must not be negative (got {})",
+                    ms
+                )));
             }
         }
         let ca_cert_pem = match &self.ca_cert_path {
@@ -452,6 +491,7 @@ impl TransportOptionsBuilder {
             default_headers: self.default_headers,
             inject_request_id: self.inject_request_id,
             max_retries: self.max_retries,
+            idle_timeout: self.idle_timeout.filter(|ms| *ms > 0),
         }
     }
 }
@@ -512,7 +552,7 @@ fn is_der_sequence(der: &[u8]) -> bool {
 
 impl Default for TransportOptions {
     /// The options a `None` argument stands for. The defaults configure no
-    /// proxy, no CA bundle and a positive timeout, so they need no validation.
+    /// proxy, no CA bundle a positive timeout and a positive idle timeout, so they need no validation.
     fn default() -> Self {
         TransportOptionsBuilder::new().assemble(None)
     }

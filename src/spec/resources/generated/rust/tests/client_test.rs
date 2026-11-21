@@ -13,6 +13,7 @@ use petstore::api::options::*;
 use petstore::api::*;
 use petstore::models::*;
 use petstore::ApiResult;
+use petstore::ByteStream;
 use petstore::Client;
 use petstore::ClientTrait;
 
@@ -614,7 +615,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document({:?},{:?}, options={})",
             pet_id,
@@ -630,7 +631,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document_with_http_info({:?},{:?}, options={})",
@@ -759,7 +760,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar({:?}, options={})",
             pet_id,
@@ -773,7 +774,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar_with_http_info({:?}, options={})",
@@ -928,7 +929,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo({:?},{:?}, options={})",
             pet_id,
@@ -944,7 +945,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo_with_http_info({:?},{:?}, options={})",
