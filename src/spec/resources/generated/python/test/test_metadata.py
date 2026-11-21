@@ -384,7 +384,7 @@ class TestReadmeAndSkillsText:
         ):
             assert readme.index(heading) < not_supported
         assert "Unknown enum values decode to the catch-all member" in readme
-        assert "Streaming is not supported" in readme
+        assert "Streaming is not supported" not in readme
         assert "stay separate objects" in readme
 
     def test_bhv_lang_python_094_readme_not_supported_lists_xml_links_and_mutual_tls(

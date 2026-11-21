@@ -325,6 +325,27 @@ def make_transport() -> TransportOptions:
 
 A 401 on a call made with an OAuth2 or OpenID Connect authenticator drops the cached access token (the refresh token is kept) and sends the call once more with fresh headers; a second 401 raises `UnauthorizedException`. `authenticator.invalidate_access_token()` does it by hand. The authorization-code flow adds a PKCE `S256` challenge to the URL from `build_authorization_url()` and sends the verifier in `exchange_code()`, so use the same authenticator for both.
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`async with`). `read_all()` reads the rest into memory and leaves the stream closed.
+
+```python file
+from pathlib import Path
+
+from pydantic import StrictInt
+from petstore_client.client import Client
+
+async def save_to(client: Client, pet_id: StrictInt, document_id: StrictInt, target: Path) -> None:
+    stream = await client.pet.download_pet_document(pet_id, document_id)
+    async with stream:
+        print(stream.status_code)
+        with target.open('wb') as file:
+            async for chunk in stream:
+                file.write(chunk)
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `None` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `NotImplementedError` naming it, and its buffered calls keep working.
+
 ### Custom HTTP client
 
 ```python file
@@ -364,7 +385,7 @@ def close(client: Client) -> None:
     client.close()
 ```
 
-`client.close()` is graceful and safe to call again: calls already in flight finish, the transport the SDK created is released when the last of them completes, and a call started afterwards raises `RuntimeError`. It never closes a pool manager you supplied.
+`client.close()` is graceful and safe to call again: calls already in flight finish, the transport the SDK created is released when the last of them completes, and a call started afterwards raises `RuntimeError`. Streams that are still open are cancelled. It never closes a pool manager you supplied.
 
 ### Cookie parameters
 
@@ -399,7 +420,7 @@ Required fields must be passed to the constructor; a missing one raises `TypeErr
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `bytes`. Binary response bodies are returned as `bytes`.
+File upload parameters are typed as `bytes`. A binary response body is returned as a `ByteStream`, an async iterator of `bytes` (see Streaming).
 
 ## Comment Style
 

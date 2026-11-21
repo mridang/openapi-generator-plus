@@ -19,6 +19,7 @@ __all__ = [
     "Client",
     "ClientProtocol",
     "ApiClient",
+    "ByteStream",
     "Configuration",
     "CallHook",
     "CallObserver",
@@ -53,6 +54,7 @@ __all__ = [
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",
+    "StreamException",
     "SerializationException",
     "OAuth2ServerException",
     "OAuth2TokenException",
@@ -134,6 +136,7 @@ from petstore_client.api.store_api import StoreApiProtocol as StoreApiProtocol
 
 # import ApiClient
 from petstore_client.api_client import ApiClient as ApiClient
+from petstore_client.byte_stream import ByteStream as ByteStream
 from petstore_client.auth.authenticator import Authenticator as Authenticator
 from petstore_client.client import Client as Client
 from petstore_client.client import ClientProtocol as ClientProtocol
@@ -183,6 +186,7 @@ from petstore_client.errors import (
 )
 from petstore_client.errors import NetworkException as NetworkException
 from petstore_client.errors import NetworkTimeoutException as NetworkTimeoutException
+from petstore_client.errors import StreamException as StreamException
 from petstore_client.errors import SerializationException as SerializationException
 from petstore_client.errors import OAuth2ServerException as OAuth2ServerException
 from petstore_client.errors import OAuth2TokenException as OAuth2TokenException
