@@ -88,12 +88,16 @@ class SseStream(Generic[T]):
         path: str,
         first: ByteStream,
         last_event_id: str,
+        single_use_body: bool = False,
     ) -> None:
         self._opener = opener
         self._decoder = decoder
         self._terminator = terminator
+        # A single use body has been read to its end, so a reconnect has nothing to send.
         self._max_reconnects = (
-            options.max_reconnects if options.max_reconnects is not None else (0 if has_body else 5)
+            0
+            if single_use_body
+            else (options.max_reconnects if options.max_reconnects is not None else (0 if has_body else 5))
         )
         self._reconnect_delay = options.reconnect_delay if options.reconnect_delay is not None else 1000
         self._max_event_bytes = options.max_event_bytes if options.max_event_bytes is not None else 1024 * 1024
@@ -117,6 +121,7 @@ class SseStream(Generic[T]):
         has_body: bool,
         method: str,
         path: str,
+        single_use_body: bool = False,
     ) -> 'SseStream[T]':
         """Open the first connection of an event stream; a failure of that request is raised here.
 
@@ -129,11 +134,15 @@ class SseStream(Generic[T]):
             has_body: Whether the request has a body, which turns reconnecting off by default.
             method: The HTTP method, for errors.
             path: The request path, for errors.
+            single_use_body: Whether the body can be sent only once, which turns reconnecting off
+                whatever the options say.
         """
         given = options if options is not None else StreamOptions()
         last_event_id = given.last_event_id or ''
         first = await cls._connect_to(opener, last_event_id, method, path)
-        return cls(opener, decoder, terminator, given, has_body, method, path, first, last_event_id)
+        return cls(
+            opener, decoder, terminator, given, has_body, method, path, first, last_event_id, single_use_body
+        )
 
     @property
     def status_code(self) -> int:

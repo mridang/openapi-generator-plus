@@ -32,7 +32,9 @@ class ApiClient(Protocol):
         :param method: HTTP method (GET, POST, PUT, DELETE, etc.)
         :param url: Fully qualified URL
         :param headers: HTTP headers
-        :param body: Request body (serialized JSON string, bytes, dict for multipart, or None)
+        :param body: Request body (serialized JSON string, bytes, dict for multipart, a :class:`BodySource`, or None).
+            A body source is read with ``body.open()`` as it is sent, never buffered; ``body.replayable`` says
+            whether a redirect may send it again
         :param no_redirect: When ``True``, the implementation must NOT follow
             any redirect on this request and must return the first 3xx
             response verbatim so the caller can inspect and reject it itself;
@@ -84,7 +86,9 @@ class StreamingApiClient(Protocol):
         :param method: HTTP method (GET, POST, PUT, DELETE, etc.)
         :param url: Fully qualified URL
         :param headers: HTTP headers
-        :param body: Request body (serialized JSON string, bytes, dict for multipart, or None)
+        :param body: Request body (serialized JSON string, bytes, dict for multipart, a :class:`BodySource`, or None).
+            A body source is read with ``body.open()`` as it is sent, never buffered; ``body.replayable`` says
+            whether a redirect may send it again
         :param idle_timeout: The longest silence in the body in milliseconds, ``0`` to
             disable it, or ``None`` for the transport's setting
         :return: ApiStreamResponse with the status code, the lower-cased headers and the open body

@@ -807,6 +807,18 @@ class TestMocking:
         assert "get_pet_tag_with_http_info" in pet_listed
         assert "get_staging_pet_info" in pet_listed
         assert "get_staging_pet_info_with_http_info" in pet_listed
+        assert "list_pet_archive" in pet_listed
+        assert "list_pet_archive_with_http_info" in pet_listed
+        assert "list_pet_catalog" in pet_listed
+        assert "list_pet_catalog_with_http_info" in pet_listed
+        assert "list_pet_events" in pet_listed
+        assert "list_pet_events_with_http_info" in pet_listed
+        assert "list_pet_feed" in pet_listed
+        assert "list_pet_feed_with_http_info" in pet_listed
+        assert "list_pet_matches" in pet_listed
+        assert "list_pet_matches_with_http_info" in pet_listed
+        assert "list_pet_notes" in pet_listed
+        assert "list_pet_notes_with_http_info" in pet_listed
         assert "set_pet_avatar" in pet_listed
         assert "set_pet_avatar_with_http_info" in pet_listed
         assert "set_pet_avatar_thumbnail" in pet_listed

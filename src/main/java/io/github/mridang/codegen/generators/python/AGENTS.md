@@ -25,6 +25,7 @@ This generator emits a Python client package: pydantic v2 models, an `async` ope
 | `errors.mustache`, `errors/*.mustache` | `ApiError` hierarchy, OAuth2 errors, header rendering, `ErrorFactory`, `is_retryable`, `request_id`; `errors/schema_exception.mustache` renders one class per declared error schema (issue 123) | error classes and messages |
 | `auth/*.mustache`, `auth/oauth/*.mustache` | authenticators, token manager, OIDC | auth behaviour |
 | `server_configuration.mustache`, `servers.mustache` | server list and variables | server constants |
+| `body_source.mustache` | `BodySource` (a raw binary request body, replayable or single use) and `OpenedBody` (one send of it) | uploads |
 | `byte_stream.mustache`, `api_stream_response.mustache`, `errors/stream_exception.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body) and `StreamBody` (its Protocol), `StreamException` | streaming types |
 | `readme.mustache`, `skills*.mustache`, `pyproject_toml.mustache`, `makefile.mustache` | README, SKILLS.md, manifest, Makefile (`typecheck`, `docs`) | docs, dependencies, ruff and mypy config |
 | `test/*.mustache`, `test/*.py` | the tests shipped inside the generated SDK | generated test files (add rows to the existing mirror file) |
@@ -48,6 +49,7 @@ This generator emits a Python client package: pydantic v2 models, an `async` ope
 | Transport injection | a trailing `pool_manager` argument on `DefaultApiClient` and `Client` | urllib3 pool manager is the transport object |
 | Streaming transport | a second `runtime_checkable` Protocol `StreamingApiClient` (`send_streaming`), checked with `isinstance` at call time; the unsupported error is `NotImplementedError` naming the transport | a Protocol that a transport matches structurally cannot hand it a default method, so the default is the check (D118: second interface where defaults cannot exist) |
 | Binary response | `ByteStream`, an async context manager and async iterator of `bytes` with `read(n)`, `read_all()` and an idempotent sync `close()` | Python has no `InputStream`; the SDK is async-first, so the carrier is async (D119) |
+| Binary request | `BodySource` (`of`, `of_file`, `from_factory`, `once`), sent as it is read from the worker thread; the constructors take bytes, binary file objects, iterables of `bytes` and async iterables of `bytes` | an upload must never be buffered; the SDK is async-first, so an async source is read on the loop of the call through `run_coroutine_threadsafe` (D121) |
 | Optional codecs | `brotli` and `zstandard` are imported behind `try/except ImportError` and advertised only when installed | keeps the mandatory dependency set small (FD-compression) |
 
 ## Settled decisions (do not re-open in review)
@@ -512,6 +514,19 @@ Test: `test_event_stream.mustache` (the one mirror file: `streaming002` to `005`
 Rule: `SseStream.open` awaits the first request (its failure is raised from the operation method) and checks the answer; each reconnect is `opener(last_event_id)`, which `BaseApi` implements as a fresh `_invoke_api_for_stream` (so the headers and the credential are built again and the call hook runs again) with `Last-Event-ID` added only when the id is not empty. A clean end counts as a failure against `max_reconnects` (`StreamException` when exhausted; `0` ends quietly). The wait is the server `retry`, else `Retry-After` of a 429, 502, 503 or 504, else `reconnect_delay` doubling to 30 s with up to 25% jitter, computed by the pure `reconnect_wait_millis` that the tests call without sleeping. `ByteStream` closed by the caller reads as `ValueError`, which ends the stream quietly; the closed-client `RuntimeError` is never retried. The idle timeout of `StreamOptions` is passed to `send_streaming`, so a stall is a `NetworkTimeoutException` and reconnects. A `DecodeError` of a compressed body is an `ApiException` with the real status, never a `StreamException`.
 Where: `sse_stream.mustache`, `base_api.mustache`, `default_api_client.mustache`.
 Test: `test_event_stream.mustache`, `TestEventStreams`.
+
+## Streaming: uploads (capability 3 of #114, D121)
+
+### BodySource
+Rule: `BetterPythonCodegen.markBinaryUpload` (run before the shared pass, which copies the body type into `signatureArgs`) types a raw binary request body (`bodyParam.isBinary`, not multipart, no form parameters) as `BodySource` in the operation, `_with_http_info` and the `Protocol`, and adds `from <pkg>.body_source import BodySource` to the api file; every other body kind keeps its type. `BodySource` is replayable (`of`, `of_file`, `from_factory`) or single use (`once`); a known length is a `Content-Length` and an unknown one is chunked; `open()` returns an `OpenedBody`, an iterator of `bytes` with `close()`, which closes what the SDK opened (a file, a factory's stream) and never a stream passed to `once`. A single-use source opens once; a second `open()` raises `RuntimeError`. `repr` shows the kind and the length, never the content or the path.
+Why: a large upload must not have to fit in memory, and a retry must know whether there is anything left to send.
+Where: `body_source.mustache`, `api/api.mustache` (through the type), `BetterPythonCodegen`, `__init__.mustache`.
+Test: `TestUploadTransport` in `test_default_api_client_unit.mustache` (`streaming023`, `024`, `025`, `027`), `test_pet_api.mustache` (the avatar rows send a `BodySource`).
+
+### Sending, retrying and redirecting
+Rule: `DefaultApiClient._open` sets `Content-Length` from `BodySource.length` (and removes the caller's framing headers), hands urllib3 an iterator of `bytes` (`BodySource._wire`: in-memory and empty bodies go as `bytes`; the iterator is checked against the declared length), opens the source again for every redirect hop that keeps the body, closes everything it opened when the send ends, and refuses a 307 or 308 (any hop that keeps the method) for a single-use source with `ApiException` `Refusing to replay a streamed request body`. `BaseApi` treats a replayable source like bytes (retries, 401 replay) and a single-use one like a stream (never retried, the original error is raised, no 401 replay), binds the running loop to a source before sending so a worker thread can read an async iterable, and passes `single_use_body` to `SseStream.open`, which then never reconnects.
+Where: `default_api_client.mustache` (`_open`, `_wire_body`, `_follow_redirects`), `base_api.mustache` (`_is_replayable`, `_send_under_policy`, `_invoke_api_for_sse`), `sse_stream.mustache`.
+Test: `streaming026` and `retries045` in `test_base_api.mustache` (`TestAutomaticRetries`, `TestUnauthorizedReplay`), `sse016` in `test_event_stream.mustache`. The `retries045` exception line is gone: Python now has a streamed request body.
 
 ## Compiled examples (#111)
 

@@ -234,6 +234,35 @@ class RawConnection:
         self.hit = hit
         self.request_head = request_head
 
+    def upload(self, on_first=None):
+        """Read the request body that follows the head and return ``(data, chunked)``.
+
+        A chunked body is read chunk by chunk and one with a Content-Length to its end.
+        ``on_first`` runs once the first bytes have arrived, while the rest is still to come.
+        """
+        lower = self.request_head.lower()
+        reader = self.sock.makefile("rb")
+        received = b""
+        if "transfer-encoding: chunked" in lower:
+            while True:
+                size = reader.readline().strip()
+                if not size:
+                    return received, True
+                length = int(size, 16)
+                if length == 0:
+                    reader.readline()
+                    return received, True
+                received += reader.read(length)
+                reader.readline()
+                if on_first is not None:
+                    on_first()
+        for line in lower.split("\r\n"):
+            if line.startswith("content-length:"):
+                received = reader.read(int(line.split(":", 1)[1]))
+        if on_first is not None:
+            on_first()
+        return received, False
+
     def head(self, status, *headers):
         lines = [f"HTTP/1.1 {status} Test", *headers, "Connection: close", "", ""]
         self.sock.sendall("\r\n".join(lines).encode("latin-1"))

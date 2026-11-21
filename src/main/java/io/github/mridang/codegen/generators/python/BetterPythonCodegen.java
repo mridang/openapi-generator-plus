@@ -434,6 +434,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             op.consumes != null && op.consumes.size() > 1;
                     op.vendorExtensions.put(
                             "hasMultipleConsumes", hasMultipleConsumes);
+                    markBinaryUpload(op);
                     for (final CodegenParameter param : op.allParams) {
                         if (param.isDate) {
                             scalarImports.add("from datetime import date");
@@ -468,6 +469,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         }
         if (hasBinaryStream(operations)) {
             scalarImports.add("from " + packageName + ".byte_stream import ByteStream");
+        }
+        if (hasBinaryUpload(operations)) {
+            scalarImports.add("from " + packageName + ".body_source import BodySource");
         }
         if (hasStream(operations, "streamsSse")) {
             scalarImports.add("from " + packageName + ".sse_stream import SseStream");
@@ -504,6 +508,49 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             }
         }
         return processed;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of {@code bytes}. It runs before the shared pass, which copies the body
+     * type into the signature arguments. Multipart and every other body kind keep the type the
+     * spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
+        op.vendorExtensions.put("uploadsBodySource", true);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean hasBinaryUpload(@Nullable final Map<String, Object> operations) {
+        if (operations == null || !(operations.get("operation") instanceof List)) {
+            return false;
+        }
+        for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+            if (op.vendorExtensions != null
+                    && Boolean.TRUE.equals(op.vendorExtensions.get("uploadsBodySource"))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -844,6 +891,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("api_response.mustache", packagePath, "api_http_response.py"),
             new SupportingFileSpec("api_result.mustache", packagePath, "api_result.py"),
             new SupportingFileSpec("api_stream_response.mustache", packagePath, "api_stream_response.py"),
+            new SupportingFileSpec("body_source.mustache", packagePath, "body_source.py"),
             new SupportingFileSpec("byte_stream.mustache", packagePath, "byte_stream.py"),
             new SupportingFileSpec("event_stream.mustache", packagePath, "event_stream.py"),
             new SupportingFileSpec("server_sent_event.mustache", packagePath, "server_sent_event.py"),

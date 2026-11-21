@@ -1,6 +1,8 @@
 import asyncio
 import gzip
+import io
 import json
+import threading
 import time
 import zlib
 from email.utils import formatdate
@@ -22,6 +24,7 @@ from petstore_client.default_api_client import (
     _sanitize_multipart_field_name,
     _sanitize_multipart_filename,
 )
+from petstore_client.body_source import BodySource
 from petstore_client.byte_stream import ByteStream
 from petstore_client.json_lines_stream import JsonLinesStream
 from petstore_client.sse_stream import SseStream
@@ -4188,3 +4191,191 @@ class TestEventStreamTransport:
 
 async def _data_of(stream: Any) -> list[Any]:
     return [event.data async for event in stream]
+
+
+def _patterned(size: int) -> bytes:
+    return bytes((index * 31 + 7) % 256 for index in range(size))
+
+
+class _CountingStream(io.BytesIO):
+    """A stream that counts its closes."""
+
+    def __init__(self, data: bytes) -> None:
+        super().__init__(data)
+        self.closes = 0
+
+    def close(self) -> None:
+        self.closes += 1
+        super().close()
+
+
+async def _upload(
+    server: Any, body: Any, path: str = "/items/blob", method: str = "PUT"
+) -> Any:
+    client = DefaultApiClient(TransportOptions.builder().max_retries(0).build())
+    return await asyncio.to_thread(
+        client.send_request, method, server.url(path), {}, body
+    )
+
+
+def _receiving(seen: list[Any], on_first: Any = None, status: int = 200) -> Any:
+    def script(connection: Any) -> None:
+        seen.append(connection.upload(on_first))
+        connection.head(status, "Content-Length: 0")
+
+    return script
+
+
+class TestUploadTransport:
+    async def test_bhv_streaming_023_a_streamed_upload_of_unknown_length_is_sent_chunked_and_arrives_intact(
+        self, raw_server: Any
+    ) -> None:
+        data = _patterned(300_000)
+        first_seen = threading.Event()
+        seen: list[Any] = []
+        server = raw_server(_receiving(seen, first_seen.set))
+
+        def gated() -> Any:
+            half = len(data) // 2
+            for start in range(0, half, 4096):
+                yield data[start : min(start + 4096, half)]
+            # The second half is not readable until the server has the first, so a client that
+            # buffered the stream before sending would wait here for good.
+            assert first_seen.wait(15), "the first half never reached the server"
+            for start in range(half, len(data), 4096):
+                yield data[start : start + 4096]
+
+        response = await _upload(server, BodySource.once(gated()))
+        assert response.status_code == 200
+        head = server.heads[0].lower()
+        assert "transfer-encoding: chunked" in head, "an unknown length is chunked"
+        assert "content-length" not in head
+        assert seen[0] == (data, True), "every byte arrived in order"
+
+        seen.clear()
+        server.heads.clear()
+        await _upload(server, BodySource.from_factory(lambda: io.BytesIO(data)))
+        assert "transfer-encoding: chunked" in server.heads[0].lower()
+        assert seen[0] == (data, True)
+
+        async def feed() -> Any:
+            for start in range(0, len(data), 50_000):
+                await asyncio.sleep(0)
+                yield data[start : start + 50_000]
+
+        seen.clear()
+        server.heads.clear()
+        source = BodySource.from_factory(feed)
+        source._bind_loop(asyncio.get_running_loop())
+        await _upload(server, source)
+        assert "transfer-encoding: chunked" in server.heads[0].lower()
+        assert seen[0] == (data, True), (
+            "an async source is read on the loop of the call"
+        )
+
+    async def test_bhv_streaming_024_a_streamed_upload_with_a_known_length_sends_content_length(
+        self, raw_server: Any, tmp_path: Any
+    ) -> None:
+        data = _patterned(100_000)
+        file = tmp_path / "upload.bin"
+        file.write_bytes(data)
+        seen: list[Any] = []
+        server = raw_server(_receiving(seen))
+        sources = [
+            BodySource.of(data),
+            BodySource.of_file(file),
+            BodySource.from_factory(lambda: io.BytesIO(data), len(data)),
+            BodySource.once(io.BytesIO(data), len(data)),
+        ]
+        for source in sources:
+            assert (await _upload(server, source)).status_code == 200
+        assert len(seen) == len(sources)
+        for index, source in enumerate(sources):
+            head = server.heads[index].lower()
+            assert f"content-length: {len(data)}" in head, f"source {index}"
+            assert "transfer-encoding" not in head, f"source {index} is not chunked"
+            assert seen[index] == (data, False), f"source {index}"
+        assert str(sources[0]) == "BodySource[bytes, 100000 bytes]"
+        assert repr(sources[1]) == "BodySource[file, 100000 bytes]"
+        assert str(file) not in repr(sources[1]), "the path is never shown"
+        assert str(sources[3]) == "BodySource[single use, 100000 bytes]"
+        assert (
+            str(BodySource.from_factory(lambda: io.BytesIO(data)))
+            == "BodySource[factory, length unknown]"
+        )
+        with pytest.raises(ValueError):
+            BodySource.once(io.BytesIO(data), -1)
+        empty = raw_server(_receiving(seen))
+        seen.clear()
+        assert (await _upload(empty, BodySource.of(b""))).status_code == 200
+        assert "content-length: 0" in empty.heads[0].lower()
+
+    async def test_bhv_streaming_025_a_caller_supplied_upload_stream_is_never_closed_by_the_sdk(
+        self, raw_server: Any
+    ) -> None:
+        seen: list[Any] = []
+        server = raw_server(_receiving(seen))
+        callers = _CountingStream(_patterned(5000))
+        assert (await _upload(server, BodySource.once(callers))).status_code == 200
+        assert callers.closes == 0, "the stream is read to its end and left open"
+        assert callers.tell() == 5000
+
+        refusing = raw_server(_receiving(seen, status=503))
+        refused = _CountingStream(_patterned(5000))
+        assert (await _upload(refusing, BodySource.once(refused))).status_code == 503
+        assert refused.closes == 0, "an error does not close it either"
+
+        opened: list[_CountingStream] = []
+
+        def factory() -> _CountingStream:
+            stream = _CountingStream(_patterned(5000))
+            opened.append(stream)
+            return stream
+
+        await _upload(server, BodySource.from_factory(factory))
+        assert opened, "the factory was called"
+        assert all(stream.closes >= 1 for stream in opened), (
+            "what the SDK opened itself is closed by it"
+        )
+
+        with pytest.raises(RuntimeError):
+            single = BodySource.once(io.BytesIO(b"x"))
+            single.open()
+            single.open()
+
+    async def test_bhv_streaming_027_a_307_or_308_with_a_single_use_upload_is_refused_and_the_body_is_never_buffered(
+        self, raw_server: Any
+    ) -> None:
+        data = _patterned(20_000)
+        for status in (307, 308):
+            landed: list[Any] = []
+            target = raw_server(_receiving(landed))
+
+            def redirect(
+                connection: Any, status: int = status, target: Any = target
+            ) -> None:
+                connection.upload()
+                connection.head(
+                    status,
+                    f"Location: {target.url('/items/final')}",
+                    "Content-Length: 0",
+                )
+
+            origin = raw_server(redirect)
+            once = _CountingStream(data)
+            with pytest.raises(ApiException) as refused:
+                await _upload(origin, BodySource.once(once))
+            assert "Refusing to replay a streamed request body" in str(refused.value)
+            assert refused.value.status_code == status
+            assert target.hits == 0, f"{status}: nothing was sent to the new location"
+            assert origin.hits == 1
+            assert once.tell() == len(data), "the stream was read once, as it was sent"
+            assert once.closes == 0
+
+            followed = await _upload(
+                origin, BodySource.from_factory(lambda: io.BytesIO(data))
+            )
+            assert followed.status_code == 200, (
+                f"{status}: a replayable body follows it"
+            )
+            assert landed == [(data, True)]

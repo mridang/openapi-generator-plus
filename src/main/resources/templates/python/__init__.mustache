@@ -9,6 +9,7 @@ __all__ = [
     '{{clientClassName}}',
     '{{clientClassName}}Protocol',
     'ApiClient',
+    'BodySource',
     'ByteStream',
     'JsonLinesStream',
     'ServerSentEvent',
@@ -63,6 +64,7 @@ from {{apiPackage}}.{{classFilename}} import {{classname}}Protocol as {{classnam
 {{/apis}}{{/apiInfo}}
 # import ApiClient
 from {{packageName}}.api_client import ApiClient as ApiClient
+from {{packageName}}.body_source import BodySource as BodySource
 from {{packageName}}.byte_stream import ByteStream as ByteStream
 from {{packageName}}.json_lines_stream import JsonLinesStream as JsonLinesStream
 from {{packageName}}.server_sent_event import ServerSentEvent as ServerSentEvent

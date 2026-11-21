@@ -92,9 +92,17 @@ async def _sse(
     terminator: Optional[str] = None,
     has_body: bool = False,
     method: str = "GET",
+    single_use_body: bool = False,
 ) -> SseStream[Any]:
     return await SseStream.open(
-        opener, decoder, terminator, options, has_body, method, "/events"
+        opener,
+        decoder,
+        terminator,
+        options,
+        has_body,
+        method,
+        "/events",
+        single_use_body=single_use_body,
     )
 
 
@@ -317,6 +325,14 @@ class TestSseStream:
         assert await _data_of(
             await _sse(on, options, has_body=True, method="POST")
         ) == ["a", "b"]
+
+        single_use = _Script("data: a\n\n", "data: b\n\n", _no_content())
+        assert await _data_of(
+            await _sse(
+                single_use, options, has_body=True, method="POST", single_use_body=True
+            )
+        ) == ["a"]
+        assert len(single_use.last_ids) == 1, "a single use body is never sent again"
 
     async def test_bhv_sse_017_an_sse_event_with_an_id_and_no_data_is_not_dispatched_but_updates_the_last_event_id_and_a_reconnect_resumes_from_it(
         self,

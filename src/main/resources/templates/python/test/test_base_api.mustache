@@ -47,6 +47,7 @@ from {{packageName}}.errors.internal_server_error_exception import InternalServe
 from {{packageName}}.api_http_response import ApiHttpResponse
 from {{packageName}}.api_result import ApiResult
 from {{packageName}}.api_stream_response import ApiStreamResponse
+from {{packageName}}.body_source import BodySource
 from {{packageName}}.byte_stream import ByteStream
 from {{packageName}}.sse_stream import SseStream
 from {{packageName}}.stream_options import StreamOptions
@@ -2641,6 +2642,39 @@ class TestAutomaticRetries:
 
         assert len(server.requests) == 1
 
+    async def test_bhv_streaming_026_a_replayable_upload_is_rewound_and_retried_after_a_503_and_a_single_use_upload_is_not_retried_and_surfaces_the_original_error(
+        self, scripted: Any
+    ) -> None:
+        data = b'0123456789' * 2000
+        opens: list[io.BytesIO] = []
+
+        def fresh() -> io.BytesIO:
+            opened = io.BytesIO(data)
+            opens.append(opened)
+            return opened
+
+        server = scripted((503, _SOON, '{}'), _OK)
+        await _retry_api(server).call_result(
+            'POST', '/x', {}, {}, BodySource.from_factory(fresh, len(data)), ['application/json'],
+            'application/octet-stream', None, raw_body=True,
+        )
+        assert len(server.requests) == 2, 'the 503 was retried'
+        assert len(opens) == 2, 'the source was opened again for the retry'
+        assert server.bodies == [data.decode(), data.decode()], 'the retry carries the whole body'
+        assert all(opened.closed for opened in opens), 'what the SDK opened is closed'
+
+        failing = scripted((503, _SOON, '{"message":"busy"}'), _OK)
+        once = io.BytesIO(data)
+        with pytest.raises(ServiceUnavailableException) as refused:
+            await _retry_api(failing).call_result(
+                'POST', '/x', {}, {}, BodySource.once(once, len(data)), ['application/json'],
+                'application/octet-stream', None, raw_body=True,
+            )
+        assert type(refused.value) is ServiceUnavailableException, 'the original error is raised unchanged'
+        assert refused.value.status_code == 503
+        assert len(failing.requests) == 1, 'a single use body is sent once'
+        assert not once.closed, 'the stream of the caller is left open'
+
     async def test_bhv_retries_003_a_multipart_body_is_never_retried(self, scripted: Any) -> None:
         server = scripted((503, _SOON, '{}'), _OK)
         api = _retry_api(server)
@@ -2764,6 +2798,25 @@ class TestUnauthorizedReplay:
 
         assert auth.invalidations == 0
         assert len(server.requests) == 1
+
+    async def test_bhv_retries_045_a_single_use_streamed_body_is_sent_once_and_a_401_does_not_replay_it(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((401, {}, '{}'), _OK)
+        auth = OAuthStubAuthenticator()
+        body = BodySource.once(io.BytesIO(b'data'), 4)
+
+        with pytest.raises(UnauthorizedException):
+            await self._call(_retry_api(server), auth, body, 'application/octet-stream')
+
+        assert len(server.requests) == 1
+        assert server.bodies == ['data']
+
+        replayable = scripted((401, {}, '{}'), _OK)
+        await self._call(
+            _retry_api(replayable), OAuthStubAuthenticator(), BodySource.of(b'data'), 'application/octet-stream'
+        )
+        assert replayable.bodies == ['data', 'data'], 'a replayable body is replayed after the refresh'
 
     async def test_bhv_authintegration_001_a_failed_reauthentication_leaves_the_401(self, scripted: Any) -> None:
         server = scripted((401, {}, '{}'), _OK)

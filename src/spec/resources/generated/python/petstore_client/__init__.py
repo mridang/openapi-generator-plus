@@ -19,6 +19,7 @@ __all__ = [
     "Client",
     "ClientProtocol",
     "ApiClient",
+    "BodySource",
     "ByteStream",
     "JsonLinesStream",
     "ServerSentEvent",
@@ -88,8 +89,13 @@ __all__ = [
     "NativeValues",
     "Order",
     "Pet",
+    "PetArchivePage",
+    "PetCatalogPage",
     "PetCriteria",
+    "PetEventPage",
     "PetFood",
+    "PetMatchPage",
+    "PetNotePage",
     "PetPassport",
     "PetTreatment",
     "PetWithOwner",
@@ -140,6 +146,7 @@ from petstore_client.api.store_api import StoreApiProtocol as StoreApiProtocol
 
 # import ApiClient
 from petstore_client.api_client import ApiClient as ApiClient
+from petstore_client.body_source import BodySource as BodySource
 from petstore_client.byte_stream import ByteStream as ByteStream
 from petstore_client.json_lines_stream import JsonLinesStream as JsonLinesStream
 from petstore_client.server_sent_event import ServerSentEvent as ServerSentEvent
@@ -278,11 +285,26 @@ from petstore_client.models.order import (
 from petstore_client.models.pet import (
     Pet as Pet,
 )
+from petstore_client.models.pet_archive_page import (
+    PetArchivePage as PetArchivePage,
+)
+from petstore_client.models.pet_catalog_page import (
+    PetCatalogPage as PetCatalogPage,
+)
 from petstore_client.models.pet_criteria import (
     PetCriteria as PetCriteria,
 )
+from petstore_client.models.pet_event_page import (
+    PetEventPage as PetEventPage,
+)
 from petstore_client.models.pet_food import (
     PetFood as PetFood,
+)
+from petstore_client.models.pet_match_page import (
+    PetMatchPage as PetMatchPage,
+)
+from petstore_client.models.pet_note_page import (
+    PetNotePage as PetNotePage,
 )
 from petstore_client.models.pet_passport import (
     PetPassport as PetPassport,
