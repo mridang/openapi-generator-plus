@@ -2669,6 +2669,113 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func listPetArchive(options: ListPetArchiveOptions?) async throws -> PetArchivePage {
+    var parts: [String] = []
+    var call = "listPetArchive(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetArchiveWithHTTPInfo(options: ListPetArchiveOptions?) async throws -> ApiResult<
+    PetArchivePage
+  > {
+    var parts: [String] = []
+    var call = "listPetArchiveWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetCatalog(options: ListPetCatalogOptions?) async throws -> PetCatalogPage {
+    var parts: [String] = []
+    var call = "listPetCatalog(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetCatalogWithHTTPInfo(options: ListPetCatalogOptions?) async throws -> ApiResult<
+    PetCatalogPage
+  > {
+    var parts: [String] = []
+    var call = "listPetCatalogWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetEvents(options: ListPetEventsOptions?) async throws -> PetEventPage {
+    var parts: [String] = []
+    var call = "listPetEvents(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetEventsWithHTTPInfo(options: ListPetEventsOptions?) async throws -> ApiResult<
+    PetEventPage
+  > {
+    var parts: [String] = []
+    var call = "listPetEventsWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetFeed(options: ListPetFeedOptions?) async throws -> [Pet] {
+    var parts: [String] = []
+    var call = "listPetFeed(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetFeedWithHTTPInfo(options: ListPetFeedOptions?) async throws -> ApiResult<[Pet]>
+  {
+    var parts: [String] = []
+    var call = "listPetFeedWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetMatches(options: ListPetMatchesOptions?) async throws -> PetMatchPage {
+    var parts: [String] = []
+    var call = "listPetMatches(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetMatchesWithHTTPInfo(options: ListPetMatchesOptions?) async throws -> ApiResult<
+    PetMatchPage
+  > {
+    var parts: [String] = []
+    var call = "listPetMatchesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetNotes(options: ListPetNotesOptions?) async throws -> PetNotePage {
+    var parts: [String] = []
+    var call = "listPetNotes(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetNotesWithHTTPInfo(options: ListPetNotesOptions?) async throws -> ApiResult<
+    PetNotePage
+  > {
+    var parts: [String] = []
+    var call = "listPetNotesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
   public func setPetAvatar(
     petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws {

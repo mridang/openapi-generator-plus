@@ -1663,6 +1663,348 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Pet.self)
   }
 
+  /// Lists archived pets; it looks paged, and the generator option says it is not
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetArchive(options: ListPetArchiveOptions? = nil) async throws -> PetArchivePage {
+    let result = try await listPetArchiveWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetArchive but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetArchive operation and returns the full API result.
+  public func listPetArchiveWithHTTPInfo(options: ListPetArchiveOptions? = nil) async throws
+    -> ApiResult<PetArchivePage>
+  {
+
+    let path = "/pet/archive"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.cursor {
+      queryParams["cursor"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "cursor", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetArchivePage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetArchive",
+      operationId: "listPetArchive",
+      urlTemplate: "/pet/archive",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetArchivePage.self)
+  }
+
+  /// Lists the pet catalog one page at a time with a next-cursor token
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetCatalog(options: ListPetCatalogOptions? = nil) async throws -> PetCatalogPage {
+    let result = try await listPetCatalogWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetCatalog but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetCatalog operation and returns the full API result.
+  public func listPetCatalogWithHTTPInfo(options: ListPetCatalogOptions? = nil) async throws
+    -> ApiResult<PetCatalogPage>
+  {
+
+    let path = "/pet/catalog"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.limit {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.cursor {
+      queryParams["cursor"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "cursor", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetCatalogPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetCatalog",
+      operationId: "listPetCatalog",
+      urlTemplate: "/pet/catalog",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetCatalogPage.self)
+  }
+
+  /// Lists pet events; only the generator option says it is paged
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetEvents(options: ListPetEventsOptions? = nil) async throws -> PetEventPage {
+    let result = try await listPetEventsWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetEvents but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetEvents operation and returns the full API result.
+  public func listPetEventsWithHTTPInfo(options: ListPetEventsOptions? = nil) async throws
+    -> ApiResult<PetEventPage>
+  {
+
+    let path = "/pet/events"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.since {
+      queryParams["since"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "since", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetEventPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetEvents",
+      operationId: "listPetEvents",
+      urlTemplate: "/pet/events",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetEventPage.self)
+  }
+
+  /// Lists the pet feed one page at a time with a Link header
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetFeed(options: ListPetFeedOptions? = nil) async throws -> [Pet] {
+    let result = try await listPetFeedWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetFeed but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetFeed operation and returns the full API result.
+  public func listPetFeedWithHTTPInfo(options: ListPetFeedOptions? = nil) async throws -> ApiResult<
+    [Pet]
+  > {
+
+    let path = "/pet/feed"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.limit {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[Pet]",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetFeed",
+      operationId: "listPetFeed",
+      urlTemplate: "/pet/feed",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: [Pet].self)
+  }
+
+  /// Finds pets and their owners; two lists make it ambiguous, so it is not paged
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetMatches(options: ListPetMatchesOptions? = nil) async throws -> PetMatchPage {
+    let result = try await listPetMatchesWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetMatches but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetMatches operation and returns the full API result.
+  public func listPetMatchesWithHTTPInfo(options: ListPetMatchesOptions? = nil) async throws
+    -> ApiResult<PetMatchPage>
+  {
+
+    let path = "/pet/matches"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.cursor {
+      queryParams["cursor"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "cursor", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetMatchPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetMatches",
+      operationId: "listPetMatches",
+      urlTemplate: "/pet/matches",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetMatchPage.self)
+  }
+
+  /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetNotes(options: ListPetNotesOptions? = nil) async throws -> PetNotePage {
+    let result = try await listPetNotesWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetNotes but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetNotes operation and returns the full API result.
+  public func listPetNotesWithHTTPInfo(options: ListPetNotesOptions? = nil) async throws
+    -> ApiResult<PetNotePage>
+  {
+
+    let path = "/pet/notes"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.pos {
+      queryParams["pos"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "pos", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetNotePage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetNotes",
+      operationId: "listPetNotes",
+      urlTemplate: "/pet/notes",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetNotePage.self)
+  }
+
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
   ///

@@ -1247,6 +1247,20 @@ import Testing
     #expect(text(try await take(6, from: &iterator)) == "first-")
     server.release()
     #expect(text(try await rest(of: &iterator)) == "second")
+    let bigPayload = Data((0..<3_000_000).map { UInt8(truncatingIfNeeded: $0 &* 7) })
+    let bigServer = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Length: \(bigPayload.count)")
+      connection.send(bigPayload)
+    }
+    defer { bigServer.stop() }
+    var received = Data()
+    var count = 0
+    for try await chunk in ByteStream(response: try await open(bigServer)) {
+      received.append(chunk)
+      count += 1
+      if count % 40 == 0 { try await Task.sleep(nanoseconds: 2_000_000) }
+    }
+    #expect(received == bigPayload, "a slow reader of a large body gets every byte in order")
   }
 
   /* The call timeout bounds the wait for the headers only, so a body that outlives it is delivered. */
@@ -1273,6 +1287,13 @@ import Testing
   func testBhvStreaming011TheIdleTimeoutRaisesANetworkTimeoutErrorWhenTheServerStallsInTheBody()
     async throws
   {
+    #expect(try TransportOptionsBuilder().build().idleTimeout == 60000)
+    #expect(try TransportOptionsBuilder().idleTimeout(2500).build().idleTimeout == 2500)
+    #expect(try TransportOptionsBuilder().idleTimeout(0).build().idleTimeout == nil)
+    #expect(try TransportOptionsBuilder().idleTimeout(nil).build().idleTimeout == nil)
+    #expect(throws: ConfigurationError.invalidArgument("idleTimeout must not be negative: -1")) {
+      try TransportOptionsBuilder().idleTimeout(-1).build()
+    }
     let server = try RawServer { connection, _, _ in
       connection.head(200, "Transfer-Encoding: chunked")
       connection.chunk("ab")
@@ -1579,25 +1600,6 @@ import Testing
       var iterator = stream.makeAsyncIterator()
       _ = try await iterator.next()
     }
-  }
-
-  /* A download larger than the stream buffer arrives whole and in order while the reader is slower than the server. */
-  @Test func testASlowReaderOfALargeStreamedBodyGetsEveryByteInOrder() async throws {
-    let payload = Data((0..<3_000_000).map { UInt8(truncatingIfNeeded: $0 &* 7) })
-    let server = try RawServer { connection, _, _ in
-      connection.head(200, "Content-Length: \(payload.count)")
-      connection.send(payload)
-    }
-    defer { server.stop() }
-    let stream = ByteStream(response: try await open(server))
-    var received = Data()
-    var count = 0
-    for try await chunk in stream {
-      received.append(chunk)
-      count += 1
-      if count % 40 == 0 { try await Task.sleep(nanoseconds: 2_000_000) }
-    }
-    #expect(received == payload)
   }
 
   // MARK: - Automatic retries
