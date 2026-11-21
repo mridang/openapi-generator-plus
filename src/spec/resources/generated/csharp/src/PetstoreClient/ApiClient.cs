@@ -22,7 +22,7 @@ public interface IApiClient : IDisposable
     /// <param name="method">HTTP method (GET, POST, PUT, DELETE, etc.)</param>
     /// <param name="url">Fully qualified URL</param>
     /// <param name="headers">HTTP headers</param>
-    /// <param name="body">Request body (JSON string, byte[], Stream, Dictionary for multipart, or null)</param>
+    /// <param name="body">Request body (JSON string, byte[], Stream, a <see cref="BodySource"/> that is read as it is sent, Dictionary for multipart, or null)</param>
     /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
     Task<ApiHttpResponse> SendRequestAsync(
         string method,

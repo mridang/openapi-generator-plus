@@ -23,7 +23,7 @@ This generator (`csharp-plus`, class `BetterCSharpCodegen`) emits a NuGet packag
 | `models/model.mustache`, `integer_enum.mustache` | Models, enums, oneOf/anyOf unions | Models and unions |
 | `configuration.mustache`, `servers.mustache`, `server_configuration.mustache`, `client.mustache` | Builder, servers, facade | Public entry surface |
 | `csproj.mustache`, `editorconfig.mustache`, `illink_descriptors.mustache`, `dotnet_tools.mustache`, `makefile.mustache`, `docfx*.mustache` | Project file, analyzer policy, trimmer keep-list, tool manifest, make targets, docs | Dependencies, analyzer rules, build |
-| `byte_stream.mustache`, `api_stream_response.mustache`, `errors/StreamException.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), `StreamException` | Streaming types |
+| `byte_stream.mustache`, `api_stream_response.mustache`, `errors/StreamException.mustache`, `body_source.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), `StreamException`, `BodySource` (the body of a raw binary upload) | Streaming types |
 | `event_stream.mustache`, `sse_stream.mustache`, `json_lines_stream.mustache`, `server_sent_event.mustache`, `stream_options.mustache`, `test/EventStreamTest.mustache` | the line splitter and SSE parser, `SseStream<T>`, `JsonLinesStream<T>`, `ServerSentEvent<T>`, `StreamOptions`, and the parser table | Event and JSON Lines streams |
 | `readme.mustache`, `skills.mustache` | README and SKILLS.md | Docs |
 | `test/*.mustache`, `test/Api/` | The generated xunit suite (extend these, never add a new file); `test/tests_csproj.mustache` is the test project | Tests |
@@ -39,7 +39,7 @@ This generator (`csharp-plus`, class `BetterCSharpCodegen`) emits a NuGet packag
 | Names | PascalCase members, camelCase parameters, `[JsonPropertyName]` keeps the wire name, keywords are not escaped in PascalCase | `Class` is a legal identifier; `_Class` would trip CA1707 |
 | Exceptions | `(message, innerException)` constructor on every exception, `serializationerror.cause` is `InnerException` | CA1032 and the .NET base class carry the cause |
 | Union wrappers | No `ActualInstance`: the deserialized value is the variant (polymorphic base class) | Same as java |
-| Types | `decimal` for bare `number`, `DateOnly`, `DateTimeOffset`, `TimeOnly`, `TimeSpan`, `Guid`, `Uri`, `HashSet<T>` for `uniqueItems`, `byte[]` for `format: byte`, `System.IO.Stream` for a `format: binary` request body and `ByteStream` (a `Stream`) for a binary response (D119) | BCL has each type; `decimal` keeps full precision (D83) |
+| Types | `decimal` for bare `number`, `DateOnly`, `DateTimeOffset`, `TimeOnly`, `TimeSpan`, `Guid`, `Uri`, `HashSet<T>` for `uniqueItems`, `byte[]` for `format: byte`, `BodySource` for a raw `format: binary` request body and `ByteStream` (a `Stream`) for a binary response (D119, D121) | BCL has each type; `decimal` keeps full precision (D83) |
 | `params` | Token manager arguments are named `parameters` | `params` is a C# keyword |
 | `ServerVariable` | Optional description and values come from overloaded constructors | Record parameter defaults must be compile-time constants |
 | Trace context | `System.Diagnostics.DistributedContextPropagator` (W3C), not OpenTelemetry | In the BCL; no-ops when `Activity.Current` is null |
@@ -294,8 +294,8 @@ Rule: every API group has an interface and the client has one where the language
 - A non-JSON success Content-Type on a model-returning operation (D32) and the Model prefix for colliding model names (D45) are open.
 - Object-valued query and header parameters (D47), `format: time` stringify (D81), a default on a `$ref` enum (D60), an absent required discriminator and integer-enum member casing, which come out as `NUMBER_1`, are parked.
 - Model `ToString` appends collections raw, so it prints the collection type name (parked); `uniqueItems` order is deliberately unspecified (S6).
-- A `format: binary` response is a `ByteStream` (D119), not bytes; a request body stays `System.IO.Stream`.
-- Multipart and Stream request bodies are buffered whole in memory when redirects are followed (too big).
+- A `format: binary` response is a `ByteStream` (D119), not bytes; a raw binary request body is a `BodySource`, and a multipart file part stays `System.IO.Stream`.
+- Multipart request bodies, and a bare `Stream` handed to a custom caller of the transport, are buffered whole in memory when redirects are followed (too big); a `BodySource` never is.
 - The docfx build is not run by any spec, and the Makefile target vocabulary is not yet agreed across the twelve.
 - A required-property check before dispatch for models missing required fields is deferred (D68).
 - OAuth2 authenticator `ToString` omits `refreshUrl` and is not harmonised; the sync `GetAuthHeaders` throws on OAuth flows, which the other languages should copy (is open for node, dart, go and rust).
@@ -471,3 +471,20 @@ Test: `EventStreamTest` (the shared parser table, `BhvStreaming002` to `005`, `B
 Rule: the first request is opened by the operation call. A clean end counts as a failure against `MaxReconnects` (a `StreamException` once exhausted; `0` ends quietly). Every reconnect runs the whole call pipeline again through `InvokeCallAsync` (call hook, headers, authentication) with `Last-Event-ID` only when it is not empty. The wait is the last `retry` value, else `Retry-After` (429, 502, 503, 504), else `ReconnectDelay` doubling to 30 s with up to 25% jitter (`ReconnectWaitMilliseconds`, a pure function tested without sleeping). A 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation and the disposal of the client end the stream without a reconnect; an event named `error` raises `ApiException` with the response status and the data as body.
 Where: `sse_stream.mustache`, `default_api_client.mustache` (`ParseRetryAfter`, shared with the retry loop).
 Test: `EventStreamTest` (`BhvSse008` to `011`, `016`, `017`, `021`, `022`), `DefaultApiClientUnitTest` (`BhvSse007`, `015`).
+
+## Streaming: uploads (capability 3 of #114, D121 item 6)
+
+### `BodySource` is the body type of a raw binary request
+Rule: `BodySource` (`body_source.mustache`, a `sealed` class in the SDK namespace) has the replayable constructors `Of(byte[])` (copied, length known), `OfFile(string)` (length is the file size, reopened per send) and `FromFactory(Func<Stream>[, long length])`, and the single-use `Once(Stream[, long length])`; `IsReplayable`, `Length` (`long?`), `Open()` (public, for a custom transport; a single-use body opens once and its stream ignores `Dispose`) and a `ToString()` of kind and length only. The names are `FromFactory` (not `FromSupplier`) because the C# idiom for a stream-opening delegate is a factory. `BetterCSharpCodegen.markBinaryUpload` runs before the shared pass and sets the body parameter type to `BodySource` when the operation's request body is binary and not multipart or form, so the operation, `WithHttpInfoAsync`, the interface and the signature arguments all say `BodySource`; a multipart `Stream` part is unchanged. `BaseApi` passes the `BodySource` to the transport as the body under any selected request content type and replays after a 401 only when `IsReplayable`.
+Where: `BetterCSharpCodegen`, `body_source.mustache`, `api/api.mustache`, `api/api_interface.mustache`, `base_api.mustache`.
+Test: golden `PetApiTest` (the avatar rows `BhvOperations070`, `071`, `072`, `073`, `076`), `DefaultApiClientUnitTest` (`BhvMisc217`).
+
+### The transport sends it as it is read
+Rule: `DefaultApiClient.ContentOf` turns a `BodySource` into `HttpContent`: in-memory bytes are a `ByteArrayContent`, anything else is a private `BodySourceContent` that opens the source for each send, copies it block by block with a flush after every block (so a slow source reaches the server as it is produced), and disposes what it opened; its `TryComputeLength` is the `Content-Length` when the length is known and false (so HttpClient chunks the body) when it is not. Every retry and every redirect hop builds the content again, so a replayable source is opened again. `IsReplayableBody` accepts a `BodySource` only when `IsReplayable`, so a single-use body gets no retry. A redirect that would keep the body (not a 303, and not the 301 or 302 that turn a POST into a GET) with a single-use body raises `ApiException` with the redirect status and `Refusing to replay a streamed request body`; the body is never buffered. The `Stream`, `byte[]`, string and multipart branches are unchanged.
+Where: `default_api_client.mustache`.
+Test: `DefaultApiClientUnitTest` (`BhvStreaming023` to `027`, `BhvRetries032`, `BhvMisc163`, `BhvMisc217`).
+
+### An event stream request with a single-use body never reconnects
+Rule: `SseStream.OpenAsync` takes `singleUseBody`; when it is true `_maxReconnects` is 0 whatever the options say. `InvokeApiForSseAsync` passes `body is BodySource { IsReplayable: false }`.
+Where: `sse_stream.mustache`, `base_api.mustache`.
+Test: `EventStreamTest` (`BhvSse016`).

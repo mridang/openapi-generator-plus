@@ -290,6 +290,18 @@ public class PetApi : BaseApi, IPetApi
 
     private static readonly string[] GetStagingPetInfoAccepts = ["application/json"];
 
+    private static readonly string[] ListPetArchiveAccepts = ["application/json"];
+
+    private static readonly string[] ListPetCatalogAccepts = ["application/json"];
+
+    private static readonly string[] ListPetEventsAccepts = ["application/json"];
+
+    private static readonly string[] ListPetFeedAccepts = ["application/json"];
+
+    private static readonly string[] ListPetMatchesAccepts = ["application/json"];
+
+    private static readonly string[] ListPetNotesAccepts = ["application/json"];
+
     private static readonly string[] SetPetPreferencesAccepts = ["application/json"];
 
     private static readonly string[] UpdatePetAccepts = ["application/json"];
@@ -2904,6 +2916,582 @@ public class PetApi : BaseApi, IPetApi
     }
 
     /// <summary>
+    /// Lists archived pets; it looks paged, and the generator option says it is not
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[PetArchivePage]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetArchivePage> ListPetArchiveAsync(
+        ListPetArchiveOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<PetArchivePage>> task = ListPetArchiveWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<PetArchivePage> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetArchive but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Lists archived pets; it looks paged, and the generator option says it is not (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<PetArchivePage>> ListPetArchiveWithHttpInfoAsync(
+        ListPetArchiveOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/pet/archive";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Cursor != null)
+        {
+            queryParams["cursor"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "cursor",
+                    options.Cursor,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<PetArchivePage>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetArchiveAccepts,
+                "application/json",
+                typeof(PetArchivePage),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetArchive",
+                operationId: "listPetArchive",
+                urlTemplate: "/pet/archive",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists the pet catalog one page at a time with a next-cursor token
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[PetCatalogPage]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetCatalogPage> ListPetCatalogAsync(
+        ListPetCatalogOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<PetCatalogPage>> task = ListPetCatalogWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<PetCatalogPage> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetCatalog but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Lists the pet catalog one page at a time with a next-cursor token (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<PetCatalogPage>> ListPetCatalogWithHttpInfoAsync(
+        ListPetCatalogOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/pet/catalog";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Limit != null)
+        {
+            queryParams["limit"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "limit",
+                    options.Limit,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options != null && options.Cursor != null)
+        {
+            queryParams["cursor"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "cursor",
+                    options.Cursor,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<PetCatalogPage>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetCatalogAccepts,
+                "application/json",
+                typeof(PetCatalogPage),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetCatalog",
+                operationId: "listPetCatalog",
+                urlTemplate: "/pet/catalog",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists pet events; only the generator option says it is paged
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[PetEventPage]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetEventPage> ListPetEventsAsync(
+        ListPetEventsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<PetEventPage>> task = ListPetEventsWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<PetEventPage> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetEvents but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Lists pet events; only the generator option says it is paged (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<PetEventPage>> ListPetEventsWithHttpInfoAsync(
+        ListPetEventsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/pet/events";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Since != null)
+        {
+            queryParams["since"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "since",
+                    options.Since,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<PetEventPage>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetEventsAccepts,
+                "application/json",
+                typeof(PetEventPage),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetEvents",
+                operationId: "listPetEvents",
+                urlTemplate: "/pet/events",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists the pet feed one page at a time with a Link header
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[List<Pet>]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<List<Pet>> ListPetFeedAsync(
+        ListPetFeedOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<List<Pet>>> task = ListPetFeedWithHttpInfoAsync(options, cancellationToken);
+        ApiResult<List<Pet>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetFeed but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Lists the pet feed one page at a time with a Link header (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<List<Pet>>> ListPetFeedWithHttpInfoAsync(
+        ListPetFeedOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/pet/feed";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Limit != null)
+        {
+            queryParams["limit"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "limit",
+                    options.Limit,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<List<Pet>>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetFeedAccepts,
+                "application/json",
+                typeof(List<Pet>),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetFeed",
+                operationId: "listPetFeed",
+                urlTemplate: "/pet/feed",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Finds pets and their owners; two lists make it ambiguous, so it is not paged
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[PetMatchPage]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetMatchPage> ListPetMatchesAsync(
+        ListPetMatchesOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<PetMatchPage>> task = ListPetMatchesWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<PetMatchPage> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetMatches but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Finds pets and their owners; two lists make it ambiguous, so it is not paged (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<PetMatchPage>> ListPetMatchesWithHttpInfoAsync(
+        ListPetMatchesOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/pet/matches";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Cursor != null)
+        {
+            queryParams["cursor"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "cursor",
+                    options.Cursor,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<PetMatchPage>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetMatchesAccepts,
+                "application/json",
+                typeof(PetMatchPage),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetMatches",
+                operationId: "listPetMatches",
+                urlTemplate: "/pet/matches",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[PetNotePage]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetNotePage> ListPetNotesAsync(
+        ListPetNotesOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<PetNotePage>> task = ListPetNotesWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<PetNotePage> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetNotes but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<PetNotePage>> ListPetNotesWithHttpInfoAsync(
+        ListPetNotesOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/pet/notes";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Pos != null)
+        {
+            queryParams["pos"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "pos",
+                    options.Pos,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<PetNotePage>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetNotesAccepts,
+                "application/json",
+                typeof(PetNotePage),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetNotes",
+                operationId: "listPetNotes",
+                urlTemplate: "/pet/notes",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Set the pet's profile photo
     /// </summary>
     /// <remarks>Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.</remarks>
@@ -2916,7 +3504,7 @@ public class PetApi : BaseApi, IPetApi
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task SetPetAvatarAsync(
         long petId,
-        System.IO.Stream body,
+        BodySource body,
         SetPetAvatarOptions? options = null,
         string? requestContentType = null,
         CancellationToken cancellationToken = default
@@ -2946,7 +3534,7 @@ public class PetApi : BaseApi, IPetApi
     /// <exception cref="NotFoundException">Thrown on HTTP 404.</exception>
     public async Task<ApiResult<object?>> SetPetAvatarWithHttpInfoAsync(
         long petId,
-        System.IO.Stream body,
+        BodySource body,
         SetPetAvatarOptions? options = null,
         string? requestContentType = null,
         CancellationToken cancellationToken = default

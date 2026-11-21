@@ -501,10 +501,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         return System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1000) / 1000d;
     }
 
-    /// <summary>Whether the body can be sent again: only text and byte bodies, never a stream or multipart.</summary>
+    /// <summary>
+    /// Whether the body can be sent again: text, bytes and a replayable <see cref="BodySource"/>,
+    /// never a stream, a single-use <see cref="BodySource"/> or multipart.
+    /// </summary>
     private static bool IsReplayableBody(object? body)
     {
-        return body is null or string or byte[];
+        return body is null or string or byte[] or BodySource { IsReplayable: true };
     }
 
     /// <summary>Whether a request may be sent again after the connection dropped before any response.</summary>
@@ -854,6 +857,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         {
             request.Content = body switch
             {
+                BodySource source => ContentOf(source),
                 byte[] bytes => new ByteArrayContent(bytes),
                 Stream stream => new StreamContent(new CallerOwnedStream(stream)),
                 Dictionary<string, object> formParts => BuildMultipartContent(formParts, _serializer),
@@ -1034,6 +1038,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         nextBody = statusCode == 303 ? null : currentBody;
                     }
 
+                    if (nextBody is BodySource { IsReplayable: false })
+                    {
+                        /* The one stream was read to its end by the first request, so there is
+                           nothing to send again, and it is never buffered to make that possible. */
+                        Dictionary<string, string> singleUseHeaders = CollectHeaders(response);
+                        response.Dispose();
+                        throw new ApiException(
+                            statusCode,
+                            "Refusing to replay a streamed request body",
+                            singleUseHeaders);
+                    }
+
                     HttpRequestMessage next = new(new HttpMethod(nextMethod), nextUrl);
                     Dictionary<string, string> redirectHeaders = new(StringComparer.OrdinalIgnoreCase);
                     foreach (KeyValuePair<string, string> header in currentHeaders)
@@ -1054,7 +1070,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         }
                         _ = next.Headers.TryAddWithoutValidation(header.Key, header.Value);
                     }
-                    if (nextBody is byte[] bytes2)
+                    if (nextBody is BodySource nextSource)
+                    {
+                        next.Content = ContentOf(nextSource);
+                        if (contentType != null)
+                        {
+                            next.Content.Headers.ContentType =
+                                System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
+                        }
+                    }
+                    else if (nextBody is byte[] bytes2)
                     {
                         next.Content = CreateReplayContent(
                             bytes2,
@@ -2356,6 +2381,66 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 catch (OperationCanceledException) { }
                 return;
             }
+        }
+    }
+
+    /// <summary>
+    /// The content of a <see cref="BodySource"/>: in-memory bytes are sent as they are; anything
+    /// else is read from a freshly opened stream while it is sent, so it is never buffered, and the
+    /// length is the <c>Content-Length</c> when it is known and the request is chunked when it is not.
+    /// </summary>
+    private static HttpContent ContentOf(BodySource source)
+    {
+        byte[]? inMemory = source.BytesOrNull;
+        return inMemory is not null ? new ByteArrayContent(inMemory) : new BodySourceContent(source);
+    }
+
+    /// <summary>
+    /// Streams a <see cref="BodySource"/> that is not held in memory. Every send opens the source
+    /// again and disposes what it opened; a stream the caller handed over is not disposed.
+    /// </summary>
+    private sealed class BodySourceContent : HttpContent
+    {
+        private readonly BodySource _source;
+        private readonly long? _length;
+
+        public BodySourceContent(BodySource source)
+        {
+            _source = source;
+            _length = source.Length;
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            return SerializeToStreamAsync(stream, context, CancellationToken.None);
+        }
+
+        protected override async Task SerializeToStreamAsync(
+            Stream stream,
+            TransportContext? context,
+            CancellationToken cancellationToken
+        )
+        {
+            Stream opened = _source.Open();
+            await using (opened.ConfigureAwait(false))
+            {
+                /* Every block is flushed as it is read, so a source that produces its bytes
+                   slowly reaches the server as it is produced and is not held back in the
+                   connection's write buffer. */
+                byte[] buffer = new byte[81920];
+                int read;
+                while ((read = await opened.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    await stream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = _length ?? 0;
+            return _length.HasValue;
         }
     }
 

@@ -316,10 +316,82 @@ public interface IPetApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>ListPetArchive</c> operation.</summary>
+    Task<PetArchivePage> ListPetArchiveAsync(
+        ListPetArchiveOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetArchive</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<PetArchivePage>> ListPetArchiveWithHttpInfoAsync(
+        ListPetArchiveOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetCatalog</c> operation.</summary>
+    Task<PetCatalogPage> ListPetCatalogAsync(
+        ListPetCatalogOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetCatalog</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<PetCatalogPage>> ListPetCatalogWithHttpInfoAsync(
+        ListPetCatalogOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetEvents</c> operation.</summary>
+    Task<PetEventPage> ListPetEventsAsync(
+        ListPetEventsOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetEvents</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<PetEventPage>> ListPetEventsWithHttpInfoAsync(
+        ListPetEventsOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetFeed</c> operation.</summary>
+    Task<List<Pet>> ListPetFeedAsync(
+        ListPetFeedOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetFeed</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<List<Pet>>> ListPetFeedWithHttpInfoAsync(
+        ListPetFeedOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetMatches</c> operation.</summary>
+    Task<PetMatchPage> ListPetMatchesAsync(
+        ListPetMatchesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetMatches</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<PetMatchPage>> ListPetMatchesWithHttpInfoAsync(
+        ListPetMatchesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetNotes</c> operation.</summary>
+    Task<PetNotePage> ListPetNotesAsync(
+        ListPetNotesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetNotes</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<PetNotePage>> ListPetNotesWithHttpInfoAsync(
+        ListPetNotesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>SetPetAvatar</c> operation.</summary>
     Task SetPetAvatarAsync(
         long petId,
-        System.IO.Stream body,
+        BodySource body,
         SetPetAvatarOptions? options = null,
         string? requestContentType = null,
         CancellationToken cancellationToken = default
@@ -328,7 +400,7 @@ public interface IPetApi
     /// <summary>The <c>SetPetAvatar</c> operation with its status code, headers and body.</summary>
     Task<ApiResult<object?>> SetPetAvatarWithHttpInfoAsync(
         long petId,
-        System.IO.Stream body,
+        BodySource body,
         SetPetAvatarOptions? options = null,
         string? requestContentType = null,
         CancellationToken cancellationToken = default

@@ -469,6 +469,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.cs"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.cs"),
             new SupportingFileSpec("api_stream_response.mustache", invokerFolder, "ApiStreamResponse.cs"),
+            new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.cs"),
             new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.cs"),
             new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.cs"),
             new SupportingFileSpec("server_sent_event.mustache", invokerFolder, "ServerSentEvent.cs"),
@@ -1293,6 +1294,12 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> early = (Map<String, Object>) objs.get("operations");
+        if (early != null && early.get("operation") instanceof List) {
+            for (final CodegenOperation op : (List<CodegenOperation>) early.get("operation")) {
+                markBinaryUpload(op);
+            }
+        }
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
         final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
         if (operations == null) {
@@ -1327,6 +1334,33 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             flagJsonContent(op.cookieParams);
         }
         return result;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every signature,
+     * instead of a {@code Stream}. It runs before the shared pass, which copies the body type into
+     * the signature arguments. Multipart and every other body kind keep the type the spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
     }
 
     /**

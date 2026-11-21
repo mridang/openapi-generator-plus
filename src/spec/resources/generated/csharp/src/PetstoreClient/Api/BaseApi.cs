@@ -496,6 +496,7 @@ public abstract class BaseApi
             terminator,
             options,
             body is not null,
+            body is BodySource { IsReplayable: false },
             method,
             RequestPathOf(path),
             cancellationToken
@@ -923,7 +924,7 @@ public abstract class BaseApi
             if (
                 response.StatusCode == 401
                 && effectiveAuth is IInvalidatableAuthenticator invalidatable
-                && requestBody is null or string or byte[]
+                && requestBody is null or string or byte[] or BodySource { IsReplayable: true }
             )
             {
                 invalidatable.InvalidateAccessToken();
@@ -1564,7 +1565,7 @@ public abstract class BaseApi
     {
         foreach (object value in formBody.Values)
         {
-            if (value is System.IO.Stream || value is byte[])
+            if (value is System.IO.Stream || value is byte[] || value is BodySource)
             {
                 return value;
             }

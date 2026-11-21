@@ -64,6 +64,7 @@ public sealed class SseStream<T>
         string? terminator,
         StreamOptions given,
         bool hasBody,
+        bool singleUseBody,
         string method,
         string path,
         ByteStream first,
@@ -73,7 +74,8 @@ public sealed class SseStream<T>
         _opener = opener;
         _decoder = decoder;
         _terminator = terminator;
-        _maxReconnects = given.MaxReconnects ?? (hasBody ? 0 : 5);
+        /* A single use body has been read to its end, so a reconnect has nothing to send. */
+        _maxReconnects = singleUseBody ? 0 : (given.MaxReconnects ?? (hasBody ? 0 : 5));
         _reconnectDelay = given.ReconnectDelay ?? 1000L;
         _maxEventBytes = given.MaxEventBytes ?? 1024 * 1024;
         _method = method;
@@ -92,6 +94,7 @@ public sealed class SseStream<T>
     /// <param name="terminator">A data value that ends the stream, or null for none.</param>
     /// <param name="options">The stream settings, or null for the defaults.</param>
     /// <param name="hasBody">Whether the request has a body, which turns reconnecting off by default.</param>
+    /// <param name="singleUseBody">Whether the body can be sent only once, which turns reconnecting off whatever the options say.</param>
     /// <param name="method">The request method, named in errors.</param>
     /// <param name="path">The request path, named in errors.</param>
     /// <param name="cancellationToken">Token that cancels the first request.</param>
@@ -102,6 +105,7 @@ public sealed class SseStream<T>
         string? terminator,
         StreamOptions? options,
         bool hasBody,
+        bool singleUseBody,
         string method,
         string path,
         CancellationToken cancellationToken
@@ -123,6 +127,7 @@ public sealed class SseStream<T>
             terminator,
             given,
             hasBody,
+            singleUseBody,
             method,
             path,
             first,
