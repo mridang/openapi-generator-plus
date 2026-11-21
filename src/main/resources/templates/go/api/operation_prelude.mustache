@@ -1,0 +1,422 @@
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+{{#pathParams}}
+	if err := requirePathParam("{{paramName}}", {{paramName}}); err != nil {
+		return nil, fmt.Errorf("%w when calling {{classname}}.{{operationId}}", err)
+	}
+{{/pathParams}}
+{{! query/header/form/cookie params live on
+    the Options object. A required one is a non-pointer field, so a nil options
+    (or, for strings, an empty value) means the caller omitted it. Guard here so
+    the caller gets a clear error instead of silently sending the zero value.
+
+    The `options == nil` guard is emitted once for the whole operation (driven by
+    hasRequiredOptionsParam, set in BetterGoCodegen). Emitting it per required
+    param produced duplicate, unreachable guards when an operation had two or
+    more required non-string params of the same kind. The per-field presence
+    checks below run after it, so they can safely dereference `options`. }}
+{{#vendorExtensions.hasRequiredOptionsParam}}
+	if options == nil {
+		return nil, fmt.Errorf("%w: options are required when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter)
+	}
+{{/vendorExtensions.hasRequiredOptionsParam}}
+{{#queryParams}}
+{{#required}}
+{{#isString}}
+	if {{#vendorExtensions.param.queryRequiredNullable}}options.{{nameInPascalCase}} != nil && *options.{{nameInPascalCase}} == ""{{/vendorExtensions.param.queryRequiredNullable}}{{^vendorExtensions.param.queryRequiredNullable}}options.{{nameInPascalCase}} == ""{{/vendorExtensions.param.queryRequiredNullable}} {
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+{{#isString}}
+	if options.{{nameInPascalCase}} == "" {
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+{{! A required form/file param is only meaningfully present if its field is set.
+    Enforce that per field type: empty string for string params, nil for a single
+    io.Reader, and an empty slice for repeated files / array params. Other shapes
+    (e.g. a model value type) have no unset sentinel, so the nil-options guard
+    above is the only check that applies. }}
+{{#isString}}
+	if options.{{nameInPascalCase}} == "" {
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
+	}
+{{/isString}}
+{{^isString}}
+{{#isFile}}
+	if options.{{nameInPascalCase}} == nil {
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
+	}
+{{/isFile}}
+{{^isFile}}
+{{#isArray}}
+	if len(options.{{nameInPascalCase}}) == 0 {
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
+	}
+{{/isArray}}
+{{/isFile}}
+{{/isString}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+	if options.{{nameInPascalCase}} == "" {
+		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
+
+
+	path := "{{{path}}}"
+{{#pathParams}}
+{{#vendorExtensions.goContent}}
+	/* A parameter declared with content (not schema) is encoded through the
+	 * SDK's own object serializer, exactly like a request body. */
+	{
+		contentBytes, err := serialize({{paramName}})
+		if err != nil {
+			return nil, err
+		}
+		path = replacePathParam(path, "{{baseName}}", encodePathSegment(string(contentBytes)))
+	}
+{{/vendorExtensions.goContent}}
+{{^vendorExtensions.goContent}}
+{{#isDate}}
+	/* A date is formatted as YYYY-MM-DD first and then styled like any other
+	 * path value, so a matrix or label style on a date parameter applies too. */
+	{
+		styledValue, styledErr := serializeStyledChecked("{{baseName}}", stringifyDate({{paramName}}), "path", "string", "", "{{style}}", {{isExplode}})
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", styledValue))
+	}
+{{/isDate}}
+{{^isDate}}
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	{
+		styledValue, styledErr := serializeStyledChecked("{{baseName}}", {{paramName}}, "path", "{{{dataType}}}", "", "{{style}}", {{isExplode}})
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "{{baseName}}", fmt.Sprintf("%v", styledValue))
+	}
+{{/isDate}}
+{{/vendorExtensions.goContent}}
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+	if server != nil {
+		serverUrl := server.GetUrl()
+		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
+			path = serverUrl + path
+		}
+	}
+{{/-first}}
+{{/servers}}
+
+	queryParams := make(map[string]any)
+{{#queryParams}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+	/* allowEmptyValue means the server tolerates an empty value WHEN the client
+	 * sends the key; it does not require the SDK to always send the key. When the
+	 * caller omits the optional value, the key is omitted entirely (matching the
+	 * other optional query params above). An explicit empty value supplied by the
+	 * caller still flows through serializeStyled and emits the bare "key=". */
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["{{baseName}}"] = maybeAllowReserved(styledValue, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+		}
+	}
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryDeepObject}}
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		deepParams, err := serializeDeepObject("{{baseName}}", options.{{nameInPascalCase}})
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range deepParams {
+			queryParams[k] = v
+		}
+	}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		/* The same serializer as request bodies (no HTML escaping, canonical
+		 * date-times, wire names); a failure is returned as a
+		 * *SerializationError before any request is sent. */
+		jsonBytes, err := serialize(options.{{nameInPascalCase}})
+		if err != nil {
+			return nil, err
+		}
+		queryParams["{{baseName}}"] = string(jsonBytes)
+	}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+	/* Required nullable query param: the Options field is a pointer. A nil
+	 * pointer is sent as the key with an empty value; a typed nil pointer must
+	 * not reach serializeStyled inside an any, so it is tested here. */
+	if options.{{nameInPascalCase}} == nil {
+		queryParams["{{baseName}}"] = ""
+	} else {
+		{
+			styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["{{baseName}}"] = maybeAllowReserved(styledValue, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+		}
+	}
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{#vendorExtensions.param.queryStyled}}
+{{#required}}
+	/* Required query param: the Options field is a non-pointer value, so it is
+	 * always present (validated above) and serialized directly. */
+	{
+		styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		queryParams["{{baseName}}"] = maybeAllowReserved(styledValue, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+	}
+{{/required}}
+{{^required}}
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["{{baseName}}"] = maybeAllowReserved(styledValue, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+		}
+	}
+{{/required}}
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+
+	headerParams := make(map[string]string)
+{{#headerParams}}
+{{#vendorExtensions.goContent}}
+{{#required}}
+	/* Required content header param: encoded by the SDK's own serializer. */
+	{
+		contentBytes, err := serialize(options.{{nameInPascalCase}})
+		if err != nil {
+			return nil, err
+		}
+		headerParams["{{baseName}}"] = string(contentBytes)
+	}
+{{/required}}
+{{^required}}
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		contentBytes, err := serialize(options.{{nameInPascalCase}})
+		if err != nil {
+			return nil, err
+		}
+		headerParams["{{baseName}}"] = string(contentBytes)
+	}
+{{/required}}
+{{/vendorExtensions.goContent}}
+{{^vendorExtensions.goContent}}
+{{#required}}
+	/* Required header param: non-pointer Options field, always present. */
+	{
+		styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}})
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		headerParams["{{baseName}}"] = fmt.Sprintf("%v", styledValue)
+	}
+{{/required}}
+{{^required}}
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}})
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			headerParams["{{baseName}}"] = fmt.Sprintf("%v", styledValue)
+		}
+	}
+{{/required}}
+{{/vendorExtensions.goContent}}
+{{/headerParams}}
+{{#hasCookieParams}}
+	var cookieParts []string
+{{#cookieParams}}
+{{#required}}
+	/* Required cookie param: non-pointer Options field, always present.
+	 * The serialized value is routed through isValidCookieValue (the same
+	 * RFC 6265 cookie-octet check the auth-cookie path in base_api applies)
+	 * so a CR/LF/control-char value fails closed before it can be folded
+	 * into the Cookie request header, preventing header injection. Like
+	 * the auth path, it fails closed by returning ErrInvalidCookie, matching
+	 * how this function reports every other invalid-parameter condition. */
+	{
+		var cookieValue string
+{{#vendorExtensions.goContent}}
+		{
+			contentBytes, cerr := serialize(options.{{nameInPascalCase}})
+			if cerr != nil {
+				return nil, cerr
+			}
+			cookieValue = encodeContentCookieValue(contentBytes)
+		}
+{{/vendorExtensions.goContent}}
+{{^vendorExtensions.goContent}}
+		{
+			styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}})
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			cookieValue = fmt.Sprintf("%v", styledValue)
+		}
+{{/vendorExtensions.goContent}}
+		if !isValidCookieValue(cookieValue) {
+			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "{{baseName}}")
+		}
+		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
+	}
+{{/required}}
+{{^required}}
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		/* Optional cookie param: same RFC 6265 validation as the required
+		 * branch above. Fail closed by returning an error so a CR/LF or
+		 * control-char value cannot be injected into the Cookie header. */
+		var cookieValue string
+{{#vendorExtensions.goContent}}
+		{
+			contentBytes, cerr := serialize(options.{{nameInPascalCase}})
+			if cerr != nil {
+				return nil, cerr
+			}
+			cookieValue = encodeContentCookieValue(contentBytes)
+		}
+{{/vendorExtensions.goContent}}
+{{^vendorExtensions.goContent}}
+		{
+			styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}})
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			cookieValue = fmt.Sprintf("%v", styledValue)
+		}
+{{/vendorExtensions.goContent}}
+		if !isValidCookieValue(cookieValue) {
+			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "{{baseName}}")
+		}
+		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%s", cookieValue))
+	}
+{{/required}}
+{{/cookieParams}}
+	if len(cookieParts) > 0 {
+		headerParams["Cookie"] = strings.Join(cookieParts, "; ")
+	}
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+	formBody := make(map[string]any)
+	if options != nil {
+{{#formParams}}
+{{#required}}
+		formBody["{{baseName}}"] = options.{{nameInPascalCase}}
+{{/required}}
+{{^required}}
+{{#isFile}}
+		if options.{{nameInPascalCase}} != nil {
+			formBody["{{baseName}}"] = options.{{nameInPascalCase}}
+		}
+{{/isFile}}
+{{^isFile}}
+		if options.{{nameInPascalCase}} != nil {
+			formBody["{{baseName}}"] = *options.{{nameInPascalCase}}
+		}
+{{/isFile}}
+{{/required}}
+{{/formParams}}
+	}
+	var requestBody any = formBody
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+	var requestBody any = {{paramName}}
+{{/bodyParam}}
+{{^bodyParam}}
+	var requestBody any
+{{/bodyParam}}
+{{/hasFormParams}}
+{{#vendorExtensions.hasMultipleConsumes}}
+	/* This operation declares more than one request Content-Type. The optional
+	 * WithRequestContentType call option lets the caller choose among the
+	 * declared types; when omitted it defaults to the first declared type,
+	 * preserving the historical behaviour of always sending
+	 * "{{vendorExtensions.op.effectiveConsumes}}". An unrecognised selector is
+	 * rejected client-side so a typo never rides the wire as an undeclared
+	 * Content-Type (matching java/elixir and the other SDKs), rather than being
+	 * silently dropped in favour of the first type.
+	 * NOTE: this only changes the Content-Type header — the caller must still
+	 * supply a body the selected content-type accepts; a binary body is sent
+	 * byte-for-byte under any selected type, application/json included. The declared types are,
+	 * in order:
+{{#consumes}}
+	 *   - {{{mediaType}}}
+{{/consumes}}
+	 */
+	declaredConsumes := []string{ {{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}} }
+	requestContentTypeValue := declaredConsumes[0]
+	if settings.contentType != nil {
+		matched := false
+		for _, declared := range declaredConsumes {
+			if declared == *settings.contentType {
+				requestContentTypeValue = *settings.contentType
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, fmt.Errorf(
+				"unsupported request content-type %q for {{operationId}}; declared types are %s",
+				*settings.contentType, bracketedList(declaredConsumes))
+		}
+	}
+{{#hasFormParams}}
+	/* When a multipart/form-data operation ALSO declares a raw binary request
+	 * Content-Type (e.g. application/octet-stream), selecting that type must put
+	 * the single binary part's RAW BYTES on the wire — not the multipart form
+	 * map (which base_api would otherwise json.Marshal to "{}"). The multipart
+	 * formBody is only correct for multipart/form-data; for any other selected
+	 * type we stream the file part itself so serializeBody emits the raw bytes
+	 * under the chosen Content-Type. */
+	if !strings.HasPrefix(requestContentTypeValue, "multipart/") {
+{{#formParams}}
+{{#isFile}}
+		requestBody = options.{{nameInPascalCase}}
+{{/isFile}}
+{{/formParams}}
+	}
+{{/hasFormParams}}
+{{/vendorExtensions.hasMultipleConsumes}}
+

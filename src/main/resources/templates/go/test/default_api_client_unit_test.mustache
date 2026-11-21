@@ -21,6 +21,8 @@ import (
 	pkgerrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
 	"bytes"
+	"compress/gzip"
+	"iter"
 	"compress/flate"
 	"compress/zlib"
 	"crypto/ecdsa"
@@ -4902,4 +4904,207 @@ func TestBhvStreaming033_DefaultApiClientUnit_StoppingAStreamEarlyWithoutReading
 	}()
 
 	server.awaitClientGone(t, "leaving the scope dropped the connection")
+}
+
+func rawChunkBytes(conn net.Conn, data []byte) error {
+	if _, err := fmt.Fprintf(conn, "%x\r\n", len(data)); err != nil {
+		return err
+	}
+	if _, err := conn.Write(append(append([]byte{}, data...), '\r', '\n')); err != nil {
+		return err
+	}
+	return nil
+}
+
+// eventOpener is what an operation does for an event stream: one request per
+// connection, over the transport.
+func eventOpener(client *DefaultApiClient, server *rawServer) func(string) (*ApiStreamResponse, error) {
+	return func(lastEventID string) (*ApiStreamResponse, error) {
+		headers := map[string]string{}
+		if lastEventID != "" {
+			headers["Last-Event-ID"] = lastEventID
+		}
+		return client.SendStreaming("GET", server.url("/items/events"), headers, nil, nil)
+	}
+}
+
+func eventsHead(conn net.Conn) {
+	rawHead(conn, 200, "Content-Type: text/event-stream", "Transfer-Encoding: chunked")
+}
+
+func TestBhvStreaming006_DefaultApiClientUnit_AGzipEncodedStreamIsDecodedIncrementallySoTheFirstItemArrivesBeforeTheBodyEnds(t *testing.T) {
+	t.Parallel()
+	var sink bytes.Buffer
+	compressor := gzip.NewWriter(&sink)
+	_, _ = compressor.Write([]byte("first\n"))
+	_ = compressor.Flush()
+	head := append([]byte{}, sink.Bytes()...)
+	sink.Reset()
+	_, _ = compressor.Write([]byte("second\n"))
+	_ = compressor.Close()
+	rest := append([]byte{}, sink.Bytes()...)
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, request string) {
+		rawHead(conn, 200, "Content-Encoding: gzip", "Transfer-Encoding: chunked")
+		_ = rawChunkBytes(conn, head)
+		s.awaitRelease()
+		_ = rawChunkBytes(conn, rest)
+		rawEnd(conn)
+	})
+	response := streamOf(t, server, "/items/export")
+	items := newJsonLinesStream(response, decodeText, 1024, "GET", "/items/export")
+	next, stop := iter.Pull2(items.All())
+	defer stop()
+
+	first, err, ok := next()
+	if !ok || err != nil || first != "first" {
+		t.Fatalf("expected the first item while the body was unfinished, got %q (%v, %v)", first, err, ok)
+	}
+	server.letGo()
+	second, err, ok := next()
+	if !ok || err != nil || second != "second" {
+		t.Errorf("expected the second item, got %q (%v, %v)", second, err, ok)
+	}
+	if _, _, ok := next(); ok {
+		t.Error("expected the stream to end")
+	}
+}
+
+func TestBhvStreaming007_DefaultApiClientUnit_ACorruptCompressedStreamRaisesAnApiErrorWithTheStatusAndTheDecoderErrorAndIsNotRetried(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, request string) {
+		rawHead(conn, 200, "Content-Encoding: gzip", "Content-Length: 14")
+		_, _ = conn.Write([]byte("not-gzip-bytes"))
+	})
+	response := streamOf(t, server, "/items/export")
+	items := newJsonLinesStream(response, decodeText, 1024, "GET", "/items/export")
+
+	var failure error
+	for _, err := range items.All() {
+		failure = err
+	}
+
+	var network *pkgerrors.NetworkError
+	var api *pkgerrors.ApiError
+	if errors.As(failure, &network) || !errors.As(failure, &api) {
+		t.Fatalf("expected an *ApiError that is not a network error, got %T: %v", failure, failure)
+	}
+	if api.StatusCode() != 200 || errors.Unwrap(api) == nil {
+		t.Errorf("expected the real status and the decoder error as the cause, got %d and %v", api.StatusCode(), errors.Unwrap(api))
+	}
+	if got := server.hits.Load(); got != 1 {
+		t.Errorf("expected no retry, got %d requests", got)
+	}
+}
+
+func TestBhvSse007_DefaultApiClientUnit_AnSseStreamReconnectsAfterTheConnectionDropsAndSendsTheLastEventIdInLastEventId(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, request string) {
+		if hit >= 3 {
+			rawHead(conn, 204, "Content-Length: 0")
+			return
+		}
+		eventsHead(conn)
+		if hit == 1 {
+			_ = rawChunk(conn, "id: 1\ndata: a\n\nid: 2\ndata: b\n\n")
+		} else {
+			_ = rawChunk(conn, "id: 3\ndata: c\n\n")
+		}
+		rawEnd(conn)
+	})
+	client := NewDefaultApiClient(nil)
+	t.Cleanup(func() { _ = client.Close() })
+	delay := time.Millisecond
+	stream, err := openSse(context.Background(), eventOpener(client, server), decodeText, nil, &callSettings{reconnectDelay: &delay}, false, "GET", "/items/events")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var data []string
+	for event, err := range stream.All() {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		data = append(data, event.Data)
+	}
+
+	wantStrings(t, data, "a", "b", "c")
+	if strings.Contains(strings.ToLower(server.headOf(0)), "last-event-id") {
+		t.Error("expected no Last-Event-ID on the first request")
+	}
+	if !strings.Contains(strings.ToLower(server.headOf(1)), "last-event-id: 2") || !strings.Contains(strings.ToLower(server.headOf(2)), "last-event-id: 3") {
+		t.Errorf("expected the last event id on each reconnect, got %q and %q", server.headOf(1), server.headOf(2))
+	}
+}
+
+func TestBhvSse015_DefaultApiClientUnit_AnIdleTimeoutOnAnSseStreamCountsAsALostConnectionAndReconnects(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, request string) {
+		eventsHead(conn)
+		if hit == 1 {
+			_ = rawChunk(conn, "id: 1\ndata: a\n\n")
+			s.awaitRelease()
+			return
+		}
+		_ = rawChunk(conn, "id: 2\ndata: b\n\n")
+		rawEnd(conn)
+	})
+	idle := 300
+	transport, err := NewTransportOptionsBuilder().IdleTimeout(&idle).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	t.Cleanup(func() { _ = client.Close() })
+	stream, err := openSse(context.Background(), eventOpener(client, server), decodeText, nil, withReconnects(fast(), 1), false, "GET", "/items/events")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	next, stop := iter.Pull2(stream.All())
+	defer stop()
+
+	first, err, ok := next()
+	if !ok || err != nil || first.Data != "a" {
+		t.Fatalf("expected the first event, got %+v (%v, %v)", first, err, ok)
+	}
+	second, err, ok := next()
+	if !ok || err != nil || second.Data != "b" {
+		t.Fatalf("expected the stalled connection to be replaced, got %+v (%v, %v)", second, err, ok)
+	}
+	if !strings.Contains(strings.ToLower(server.headOf(1)), "last-event-id: 1") {
+		t.Errorf("expected the reconnect to resume from id 1, got %q", server.headOf(1))
+	}
+}
+
+func TestBhvSse018_DefaultApiClientUnit_AnSseCommentLineSuchAsAHeartbeatIsSkippedAndCountsAsActivityForTheIdleTimeout(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, request string) {
+		eventsHead(conn)
+		for beat := 0; beat < 8; beat++ {
+			_ = rawChunk(conn, ": heartbeat\n\n")
+			time.Sleep(100 * time.Millisecond)
+		}
+		_ = rawChunk(conn, "data: late\n\n")
+		rawEnd(conn)
+	})
+	idle := 400
+	transport, err := NewTransportOptionsBuilder().IdleTimeout(&idle).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	t.Cleanup(func() { _ = client.Close() })
+	stream, err := openSse(context.Background(), eventOpener(client, server), decodeText, nil, withReconnects(fast(), 0), false, "GET", "/items/events")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for event, err := range stream.All() {
+		if err != nil || event.Data != "late" {
+			t.Errorf("expected the quiet feed to outlive the idle timeout, got %+v (%v)", event, err)
+		}
+		break
+	}
+	if got := server.hits.Load(); got != 1 {
+		t.Errorf("expected no reconnect, got %d requests", got)
+	}
 }
