@@ -146,6 +146,8 @@ class GeneratedFileLayoutTest {
         "kotlin",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a class of its own in Kotlin");
+    allow(
+        ALLOWED_EXTRA,
         "csharp",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a class of its own in C#");
@@ -153,6 +155,8 @@ class GeneratedFileLayoutTest {
     allow(ALLOWED_EXTRA, "csharp", "page", "the class one page of a paged list is, a class of its own in C# (D123)");
     allow(ALLOWED_EXTRA, "csharp", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
     allow(ALLOWED_EXTRA, "csharp", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a class of its own in C# (D124)");
+    allow(
+        ALLOWED_EXTRA,
         "python",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a class of its own in Python");
@@ -160,6 +164,8 @@ class GeneratedFileLayoutTest {
     allow(ALLOWED_EXTRA, "python", "page", "the dataclass one page of a paged list is, a class of its own in Python (D123)");
     allow(ALLOWED_EXTRA, "python", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
     allow(ALLOWED_EXTRA, "python", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a module of its own in Python (D124)");
+    allow(
+        ALLOWED_EXTRA,
         "node",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a class of its own in TypeScript");
