@@ -362,6 +362,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("default_api_client.mustache", "src", "default-api-client.ts"),
             new SupportingFileSpec("web_api_client.mustache", "src", "default-api-client.web.ts"),
             new SupportingFileSpec("api_response.mustache", "src", "api-http-response.ts"),
+            new SupportingFileSpec("api_stream_response.mustache", "src", "api-stream-response.ts"),
+            new SupportingFileSpec("byte_stream.mustache", "src", "byte-stream.ts"),
             new SupportingFileSpec("api_result.mustache", "src", "api-result.ts"),
             new SupportingFileSpec("configuration.mustache", "src", "configuration.ts"),
             new SupportingFileSpec("transport_options.mustache", "src", "transport-options.ts"),
@@ -394,6 +396,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/internal-server-error.mustache", "src/errors", "internal-server-error.ts"),
             new SupportingFileSpec("errors/network-error.mustache", "src/errors", "network-error.ts"),
             new SupportingFileSpec("errors/network-timeout-error.mustache", "src/errors", "network-timeout-error.ts"),
+            new SupportingFileSpec("errors/stream-error.mustache", "src/errors", "stream-error.ts"),
             new SupportingFileSpec("errors/serialization-error.mustache", "src/errors", "serialization-error.ts"),
             new SupportingFileSpec("errors/oauth2-server-error.mustache", "src/errors", "oauth2-server-error.ts"),
             new SupportingFileSpec("errors/oauth2-token-error.mustache", "src/errors", "oauth2-token-error.ts"),
@@ -975,7 +978,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     (List<CodegenOperation>) operations.get("operation");
             if (ops != null) {
                 boolean hasEnums = false;
+                boolean hasBinaryStream = false;
                 for (final CodegenOperation op : ops) {
+                    hasBinaryStream |= markBinaryStream(op);
                     for (final CodegenParameter param : op.allParams) {
                         if (param.isEnum) {
                             hasEnums = true;
@@ -996,6 +1001,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                         break;
                     }
                 }
+                objs.put("hasBinaryStream", hasBinaryStream);
                 objs.put("hasDeepInputBody", hasDeepInputBody);
                 objs.put("hasEnums", hasEnums);
             }
@@ -1037,6 +1043,77 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         objs.put("usesValueSerializer", usesValueSerializer(objs));
         return objs;
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one
+     * operation method (D119), so the return type becomes {@code ByteStream} and
+     * the decorator {@code streamsBinary} tells the templates to call
+     * {@code invokeApiForStream}.
+     *
+     * @return whether the operation streams a binary response
+     */
+    @SuppressWarnings("unchecked")
+    static boolean markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return false;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final boolean binary = "binary".equals(d.get("streamKind"));
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+        return binary;
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a
+     * {@code ByteStream}, as {@code binaryStreamOperation} (with
+     * {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real
+     * operation of the spec under generation. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        CodegenOperation found = null;
+        Object group = null;
+        final Object apiInfo = objs.get("apiInfo");
+        if (apiInfo instanceof Map) {
+            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+            if (apis instanceof List) {
+                for (final Object api : (List<Object>) apis) {
+                    final Object operations = ((Map<String, Object>) api).get("operations");
+                    if (!(operations instanceof Map)) {
+                        continue;
+                    }
+                    final Object list = ((Map<String, Object>) operations).get("operation");
+                    if (!(list instanceof List)) {
+                        continue;
+                    }
+                    for (final Object candidate : (List<Object>) list) {
+                        final CodegenOperation op = (CodegenOperation) candidate;
+                        final Object decorators =
+                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                        if (found == null
+                                && decorators instanceof Map
+                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
+                            found = op;
+                            group = operations;
+                        }
+                    }
+                }
+            }
+        }
+        objs.put("hasBinaryStreamOperation", found != null);
+        if (found != null) {
+            objs.put("binaryStreamOperation", found);
+            objs.put("binaryStreamGroup", group);
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**

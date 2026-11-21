@@ -255,7 +255,9 @@ export class {{clientClassName}} implements {{clientClassName}}Interface {
    * closed-client error. A request already running finishes, and the HTTP
    * stack the SDK built itself (the connection pool of the default transport)
    * is released when the last of them completes, or here when none is running.
-   * A caller-supplied `fetch` is never touched. Calling it again is a no-op.
+   * The streams that are still open are cancelled: their next read raises the
+   * closed-client error. A caller-supplied `fetch` is never touched. Calling it
+   * again is a no-op.
    */
   async close(): Promise<void> {
     await this.ownedClient.close();
