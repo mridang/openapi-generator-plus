@@ -999,15 +999,18 @@ Future<void> main(List<String> args) async {
       },
     );
 
-    test('bhv redirects 006 respects maxRedirects limit', () async {
-      final transport = TransportOptionsBuilder()
-          .followRedirects(true)
-          .maxRedirects(2)
-          .build();
-      expect(transport.maxRedirects, equals(2));
-      final client = DefaultApiClient(transportOptions: transport);
-      expect(client, isNotNull);
-    });
+    test(
+      'bhv redirects 006 following stops at the configured maximum number of redirects',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .maxRedirects(2)
+            .build();
+        expect(transport.maxRedirects, equals(2));
+        final client = DefaultApiClient(transportOptions: transport);
+        expect(client, isNotNull);
+      },
+    );
 
     // Wave E: redirect counting must be scoped to a SINGLE request, not
     // shared on the client/transport. The Dart transport keeps its hop
@@ -1154,7 +1157,7 @@ Future<void> main(List<String> args) async {
       },
     );
 
-    test('bhv transport 005 decompresses gzip response', () async {
+    test('bhv transport 005 a gzip response body is decompressed', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',

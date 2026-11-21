@@ -176,7 +176,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       refute String.contains?(url, "state")
     end
 
-    test "bhv authoidc 010 fetches discovery document" do
+    test "bhv authoidc 010 the discovery document is fetched from the issuer" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{

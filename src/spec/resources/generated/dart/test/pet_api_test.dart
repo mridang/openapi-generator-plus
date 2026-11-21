@@ -888,22 +888,25 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('bhv operations 061 getExternalPetInfo', () async {
-      // The operation's own server wins over the client's base URL: the client
-      // points at a closed port, the per-operation server at the mock server.
-      final config = ConfigurationBuilder()
-          .baseUrl('http://127.0.0.1:1')
-          .defaultHeader('Authorization', 'Bearer test-token')
-          .build();
-      final api = PetApi(apiClient: DefaultApiClient(), config: config);
+    test(
+      'bhv operations 061 getExternalPetInfo uses the per-operation server',
+      () async {
+        // The operation's own server wins over the client's base URL: the client
+        // points at a closed port, the per-operation server at the mock server.
+        final config = ConfigurationBuilder()
+            .baseUrl('http://127.0.0.1:1')
+            .defaultHeader('Authorization', 'Bearer test-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-      final result = await api.getExternalPetInfo(
-        1,
-        _MockGetExternalPetInfoServer(),
-        null,
-      );
-      expect(result, isNotNull);
-    });
+        final result = await api.getExternalPetInfo(
+          1,
+          _MockGetExternalPetInfoServer(),
+          null,
+        );
+        expect(result, isNotNull);
+      },
+    );
 
     test('bhv operations 034 downloadBinaryMock', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

@@ -61,19 +61,19 @@ describe {{moduleName}}::TraceContextUtil do
       _(headers).wont_include('tracestate')
     end
 
-    it 'bhv_tracing_010 preserves Authorization header' do
+    it 'bhv_tracing_010 the Authorization header is preserved on the traced request' do
       headers = { 'Authorization' => 'Bearer token123' }
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers['Authorization']).must_equal('Bearer token123')
     end
 
-    it 'bhv_tracing_011 preserves Content-Type header' do
+    it 'bhv_tracing_011 the Content-Type header is preserved on the traced request' do
       headers = { 'Content-Type' => 'application/json' }
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers['Content-Type']).must_equal('application/json')
     end
 
-    it 'bhv_tracing_012 preserves X-Request-ID header' do
+    it 'bhv_tracing_012 the X-Request-ID header is preserved on the traced request' do
       headers = { 'X-Request-ID' => 'req-12345' }
       {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
       _(headers['X-Request-ID']).must_equal('req-12345')

@@ -103,7 +103,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun bhvAuthoauthtwoclientcred013SendsScopes() {
+    fun bhvAuthoauthtwoclientcred013TheConfiguredScopesAreSentInTheTokenRequest() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
 

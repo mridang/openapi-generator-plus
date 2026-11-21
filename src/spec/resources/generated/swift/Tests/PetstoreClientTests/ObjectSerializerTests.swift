@@ -75,7 +75,7 @@ import Testing
     #expect(parsed?["name"] as? String == "Fido")
   }
 
-  @Test func testBhvSerializationobject070DeserializeJSONToStruct() throws {
+  @Test func testBhvSerializationobject070DeserializesJSONToTypedModel() throws {
     struct TestModel: Codable {
       let name: String
       let age: Int
@@ -94,7 +94,7 @@ import Testing
     #expect(result == nil)
   }
 
-  @Test func testBhvSerializationobject066DeserializeInvalidJSON() {
+  @Test func testBhvSerializationobject066InvalidJSONIsRefusedWhenDeserializingRaw() {
     struct TestModel: Codable { let name: String }
     #expect(throws: (any Error).self) {
       try ObjectSerializer.deserialize("not json", as: TestModel.self)
@@ -563,7 +563,7 @@ import Testing
     #expect(ObjectSerializer.stringify("hello") == "hello")
   }
 
-  @Test func testBhvSerializationobject211StringifyInt64() {
+  @Test func testBhvSerializationobject211AnInt64IsStringifiedToItsDecimalDigits() {
     #expect(ObjectSerializer.stringify(Int64(9_999_999_999)) == "9999999999")
   }
 
@@ -573,7 +573,7 @@ import Testing
     #expect(ObjectSerializer.stringify(Int64.min) == "-9223372036854775808")
   }
 
-  @Test func testBhvSerializationobject155StringifyBool() {
+  @Test func testBhvSerializationobject155ABooleanIsStringifiedAsTrueOrFalse() {
     #expect(ObjectSerializer.stringify(true) == "true")
     #expect(ObjectSerializer.stringify(false) == "false")
   }
@@ -587,12 +587,12 @@ import Testing
     #expect(ObjectSerializer.stringify(uuid) == uuid.uuidString.lowercased())
   }
 
-  @Test func testBhvSerializationobject016StringifyUUIDIsLowercase() {
+  @Test func testBhvSerializationobject016AUuidPropertyIsWrittenLowercaseAndDecodedFromUppercase() {
     let uuid = UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")!
     #expect(ObjectSerializer.stringify(uuid) == "e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
   }
 
-  @Test func testBhvSerializationobject157StringifyDate() {
+  @Test func testBhvSerializationobject157StringifyDateTimeReturnsIso8601String() {
     let date = Date(timeIntervalSince1970: 1_705_315_800)
     let result = ObjectSerializer.stringify(date)
     // The canonical encoder emits millisecond fractional seconds; a
@@ -763,7 +763,7 @@ import Testing
     #expect(result.contains("日本"), "should contain literal CJK chars: \(result)")
   }
 
-  @Test func testBhvSerializationobject160TabCharacterEscapedProperly() throws {
+  @Test func testBhvSerializationobject160TabCharacterEscapedProperlyInJson() throws {
     let result = try ObjectSerializer.serialize("a\tb")
     #expect(result.contains("\\t"), "tab should be escaped as \\t: \(result)")
   }
@@ -1363,7 +1363,7 @@ import Testing
   }
 
   /* A strict model decodes a payload that uses only some of its declared keys. */
-  @Test func testBhvSerializationobject047DeclaredKeysDecode() throws {
+  @Test func testBhvSerializationobject047DeclaredKeysDecodeIntoTheFieldsOfTheModel() throws {
     let decoded = try #require(
       try ObjectSerializer.deserialize("{\"name\":\"x\"}", as: StrictTag.self))
     #expect(decoded.name == "x")
@@ -1716,12 +1716,13 @@ import Testing
     #expect(value == 15.25)
   }
 
-  @Test func testBhvSerializationobject181DurationParseZero() throws {
+  @Test func testBhvSerializationobject181ZeroDurationStringifiesAs0s() throws {
     let value = try ObjectSerializer.decodeDuration("0s")
     #expect(value == 0)
   }
 
-  @Test func testBhvSerializationobject113DurationParseNegative() throws {
+  @Test func testBhvSerializationobject113ANegativeProtobufDurationParsesIntoANegativeValue() throws
+  {
     let value = try ObjectSerializer.decodeDuration("-300s")
     #expect(value == -300)
   }
@@ -1750,7 +1751,9 @@ import Testing
     }
   }
 
-  @Test func testBhvSerializationobject158DurationFormatZero() throws {
+  @Test func testBhvSerializationobject158StringifyEmitsCanonicalProtobufDurationForADuration()
+    throws
+  {
     #expect(try ObjectSerializer.encodeDuration(0) == "0s")
   }
 
@@ -1758,7 +1761,7 @@ import Testing
     #expect(try ObjectSerializer.encodeDuration(3_725) == "3725s")
   }
 
-  @Test func testBhvSerializationobject105DurationFormatNegative() throws {
+  @Test func testBhvSerializationobject105NegativeDurationCarriesTheSign() throws {
     #expect(try ObjectSerializer.encodeDuration(-300) == "-300s")
   }
 
@@ -1776,7 +1779,7 @@ import Testing
     }
   }
 
-  @Test func testBhvSerializationobject073DurationRoundTrip() throws {
+  @Test func testBhvSerializationobject073DurationRoundTripsThroughAModelBody() throws {
     let original: TimeInterval = 86_400 + 7_200 + 180 + 4
     let literal = try ObjectSerializer.encodeDuration(original)
     let parsed = try ObjectSerializer.decodeDuration(literal)
@@ -1859,7 +1862,7 @@ import Testing
   /* Building a model checks nothing: a value the schema would refuse is still
      a value, and an unknown enum string builds no enum at all, so it never
      raises. Refusing happens when a payload is decoded. */
-  @Test func testBhvSerializationobject029ConstructionNeverValidates() {
+  @Test func testBhvSerializationobject029BuildingAModelNeverValidatesTheValuesItIsGiven() {
     let pet = Pet(name: "", photoUrls: [], homepageUrl: "not an absolute uri")
     #expect(pet.homepageUrl == "not an absolute uri")
     #expect(PetStatusEnum(rawValue: "teleported") == nil)

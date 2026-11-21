@@ -37,7 +37,7 @@ import Testing
     /* authenticator-secret-in-default-string-repr: the default string
      * representation must never expose the stored token and must show the
      * `***` redaction marker. */
-    @Test func testBhvAuthbearer011RedactsSecret() async throws {
+    @Test func testBhvAuthbearer011RedactsTheTokenInToString() async throws {
         let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
         let description = String(describing: auth)
         #expect(!description.contains("token=xyz"))

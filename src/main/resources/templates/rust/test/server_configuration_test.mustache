@@ -30,7 +30,7 @@ fn server_with_vars() -> ServerConfiguration {
 }
 
 #[test]
-fn test_bhv_servers_010_url_substitutes_overrides() {
+fn test_bhv_servers_010_substitutes_variables_with_their_default_values() {
     let server = server_with_vars();
 
     let mut overrides = HashMap::new();

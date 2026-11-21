@@ -219,7 +219,7 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     }
   }
 
-  @Test func testBhvAuthoidc010FetchesDiscoveryDocument() async throws {
+  @Test func testBhvAuthoidc010TheDiscoveryDocumentIsFetchedFromTheIssuer() async throws {
     let client = MockApiClient()
     client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
 

@@ -171,7 +171,7 @@ class ValueSerializerTest {
 
         @Test
         @DisplayName("bhvLangkotlin048 equals preserved (sub-delimiter)")
-        fun bhvLangkotlin048EqualsPreserved() {
+        fun bhvLangkotlin048TwoValuesWithEqualContentCompareEqual() {
             assertEquals("x=y", ValueSerializer.serialize("x=y", "path", "string", null))
         }
 

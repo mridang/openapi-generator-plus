@@ -361,7 +361,7 @@ describe Petstore::Client::Api::BaseApi do
 
   # ── Success deserialization ──
 
-  it 'bhv_serializationwire_004 deserializes JSON response' do
+  it 'bhv_serializationwire_004 a JSON response is deserialized into the declared type' do
     result = api.call('GET', '/test/echo', {}, {}, nil,
                       ['application/json'], 'application/json', 'Object')
     _(result).wont_be_nil
@@ -408,7 +408,7 @@ describe Petstore::Client::Api::BaseApi do
 
   # ── Auth injection ──
 
-  it 'bhv_authintegration_010 forwards auth headers' do
+  it 'bhv_authintegration_010 auth headers are forwarded on the request' do
     auth = TestAuthenticator.new(headers: { 'X-Custom' => 'auth-value' })
     result = api.call('GET', '/test/echo', {}, {}, nil,
                       ['application/json'], 'application/json', 'Object', auth)
@@ -1054,7 +1054,7 @@ describe Petstore::Client::Api::BaseApi do
 
   # ── Body serialization by content type ──
 
-  it 'bhv_serializationwire_024 serializes text/plain body' do
+  it 'bhv_serializationwire_024 a text plain body is written as plain text' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -1064,7 +1064,7 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_body.to_s).must_include 'hello world'
   end
 
-  it 'bhv_serializationwire_021 serializes form-urlencoded body' do
+  it 'bhv_serializationwire_021 a form-urlencoded body is serialized as form fields' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)

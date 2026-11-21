@@ -212,7 +212,7 @@ describe("ApiError", () => {
       expect(err.toString()).toContain("HTTP status code: 500");
     });
 
-    test("bhv errors 047 name is ApiError", () => {
+    test("bhv errors 047 a typed internal server error is an ApiError", () => {
       const err = new ApiError(500, "boom");
       expect(err.name).toBe("ApiError");
       expect(err).toBeInstanceOf(Error);

@@ -1,7 +1,7 @@
 defmodule PetstoreClient.ConfigurationTest do
   use ExUnit.Case, async: true
 
-  test "bhv config 005 new produces correct defaults" do
+  test "bhv config 005 the builder produces the default values when nothing is set" do
     config = PetstoreClient.Configuration.new()
 
     assert config.base_url == "/api/v3"
@@ -206,7 +206,7 @@ defmodule PetstoreClient.ConfigurationTest do
     assert config.base_url == "https://staging.example.com/api/v2"
   end
 
-  test "bhv config 001 base_url overrides server" do
+  test "bhv config 001 a base URL overrides the server" do
     server = %PetstoreClient.ServerConfiguration{
       url_template: "https://api.example.com"
     }

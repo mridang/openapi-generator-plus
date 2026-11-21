@@ -961,7 +961,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "bhv serializationobject 048 rejects malformed UUID" do
+    test "bhv serializationobject 048 decode rejects a malformed uuid" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type("not-a-uuid", "UUID")
       end
@@ -992,7 +992,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "bhv langelixir 067 rejects non-string payload" do
+    test "bhv langelixir 067 a non-string payload is rejected with an error" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(42, "UUID")
       end
@@ -2055,7 +2055,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # A wrong primitive type, and a malformed date, date-time, time or duration,
   # is a SerializationError. None of them is passed through as the raw value.
   describe "wire-shape failures raise SerializationError" do
-    test "bhv serializationobject 180 wrong primitive types" do
+    test "bhv serializationobject 180 wrong primitive type throws SerializationException" do
       for {value, type} <- [
             {42, "String"},
             {"42", "Integer"},
@@ -2069,7 +2069,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "bhv serialization 045 malformed temporal values" do
+    test "bhv serialization 045 a malformed time or duration string is refused with a serialization error" do
       for {value, type} <- [
             {"not-a-date", "Date"},
             {"2024-13-45", "Date.t()"},
@@ -2567,7 +2567,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert Exception.message(error) =~ "extra"
     end
 
-    test "bhv serializationobject 047 declared keys decode" do
+    test "bhv serializationobject 047 declared keys decode into the fields of the model" do
       decoded = PetstoreClient.ObjectSerializer.deserialize(~s({"id":1,"name":"a"}), "StrictTag")
       assert decoded.id == 1
       assert decoded.name == "a"

@@ -382,7 +382,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert String.contains?(response.body, "key")
   end
 
-  test "bhv transport 051 returns response headers" do
+  test "bhv transport 051 response headers are returned with the response" do
     base_url = start_server(200, "application/json", "ok", [{"X-Test-Header", "test-value"}])
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -419,7 +419,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert response.body == "not found"
   end
 
-  test "bhv transport 055 sends PUT request" do
+  test "bhv transport 055 a PUT request is sent with the PUT method" do
     base_url = start_server(200, "application/json", ~s({"method":"PUT"}))
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -436,7 +436,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert String.contains?(response.body, "PUT")
   end
 
-  test "bhv transport 053 sends DELETE request" do
+  test "bhv transport 053 a DELETE request is sent with the DELETE method" do
     base_url = start_server(200, "application/json", ~s({"method":"DELETE"}))
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -2315,7 +2315,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute inspect(err) =~ "secretvalue"
   end
 
-  test "bhv transport 058 timeout raises NetworkTimeoutError" do
+  test "bhv transport 058 a timeout raises the network timeout error" do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(socket)
 
@@ -3106,7 +3106,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert %Time{} = result
     end
 
-    test "bhv langelixir 052 round-trip via sanitize_for_serialization" do
+    test "bhv langelixir 052 a time value survives a round trip through sanitising and back" do
       t = ~T[09:00:00]
       sanitized = PetstoreClient.ObjectSerializer.sanitize_for_serialization(t)
       assert is_binary(sanitized)
@@ -3120,7 +3120,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert %Duration{second: 5400} = result
     end
 
-    test "bhv langelixir 054 round-trip via sanitize_for_serialization" do
+    test "bhv langelixir 054 a duration value survives a round trip through sanitising and back" do
       original = Duration.new!(hour: 2)
       sanitized = PetstoreClient.ObjectSerializer.sanitize_for_serialization(original)
       assert is_binary(sanitized)

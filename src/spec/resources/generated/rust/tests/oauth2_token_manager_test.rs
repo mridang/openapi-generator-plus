@@ -287,7 +287,7 @@ async fn test_bhv_authoauthtwotokenmgr_014_extracts_access_token_from_response()
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_bhv_authoauthtwotokenmgr_028_stores_refresh_token() {
+async fn test_bhv_authoauthtwotokenmgr_028_the_refresh_token_from_the_token_response_is_stored() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,

@@ -1071,7 +1071,7 @@ describe Petstore::Client::DefaultApiClient do
   end
 
   describe 'max redirects' do
-    it 'bhv_redirects_006 respects max_redirects limit' do
+    it 'bhv_redirects_006 following stops at the configured maximum number of redirects' do
       transport = Petstore::Client::TransportOptions.builder
         .follow_redirects(true)
         .max_redirects(5)
@@ -1136,16 +1136,16 @@ describe Petstore::Client::DefaultApiClient do
       assert_decodes('gzip')
     end
 
-    it 'bhv_transport_005 decompresses gzip response' do
+    it 'bhv_transport_005 a gzip response body is decompressed' do
       assert_decodes('gzip')
     end
 
-    it 'bhv_transport_004 decompresses brotli response' do
+    it 'bhv_transport_004 a brotli response body is decompressed' do
       skip 'brotli gem not installed (optional group)' unless defined?(Brotli)
       assert_decodes('br')
     end
 
-    it 'bhv_transport_006 decompresses zstd response' do
+    it 'bhv_transport_006 a zstd response body is decompressed' do
       skip 'zstd-ruby gem not installed (optional group)' unless defined?(Zstd)
       assert_decodes('zstd')
     end

@@ -89,7 +89,7 @@ describe('OAuth2TokenManager', () => {
     expect(mockClient.callCount).toBe(0);
   });
 
-  test('bhv authoauthtwotokenmgr 028 stores refresh token', async () => {
+  test('bhv authoauthtwotokenmgr 028 the refresh token from the token response is stored', async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: 'access-123',
       refresh_token: 'refresh-456',

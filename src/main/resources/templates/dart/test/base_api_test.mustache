@@ -259,7 +259,7 @@ void main() {
   });
 
   group('BaseApi', () {
-    test('bhv langdart 010 error dispatch', () async {
+    test('bhv langdart 010 each failing status is dispatched to the error type declared for it', () async {
       // The Chasm mock serves only these status routes. Every status-to-exception
       // pair is pinned without a server by bhv errors 006 in the api error test.
       final testCases = <int, Type>{
@@ -365,7 +365,7 @@ void main() {
       }
     });
 
-    test('bhv serializationwire 004 deserializes JSON response', () async {
+    test('bhv serializationwire 004 a JSON response is deserialized into the declared type', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
@@ -408,7 +408,7 @@ void main() {
       expect(client.sentHeaders.single['Authorization'], equals('Bearer first'));
     });
 
-    test('bhv authintegration 010 forwards auth headers', () async {
+    test('bhv authintegration 010 auth headers are forwarded on the request', () async {
       final auth = _BaseApiAuth(
           headers: {'Authorization': 'Bearer test-token'});
       final api = _chasmApi(schemes: {'petStoreBearer': auth});
@@ -1805,7 +1805,7 @@ void main() {
       }
     });
 
-    test('bhv serializationwire 024 serializes text/plain body', () async {
+    test('bhv serializationwire 024 a text plain body is written as plain text', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {
@@ -1860,7 +1860,7 @@ void main() {
       }
     });
 
-    test('bhv serializationwire 021 serializes form-urlencoded body', () async {
+    test('bhv serializationwire 021 a form-urlencoded body is serialized as form fields', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String receivedBody = '';
       server.listen((request) async {

@@ -345,7 +345,7 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
-  it 'bhv_transport_051 returns response headers' do
+  it 'bhv_transport_051 response headers are returned with the response' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/echo') { [200, { 'x-test-header' => 'test-value' }, 'ok'] }
     end
@@ -370,7 +370,7 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
-  it 'bhv_transport_055 sends PUT request' do
+  it 'bhv_transport_055 a PUT request is sent with the PUT method' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.put('/echo') { [200, {}, '{"method":"PUT"}'] }
     end
@@ -383,7 +383,7 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
-  it 'bhv_transport_053 sends DELETE request' do
+  it 'bhv_transport_053 a DELETE request is sent with the DELETE method' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.delete('/echo') { [200, {}, '{"method":"DELETE"}'] }
     end
@@ -1809,7 +1809,7 @@ describe 'DefaultApiClientUnit' do
     _(closes.length).must_equal 1
   end
 
-  it 'bhv_lifecycle_036 close is idempotent' do
+  it 'bhv_lifecycle_036 closing a client a second time raises no error and releases nothing further' do
     client = Petstore::Client::DefaultApiClient.new
     client.close
     client.close # must not raise

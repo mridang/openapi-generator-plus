@@ -46,7 +46,20 @@ class OAuth2TokenManager:
         self._refresh_token: Optional[str] = None
         self._token_expiry: Optional[float] = None
         self._exchanged = False
+        self._stopped = False
         self._lock = threading.Lock()
+
+    def stop(self) -> None:
+        """Stop the token manager.
+
+        Any later token request raises an ``OAuth2TokenException`` saying the
+        manager has been stopped; stopping again does nothing.
+        """
+        self._stopped = True
+
+    def _require_running(self) -> None:
+        if self._stopped:
+            raise OAuth2TokenException("The token manager has been stopped.")
 
     def set_api_client(self, api_client: ApiClient) -> None:
         """Inject the shared API client for making token requests.
@@ -93,6 +106,7 @@ class OAuth2TokenManager:
             OAuth2TokenException: If the token endpoint answers 2xx but the
                 response carries no usable access token.
         """
+        self._require_running()
         with self._lock:
             if self._access_token and (
                 self._token_expiry is None or time.time() < self._token_expiry
@@ -150,6 +164,7 @@ class OAuth2TokenManager:
             OAuth2ServerException: If the token endpoint answers non-2xx.
             OAuth2TokenException: If the response carries no usable token.
         """
+        self._require_running()
         with self._lock:
             previous = (
                 self._access_token,

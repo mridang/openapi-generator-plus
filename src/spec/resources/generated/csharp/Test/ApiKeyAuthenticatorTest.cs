@@ -205,7 +205,7 @@ public class ApiKeyAuthenticatorTest
     /// must be absent and a *** redaction marker present.
     /// </summary>
     [Fact]
-    public void BhvAuthapikey010RedactsSecret()
+    public void BhvAuthapikey010RedactsTheAPIKeyInToString()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",

@@ -18,15 +18,19 @@ public enum OAuth2TokenError: OpenAPIError, Equatable {
   case missingAccessToken(String)
   /// The token endpoint's 2xx body is not UTF-8 or not a token JSON object.
   case invalidResponse(String)
+  /// A token was requested after ``OAuth2TokenManager/stop()``.
+  case stopped
 }
 
 extension OAuth2TokenError: LocalizedError {
-  /// The message carried by either case, so `localizedDescription` shows it
+  /// The message carried by each case, so `localizedDescription` shows it
   /// instead of Foundation's generic "operation couldn't be completed" text.
   public var errorDescription: String? {
     switch self {
     case .missingAccessToken(let message), .invalidResponse(let message):
       return message
+    case .stopped:
+      return "The token manager has been stopped."
     }
   }
 }

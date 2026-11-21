@@ -27,7 +27,7 @@ public class ServerVariableTest
     }
 
     [Fact]
-    public void BhvServers015AllowsNullDescription()
+    public void BhvServers015AServerDescriptionMayBeNull()
     {
         var variable = new ServerVariable("api", null, ["api", "staging"]);
 
@@ -36,7 +36,7 @@ public class ServerVariableTest
     }
 
     [Fact]
-    public void BhvServers016AllowsEmptyEnum()
+    public void BhvServers016EmptyEnumValuesMeansAnyValueAllowed()
     {
         var variable = new ServerVariable("anything", null, []);
 

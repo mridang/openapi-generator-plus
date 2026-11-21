@@ -80,7 +80,7 @@ test('bhv serializationwire 052 sends post with json body', function (): void {
     expect($response->body)->toContain('key');
 });
 
-test('bhv transport 051 returns response headers', function (): void {
+test('bhv transport 051 response headers are returned with the response', function (): void {
     $mockResponse = new MockResponse('ok', [
         'http_code' => 200,
         'response_headers' => ['X-Test-Header' => 'test-value'],
@@ -105,7 +105,7 @@ test('bhv transport 050 returns non 2xx status code', function (): void {
     expect($response->body)->toBe('not found');
 });
 
-test('bhv transport 055 sends put request', function (): void {
+test('bhv transport 055 a PUT request is sent with the PUT method', function (): void {
     $mockResponse = new MockResponse('{"method":"PUT"}', [
         'http_code' => 200,
     ]);
@@ -117,7 +117,7 @@ test('bhv transport 055 sends put request', function (): void {
     expect($response->body)->toContain('PUT');
 });
 
-test('bhv transport 053 sends delete request', function (): void {
+test('bhv transport 053 a DELETE request is sent with the DELETE method', function (): void {
     $mockResponse = new MockResponse('{"method":"DELETE"}', [
         'http_code' => 200,
     ]);
@@ -279,7 +279,7 @@ test('bhv transport 042 injects default user agent when not explicitly set', fun
     expect($capturedHeaders['User-Agent'] ?? null)->not->toBeEmpty();
 });
 
-test('bhv transport 043 injects request id', function (): void {
+test('bhv transport 043 a request id is injected into the request headers', function (): void {
     $capturedHeaders = [];
     $mockClient = new MockHttpClient(
         function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {

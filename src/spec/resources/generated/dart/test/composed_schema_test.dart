@@ -529,7 +529,7 @@ void main() {
 
     // allOf: PetWithOwner extends Pet fields
 
-    test('bhv unions 004 PetWithOwner deserialize', () {
+    test('bhv unions 004 allOf PetWithOwner deserializes all properties', () {
       final json = <String, dynamic>{
         'name': 'Fido',
         'photoUrls': ['http://example.com/fido.jpg'],

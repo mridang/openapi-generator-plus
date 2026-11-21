@@ -53,7 +53,7 @@ test('bhv models 001 a metadata without undeclared keys keeps an empty map after
     expect($metadata->additionalProperties)->toHaveCount(0);
 });
 
-test('bhv models 003 deserializes empty object', function (): void {
+test('bhv models 003 an empty object deserializes into a model with no values', function (): void {
     /** @var Metadata $metadata */
     $metadata = ObjectSerializer::deserialize('{}', Metadata::class);
 

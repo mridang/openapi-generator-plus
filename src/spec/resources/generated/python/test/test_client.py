@@ -21,7 +21,9 @@ from petstore_client.transport_options import TransportOptions
 
 
 class TestClient:
-    def test_bhv_authbearer_028_bearer_rejects_crlf(self) -> None:
+    def test_bhv_authbearer_028_a_bearer_token_containing_crlf_is_rejected_at_construction(
+        self,
+    ) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator("/api/v3", "tok\r\nInjected: yes")
 

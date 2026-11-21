@@ -136,7 +136,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task BhvAuthoidc010FetchesDiscoveryDocument()
+    public async Task BhvAuthoidc010TheDiscoveryDocumentIsFetchedFromTheIssuer()
     {
         var client = new FakeApiClient();
         client.Enqueue(

@@ -85,7 +85,7 @@ class HeaderSelectorTest {
 
     @Test
     @DisplayName("bhvHeaders015 should return false for null")
-    void bhvHeaders015ShouldReturnFalseForNull() {
+    void bhvHeaders015AMissingMediaTypeIsNotAJSONType() {
       assertFalse(headerSelector.isJsonMime(null));
     }
 
@@ -102,7 +102,7 @@ class HeaderSelectorTest {
 
     @Test
     @DisplayName("bhvHeaders010 should filter out empty entries before joining")
-    void bhvHeaders010ShouldFilterOutEmptyEntries() {
+    void bhvHeaders010EmptyEntriesAreFilteredOut() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"", "image/png", ""}, "application/json", false);
@@ -234,7 +234,7 @@ class HeaderSelectorTest {
 
     @Test
     @DisplayName("bhvHeaders008 should drop whitespace-only entries before joining")
-    void bhvHeaders008ShouldDropWhitespaceOnlyEntries() {
+    void bhvHeaders008WhitespaceOnlyEntriesAreDropped() {
       Map<String, String> headers =
           headerSelector.selectHeaders(
               new String[] {"   ", "application/json"}, "application/json", false);

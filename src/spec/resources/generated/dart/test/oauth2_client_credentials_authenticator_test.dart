@@ -123,18 +123,21 @@ void main() {
       expect(client.lastBody!, contains('client_secret=my-client-secret'));
     });
 
-    test('bhv authoauthtwoclientcred 013 sends scopes', () async {
-      final client = _FakeApiClient();
-      client.enqueue('{"access_token":"tok1","expires_in":3600}');
+    test(
+      'bhv authoauthtwoclientcred 013 the configured scopes are sent in the token request',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
 
-      expect(client.lastBody!, contains('scope=read'));
-      expect(client.lastBody!, contains('write'));
-    });
+        expect(client.lastBody!, contains('scope=read'));
+        expect(client.lastBody!, contains('write'));
+      },
+    );
 
     test(
       'bhv authoauthtwoclientcred 008 returns authorization bearer header',

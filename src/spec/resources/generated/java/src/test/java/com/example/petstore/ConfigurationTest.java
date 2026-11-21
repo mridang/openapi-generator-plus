@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 class ConfigurationTest {
 
   @Test
-  void bhvConfig005BuilderProducesCorrectDefaults() {
+  void bhvConfig005TheBuilderProducesTheDefaultValuesWhenNothingIsSet() {
     Configuration config = Configuration.builder().build();
 
     assertEquals("/api/v3", config.getBaseUrl());
@@ -83,7 +83,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void bhvConfig002BuilderAccumulatesHeaders() {
+  void bhvConfig002TheBuilderAccumulatesHeadersAcrossCalls() {
     Configuration config =
         Configuration.builder()
             .defaultHeader("X-First", "one")
@@ -219,7 +219,7 @@ class ConfigurationTest {
   }
 
   @Test
-  void bhvConfig003BuilderIsFluent() {
+  void bhvConfig003EveryBuilderSetterReturnsTheSameBuilder() {
     Configuration.Builder builder = Configuration.builder();
 
     assertSame(builder, builder.baseUrl("https://example.com"));

@@ -46,6 +46,28 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
+  void bhvMisc185StoppingTwiceIsANoOpAndALaterTokenRequestFailsWithAFixedMessage() {
+    AtomicInteger sent = new AtomicInteger();
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(
+        (method, url, headers, body) -> {
+          sent.incrementAndGet();
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"tok\",\"expires_in\":3600}", Map.of());
+        });
+    manager.stop();
+    manager.stop();
+
+    OAuth2TokenException failure =
+        assertThrowsExactly(
+            OAuth2TokenException.class,
+            () -> manager.getAccessToken(TOKEN_URL, Map.of("grant_type", "client_credentials")));
+
+    assertEquals("The token manager has been stopped.", failure.getMessage());
+    assertEquals(0, sent.get());
+  }
+
+  @Test
   void bhvAuthOauthTwoTokenMgr014ExtractsAccessTokenFromResponse() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(fakeClient("{\"access_token\":\"my-token\",\"expires_in\":3600}"));
@@ -58,7 +80,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void bhvAuthOauthTwoTokenMgr028StoresRefreshToken() {
+  void bhvAuthOauthTwoTokenMgr028TheRefreshTokenFromTheTokenResponseIsStored() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(
         fakeClient("{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":3600}"));

@@ -1784,7 +1784,7 @@ describe('ObjectSerializer', () => {
       });
 
       describe('durationToProtoJson', () => {
-        test('bhv serializationobject 181 zero', () => {
+        test('bhv serializationobject 181 zero Duration stringifies as 0s', () => {
           expect(durationToProtoJson(Temporal.Duration.from({ seconds: 0 }))).toBe('0s');
         });
 
@@ -1820,7 +1820,7 @@ describe('ObjectSerializer', () => {
       });
 
       describe('durationFromProtoJson', () => {
-        test('bhv serializationobject 112 parses whole seconds', () => {
+        test('bhv serializationobject 112 a whole-second protobuf duration parses into its seconds', () => {
           expect(durationFromProtoJson('3600s').total({ unit: 'seconds' })).toBe(3600);
         });
 
@@ -1829,7 +1829,7 @@ describe('ObjectSerializer', () => {
           expect(d.total({ unit: 'nanoseconds' })).toBe(3600000000001);
         });
 
-        test('bhv serializationobject 113 parses negative durations', () => {
+        test('bhv serializationobject 113 a negative protobuf duration parses into a negative value', () => {
           expect(durationFromProtoJson('-90s').total({ unit: 'seconds' })).toBe(-90);
         });
 

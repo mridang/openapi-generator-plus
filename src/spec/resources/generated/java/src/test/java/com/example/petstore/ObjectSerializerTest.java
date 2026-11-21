@@ -399,7 +399,7 @@ class ObjectSerializerTest {
     @DisplayName(
         "bhvSerializationObject107 datetime with +05:30 offset preserves offset in serialized"
             + " string")
-    void bhvSerializationObject107PositivOffsetPreserved() {
+    void bhvSerializationObject107NegativeOffsetPreservedInSerializedString() {
       OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
       String result = ObjectSerializer.stringify(dt);
       assertTrue(result.contains("+05:30"), "should contain +05:30 offset: " + result);
@@ -409,7 +409,7 @@ class ObjectSerializerTest {
     @DisplayName(
         "bhvSerializationObject149 datetime with -08:00 offset preserves offset in serialized"
             + " string")
-    void bhvSerializationObject149NegativeOffsetPreserved() {
+    void bhvSerializationObject149SerializedDatetimeStringContainsOffset() {
       OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00");
       String result = ObjectSerializer.stringify(dt);
       assertTrue(result.contains("-08:00"), "should contain -08:00 offset: " + result);
@@ -417,7 +417,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationObject046 date-time serialization preserves sub-second precision")
-    void bhvSerializationObject046SubsecondsPreserved() {
+    void bhvSerializationObject046DateTimeSerializationPreservesSubSecondPrecision() {
       // The decoder (JavaTimeModule) accepts a fractional second, so the
       // parameter-path encoder must emit it too — truncating .123 to whole
       // seconds is a lossy, asymmetric round-trip. Milliseconds (3 digits)
@@ -673,7 +673,7 @@ class ObjectSerializerTest {
     @Test
     @DisplayName(
         "bhvSerializationObject160 string with tab character serializes as JSON \\t escape")
-    void bhvSerializationObject160TabCharacterEscapedProperly() throws Exception {
+    void bhvSerializationObject160TabCharacterEscapedProperlyInJson() throws Exception {
       String result = serializer.serialize("a\tb");
       assertTrue(result.contains("\\t"), "tab should be escaped as \\t in JSON, got: " + result);
     }
@@ -1639,7 +1639,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationObject181 zero Duration stringifies as 0s")
-    void bhvSerializationObject181ZeroDurationStringifies() {
+    void bhvSerializationObject181ZeroDurationStringifiesAs0s() {
       assertEquals("0s", ObjectSerializer.stringify(java.time.Duration.ZERO));
     }
 
@@ -1666,7 +1666,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationObject105 negative Duration carries the sign on the whole value")
-    void bhvSerializationObject105NegativeDurationSigned() {
+    void bhvSerializationObject105NegativeDurationCarriesTheSign() {
       java.time.Duration d = java.time.Duration.ofSeconds(-1, -500_000_000);
       assertEquals("-1.500s", ObjectSerializer.stringify(d));
     }
@@ -1841,7 +1841,7 @@ class ObjectSerializerTest {
     @Test
     @DisplayName(
         "bhvSerializationObject085 missing discriminator property throws (Gap AU-residual)")
-    void bhvSerializationObject085MissingDiscriminatorThrows() {
+    void bhvSerializationObject085FromJsonThrowsWhenTheDiscriminatorPropertyIsMissing() {
       // Gap AU-residual: a PetFood payload missing the foodType
       // discriminator property ({"weightKg":5.0}) must throw rather than
       // be silently wrapped as a raw dict in a union container. With no
@@ -3077,7 +3077,7 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationObject047 a strict model decodes its declared keys")
-    void bhvSerializationObject047DeclaredKeysDecode() {
+    void bhvSerializationObject047DeclaredKeysDecodeIntoTheFieldsOfTheModel() {
       com.example.petstore.models.StrictTag tag =
           java.util.Objects.requireNonNull(
               serializer.deserialize("{\"id\":5}", com.example.petstore.models.StrictTag.class));
@@ -3335,7 +3335,7 @@ class ObjectSerializerTest {
   }
 
   @Test
-  void bhvSerializationObject113ParsesNegativeDurations() {
+  void bhvSerializationObject113ANegativeProtobufDurationParsesIntoANegativeValue() {
     assertEquals(
         Duration.ofMillis(-1500), new ObjectSerializer().deserialize("\"-1.5s\"", Duration.class));
   }

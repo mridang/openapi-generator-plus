@@ -378,7 +378,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName("bhvLangkotlin037 handles string")
-        fun bhvLangkotlin037HandlesString() {
+        fun bhvLangkotlin037AStringValueIsSerialisedAndDeserialisedAsAPlainString() {
             val json = serializer.serialize("hello")
             assertEquals("\"hello\"", json)
         }
@@ -396,7 +396,7 @@ class ObjectSerializerTest {
 
         @Test
         @DisplayName("bhvLangkotlin038 omits fields explicitly set to null (Gap 13: discard nulls)")
-        fun bhvLangkotlin038OmitsNullFields() {
+        fun bhvLangkotlin038ANullOptionalFieldIsLeftOutOfTheSerialisedObject() {
             val category =
                 com.example.petstore.models
                     .Category(id = null, name = "Dogs")

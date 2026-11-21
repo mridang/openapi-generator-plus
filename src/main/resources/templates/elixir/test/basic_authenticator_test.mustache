@@ -164,13 +164,13 @@ defmodule {{moduleName}}.Auth.BasicAuthenticatorTest do
   # bearer-no-empty-token-guard: an empty/whitespace Bearer token must be
   # rejected at construction, not silently emit `Authorization: Bearer `.
   describe "BearerAuthenticator empty-token guard" do
-    test "bhv langelixir 047 rejects empty token" do
+    test "bhv langelixir 047 an empty token is rejected with an error" do
       assert_raise ArgumentError, fn ->
         BearerAuthenticator.new("https://api.example.com", "")
       end
     end
 
-    test "bhv authbearer 027 rejects whitespace-only token" do
+    test "bhv authbearer 027 a bearer authenticator rejects a whitespace-only token" do
       assert_raise ArgumentError, fn ->
         BearerAuthenticator.new("https://api.example.com", "   ")
       end

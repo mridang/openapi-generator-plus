@@ -9,7 +9,7 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert json != nil
     end
 
-    test "bhv models 003 deserializes empty object" do
+    test "bhv models 003 an empty object deserializes into a model with no values" do
       metadata = PetstoreClient.ObjectSerializer.deserialize("{}", "Metadata")
 
       assert metadata != nil
@@ -179,7 +179,7 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert text =~ ~s(additional_properties: %{"customField" => "hello"})
     end
 
-    test "bhv models 022 defines additional_properties function" do
+    test "bhv models 022 a generated model whose schema allows undeclared properties reports that it does" do
       assert PetstoreClient.Models.Metadata.additional_properties() == true
     end
   end

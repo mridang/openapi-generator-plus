@@ -46,7 +46,7 @@ fn test_bhv_models_004_metadata_deserialize_with_additional_properties() {
 }
 
 #[test]
-fn test_bhv_models_011_metadata_round_trip() {
+fn test_bhv_models_011_test_round_trip_preserves_additional_properties() {
     let json_data = r#"{"createdAt":"2024-01-15T10:30:00+00:00"}"#;
 
     let metadata: Metadata =

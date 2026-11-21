@@ -408,7 +408,7 @@ describe("OpenIdConnectAuthenticator", () => {
     }
   });
 
-  test("bhv authoidc 010 fetches discovery document", async () => {
+  test("bhv authoidc 010 the discovery document is fetched from the issuer", async () => {
     mockClient.responses = [
       {
         statusCode: 200,

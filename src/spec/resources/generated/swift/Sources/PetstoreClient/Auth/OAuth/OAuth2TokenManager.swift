@@ -52,6 +52,8 @@ public final class OAuth2TokenManager: @unchecked Sendable {
   private var tokenExpiry: TimeInterval?
   /// Set once an explicit ``exchange(tokenURL:params:extraHeaders:)`` succeeds.
   private var _exchanged: Bool = false
+  /// Set by ``stop()``; every later token request fails with ``OAuth2TokenError/stopped``.
+  private var _stopped: Bool = false
   /// In-flight refresh task, if any. While non-nil, concurrent callers await
   /// its result instead of starting another refresh.
   private var inflightRefresh: Task<String, Error>?
@@ -66,6 +68,18 @@ public final class OAuth2TokenManager: @unchecked Sendable {
   public func setApiClient(_ client: ApiClient) {
     lock.withLock {
       self.apiClient = client
+    }
+  }
+
+  /// Stops the token manager. Any later token request throws
+  /// ``OAuth2TokenError/stopped``; stopping again does nothing.
+  public func stop() {
+    lock.withLock { _stopped = true }
+  }
+
+  private func requireRunning() throws {
+    if lock.withLock({ _stopped }) {
+      throw OAuth2TokenError.stopped
     }
   }
 
@@ -97,6 +111,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     extraHeaders: [String: String] = [:],
     refreshURL: String? = nil
   ) async throws -> String {
+    try requireRunning()
     /* Fast path under the lock: return the cached token if still fresh, or
      * piggy-back on an already-running refresh task. NSLock's lock()/unlock()
      * are unavailable in async contexts under Swift 6 strict concurrency, so
@@ -282,6 +297,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     params: [String: String],
     extraHeaders: [String: String] = [:]
   ) async throws {
+    try requireRunning()
     let result = try await requestToken(
       tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
     lock.withLock {

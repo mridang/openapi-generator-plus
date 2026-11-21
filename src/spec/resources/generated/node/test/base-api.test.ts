@@ -383,7 +383,7 @@ describe("BaseApi exception hierarchy", () => {
 });
 
 describe("BaseApi", () => {
-  test("bhv serializationwire 004 deserializes JSON response", async () => {
+  test("bhv serializationwire 004 a JSON response is deserialized into the declared type", async () => {
     const result = await api().call(
       "GET",
       "/test/echo",
@@ -845,7 +845,7 @@ describe("BaseApi", () => {
 });
 
 describe("BaseApi", () => {
-  test("bhv authintegration 010 forwards auth headers", async () => {
+  test("bhv authintegration 010 auth headers are forwarded on the request", async () => {
     const auth = new TestAuthenticator({ "X-Custom": "auth-value" });
     const result = await api().call(
       "GET",
@@ -1454,7 +1454,7 @@ describe("BaseApi", () => {
     ).not.toContain("content-type");
   });
 
-  test("bhv serializationwire 024 serializes text/plain body", async () => {
+  test("bhv serializationwire 024 a text plain body is written as plain text", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);
@@ -1471,7 +1471,7 @@ describe("BaseApi", () => {
     expect(client.capturedBody).toBe("hello world");
   });
 
-  test("bhv serializationwire 021 serializes form-urlencoded body", async () => {
+  test("bhv serializationwire 021 a form-urlencoded body is serialized as form fields", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });
     const testApi = new TestableApi(client, config);

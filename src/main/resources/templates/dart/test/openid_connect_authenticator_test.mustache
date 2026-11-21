@@ -116,7 +116,7 @@ void main() {
       expect(url, contains('state=my-state'));
     });
 
-    test('bhv authoidc 010 fetches discovery document', () async {
+    test('bhv authoidc 010 the discovery document is fetched from the issuer', () async {
       final client = _FakeApiClient();
       client.enqueue(
           '{"authorization_endpoint":"https://auth.example.com/authorize",'

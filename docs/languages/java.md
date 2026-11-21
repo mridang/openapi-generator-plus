@@ -97,6 +97,7 @@ HTTP is the JDK's own `java.net.http.HttpClient`, so there is no HTTP library to
 - **GraalVM.** The SDK ships reflection metadata for every model, so it works in a `native-image` build; the optional brotli and zstd decoders do not.
 - Testing your code: `<Group>ApiInterface` (a `...Interface.java` file per group, registered in `BetterJavaCodegen` with the suffix `Interface.java`) and `ClientInterface extends AutoCloseable` with `get<Group>()` accessors beside the public fields. The convenience overloads are `default` methods that delegate to the full form, so a fake implements one form per operation; every class method carries `@Override` because Error Prone's `MissingOverride` is an error at `failOnWarning`.
 - With `generateExamples` on, the project ships `src/examples/java/<package>/examples/Quickstart.java`, a `main` that builds a client from `{PREFIX}_BASE_URL` and `{PREFIX}_ACCESS_TOKEN`, calls the example operation in a try-with-resources block and closes the client. The pom adds `src/examples/java` as a test source root, so `make examples` (`mvn test-compile`) builds it with Error Prone and NullAway, Checkstyle and Spotless cover it, and it never ships in the jar; `make examples-run` runs it with `mvn exec:java`.
+- `OAuth2TokenManager.stop()` ends the manager: a later token request throws `OAuth2TokenException` with the message "The token manager has been stopped." and sends nothing. Stopping twice does nothing.
 
 ## Recipes
 

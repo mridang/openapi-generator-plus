@@ -230,7 +230,7 @@ async fn test_bhv_authoidc_022_authorization_url_always_requests_the_openid_scop
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_bhv_authoidc_010_fetches_discovery_document() {
+async fn test_bhv_authoidc_010_the_discovery_document_is_fetched_from_the_issuer() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,

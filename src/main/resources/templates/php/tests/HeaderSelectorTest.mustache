@@ -44,7 +44,7 @@ test('bhv headers 014 should return false for empty string', function (): void {
     expect($this->headerSelector->isJsonMime(''))->toBeFalse();
 });
 
-test('bhv headers 015 should return false for null', function (): void {
+test('bhv headers 015 a missing media type is not a JSON type', function (): void {
     expect($this->headerSelector->isJsonMime(null))->toBeFalse();
 });
 
@@ -170,7 +170,7 @@ test('bhv headers 003 should not reorder json types ahead of others', function (
     expect($headers['Accept'])->toEqual('text/html, application/vnd.api+json, application/json');
 });
 
-test('bhv headers 032 should not add quality weights', function (): void {
+test('bhv headers 032 the Accept header lists media types without quality', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['text/html', 'application/json'],
         'application/json',
@@ -207,7 +207,7 @@ test('bhv headers 009 should filter to a single entry', function (): void {
     expect($headers['Accept'])->toEqual('application/json');
 });
 
-test('bhv headers 008 should drop whitespace-only entries', function (): void {
+test('bhv headers 008 whitespace-only entries are dropped', function (): void {
     $headers = $this->headerSelector->selectHeaders(
         ['   ', 'application/json'],
         'application/json',

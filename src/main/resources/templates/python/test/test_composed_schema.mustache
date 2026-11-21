@@ -40,21 +40,21 @@ class TestOneOfPetFood:
             ObjectSerializer().deserialize('{"weightKg":2.5}', 'PetFood')
         assert 'discriminator' in str(exc_info.value)
 
-    def test_bhv_unions_015_missing_discriminator_raises(self) -> None:
+    def test_bhv_unions_015_raises_serializationerror_for_missing_discriminator(self) -> None:
         """Gap AU: missing discriminator field must raise, not silently wrap."""
         json_str = '{"weightKg":2.5}'
         with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(json_str, 'PetFood')
         assert 'Missing discriminator' in str(exc_info.value)
 
-    def test_bhv_unions_024_empty_discriminator_raises(self) -> None:
+    def test_bhv_unions_024_throws_when_discriminator_value_is_empty(self) -> None:
         """Gap AU: empty discriminator value must raise."""
         json_str = '{"foodType":"","weightKg":2.5}'
         with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize(json_str, 'PetFood')
         assert 'Empty discriminator' in str(exc_info.value) or 'Unknown discriminator' in str(exc_info.value)
 
-    def test_bhv_unions_016_unknown_discriminator_raises(self) -> None:
+    def test_bhv_unions_016_raises_serializationerror_for_unknown_discriminator_value(self) -> None:
         """Gap AU: unknown discriminator value must raise."""
         json_str = '{"foodType":"raw","calories":300}'
         with pytest.raises(SerializationException) as exc_info:
@@ -83,7 +83,7 @@ class TestOneOfPetFood:
             ObjectSerializer().serialize(wrapped)
         assert 'PetFood' in str(exc_info.value)
 
-    def test_bhv_unions_020_serializes_dry_food(self) -> None:
+    def test_bhv_unions_020_serializes_dryfood_back_to_json(self) -> None:
         json_str = '{"foodType":"dry","weightKg":2.5}'
         result = ObjectSerializer().deserialize(json_str, 'PetFood')
         serialized = ObjectSerializer().serialize(result)
@@ -179,7 +179,7 @@ class TestAllOfVehicle:
             ObjectSerializer().deserialize(json_str, 'Vehicle')
         assert "'boat'" in str(exc_info.value)
 
-    def test_bhv_unions_304_missing_discriminator_raises(self) -> None:
+    def test_bhv_unions_304_an_allof_base_payload_without_its_discriminator_fails(self) -> None:
         with pytest.raises(SerializationException) as exc_info:
             ObjectSerializer().deserialize('{"plate":"AB-12"}', 'Vehicle')
         assert 'Missing discriminator' in str(exc_info.value)
@@ -206,7 +206,7 @@ class TestAnyOfPetTreatment:
         assert result.actual_instance is not None
         assert isinstance(result.actual_instance, Surgery)
 
-    def test_bhv_unions_008_serialize_round_trip(self) -> None:
+    def test_bhv_unions_008_any_of_serialize_round_trip(self) -> None:
         json_str = '{"drugName":"Amoxicillin","dosage":"500mg"}'
         result = ObjectSerializer().deserialize(json_str, 'PetTreatment')
         serialized = ObjectSerializer().serialize(result)
@@ -452,7 +452,7 @@ class TestOneOfNonDiscriminatorValidator:
 class TestAllOfPetWithOwner:
     """allOf: PetWithOwner"""
 
-    def test_bhv_unions_004_deserializes_all_properties(self) -> None:
+    def test_bhv_unions_004_allof_petwithowner_deserializes_all_properties(self) -> None:
         json_str = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"}'
         result = ObjectSerializer().deserialize(json_str, 'PetWithOwner')
         assert result is not None

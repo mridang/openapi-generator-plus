@@ -347,7 +347,7 @@ import Testing
 
   // MARK: - X-Request-ID injection
 
-  @Test func testBhvTransport043InjectsRequestId() async throws {
+  @Test func testBhvTransport043ARequestIdIsInjectedIntoTheRequestHeaders() async throws {
     var capturedId: String?
     let transport = try TransportOptionsBuilder().injectRequestID(true).build()
     let client = makeClient(transport: transport) { req in
@@ -468,7 +468,7 @@ import Testing
     #expect(resp.body.contains("key"))
   }
 
-  @Test func testBhvTransport051ReturnsResponseHeaders() async throws {
+  @Test func testBhvTransport051ResponseHeadersAreReturnedWithTheResponse() async throws {
     let client = makeClient { _ in (self.body("ok"), 200, ["X-Test-Header": "test-value"]) }
     let resp = try await client.sendRequest(
       method: "GET", url: "http://localhost/echo", headers: [:], body: nil)
@@ -485,7 +485,7 @@ import Testing
     #expect(resp.body == "not found")
   }
 
-  @Test func testBhvTransport055SendsPutRequest() async throws {
+  @Test func testBhvTransport055APUTRequestIsSentWithThePUTMethod() async throws {
     let client = makeClient { _ in (self.body(#"{"method":"PUT"}"#), 200, [:]) }
     let resp = try await client.sendRequest(
       method: "PUT", url: "http://localhost/echo", headers: [:], body: "update")
@@ -493,7 +493,7 @@ import Testing
     #expect(resp.body.contains("PUT"))
   }
 
-  @Test func testBhvTransport053SendsDeleteRequest() async throws {
+  @Test func testBhvTransport053ADELETERequestIsSentWithTheDELETEMethod() async throws {
     let client = makeClient { _ in (self.body(#"{"method":"DELETE"}"#), 200, [:]) }
     let resp = try await client.sendRequest(
       method: "DELETE", url: "http://localhost/echo", headers: [:], body: nil)
@@ -972,7 +972,7 @@ import Testing
   /// noRedirect=true MUST NOT follow the redirect; the 307 is returned to
   /// the caller verbatim rather than replaying the request body to the
   /// Location target. The token manager inspects/rejects the 3xx itself.
-  @Test func testBhvRedirects015NoRedirectReturns307() async throws {
+  @Test func testBhvRedirects015WithRedirectsOffA307ResponseIsReturnedToTheCaller() async throws {
     let client = makeClient { _ in
       (self.body("moved"), 307, ["Location": "https://other.example/x"])
     }
@@ -985,7 +985,7 @@ import Testing
 
   /// 308 (Permanent Redirect) is likewise returned verbatim under
   /// noRedirect rather than followed.
-  @Test func testBhvRedirects022NoRedirectReturns308() async throws {
+  @Test func testBhvRedirects022ReturnsThe308VerbatimWhenNoredirectTrue() async throws {
     let client = makeClient { _ in
       (self.body("moved permanently"), 308, ["Location": "https://other.example/x"])
     }
