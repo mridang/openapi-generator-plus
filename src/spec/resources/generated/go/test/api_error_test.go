@@ -124,6 +124,7 @@ func TestBhvErrors044_ApiError_EveryErrorTypeLivesInTheErrorsPackageAndTheRootEx
 		reflect.TypeOf((*petstore.NotFoundError)(nil)),
 		reflect.TypeOf((*petstore.InternalServerError)(nil)),
 		reflect.TypeOf((*petstore.NetworkTimeoutError)(nil)),
+		reflect.TypeOf((*petstore.StreamError)(nil)),
 		reflect.TypeOf((*petstore.SerializationError)(nil)),
 		reflect.TypeOf((*petstore.OAuth2ServerError)(nil)),
 		reflect.TypeOf((*petstore.OAuth2TokenError)(nil)),
@@ -166,6 +167,7 @@ var (
 	_ apierrors.OpenAPIError = (*apierrors.InternalServerError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.NetworkError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.NetworkTimeoutError)(nil)
+	_ apierrors.OpenAPIError = (*apierrors.StreamError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.SerializationError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.OAuth2TokenError)(nil)
 	_ apierrors.OpenAPIError = (*apierrors.OAuth2ServerError)(nil)
@@ -560,6 +562,7 @@ func TestBhvMisc283_ApiError_PackageRoot_ReexportsTheErrorTree(t *testing.T) {
 		_ petstore.OpenAPIError = (*petstore.InternalServerError)(nil)
 		_ petstore.OpenAPIError = (*petstore.NetworkError)(nil)
 		_ petstore.OpenAPIError = (*petstore.NetworkTimeoutError)(nil)
+		_ petstore.OpenAPIError = (*petstore.StreamError)(nil)
 		_ petstore.OpenAPIError = (*petstore.SerializationError)(nil)
 		_ petstore.OpenAPIError = (*petstore.OAuth2ServerError)(nil)
 		_ petstore.OpenAPIError = (*petstore.OAuth2TokenError)(nil)

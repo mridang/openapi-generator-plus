@@ -1,0 +1,36 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import javax.annotation.Nullable;
+
+/**
+ * One server-sent event: the fields of the standard envelope, with the data decoded.
+ *
+ * <p>{@link #toString()} shows the event name and the id, never the data.
+ *
+ * @param <T> the type the {@code data} field is decoded into ({@code String} for a plain payload)
+ * @param id the event id, or {@code null} when the stream has none
+ * @param event the event name, {@code "message"} when the server sent none
+ * @param data the decoded {@code data} field
+ * @param retry the reconnection time in milliseconds the server named with this event, or {@code null}
+ * @param raw the {@code data} field exactly as it arrived, lines joined with a line feed
+ */
+public record ServerSentEvent<T>(
+        @Nullable String id, String event, @Nullable T data, @Nullable Long retry, String raw) {
+
+    /** Creates an event. */
+    public ServerSentEvent(
+            @Nullable String id, String event, @Nullable T data, @Nullable Long retry, String raw) {
+        this.id = id;
+        this.event = event;
+        this.data = data;
+        this.retry = retry;
+        this.raw = raw;
+    }
+
+    @Override
+    public String toString() {
+        return "ServerSentEvent{event=" + event + ", id=" + id + "}";
+    }
+}

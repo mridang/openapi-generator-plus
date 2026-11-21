@@ -578,7 +578,38 @@ void main() {
 
       final result = await api.getPetAvatar(1, null);
       expect(result, isNotNull);
+      await result.close();
     });
+
+    test(
+      'bhv streaming 009 a binary stream exposes the status and the lower-cased response headers',
+      () async {
+        final api = _newPetApiForIntegration();
+
+        final stream = await api.getPetAvatar(1, null);
+        try {
+          expect(stream.statusCode, equals(200));
+          expect(stream.headers, contains('content-type'));
+          expect(
+            stream.headers.keys,
+            everyElement(
+              predicate<String>((name) => name == name.toLowerCase()),
+            ),
+          );
+        } finally {
+          await stream.close();
+        }
+        final result = await api.getPetAvatarWithHttpInfo(1, null);
+        final data = result.data!;
+        try {
+          expect(result.statusCode, equals(data.statusCode));
+          expect(result.headers, equals(data.headers));
+          expect(result.rawBody, isEmpty);
+        } finally {
+          await data.close();
+        }
+      },
+    );
 
     test('bhv operations 046 getPetAvatarThumbnail', () async {
       final api = _newPetApiForIntegration();
@@ -870,12 +901,14 @@ void main() {
 
       final result = await api.downloadPetDocument(1, 1, null);
       expect(result, isNotNull);
+      await result.close();
     });
 
     test('bhv operations 055 getPetPhoto', () async {
       final api = _newPetApiForIntegration();
       final result = await api.getPetPhoto(1, 1, null);
       expect(result, isNotNull);
+      await result.close();
     });
 
     test('bhv operations 058 getPetTag', () async {
@@ -926,6 +959,10 @@ void main() {
 
         final result = await api.getPetAvatarWithHttpInfo(1, null);
         expect(result.statusCode, equals(200));
+        expect(
+          await result.data!.readAll(),
+          equals([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+        );
       } finally {
         await server.close();
       }

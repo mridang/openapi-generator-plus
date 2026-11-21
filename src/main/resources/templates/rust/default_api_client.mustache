@@ -17,8 +17,9 @@ use crate::api_client::{
 };
 use crate::errors::api_error::{ApiError, TransportFailure};
 use crate::errors::configuration_error::ConfigurationError;
-use crate::errors::{NetworkError, NetworkTimeoutError};
+use crate::errors::{NetworkError, NetworkTimeoutError, StreamError};
 use crate::api_http_response::ApiHttpResponse;
+use crate::api_stream_response::{ApiStreamResponse, BodyStream};
 use crate::transport_options::TransportOptions;
 
 /// Lowercased credential-bearing header names that must be stripped
@@ -56,6 +57,9 @@ pub struct DefaultApiClient {
     /// `send_request*` call fails fast with an `ApiError` instead of leaking a
     /// foreign reqwest error or silently succeeding.
     closed: Arc<AtomicBool>,
+    /* Woken by `close()` so a stream blocked on a read ends at once instead of
+     * waiting for the next chunk. */
+    streams: Arc<tokio::sync::Notify>,
 }
 
 impl DefaultApiClient {
@@ -69,6 +73,7 @@ impl DefaultApiClient {
             transport_options: opts,
             http_client: Mutex::new(Some(http_client)),
             closed: Arc::new(AtomicBool::new(false)),
+            streams: Arc::new(tokio::sync::Notify::new()),
         }
     }
 
@@ -118,15 +123,19 @@ impl DefaultApiClient {
             transport_options: opts,
             http_client: Mutex::new(Some(client)),
             closed: Arc::new(AtomicBool::new(false)),
+            streams: Arc::new(tokio::sync::Notify::new()),
         })
     }
 
     /// Explicit close hook. Marks the client closed so that any
     /// subsequent request fails fast with a uniform SDK `ApiError`
     /// ("client is closed"), and drops the underlying `reqwest::Client` so its
-    /// connection pool is released once in-flight requests finish.
+    /// connection pool is released once in-flight requests finish. The streams
+    /// that are still open are cancelled: their next read fails with
+    /// `ConfigurationError::InvalidState`.
     pub fn close(&self) {
         self.closed.store(true, Ordering::SeqCst);
+        self.streams.notify_waiters();
         if let Ok(mut guard) = self.http_client.lock() {
             guard.take();
         }
@@ -135,6 +144,346 @@ impl DefaultApiClient {
     /// Returns true once `close()` has been called on this client.
     pub fn is_closed(&self) -> bool {
         self.closed.load(Ordering::SeqCst)
+    }
+
+    /// Sends the request, follows the redirects and returns the response as
+    /// soon as its headers have arrived, with the body not read. The buffered
+    /// path reads the body from it; the streaming path hands it on.
+    ///
+    /// With `streaming` the end-to-end `deadline` bounds the wait for each
+    /// response's headers only, and the request is asked for an unencoded body.
+    async fn dispatch(
+        &self,
+        method: String,
+        url: String,
+        headers: HashMap<String, String>,
+        body: Option<RequestBody>,
+        options: RequestOptions,
+        streaming: bool,
+    ) -> Result<(reqwest::Response, Option<std::time::Instant>), Box<dyn std::error::Error + Send + Sync>> {
+        /* Use-after-close is a wrong call order, reported as
+         * ConfigurationError::InvalidState rather than a foreign library
+         * error or a silent success. */
+        let http_client = self
+            .http_client
+            .lock()
+            .ok()
+            .and_then(|guard| guard.clone())
+            .filter(|_| !self.closed.load(Ordering::SeqCst))
+            .ok_or_else(|| {
+                Box::new(ConfigurationError::InvalidState(
+                    "ApiClient has been closed and can no longer send requests".to_string(),
+                )) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+        let mut merged: HashMap<String, String> = if options.no_redirect {
+            HashMap::new()
+        } else {
+            self.transport_options.default_headers()
+        };
+        for (k, v) in &headers {
+            insert_header(&mut merged, k.clone(), v.clone());
+        }
+        /* RFC 9110 section 5.1: field names are case-insensitive, so a caller
+         * header in any case suppresses the injected value and keeps its own
+         * spelling and value untouched. */
+        if !has_header(&merged, "User-Agent") {
+            /* Only inject a User-Agent header when one is configured; a
+             * `None` user_agent means the header is omitted entirely, while
+             * an explicit empty string is sent as an empty header, as in the
+             * other SDKs. */
+            if let Some(ua) = self.transport_options.user_agent() {
+                merged.insert("User-Agent".to_string(), ua.to_string());
+            }
+        }
+        if !has_header(&merged, "Accept-Encoding") {
+            /* A streamed body is handed on as the server sends it, so it is
+             * asked for unencoded; the buffered path decodes whole bodies. */
+            merged.insert(
+                "Accept-Encoding".to_string(),
+                if streaming { "identity" } else { "gzip, deflate, br, zstd" }.to_string(),
+            );
+        }
+        if !has_header(&merged, "X-Request-ID") && self.transport_options.inject_request_id() {
+            merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());
+        }
+        /* T-new-3: Pre-serialize the body to a Vec<u8> up-front so we can
+         * replay it across 307/308 redirects per RFC 7231 §6.4.7 / RFC 7538.
+         * Multipart bodies are serialized here (rather than handed to
+         * reqwest::multipart::Form, which is not Clone) so the same bytes
+         * and boundary can be re-sent on the follow-up request. */
+        let body_bytes: Option<Vec<u8>> = match &body {
+            Some(RequestBody::Bytes(b)) => Some(b.clone()),
+            Some(RequestBody::Multipart(fields)) => {
+                let boundary = format!("----RustFormBoundary{}", Uuid::new_v4().simple());
+                let serialized = serialize_multipart_body(fields, &boundary)
+                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+                /* Keep a declared multipart subtype (multipart/mixed, ...) and
+                 * fall back to form-data when the declared value is not a
+                 * plain multipart token. The boundary we generated is always
+                 * appended, so the server can parse the body. */
+                let subtype = merged
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case("Content-Type"))
+                    .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_ascii_lowercase())
+                    .filter(|t| {
+                        t.strip_prefix("multipart/").is_some_and(|sub| {
+                            !sub.is_empty()
+                                && sub.chars().all(|c| c.is_ascii_alphanumeric() || "!#$&^_.+-".contains(c))
+                        })
+                    })
+                    .unwrap_or_else(|| "multipart/form-data".to_string());
+                remove_header(&mut merged, "Content-Type");
+                insert_header(
+                    &mut merged,
+                    "Content-Type".to_string(),
+                    format!("{}; boundary={}", subtype, boundary),
+                );
+                Some(serialized)
+            }
+            None => None,
+        };
+
+        /* Do not send Content-Type when there is no request body */
+        if body_bytes.is_none() {
+            remove_header(&mut merged, "Content-Type");
+        }
+
+        let http_method = method.parse::<reqwest::Method>().map_err(|e| {
+            Box::new(ConfigurationError::InvalidArgument(format!(
+                "invalid HTTP method '{}': {}",
+                method, e
+            ))) as Box<dyn std::error::Error + Send + Sync>
+        })?;
+
+        /* A malformed request URL is a caller mistake, not a network
+         * failure: reject it before reqwest reports it as a builder error. */
+        let parsed_url = reqwest::Url::parse(&url).map_err(|e| {
+            Box::new(ConfigurationError::InvalidArgument(format!(
+                "invalid request URL '{}': {}",
+                url, e
+            ))) as Box<dyn std::error::Error + Send + Sync>
+        })?;
+
+        /* One end-to-end budget covers the first request and every redirect
+         * hop: each request gets only what is left of it, so a chain of
+         * slow hops cannot restart the clock. */
+        let deadline = options.deadline.or_else(|| {
+            self.transport_options
+                .timeout()
+                .and_then(|ms| u64::try_from(ms).ok())
+                .map(|ms| std::time::Instant::now() + Duration::from_millis(ms))
+        });
+
+        /* A budget that is already spent is a timeout: nothing is sent. */
+        if deadline.is_some_and(|d| std::time::Instant::now() >= d) {
+            let cause = std::io::Error::new(std::io::ErrorKind::TimedOut, "the deadline has already passed");
+            let api_error = ApiError::transport(
+                TransportFailure::Timeout,
+                "request timed out".to_string(),
+                Arc::new(cause),
+            );
+            let failure: Box<dyn std::error::Error + Send + Sync> = match NetworkError::try_from(api_error) {
+                Ok(network) => Box::new(NetworkTimeoutError::from(network)),
+                Err(other) => Box::new(other),
+            };
+            return Err(failure);
+        }
+
+        let mut request_builder = http_client.request(http_method, parsed_url);
+        /* A streamed call has no per-request timeout: reqwest's would cover the
+         * body too, so `send_hop` bounds the wait for the headers instead. */
+        if let Some(deadline) = deadline.filter(|_| !streaming) {
+            request_builder = request_builder.timeout(remaining_budget(deadline));
+        }
+
+        for (k, v) in &merged {
+            request_builder = request_builder.header(k.as_str(), v.as_str());
+        }
+
+        if let Some(bytes) = &body_bytes {
+            request_builder = request_builder.body(bytes.clone());
+        } else {
+            /* Some servers / WAFs treat POST/PUT/PATCH with no body
+             * and no Content-Length as malformed (411 Length
+             * Required) or behave inconsistently. Attach an empty
+             * Vec<u8> on body-bearing verbs so reqwest emits an
+             * explicit `Content-Length: 0`, matching Kotlin's
+             * `ByteArray(0)` and the other 11 SDKs. */
+            let upper = method.to_ascii_uppercase();
+            if upper == "POST" || upper == "PUT" || upper == "PATCH" {
+                request_builder = request_builder
+                    .body(Vec::<u8>::new())
+                    .header("Content-Length", "0");
+                /* Also record the explicit `Content-Length: 0` in `merged`
+                 * (the header map the redirect loop seeds itself from), not
+                 * only on this builder. A 307/308 replay of a body-less
+                 * POST rebuilds the follow-up request from
+                 * `current_headers`, so setting it only on the builder
+                 * would lose the workaround on the redirected hop. The
+                 * redirect loop preserves a `Content-Length` of exactly
+                 * `0` even when there is no `next_body` (see below), since
+                 * an empty body's length is unconditionally zero. */
+                insert_header(&mut merged, "Content-Length".to_string(), "0".to_string());
+            }
+        }
+
+        let mut response = send_hop(request_builder, deadline, streaming).await?;
+
+        /* Manual redirect loop with cross-origin header strip.
+         * Options.no_redirect (the OAuth2 token POST) means "do
+         * not follow redirects; return the 3xx as-is". The loop is skipped
+         * and the first 3xx surfaces verbatim. The token manager inspects
+         * and rejects the 3xx itself, so a credential-bearing body is never
+         * silently replayed to a redirect target. */
+        if self.transport_options.follow_redirects() && !options.no_redirect {
+            /* Default to 20 hops when caller does not configure an explicit
+             * cap — unified across all 12 SDKs. */
+            let max = self.transport_options.max_redirects().unwrap_or(20);
+            let original_url = reqwest::Url::parse(&url).ok();
+            let mut current_url = original_url.clone();
+            let mut hops = 0usize;
+            let mut current_method = method.to_string();
+            let mut current_body: Option<Vec<u8>> = body_bytes.clone();
+            let mut current_headers: std::collections::HashMap<String, String> =
+                merged.clone();
+            while is_redirect_status(response.status().as_u16()) && hops < max {
+                let status_code = response.status().as_u16();
+                let location = match response
+                    .headers()
+                    .get("location")
+                    .and_then(|v| v.to_str().ok())
+                    .map(|s| s.to_string())
+                {
+                    Some(l) => l,
+                    None => break,
+                };
+                let next_url = match current_url
+                    .as_ref()
+                    .and_then(|c| c.join(&location).ok())
+                {
+                    Some(u) => u,
+                    None => break,
+                };
+                if next_url.scheme() != "http" && next_url.scheme() != "https" {
+                    /* A `Location:` pointing at a non-http(s)
+                     * scheme (file:, javascript:, data:, ...) must be
+                     * refused loudly, not silently returned as the 3xx
+                     * response. Unified across the 12 SDKs. */
+                    return Err(Box::new(ApiError::new(
+                        status_code,
+                        non_http_redirect_message(&next_url),
+                        Some(collect_headers(response.headers())),
+                        None,
+                    )) as Box<dyn std::error::Error + Send + Sync>);
+                }
+                let cross_origin = match original_url.as_ref() {
+                    Some(orig) => !same_origin(orig, &next_url),
+                    None => true,
+                };
+
+                /* Refuse to replay a request body across an
+                 * HTTPS->HTTP downgrade. Every hop except 303 may carry the
+                 * body on, so a TLS-protected payload must not be re-sent in
+                 * cleartext, even by a 301 or 302 that would drop it. */
+                if is_https_to_http_body_replay(
+                    status_code,
+                    &current_method,
+                    current_url.as_ref(),
+                    &next_url,
+                    current_body.is_some(),
+                ) {
+                    return Err(Box::new(ApiError::new(
+                        status_code,
+                        replay_refusal_message(current_url.as_ref(), &url, &next_url),
+                        Some(collect_headers(response.headers())),
+                        None,
+                    )) as Box<dyn std::error::Error + Send + Sync>);
+                }
+
+                /* Pick follow-up method+body per RFC 9110 section 15.4.
+                 *   307 + 308: preserve original method and body.
+                 *   303:       every method except HEAD becomes GET and
+                 *              drops the body; HEAD stays HEAD.
+                 *   301 + 302: only POST becomes GET (body dropped); every
+                 *              other method keeps method and body. */
+                let next_method = redirect_next_method(status_code, &current_method);
+                let next_body: Option<Vec<u8>> = if status_code == 303 {
+                    None
+                } else if next_method == current_method {
+                    current_body.clone()
+                } else {
+                    None
+                };
+
+                let http_method = next_method.parse::<reqwest::Method>().map_err(|e| {
+                    Box::new(ConfigurationError::InvalidArgument(format!(
+                        "invalid HTTP method '{}': {}",
+                        next_method, e
+                    ))) as Box<dyn std::error::Error + Send + Sync>
+                })?;
+                let mut redirect_builder =
+                    http_client.request(http_method, next_url.clone());
+                if let Some(deadline) = deadline.filter(|_| !streaming) {
+                    redirect_builder = redirect_builder.timeout(remaining_budget(deadline));
+                }
+                let mut redirect_headers = current_headers.clone();
+                if next_body.is_none() {
+                    let keeps_method = next_method == current_method;
+                    redirect_headers.retain(|k, v| {
+                        let lk = k.to_lowercase();
+                        /* Drop Content-Type unconditionally when there is
+                         * no body. Drop Content-Length too, EXCEPT a
+                         * literal `0` on a hop that keeps the method: an
+                         * original empty-body POST/PUT/PATCH carries an
+                         * explicit `Content-Length: 0` workaround (for
+                         * WAFs/servers that 411 on body-less POSTs) and
+                         * that header stays valid across a 307/308 replay,
+                         * where the empty body is preserved. A hop demoted
+                         * to GET sends neither entity header. */
+                        lk != "content-type"
+                            && (lk != "content-length" || (keeps_method && v.trim() == "0"))
+                    });
+                }
+                if cross_origin {
+                    /* A credential stripped on a cross-origin hop stays stripped:
+                     * a later hop back to the original origin must not restore it. */
+                    redirect_headers.retain(|k, _| !is_credential_header(k));
+                }
+                for (k, v) in &redirect_headers {
+                    redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
+                }
+                if let Some(b) = &next_body {
+                    redirect_builder = redirect_builder.body(b.clone());
+                }
+                response = send_hop(redirect_builder, deadline, streaming).await?;
+                current_url = Some(next_url);
+                current_method = next_method;
+                current_body = next_body;
+                current_headers = redirect_headers;
+                hops += 1;
+            }
+
+            /* Exceeding the redirect cap must fail loudly rather
+             * than silently returning the last 3xx as a normal response.
+             * Only a 3xx with a usable Location counts (D70): one without
+             * is returned unchanged. */
+            let has_next_hop = response
+                .headers()
+                .get("location")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|l| current_url.as_ref().and_then(|c| c.join(l).ok()))
+                .is_some();
+            if is_redirect_status(response.status().as_u16()) && hops >= max && has_next_hop {
+                return Err(Box::new(ApiError::new(
+                    response.status().as_u16(),
+                    format!("Too many redirects (exceeded {})", max),
+                    Some(collect_headers(response.headers())),
+                    None,
+                )) as Box<dyn std::error::Error + Send + Sync>);
+            }
+        }
+
+        Ok((response, deadline))
     }
 }
 
@@ -205,324 +554,9 @@ impl ApiClient for DefaultApiClient {
         let options = options.clone();
 
         Box::pin(async move {
-            /* Use-after-close is a wrong call order, reported as
-             * ConfigurationError::InvalidState rather than a foreign library
-             * error or a silent success. */
-            let http_client = self
-                .http_client
-                .lock()
-                .ok()
-                .and_then(|guard| guard.clone())
-                .filter(|_| !self.closed.load(Ordering::SeqCst))
-                .ok_or_else(|| {
-                    Box::new(ConfigurationError::InvalidState(
-                        "ApiClient has been closed and can no longer send requests".to_string(),
-                    )) as Box<dyn std::error::Error + Send + Sync>
-                })?;
-            let mut merged: HashMap<String, String> = if options.no_redirect {
-                HashMap::new()
-            } else {
-                self.transport_options.default_headers()
-            };
-            for (k, v) in &headers {
-                insert_header(&mut merged, k.clone(), v.clone());
-            }
-            /* RFC 9110 section 5.1: field names are case-insensitive, so a caller
-             * header in any case suppresses the injected value and keeps its own
-             * spelling and value untouched. */
-            if !has_header(&merged, "User-Agent") {
-                /* Only inject a User-Agent header when one is configured; a
-                 * `None` user_agent means the header is omitted entirely, while
-                 * an explicit empty string is sent as an empty header, as in the
-                 * other SDKs. */
-                if let Some(ua) = self.transport_options.user_agent() {
-                    merged.insert("User-Agent".to_string(), ua.to_string());
-                }
-            }
-            if !has_header(&merged, "Accept-Encoding") {
-                merged.insert(
-                    "Accept-Encoding".to_string(),
-                    "gzip, deflate, br, zstd".to_string(),
-                );
-            }
-            if !has_header(&merged, "X-Request-ID") && self.transport_options.inject_request_id() {
-                merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());
-            }
-            /* T-new-3: Pre-serialize the body to a Vec<u8> up-front so we can
-             * replay it across 307/308 redirects per RFC 7231 §6.4.7 / RFC 7538.
-             * Multipart bodies are serialized here (rather than handed to
-             * reqwest::multipart::Form, which is not Clone) so the same bytes
-             * and boundary can be re-sent on the follow-up request. */
-            let body_bytes: Option<Vec<u8>> = match &body {
-                Some(RequestBody::Bytes(b)) => Some(b.clone()),
-                Some(RequestBody::Multipart(fields)) => {
-                    let boundary = format!("----RustFormBoundary{}", Uuid::new_v4().simple());
-                    let serialized = serialize_multipart_body(fields, &boundary)
-                        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-                    /* Keep a declared multipart subtype (multipart/mixed, ...) and
-                     * fall back to form-data when the declared value is not a
-                     * plain multipart token. The boundary we generated is always
-                     * appended, so the server can parse the body. */
-                    let subtype = merged
-                        .iter()
-                        .find(|(k, _)| k.eq_ignore_ascii_case("Content-Type"))
-                        .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_ascii_lowercase())
-                        .filter(|t| {
-                            t.strip_prefix("multipart/").is_some_and(|sub| {
-                                !sub.is_empty()
-                                    && sub.chars().all(|c| c.is_ascii_alphanumeric() || "!#$&^_.+-".contains(c))
-                            })
-                        })
-                        .unwrap_or_else(|| "multipart/form-data".to_string());
-                    remove_header(&mut merged, "Content-Type");
-                    insert_header(
-                        &mut merged,
-                        "Content-Type".to_string(),
-                        format!("{}; boundary={}", subtype, boundary),
-                    );
-                    Some(serialized)
-                }
-                None => None,
-            };
-
-            /* Do not send Content-Type when there is no request body */
-            if body_bytes.is_none() {
-                remove_header(&mut merged, "Content-Type");
-            }
-
-            let http_method = method.parse::<reqwest::Method>().map_err(|e| {
-                Box::new(ConfigurationError::InvalidArgument(format!(
-                    "invalid HTTP method '{}': {}",
-                    method, e
-                ))) as Box<dyn std::error::Error + Send + Sync>
-            })?;
-
-            /* A malformed request URL is a caller mistake, not a network
-             * failure: reject it before reqwest reports it as a builder error. */
-            let parsed_url = reqwest::Url::parse(&url).map_err(|e| {
-                Box::new(ConfigurationError::InvalidArgument(format!(
-                    "invalid request URL '{}': {}",
-                    url, e
-                ))) as Box<dyn std::error::Error + Send + Sync>
-            })?;
-
-            /* One end-to-end budget covers the first request and every redirect
-             * hop: each request gets only what is left of it, so a chain of
-             * slow hops cannot restart the clock. */
-            let deadline = options.deadline.or_else(|| {
-                self.transport_options
-                    .timeout()
-                    .and_then(|ms| u64::try_from(ms).ok())
-                    .map(|ms| std::time::Instant::now() + Duration::from_millis(ms))
-            });
-
-            /* A budget that is already spent is a timeout: nothing is sent. */
-            if deadline.is_some_and(|d| std::time::Instant::now() >= d) {
-                let cause = std::io::Error::new(std::io::ErrorKind::TimedOut, "the deadline has already passed");
-                let api_error = ApiError::transport(
-                    TransportFailure::Timeout,
-                    "request timed out".to_string(),
-                    Arc::new(cause),
-                );
-                let failure: Box<dyn std::error::Error + Send + Sync> = match NetworkError::try_from(api_error) {
-                    Ok(network) => Box::new(NetworkTimeoutError::from(network)),
-                    Err(other) => Box::new(other),
-                };
-                return Err(failure);
-            }
-
-            let mut request_builder = http_client.request(http_method, parsed_url);
-            if let Some(deadline) = deadline {
-                request_builder = request_builder.timeout(remaining_budget(deadline));
-            }
-
-            for (k, v) in &merged {
-                request_builder = request_builder.header(k.as_str(), v.as_str());
-            }
-
-            if let Some(bytes) = &body_bytes {
-                request_builder = request_builder.body(bytes.clone());
-            } else {
-                /* Some servers / WAFs treat POST/PUT/PATCH with no body
-                 * and no Content-Length as malformed (411 Length
-                 * Required) or behave inconsistently. Attach an empty
-                 * Vec<u8> on body-bearing verbs so reqwest emits an
-                 * explicit `Content-Length: 0`, matching Kotlin's
-                 * `ByteArray(0)` and the other 11 SDKs. */
-                let upper = method.to_ascii_uppercase();
-                if upper == "POST" || upper == "PUT" || upper == "PATCH" {
-                    request_builder = request_builder
-                        .body(Vec::<u8>::new())
-                        .header("Content-Length", "0");
-                    /* Also record the explicit `Content-Length: 0` in `merged`
-                     * (the header map the redirect loop seeds itself from), not
-                     * only on this builder. A 307/308 replay of a body-less
-                     * POST rebuilds the follow-up request from
-                     * `current_headers`, so setting it only on the builder
-                     * would lose the workaround on the redirected hop. The
-                     * redirect loop preserves a `Content-Length` of exactly
-                     * `0` even when there is no `next_body` (see below), since
-                     * an empty body's length is unconditionally zero. */
-                    insert_header(&mut merged, "Content-Length".to_string(), "0".to_string());
-                }
-            }
-
-            let mut response = request_builder.send().await.map_err(|e| transport_error_before(e, deadline))?;
-
-            /* Manual redirect loop with cross-origin header strip.
-             * Options.no_redirect (the OAuth2 token POST) means "do
-             * not follow redirects; return the 3xx as-is". The loop is skipped
-             * and the first 3xx surfaces verbatim. The token manager inspects
-             * and rejects the 3xx itself, so a credential-bearing body is never
-             * silently replayed to a redirect target. */
-            if self.transport_options.follow_redirects() && !options.no_redirect {
-                /* Default to 20 hops when caller does not configure an explicit
-                 * cap — unified across all 12 SDKs. */
-                let max = self.transport_options.max_redirects().unwrap_or(20);
-                let original_url = reqwest::Url::parse(&url).ok();
-                let mut current_url = original_url.clone();
-                let mut hops = 0usize;
-                let mut current_method = method.to_string();
-                let mut current_body: Option<Vec<u8>> = body_bytes.clone();
-                let mut current_headers: std::collections::HashMap<String, String> =
-                    merged.clone();
-                while is_redirect_status(response.status().as_u16()) && hops < max {
-                    let status_code = response.status().as_u16();
-                    let location = match response
-                        .headers()
-                        .get("location")
-                        .and_then(|v| v.to_str().ok())
-                        .map(|s| s.to_string())
-                    {
-                        Some(l) => l,
-                        None => break,
-                    };
-                    let next_url = match current_url
-                        .as_ref()
-                        .and_then(|c| c.join(&location).ok())
-                    {
-                        Some(u) => u,
-                        None => break,
-                    };
-                    if next_url.scheme() != "http" && next_url.scheme() != "https" {
-                        /* A `Location:` pointing at a non-http(s)
-                         * scheme (file:, javascript:, data:, ...) must be
-                         * refused loudly, not silently returned as the 3xx
-                         * response. Unified across the 12 SDKs. */
-                        return Err(Box::new(ApiError::new(
-                            status_code,
-                            non_http_redirect_message(&next_url),
-                            Some(collect_headers(response.headers())),
-                            None,
-                        )) as Box<dyn std::error::Error + Send + Sync>);
-                    }
-                    let cross_origin = match original_url.as_ref() {
-                        Some(orig) => !same_origin(orig, &next_url),
-                        None => true,
-                    };
-
-                    /* Refuse to replay a request body across an
-                     * HTTPS->HTTP downgrade. Every hop except 303 may carry the
-                     * body on, so a TLS-protected payload must not be re-sent in
-                     * cleartext, even by a 301 or 302 that would drop it. */
-                    if is_https_to_http_body_replay(
-                        status_code,
-                        &current_method,
-                        current_url.as_ref(),
-                        &next_url,
-                        current_body.is_some(),
-                    ) {
-                        return Err(Box::new(ApiError::new(
-                            status_code,
-                            replay_refusal_message(current_url.as_ref(), &url, &next_url),
-                            Some(collect_headers(response.headers())),
-                            None,
-                        )) as Box<dyn std::error::Error + Send + Sync>);
-                    }
-
-                    /* Pick follow-up method+body per RFC 9110 section 15.4.
-                     *   307 + 308: preserve original method and body.
-                     *   303:       every method except HEAD becomes GET and
-                     *              drops the body; HEAD stays HEAD.
-                     *   301 + 302: only POST becomes GET (body dropped); every
-                     *              other method keeps method and body. */
-                    let next_method = redirect_next_method(status_code, &current_method);
-                    let next_body: Option<Vec<u8>> = if status_code == 303 {
-                        None
-                    } else if next_method == current_method {
-                        current_body.clone()
-                    } else {
-                        None
-                    };
-
-                    let http_method = next_method.parse::<reqwest::Method>().map_err(|e| {
-                        Box::new(ConfigurationError::InvalidArgument(format!(
-                            "invalid HTTP method '{}': {}",
-                            next_method, e
-                        ))) as Box<dyn std::error::Error + Send + Sync>
-                    })?;
-                    let mut redirect_builder =
-                        http_client.request(http_method, next_url.clone());
-                    if let Some(deadline) = deadline {
-                        redirect_builder = redirect_builder.timeout(remaining_budget(deadline));
-                    }
-                    let mut redirect_headers = current_headers.clone();
-                    if next_body.is_none() {
-                        let keeps_method = next_method == current_method;
-                        redirect_headers.retain(|k, v| {
-                            let lk = k.to_lowercase();
-                            /* Drop Content-Type unconditionally when there is
-                             * no body. Drop Content-Length too, EXCEPT a
-                             * literal `0` on a hop that keeps the method: an
-                             * original empty-body POST/PUT/PATCH carries an
-                             * explicit `Content-Length: 0` workaround (for
-                             * WAFs/servers that 411 on body-less POSTs) and
-                             * that header stays valid across a 307/308 replay,
-                             * where the empty body is preserved. A hop demoted
-                             * to GET sends neither entity header. */
-                            lk != "content-type"
-                                && (lk != "content-length" || (keeps_method && v.trim() == "0"))
-                        });
-                    }
-                    if cross_origin {
-                        /* A credential stripped on a cross-origin hop stays stripped:
-                         * a later hop back to the original origin must not restore it. */
-                        redirect_headers.retain(|k, _| !is_credential_header(k));
-                    }
-                    for (k, v) in &redirect_headers {
-                        redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
-                    }
-                    if let Some(b) = &next_body {
-                        redirect_builder = redirect_builder.body(b.clone());
-                    }
-                    response = redirect_builder.send().await.map_err(|e| transport_error_before(e, deadline))?;
-                    current_url = Some(next_url);
-                    current_method = next_method;
-                    current_body = next_body;
-                    current_headers = redirect_headers;
-                    hops += 1;
-                }
-
-                /* Exceeding the redirect cap must fail loudly rather
-                 * than silently returning the last 3xx as a normal response.
-                 * Only a 3xx with a usable Location counts (D70): one without
-                 * is returned unchanged. */
-                let has_next_hop = response
-                    .headers()
-                    .get("location")
-                    .and_then(|v| v.to_str().ok())
-                    .and_then(|l| current_url.as_ref().and_then(|c| c.join(l).ok()))
-                    .is_some();
-                if is_redirect_status(response.status().as_u16()) && hops >= max && has_next_hop {
-                    return Err(Box::new(ApiError::new(
-                        response.status().as_u16(),
-                        format!("Too many redirects (exceeded {})", max),
-                        Some(collect_headers(response.headers())),
-                        None,
-                    )) as Box<dyn std::error::Error + Send + Sync>);
-                }
-            }
-
+            let (response, deadline) = self
+                .dispatch(method, url, headers, body, options, false)
+                .await?;
             let status_code = response.status().as_u16();
             /* Response header keys are normalised to lowercase so
              * callers can look them up consistently regardless of the casing
@@ -574,14 +608,51 @@ impl ApiClient for DefaultApiClient {
                     )) as Box<dyn std::error::Error + Send + Sync>);
                 }
             };
-            let resp_body = if is_text_content_type(&content_type) {
-                decode_text_body(&resp_bytes, &content_type)
-            } else {
-                use base64::Engine as _;
-                base64::engine::general_purpose::STANDARD.encode(&resp_bytes)
-            };
+            let resp_body = body_text(&resp_bytes, &content_type);
 
             Ok(ApiHttpResponse::new(status_code, resp_body, resp_headers))
+        })
+    }
+
+    /// Sends an HTTP request and returns once the response headers have
+    /// arrived, with the body not read yet.
+    ///
+    /// The redirects, headers and credential rules are those of the buffered
+    /// call. The end-to-end timeout bounds the wait for the headers and stops
+    /// there; [`TransportOptions::idle_timeout`] bounds the gap between two reads
+    /// of the body and fails with `NetworkTimeoutError`. A body that ends before
+    /// its declared length, or a connection reset, fails with `StreamError`.
+    /// Closing the client cancels the open streams: their next read is a
+    /// `ConfigurationError::InvalidState`. The body is handed on as the server
+    /// sent it (the request asks for `identity`), with its `content-encoding`
+    /// header kept.
+    fn send_streaming(
+        &self,
+        method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&RequestBody>,
+        options: &RequestOptions,
+    ) -> Pin<Box<dyn Future<Output = Result<ApiStreamResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        let method = method.to_string();
+        let url = url.to_string();
+        let headers = headers.clone();
+        let body = body.cloned();
+        let options = options.clone();
+
+        Box::pin(async move {
+            let (response, _deadline) = self
+                .dispatch(method, url, headers, body, options, true)
+                .await?;
+            let status_code = response.status().as_u16();
+            let resp_headers = collect_headers(response.headers());
+            let idle = self
+                .transport_options
+                .idle_timeout()
+                .and_then(|ms| u64::try_from(ms).ok())
+                .map(Duration::from_millis);
+            let body = wire_body(response, idle, self.closed.clone(), self.streams.clone());
+            Ok(ApiStreamResponse::new(status_code, resp_headers, body))
         })
     }
 }
@@ -622,6 +693,151 @@ fn decompress_body(content_encoding: &str, raw: &[u8]) -> std::io::Result<Option
         }
     }
     Ok(Some(decoded))
+}
+
+/// The body of a response as the SDK hands it on: decoded text for a text media
+/// type, base64 for anything else.
+pub(crate) fn body_text(bytes: &[u8], content_type: &str) -> String {
+    if is_text_content_type(content_type) {
+        decode_text_body(bytes, content_type)
+    } else {
+        use base64::Engine as _;
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    }
+}
+
+/// The text of the error body a streamed response carried, read up to a limit:
+/// decoded when its `Content-Encoding` can be (a body cut at the limit that no
+/// longer decodes stays as it arrived), and the two headers that described the
+/// encoded body dropped as the buffered path does.
+pub(crate) fn error_body_text(raw: &[u8], headers: &mut HashMap<String, String>) -> String {
+    let encoding = headers.get("content-encoding").cloned().unwrap_or_default();
+    let bytes = match decompress_body(&encoding, raw) {
+        Ok(Some(decoded)) => {
+            headers.remove("content-encoding");
+            headers.remove("content-length");
+            decoded
+        }
+        _ => raw.to_vec(),
+    };
+    let content_type = headers.get("content-type").cloned().unwrap_or_default();
+    body_text(&bytes, &content_type)
+}
+
+/// The error of a request that ran out of its end-to-end budget before a
+/// response arrived.
+fn timed_out_error(message: &str) -> Box<dyn std::error::Error + Send + Sync> {
+    let cause = std::io::Error::new(std::io::ErrorKind::TimedOut, message.to_string());
+    let api_error = ApiError::transport(TransportFailure::Timeout, "request timed out".to_string(), Arc::new(cause));
+    match NetworkError::try_from(api_error) {
+        Ok(network) => Box::new(NetworkTimeoutError::from(network)),
+        Err(other) => Box::new(other),
+    }
+}
+
+/// Sends one request of a call. A streamed call waits for the headers under
+/// the end-to-end `deadline` and under nothing after that: reqwest's own
+/// per-request timeout would run on through the body, so it is not set on a
+/// stream and this wait stands in for it.
+async fn send_hop(
+    builder: reqwest::RequestBuilder,
+    deadline: Option<std::time::Instant>,
+    streaming: bool,
+) -> Result<reqwest::Response, Box<dyn std::error::Error + Send + Sync>> {
+    match deadline.filter(|_| streaming) {
+        None => builder.send().await.map_err(|e| transport_error_before(e, deadline)),
+        Some(limit) => match tokio::time::timeout(remaining_budget(limit), builder.send()).await {
+            Ok(sent) => sent.map_err(|e| transport_error_before(e, deadline)),
+            Err(_) => Err(timed_out_error("the response headers did not arrive in time")),
+        },
+    }
+}
+
+/// The body of a streamed response as the stream the SDK hands out: one item
+/// per chunk, ending after the last. A read that stays silent for `idle` fails
+/// with `NetworkTimeoutError`; a connection reset or a body that ends before
+/// its declared length fails with `StreamError`; closing the client ends the
+/// stream with `ConfigurationError::InvalidState`. A failure is the last item,
+/// and dropping the stream drops the response, which aborts the connection.
+fn wire_body(
+    response: reqwest::Response,
+    idle: Option<Duration>,
+    closed: Arc<AtomicBool>,
+    signal: Arc<tokio::sync::Notify>,
+) -> BodyStream {
+    Box::pin(futures_util::stream::unfold(Some(response), move |state| {
+        let closed = closed.clone();
+        let signal = signal.clone();
+        async move {
+            let mut response = state?;
+            /* Created before the flag is read, so a close in between still wakes it. */
+            let cancelled = signal.notified();
+            if closed.load(Ordering::SeqCst) {
+                return Some((Err(stream_closed_error()), None));
+            }
+            let read = async {
+                match idle {
+                    Some(gap) => match tokio::time::timeout(gap, response.chunk()).await {
+                        Ok(chunk) => chunk.map_err(body_failure),
+                        Err(_) => Err(idle_failure(gap)),
+                    },
+                    None => response.chunk().await.map_err(body_failure),
+                }
+            };
+            let step: Result<Option<bytes::Bytes>, Box<dyn std::error::Error + Send + Sync>> = tokio::select! {
+                _ = cancelled => Err(stream_closed_error()),
+                chunk = read => chunk,
+            };
+            match step {
+                Ok(Some(chunk)) => Some((Ok(chunk), Some(response))),
+                Ok(None) => None,
+                Err(failure) => Some((Err(failure), None)),
+            }
+        }
+    }))
+}
+
+/// What a read of a stream raises after the client was closed.
+fn stream_closed_error() -> Box<dyn std::error::Error + Send + Sync> {
+    Box::new(ConfigurationError::InvalidState(
+        "ApiClient has been closed and can no longer send requests".to_string(),
+    ))
+}
+
+/// The failure of a read of the body: a timeout of the transport stays a
+/// timeout, anything else (a reset, a body shorter than its declared length) is
+/// a `StreamError`. The request URL is dropped from the error.
+fn body_failure(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync> {
+    if e.is_timeout() {
+        return transport_error(e);
+    }
+    let e = e.without_url();
+    let api_error = ApiError::transport(
+        TransportFailure::Network,
+        "the connection failed while the response body was being read".to_string(),
+        Arc::new(e),
+    );
+    match NetworkError::try_from(api_error) {
+        Ok(network) => Box::new(StreamError::from(network)),
+        Err(other) => Box::new(other),
+    }
+}
+
+/// The failure of a read that stayed silent for the idle timeout.
+fn idle_failure(gap: Duration) -> Box<dyn std::error::Error + Send + Sync> {
+    let cause = std::io::Error::new(
+        std::io::ErrorKind::TimedOut,
+        format!("the response body was silent for {} ms", gap.as_millis()),
+    );
+    let api_error = ApiError::transport(
+        TransportFailure::Timeout,
+        format!("the response body was silent for {} ms", gap.as_millis()),
+        Arc::new(cause),
+    );
+    match NetworkError::try_from(api_error) {
+        Ok(network) => Box::new(NetworkTimeoutError::from(network)),
+        Err(other) => Box::new(other),
+    }
 }
 
 /// The part of the end-to-end timeout budget that is left at `deadline`, never
@@ -781,12 +997,10 @@ fn build_http_client(opts: &TransportOptions) -> Client {
         }
     }
 
-    /* TransportOptionsBuilder::build rejects a negative timeout, so the
-     * conversion cannot fail; a failed one would otherwise wrap to an
-     * effectively infinite timeout. */
-    if let Some(timeout_ms) = opts.timeout().and_then(|ms| u64::try_from(ms).ok()) {
-        builder = builder.timeout(Duration::from_millis(timeout_ms));
-    }
+    /* No client-level timeout: the end-to-end budget is a deadline that
+     * `send_request_with_options` applies to every request of a buffered call
+     * and `send_streaming` applies to the wait for the headers, so a timeout
+     * set here would also cut off the body of a stream. */
 
     /* Reqwest re-sends Authorization / Cookie / Proxy-Authorization
      * across cross-origin 3xx redirects by default, which leaks bearer

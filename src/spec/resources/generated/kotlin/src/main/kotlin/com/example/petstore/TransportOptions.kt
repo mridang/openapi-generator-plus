@@ -62,6 +62,11 @@ import io.ktor.client.plugins.pluginOrNull
  *   happened before a response arrived and after a 408, 409, 429 or 5xx (except 501) answer,
  *   waiting 0.5 s doubling to 8 s with up to 25% jitter, or the server's `Retry-After` (capped at
  *   60 s). Retries never extend [timeout]: they share its one end-to-end budget.
+ * @property idleTimeout The longest a streamed response body may stay silent, in milliseconds.
+ *   Applies only to a call that returns a stream (a binary operation): [timeout] stops at the
+ *   response headers, and this value bounds the gap between two reads of the body. A stalled
+ *   body raises [com.example.petstore.errors.NetworkTimeoutException]. A buffered call is
+ *   unaffected. Defaults to 60000 ms (60 seconds); `null` means the idle timeout is disabled.
  */
 class TransportOptions private constructor(
     val verifySsl: Boolean,
@@ -75,6 +80,7 @@ class TransportOptions private constructor(
     val injectRequestId: Boolean,
     val httpClient: HttpClient?,
     val maxRetries: Int,
+    val idleTimeout: Long?,
 ) {
     companion object {
         /* The proxy URL with any user-info replaced by `***@`, so an error message or a string
@@ -104,6 +110,7 @@ class TransportOptions private constructor(
      * - `injectRequestId` - `false`
      * - `timeout` - `10000` (10 seconds)
      * - `maxRetries` - `2`
+     * - `idleTimeout` - `60000` (60 seconds)
      * - `userAgent` - a package-specific default string
      * - All other fields - `null` or empty
      */
@@ -119,6 +126,7 @@ class TransportOptions private constructor(
         private var injectRequestId: Boolean = false
         private var httpClient: HttpClient? = null
         private var maxRetries: Int = 2
+        private var idleTimeout: Long? = 60_000L
 
         /**
          * Enable or disable TLS certificate verification.
@@ -248,6 +256,21 @@ class TransportOptions private constructor(
                 this.maxRetries = maxRetries
             }
 
+        /**
+         * Set the longest a streamed response body may stay silent, in milliseconds.
+         *
+         * @param idleTimeout the gap in milliseconds (positive), or `0` or `null` to disable it;
+         *   the default is `60000`
+         * @return this builder
+         */
+        fun idleTimeout(idleTimeout: Long?): Builder =
+            apply {
+                require(idleTimeout == null || idleTimeout >= 0) {
+                    "Invalid idleTimeout: must not be negative (got $idleTimeout)"
+                }
+                this.idleTimeout = if (idleTimeout == null || idleTimeout == 0L) null else idleTimeout
+            }
+
         private fun canonicalProxy(proxy: String?): String? {
             if (proxy == null) {
                 return null
@@ -316,6 +339,7 @@ class TransportOptions private constructor(
                 injectRequestId,
                 httpClient,
                 maxRetries,
+                idleTimeout,
             )
         }
     }
@@ -335,6 +359,7 @@ class TransportOptions private constructor(
         return "TransportOptions(verifySsl=$verifySsl, caCertPath=$caCertPath, " +
             "proxy=${proxy?.let { maskUserInfo(it) }}, timeout=$timeout, " +
             "followRedirects=$followRedirects, maxRedirects=$maxRedirects, userAgent=$userAgent, " +
-            "defaultHeaders=$headers, injectRequestId=$injectRequestId, maxRetries=$maxRetries)"
+            "defaultHeaders=$headers, injectRequestId=$injectRequestId, maxRetries=$maxRetries, " +
+            "idleTimeout=$idleTimeout)"
     }
 }

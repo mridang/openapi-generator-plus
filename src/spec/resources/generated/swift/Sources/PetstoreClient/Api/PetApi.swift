@@ -511,7 +511,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   ///   - ``NotFoundError`` on HTTP 404
   public func downloadPetDocument(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions? = nil
-  ) async throws -> Data {
+  ) async throws -> ByteStream {
     let result = try await downloadPetDocumentWithHTTPInfo(
       petId: petId, documentId: documentId, options: options)
     guard let data = result.data else {
@@ -531,7 +531,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   ///   - ``NotFoundError`` on HTTP 404
   public func downloadPetDocumentWithHTTPInfo(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions? = nil
-  ) async throws -> ApiResult<Data> {
+  ) async throws -> ApiResult<ByteStream> {
 
     var path = "/pet/{petId}/documents/{documentId}"
     path = path.replacingOccurrences(
@@ -558,7 +558,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       body: requestBody,
       accepts: ["application/octet-stream"],
       contentType: "application/json",
-      returnType: "Data",
+      returnType: "ByteStream",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.downloadPetDocument",
       operationId: "downloadPetDocument",
@@ -568,7 +568,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       maxRetries: options?.maxRetries
     )
 
-    return try await invokeAPIForResult(params, as: Data.self)
+    return try await invokeAPIForStream(params)
   }
 
   /// List pets born on a given date
@@ -876,7 +876,9 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   ///
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
-  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions? = nil) async throws -> Data {
+  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions? = nil) async throws
+    -> ByteStream
+  {
     let result = try await getPetAvatarWithHTTPInfo(petId: petId, options: options)
     guard let data = result.data else {
       throw ApiError(
@@ -894,7 +896,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
   public func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions? = nil)
-    async throws -> ApiResult<Data>
+    async throws -> ApiResult<ByteStream>
   {
 
     var path = "/pet/{petId}/avatar"
@@ -917,7 +919,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       body: requestBody,
       accepts: ["image/jpeg", "image/png"],
       contentType: "application/json",
-      returnType: "Data",
+      returnType: "ByteStream",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetAvatar",
       operationId: "getPetAvatar",
@@ -927,7 +929,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       maxRetries: options?.maxRetries
     )
 
-    return try await invokeAPIForResult(params, as: Data.self)
+    return try await invokeAPIForStream(params)
   }
 
   /// Get the pet's avatar thumbnail as base64
@@ -1305,7 +1307,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
   public func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions? = nil)
-    async throws -> Data
+    async throws -> ByteStream
   {
     let result = try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId, options: options)
     guard let data = result.data else {
@@ -1325,7 +1327,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   ///   - ``NotFoundError`` on HTTP 404
   public func getPetPhotoWithHTTPInfo(
     petId: Int64, photoId: Int64, options: GetPetPhotoOptions? = nil
-  ) async throws -> ApiResult<Data> {
+  ) async throws -> ApiResult<ByteStream> {
 
     var path = "/pet/{petId}/photos/{photoId}"
     path = path.replacingOccurrences(
@@ -1352,7 +1354,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       body: requestBody,
       accepts: ["image/jpeg", "image/png", "application/json"],
       contentType: "application/json",
-      returnType: "Data",
+      returnType: "ByteStream",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetPhoto",
       operationId: "getPetPhoto",
@@ -1362,7 +1364,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       maxRetries: options?.maxRetries
     )
 
-    return try await invokeAPIForResult(params, as: Data.self)
+    return try await invokeAPIForStream(params)
   }
 
   /// Get a <plain> \"text\" summary & it's short

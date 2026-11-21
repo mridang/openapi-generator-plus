@@ -141,6 +141,20 @@ import Testing
         headers: responseHeaders
       )
     }
+
+    func sendStreaming(
+      method: String, url: String, headers: [String: String], body: Any?,
+      timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+    ) async throws -> ApiStreamResponse {
+      lastMethod = method
+      lastURL = url
+      lastHeaders = headers
+      lastBody = body as? Data
+      let contentType = responseHeaders.first { $0.key.lowercased() == "content-type" }?.value
+      return stubStreamResponse(
+        status: responseStatusCode, headers: responseHeaders,
+        body: stubBodyBytes(responseBody, contentType: contentType))
+    }
   }
 
   // MARK: - Call hook doubles
@@ -329,7 +343,7 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
 
-    let photo = try await api.getPetPhoto(petId: 1, photoId: 1)
+    let photo = try await api.getPetPhoto(petId: 1, photoId: 1).readAll()
 
     #expect(String(data: photo, encoding: .utf8) == "{\"id\":7,\"name\":\"photo\"}")
   }
@@ -1658,10 +1672,7 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
     let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
-    guard let decoded = Data(base64Encoded: result.rawBody) else {
-      Issue.record("rawBody was not valid base64: \(result.rawBody)")
-      return
-    }
+    let decoded = try await #require(result.data).readAll()
     #expect([UInt8](decoded) == original, "binary roundtrip must preserve bytes exactly")
   }
 
@@ -1675,10 +1686,7 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
     let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
-    guard let decoded = Data(base64Encoded: result.rawBody) else {
-      Issue.record("rawBody was not valid base64: \(result.rawBody)")
-      return
-    }
+    let decoded = try await #require(result.data).readAll()
     #expect([UInt8](decoded) == original, "every byte must round-trip exactly")
   }
 
@@ -1721,10 +1729,7 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
     let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
-    guard let decoded = Data(base64Encoded: result.rawBody) else {
-      Issue.record("rawBody was not valid base64: \(result.rawBody)")
-      return
-    }
+    let decoded = try await #require(result.data).readAll()
     #expect([UInt8](decoded) == original, "image/png roundtrip must preserve bytes exactly")
   }
 
@@ -2865,6 +2870,174 @@ import Testing
     #expect(text.contains("\"label\":\"x\""))
     #expect(!text.contains("additionalProperties"))
   }
+
+  // MARK: - Binary streams
+
+  /// Answers a stream call from a script of statuses, and keeps the headers each
+  /// call was sent and whether each response was closed.
+  private final class ScriptedStreamingClient: ApiClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private var sentHeaders: [[String: String]] = []
+    private var closed: [Bool] = []
+    private let statuses: [Int]
+    private let body: Data
+    private let contentType: String
+
+    init(contentType: String, body: Data, statuses: [Int]) {
+      self.contentType = contentType
+      self.body = body
+      self.statuses = statuses
+    }
+
+    var streamHeaders: [[String: String]] { lock.withLock { sentHeaders } }
+
+    func wasClosed(_ index: Int) -> Bool { lock.withLock { closed[index] } }
+
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> ApiHttpResponse
+    {
+      return ApiHttpResponse(
+        statusCode: 200, body: "{}", headers: ["content-type": "application/json"])
+    }
+
+    func sendStreaming(
+      method: String, url: String, headers: [String: String], body: Any?,
+      timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+    ) async throws -> ApiStreamResponse {
+      let index: Int = lock.withLock {
+        sentHeaders.append(headers)
+        closed.append(false)
+        return sentHeaders.count - 1
+      }
+      return stubStreamResponse(
+        status: statuses[min(index, statuses.count - 1)], headers: ["content-type": contentType],
+        body: self.body,
+        onClose: { [self] in lock.withLock { closed[index] = true } })
+    }
+  }
+
+  /// A transport written before streaming existed: it implements the buffered call only.
+  private final class BufferedOnlyClient: ApiClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private var url = ""
+
+    var sentURL: String { lock.withLock { url } }
+
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> ApiHttpResponse
+    {
+      lock.withLock { self.url = url }
+      return ApiHttpResponse(
+        statusCode: 200, body: "{}", headers: ["content-type": "application/json"])
+    }
+  }
+
+  private func streamParams(auth: Authenticator = BaseApi.noAuthSentinel) -> BaseApi.InvokeAPIParams
+  {
+    return BaseApi.InvokeAPIParams(
+      method: "GET", path: "/items/blob", queryParams: [:], headerParams: [:], body: nil,
+      accepts: ["application/octet-stream"], contentType: "application/json",
+      returnType: "ByteStream", auth: auth, operationId: "downloadItem",
+      urlTemplate: "/items/blob")
+  }
+
+  /* A status that is not 2xx on a stream call raises the typed error with the error body, bounded, and returns no stream. */
+  @Test func testBhvStreaming008ANon2xxStreamingCallRaisesTheTypedErrorAndNeverReturnsAStream()
+    async throws
+  {
+    let client = ScriptedStreamingClient(
+      contentType: "application/json", body: Data("{\"message\":\"gone\"}".utf8), statuses: [404])
+    let failure = await #expect(throws: NotFoundError.self) {
+      _ = try await self.hookedBase(nil, transport: client).invokeAPIForStream(self.streamParams())
+    }
+    #expect(failure?.statusCode == 404)
+    #expect(failure?.responseBody?.contains("gone") == true)
+    #expect(failure?.requestPath == "/items/blob")
+    #expect(client.wasClosed(0), "the connection was closed after the error body")
+
+    let large = ScriptedStreamingClient(
+      contentType: "text/plain", body: Data(count: 200_000), statuses: [502])
+    let bounded = await #expect(throws: BadGatewayError.self) {
+      _ = try await self.hookedBase(nil, transport: large).invokeAPIForStream(self.streamParams())
+    }
+    #expect(bounded?.responseBody?.count == 64 * 1024, "the error body is bounded")
+  }
+
+  /* A stream call sends the user agent, request id, trace context and authentication a buffered call sends. */
+  @Test func testBhvStreaming017AStreamingCallSendsTheSameHeadersAsABufferedCall() async throws {
+    let server = try LoopbackServer { _, _ in .ok("{}") }
+    defer { server.stop() }
+    let hook = RecordingHook()
+    hook.edit = { $0["traceparent"] = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01" }
+    let transport = try DefaultApiClient(
+      transportOptions: try TransportOptionsBuilder().injectRequestID(true).maxRetries(0).build())
+    let auth = try ApiKeyAuthenticator(
+      host: server.origin, keyParamName: "X-Api-Key", apiKey: "k-123", location: .header)
+    let config = ConfigurationBuilder().baseURL(server.origin).callHook(hook).build()
+    let api = BaseApi(apiClient: transport, config: config)
+    _ = try await api.invokeAPI(
+      BaseApi.InvokeAPIParams(
+        method: "GET", path: "/items/blob", queryParams: [:], headerParams: [:], body: nil,
+        accepts: ["application/octet-stream"], contentType: "application/json",
+        returnType: "String", auth: auth))
+    let stream = try await #require(api.invokeAPIForStream(streamParams(auth: auth)).data)
+    stream.close()
+
+    let buffered = try #require(server.requests.first)
+    let streamed = try #require(server.requests.last)
+    #expect(server.requests.count == 2)
+    for name in ["User-Agent", "X-Api-Key", "traceparent", "Accept"] {
+      #expect(streamed.header(name) != nil, "\(name)")
+      #expect(streamed.header(name) == buffered.header(name), "\(name)")
+    }
+    #expect(streamed.header("X-Request-ID") != nil)
+    #expect(
+      streamed.header("X-Request-ID") != buffered.header("X-Request-ID"),
+      "each call has its own request id")
+  }
+
+  /* A 401 on a stream call authenticated by a renewable token drops the token, replays once, and returns the replayed stream. */
+  @Test func testBhvStreaming018A401OnAStreamingCallRefreshesTheTokenAndReplaysOnce() async throws {
+    let client = ScriptedStreamingClient(
+      contentType: "application/octet-stream", body: Data("ok".utf8), statuses: [401, 200])
+    let auth = RotatingAuth()
+    let result = try await hookedBase(nil, transport: client).invokeAPIForStream(
+      streamParams(auth: auth))
+    #expect(client.streamHeaders.count == 2)
+    #expect(client.streamHeaders[0]["Authorization"] == "Bearer t1")
+    #expect(client.streamHeaders[1]["Authorization"] == "Bearer t2")
+    #expect(auth.invalidations == 1)
+    #expect(client.wasClosed(0), "the refused response was closed unread")
+    #expect(String(decoding: try await #require(result.data).readAll(), as: UTF8.self) == "ok")
+
+    let refused = ScriptedStreamingClient(
+      contentType: "application/octet-stream", body: Data(), statuses: [401])
+    await #expect(throws: UnauthorizedError.self) {
+      _ = try await self.hookedBase(nil, transport: refused).invokeAPIForStream(
+        self.streamParams(auth: RotatingAuth()))
+    }
+    #expect(refused.streamHeaders.count == 2, "a second 401 is not replayed again")
+  }
+
+  /* A transport that does not implement sendStreaming fails a stream call naming itself, and its buffered calls keep working. */
+  @Test
+  func testBhvStreaming030ATransportThatCannotStreamFailsAStreamCallAndStillServesBufferedCalls()
+    async throws
+  {
+    let transport = BufferedOnlyClient()
+    let refused = await #expect(throws: ConfigurationError.self) {
+      _ = try await self.hookedBase(nil, transport: transport).invokeAPIForStream(
+        self.streamParams())
+    }
+    let message = refused?.errorDescription ?? ""
+    #expect(message.contains("BufferedOnlyClient"))
+    #expect(message.contains("cannot stream"))
+    #expect(transport.sentURL.isEmpty, "nothing was sent and nothing was buffered instead")
+
+    _ = try await hookedBase(nil, transport: transport).invokeAPI(plainParams(path: "/items/1"))
+    #expect(transport.sentURL.hasSuffix("/items/1"), "the buffered call still works")
+  }
+
 }
 
 // MARK: - Trace context from the caller

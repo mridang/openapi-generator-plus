@@ -34,6 +34,7 @@ use crate::errors::serialization_error::SerializationError;
 use crate::errors::server_error::ServerError;
 use crate::errors::service_unavailable_error::ServiceUnavailableError;
 use crate::errors::state_conflict_error::StateConflictError;
+use crate::errors::stream_error::StreamError;
 use crate::errors::too_many_requests_error::TooManyRequestsError;
 use crate::errors::unauthorized_error::UnauthorizedError;
 use crate::errors::unexpected_failure_error::UnexpectedFailureError;
@@ -48,7 +49,7 @@ use crate::errors::upstream_failure_error::UpstreamFailureError;
 /// modelled here as a marker trait. Every error type this client produces —
 /// the transport/API root [`ApiError`] and its per-status wrappers
 /// ([`ClientError`]/[`ServerError`] and the concrete 4xx/5xx types,
-/// [`NetworkError`]/[`NetworkTimeoutError`] for failures with no response), the
+/// [`NetworkError`]/[`NetworkTimeoutError`]/[`StreamError`] for failures with no response), the
 /// pattern-matching [`ApiErrorKind`] view, the (de)serialization
 /// [`SerializationError`], and the token-endpoint [`OAuth2ServerError`] and
 /// [`OAuth2TokenError`] — has an explicit `impl OpenAPIError`, so a single
@@ -103,6 +104,7 @@ impl OpenAPIError for GatewayTimeoutError {}
 impl OpenAPIError for InternalServerError {}
 impl OpenAPIError for NetworkError {}
 impl OpenAPIError for NetworkTimeoutError {}
+impl OpenAPIError for StreamError {}
 impl OpenAPIError for SerializationError {}
 impl OpenAPIError for OAuth2ServerError {}
 impl OpenAPIError for OAuth2TokenError {}
@@ -190,6 +192,12 @@ impl ApiErrorInfo for NetworkTimeoutError {
     }
 }
 
+impl ApiErrorInfo for StreamError {
+    fn api_error(&self) -> &ApiError {
+        self.network_error().api_error()
+    }
+}
+
 /// Lets a caller match on the SDK's HTTP errors without downcasting by hand.
 ///
 /// Every operation returns `Box<dyn std::error::Error + Send + Sync>`; this
@@ -255,6 +263,9 @@ impl OpenAPIErrorExt for dyn std::error::Error + Send + Sync + 'static {
             return Some(e.api_error());
         }
         if let Some(e) = self.downcast_ref::<NetworkTimeoutError>() {
+            return Some(e.network_error().api_error());
+        }
+        if let Some(e) = self.downcast_ref::<StreamError>() {
             return Some(e.network_error().api_error());
         }
         if let Some(e) = self.downcast_ref::<BadRequestError>() {

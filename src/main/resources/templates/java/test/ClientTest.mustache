@@ -393,8 +393,13 @@ class ClientTest {
             {{clientPropertyName}}Listed.add(method.getName());
         }
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        assertTrue({{clientPropertyName}}Listed.contains("{{vendorExtensions.op.streamMethodName}}"));
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
         assertTrue({{clientPropertyName}}Listed.contains("{{operationId}}"));
         assertTrue({{clientPropertyName}}Listed.contains("{{operationId}}WithHttpInfo"));
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

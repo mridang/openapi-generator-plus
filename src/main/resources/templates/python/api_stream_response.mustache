@@ -1,0 +1,39 @@
+{{>api_info}}
+
+from dataclasses import dataclass, field
+from typing import Dict, Protocol
+
+
+class StreamBody(Protocol):
+    """The open body of a streamed response, read on a worker thread.
+
+    :meth:`read` blocks until some bytes are available and returns at most
+    ``size`` of them (all the rest for a negative ``size``), and ``b''`` once the
+    body has ended. :meth:`close` aborts the connection instead of draining it
+    and may be called any number of times.
+    """
+
+    def read(self, size: int = -1) -> bytes: ...
+
+    def close(self) -> None: ...
+
+
+@dataclass(frozen=True)
+class ApiStreamResponse:
+    """An HTTP response whose body has not been read yet: the status code, the
+    lower-cased headers and the open body. It is what
+    :meth:`StreamingApiClient.send_streaming` returns.
+
+    The caller owns the body and must close it; closing aborts the connection
+    instead of draining it. A non-2xx response is returned like any other, with
+    its body open; a caller that does not want it reads a bounded part or closes
+    it.
+    """
+
+    status_code: int
+    headers: Dict[str, str]
+    body: StreamBody = field(repr=False)
+
+    def __repr__(self) -> str:
+        """Shows the status code only; the headers and the body are never shown."""
+        return f'ApiStreamResponse(status_code={self.status_code})'

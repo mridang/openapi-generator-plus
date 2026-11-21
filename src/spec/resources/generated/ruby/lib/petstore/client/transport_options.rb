@@ -79,6 +79,16 @@ module Petstore::Client
     # @return [Integer]
     attr_reader :max_retries
 
+    # The longest a streamed response body may stay silent, in milliseconds.
+    #
+    # Applies only to a call that returns a stream (a binary operation): the
+    # {#timeout} stops at the response headers, and this value bounds the gap
+    # between two reads of the body. A stalled body raises
+    # {Errors::NetworkTimeoutError}. A buffered call is unaffected.
+    # @return [Integer, nil] the idle timeout in milliseconds, or +nil+ when it
+    #   is disabled (default +60_000+)
+    attr_reader :idle_timeout
+
     # A caller-supplied Faraday connection used instead of a self-built one,
     # or +nil+ when the SDK builds its own. The caller owns its lifecycle: the
     # SDK never closes it. Timeouts, retries, the user agent, the redirect
@@ -89,7 +99,7 @@ module Petstore::Client
     # @api private
     def initialize(verify_ssl:, ca_cert_path:, proxy:, timeout:,
                    follow_redirects:, max_redirects:, user_agent:,
-                   default_headers:, inject_request_id:, max_retries: 2, connection: nil)
+                   default_headers:, inject_request_id:, max_retries: 2, connection: nil, idle_timeout: 60_000)
       self.class.validate_proxy!(proxy)
       self.class.validate_max_redirects!(max_redirects)
       self.class.validate_connection!(connection, verify_ssl, ca_cert_path, proxy)
@@ -104,6 +114,7 @@ module Petstore::Client
       @inject_request_id = inject_request_id
       @max_retries = self.class.validate_max_retries!(max_retries)
       @connection = connection
+      @idle_timeout = self.class.validate_idle_timeout!(idle_timeout)
       freeze
     end
 
@@ -139,6 +150,20 @@ module Petstore::Client
     # @raise [ArgumentError] if it is not a non-negative integer
     def self.validate_max_retries!(val)
       raise ArgumentError, "Invalid max_retries: must be a non-negative integer (got #{val.inspect})" unless val.is_a?(Integer) && val >= 0
+
+      val
+    end
+
+    # Validate an idle timeout: a positive number of milliseconds, or +nil+ or
+    # +0+, which disable it.
+    # @api private
+    # @param val [Numeric, nil] the idle timeout in milliseconds
+    # @return [Numeric, nil] +val+, or +nil+ when it disables the timeout
+    # @raise [ArgumentError] if it is not a non-negative number
+    def self.validate_idle_timeout!(val)
+      return nil if val.nil? || (val.is_a?(Numeric) && val.zero?)
+
+      raise ArgumentError, "Invalid idle_timeout: must be a number of milliseconds, not negative (got #{val.inspect})" unless (val.is_a?(Integer) || val.is_a?(Float)) && val.positive?
 
       val
     end
@@ -243,7 +268,8 @@ module Petstore::Client
         "proxy=#{self.class.redact_url(@proxy).inspect} timeout=#{@timeout.inspect} " \
         "follow_redirects=#{@follow_redirects.inspect} max_redirects=#{@max_redirects.inspect} " \
         "user_agent=#{@user_agent.inspect} default_headers=#{self.class.redact_headers(@default_headers).inspect} " \
-        "inject_request_id=#{@inject_request_id.inspect} max_retries=#{@max_retries.inspect}>"
+        "inject_request_id=#{@inject_request_id.inspect} max_retries=#{@max_retries.inspect} " \
+        "idle_timeout=#{@idle_timeout.inspect}>"
     end
     alias to_s inspect
 
@@ -255,6 +281,7 @@ module Petstore::Client
     # - +inject_request_id+ -- +false+
     # - +timeout+ -- +10_000+ (10 seconds)
     # - +max_retries+ -- +2+
+    # - +idle_timeout+ -- +60_000+ (60 seconds)
     # - +user_agent+ -- a package-specific default string
     # - All other fields -- +nil+ or empty
     class Builder
@@ -269,6 +296,7 @@ module Petstore::Client
         @default_headers = {} # : Hash[String, String]
         @inject_request_id = false
         @max_retries = 2
+        @idle_timeout = 60_000
         @connection = nil
       end
 
@@ -379,6 +407,17 @@ module Petstore::Client
         self
       end
 
+      # Set the longest a streamed response body may stay silent (see
+      # {TransportOptions#idle_timeout}).
+      # @param val [Numeric, nil] the gap in milliseconds (positive), or +0+ or
+      #   +nil+ to disable it; the default is +60_000+
+      # @return [self]
+      # @raise [ArgumentError] if it is negative or not a number
+      def idle_timeout(val)
+        @idle_timeout = TransportOptions.validate_idle_timeout!(val)
+        self
+      end
+
       # Build and return an immutable {TransportOptions} instance.
       # @return [TransportOptions]
       def build
@@ -393,7 +432,8 @@ module Petstore::Client
           default_headers: @default_headers.dup,
           inject_request_id: @inject_request_id,
           max_retries: @max_retries,
-          connection: @connection
+          connection: @connection,
+          idle_timeout: @idle_timeout
         )
       end
     end

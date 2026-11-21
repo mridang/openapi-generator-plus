@@ -190,9 +190,10 @@ impl {{clientClassName}} {
 
     /// Releases the HTTP stack this client owns. Any request made afterwards
     /// fails with `ConfigurationError::InvalidState("ApiClient has been closed and can no longer send requests")`.
-    /// A caller-supplied `reqwest::Client` (see [`Self::with_http_client`]) is
-    /// never closed: its owner keeps using it. Dropping the client also
-    /// releases the pool once the last handle goes away.
+    /// Streams that are still open are cancelled: their next read fails with
+    /// the same error. A caller-supplied `reqwest::Client` (see
+    /// [`Self::with_http_client`]) is never closed: its owner keeps using it.
+    /// Dropping the client also releases the pool once the last handle goes away.
     pub fn close(&self) {
         self.api_client.close();
     }

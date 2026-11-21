@@ -25,7 +25,7 @@ The policy behind the floor is the oldest Python release that still receives sec
 | `string` with `format: uri` | `UrlStr` (a `str`) | Validated as an absolute RFC 3986 URI and returned unchanged, so the text round-trips byte for byte. `uri-reference` and `uri-template` stay plain strings. |
 | `string` with `format: email`, `hostname` | `StrictStr` | No format validation. |
 | `string` with `format: byte` | `Base64Bytes` (`bytes`) | Raw bytes in memory, base64 on the wire. Decoding is strict. |
-| `string` with `format: binary`, file upload and download | `bytes` | Bodies are held in memory. |
+| `string` with `format: binary`, file upload and download | `bytes` for a request body, `ByteStream` for a response | The upload is held in memory; a response is read as you consume it, see Streaming. |
 | `string` with `format: password` | `PasswordStr` (`SecretStr`) | The value is masked in `repr` but the real value is sent on the wire. |
 | `array` | `List[T]` | |
 | `array` with `uniqueItems` | `Set[T]` | |
@@ -39,7 +39,7 @@ The mapping in the table comes from `BetterPythonCodegen.java` and the aliases i
 
 ## Dependencies
 
-Runtime dependencies are `urllib3` (2.1 or newer, below 3), `python_dateutil` (2.8.2 or newer) and `pydantic` (2.11 or newer, below 3). The HTTP transport is a synchronous urllib3 `PoolManager`, called from the async API through `asyncio.to_thread`.
+Runtime dependencies are `urllib3` (2.2 or newer, below 3), `python_dateutil` (2.8.2 or newer) and `pydantic` (2.11 or newer, below 3). The HTTP transport is a synchronous urllib3 `PoolManager`, called from the async API through `asyncio.to_thread`.
 
 Response decompression for `br` and `zstd` is an optional extra: `pip install <project-name>[compression]` installs `brotli` (1.0.0 or newer) and `zstandard` (0.23.0 or newer). The client imports them inside `try`/`except ImportError` and offers a codec in `Accept-Encoding` only when its package is installed. Without them the client still handles gzip and deflate.
 
@@ -75,6 +75,7 @@ The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example 
 ## Idiom notes
 
 - Every operation takes an optional trailing `options` argument, an Options object (`<Operation>Options`), even one with no parameters and no security. Besides the operation's own parameters it carries `timeout` (milliseconds, at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off) for that call only. There is no per-call authenticator: the credential is set on the client, per security scheme. A custom `ApiClient` owns its own timeout, so only the headers and the retry budget reach it.
+- **Streaming.** An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns `ByteStream`, an async context manager and async iterator of `bytes`, from the one operation method (there is no second method), and `..._with_http_info` returns `ApiResult[ByteStream]` with an empty `raw_body`. A `ByteStream` has `status_code`, the lower-cased `headers`, `read(n)` (up to `n` bytes as soon as some arrive, `b''` at the end), `read_all()` (reads the rest and leaves the stream closed), an idempotent `close()` that aborts the connection instead of draining it, and a `repr` that shows only the status and the bytes delivered. The transport gets a second interface, the `runtime_checkable` Protocol `StreamingApiClient` with `send_streaming(method, url, headers, body, idle_timeout)`, which returns an `ApiStreamResponse` (status code, headers, open body); a custom `ApiClient` that only implements `send_request` keeps working for buffered calls, and a stream call on it raises `NotImplementedError` naming it. `DefaultApiClient` runs the buffered call's header phase and `BaseApi` its retries, redirects and token refresh up to the headers: the `timeout` ends at the response headers, `TransportOptions.builder().idle_timeout(milliseconds)` (default 60 seconds, `0` or `None` disables) bounds the gap between two reads of the body and raises `NetworkTimeoutException`, and nothing is retried after the first body byte. A non-2xx status raises the usual typed error with its body read up to 64 KiB. A reset, or a body shorter than its `Content-Length`, raises `StreamException` (a `NetworkException`, status 0). `client.close()` cancels the streams still open; their next read raises `RuntimeError` ("ApiClient has been closed and can no longer send requests"). Uploads are unchanged and JSON Lines and server-sent events have no method yet.
 - The client takes one optional credential per distinct security scheme, as a keyword argument named after the scheme in snake case (`Client(pet_store_bearer=..., admin_basic=...)`), plus an optional default `authenticator` that serves an operation no scheme credential matches. Each operation uses the credential of the first scheme its own spec lists that you configured; an operation with `security: []` sends none. With no matching credential and no default, no credential is sent. The base URL comes from the first credential given, `authenticator` first, and a client built with none raises `ValueError`. Every credential that needs the transport (OAuth 2 and OpenID Connect) is given the client's own.
 - A cookie parameter is sent exactly as given when every character is a legal RFC 6265 cookie-octet; otherwise the call raises `ValueError` before anything is sent, so percent-encode the value yourself.
 - Every operation is `async def`. Cancelling the awaiting asyncio task aborts the call; there is no cancellation parameter. The blocking socket read runs in a worker thread and cannot be interrupted part way.
@@ -145,7 +146,7 @@ except ApiException as e:
 ## Known limits
 
 - The transport is urllib3, not httpx. A session decision named httpx, but the generated code, its dependencies and its tests use urllib3. The generated `Client` does not yet forward a transport; only `DefaultApiClient` accepts one.
-- Large downloads and uploads are held in memory.
+- A request body and a JSON, text or form response body are held in memory. Only a binary response is a stream; there is no JSON Lines or server-sent events API yet.
 - Constructors accept the attribute name, but mypy reports `Metadata(created_at=...)` because pydantic types `__init__` by alias.
 - Retry is not built in. SOCKS proxies are rejected at construction, and proxy environment variables are ignored on purpose; only `TransportOptions.proxy` is used.
 - Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope. OpenAPI 3.1 and 3.2 support is tracked in the epics #96 and #49.

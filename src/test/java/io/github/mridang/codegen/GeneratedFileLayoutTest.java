@@ -89,6 +89,12 @@ class GeneratedFileLayoutTest {
         "OpenAPIException lives in errors/__init__.py as the base every other error imports");
     allow(
         ALLOWED_MISSING,
+        "php",
+        "apistreamresponse",
+        "the PHP transport returns the ByteStream directly, because a PSR-7 body carrier already"
+            + " holds the status, headers and open body");
+    allow(
+        ALLOWED_MISSING,
         "rust",
         "baseauthenticator",
         "rust has no class inheritance, so the shared authenticator behaviour is a trait default"
@@ -106,6 +112,8 @@ class GeneratedFileLayoutTest {
         "the mock seam: IClient is the interface a fake implements, declared in its own file beside"
             + " the Client class that implements it");
 
+    allow(ALLOWED_EXTRA, "php", "rawstreamresponse", "the internal pair of status, headers and open body that a PHP transport hands to the ByteStream");
+    allow(ALLOWED_EXTRA, "swift", "streamtransfer", "the URLSession delegate that feeds the AsyncThrowingStream, because AsyncBytes is absent on Linux");
     allow(ALLOWED_EXTRA, "go", "doc", "a go package description can only live in a package comment file");
     allow(
         ALLOWED_EXTRA,

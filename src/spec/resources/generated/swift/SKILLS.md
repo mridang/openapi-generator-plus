@@ -299,6 +299,29 @@ func makeClient(authenticator: any Authenticator) throws -> Client {
 }
 ```
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`defer`). `readAll()` reads the rest into memory and leaves the stream closed.
+
+```swift file
+import Foundation
+import PetstoreClient
+
+func saveDownload(client: Client, petId: Int64, documentId: Int64, to target: URL) async throws {
+    let stream = try await client.pet.downloadPetDocument(petId: petId, documentId: documentId)
+    defer { stream.close() }
+    print(stream.statusCode)
+    _ = FileManager.default.createFile(atPath: target.path, contents: nil)
+    let handle = try FileHandle(forWritingTo: target)
+    defer { try? handle.close() }
+    for try await chunk in stream {
+        try handle.write(contentsOf: chunk)
+    }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `ConfigurationError.unsupported` naming it, and its buffered calls keep working.
+
 ### Custom HTTP client
 
 To send requests through your own `URLSession`, pass it to `TransportOptions.builder().session(mySession)`. The SDK keeps its timeout, user agent and headers on top and never invalidates the session; combining it with `proxy`, `caCertPath`, `verifySsl(false)`, `followRedirects(false)` or `maxRedirects` throws a `ConfigurationError`.
@@ -321,7 +344,7 @@ An operation's options struct also takes `timeout` (milliseconds, greater than z
 
 ### Closing the client
 
-`close()` is graceful and idempotent: a request in flight finishes (retries included), the `URLSession` the SDK built is released when the last one ends, a request made afterwards throws `ConfigurationError.invalidState` (`ApiClient has been closed and can no longer send requests`), a second call does nothing and a `URLSession` you supplied is never invalidated.
+`close()` is graceful and idempotent: a request in flight finishes (retries included), the `URLSession` the SDK built is released when the last one ends, a request made afterwards throws `ConfigurationError.invalidState` (`ApiClient has been closed and can no longer send requests`), a second call does nothing and a `URLSession` you supplied is never invalidated. Streams that are still open are cancelled.
 
 ### Cookie parameters
 
@@ -413,7 +436,7 @@ Building a model never validates or throws (an unknown enum string builds no enu
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `Data`. Binary response bodies are returned as `Data`.
+File upload parameters are typed as `Data`. A binary response body is returned as a `ByteStream`, an `AsyncSequence` of `Data` (see Streaming).
 
 ## Comment Style
 

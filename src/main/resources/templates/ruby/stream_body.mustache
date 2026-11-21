@@ -1,0 +1,328 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'uri'
+require 'zlib'
+
+module {{moduleName}}
+  # The open body of a streamed response, as {DefaultApiClient} hands it out.
+  #
+  # The request runs on a producer thread that pushes the response head, then
+  # the body chunks, through a bounded queue, so a slow reader makes the
+  # producer wait instead of buffering the body. A read waits on that queue,
+  # which is what the idle timeout bounds. {#close} aborts the connection by
+  # stopping the producer instead of draining the body, and {#cancel} is the
+  # same abort for a client that is being closed.
+  #
+  # A failure surfaces from a read as the SDK's own error, never as the raw
+  # error of the HTTP library.
+  #
+  # @api private
+  class StreamBody
+    # What a read raises once the client was closed. It is the message of the
+    # error a closed client raises for a new request.
+    CLOSED_MESSAGE = 'ApiClient has been closed and can no longer send requests'
+
+    # How many chunks the producer may run ahead of the reader.
+    QUEUE_CAPACITY = 8
+
+    # How long {#close} waits for the producer thread to end.
+    ABORT_WAIT_S = 2
+
+    # The thread-local slot through which the producer thread hands its body to
+    # the transport hook that reports the response head as soon as it arrives.
+    SINK_KEY = :{{gemName}}_stream_sink
+
+    # @return [Integer, nil] the status code, once the head has arrived
+    attr_reader :status
+
+    # @return [Hash{String => String}, nil] the lower-cased headers, once the head has arrived
+    attr_reader :headers
+
+    # @param method [String] the HTTP method of the request, named in errors
+    # @param url [String] the request URL; only its path is named in errors
+    # @param idle_ms [Numeric, nil] the longest silence in the body, in milliseconds, or nil for none
+    def initialize(method:, url:, idle_ms:)
+      @method = method
+      @path = request_path_of(url)
+      @idle_ms = idle_ms
+      @idle = idle_ms ? idle_ms.to_f / 1000.0 : nil
+      @queue = SizedQueue.new(QUEUE_CAPACITY)
+      @thread = nil
+      @lock = Mutex.new
+      @pending = ''.b
+      @delivered = 0
+      @inflater = nil
+      @encoding = nil
+      @on_release = nil
+      @released = false
+      @headed = false
+      @closed = false
+      @cancelled = false
+      @ended = false
+      @failure = nil
+    end
+
+    # Runs the request on the producer thread. The block is given this body and
+    # reports through {#push_head} and {#push_data}; its return ends the body.
+    #
+    # @yieldparam sink [StreamBody] this body
+    # @return [self]
+    def start
+      @thread = Thread.new do
+        Thread.current.report_on_exception = false
+        Thread.current[SINK_KEY] = self
+        begin
+          yield self
+          @queue.push([:eof])
+        rescue StandardError => e
+          @queue.push([:error, e])
+        end
+      end
+      self
+    end
+
+    # Reports the response head; only the first call counts.
+    #
+    # @param status [Integer] the status code
+    # @param headers [Hash{String => Object}] the response headers
+    # @return [void]
+    def push_head(status, headers)
+      return if @headed
+
+      @headed = true
+      @queue.push([:head, status.to_i, self.class.lower_cased(headers)])
+    end
+
+    # Reports a chunk of the body; an empty chunk is dropped.
+    #
+    # @param chunk [String] the bytes
+    # @return [void]
+    def push_data(chunk)
+      @queue.push([:data, chunk]) unless chunk.empty?
+    end
+
+    # The headers with lower-cased names and repeated values joined by +", "+.
+    #
+    # @param headers [Hash{String => Object}] the headers as the HTTP library has them
+    # @return [Hash{String => String}]
+    def self.lower_cased(headers)
+      lowered = {} #: Hash[String, String]
+      headers.each do |name, value|
+        lowered[name.to_s.downcase] = value.is_a?(Array) ? value.join(', ') : value.to_s
+      end
+      lowered
+    end
+
+    # Waits for the response head.
+    #
+    # @param timeout [Numeric, nil] the longest wait, in seconds, or nil for none
+    # @return [self, nil] this body once the head has arrived, or nil when none
+    #   arrived in time (the body is closed)
+    # @raise [Exception] what the request raised before any head arrived (the body is closed)
+    def await_head(timeout)
+      settled = false
+      event = timeout ? @queue.pop(timeout: timeout) : @queue.pop
+      return nil if event.nil?
+
+      raise event[1] if event.first == :error
+      raise IOError, 'the response ended before its head' unless event.first == :head
+
+      @status = event[1]
+      @headers = event[2]
+      settled = true
+      self
+    ensure
+      close unless settled
+    end
+
+    # Sets what decodes the body: +gzip+, +x-gzip+ or +deflate+, or nothing for
+    # an identity body.
+    #
+    # @param encoding [String, nil] the Content-Encoding of the response
+    # @return [void]
+    def decode_with(encoding)
+      @encoding = encoding
+      @inflater = case encoding
+                  when 'gzip', 'x-gzip' then Zlib::Inflate.new(Zlib::MAX_WBITS + 16)
+                  when 'deflate' then Zlib::Inflate.new(Zlib::MAX_WBITS)
+                  end
+    end
+
+    # Calls the block once, when the body is over for any reason: its end, a
+    # failure, {#close} or {#cancel}.
+    #
+    # @yieldparam body [StreamBody] this body
+    # @return [void]
+    def on_release(&block)
+      @on_release = block
+    end
+
+    # Reads from the body: up to +length+ bytes, at least one, or +nil+ at the end.
+    #
+    # @param length [Integer] the most bytes to return
+    # @return [String, nil] the bytes, or nil at the end of the body
+    # @raise [IOError] if the stream was closed
+    # @raise [RuntimeError] if the client was closed while the stream was open
+    # @raise [Errors::StreamError] if the connection failed after the headers
+    # @raise [Errors::NetworkTimeoutError] if the body stayed silent for the idle timeout
+    def read(length)
+      loop do
+        check_readable
+        return take(length) unless @pending.empty?
+        return nil if @ended
+
+        pull
+      end
+    end
+
+    # Aborts the connection without reading the rest of the body. Safe to call
+    # twice.
+    #
+    # @return [void]
+    def close
+      @closed = true
+      halt
+    end
+
+    # The next read raises the closed-client error.
+    #
+    # @return [void]
+    def cancel
+      @cancelled = true
+      halt
+    end
+
+    private
+
+    def request_path_of(url)
+      path = URI.parse(url).path.to_s
+      path.empty? ? '/' : path
+    rescue URI::InvalidURIError
+      '/'
+    end
+
+    def check_readable
+      raise CLOSED_MESSAGE if @cancelled
+      raise IOError, 'closed stream' if @closed
+
+      raise @failure if @failure
+    end
+
+    def take(length)
+      @pending.slice!(0, length)
+    end
+
+    # Reads one event off the queue into the pending bytes.
+    def pull
+      settled = false
+      event = @idle ? @queue.pop(timeout: @idle) : @queue.pop
+      raise CLOSED_MESSAGE if event.nil? && @cancelled
+      raise IOError, 'closed stream' if event.nil? && @closed
+
+      settled = true
+      handle(event)
+    ensure
+      # An interrupt raised into the reading thread (a cancel, a timeout of the
+      # caller's own) leaves the connection aborted, never half read.
+      halt unless settled || @failure
+    end
+
+    def handle(event)
+      if event.nil?
+        fail_with(Errors::NetworkTimeoutError.new(message: "The response body was silent for #{@idle_ms} ms",
+                                                  request_method: @method, request_path: @path))
+        return
+      end
+      case event.first
+      when :data then receive(event[1])
+      when :eof then finish_body
+      when :error then fail_with(translate(event[1]))
+      end
+    end
+
+    def receive(chunk)
+      @delivered += chunk.bytesize
+      @pending << (@inflater ? inflate(chunk) : chunk)
+    end
+
+    def inflate(chunk)
+      @inflater.inflate(chunk)
+    rescue Zlib::Error => e
+      fail_with(decode_error(e))
+    end
+
+    def finish_body
+      if @inflater && !@inflater.finished?
+        fail_with(decode_error(Zlib::BufError.new('the compressed body ended before its end marker')))
+      end
+      @ended = true
+      release
+      halt
+    end
+
+    # The SDK's error for a failure of the producer after the head arrived.
+    def translate(error)
+      return error if error.is_a?(Errors::ApiError)
+
+      built = if error.is_a?(Faraday::TimeoutError)
+                Errors::NetworkTimeoutError.new(message: "The response body timed out: #{error.message}",
+                                                request_method: @method, request_path: @path)
+              else
+                Errors::StreamError.new(
+                  message: "The response body was cut off after #{@delivered} bytes: #{error.message}",
+                  request_method: @method, request_path: @path
+                )
+              end
+      with_cause(built, error)
+    end
+
+    # The API error for a compressed body that cannot be decoded: it carries
+    # the real status, as the buffered call's does.
+    def decode_error(error)
+      built = Errors::ApiError.new(
+        status_code: @status.to_i,
+        message: "Failed to decompress #{@encoding} response body: #{error.message}",
+        response_headers: @headers,
+        request_method: @method,
+        request_path: @path
+      )
+      with_cause(built, error)
+    end
+
+    def with_cause(error, cause)
+      raise error, cause: cause
+    rescue Errors::ApiError => e
+      e
+    end
+
+    def fail_with(error)
+      @failure = error
+      release
+      halt
+      raise error
+    end
+
+    # Stops the producer, which closes the socket, and wakes a reader that is
+    # waiting on the queue.
+    def halt
+      thread = @thread
+      if thread && thread != Thread.current
+        thread.kill
+        thread.join(ABORT_WAIT_S)
+      end
+      @queue.close
+      release
+    end
+
+    def release
+      callback = @lock.synchronize do
+        taken = @released ? nil : @on_release
+        @released = true
+        taken
+      end
+      callback&.call(self)
+    end
+  end
+end

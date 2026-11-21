@@ -113,6 +113,7 @@ func TestBhvErrors044_ApiError_EveryErrorTypeLivesInTheErrorsPackageAndTheRootEx
 		reflect.TypeOf((*{{packageName}}.NotFoundError)(nil)),
 		reflect.TypeOf((*{{packageName}}.InternalServerError)(nil)),
 		reflect.TypeOf((*{{packageName}}.NetworkTimeoutError)(nil)),
+		reflect.TypeOf((*{{packageName}}.StreamError)(nil)),
 		reflect.TypeOf((*{{packageName}}.SerializationError)(nil)),
 		reflect.TypeOf((*{{packageName}}.OAuth2ServerError)(nil)),
 		reflect.TypeOf((*{{packageName}}.OAuth2TokenError)(nil)),
@@ -155,6 +156,7 @@ var (
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.InternalServerError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.NetworkError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.NetworkTimeoutError)(nil)
+	_ apierrors.{{errorPrefix}}Error = (*apierrors.StreamError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.SerializationError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.OAuth2TokenError)(nil)
 	_ apierrors.{{errorPrefix}}Error = (*apierrors.OAuth2ServerError)(nil)
@@ -549,6 +551,7 @@ func TestBhvMisc283_ApiError_PackageRoot_ReexportsTheErrorTree(t *testing.T) {
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.InternalServerError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.NetworkError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.NetworkTimeoutError)(nil)
+		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.StreamError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.SerializationError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.OAuth2ServerError)(nil)
 		_ {{packageName}}.{{errorPrefix}}Error = (*{{packageName}}.OAuth2TokenError)(nil)

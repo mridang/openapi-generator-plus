@@ -11,11 +11,17 @@ import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.NetworkException
 import com.example.petstore.errors.NetworkTimeoutException
 import com.example.petstore.errors.OpenAPIException
+import com.example.petstore.errors.StreamException
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.pluginOrNull
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Default implementation of [ApiClient] using Ktor.
@@ -36,6 +42,9 @@ class DefaultApiClient internal constructor(
     private val transportOptions: TransportOptions,
 ) : ApiClient {
     internal companion object {
+        /** What a read of a stream that [close] cancelled, and a new call after it, is told. */
+        internal const val CLOSED_MESSAGE = "ApiClient has been closed and can no longer send requests"
+
         /**
          * Headers stripped from cross-origin redirect hops. Includes the
          * static set {Authorization, Cookie, Proxy-Authorization} plus any
@@ -103,6 +112,14 @@ class DefaultApiClient internal constructor(
     private val released =
         java.util.concurrent.atomic
             .AtomicBoolean(false)
+
+    /** The streamed bodies that are open: [close] cancels each of them. */
+    private val openStreams =
+        java.util.concurrent.ConcurrentHashMap
+            .newKeySet<StreamBody>()
+
+    /** Holds the coroutines that keep a streamed response open after its call returned. */
+    private val streamScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob())
 
     /**
      * Create a client with a pre-configured Ktor [HttpClient].
@@ -207,9 +224,39 @@ class DefaultApiClient internal constructor(
             throw IllegalStateException("ApiClient has been closed and can no longer send requests")
         }
         try {
-            return sendWithRetries(method, url, headers, body, noRedirect)
+            return sendWithRetries(method, url, headers, body, noRedirect, stream = false).buffered!!
         } finally {
             finishRequest()
+        }
+    }
+
+    /**
+     * Sends a request and returns once the response headers are accepted, with the body still
+     * unread. The header phase is the one the buffered call runs (retries, redirects, the budget,
+     * the header rules); the `timeout` stops at the headers, and the body is then bounded by the
+     * idle timeout alone. The caller owns the returned body and must close it; closing aborts the
+     * connection, and [close] cancels a body that is still open.
+     */
+    override suspend fun sendStreaming(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        body: Any?,
+    ): ApiStreamResponse {
+        inFlight.incrementAndGet()
+        if (closed) {
+            finishRequest()
+            throw IllegalStateException(CLOSED_MESSAGE)
+        }
+        var handedOver = false
+        try {
+            val sent = sendWithRetries(method, url, headers, body, noRedirect = false, stream = true)
+            handedOver = true
+            return sent.streamed!!
+        } finally {
+            if (!handedOver) {
+                finishRequest()
+            }
         }
     }
 
@@ -222,6 +269,7 @@ class DefaultApiClient internal constructor(
 
     private fun releaseTransport() {
         if (released.compareAndSet(false, true)) {
+            streamScope.cancel()
             httpClient.close()
         }
     }
@@ -232,7 +280,8 @@ class DefaultApiClient internal constructor(
         headers: Map<String, String>,
         body: Any?,
         noRedirect: Boolean,
-    ): ApiHttpResponse {
+        stream: Boolean,
+    ): Sent {
         // `timeout` is one end-to-end budget for the whole call: every attempt, every redirect
         // hop, the body read and every wait between retries draw from it.
         val callSettings = kotlin.coroutines.coroutineContext[CallSettings]
@@ -242,7 +291,7 @@ class DefaultApiClient internal constructor(
         while (true) {
             val response =
                 try {
-                    sendOnce(method, url, headers, body, noRedirect, budget)
+                    sendOnce(method, url, headers, body, noRedirect, budget, stream)
                 } catch (e: NetworkTimeoutException) {
                     throw e
                 } catch (e: NetworkException) {
@@ -264,6 +313,7 @@ class DefaultApiClient internal constructor(
             if (pause == null) {
                 return response
             }
+            response.discard()
             sleeper(pause)
             attempt++
         }
@@ -293,7 +343,10 @@ class DefaultApiClient internal constructor(
         return if (remaining != null && pause >= remaining) null else pause
     }
 
-    /** One attempt: merge the headers, send, follow redirects and read the whole response. */
+    /**
+     * One attempt: merge the headers, send, follow redirects and then either read the whole
+     * response, or (for a stream) stop at the headers and hand the body over unread.
+     */
     private suspend fun sendOnce(
         method: String,
         url: String,
@@ -301,7 +354,8 @@ class DefaultApiClient internal constructor(
         body: Any?,
         noRedirect: Boolean,
         budget: TimeoutBudget,
-    ): ApiHttpResponse {
+        stream: Boolean,
+    ): Sent {
         val mergedHeaders = mutableMapOf<String, String>()
         /* The token POST (noRedirect) goes to the identity provider, another origin: the caller's
          * default headers (an API Authorization or key header) are not sent there (F860). */
@@ -334,10 +388,9 @@ class DefaultApiClient internal constructor(
 
         // Each hop is sent with what is left of the end-to-end budget, and a hop
         // is never started once the budget is spent.
-        var response =
+        var hop =
             try {
-                httpClient.request(url) {
-                    budget.applyTo(this)
+                execute(stream, url, budget) {
                     this.method = HttpMethod(method)
                     for ((key, value) in mergedHeaders) {
                         if (body == null && key.equals("Content-Type", ignoreCase = true)) {
@@ -350,163 +403,166 @@ class DefaultApiClient internal constructor(
             } catch (e: Exception) {
                 throw transportFailure(e)
             }
+        try {
+            // Redirects are ALWAYS handled manually so we can strip caller-supplied
+            // sensitive headers (Authorization, Cookie, Proxy-Authorization) on cross-origin
+            // hops AND preserve the original verb+body per RFC 7231. When
+            // `maxRedirects` is null we cap at 20 hops to avoid pathological loops.
+            // noRedirect=true (the OAuth2 token POST) means "do not follow
+            // redirects; return the 3xx as-is" -- the loop is skipped and the first
+            // 3xx surfaces verbatim. The token manager inspects and rejects the 3xx
+            // itself, so a credential-bearing body is never silently replayed.
+            if (transportOptions.followRedirects && !noRedirect) {
+                var redirectsRemaining = transportOptions.maxRedirects ?: 20
+                var currentUrl = url
+                var currentHeaders: Map<String, String> = mergedHeaders.toMap()
+                var currentMethod = method
+                var currentBody: Any? = body
 
-        // Redirects are ALWAYS handled manually so we can strip caller-supplied
-        // sensitive headers (Authorization, Cookie, Proxy-Authorization) on cross-origin
-        // hops AND preserve the original verb+body per RFC 7231. When
-        // `maxRedirects` is null we cap at 20 hops to avoid pathological loops.
-        // noRedirect=true (the OAuth2 token POST) means "do not follow
-        // redirects; return the 3xx as-is" -- the loop is skipped and the first
-        // 3xx surfaces verbatim. The token manager inspects and rejects the 3xx
-        // itself, so a credential-bearing body is never silently replayed.
-        if (transportOptions.followRedirects && !noRedirect) {
-            var redirectsRemaining = transportOptions.maxRedirects ?: 20
-            var currentUrl = url
-            var currentHeaders: Map<String, String> = mergedHeaders.toMap()
-            var currentMethod = method
-            var currentBody: Any? = body
-
-            while (isRedirectStatus(response.status.value) && redirectsRemaining > 0) {
-                // An unusable Location (absent, empty, or one the RFC 3986
-                // resolver rejects) behaves exactly like a missing one: stop
-                // following and return the 3xx untouched. It is resolved BEFORE
-                // the redirect body is consumed so the returned response still
-                // carries its body.
-                val originalUri = java.net.URI(currentUrl)
-                val redirectUri =
-                    usableRedirectLocation(originalUri, response.headers[HttpHeaders.Location]) ?: break
-                try {
-                    response.bodyAsBytes() // consume redirect body to release the connection
-                } catch (e: Exception) {
-                    throw transportFailure(e)
-                }
-                // Refuse non-HTTP(S) redirect schemes (javascript:, file:,
-                // data:, etc.). URI.resolve() preserves whatever scheme the
-                // server returned in Location, so a malicious or
-                // misconfigured server could otherwise steer the client at
-                // a local-file or scripting URL.
-                val redirectScheme = redirectUri.scheme
-                if (redirectScheme == null ||
-                    (
-                        !redirectScheme.equals("http", ignoreCase = true) &&
-                            !redirectScheme.equals("https", ignoreCase = true)
-                    )
-                ) {
-                    throw ApiException(
-                        response.status.value,
-                        "Refusing to follow redirect to non-HTTP(S) URL: ${redactUrl(redirectUri.toString())}",
-                        responseHeadersOf(response),
-                        null,
-                    )
-                }
-                val sameOrigin = sameOrigin(originalUri, redirectUri)
-
-                val redirectHeaders = currentHeaders.toMutableMap()
-                if (!sameOrigin) {
-                    val defaultNames = transportOptions.defaultHeaders.keys
-                    val keysToRemove =
-                        redirectHeaders.keys
-                            .filter { name -> isSensitiveHeader(name) || defaultNames.any { it.equals(name, ignoreCase = true) } }
-                    keysToRemove.forEach { redirectHeaders.remove(it) }
-                    // The SDK's own proxy credentials authenticate to the proxy,
-                    // which is the same for every hop, so they are re-applied
-                    // after the strip. Not on an https target: there the header
-                    // would travel inside the TLS tunnel to an unrelated origin.
-                    if (proxyAuthHeader != null && !"https".equals(redirectUri.scheme, ignoreCase = true)) {
-                        redirectHeaders["Proxy-Authorization"] = proxyAuthHeader
-                    }
-                }
-
-                // Refuse to replay a request body across an HTTPS->HTTP
-                // downgrade. 301, 302, 307 and 308 would carry the body to the
-                // plain-HTTP hop (303 drops it), so a TLS-protected payload
-                // (POST/PUT body) must not be silently re-sent in cleartext.
-                if (response.status.value in setOf(301, 302, 307, 308) &&
-                    currentBody != null &&
-                    "https".equals(originalUri.scheme, ignoreCase = true) &&
-                    "http".equals(redirectUri.scheme, ignoreCase = true)
-                ) {
-                    throw ApiException(
-                        response.status.value,
-                        "Refusing to replay request body across HTTPS->HTTP redirect: " +
-                            "${redactUrl(currentUrl)} -> ${redactUrl(redirectUri.toString())}",
-                        responseHeadersOf(response),
-                        null,
-                    )
-                }
-
-                // Pick the follow-up method+body per RFC 9110 section 15.4.
-                // 307 + 308: preserve the original method and body.
-                // 303:       every method except HEAD becomes GET (body dropped).
-                // 301 + 302: only POST becomes GET (body dropped); every other
-                //            method keeps its method and body.
-                val statusCode = response.status.value
-                val nextMethod: String
-                val nextBody: Any?
-                when {
-                    statusCode == 303 && !currentMethod.equals("HEAD", ignoreCase = true) -> {
-                        nextMethod = "GET"
-                        nextBody = null
-                    }
-                    (statusCode == 301 || statusCode == 302) && currentMethod.equals("POST", ignoreCase = true) -> {
-                        nextMethod = "GET"
-                        nextBody = null
-                    }
-                    else -> {
-                        nextMethod = currentMethod
-                        nextBody = currentBody
-                    }
-                }
-
-                if (nextBody == null) {
-                    redirectHeaders.keys
-                        .filter {
-                            it.equals("content-type", ignoreCase = true) ||
-                                it.equals("content-length", ignoreCase = true)
-                        }.toList()
-                        .forEach { redirectHeaders.remove(it) }
-                }
-
-                currentUrl = redirectUri.toString()
-                currentHeaders = redirectHeaders
-                currentMethod = nextMethod
-                currentBody = nextBody
-
-                response =
+                while (isRedirectStatus(hop.response.status.value) && redirectsRemaining > 0) {
+                    // An unusable Location (absent, empty, or one the RFC 3986
+                    // resolver rejects) behaves exactly like a missing one: stop
+                    // following and return the 3xx untouched. It is resolved BEFORE
+                    // the redirect body is consumed so the returned response still
+                    // carries its body.
+                    val originalUri = java.net.URI(currentUrl)
+                    val redirectUri =
+                        usableRedirectLocation(originalUri, hop.response.headers[HttpHeaders.Location]) ?: break
                     try {
-                        httpClient.request(currentUrl) {
-                            budget.applyTo(this)
-                            this.method = HttpMethod(currentMethod)
-                            for ((key, value) in redirectHeaders) {
-                                if (nextBody == null && key.equals("Content-Type", ignoreCase = true)) {
-                                    continue
-                                }
-                                header(key, value)
-                            }
-                            buildRequestBody(this, currentMethod, nextBody, redirectHeaders)
-                        }
+                        hop.discardBody() // consume redirect body to release the connection
                     } catch (e: Exception) {
                         throw transportFailure(e)
                     }
-                redirectsRemaining--
-            }
+                    // Refuse non-HTTP(S) redirect schemes (javascript:, file:,
+                    // data:, etc.). URI.resolve() preserves whatever scheme the
+                    // server returned in Location, so a malicious or
+                    // misconfigured server could otherwise steer the client at
+                    // a local-file or scripting URL.
+                    val redirectScheme = redirectUri.scheme
+                    if (redirectScheme == null ||
+                        (
+                            !redirectScheme.equals("http", ignoreCase = true) &&
+                                !redirectScheme.equals("https", ignoreCase = true)
+                        )
+                    ) {
+                        throw ApiException(
+                            hop.response.status.value,
+                            "Refusing to follow redirect to non-HTTP(S) URL: ${redactUrl(redirectUri.toString())}",
+                            responseHeadersOf(hop.response),
+                            null,
+                        )
+                    }
+                    val sameOrigin = sameOrigin(originalUri, redirectUri)
 
-            // Redirect budget exhausted but the server is still returning a
-            // 3xx: fail loud instead of silently handing the caller the last
-            // redirect response as if it were a normal result.
-            // A 3xx with no usable Location is returned as-is (D70): only a
-            // response that could still be followed counts as exhaustion.
-            if (isRedirectStatus(response.status.value) &&
-                redirectsRemaining == 0 &&
-                usableRedirectLocation(java.net.URI(currentUrl), response.headers[HttpHeaders.Location]) != null
-            ) {
-                throw ApiException(
-                    response.status.value,
-                    "Too many redirects (exceeded ${transportOptions.maxRedirects ?: 20})",
-                    responseHeadersOf(response),
-                    null,
-                )
+                    val redirectHeaders = currentHeaders.toMutableMap()
+                    if (!sameOrigin) {
+                        val defaultNames = transportOptions.defaultHeaders.keys
+                        val keysToRemove =
+                            redirectHeaders.keys
+                                .filter { name -> isSensitiveHeader(name) || defaultNames.any { it.equals(name, ignoreCase = true) } }
+                        keysToRemove.forEach { redirectHeaders.remove(it) }
+                        // The SDK's own proxy credentials authenticate to the proxy,
+                        // which is the same for every hop, so they are re-applied
+                        // after the strip. Not on an https target: there the header
+                        // would travel inside the TLS tunnel to an unrelated origin.
+                        if (proxyAuthHeader != null && !"https".equals(redirectUri.scheme, ignoreCase = true)) {
+                            redirectHeaders["Proxy-Authorization"] = proxyAuthHeader
+                        }
+                    }
+
+                    // Refuse to replay a request body across an HTTPS->HTTP
+                    // downgrade. 301, 302, 307 and 308 would carry the body to the
+                    // plain-HTTP hop (303 drops it), so a TLS-protected payload
+                    // (POST/PUT body) must not be silently re-sent in cleartext.
+                    if (hop.response.status.value in setOf(301, 302, 307, 308) &&
+                        currentBody != null &&
+                        "https".equals(originalUri.scheme, ignoreCase = true) &&
+                        "http".equals(redirectUri.scheme, ignoreCase = true)
+                    ) {
+                        throw ApiException(
+                            hop.response.status.value,
+                            "Refusing to replay request body across HTTPS->HTTP redirect: " +
+                                "${redactUrl(currentUrl)} -> ${redactUrl(redirectUri.toString())}",
+                            responseHeadersOf(hop.response),
+                            null,
+                        )
+                    }
+
+                    // Pick the follow-up method+body per RFC 9110 section 15.4.
+                    // 307 + 308: preserve the original method and body.
+                    // 303:       every method except HEAD becomes GET (body dropped).
+                    // 301 + 302: only POST becomes GET (body dropped); every other
+                    //            method keeps its method and body.
+                    val statusCode = hop.response.status.value
+                    val nextMethod: String
+                    val nextBody: Any?
+                    when {
+                        statusCode == 303 && !currentMethod.equals("HEAD", ignoreCase = true) -> {
+                            nextMethod = "GET"
+                            nextBody = null
+                        }
+                        (statusCode == 301 || statusCode == 302) && currentMethod.equals("POST", ignoreCase = true) -> {
+                            nextMethod = "GET"
+                            nextBody = null
+                        }
+                        else -> {
+                            nextMethod = currentMethod
+                            nextBody = currentBody
+                        }
+                    }
+
+                    if (nextBody == null) {
+                        redirectHeaders.keys
+                            .filter {
+                                it.equals("content-type", ignoreCase = true) ||
+                                    it.equals("content-length", ignoreCase = true)
+                            }.toList()
+                            .forEach { redirectHeaders.remove(it) }
+                    }
+
+                    currentUrl = redirectUri.toString()
+                    currentHeaders = redirectHeaders
+                    currentMethod = nextMethod
+                    currentBody = nextBody
+
+                    hop =
+                        try {
+                            execute(stream, currentUrl, budget) {
+                                this.method = HttpMethod(currentMethod)
+                                for ((key, value) in redirectHeaders) {
+                                    if (nextBody == null && key.equals("Content-Type", ignoreCase = true)) {
+                                        continue
+                                    }
+                                    header(key, value)
+                                }
+                                buildRequestBody(this, currentMethod, nextBody, redirectHeaders)
+                            }
+                        } catch (e: Exception) {
+                            throw transportFailure(e)
+                        }
+                    redirectsRemaining--
+                }
+
+                // Redirect budget exhausted but the server is still returning a
+                // 3xx: fail loud instead of silently handing the caller the last
+                // redirect response as if it were a normal result.
+                // A 3xx with no usable Location is returned as-is (D70): only a
+                // response that could still be followed counts as exhaustion.
+                if (isRedirectStatus(hop.response.status.value) &&
+                    redirectsRemaining == 0 &&
+                    usableRedirectLocation(java.net.URI(currentUrl), hop.response.headers[HttpHeaders.Location]) != null
+                ) {
+                    throw ApiException(
+                        hop.response.status.value,
+                        "Too many redirects (exceeded ${transportOptions.maxRedirects ?: 20})",
+                        responseHeadersOf(hop.response),
+                        null,
+                    )
+                }
             }
+        } catch (e: Throwable) {
+            hop.handle?.abort()
+            throw e
         }
 
         // Response header keys are normalised to lowercase so
@@ -520,8 +576,12 @@ class DefaultApiClient internal constructor(
         // access should use the Ktor HttpCookies plugin or read the raw
         // response.headers themselves.
         val responseHeaders = mutableMapOf<String, String>()
-        response.headers.forEach { name, values ->
+        hop.response.headers.forEach { name, values ->
             responseHeaders[name.lowercase(java.util.Locale.ROOT)] = values.joinToString(", ")
+        }
+
+        if (stream) {
+            return Sent(null, openStream(method, url, hop, responseHeaders))
         }
 
         // Read the raw response body inside a try/catch so a post-headers
@@ -530,7 +590,7 @@ class DefaultApiClient internal constructor(
         // exception, matching how send-phase failures are wrapped.
         val wireBytes =
             try {
-                response.bodyAsBytes()
+                hop.response.bodyAsBytes()
             } catch (e: Exception) {
                 throw transportFailure(e)
             }
@@ -544,7 +604,7 @@ class DefaultApiClient internal constructor(
                 decodeContentEncoding(wireBytes, contentEncoding)
             } catch (e: java.io.IOException) {
                 throw ApiException(
-                    response.status.value,
+                    hop.response.status.value,
                     "Failed to decompress $contentEncoding response body: $e",
                     responseHeaders,
                     e,
@@ -569,10 +629,13 @@ class DefaultApiClient internal constructor(
             } else {
                 responseHeaders
             }
-        return ApiHttpResponse(
-            statusCode = response.status.value,
-            body = responseBody,
-            headers = returnedHeaders,
+        return Sent(
+            ApiHttpResponse(
+                statusCode = hop.response.status.value,
+                body = responseBody,
+                headers = returnedHeaders,
+            ),
+            null,
         )
     }
 
@@ -713,11 +776,410 @@ class DefaultApiClient internal constructor(
      */
     override fun close() {
         closed = true
+        // A stream may never end (an event feed), so closing cancels it instead of waiting.
+        for (stream in openStreams.toList()) {
+            stream.cancel()
+        }
         if (inFlight.get() == 0) {
             releaseTransport()
         }
     }
+
+    /** Sends one request. A stream keeps the response open in a coroutine of [streamScope]. */
+    private suspend fun execute(
+        stream: Boolean,
+        url: String,
+        budget: TimeoutBudget,
+        configure: HttpRequestBuilder.() -> Unit,
+    ): Hop {
+        if (!stream) {
+            return Hop(
+                httpClient.request(url) {
+                    budget.applyTo(this)
+                    configure()
+                },
+                null,
+            )
+        }
+        val ready = kotlinx.coroutines.CompletableDeferred<HttpResponse>()
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val job =
+            streamScope.launch {
+                try {
+                    httpClient
+                        .prepareRequest(url) {
+                            budget.applyToStream(this, httpClient)
+                            configure()
+                        }.execute { response ->
+                            ready.complete(response)
+                            // Ktor frees the response when this block ends, so hold it open until
+                            // the stream is closed or cancelled.
+                            release.await()
+                        }
+                } catch (e: Throwable) {
+                    ready.completeExceptionally(e)
+                }
+            }
+        val handle = StreamHandle(job, release)
+        try {
+            val remaining = budget.remainingMillis()
+            val response =
+                if (remaining == null) {
+                    ready.await()
+                } else {
+                    try {
+                        kotlinx.coroutines.withTimeout(maxOf(remaining, 1L)) { ready.await() }
+                    } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                        throw budget.expired(e)
+                    }
+                }
+            return Hop(response, handle)
+        } catch (e: Throwable) {
+            handle.abort()
+            throw e
+        }
+    }
+
+    /**
+     * Wraps the response of the header phase as a stream the client tracks: the status and the
+     * headers are final, the body has not been read.
+     */
+    private suspend fun openStream(
+        method: String,
+        url: String,
+        hop: Hop,
+        responseHeaders: MutableMap<String, String>,
+    ): ApiStreamResponse {
+        val status = hop.response.status.value
+        val handle = hop.handle!!
+        val encoding = (responseHeaders["content-encoding"] ?: "").trim().lowercase()
+        val identity = encoding.isEmpty() || encoding == "identity"
+        val hasBody = !method.equals("HEAD", ignoreCase = true) && status != 204 && status != 304 && status >= 200
+        val declared = responseHeaders["content-length"]?.trim().orEmpty()
+        val declaredLength =
+            if (hasBody && declared.isNotEmpty() && declared.length < 18 && declared.all { it in '0'..'9' }) {
+                declared.toLong()
+            } else {
+                -1L
+            }
+        if (!identity) {
+            try {
+                requireDecoder(encoding)
+            } catch (e: java.io.IOException) {
+                handle.abort()
+                throw ApiException(
+                    status,
+                    "Failed to decompress $encoding response body: $e",
+                    responseHeaders,
+                    e,
+                )
+            }
+            /* D92: the headers describe the body the caller receives, so the wire encoding and
+             * length of an encoded body go. */
+            responseHeaders.remove("content-encoding")
+            responseHeaders.remove("content-length")
+        }
+        val body =
+            StreamBody(
+                method,
+                requestPathOf(url),
+                status,
+                responseHeaders,
+                hop.response.bodyAsChannel(),
+                handle,
+                declaredLength,
+                if (identity) null else encoding,
+                transportOptions.idleTimeout,
+            )
+        openStreams.add(body)
+        if (closed) {
+            openStreams.remove(body)
+            handle.abort()
+            throw IllegalStateException(CLOSED_MESSAGE)
+        }
+        return ApiStreamResponse(status, responseHeaders, body)
+    }
+
+    /** The path of [url] without its query string or fragment. */
+    private fun requestPathOf(url: String): String {
+        val stripped = url.substringBefore('#').substringBefore('?')
+        val path =
+            try {
+                java.net.URI(stripped).rawPath
+            } catch (_: java.net.URISyntaxException) {
+                null
+            }
+        return if (path.isNullOrEmpty()) "/" else path
+    }
+
+    /** Raised inside a read to say that the body stayed silent for the idle timeout. */
+    private class IdleTimedOut : java.io.IOException("The response body stayed silent for the idle timeout")
+
+    /**
+     * An open streamed body, tracked by the client so [close] can cancel it. A read is bounded by
+     * the idle timeout; a failure is raised as the SDK's own error, never as the raw error of the
+     * HTTP engine. The body counts the wire bytes and refuses to end quietly before the declared
+     * `Content-Length`; an encoded body is decoded as it is read.
+     */
+    private inner class StreamBody(
+        private val method: String,
+        private val path: String,
+        private val status: Int,
+        private val headers: Map<String, String>,
+        private val channel: ByteReadChannel,
+        private val handle: StreamHandle,
+        private val declaredLength: Long,
+        private val encoding: String?,
+        private val idleMillis: Long?,
+    ) : ApiStreamBody {
+        private val released =
+            java.util.concurrent.atomic
+                .AtomicBoolean(false)
+
+        @Volatile private var closed = false
+
+        @Volatile private var cancelledByClient = false
+
+        @Volatile private var wireFailure: Throwable? = null
+        private var seen = 0L
+        private var ended = false
+        private var decoder: java.io.InputStream? = null
+        private var emptyBody = false
+
+        /** The wire bytes as a blocking stream, for a decoder that cannot suspend. */
+        private val wire: java.io.PushbackInputStream =
+            java.io.PushbackInputStream(
+                object : java.io.InputStream() {
+                    override fun read(): Int {
+                        val one = ByteArray(1)
+                        val count = read(one, 0, 1)
+                        return if (count < 0) -1 else one[0].toInt() and 0xff
+                    }
+
+                    override fun read(
+                        buffer: ByteArray,
+                        offset: Int,
+                        length: Int,
+                    ): Int = kotlinx.coroutines.runBlocking { readWire(buffer, offset, length) }
+                },
+                1,
+            )
+
+        override suspend fun read(buffer: ByteArray): Int {
+            if (buffer.isEmpty()) {
+                return 0
+            }
+            check(!cancelledByClient) { CLOSED_MESSAGE }
+            check(!closed) { "The stream is closed" }
+            if (ended) {
+                return -1
+            }
+            try {
+                val count =
+                    if (encoding == null) {
+                        readWire(buffer, 0, buffer.size)
+                    } else {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { readDecoded(buffer) }
+                    }
+                if (count < 0) {
+                    ended = true
+                    finish()
+                }
+                return count
+            } catch (failure: Throwable) {
+                val translated = translate(failure)
+                finish()
+                throw translated
+            }
+        }
+
+        private suspend fun readWire(
+            buffer: ByteArray,
+            offset: Int,
+            length: Int,
+        ): Int {
+            val count =
+                try {
+                    if (idleMillis == null) {
+                        channel.readAvailable(buffer, offset, length)
+                    } else {
+                        kotlinx.coroutines.withTimeoutOrNull(idleMillis) {
+                            channel.readAvailable(buffer, offset, length)
+                        } ?: throw IdleTimedOut()
+                    }
+                } catch (e: IdleTimedOut) {
+                    throw e
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    wireFailure = e
+                    throw e
+                }
+            if (count < 0) {
+                if (declaredLength >= 0 && seen != declaredLength) {
+                    val truncated = java.io.IOException("The body ended after $seen of $declaredLength bytes")
+                    wireFailure = truncated
+                    throw truncated
+                }
+                return -1
+            }
+            seen += count
+            return count
+        }
+
+        /** Reads from the decoder, which is opened on the first read so an empty body needs none. */
+        private fun readDecoded(buffer: ByteArray): Int {
+            if (emptyBody) {
+                return -1
+            }
+            var current = decoder
+            if (current == null) {
+                val first = wire.read()
+                if (first < 0) {
+                    emptyBody = true
+                    return -1
+                }
+                wire.unread(first)
+                current = openDecoder(encoding!!, wire)
+                decoder = current
+            }
+            return current.read(buffer, 0, buffer.size)
+        }
+
+        /** The SDK's error for a failed read. */
+        private fun translate(failure: Throwable): Throwable =
+            when {
+                cancelledByClient -> IllegalStateException(CLOSED_MESSAGE)
+                closed -> IllegalStateException("The stream is closed")
+                failure is IdleTimedOut ->
+                    NetworkTimeoutException(
+                        "The response body was silent for $idleMillis ms",
+                        java.net.SocketTimeoutException("no data for $idleMillis ms"),
+                        method,
+                        path,
+                    )
+                failure is kotlinx.coroutines.CancellationException -> failure
+                failure is IllegalStateException -> failure
+                wireFailure == null && encoding != null ->
+                    ApiException(
+                        status,
+                        "Failed to decompress $encoding response body: $failure",
+                        headers,
+                        failure,
+                    )
+                else ->
+                    StreamException(
+                        "The response body was cut off after $seen bytes: ${wireFailure ?: failure}",
+                        failure,
+                        method,
+                        path,
+                    )
+            }
+
+        /** Ends the body: aborts what is left of the connection and gives the client its slot back. */
+        private fun finish() {
+            handle.abort()
+            if (released.compareAndSet(false, true)) {
+                openStreams.remove(this)
+                finishRequest()
+            }
+        }
+
+        /** Called by [close] of the client: the next read raises the closed-client error. */
+        fun cancel() {
+            cancelledByClient = true
+            finish()
+        }
+
+        override fun close() {
+            closed = true
+            finish()
+        }
+    }
 }
+
+/** One response of the header phase: the Ktor response and, for a stream, what keeps it open. */
+private class Hop(
+    val response: HttpResponse,
+    val handle: StreamHandle?,
+) {
+    /** Reads a redirect's body to release its connection, or aborts a stream's. */
+    suspend fun discardBody() {
+        if (handle != null) {
+            handle.abort()
+        } else {
+            response.bodyAsBytes()
+        }
+    }
+}
+
+/** Keeps a streamed response open until it is released, and aborts it on request. */
+private class StreamHandle(
+    private val job: kotlinx.coroutines.Job,
+    private val release: kotlinx.coroutines.CompletableDeferred<Unit>,
+) {
+    /** Lets the response go and cancels the call, which closes the connection instead of draining it. */
+    fun abort() {
+        release.complete(Unit)
+        job.cancel()
+    }
+}
+
+/** The outcome of one send: a buffered response, or a stream whose body has not been read. */
+private class Sent(
+    val buffered: ApiHttpResponse?,
+    val streamed: ApiStreamResponse?,
+) {
+    val statusCode: Int get() = buffered?.statusCode ?: streamed!!.statusCode
+    val headers: Map<String, String> get() = buffered?.headers ?: streamed!!.headers
+
+    /** Drops a stream that will not be handed to the caller, such as the answer to a retried status. */
+    fun discard() {
+        streamed?.close()
+    }
+}
+
+/** Fails when [encoding] names a codec this client cannot decode. */
+private fun requireDecoder(encoding: String) {
+    when (encoding) {
+        "gzip", "x-gzip", "deflate" -> {}
+        "br" -> requireCodecClass("br", "org.brotli.dec.BrotliInputStream")
+        "zstd" -> requireCodecClass("zstd", "com.github.luben.zstd.ZstdInputStream")
+        else -> throw java.io.IOException("Unsupported Content-Encoding '$encoding'")
+    }
+}
+
+private fun requireCodecClass(
+    encoding: String,
+    className: String,
+) {
+    if (!isCodecClassPresent(className)) {
+        throw java.io.IOException("Received a $encoding-encoded response but the $encoding library is unavailable")
+    }
+}
+
+/** Opens the decoder of an encoded body over its wire bytes. */
+private fun openDecoder(
+    encoding: String,
+    wire: java.io.InputStream,
+): java.io.InputStream =
+    when (encoding) {
+        "gzip", "x-gzip" -> java.util.zip.GZIPInputStream(wire)
+        "deflate" -> java.util.zip.InflaterInputStream(wire)
+        else -> {
+            val className = if (encoding == "br") "org.brotli.dec.BrotliInputStream" else "com.github.luben.zstd.ZstdInputStream"
+            try {
+                Class
+                    .forName(className)
+                    .getConstructor(java.io.InputStream::class.java)
+                    .newInstance(wire) as java.io.InputStream
+            } catch (e: java.lang.reflect.InvocationTargetException) {
+                throw (e.cause as? java.io.IOException) ?: java.io.IOException("Failed to decode $encoding-encoded response", e)
+            } catch (e: ReflectiveOperationException) {
+                throw java.io.IOException("Received a $encoding-encoded response but the $encoding library is unavailable", e)
+            }
+        }
+    }
 
 /**
  * The timeout and retry count one call asks for in place of the client's own
@@ -746,6 +1208,42 @@ internal class TimeoutBudget(
 
     /** Milliseconds left, or null when there is no timeout. May be zero or negative once spent. */
     fun remainingMillis(): Long? = deadline?.let { (it - System.nanoTime()) / 1_000_000L }
+
+    /** The error of an end-to-end timeout that ran out while the response headers were awaited. */
+    fun expired(cause: Throwable): NetworkTimeoutException =
+        NetworkTimeoutException(
+            "Request timed out: no response headers within the $timeoutMillis ms timeout",
+            java.net.SocketTimeoutException("end-to-end timeout of $timeoutMillis ms exhausted").also { it.initCause(cause) },
+        )
+
+    /**
+     * Arms [builder] for a streamed call: only the connection is bounded here. The wait for the
+     * headers is bounded by the caller, and neither the request nor the socket timer of the
+     * engine is allowed to run on, because both would cut the body that follows the headers.
+     */
+    fun applyToStream(
+        builder: HttpRequestBuilder,
+        client: HttpClient,
+    ) {
+        val end = deadline
+        val remaining = if (end == null) null else (end - System.nanoTime()) / 1_000_000L
+        if (remaining != null && remaining <= 0) {
+            throw NetworkTimeoutException(
+                "Request timed out: the $timeoutMillis ms end-to-end timeout was spent before the next hop",
+                java.net.SocketTimeoutException("end-to-end timeout of $timeoutMillis ms exhausted"),
+            )
+        }
+        if (remaining == null && client.pluginOrNull(io.ktor.client.plugins.HttpTimeout) == null) {
+            return
+        }
+        builder.timeout {
+            requestTimeoutMillis = io.ktor.client.plugins.HttpTimeoutConfig.INFINITE_TIMEOUT_MS
+            socketTimeoutMillis = io.ktor.client.plugins.HttpTimeoutConfig.INFINITE_TIMEOUT_MS
+            if (remaining != null) {
+                connectTimeoutMillis = remaining
+            }
+        }
+    }
 
     /** Arms [builder] with the remaining budget, or throws when it is spent. */
     fun applyTo(builder: HttpRequestBuilder) {

@@ -40,7 +40,7 @@ import (
 {{>usage_statements}}
 ```
 
-Close the client to release its connections: requests already in flight finish, a request sent afterwards returns `ErrClientClosed`, and a second `Close` does nothing. Cancel a single request through its context. Errors satisfy the `{{errorPrefix}}Error` interface; `NetworkError` and `NetworkTimeoutError` mean no HTTP response arrived, and `TooManyRequestsError` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
+Close the client to release its connections: requests already in flight finish, a request sent afterwards returns `ErrClientClosed`, and a second `Close` does nothing. Streams that are still open are cancelled. Cancel a single request through its context. Errors satisfy the `{{errorPrefix}}Error` interface; `NetworkError` and `NetworkTimeoutError` mean no HTTP response arrived, and `TooManyRequestsError` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
 
 ## Configuration
 
@@ -79,8 +79,56 @@ The SDK adds a unique `X-Request-ID` header to every request unless you set your
 Every operation takes a `ctx context.Context` as its first parameter.
 Cancelling it aborts the request, and the error satisfies
 `errors.Is(err, context.Canceled)`; it is distinct from the
-`NetworkTimeoutError` raised when the transport timeout elapses. `Close()` does
-not cancel anything: it is graceful, so a request in flight finishes.
+`NetworkTimeoutError` raised when the transport timeout elapses. `Close()` cancels
+only the streams that are still open: it is graceful otherwise, so a request in
+flight finishes.
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `Close()` that aborts the connection instead of draining it, so close it when you stop early (`defer stream.Close()`). `ReadAll()` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```go file
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+
+	"{{packageName}}/pkg"
+{{#binaryStreamOperation}}
+{{#bodyParam}}
+{{#isModel}}
+	"{{packageName}}/pkg/models"
+{{/isModel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+	opts "{{packageName}}/pkg/options"
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+)
+
+func saveTo(ctx context.Context, client *{{packageName}}.{{clientClassName}}{{#vendorExtensions.op.signatureArgs}}, {{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{#bodyParam}}{{#isModel}}models.{{/isModel}}{{/bodyParam}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{packageName}}.{{{dataType}}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}, target string) error {
+	stream, err := client.{{#binaryStreamGroup}}{{baseName}}{{/binaryStreamGroup}}.{{operationId}}(ctx{{#vendorExtensions.op.signatureArgs}}, {{paramName}}{{/vendorExtensions.op.signatureArgs}})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stream.Close() }()
+	fmt.Println(stream.StatusCode())
+	file, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = file.Close() }()
+	_, err = io.Copy(file, stream)
+	return err
+}
+```
+{{/binaryStreamOperation}}
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `IdleTimeout` (on `TransportOptionsBuilder`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.Close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `SendStreaming` fails a stream call with `ErrStreamingUnsupported` naming it, and its buffered calls keep working.
 
 ### Custom HTTP client
 
@@ -248,7 +296,6 @@ The module version follows semantic versioning; the clients, the `RequestOption`
 - Optional and nullable: an optional property that is absent and one that is `null` both read as a nil pointer, and a nil pointer is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
 - Unknown enum values decode to the catch-all member (`<Enum>UnknownDefaultOpenApi`), which has no wire value, so writing it returns an error; a discriminator value the SDK does not know still returns an error that names the value.
 - Repeated response headers are joined into one value with `, ` in `Headers` and `ResponseHeaders()` (so repeated `Set-Cookie` or `Link` lines arrive as one string).
-- Streaming is not supported: a response is read whole before it is decoded, so server-sent events and JSON Lines are out of scope. Supply your own `ApiClient` or `http.RoundTripper` for those calls.
 - `Configuration` (base URL, default headers) and `TransportOptions` (timeout, proxy, TLS, retries) stay separate objects: the client builds the first from the authenticator's host and takes the second as an argument.
 
 ## Build

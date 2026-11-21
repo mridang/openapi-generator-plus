@@ -347,6 +347,32 @@ const client = new Client(authenticator, transport);
 
 `TransportOptions.builder().maxRetries(n)` sets the automatic retries (default `2`, `0` disables them). A request is retried after a network error before any response and after a `408`, `409`, `429` or `5xx` other than `501`, waiting 0.5 s doubling to 8 s with up to 25% jitter or the server's `Retry-After` (at most 60 s). The retries share the single `timeout` and stop when the call is cancelled; each one rebuilds the headers and asks the authenticator again.
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`try`/`finally`). `readAll()` reads the rest into memory and leaves the stream closed.
+
+```typescript file
+import { createWriteStream } from "node:fs";
+import { Writable } from "node:stream";
+import { Client } from "petstore-client";
+
+async function saveTo(
+  client: Client,
+  path: string,
+  ...args: Parameters<Client["pet"]["downloadPetDocument"]>
+): Promise<void> {
+  const stream = await client.pet.downloadPetDocument(...args);
+  try {
+    console.log(stream.statusCode);
+    await stream.pipeTo(Writable.toWeb(createWriteStream(path)));
+  } finally {
+    await stream.close();
+  }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `TypeError` naming it, and its buffered calls keep working.
+
 ### Custom HTTP client
 
 ```typescript statements
@@ -377,7 +403,7 @@ A cookie parameter is sent raw when every character is an RFC 6265 cookie-octet 
 
 ### Closing
 
-`await client.close()` (or `await using client = ...`) is graceful and idempotent: new calls fail with `ApiClient has been closed and can no longer send requests`, a call already running finishes, the connection pool the SDK built is released when the last one completes, and a `fetch` you supplied is never closed. Cancel one call with its own `signal`.
+`await client.close()` (or `await using client = ...`) is graceful and idempotent: new calls fail with `ApiClient has been closed and can no longer send requests`, a call already running finishes, the connection pool the SDK built is released when the last one completes, and a `fetch` you supplied is never closed. Streams that are still open are cancelled. Cancel one call with its own `signal`.
 
 ### Cancellation
 
@@ -432,7 +458,7 @@ function copyOf(model: Account): Account {
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `Buffer | Blob` (a `File` is a `Blob`). Binary response bodies are returned as `Buffer`.
+File upload parameters are typed as `Buffer | Blob` (a `File` is a `Blob`). A binary response body is returned as a `ByteStream`, a Web `ReadableStream` of `Uint8Array` (see Streaming).
 
 ## Comment Style
 

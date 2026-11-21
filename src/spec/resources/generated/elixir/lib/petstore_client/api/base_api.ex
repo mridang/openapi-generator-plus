@@ -105,6 +105,9 @@ defmodule PetstoreClient.Api.BaseApi do
 
   @call_keys [:timeout, :headers, :max_retries]
 
+  # The most of an error body a streamed call reads before it raises the error.
+  @stream_error_body_limit 64 * 1024
+
   @doc false
   # The per-call settings of one operation call: `:timeout` (milliseconds),
   # `:headers` and `:max_retries`, read from the operation's options struct and
@@ -439,19 +442,54 @@ defmodule PetstoreClient.Api.BaseApi do
         {:error, PetstoreClient.Errors.ApiError.with_request(error, method, url)}
 
       {:ok, response} ->
-        if response.status_code < 200 or response.status_code >= 300 do
-          {:error,
-           response.status_code
-           |> PetstoreClient.Errors.ApiError.from_response(
-             response.headers,
-             response.body,
-             errors
-           )
-           |> PetstoreClient.Errors.ApiError.with_request(method, url)}
-        else
-          decode_with_context(response, return_type, method, url)
+        stream? = Keyword.get(call, :stream, false)
+
+        cond do
+          response.status_code >= 200 and response.status_code < 300 and stream? ->
+            stream_result(response)
+
+          response.status_code >= 200 and response.status_code < 300 ->
+            decode_with_context(response, return_type, method, url)
+
+          true ->
+            # A stream is never returned for a failure: its body is read up to a
+            # bound and the connection closed, then the typed error is raised from it
+            # exactly as for a buffered response.
+            failed =
+              if stream?,
+                do:
+                  PetstoreClient.ApiStreamResponse.read_bounded(
+                    response,
+                    @stream_error_body_limit
+                  ),
+                else: response
+
+            {:error,
+             failed.status_code
+             |> PetstoreClient.Errors.ApiError.from_response(failed.headers, failed.body, errors)
+             |> PetstoreClient.Errors.ApiError.with_request(method, url)}
         end
     end
+  end
+
+  # A success on a stream call: the open stream is the data, and there is no raw
+  # body to carry.
+  defp stream_result(%PetstoreClient.ApiStreamResponse{} = response) do
+    data =
+      PetstoreClient.ByteStream.new(
+        response.status_code,
+        response.headers,
+        response.body,
+        response.close
+      )
+
+    {:ok,
+     %PetstoreClient.ApiResult{
+       status_code: response.status_code,
+       data: data,
+       raw_body: "",
+       headers: response.headers
+     }}
   end
 
   # A response body that cannot be decoded raises a SerializationError. The error
@@ -747,7 +785,8 @@ defmodule PetstoreClient.Api.BaseApi do
            call_timeout: pos_integer() | nil,
            timeout: integer() | nil,
            deadline: integer() | nil | :unset,
-           replayed: boolean()
+           replayed: boolean(),
+           stream: boolean()
          }
 
   @months %{
@@ -796,7 +835,8 @@ defmodule PetstoreClient.Api.BaseApi do
       call_timeout: Keyword.get(call, :timeout),
       timeout: Keyword.get(call, :timeout) || timeout(transport),
       deadline: :unset,
-      replayed: false
+      replayed: false,
+      stream: Keyword.get(call, :stream, false)
     })
   end
 
@@ -811,9 +851,10 @@ defmodule PetstoreClient.Api.BaseApi do
   defp attempt(state, method, effective_auth, build_request, ctx) do
     {url, headers, serialized_body} = build_request.(:attempt)
     ctx = if ctx.deadline == :unset, do: %{ctx | deadline: deadline(ctx.timeout)}, else: ctx
+    transmit = if ctx.stream, do: &send_stream_once/6, else: &send_once/6
 
     result =
-      send_once(
+      transmit.(
         state.api_client,
         method,
         url,
@@ -831,6 +872,8 @@ defmodule PetstoreClient.Api.BaseApi do
         # A failed re-authentication keeps the 401 it replaces, as in the other SDKs.
         case build_for_replay(build_request) do
           {:ok, request} ->
+            discard(result)
+
             attempt(state, method, effective_auth, fn _mode -> request end, %{
               ctx
               | replayed: true
@@ -843,6 +886,7 @@ defmodule PetstoreClient.Api.BaseApi do
       true ->
         case next_delay(result, method, ctx) do
           {:ok, delay} ->
+            discard(result)
             Process.sleep(delay)
 
             attempt(state, method, effective_auth, build_request, %{
@@ -894,6 +938,58 @@ defmodule PetstoreClient.Api.BaseApi do
   rescue
     e -> {:error, e}
   end
+
+  # A stream call sends through `send_streaming`, which a transport written
+  # before streaming does not have: such a transport fails the call by name and
+  # never falls back to buffering (a buffered fallback would never end on an
+  # endless body).
+  defp send_stream_once(api_client, method, url, headers, body, {deadline, call_timeout}) do
+    ensure_streaming!(api_client)
+
+    try do
+      {:ok,
+       case api_client do
+         %{__struct__: mod} = client ->
+           mod.send_streaming(
+             client,
+             method,
+             url,
+             headers,
+             body,
+             Enum.reject([deadline: deadline, timeout: call_timeout], fn {_key, value} ->
+               is_nil(value)
+             end)
+           )
+
+         mod when is_atom(mod) ->
+           mod.send_streaming(method, url, headers, body)
+       end}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  defp ensure_streaming!(%{__struct__: mod}), do: ensure_exported!(mod, 6)
+  defp ensure_streaming!(mod) when is_atom(mod), do: ensure_exported!(mod, 4)
+
+  defp ensure_exported!(mod, arity) do
+    _ = Code.ensure_loaded(mod)
+
+    unless function_exported?(mod, :send_streaming, arity) do
+      raise RuntimeError,
+            "#{inspect(mod)} cannot stream: it does not implement send_streaming/#{arity}, " <>
+              "so an operation that returns a stream cannot be called through it"
+    end
+
+    :ok
+  end
+
+  # A response that is retried or replayed is not the one the caller gets, so a
+  # streamed one lets go of its connection first.
+  defp discard({:ok, %PetstoreClient.ApiStreamResponse{} = response}),
+    do: PetstoreClient.ApiStreamResponse.close(response)
+
+  defp discard(_result), do: :ok
 
   # The client's transport settings, or nil for a client that has none (a
   # custom client, a module): such a client is never retried.

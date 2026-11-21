@@ -16,9 +16,11 @@ import 'dart:math';
 
 import 'api_client.dart';
 import 'api_http_response.dart';
+import 'api_stream_response.dart';
 import 'errors/api_exception.dart';
 import 'errors/network_exception.dart';
 import 'errors/network_timeout_exception.dart';
+import 'errors/stream_exception.dart';
 import 'object_serializer.dart';
 import 'transport_options.dart';
 
@@ -43,7 +45,7 @@ import 'transport_options.dart';
 ///  3. [TransportOptions.userAgent] -- injected if not already set
 ///  4. [TransportOptions.injectRequestId] -- injected if not already set
 abstract class AbstractApiClient
-    implements RetryingApiClient, AdmittingApiClient {
+    implements RetryingApiClient, AdmittingStreamingApiClient {
   final TransportOptions _transportOptions;
   final http.Client _httpClient;
   /* dart:io's HttpClient has no API for proxy basic-auth credentials, so
@@ -61,6 +63,10 @@ abstract class AbstractApiClient
   /* Requests that started and have not finished; close() waits for them. */
   int _inFlight = 0;
   bool _released = false;
+
+  /* Response bodies handed out as streams that have not ended; close() cancels
+   * them, because an endless body would otherwise hold the client open. */
+  final Set<_OpenBody> _openBodies = {};
 
   /* True when the SDK built the [http.Client] itself; a caller-supplied client
    * (TransportOptions.httpClient) stays open because the caller owns it. */
@@ -95,6 +101,16 @@ abstract class AbstractApiClient
   /// on the browser having already decoded the response and returns [bytes]
   /// unchanged. An empty encoding passes bytes through on both.
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding);
+
+  /// Platform seam: decode the response [body] of a stream call according to
+  /// [contentEncoding], without buffering it. The native transport decodes
+  /// `gzip`/`deflate` with dart:io codecs and raises an [ApiException] for an
+  /// encoding it cannot decode; the web transport relies on the browser having
+  /// already decoded the response. The default returns [body] unchanged.
+  Stream<List<int>> decompressStream(
+    Stream<List<int>> body,
+    String contentEncoding,
+  ) => body;
 
   /// Platform seam: whether [error], raised while sending the request or
   /// reading the response body, means no HTTP response arrived (connection
@@ -210,6 +226,166 @@ abstract class AbstractApiClient
     );
   }
 
+  @override
+  Future<ApiStreamResponse> sendStreaming(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+    int? idleTimeout,
+  }) async {
+    final finish = beginRequest();
+    try {
+      return await sendAdmittedStreaming(
+        method,
+        url,
+        headers,
+        body,
+        noRedirect: noRedirect,
+        timeout: timeout,
+        noDefaultHeaders: noDefaultHeaders,
+        idleTimeout: idleTimeout,
+      );
+    } finally {
+      finish();
+    }
+  }
+
+  /* Returns once the headers are accepted: the call timeout bounds the send,
+   * the redirects and the wait for the headers, and stops there. The body is
+   * handed out unread, behind a guard that applies the idle timeout, maps a
+   * failure after the headers to a StreamException and lets close() cancel it. */
+  @override
+  Future<ApiStreamResponse> sendAdmittedStreaming(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+    int? idleTimeout,
+  }) async {
+    final clock = _Deadline(timeout ?? _transportOptions.timeout);
+    final opened = await _mapped<http.StreamedResponse>(
+      () => _open(
+        method,
+        url,
+        headers,
+        body,
+        noRedirect,
+        noDefaultHeaders,
+        clock,
+      ),
+    );
+    final status = opened.statusCode;
+    if (_closed) {
+      /* The client was closed while the headers were on their way: the
+       * response is refused and its connection dropped. */
+      unawaited(opened.stream.listen(null).cancel());
+      throw StateError(
+        'ApiClient has been closed and can no longer send requests',
+      );
+    }
+    final responseHeaders = _lowerResponseHeaders(opened);
+    final contentEncoding = (opened.headers['content-encoding'] ?? '')
+        .toLowerCase()
+        .trim();
+    final hasBody =
+        method.toUpperCase() != 'HEAD' &&
+        status != 204 &&
+        status != 304 &&
+        opened.headers['content-length'] != '0';
+    final decoded =
+        hasBody && contentEncoding.isNotEmpty && contentEncoding != 'identity';
+    Stream<List<int>> source = opened.stream;
+    if (decoded) {
+      try {
+        source = decompressStream(source, contentEncoding);
+      } on ApiException catch (e) {
+        unawaited(opened.stream.listen(null).cancel());
+        throw ApiException(
+          statusCode: status,
+          message: e.message,
+          responseHeaders: opened.headers,
+          cause: e.cause,
+        );
+      }
+      /* Once an encoding is decoded, the headers describe the body the caller
+       * receives: the encoding and the length of the wire body are dropped. */
+      responseHeaders.remove('content-encoding');
+      responseHeaders.remove('content-length');
+    }
+    final requestPath = ApiException.stripQuery(Uri.parse(url).path);
+    final idle = idleTimeout ?? _transportOptions.idleTimeout;
+    final guard = _OpenBody(
+      source,
+      idle == null || idle == 0 ? null : idle,
+      (Object error) => _bodyFailure(
+        error,
+        method,
+        requestPath,
+        status,
+        contentEncoding,
+        decoded,
+      ),
+      _openBodies.remove,
+    );
+    _openBodies.add(guard);
+    return ApiStreamResponse(
+      statusCode: status,
+      headers: responseHeaders,
+      body: guard.stream,
+    );
+  }
+
+  /// What a failure of a response body that was already being read becomes:
+  /// a typed SDK error stays, a decode failure of a compressed body is an
+  /// [ApiException] with the real status, a deadline is a
+  /// [NetworkTimeoutException] and anything else (a reset, a body that ends
+  /// before its declared length) is a [StreamException].
+  Object _bodyFailure(
+    Object error,
+    String method,
+    String path,
+    int status,
+    String contentEncoding,
+    bool decoded,
+  ) {
+    if (error is ApiException || error is StateError) {
+      return error;
+    }
+    if (decoded && error is FormatException) {
+      return ApiException(
+        statusCode: status,
+        message: 'Failed to decompress $contentEncoding response body: $error',
+        cause: error,
+      );
+    }
+    final message = error is http.ClientException
+        ? error.message
+        : error is TimeoutException
+        ? (error.message ?? 'Response body timed out')
+        : error.toString();
+    if (error is TimeoutException || isTimeoutMessage(message)) {
+      return NetworkTimeoutException(
+        message: message,
+        cause: error,
+        requestMethod: method,
+        requestPath: path,
+      );
+    }
+    return StreamException(
+      message: message,
+      cause: error,
+      requestMethod: method,
+      requestPath: path,
+    );
+  }
+
   Future<ApiHttpResponse> _send(
     String method,
     String url,
@@ -218,6 +394,158 @@ abstract class AbstractApiClient
     bool noRedirect,
     int? timeout,
     bool noDefaultHeaders,
+  ) async {
+    final clock = _Deadline(timeout ?? _transportOptions.timeout);
+    /* Read the response body INSIDE the transport guard so a connection
+     * reset, read timeout, or truncated-chunked failure that occurs AFTER the
+     * response headers arrive is wrapped in the same error type a send-phase
+     * failure produces (status code 0, underlying error preserved). */
+    final fetched = await _mapped<(http.StreamedResponse, Uint8List)>(() async {
+      final opened = await _open(
+        method,
+        url,
+        headers,
+        body,
+        noRedirect,
+        noDefaultHeaders,
+        clock,
+      );
+      return (opened, await _readWithin(opened.stream, clock));
+    });
+    final streamedResponse = fetched.$1;
+    final rawBytes = fetched.$2;
+    final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '')
+        .toLowerCase()
+        .trim();
+    /* A body that arrived but cannot be decompressed is a response that
+     * could not be used: an ApiException carrying the response's real
+     * status, never a NetworkException. */
+    final Uint8List responseBytes;
+    try {
+      responseBytes = decompressBytes(rawBytes, contentEncoding);
+    } on ApiException catch (e) {
+      throw ApiException(
+        statusCode: streamedResponse.statusCode,
+        message: e.message,
+        responseHeaders: streamedResponse.headers,
+        cause: e.cause,
+      );
+    }
+    final contentType = streamedResponse.headers['content-type'] ?? '';
+    final responseBody = isTextContentType(contentType)
+        ? decodeText(responseBytes, contentType)
+        : base64Encode(responseBytes);
+
+    final responseHeaders = _lowerResponseHeaders(streamedResponse);
+
+    /* Once a non-identity encoding has been decoded, the returned headers
+     * describe the body the caller receives: the encoding and the length of
+     * the wire body are dropped. */
+    if (contentEncoding.isNotEmpty &&
+        contentEncoding != 'identity' &&
+        rawBytes.isNotEmpty) {
+      responseHeaders.remove('content-encoding');
+      responseHeaders.remove('content-length');
+    }
+
+    return ApiHttpResponse(
+      statusCode: streamedResponse.statusCode,
+      body: responseBody,
+      headers: responseHeaders,
+    );
+  }
+
+  /// The response headers of [streamedResponse] with lower-cased names.
+  static Map<String, String> _lowerResponseHeaders(
+    http.StreamedResponse streamedResponse,
+  ) {
+    /* Response header keys are normalised to lowercase so callers
+       can look them up consistently regardless of the casing the server used
+       (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
+       HTTP/2 mandates lowercase on the wire). Repeated header lines are
+       joined with ", " to preserve order per RFC 7230 section 3.2.2.
+       package:http already joins multi-value headers with ", " in
+       `headers`, but Set-Cookie is collapsed to the first occurrence;
+       we recover the full list via `headersSplitValues` when available. */
+    final responseHeaders = <String, String>{};
+    final dynamic dynResp = streamedResponse;
+    try {
+      final Map<String, List<String>> split =
+          (dynResp.headersSplitValues as Map<String, List<String>>);
+      split.forEach((key, values) {
+        responseHeaders[key.toLowerCase()] = values.join(', ');
+      });
+    } catch (_) {
+      streamedResponse.headers.forEach((key, value) {
+        responseHeaders[key.toLowerCase()] = value;
+      });
+    }
+    return responseHeaders;
+  }
+
+  /// Runs [run] and maps what it raises to the SDK errors: a typed SDK error
+  /// or an [ArgumentError] is rethrown unchanged, and a transport failure
+  /// becomes a [NetworkException] (a [NetworkTimeoutException] when a deadline
+  /// expired) with status code 0.
+  Future<T> _mapped<T>(Future<T> Function() run) async {
+    try {
+      return await run();
+    } on ApiException {
+      /* SDK-typed errors raised inside the redirect loop (unsupported
+       * scheme, refused downgrade, too many redirects) already carry the
+       * right type — surface them unchanged rather than re-wrapping. */
+      rethrow;
+    } on ArgumentError {
+      /* A caller mistake the transport itself rejected is not a network
+       * failure. */
+      rethrow;
+    } on http.ClientException catch (e) {
+      /* package:http surfaces send-phase failures and post-header body-read
+       * failures (truncated/malformed chunked body, connection reset
+       * mid-stream) — and wraps native socket/TLS errors from its IOClient —
+       * as ClientException. No HTTP response arrived, so it is a
+       * NetworkException (an ApiException with status 0) -- unless the
+       * connect deadline is what expired, which is a timeout. */
+      if (isTimeoutMessage(e.message)) {
+        throw NetworkTimeoutException(message: e.message, cause: e);
+      }
+      throw NetworkException(message: e.message, cause: e);
+    } on TimeoutException catch (e) {
+      /* `Future.timeout` throws dart:async's TimeoutException, which is
+       * why the SDK type is NetworkTimeoutException and not a name that
+       * would clash with it. */
+      throw NetworkTimeoutException(
+        message: e.message ?? 'Request timed out',
+        cause: e,
+      );
+    } catch (e) {
+      /* A raw dart:io SocketException / HandshakeException that surfaces
+       * from the body-read stream on the native transport is a
+       * NetworkException; the transport decides via [isNetworkError]. Any
+       * other error is wrapped as a plain ApiException so no foreign exception
+       * type escapes the SDK surface. */
+      if (isNetworkError(e)) {
+        if (isTimeoutMessage(e.toString())) {
+          throw NetworkTimeoutException(message: e.toString(), cause: e);
+        }
+        throw NetworkException(message: e.toString(), cause: e);
+      }
+      throw ApiException(statusCode: 0, message: e.toString(), cause: e);
+    }
+  }
+
+  /// Sends the request and follows its redirects within the end-to-end
+  /// deadline of [clock], and returns the final response with its body not read
+  /// yet. Raises what the transport raises; [_mapped] turns that into the SDK
+  /// errors.
+  Future<http.StreamedResponse> _open(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body,
+    bool noRedirect,
+    bool noDefaultHeaders,
+    _Deadline clock,
   ) async {
     final merged = <String, String>{};
 
@@ -326,318 +654,207 @@ abstract class AbstractApiClient
       }
       request = standardRequest;
     }
-
     http.StreamedResponse streamedResponse;
     Uri currentUri = uri;
-    Uint8List rawBytes;
-    final clock = _Deadline(timeout ?? _transportOptions.timeout);
-    try {
-      streamedResponse = await _sendWithin(request, clock);
-      if (_transportOptions.followRedirects && !noRedirect) {
-        final maxRedirects = _transportOptions.maxRedirects ?? 20;
-        /* Extend the cross-origin strip set with API-key header names declared
-         * in the spec. The standard `Authorization` / `Cookie` /
-         * `Proxy-Authorization` allowlist does not cover bespoke credentials
-         * carried in custom headers like `X-API-Key` or `X-Internal-Key`, so
-         * we add every spec-declared apiKey-in-header name (lowercased)
-         * here. */
-        const sensitive = <String>{
-          'authorization',
-          'cookie',
-          'proxy-authorization',
-          'x-api-key',
-          'x-internal-key',
-        };
-        var hops = 0;
-        var currentMethod = method;
-        Object? currentBody = body;
-        var currentHeaders = Map<String, String>.from(merged);
-        while (hops < maxRedirects &&
-            _isRedirectStatus(streamedResponse.statusCode)) {
-          /* A missing, empty or unparseable Location is not a usable
-           * redirect: stop and return the 3xx untouched (status, headers and
-           * body), exactly like a missing Location. The Location is resolved
-           * BEFORE the body is drained so a break leaves the body readable. */
-          final location = streamedResponse.headers['location'];
-          if (location == null || location.isEmpty) break;
-          final Uri nextUri;
-          try {
-            nextUri = currentUri.resolve(location);
-          } on FormatException {
-            break;
-          }
-          if ((nextUri.scheme == 'http' || nextUri.scheme == 'https') &&
-              nextUri.host.isEmpty) {
-            break;
-          }
-          /* Drain any unread body to release the connection, within what is
-           * left of the end-to-end timeout so a stalled redirect body cannot
-           * hang the call. */
-          await _drainWithin(streamedResponse.stream, clock);
-          if (nextUri.scheme != 'http' && nextUri.scheme != 'https') {
-            /* A `Location:` pointing at a non-http(s) scheme (`file:`,
-             * `javascript:`, `data:`, ...) is a redirect-target smuggling
-             * vector. Refuse it loudly with a typed SDK error instead of
-             * silently returning the 3xx, matching the other SDKs that
-             * surface the offending URL. */
-            throw ApiException(
-              statusCode: streamedResponse.statusCode,
-              message:
-                  'Refusing to follow redirect to non-HTTP(S) URL: $nextUri',
-              responseHeaders: _lowerHeaders(streamedResponse.headers),
-            );
-          }
-          /* Anchor the downgrade check on the CURRENT hop (currentUri, whose
-           * body would be replayed), not the original request (uri): an
-           * http->https->http chain downgrades on the final hop even though
-           * the first request was already http, which a uri anchor would miss. */
-          final downgrade =
-              currentUri.scheme.toLowerCase() == 'https' &&
-              nextUri.scheme.toLowerCase() == 'http';
-          final crossOrigin = !_sameOrigin(uri, nextUri);
-
-          /* Pick follow-up method+body per RFC 9110 section 15.4.
-           *   307 + 308: preserve original method and body.
-           *   303:       every method except HEAD becomes GET (HEAD stays HEAD); the
-           *              body is dropped for every method.
-           *   301 + 302: only POST becomes GET (body dropped); every other
-           *              method keeps its method and body. */
-          final statusCode = streamedResponse.statusCode;
-          final methodUpper = currentMethod.toUpperCase();
-          String nextMethod;
-          Object? nextBody;
-          if (statusCode == 303) {
-            /* The body is never replayed on a 303, HEAD included. */
-            nextMethod = methodUpper == 'HEAD' ? currentMethod : 'GET';
-            nextBody = null;
-          } else if ((statusCode == 301 || statusCode == 302) &&
-              methodUpper == 'POST') {
-            nextMethod = 'GET';
-            nextBody = null;
-          } else {
-            nextMethod = currentMethod;
-            nextBody = currentBody;
-          }
-
-          /* Refuse to replay a request body across an HTTPS→HTTP downgrade. A
-           * 307/308 from an HTTPS origin to plain HTTP preserves the original
-           * body (which may contain credentials, PII, or signed payloads), so
-           * re-emitting it over an unencrypted hop is a leak — raise a typed
-           * SDK error instead. 301/302/303 coerce to GET and DROP the body
-           * above, but a 301/302 from a POST that carried a body is still
-           * refused, since the original body was sent on the HTTPS hop and the
-           * owner rule forbids replaying it across the downgrade. A 303 is
-           * followed with the body dropped. */
-          final replaysBody = (statusCode == 301 || statusCode == 302)
-              ? currentBody != null
-              : nextBody != null;
-          if (downgrade && replaysBody) {
-            throw ApiException(
-              statusCode: streamedResponse.statusCode,
-              message:
-                  'Refusing to replay request body across HTTPS->HTTP '
-                  'redirect: $currentUri -> $nextUri',
-              responseHeaders: _lowerHeaders(streamedResponse.headers),
-            );
-          }
-
-          /* Transport default headers are for the configured origin only: a
-           * hop to another origin drops them, unless the call supplied a header
-           * of the same name. */
-          final callNames = headers.keys.map((k) => k.toLowerCase()).toSet();
-          final transportNames = noDefaultHeaders
-              ? const <String>{}
-              : _transportOptions.defaultHeaders.keys
-                    .map((k) => k.toLowerCase())
-                    .where((k) => !callNames.contains(k))
-                    .toSet();
-          final redirectHeaders = <String, String>{};
-          currentHeaders.forEach((k, v) {
-            if (crossOrigin && _isCredentialHeader(k, sensitive)) return;
-            if (crossOrigin && transportNames.contains(k.toLowerCase())) return;
-            if (nextBody == null &&
-                (k.toLowerCase() == 'content-type' ||
-                    k.toLowerCase() == 'content-length')) {
-              return;
-            }
-            redirectHeaders[k] = v;
-          });
-          /* The SDK's own Proxy-Authorization authenticates to the proxy,
-           * which is the same for every hop, so it is re-applied after the
-           * cross-origin strip (which removes only caller credentials). On a
-           * hop to an https target it is NOT re-added: there it would travel
-           * inside the tunnel to the origin. */
-          if (proxyAuth != null && nextUri.scheme.toLowerCase() != 'https') {
-            redirectHeaders.removeWhere(
-              (k, _) => k.toLowerCase() == 'proxy-authorization',
-            );
-            redirectHeaders['Proxy-Authorization'] = proxyAuth;
-          }
-          final next = http.Request(nextMethod, nextUri);
-          next.headers.addAll(redirectHeaders);
-          next.followRedirects = false;
-          if (nextBody is Uint8List) {
-            next.bodyBytes = nextBody;
-          } else if (nextBody is String) {
-            /* RFC 7231 §6.4.7 / RFC 7538: 307/308 must replay the
-             * original method and body. A String body (e.g. a
-             * pre-built multipart envelope) is re-encoded as UTF-8
-             * bytes on each hop so the form parts arrive intact. */
-            next.bodyBytes = Uint8List.fromList(utf8.encode(nextBody));
-          } else if (nextBody is Map<String, Object?>) {
-            /* A multipart form body can be finalized only once, so the
-             * parts are rebuilt and serialized to bytes for the replay. The
-             * rebuilt request owns the boundary, so its Content-Type
-             * replaces the one carried from the previous hop. */
-            final replay = _buildMultipartRequest(
-              nextMethod,
-              nextUri,
-              {},
-              nextBody,
-            );
-            next.bodyBytes = await replay.finalize().toBytes();
-            next.headers['content-type'] = replay.headers['content-type']!;
-          } else if (const {
-            'POST',
-            'PUT',
-            'PATCH',
-          }.contains(nextMethod.toUpperCase())) {
-            /* A bodyless POST/PUT/PATCH replays with an explicit empty body, as the
-             * first send does, so the hop carries Content-Length: 0. */
-            next.bodyBytes = Uint8List(0);
-            next.headers['content-length'] = '0';
-          }
-          currentUri = nextUri;
-          currentMethod = nextMethod;
-          currentBody = nextBody;
-          currentHeaders = redirectHeaders;
-          streamedResponse = await _sendWithin(next, clock);
-          hops++;
+    streamedResponse = await _sendWithin(request, clock);
+    if (_transportOptions.followRedirects && !noRedirect) {
+      final maxRedirects = _transportOptions.maxRedirects ?? 20;
+      /* Extend the cross-origin strip set with API-key header names declared
+       * in the spec. The standard `Authorization` / `Cookie` /
+       * `Proxy-Authorization` allowlist does not cover bespoke credentials
+       * carried in custom headers like `X-API-Key` or `X-Internal-Key`, so
+       * we add every spec-declared apiKey-in-header name (lowercased)
+       * here. */
+      const sensitive = <String>{
+        'authorization',
+        'cookie',
+        'proxy-authorization',
+        'x-api-key',
+        'x-internal-key',
+      };
+      var hops = 0;
+      var currentMethod = method;
+      Object? currentBody = body;
+      var currentHeaders = Map<String, String>.from(merged);
+      while (hops < maxRedirects &&
+          _isRedirectStatus(streamedResponse.statusCode)) {
+        /* A missing, empty or unparseable Location is not a usable
+         * redirect: stop and return the 3xx untouched (status, headers and
+         * body), exactly like a missing Location. The Location is resolved
+         * BEFORE the body is drained so a break leaves the body readable. */
+        final location = streamedResponse.headers['location'];
+        if (location == null || location.isEmpty) break;
+        final Uri nextUri;
+        try {
+          nextUri = currentUri.resolve(location);
+        } on FormatException {
+          break;
         }
-        /* The redirect chain was followed up to `maxRedirects` hops but the
-         * final response is still a 3xx with a Location we could keep
-         * following. Surface this as a typed SDK error instead of silently
-         * returning the last 3xx as if it were the result. */
-        final lastLocation = streamedResponse.headers['location'];
-        if (hops >= maxRedirects &&
-            _isRedirectStatus(streamedResponse.statusCode) &&
-            lastLocation != null &&
-            lastLocation.isNotEmpty) {
-          await _drainWithin(streamedResponse.stream, clock);
+        if ((nextUri.scheme == 'http' || nextUri.scheme == 'https') &&
+            nextUri.host.isEmpty) {
+          break;
+        }
+        /* Drain any unread body to release the connection, within what is
+         * left of the end-to-end timeout so a stalled redirect body cannot
+         * hang the call. */
+        await _drainWithin(streamedResponse.stream, clock);
+        if (nextUri.scheme != 'http' && nextUri.scheme != 'https') {
+          /* A `Location:` pointing at a non-http(s) scheme (`file:`,
+           * `javascript:`, `data:`, ...) is a redirect-target smuggling
+           * vector. Refuse it loudly with a typed SDK error instead of
+           * silently returning the 3xx, matching the other SDKs that
+           * surface the offending URL. */
           throw ApiException(
             statusCode: streamedResponse.statusCode,
-            message: 'Too many redirects (exceeded $maxRedirects)',
+            message: 'Refusing to follow redirect to non-HTTP(S) URL: $nextUri',
             responseHeaders: _lowerHeaders(streamedResponse.headers),
           );
         }
-      }
-      /* Read the response body INSIDE the transport try/catch so a
-       * connection reset, read timeout, or truncated-chunked failure that
-       * occurs AFTER the response headers arrive is wrapped in the same
-       * error type a send-phase failure produces (status code 0, underlying
-       * error preserved). */
-      rawBytes = await _readWithin(streamedResponse.stream, clock);
-    } on ApiException {
-      /* SDK-typed errors raised inside the redirect loop (unsupported
-       * scheme, refused downgrade, too many redirects) already carry the
-       * right type — surface them unchanged rather than re-wrapping. */
-      rethrow;
-    } on ArgumentError {
-      /* A caller mistake the transport itself rejected is not a network
-       * failure. */
-      rethrow;
-    } on http.ClientException catch (e) {
-      /* package:http surfaces send-phase failures and post-header body-read
-       * failures (truncated/malformed chunked body, connection reset
-       * mid-stream) — and wraps native socket/TLS errors from its IOClient —
-       * as ClientException. No HTTP response arrived, so it is a
-       * NetworkException (an ApiException with status 0) -- unless the
-       * connect deadline is what expired, which is a timeout. */
-      if (isTimeoutMessage(e.message)) {
-        throw NetworkTimeoutException(message: e.message, cause: e);
-      }
-      throw NetworkException(message: e.message, cause: e);
-    } on TimeoutException catch (e) {
-      /* `Future.timeout` throws dart:async's TimeoutException, which is
-       * why the SDK type is NetworkTimeoutException and not a name that
-       * would clash with it. */
-      throw NetworkTimeoutException(
-        message: e.message ?? 'Request timed out',
-        cause: e,
-      );
-    } catch (e) {
-      /* A raw dart:io SocketException / HandshakeException that surfaces
-       * from the body-read stream on the native transport is a
-       * NetworkException; the transport decides via [isNetworkError]. Any
-       * other error is wrapped as a plain ApiException so no foreign exception
-       * type escapes the SDK surface. */
-      if (isNetworkError(e)) {
-        if (isTimeoutMessage(e.toString())) {
-          throw NetworkTimeoutException(message: e.toString(), cause: e);
+        /* Anchor the downgrade check on the CURRENT hop (currentUri, whose
+         * body would be replayed), not the original request (uri): an
+         * http->https->http chain downgrades on the final hop even though
+         * the first request was already http, which a uri anchor would miss. */
+        final downgrade =
+            currentUri.scheme.toLowerCase() == 'https' &&
+            nextUri.scheme.toLowerCase() == 'http';
+        final crossOrigin = !_sameOrigin(uri, nextUri);
+
+        /* Pick follow-up method+body per RFC 9110 section 15.4.
+         *   307 + 308: preserve original method and body.
+         *   303:       every method except HEAD becomes GET (HEAD stays HEAD); the
+         *              body is dropped for every method.
+         *   301 + 302: only POST becomes GET (body dropped); every other
+         *              method keeps its method and body. */
+        final statusCode = streamedResponse.statusCode;
+        final methodUpper = currentMethod.toUpperCase();
+        String nextMethod;
+        Object? nextBody;
+        if (statusCode == 303) {
+          /* The body is never replayed on a 303, HEAD included. */
+          nextMethod = methodUpper == 'HEAD' ? currentMethod : 'GET';
+          nextBody = null;
+        } else if ((statusCode == 301 || statusCode == 302) &&
+            methodUpper == 'POST') {
+          nextMethod = 'GET';
+          nextBody = null;
+        } else {
+          nextMethod = currentMethod;
+          nextBody = currentBody;
         }
-        throw NetworkException(message: e.toString(), cause: e);
+
+        /* Refuse to replay a request body across an HTTPS→HTTP downgrade. A
+         * 307/308 from an HTTPS origin to plain HTTP preserves the original
+         * body (which may contain credentials, PII, or signed payloads), so
+         * re-emitting it over an unencrypted hop is a leak — raise a typed
+         * SDK error instead. 301/302/303 coerce to GET and DROP the body
+         * above, but a 301/302 from a POST that carried a body is still
+         * refused, since the original body was sent on the HTTPS hop and the
+         * owner rule forbids replaying it across the downgrade. A 303 is
+         * followed with the body dropped. */
+        final replaysBody = (statusCode == 301 || statusCode == 302)
+            ? currentBody != null
+            : nextBody != null;
+        if (downgrade && replaysBody) {
+          throw ApiException(
+            statusCode: streamedResponse.statusCode,
+            message:
+                'Refusing to replay request body across HTTPS->HTTP '
+                'redirect: $currentUri -> $nextUri',
+            responseHeaders: _lowerHeaders(streamedResponse.headers),
+          );
+        }
+
+        /* Transport default headers are for the configured origin only: a
+         * hop to another origin drops them, unless the call supplied a header
+         * of the same name. */
+        final callNames = headers.keys.map((k) => k.toLowerCase()).toSet();
+        final transportNames = noDefaultHeaders
+            ? const <String>{}
+            : _transportOptions.defaultHeaders.keys
+                  .map((k) => k.toLowerCase())
+                  .where((k) => !callNames.contains(k))
+                  .toSet();
+        final redirectHeaders = <String, String>{};
+        currentHeaders.forEach((k, v) {
+          if (crossOrigin && _isCredentialHeader(k, sensitive)) return;
+          if (crossOrigin && transportNames.contains(k.toLowerCase())) return;
+          if (nextBody == null &&
+              (k.toLowerCase() == 'content-type' ||
+                  k.toLowerCase() == 'content-length')) {
+            return;
+          }
+          redirectHeaders[k] = v;
+        });
+        /* The SDK's own Proxy-Authorization authenticates to the proxy,
+         * which is the same for every hop, so it is re-applied after the
+         * cross-origin strip (which removes only caller credentials). On a
+         * hop to an https target it is NOT re-added: there it would travel
+         * inside the tunnel to the origin. */
+        if (proxyAuth != null && nextUri.scheme.toLowerCase() != 'https') {
+          redirectHeaders.removeWhere(
+            (k, _) => k.toLowerCase() == 'proxy-authorization',
+          );
+          redirectHeaders['Proxy-Authorization'] = proxyAuth;
+        }
+        final next = http.Request(nextMethod, nextUri);
+        next.headers.addAll(redirectHeaders);
+        next.followRedirects = false;
+        if (nextBody is Uint8List) {
+          next.bodyBytes = nextBody;
+        } else if (nextBody is String) {
+          /* RFC 7231 §6.4.7 / RFC 7538: 307/308 must replay the
+           * original method and body. A String body (e.g. a
+           * pre-built multipart envelope) is re-encoded as UTF-8
+           * bytes on each hop so the form parts arrive intact. */
+          next.bodyBytes = Uint8List.fromList(utf8.encode(nextBody));
+        } else if (nextBody is Map<String, Object?>) {
+          /* A multipart form body can be finalized only once, so the
+           * parts are rebuilt and serialized to bytes for the replay. The
+           * rebuilt request owns the boundary, so its Content-Type
+           * replaces the one carried from the previous hop. */
+          final replay = _buildMultipartRequest(
+            nextMethod,
+            nextUri,
+            {},
+            nextBody,
+          );
+          next.bodyBytes = await replay.finalize().toBytes();
+          next.headers['content-type'] = replay.headers['content-type']!;
+        } else if (const {
+          'POST',
+          'PUT',
+          'PATCH',
+        }.contains(nextMethod.toUpperCase())) {
+          /* A bodyless POST/PUT/PATCH replays with an explicit empty body, as the
+           * first send does, so the hop carries Content-Length: 0. */
+          next.bodyBytes = Uint8List(0);
+          next.headers['content-length'] = '0';
+        }
+        currentUri = nextUri;
+        currentMethod = nextMethod;
+        currentBody = nextBody;
+        currentHeaders = redirectHeaders;
+        streamedResponse = await _sendWithin(next, clock);
+        hops++;
       }
-      throw ApiException(statusCode: 0, message: e.toString(), cause: e);
+      /* The redirect chain was followed up to `maxRedirects` hops but the
+       * final response is still a 3xx with a Location we could keep
+       * following. Surface this as a typed SDK error instead of silently
+       * returning the last 3xx as if it were the result. */
+      final lastLocation = streamedResponse.headers['location'];
+      if (hops >= maxRedirects &&
+          _isRedirectStatus(streamedResponse.statusCode) &&
+          lastLocation != null &&
+          lastLocation.isNotEmpty) {
+        await _drainWithin(streamedResponse.stream, clock);
+        throw ApiException(
+          statusCode: streamedResponse.statusCode,
+          message: 'Too many redirects (exceeded $maxRedirects)',
+          responseHeaders: _lowerHeaders(streamedResponse.headers),
+        );
+      }
     }
-    final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '')
-        .toLowerCase()
-        .trim();
-    /* A body that arrived but cannot be decompressed is a response that
-     * could not be used: an ApiException carrying the response's real
-     * status, never a NetworkException. */
-    final Uint8List responseBytes;
-    try {
-      responseBytes = decompressBytes(rawBytes, contentEncoding);
-    } on ApiException catch (e) {
-      throw ApiException(
-        statusCode: streamedResponse.statusCode,
-        message: e.message,
-        responseHeaders: streamedResponse.headers,
-        cause: e.cause,
-      );
-    }
-    final contentType = streamedResponse.headers['content-type'] ?? '';
-    final responseBody = _isTextContentType(contentType)
-        ? _decodeText(responseBytes, contentType)
-        : base64Encode(responseBytes);
-
-    /* Response header keys are normalised to lowercase so callers
-       can look them up consistently regardless of the casing the server used
-       (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
-       HTTP/2 mandates lowercase on the wire). Repeated header lines are
-       joined with ", " to preserve order per RFC 7230 section 3.2.2.
-       package:http already joins multi-value headers with ", " in
-       `headers`, but Set-Cookie is collapsed to the first occurrence;
-       we recover the full list via `headersSplitValues` when available. */
-    final responseHeaders = <String, String>{};
-    final dynamic dynResp = streamedResponse;
-    try {
-      final Map<String, List<String>> split =
-          (dynResp.headersSplitValues as Map<String, List<String>>);
-      split.forEach((key, values) {
-        responseHeaders[key.toLowerCase()] = values.join(', ');
-      });
-    } catch (_) {
-      streamedResponse.headers.forEach((key, value) {
-        responseHeaders[key.toLowerCase()] = value;
-      });
-    }
-
-    /* Once a non-identity encoding has been decoded, the returned headers
-     * describe the body the caller receives: the encoding and the length of
-     * the wire body are dropped. */
-    if (contentEncoding.isNotEmpty &&
-        contentEncoding != 'identity' &&
-        rawBytes.isNotEmpty) {
-      responseHeaders.remove('content-encoding');
-      responseHeaders.remove('content-length');
-    }
-
-    return ApiHttpResponse(
-      statusCode: streamedResponse.statusCode,
-      body: responseBody,
-      headers: responseHeaders,
-    );
+    return streamedResponse;
   }
 
   /// Time left of the end-to-end timeout, measured on [clock] since the
@@ -829,10 +1046,21 @@ abstract class AbstractApiClient
   /// Marks the client closed and releases the HTTP client this SDK built, unless
   /// the caller supplied it through [TransportOptions.httpClient]: the caller
   /// owns that one and it is never closed. Requests already in flight finish
-  /// first (the transport is released when the last one completes); a request
-  /// started after this call raises a [StateError]. Idempotent.
+  /// first (the transport is released when the last one completes); streams
+  /// that are still open are cancelled, and their next read raises a
+  /// [StateError]; a request started after this call raises a [StateError].
+  /// Idempotent.
   void close() {
     _closed = true;
+    /* Open streams are cancelled, not waited for: an endless body would hold a
+     * graceful close open forever. Their next read raises the closed-client
+     * error; requests in flight that are not streams still finish. */
+    final closedError = StateError(
+      'ApiClient has been closed and can no longer send requests',
+    );
+    for (final body in List<_OpenBody>.of(_openBodies)) {
+      body.abort(closedError);
+    }
     if (_inFlight == 0) {
       _release();
     }
@@ -897,7 +1125,7 @@ abstract class AbstractApiClient
   /// back to a lenient UTF-8 decode (`allowMalformed: true`) so an unfamiliar
   /// or mismatched server header can never break decoding — matching the
   /// documented 'fall back, never throw' contract.
-  static String _decodeText(Uint8List bytes, String contentType) {
+  static String decodeText(Uint8List bytes, String contentType) {
     final cs = _charsetOf(contentType);
     switch (cs) {
       case 'iso-8859-1':
@@ -994,7 +1222,7 @@ abstract class AbstractApiClient
 
   /// Determines whether the given content type represents text content
   /// that is safe to decode as a UTF-8 string.
-  static bool _isTextContentType(String contentType) {
+  static bool isTextContentType(String contentType) {
     final mediaType = contentType.split(';').first.trim().toLowerCase();
     if (mediaType.isEmpty) return true;
     if (mediaType.startsWith('text/')) return true;
@@ -1170,4 +1398,105 @@ class _Deadline {
 
   /// Milliseconds since the request started.
   int get elapsedMilliseconds => _clock.elapsedMilliseconds;
+}
+
+/// The body of one streamed response while it is open: it is read only as the
+/// consumer listens, applies the idle timeout between two chunks, maps a
+/// failure to the SDK error, and can be aborted by the client's close().
+class _OpenBody {
+  _OpenBody(
+    Stream<List<int>> source,
+    this._idleMillis,
+    this._failure,
+    this._onEnd,
+  ) {
+    _controller = StreamController<List<int>>(
+      onListen: () {
+        _subscription.resume();
+        _restartTimer();
+      },
+      onPause: () {
+        _stopTimer();
+        _subscription.pause();
+      },
+      onResume: () {
+        _subscription.resume();
+        _restartTimer();
+      },
+      onCancel: () {
+        _stopTimer();
+        _end();
+        return _subscription.cancel();
+      },
+    );
+    /* Subscribed at once but paused until the consumer listens, so the
+     * connection can be dropped by abort() even before anything is read. */
+    _subscription = source.listen(
+      (chunk) {
+        _restartTimer();
+        _controller.add(chunk);
+      },
+      onError: (Object error, StackTrace stack) {
+        _stopTimer();
+        _controller.addError(_failure(error), stack);
+        unawaited(_controller.close());
+        _end();
+      },
+      onDone: () {
+        _stopTimer();
+        unawaited(_controller.close());
+        _end();
+      },
+      cancelOnError: true,
+    )..pause();
+  }
+
+  final int? _idleMillis;
+  final Object Function(Object error) _failure;
+  final void Function(_OpenBody body) _onEnd;
+  late final StreamController<List<int>> _controller;
+  late final StreamSubscription<List<int>> _subscription;
+  Timer? _timer;
+  bool _ended = false;
+
+  /// The body, readable once.
+  Stream<List<int>> get stream => _controller.stream;
+
+  void _end() {
+    if (_ended) return;
+    _ended = true;
+    _onEnd(this);
+  }
+
+  void _restartTimer() {
+    _timer?.cancel();
+    final millis = _idleMillis;
+    if (millis == null || _ended) {
+      return;
+    }
+    _timer = Timer(Duration(milliseconds: millis), () {
+      if (_ended) return;
+      unawaited(_subscription.cancel());
+      _controller.addError(
+        _failure(TimeoutException('Response body idle for $millis ms')),
+      );
+      unawaited(_controller.close());
+      _end();
+    });
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  /// Cancels the connection and gives the consumer [error] as its next read.
+  void abort(Object error) {
+    if (_ended) return;
+    _stopTimer();
+    unawaited(_subscription.cancel());
+    _controller.addError(error);
+    unawaited(_controller.close());
+    _end();
+  }
 }

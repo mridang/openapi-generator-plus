@@ -3,6 +3,9 @@
 import type { ApiClient, RequestOptions } from '../api-client{{importFileExtension}}';
 import { ApiError } from '../errors/api-error{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
+{{#hasBinaryStream}}
+import type { ByteStream } from '../byte-stream{{importFileExtension}}';
+{{/hasBinaryStream}}
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
 {{#hasAnySecurityNoneOp}}
 import { NO_AUTH } from '../auth/authenticator{{importFileExtension}}';
@@ -393,7 +396,7 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
       );
     }
 {{/vendorExtensions.op.hasContentTypeSelector}}
-    return await this.invokeApiForResult(
+    return await this.{{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{/vendorExtensions.op.streamsBinary}}(
       '{{httpMethod}}',
       {{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,
       queryParams,
@@ -401,6 +404,7 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
       {{#hasFormParams}}{{#vendorExtensions.op.hasContentTypeSelector}}requestBody{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}formBody{{/vendorExtensions.op.hasContentTypeSelector}}{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       {{#vendorExtensions.op.hasContentTypeSelector}}requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}},
+{{^vendorExtensions.op.streamsBinary}}
       {{#vendorExtensions.op.hasMultiple2xx}}(json: unknown, statusCode: number): {{{returnType}}} => {
 {{#vendorExtensions.op.successResponses}}
         if ({{#isRange}}statusCode >= 200 && statusCode < 300{{/isRange}}{{^isRange}}statusCode === {{statusCode}}{{/isRange}}) {
@@ -426,9 +430,12 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
       },
 {{/vendorExtensions.op.hasMultiple2xx}}
       {{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isArray}}{{#isMap}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}{{#returnProperty}}{{#isByteArray}}{{^isBinary}}(json: unknown) => ObjectSerializer.decodeBase64(json as string){{/isBinary}}{{#isBinary}}(json: unknown) => ObjectSerializer.toBinary(json){{/isBinary}}{{/isByteArray}}{{^isByteArray}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => json as {{{returnType}}}{{/isEnumRef}}{{/isByteArray}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}{{#returnProperty}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/isEnumRef}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},{{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
       {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}this.resolveRequirementAuth([{{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}'{{{schemeId}}}'{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}]){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}this.resolveSchemeAuth([{{#vendorExtensions.op.securitySchemeOrder}}'{{{schemeId}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}]){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}undefined{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}},
       {{#bodyParam}}{{#isBinary}}true{{/isBinary}}{{^isBinary}}false{{/isBinary}}{{/bodyParam}}{{^bodyParam}}false{{/bodyParam}},
+{{^vendorExtensions.op.streamsBinary}}
       {{#returnType}}'{{#returnProperty}}{{#isBinary}}binary{{/isBinary}}{{^isBinary}}{{#isFile}}binary{{/isFile}}{{^isFile}}{{#isByteArray}}model{{/isByteArray}}{{^isByteArray}}{{#isString}}{{^isEnumRef}}string{{/isEnumRef}}{{#isEnumRef}}model{{/isEnumRef}}{{/isString}}{{^isString}}model{{/isString}}{{/isByteArray}}{{/isFile}}{{/isBinary}}{{/returnProperty}}{{^returnProperty}}model{{/returnProperty}}'{{/returnType}}{{^returnType}}undefined{{/returnType}},
+{{/vendorExtensions.op.streamsBinary}}
       '{{nickname}}',
       requestOptions,
 {{#vendorExtensions.op.hasErrorSchemaResponses}}

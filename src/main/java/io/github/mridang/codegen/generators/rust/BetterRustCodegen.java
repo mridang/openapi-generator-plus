@@ -498,6 +498,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             "testcontainers_helper.rs"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/raw_server.mustache", "tests", "raw_server.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/testcontainers_helper_test.mustache",
                             "tests",
                             "testcontainers_helper_test.rs"));
@@ -685,6 +688,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                         "open_telemetry_call_hook.rs"),
                 new SupportingFileSpec("api_response.mustache", "src", "api_http_response.rs"),
                 new SupportingFileSpec("api_result.mustache", "src", "api_result.rs"),
+                new SupportingFileSpec(
+                        "api_stream_response.mustache", "src", "api_stream_response.rs"),
+                new SupportingFileSpec("byte_stream.mustache", "src", "byte_stream.rs"),
+                new SupportingFileSpec(
+                        "errors/stream_error.mustache", "src/errors", "stream_error.rs"),
                 new SupportingFileSpec("api_client.mustache", "src", "api_client.rs"),
                 new SupportingFileSpec(
                         "default_api_client.mustache", "src", "default_api_client.rs"),
@@ -1198,6 +1206,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             OperationsMap objs, List<ModelMap> allModels) {
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
         final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
+        boolean anyBinaryStream = false;
         if (operations != null) {
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
@@ -1229,8 +1238,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                             .orElse(""));
                     op.vendorExtensions.put("op", opDecorators);
                     reorderAuthMethodsToSpecOrder(op);
+                    anyBinaryStream |= markBinaryStream(op);
                 }
             }
+            result.put("hasBinaryStream", anyBinaryStream);
             sanitizeServerEnumNames(operations.get("serverTypeDefs"));
         }
         return result;
@@ -1860,6 +1871,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        putFirstBinaryStreamOperation(objs);
         final Object schemas = objs.get("errorSchemas");
         if (schemas instanceof List) {
             for (final Object schema : (List<Object>) schemas) {
@@ -1872,6 +1884,74 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         }
         return super.postProcessSupportingFileData(objs);
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119): the return type becomes {@code ByteStream} and the decorator {@code streamsBinary}
+     * tells the templates to call {@code invoke_api_for_stream}.
+     *
+     * @return whether the operation streams a binary body
+     */
+    @SuppressWarnings("unchecked")
+    static boolean markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return false;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final boolean binary = "binary".equals(d.get("streamKind"));
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+        return binary;
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. Nothing is rendered when the spec has none.
+     */
+    @SuppressWarnings("unchecked")
+    private static void putFirstBinaryStreamOperation(final Map<String, Object> objs) {
+        CodegenOperation found = null;
+        Object group = null;
+        final Object apiInfo = objs.get("apiInfo");
+        if (apiInfo instanceof Map) {
+            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+            if (apis instanceof List) {
+                for (final Object api : (List<Object>) apis) {
+                    final Object operations = ((Map<String, Object>) api).get("operations");
+                    if (!(operations instanceof Map)) {
+                        continue;
+                    }
+                    final Object list = ((Map<String, Object>) operations).get("operation");
+                    if (!(list instanceof List)) {
+                        continue;
+                    }
+                    for (final Object candidate : (List<Object>) list) {
+                        final CodegenOperation op = (CodegenOperation) candidate;
+                        final Object decorators =
+                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                        if (found == null
+                                && decorators instanceof Map
+                                && Boolean.TRUE.equals(
+                                        ((Map<String, Object>) decorators).get("streamsBinary"))) {
+                            found = op;
+                            group = operations;
+                        }
+                    }
+                }
+            }
+        }
+        objs.put("hasBinaryStreamOperation", found != null);
+        if (found != null) {
+            objs.put("binaryStreamOperation", found);
+            objs.put("binaryStreamGroup", group);
+        }
     }
 
     /**

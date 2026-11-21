@@ -18,6 +18,7 @@ use crate::api_client::ApiClient;
 use crate::api_client::MultipartValue;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
+use crate::byte_stream::ByteStream;
 use crate::configuration::Configuration;
 use crate::errors::api_error::ApiError;
 use crate::models::*;
@@ -908,7 +909,7 @@ impl PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ByteStream, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
             .download_pet_document_with_http_info(pet_id, document_id, options)
             .await?;
@@ -935,7 +936,7 @@ impl PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -955,7 +956,7 @@ impl PetApi {
         options: Option<&DownloadPetDocumentOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/documents/{documentId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1015,7 +1016,7 @@ impl PetApi {
             multipart,
             accepts: vec!["application/octet-stream"],
             content_type: request_content_type,
-            return_type: "Vec<u8>",
+            return_type: "ByteStream",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
             error_schemas: &[],
             /* This operation inherits the global security requirement; pass
@@ -1023,7 +1024,9 @@ impl PetApi {
             auth: None,
         };
 
-        self.base.invoke_api_for_result::<Vec<u8>>(params).await
+        /* A binary response is returned as a stream, not read yet; the call
+         * returns once the response headers have arrived. */
+        self.base.invoke_api_for_stream(params).await
     }
 
     /// List pets born on a given date
@@ -1571,7 +1574,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ByteStream, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_pet_avatar_with_http_info(pet_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1595,7 +1598,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -1614,7 +1617,7 @@ impl PetApi {
         options: Option<&GetPetAvatarOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/avatar".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1654,7 +1657,7 @@ impl PetApi {
             multipart,
             accepts: vec!["image/jpeg", "image/png"],
             content_type: request_content_type,
-            return_type: "Vec<u8>",
+            return_type: "ByteStream",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
             error_schemas: &[],
             /* This operation inherits the global security requirement; pass
@@ -1662,7 +1665,9 @@ impl PetApi {
             auth: None,
         };
 
-        self.base.invoke_api_for_result::<Vec<u8>>(params).await
+        /* A binary response is returned as a stream, not read yet; the call
+         * returns once the response headers have arrived. */
+        self.base.invoke_api_for_stream(params).await
     }
 
     /// Get the pet's avatar thumbnail as base64
@@ -2393,7 +2398,7 @@ impl PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ByteStream, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
             .get_pet_photo_with_http_info(pet_id, photo_id, options)
             .await?;
@@ -2420,7 +2425,7 @@ impl PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -2440,7 +2445,7 @@ impl PetApi {
         options: Option<&GetPetPhotoOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/photos/{photoId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2498,7 +2503,7 @@ impl PetApi {
             multipart,
             accepts: vec!["image/jpeg", "image/png", "application/json"],
             content_type: request_content_type,
-            return_type: "Vec<u8>",
+            return_type: "ByteStream",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
             error_schemas: &[],
             /* This operation inherits the global security requirement; pass
@@ -2506,7 +2511,9 @@ impl PetApi {
             auth: None,
         };
 
-        self.base.invoke_api_for_result::<Vec<u8>>(params).await
+        /* A binary response is returned as a stream, not read yet; the call
+         * returns once the response headers have arrived. */
+        self.base.invoke_api_for_stream(params).await
     }
 
     /// Get a \<plain\> "text" summary & it's short
@@ -4124,13 +4131,13 @@ pub trait PetApiTrait {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>>;
     fn download_pet_document_with_http_info(
         &self,
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>;
     fn find_pets_born_on(
         &self,
         born_on: chrono::NaiveDate,
@@ -4179,12 +4186,12 @@ pub trait PetApiTrait {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
@@ -4242,13 +4249,13 @@ pub trait PetApiTrait {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_pet_photo_with_http_info(
         &self,
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_pet_summary(
         &self,
         pet_id: i64,
@@ -4448,7 +4455,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         PetApi::download_pet_document(self, pet_id, document_id, options)
     }
 
@@ -4457,7 +4464,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::download_pet_document_with_http_info(self, pet_id, document_id, options)
     }
@@ -4533,7 +4540,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         PetApi::get_pet_avatar(self, pet_id, options)
     }
 
@@ -4541,7 +4548,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::get_pet_avatar_with_http_info(self, pet_id, options)
     }
@@ -4632,7 +4639,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         PetApi::get_pet_photo(self, pet_id, photo_id, options)
     }
 
@@ -4641,7 +4648,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::get_pet_photo_with_http_info(self, pet_id, photo_id, options)
     }

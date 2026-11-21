@@ -220,6 +220,31 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName("bhvStreaming021 closing the client cancels the open streams, the next read of each raises the closed-client error, and new calls are refused")
+    fun bhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls() {
+        DefaultApiClientUnitTest.RawServer.serve(DefaultApiClientUnitTest.oneChunkThenHold).use { server ->
+            val client = {{clientClassName}}(BearerAuthenticator(server.url(""), "test-token"))
+            runBlocking {
+                val open = client.pet.getPetAvatar(1L)
+                val buffer = ByteArray(4)
+                assertEquals(4, open.read(buffer))
+                assertEquals("tick", String(buffer, Charsets.UTF_8))
+
+                val started = System.nanoTime()
+                client.close()
+                assertTrue(
+                    System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(5),
+                    "closing did not wait for the endless stream",
+                )
+
+                val cancelled = assertThrows(IllegalStateException::class.java) { runBlocking { open.read(buffer) } }
+                assertEquals("ApiClient has been closed and can no longer send requests", cancelled.message)
+                assertThrows(IllegalStateException::class.java) { runBlocking { client.pet.getPetAvatar(1L) } }
+            }
+        }
+    }
+
+    @Test
     @DisplayName("bhvLifecycle009 F824: closing the client never closes a caller-supplied transport")
     fun closingTheClientKeepsASuppliedTransportOpen() {
         val custom = HttpClient(MockEngine { respond("{}") }) { followRedirects = false }
