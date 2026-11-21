@@ -15,6 +15,9 @@ module {{moduleName}}
 {{/required}}
 {{/params}}
         def initialize: ({{initializeSignature}}) -> void
+{{#hasCopy}}
+        def copy_with: (**untyped) -> {{className}}
+{{/hasCopy}}
       end
     end
   end

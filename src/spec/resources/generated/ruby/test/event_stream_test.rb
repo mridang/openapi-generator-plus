@@ -61,9 +61,10 @@ describe 'Petstore::Client::EventStream' do
     Petstore::Client::StreamOptions.new(reconnect_delay: 1)
   end
 
-  def sse(opener, options, decoder: nil, terminator: nil, has_body: false)
+  def sse(opener, options, decoder: nil, terminator: nil, has_body: false, single_use_body: false)
     Petstore::Client::SseStream.open(opener: opener, decoder: decoder, terminator: terminator, options: options,
-                                     has_body: has_body, method: 'GET', path: '/events')
+                                     has_body: has_body, single_use_body: single_use_body, method: 'GET',
+                                     path: '/events')
   end
 
   def data_of(stream)
@@ -213,6 +214,11 @@ describe 'Petstore::Client::EventStream' do
     on = script("data: a\n\n", "data: b\n\n", no_content)
     reconnecting = Petstore::Client::StreamOptions.new(reconnect_delay: 1, max_reconnects: 2)
     _(data_of(sse(on, reconnecting, has_body: true))).must_equal %w[a b]
+
+    once = script("data: a\n\n", "data: b\n\n", no_content)
+    persistent = Petstore::Client::StreamOptions.new(reconnect_delay: 1, max_reconnects: 5)
+    _(data_of(sse(once, persistent, has_body: true, single_use_body: true))).must_equal ['a']
+    _(once.last_ids.length).must_equal 1
   end
 
   it 'bhv_sse_017 an SSE event with an id and no data is not dispatched but updates the last event id and a reconnect resumes from it' do

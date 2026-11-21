@@ -174,7 +174,7 @@ module Petstore::Client
         effective_auth&.query_params&.each { |k, v| query_params[k] = v }
 
         query_string = build_query_string(query_params)
-        url = "#{url}?#{query_string}" unless query_string.empty?
+        url = "#{url}#{url.include?('?') ? '&' : '?'}#{query_string}" unless query_string.empty?
 
         is_multipart = content_type == 'multipart/form-data'
         selected = @header_selector.select_headers(accepts, content_type || '', is_multipart)
@@ -402,7 +402,8 @@ module Petstore::Client
         end
         ::Petstore::Client::SseStream.open(
           opener: opener, decoder: stream_decoder(item_type), terminator: terminator, options: options,
-          has_body: !body.nil?, method: method.to_s.upcase, path: request_path_of(path)
+          has_body: !body.nil?, single_use_body: body.is_a?(::Petstore::Client::BodySource) && !body.replayable?,
+          method: method.to_s.upcase, path: request_path_of(path)
         )
       end
 
@@ -592,9 +593,12 @@ module Petstore::Client
         raise
       end
 
-      # Whether a request body can be sent a second time: none, or a string. A
+      # Whether a request body can be sent a second time: none, a string, or a
+      # replayable body source. A
       # multipart form or a stream handle is consumed by the first send.
       def replayable_body?(body)
+        return body.replayable? if body.is_a?(::Petstore::Client::BodySource)
+
         body.nil? || body.is_a?(String)
       end
 
@@ -730,6 +734,8 @@ module Petstore::Client
 
       def serialize_body(body, content_type, raw_body: false)
         return nil if body.nil?
+        # A body source is sent as it is read, never buffered.
+        return body if body.is_a?(::Petstore::Client::BodySource)
 
         if content_type == 'multipart/form-data'
           body

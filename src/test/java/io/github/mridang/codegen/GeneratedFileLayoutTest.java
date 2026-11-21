@@ -129,6 +129,11 @@ class GeneratedFileLayoutTest {
 
     allow(ALLOWED_EXTRA, "elixir", "streambody", "the process that owns an open response body, because Req can be read only by the process that sent the request");
     allow(ALLOWED_EXTRA, "ruby", "streambody", "the open response body fed by the producer thread that runs the Faraday request");
+    allow(ALLOWED_EXTRA, "ruby", "bodysource", "the body of a raw binary upload, replayable or single use, a class of its own in Ruby");
+    allow(ALLOWED_EXTRA, "ruby", "paginator", "the lazy sequence a paged operation returns, a class of its own in Ruby (D123)");
+    allow(ALLOWED_EXTRA, "ruby", "page", "the value one page of a paged list is, a class of its own in Ruby (D123)");
+    allow(ALLOWED_EXTRA, "ruby", "error:pagination", "the error of a list that cannot be followed, a direct child of the root error (D123)");
+    allow(ALLOWED_EXTRA, "ruby", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a module of its own in Ruby (D124)");
     allow(
         ALLOWED_EXTRA,
         "php",

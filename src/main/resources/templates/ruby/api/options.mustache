@@ -39,6 +39,24 @@ module {{moduleName}}
           @max_retries = max_retries
           freeze
         end
+{{#hasCopy}}
+
+        # Returns a copy of these options with the given members replaced: the
+        # same value for every other parameter, the same timeout, retry count and
+        # headers. A paged list uses it to send each page with its own cursor.
+        #
+        # @param changes [Hash{Symbol => Object}] the members to replace
+        # @return [{{className}}] the copy
+        def copy_with(**changes)
+          members = {
+{{#params}}
+            {{paramName}}: @{{paramName}},
+{{/params}}
+            timeout: @timeout, headers: @headers, max_retries: @max_retries
+          }
+          self.class.new(**members, **changes)
+        end
+{{/hasCopy}}
       end
     end
   end
