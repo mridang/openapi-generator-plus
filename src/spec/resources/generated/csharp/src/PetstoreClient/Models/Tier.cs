@@ -28,6 +28,9 @@ public enum Tier
     /// The largest tier. Ends with */ and #{x} and $x.
     /// </summary>
     Large,
+
+    /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+    UnknownDefaultOpenApi,
 }
 
 /// <summary>
@@ -58,7 +61,7 @@ internal sealed class TierConverter : JsonConverter<Tier>
             "s" => Tier.Small,
             "m" => Tier.Medium,
             "l" => Tier.Large,
-            _ => throw new JsonException($"Unknown value '{value}' for enum Tier."),
+            _ => Tier.UnknownDefaultOpenApi,
         };
     }
 

@@ -15,7 +15,9 @@ public enum Tier {
   /** The medium tier. */
   MEDIUM("m"),
   /** The largest tier. Ends with *{@literal /} and #{x} and $x. */
-  LARGE("l");
+  LARGE("l"),
+  /** Any wire value this SDK does not list; it cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API("");
 
   private final String value;
 
@@ -47,8 +49,7 @@ public enum Tier {
    * Returns the enum constant for the given wire value.
    *
    * @param value the wire value
-   * @return the matching enum constant
-   * @throws IllegalArgumentException if no constant matches
+   * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
    */
   @com.fasterxml.jackson.annotation.JsonCreator
   public static Tier fromValue(String value) {
@@ -57,6 +58,6 @@ public enum Tier {
         return b;
       }
     }
-    throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    return UNKNOWN_DEFAULT_OPEN_API;
   }
 }

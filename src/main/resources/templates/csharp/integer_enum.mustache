@@ -21,6 +21,8 @@ public enum {{classname}}
 {{/-last}}
     {{/enumVars}}
     {{/allowableValues}}
+    /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+    UnknownDefaultOpenApi = int.MinValue,
 }
 
 /// <summary>
@@ -45,7 +47,7 @@ internal sealed class {{classname}}Converter : JsonConverter<{{classname}}>
             {{{value}}} => {{classname}}.{{name}},
             {{/enumVars}}
             {{/allowableValues}}
-            _ => throw new JsonException($"Unknown value '{value}' for enum {{classname}}.")
+            _ => {{classname}}.UnknownDefaultOpenApi
         };
     }
 

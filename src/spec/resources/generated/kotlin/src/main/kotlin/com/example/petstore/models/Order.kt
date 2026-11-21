@@ -70,18 +70,16 @@ data class Order(
     @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
     val complete: Boolean? = null,
 ) {
-    @Serializable
+    @Serializable(with = StatusEnum.Serializer::class)
     enum class StatusEnum(
         val value: String,
     ) {
-        @SerialName("placed")
         PLACED("placed"),
-
-        @SerialName("approved")
         APPROVED("approved"),
-
-        @SerialName("delivered")
         DELIVERED("delivered"),
+
+        /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+        UNKNOWN_DEFAULT_OPEN_API(""),
         ;
 
         /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -90,7 +88,27 @@ data class Order(
         companion object {
             fun fromValue(value: String): StatusEnum =
                 entries.firstOrNull { it.value == value }
-                    ?: throw IllegalArgumentException("Unexpected value '$value'")
+                    ?: UNKNOWN_DEFAULT_OPEN_API
+        }
+
+        internal object Serializer : kotlinx.serialization.KSerializer<StatusEnum> {
+            override val descriptor =
+                kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+                    "StatusEnum",
+                    kotlinx.serialization.descriptors.PrimitiveKind.STRING,
+                )
+
+            override fun serialize(
+                encoder: kotlinx.serialization.encoding.Encoder,
+                value: StatusEnum,
+            ) {
+                if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                    throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+                }
+                encoder.encodeString(value.value)
+            }
+
+            override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): StatusEnum = fromValue(decoder.decodeString())
         }
     }
 }

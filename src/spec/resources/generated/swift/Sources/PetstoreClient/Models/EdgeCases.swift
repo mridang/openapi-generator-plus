@@ -13,6 +13,37 @@ public enum EdgeCasesPhaseEnum: String, Codable, Sendable, CaseIterable, CustomS
   case inStock = "In-Stock"
   case onHold = "on-hold"
   case outofstock = "OUT_OF_STOCK"
+  /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
+  case unknownDefaultOpenApi = "__unknown_default_open_api__"
+
+  /// The declared cases; the catch-all case is not one of them.
+  public static var allCases: [EdgeCasesPhaseEnum] {
+    return [
+      .inStock,
+      .onHold,
+      .outofstock,
+    ]
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    let raw = try container.decode(RawValue.self)
+    self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    if self == .unknownDefaultOpenApi {
+      throw EncodingError.invalidValue(
+        self,
+        EncodingError.Context(
+          codingPath: encoder.codingPath,
+          debugDescription:
+            "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written")
+      )
+    }
+    var container = encoder.singleValueContainer()
+    try container.encode(rawValue)
+  }
 
   /// The wire value (`"active"`, `2`), not the case name, so interpolating
   /// the enum prints what the server sees.

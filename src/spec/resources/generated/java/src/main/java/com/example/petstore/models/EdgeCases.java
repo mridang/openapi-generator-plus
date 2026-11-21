@@ -27,7 +27,9 @@ public class EdgeCases {
     /** The {@code "on-hold"} value. */
     ON_HOLD("on-hold"),
     /** The {@code "OUT_OF_STOCK"} value. */
-    OUT_OF_STOCK("OUT_OF_STOCK");
+    OUT_OF_STOCK("OUT_OF_STOCK"),
+    /** Any wire value this SDK does not list; it cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API("");
 
     private final String value;
 
@@ -59,8 +61,7 @@ public class EdgeCases {
      * Returns the enum constant for the given wire value.
      *
      * @param value the wire value
-     * @return the matching enum constant
-     * @throws IllegalArgumentException if no constant matches
+     * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
      */
     @JsonCreator
     public static PhaseEnum fromValue(String value) {
@@ -69,7 +70,7 @@ public class EdgeCases {
           return b;
         }
       }
-      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+      return UNKNOWN_DEFAULT_OPEN_API;
     }
   }
 

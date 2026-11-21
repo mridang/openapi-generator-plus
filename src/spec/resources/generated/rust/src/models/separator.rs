@@ -23,6 +23,9 @@ pub enum Separator {
     /// Represents the value "a_b".
     #[serde(rename = "a_b")]
     AB2,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for Separator {
@@ -33,6 +36,7 @@ impl std::fmt::Display for Separator {
             Separator::VALUE00400040 => "@@",
             Separator::AB => "a-b",
             Separator::AB2 => "a_b",
+            Separator::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

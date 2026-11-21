@@ -24,6 +24,9 @@ pub enum PetStatusEnum {
     /// Represents the value "sold".
     #[serde(rename = "sold")]
     Sold,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for PetStatusEnum {
@@ -33,6 +36,7 @@ impl std::fmt::Display for PetStatusEnum {
             PetStatusEnum::Available => "available",
             PetStatusEnum::Pending => "pending",
             PetStatusEnum::Sold => "sold",
+            PetStatusEnum::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

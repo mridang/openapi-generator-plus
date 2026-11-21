@@ -25,6 +25,9 @@ module Petstore::Client
         ON_HOLD = 'on-hold'
         OUT_OF_STOCK = 'OUT_OF_STOCK'
 
+        # Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written.
+        UNKNOWN_DEFAULT_OPEN_API = '__unknown_default_open_api__'
+
         # Frozen set of all allowed values, used for validation.
         VALUES = [IN_STOCK, ON_HOLD, OUT_OF_STOCK].freeze
 

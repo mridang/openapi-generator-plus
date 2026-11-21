@@ -14,7 +14,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Ledger, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum } from '../src/models/index{{importFileExtension}}';
+import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, EdgeCasesPhaseEnum, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Ledger, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -193,10 +193,6 @@ describe('ObjectSerializer', () => {
           () => ObjectSerializer.deserialize({ id: 'abc', name: 'doggie', photoUrls: [] }, Pet)
         ],
         ['missing required field', () => ObjectSerializer.deserialize({ photoUrls: [] }, Pet)],
-        [
-          'unknown enum value',
-          () => ObjectSerializer.deserialize({ name: 'doggie', photoUrls: [], status: 'banana' }, Pet)
-        ],
         ['malformed duration', () => ObjectSerializer.deserialize({ retryAfter: 'soon' }, EdgeCases)],
         [
           'malformed date-time',
@@ -571,17 +567,14 @@ describe('ObjectSerializer', () => {
     expect(pet!.status).toBe(PetStatusEnum.Available);
   });
 
-  test('bhv serializationobject 119 throws on an unknown enum wire value instead of silently keeping it', () => {
-    // enum-unknown-value-silent-vs-throw: an out-of-spec enum value (e.g.
-    // status:"banana") must surface as a deserialize error rather than
-    // being stored verbatim on the typed field (type confusion).
+  test('bhv serializationobject 119 an unknown enum wire value decodes to the catch-all member instead of staying a bare string', () => {
     const json = { name: 'Fido', photoUrls: [], status: 'banana' };
-    expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow();
+    expect(ObjectSerializer.deserialize(json, Pet)!.status).toBe(PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API);
   });
 
-  test('bhv serializationobject 182 an unknown enum wire value on deserialize throws a SerializationError', () => {
+  test('bhv serializationobject 182 an unknown enum wire value on deserialize gives the catch-all member', () => {
     const json = { name: 'Fido', photoUrls: [], status: 'banana' };
-    expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(SerializationError);
+    expect(ObjectSerializer.deserialize(json, Pet)!.status).toBe(PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API);
   });
 
   test('bhv serializationobject 061 deserializing a complete object still succeeds (no regression)', () => {
@@ -926,11 +919,9 @@ describe('ObjectSerializer', () => {
       expect(pet!.status).toBe(PetStatusEnum.Available);
     });
 
-    test('bhv langnode 113 applies the unknown-enum check to a nested Pet', () => {
+    test('bhv langnode 113 applies the unknown-enum catch-all to a nested Pet', () => {
       const json = { pet: { name: 'x', photoUrls: [], status: 'banana' } };
-      expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
-        /Unknown enum value for status: "banana"/,
-      );
+      expect(ObjectSerializer.deserialize(json, PetPassport)!.pet!.status).toBe(PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API);
     });
 
     test('bhv serialization 028 rejects a number, a string or an array where a nested model is expected', () => {
@@ -1417,14 +1408,14 @@ describe('ObjectSerializer', () => {
       expect(item.priority).toBe(2);
     });
 
-    test('bhv serializationobject 030 builds a model with an out-of-range integer and rejects it when decoded', () => {
+    test('bhv serializationobject 030 builds a model with an out-of-range integer and decodes it to the catch-all member', () => {
       expect(() => new StockItem({ priority: 99 as unknown as Priority })).not.toThrow();
-      expect(() => ObjectSerializer.deserialize({ priority: 99 }, StockItem)).toThrow(SerializationError);
+      expect(ObjectSerializer.deserialize({ priority: 99 }, StockItem)!.priority).toBe(Priority.UNKNOWN_DEFAULT_OPEN_API);
     });
 
-    test('bhv serializationobject 193 an unknown integer enum value is rejected on decode', () => {
+    test('bhv serializationobject 193 an unknown integer enum value decodes to the catch-all member', () => {
       for (const priority of [0, 4, 99]) {
-        expect(() => ObjectSerializer.deserialize({ priority }, StockItem)).toThrow(SerializationError);
+        expect(ObjectSerializer.deserialize({ priority }, StockItem)!.priority).toBe(Priority.UNKNOWN_DEFAULT_OPEN_API);
       }
     });
   });
@@ -1918,31 +1909,28 @@ describe('ObjectSerializer', () => {
     });
   });
 
-  describe('Canonical behavior #6 — unknown enum value on deserialize throws', () => {
+  describe('Canonical behavior #6 — unknown enum value on deserialize gives the catch-all member', () => {
     // Deserializing a payload whose enum field carries an out-of-schema
-    // value must raise the SDK's (de)serialization error, never silently
-    // pass the unknown value through or coerce it to a default/unknown
-    // member. ObjectSerializer.deserialize routes plainToInstance output
-    // back through the model constructor, where the enum membership check
-    // fires.
-    test('bhv serializationobject 172 out-of-schema enum value raises SerializationError', () => {
+    // value decodes it to the enum's catch-all member, never a bare string or
+    // a declared member. The catch-all member cannot be written back.
+    test('bhv serializationobject 172 out-of-schema enum value decodes to the catch-all member', () => {
       const wire = {
         id: 1,
         name: 'Rex',
         photoUrls: ['http://example.com/p.jpg'],
         status: 'galloping',
       };
-      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(SerializationError);
+      expect(ObjectSerializer.deserialize(wire, Pet)!.status).toBe(PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API);
     });
 
-    test('bhv serialization 105 error message names the offending enum value', () => {
+    test('bhv serialization 105 an enum value in the wrong case gives the catch-all member', () => {
       const wire = {
         id: 1,
         name: 'Rex',
         photoUrls: ['http://example.com/p.jpg'],
-        status: 'galloping',
+        status: 'AVAILABLE',
       };
-      expect(() => ObjectSerializer.deserialize(wire, Pet)).toThrow(/galloping/);
+      expect(ObjectSerializer.deserialize(wire, Pet)!.status).toBe(PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API);
     });
   });
 
@@ -2064,10 +2052,10 @@ describe('ObjectSerializer', () => {
       expect(hyphen!.availability).toBe(Availability.OnHold);
     });
 
-    test('bhv serializationobject 059 deserialize rejects an unknown availability wire value', () => {
-      expect(() =>
-        ObjectSerializer.deserialize({ priority: 1, availability: 'available' }, StockItem),
-      ).toThrow(SerializationError);
+    test('bhv serializationobject 059 deserialize gives the catch-all member for an unknown availability wire value', () => {
+      expect(
+        ObjectSerializer.deserialize({ priority: 1, availability: 'available' }, StockItem)!.availability,
+      ).toBe(Availability.UNKNOWN_DEFAULT_OPEN_API);
     });
 
     test('bhv serializationobject 176 round-trip preserves the member through serialize then deserialize', () => {
@@ -2081,7 +2069,7 @@ describe('ObjectSerializer', () => {
     });
 
     test('bhv serializationobject 109 round-trip keeps the wire casing of every Availability member', () => {
-      for (const member of Object.values(Availability)) {
+      for (const member of Object.values(Availability).filter((value) => value !== Availability.UNKNOWN_DEFAULT_OPEN_API)) {
         const item = new StockItem({ priority: Priority.Number1, availability: member });
         const wire = JSON.parse(ObjectSerializer.serialize(item)).availability;
         expect(wire).toBe(member);
@@ -2418,17 +2406,14 @@ describe('validation happens at decode, never at construction (F316)', () => {
     ['a wrong-typed integer', Order, { quantity: 'many' }],
     ['a missing required field', Pet, { photoUrls: [] }],
     ['a wrong-typed required field', Pet, { name: 42, photoUrls: [] }],
-    ['an unknown inline enum string', Order, { status: 'teleported' }],
     ['an unknown referenced enum string', StockItem, { priority: 'urgent' }],
   ] as const) {
       expect(() => ObjectSerializer.deserialize(json, model as ClassConstructor<unknown>)).toThrow(SerializationError);
     }
   });
 
-  test('bhv serializationobject 192 an unknown enum string fails loudly at decode and names the value and the allowed ones', () => {
-    expect(() => ObjectSerializer.deserialize({ status: 'teleported' }, Order)).toThrow(
-      /Unknown enum value for status: "teleported"\. Expected one of \[/,
-    );
+  test('bhv serializationobject 192 an unknown enum string decodes to the catch-all member', () => {
+    expect(ObjectSerializer.deserialize({ status: 'teleported' }, Order)!.status).toBe(OrderStatusEnum.UNKNOWN_DEFAULT_OPEN_API);
   });
 
   test('bhv misc 109 a nested model is validated at decode too', () => {
@@ -2882,8 +2867,8 @@ describe('toBinary', () => {
       }
     });
 
-    test('bhv serializationobject 024 an unknown inline enum value is rejected', () => {
-      expect(() => ObjectSerializer.deserialize({ phase: 'banana' }, EdgeCases)).toThrow(SerializationError);
+    test('bhv serializationobject 024 an unknown inline enum value decodes to the catch-all member', () => {
+      expect(ObjectSerializer.deserialize({ phase: 'banana' }, EdgeCases)!.phase).toBe(EdgeCasesPhaseEnum.UNKNOWN_DEFAULT_OPEN_API);
     });
 
     test('bhv langnode 166 every availability value round-trips through its member', () => {
@@ -2902,10 +2887,12 @@ describe('toBinary', () => {
       }
     });
 
-    test('bhv serialization 004 a generated enum lists its members and refuses a value outside them', () => {
+    test('bhv serialization 004 a generated enum lists its members and gives the catch-all member for a value outside them', () => {
       expect(Object.values(Availability)).toEqual(expect.arrayContaining(['Available', 'Sold', 'on-hold']));
       expect(Object.values(Availability)).not.toContain('banana');
-      expect(() => ObjectSerializer.deserialize({ priority: 1, availability: 'banana' }, StockItem)).toThrow(SerializationError);
+      expect(ObjectSerializer.deserialize({ priority: 1, availability: 'banana' }, StockItem)!.availability).toBe(
+        Availability.UNKNOWN_DEFAULT_OPEN_API,
+      );
     });
 
     test('bhv serializationobject 104 models named Error and Result are generated as ModelError and ModelResult and round trip', () => {
@@ -3134,8 +3121,13 @@ describe('toBinary', () => {
 
     test('bhv enums 008 encoding writes the wire value and decoding rejects a supplied name', () => {
       expect(JSON.parse(ObjectSerializer.serialize(new Subscription({ rank: Rank.LOW, tier: Tier.Medium }))).tier).toBe('m');
-      expect(() => ObjectSerializer.deserialize({ rank: 1, tier: 'Medium' }, Subscription)).toThrow(SerializationError);
-      expect(() => ObjectSerializer.deserialize({ rank: 1, tier: 'Medium' }, Subscription)).toThrow(/Medium/);
+      expect(ObjectSerializer.deserialize({ rank: 1, tier: 'Medium' }, Subscription)!.tier).toBe(Tier.UNKNOWN_DEFAULT_OPEN_API);
+    });
+
+    test('bhv enums 012 the catch-all member of an enum has no wire value and cannot be written', () => {
+      expect(() => ObjectSerializer.serialize(new Subscription({ rank: Rank.LOW, tier: Tier.UNKNOWN_DEFAULT_OPEN_API }))).toThrow(
+        SerializationError,
+      );
     });
 
     test('bhv enums 009 a description is the one-line comment directly above the member', () => {
@@ -3221,11 +3213,11 @@ describe('ObjectSerializer enum and default misc behaviours', () => {
     expect(filled.greeting).toBe('it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b');
   });
 
-  it('bhv misc 137 a generated enum lists its declared values and refuses any other', () => {
-    expect(Object.values(Separator)).toEqual([' ', '@@', 'a-b', 'a_b']);
-    expect(() =>
+  it('bhv misc 137 a generated enum lists its declared values and gives the catch-all member for any other', () => {
+    expect(Object.values(Separator).filter((value) => value !== Separator.UNKNOWN_DEFAULT_OPEN_API)).toEqual([' ', '@@', 'a-b', 'a_b']);
+    expect(
       ObjectSerializer.deserializeEnum<Separator>('nope', Separator as unknown as Record<string, unknown>),
-    ).toThrow();
+    ).toBe(Separator.UNKNOWN_DEFAULT_OPEN_API);
   });
 
   it('bhv misc 138 converting an enum member to text yields its wire value', () => {

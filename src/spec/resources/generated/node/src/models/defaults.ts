@@ -185,19 +185,27 @@ export class Defaults {
     if (this.mode != null) {
       const modeValues = Object.values(DefaultsModeEnum);
       if (!(modeValues as readonly unknown[]).includes(this.mode)) {
-        throw new TypeError(
-          `Unknown enum value for mode: ${JSON.stringify(this.mode)}. ` +
-            `Expected one of [${modeValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (
+          typeof this.mode !== typeof DefaultsModeEnum.UNKNOWN_DEFAULT_OPEN_API
+        ) {
+          throw new TypeError(
+            `Unknown enum value for mode: ${JSON.stringify(this.mode)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["mode"] =
+          DefaultsModeEnum.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
     if (this.swatch != null) {
       const swatchValues = Object.values(Swatch);
       if (!(swatchValues as readonly unknown[]).includes(this.swatch)) {
-        throw new TypeError(
-          `Unknown enum value for swatch: ${JSON.stringify(this.swatch)}. ` +
-            `Expected one of [${swatchValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (typeof this.swatch !== typeof Swatch.UNKNOWN_DEFAULT_OPEN_API) {
+          throw new TypeError(
+            `Unknown enum value for swatch: ${JSON.stringify(this.swatch)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["swatch"] =
+          Swatch.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
   }
@@ -345,6 +353,8 @@ export const DefaultsModeEnum = {
   Low: "low",
   Medium: "medium",
   High: "high",
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__",
 } as const;
 export type DefaultsModeEnum =
   (typeof DefaultsModeEnum)[keyof typeof DefaultsModeEnum];

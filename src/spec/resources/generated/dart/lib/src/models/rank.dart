@@ -14,7 +14,10 @@ enum Rank {
   medium(2),
 
   /// The highest rank.
-  high(3);
+  high(3),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991);
 
   final int value;
   const Rank(this.value);
@@ -23,11 +26,18 @@ enum Rank {
   static Rank fromJson(int value) {
     return Rank.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown Rank value: $value'),
+      orElse: () => Rank.unknownDefaultOpenApi,
     );
   }
 
-  int toJson() => value;
+  int toJson() {
+    if (this == Rank.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value Rank.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value.toString();

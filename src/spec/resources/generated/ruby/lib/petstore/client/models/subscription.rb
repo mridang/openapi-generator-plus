@@ -27,6 +27,9 @@ module Petstore::Client
         # Billed every year.
         YEARLY = 'year'
 
+        # Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written.
+        UNKNOWN_DEFAULT_OPEN_API = '__unknown_default_open_api__'
+
         # Frozen set of all allowed values, used for validation.
         VALUES = [MONTHLY, YEARLY].freeze
 

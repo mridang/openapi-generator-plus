@@ -81,37 +81,52 @@ export class Subscription {
     if (this.interval != null) {
       const intervalValues = Object.values(SubscriptionIntervalEnum);
       if (!(intervalValues as readonly unknown[]).includes(this.interval)) {
-        throw new TypeError(
-          `Unknown enum value for interval: ${JSON.stringify(this.interval)}. ` +
-            `Expected one of [${intervalValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (
+          typeof this.interval !==
+          typeof SubscriptionIntervalEnum.UNKNOWN_DEFAULT_OPEN_API
+        ) {
+          throw new TypeError(
+            `Unknown enum value for interval: ${JSON.stringify(this.interval)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["interval"] =
+          SubscriptionIntervalEnum.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
     if (this.tier != null) {
       const tierValues = Object.values(Tier);
       if (!(tierValues as readonly unknown[]).includes(this.tier)) {
-        throw new TypeError(
-          `Unknown enum value for tier: ${JSON.stringify(this.tier)}. ` +
-            `Expected one of [${tierValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (typeof this.tier !== typeof Tier.UNKNOWN_DEFAULT_OPEN_API) {
+          throw new TypeError(
+            `Unknown enum value for tier: ${JSON.stringify(this.tier)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["tier"] =
+          Tier.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
     if (this.rank != null) {
       const rankValues = Object.values(Rank);
       if (!(rankValues as readonly unknown[]).includes(this.rank)) {
-        throw new TypeError(
-          `Unknown enum value for rank: ${JSON.stringify(this.rank)}. ` +
-            `Expected one of [${rankValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (typeof this.rank !== typeof Rank.UNKNOWN_DEFAULT_OPEN_API) {
+          throw new TypeError(
+            `Unknown enum value for rank: ${JSON.stringify(this.rank)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["rank"] =
+          Rank.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
     if (this.stage != null) {
       const stageValues = Object.values(Stage);
       if (!(stageValues as readonly unknown[]).includes(this.stage)) {
-        throw new TypeError(
-          `Unknown enum value for stage: ${JSON.stringify(this.stage)}. ` +
-            `Expected one of [${stageValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (typeof this.stage !== typeof Stage.UNKNOWN_DEFAULT_OPEN_API) {
+          throw new TypeError(
+            `Unknown enum value for stage: ${JSON.stringify(this.stage)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["stage"] =
+          Stage.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
   }
@@ -250,6 +265,8 @@ export const SubscriptionIntervalEnum = {
   MONTHLY: "month",
   /** Billed every year. */
   YEARLY: "year",
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__",
 } as const;
 export type SubscriptionIntervalEnum =
   (typeof SubscriptionIntervalEnum)[keyof typeof SubscriptionIntervalEnum];

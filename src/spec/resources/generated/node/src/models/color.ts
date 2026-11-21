@@ -12,5 +12,7 @@ export const Color = {
   Red: "red",
   Green: "green",
   Blue: "blue",
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__",
 } as const;
 export type Color = (typeof Color)[keyof typeof Color];

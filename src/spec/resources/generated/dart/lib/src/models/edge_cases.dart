@@ -22,7 +22,10 @@ enum EdgeCasesPhaseEnum {
   onhold('on-hold'),
 
   /// Represents the value 'OUT_OF_STOCK'.
-  outofstock('OUT_OF_STOCK');
+  outofstock('OUT_OF_STOCK'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const EdgeCasesPhaseEnum(this.value);
@@ -31,12 +34,18 @@ enum EdgeCasesPhaseEnum {
   static EdgeCasesPhaseEnum fromJson(String value) {
     return EdgeCasesPhaseEnum.values.firstWhere(
       (e) => e.value == value,
-      orElse: () =>
-          throw ArgumentError('Unknown EdgeCasesPhaseEnum value: $value'),
+      orElse: () => EdgeCasesPhaseEnum.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == EdgeCasesPhaseEnum.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value EdgeCasesPhaseEnum.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

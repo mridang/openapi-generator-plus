@@ -22,4 +22,6 @@ enum Separator: string
     case VALUE_0040_0040 = '@@';
     case A_B = 'a-b';
     case A_B_2 = 'a_b';
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    case UNKNOWN_DEFAULT_OPEN_API = '__unknown_default_open_api__';
 }

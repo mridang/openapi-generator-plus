@@ -14,7 +14,10 @@ enum Tier {
   medium('m'),
 
   /// The largest tier. Ends with */ and #{x} and $x.
-  large('l');
+  large('l'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const Tier(this.value);
@@ -23,11 +26,18 @@ enum Tier {
   static Tier fromJson(String value) {
     return Tier.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown Tier value: $value'),
+      orElse: () => Tier.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == Tier.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value Tier.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

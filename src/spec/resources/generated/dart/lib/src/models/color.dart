@@ -14,7 +14,10 @@ enum Color {
   green('green'),
 
   /// Represents the value 'blue'.
-  blue('blue');
+  blue('blue'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const Color(this.value);
@@ -23,11 +26,18 @@ enum Color {
   static Color fromJson(String value) {
     return Color.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown Color value: $value'),
+      orElse: () => Color.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == Color.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value Color.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

@@ -1000,9 +1000,10 @@ defmodule PetstoreClient.ObjectSerializer do
   # (a number is written "#<n>"). The wire value is matched exactly (so
   # "In-Stock" and "on-hold" decode) and returned as the member atom, consistent
   # with the struct's declared type. An out-of-schema wire value is spec drift;
-  # raise a SerializationError instead of silently passing the raw string
-  # through as an invalid typed value. This matches the throwing behaviour of
-  # the standalone-enum-module path in atomize_enum/2.
+  # decode to the catch-all member :unknown_default_open_api instead of passing
+  # the raw string through as an invalid typed value, like the
+  # standalone-enum-module path in atomize_enum/2. The catch-all cannot be
+  # written: sanitize_field_value/2 refuses it.
   def convert_to_type(data, "Enum<" <> rest) do
     members = parse_inline_enum(rest)
 
@@ -1017,6 +1018,9 @@ defmodule PetstoreClient.ObjectSerializer do
     case found do
       {name, _wire} ->
         String.to_atom(name)
+
+      nil when is_binary(data) or is_integer(data) ->
+        :unknown_default_open_api
 
       nil ->
         raise_unknown_inline_enum(to_string(data), members)
@@ -1157,6 +1161,9 @@ defmodule PetstoreClient.ObjectSerializer do
     # never mints an arbitrary atom from untrusted input (no atom-table
     # exhaustion) and raises only on genuine spec drift.
     case module.from_value(data) do
+      {:error, _} when is_binary(data) or is_integer(data) ->
+        module.unknown_default_open_api()
+
       {:error, _} ->
         raise PetstoreClient.Errors.SerializationError,
               "Unknown enum value #{inspect(data)} for #{inspect(module)}; " <>

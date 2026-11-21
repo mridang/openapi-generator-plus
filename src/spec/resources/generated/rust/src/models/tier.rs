@@ -20,6 +20,9 @@ pub enum Tier {
     /// The largest tier. Ends with */ and #{x} and $x.
     #[serde(rename = "l")]
     Large,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for Tier {
@@ -29,6 +32,7 @@ impl std::fmt::Display for Tier {
             Tier::Small => "s",
             Tier::Medium => "m",
             Tier::Large => "l",
+            Tier::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

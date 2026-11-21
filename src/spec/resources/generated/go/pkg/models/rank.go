@@ -24,6 +24,8 @@ const (
 	RankMEDIUM Rank = 2
 	// The highest rank.
 	RankHIGH Rank = 3
+	/* RankUnknownDefaultOpenApi is what a wire value this SDK does not list decodes to; it has no wire value and cannot be written. */
+	RankUnknownDefaultOpenApi Rank = -2147483648
 )
 
 // AllRankValues returns all allowed values of Rank.
@@ -55,9 +57,9 @@ func (v Rank) String() string {
 	return fmt.Sprintf("%d", int(v))
 }
 
-// UnmarshalJSON enforces that the deserialized value is one of the
-// declared enum members and returns an error otherwise. The default
-// json.Unmarshal would silently accept any value, masking spec drift.
+// UnmarshalJSON decodes a declared enum member to itself and any other wire
+// value to the catch-all member, so a value the spec does not list yet never
+// fails the whole decode.
 func (v *Rank) UnmarshalJSON(data []byte) error {
 	var raw int
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -70,11 +72,12 @@ func (v *Rank) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %v for enum Rank", raw)
+	*v = RankUnknownDefaultOpenApi
+	return nil
 }
 
-// MarshalJSON enforces the same membership on the way out, so a value outside
-// the declared members is rejected instead of being sent.
+// MarshalJSON enforces membership on the way out: the catch-all member and any
+// value outside the declared members are rejected instead of being sent.
 func (v Rank) MarshalJSON() ([]byte, error) {
 	for _, allowed := range AllRankValues() {
 		if allowed == v {

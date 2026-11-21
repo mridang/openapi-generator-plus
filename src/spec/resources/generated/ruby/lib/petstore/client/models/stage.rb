@@ -25,6 +25,9 @@ module Petstore::Client
       # Running.
       ACTIVE2 = 'live'
 
+      # Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written.
+      UNKNOWN_DEFAULT_OPEN_API = '__unknown_default_open_api__'
+
       # Frozen set of all allowed values, used for validation.
       VALUES = [ON_HOLD, ACTIVE, ACTIVE2].freeze
 

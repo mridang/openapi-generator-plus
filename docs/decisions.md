@@ -16,9 +16,17 @@ A model is never changed after it is built. To change one, you make a copy with 
 
 An author can name the members of an enum with `x-enum-varnames`, `x-enumNames` or `x-enumnames` (an array by position in the `enum` list, or an object keyed by wire value) and describe them with `x-enum-descriptions`, `x-enumDescriptions` or `x-enumdescriptions`. If more than one spelling of a key is present the first in the order written here wins and generation logs a warning. A supplied name is treated as a source word: it is cleaned and cased exactly like a name derived from the wire value (so `on hold` is `ON_HOLD`, `OnHold`, `onHold` or `on_hold` by language), and two names that collide after casing get a numbered suffix. The wire value never changes, and only it is written and accepted on the wire; decoding a member name fails like any unknown value. A member with a description carries it as the one-line doc comment directly above it; a member without one keeps the comment it has today, so a spec without these keys generates identical code. A default on an enum property names the member that has the supplied name. A specification that already carried one of these keys may see members renamed (for example `LOW` becoming `Low` in a language that does not keep the author's casing).
 
-## Unknown enum values fail loudly
+## D117: An unknown enum value decodes to a catch-all member
 
-When a response carries an enum value, or a discriminator value, that the SDK does not know, decoding fails with the SDK's serialization error and the message names the value. The SDK never maps an unknown value to a default and never passes it through silently. The reason is that a specification that is out of date should fail where you can see it, not produce a wrong value later. Read the section on unknown values in your language page to see the exact error type.
+**Context.** When a server added an enum value, a generated client that did not know it failed to decode the whole response ([#160](https://github.com/mridang/openapi-generator-plus/issues/160)). The progenitor comparison ([#134](https://github.com/mridang/openapi-generator-plus/issues/134), row 24 of its verdict table) found the same in typify output, and the previous decision here (unknown enum values fail loudly) put a stale specification ahead of a working client. All twelve SDKs failed the decode with the serialization error that names the value.
+
+**Options considered.** (1) Keep failing loudly. (2) Keep the raw value in the member, as a string-carrying wrapper. (3) Decode to one catch-all member of the enum that holds no value and cannot be written back. (4) Make the generated enums open types, so callers match on a string.
+
+**What was compared.** Option 2 means an enum is a class with a value in Java, Kotlin, C#, Go, Swift and Rust, which changes the public shape of every enum and breaks `switch` and `match` ergonomics. Option 4 gives up the typed enum. [docs/comparisons/ogen.md](comparisons/ogen.md) shows ogen failing the decode on an unknown value like our SDKs did. The stock OpenAPI Generator option `enumUnknownDefaultCase` is option 3 under the name `UNKNOWN_DEFAULT_OPEN_API`, so that name is kept, written in each language's casing.
+
+**Decision.** Every enum, standalone, inline or referenced, has a catch-all member named `UNKNOWN_DEFAULT_OPEN_API` (`UnknownDefaultOpenApi` in C#, Go and Rust, `unknownDefaultOpenApi` in Dart and Swift, `:unknown_default_open_api` in Elixir). A wire value the spec does not list decodes to it. The member holds no wire value, so writing it raises the SDK's serialization error in all twelve SDKs. A discriminator value that maps to no variant still fails the decode with the serialization error, because there is no model to hold the payload. A value of the wrong JSON type (a string for an integer enum) still fails.
+
+**Consequences.** A server can add an enum value without breaking clients built before it, and a caller who matches on the enum sees the catch-all member for what it does not know. Code that lists every member of an enum (`values()`, `entries`, `cases()`) also sees the catch-all member in Java, Kotlin, C#, Python, Ruby, Node, Dart and PHP, while `all_values()` in Rust and Elixir, `AllValues()` in Go and `allCases` in Swift leave it out. Building a model never validates, so a caller can still hold any value there.
 
 ## Repeated response headers are joined
 
@@ -236,7 +244,7 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 ## Models are not validated when you build them
 
-Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with an enum value that the SDK does not know, a missing required property or a `format: uri` that is not absolute fails when it is decoded. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
+Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
 
 ## Native types for durations, addresses, URIs and decimals
 

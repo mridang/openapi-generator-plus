@@ -11,5 +11,7 @@ export const Rank = {
   MEDIUM: 2,
   /** The highest rank. */
   HIGH: 3,
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: -9007199254740991,
 } as const;
 export type Rank = (typeof Rank)[keyof typeof Rank];

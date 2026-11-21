@@ -136,7 +136,7 @@ end
 
 ## Known limits
 
-- A model never validates when it is constructed: a value of the wrong type, or an inline enum string the spec does not list, is held as given (a required property still has to be present and not `nil`). Decoding is where the check happens: a wrong type or an unknown enum value fails the decode loudly with `SerializationError`. See the type mapping above.
+- A model never validates when it is constructed: a value of the wrong type, or an inline enum string the spec does not list, is held as given (a required property still has to be present and not `nil`). Decoding is where the check happens: a wrong type fails the decode with `SerializationError`, and an unknown enum value decodes to the catch-all member `UNKNOWN_DEFAULT_OPEN_API` (D117). See the type mapping above.
 - A `BigDecimal` keeps no trailing zero, so a decimal read as `12.50` is written back as `12.5`.
 - An overflowing double literal such as `1e400` decodes to Infinity.
 - Faraday's default `net_http` adapter opens a connection per request. Connection reuse would need `net_http_persistent`, which is an open decision.

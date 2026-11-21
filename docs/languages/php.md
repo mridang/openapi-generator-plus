@@ -37,7 +37,7 @@ The floor is written once, in `composer.json`, and PHPStan is configured with `p
 | `object` with `additionalProperties` | `\Ds\Map` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form `object` | `mixed` | |
 | nullable property | `?T` | an absent key and an explicit `null` read the same; a required and nullable property keeps its key and is written as `null` |
-| `enum` | backed enum | read the wire value with `->value`, map back with `::tryFrom()`; an unknown value fails with `SerializationException` |
+| `enum` | backed enum | read the wire value with `->value`, map back with `::tryFrom()`; an unknown value decodes to the `UNKNOWN_DEFAULT_OPEN_API` case (D117), which cannot be written |
 | `oneOf`, `anyOf` | a wrapper class | see Idioms |
 | file upload and download | `\SplFileObject` | |
 

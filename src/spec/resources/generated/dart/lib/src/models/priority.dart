@@ -14,7 +14,10 @@ enum Priority {
   number2(2),
 
   /// Represents the value 3.
-  number3(3);
+  number3(3),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi(-9007199254740991);
 
   final int value;
   const Priority(this.value);
@@ -23,11 +26,18 @@ enum Priority {
   static Priority fromJson(int value) {
     return Priority.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown Priority value: $value'),
+      orElse: () => Priority.unknownDefaultOpenApi,
     );
   }
 
-  int toJson() => value;
+  int toJson() {
+    if (this == Priority.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value Priority.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value.toString();

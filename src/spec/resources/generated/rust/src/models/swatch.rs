@@ -20,6 +20,9 @@ pub enum Swatch {
     /// Represents the value "blue".
     #[serde(rename = "blue")]
     Blue,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for Swatch {
@@ -29,6 +32,7 @@ impl std::fmt::Display for Swatch {
             Swatch::Red => "red",
             Swatch::Green => "green",
             Swatch::Blue => "blue",
+            Swatch::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

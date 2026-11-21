@@ -30,9 +30,11 @@ enum class {{classname}}(val value: Int) {
   {{#enumDescription}}
   /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
   {{/enumDescription}}
-  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{{name}}}({{{value}}}),
   {{/enumVars}}
   {{/allowableValues}}
+  /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API(0);
 
   /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
   override fun toString(): String = value.toString()
@@ -40,7 +42,7 @@ enum class {{classname}}(val value: Int) {
   companion object {
     fun fromValue(value: Int): {{classname}} =
       entries.firstOrNull { it.value == value }
-        ?: throw IllegalArgumentException("Unexpected value '$value'")
+        ?: UNKNOWN_DEFAULT_OPEN_API
   }
 
   internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
@@ -51,7 +53,12 @@ enum class {{classname}}(val value: Int) {
     override fun serialize(
       encoder: kotlinx.serialization.encoding.Encoder,
       value: {{classname}},
-    ) = encoder.encodeInt(value.value)
+    ) {
+      if (value == UNKNOWN_DEFAULT_OPEN_API) {
+        throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+      }
+      encoder.encodeInt(value.value)
+    }
 
     override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} =
       fromValue(decoder.decodeInt())
@@ -70,9 +77,11 @@ enum class {{classname}}(val value: Long) {
   {{#enumDescription}}
   /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
   {{/enumDescription}}
-  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{{name}}}({{{value}}}),
   {{/enumVars}}
   {{/allowableValues}}
+  /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API(0L);
 
   /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
   override fun toString(): String = value.toString()
@@ -80,7 +89,7 @@ enum class {{classname}}(val value: Long) {
   companion object {
     fun fromValue(value: Long): {{classname}} =
       entries.firstOrNull { it.value == value }
-        ?: throw IllegalArgumentException("Unexpected value '$value'")
+        ?: UNKNOWN_DEFAULT_OPEN_API
   }
 
   internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
@@ -91,7 +100,12 @@ enum class {{classname}}(val value: Long) {
     override fun serialize(
       encoder: kotlinx.serialization.encoding.Encoder,
       value: {{classname}},
-    ) = encoder.encodeLong(value.value)
+    ) {
+      if (value == UNKNOWN_DEFAULT_OPEN_API) {
+        throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+      }
+      encoder.encodeLong(value.value)
+    }
 
     override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} =
       fromValue(decoder.decodeLong())
@@ -102,17 +116,18 @@ enum class {{classname}}(val value: Long) {
 {{#description}}
 /** {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
 {{/description}}
-@Serializable
+@Serializable(with = {{classname}}.Serializer::class)
 enum class {{classname}}(val value: String) {
   {{#allowableValues}}
   {{#enumVars}}
   {{#enumDescription}}
   /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
   {{/enumDescription}}
-  @SerialName({{{value}}})
-  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{{name}}}({{{value}}}),
   {{/enumVars}}
   {{/allowableValues}}
+  /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API("");
 
   /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
   override fun toString(): String = value.toString()
@@ -120,7 +135,26 @@ enum class {{classname}}(val value: String) {
   companion object {
     fun fromValue(value: String): {{classname}} =
       entries.firstOrNull { it.value == value }
-        ?: throw IllegalArgumentException("Unexpected value '$value'")
+        ?: UNKNOWN_DEFAULT_OPEN_API
+  }
+
+  internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
+    override val descriptor =
+      kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+        "{{classname}}", kotlinx.serialization.descriptors.PrimitiveKind.STRING)
+
+    override fun serialize(
+      encoder: kotlinx.serialization.encoding.Encoder,
+      value: {{classname}},
+    ) {
+      if (value == UNKNOWN_DEFAULT_OPEN_API) {
+        throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+      }
+      encoder.encodeString(value.value)
+    }
+
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{classname}} =
+      fromValue(decoder.decodeString())
   }
 }
 {{/isLong}}
@@ -944,9 +978,11 @@ data class {{classname}}(
     {{#enumDescription}}
     /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
     {{/enumDescription}}
-    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{{name}}}({{{value}}}),
     {{/enumVars}}
     {{/allowableValues}}
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(0);
 
     /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
     override fun toString(): String = value.toString()
@@ -954,7 +990,7 @@ data class {{classname}}(
     companion object {
       fun fromValue(value: Int): {{enumName}} =
         entries.firstOrNull { it.value == value }
-          ?: throw IllegalArgumentException("Unexpected value '$value'")
+          ?: UNKNOWN_DEFAULT_OPEN_API
     }
 
     internal object Serializer : kotlinx.serialization.KSerializer<{{enumName}}> {
@@ -965,7 +1001,12 @@ data class {{classname}}(
       override fun serialize(
         encoder: kotlinx.serialization.encoding.Encoder,
         value: {{enumName}},
-      ) = encoder.encodeInt(value.value)
+      ) {
+      if (value == UNKNOWN_DEFAULT_OPEN_API) {
+        throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+      }
+      encoder.encodeInt(value.value)
+    }
 
       override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{enumName}} =
         fromValue(decoder.decodeInt())
@@ -982,9 +1023,11 @@ data class {{classname}}(
     {{#enumDescription}}
     /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
     {{/enumDescription}}
-    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{{name}}}({{{value}}}),
     {{/enumVars}}
     {{/allowableValues}}
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(0L);
 
     /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
     override fun toString(): String = value.toString()
@@ -992,7 +1035,7 @@ data class {{classname}}(
     companion object {
       fun fromValue(value: Long): {{enumName}} =
         entries.firstOrNull { it.value == value }
-          ?: throw IllegalArgumentException("Unexpected value '$value'")
+          ?: UNKNOWN_DEFAULT_OPEN_API
     }
 
     internal object Serializer : kotlinx.serialization.KSerializer<{{enumName}}> {
@@ -1003,7 +1046,12 @@ data class {{classname}}(
       override fun serialize(
         encoder: kotlinx.serialization.encoding.Encoder,
         value: {{enumName}},
-      ) = encoder.encodeLong(value.value)
+      ) {
+      if (value == UNKNOWN_DEFAULT_OPEN_API) {
+        throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+      }
+      encoder.encodeLong(value.value)
+    }
 
       override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{enumName}} =
         fromValue(decoder.decodeLong())
@@ -1012,17 +1060,18 @@ data class {{classname}}(
 {{/isLong}}
 {{^isLong}}
 
-  @Serializable
+  @Serializable(with = {{enumName}}.Serializer::class)
   enum class {{enumName}}(val value: String) {
     {{#allowableValues}}
     {{#enumVars}}
     {{#enumDescription}}
     /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
     {{/enumDescription}}
-    @SerialName({{{value}}})
-    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{{name}}}({{{value}}}),
     {{/enumVars}}
     {{/allowableValues}}
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API("");
 
     /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
     override fun toString(): String = value.toString()
@@ -1030,7 +1079,26 @@ data class {{classname}}(
     companion object {
       fun fromValue(value: String): {{enumName}} =
         entries.firstOrNull { it.value == value }
-          ?: throw IllegalArgumentException("Unexpected value '$value'")
+          ?: UNKNOWN_DEFAULT_OPEN_API
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<{{enumName}}> {
+      override val descriptor =
+        kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+          "{{enumName}}", kotlinx.serialization.descriptors.PrimitiveKind.STRING)
+
+      override fun serialize(
+        encoder: kotlinx.serialization.encoding.Encoder,
+        value: {{enumName}},
+      ) {
+        if (value == UNKNOWN_DEFAULT_OPEN_API) {
+          throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+        }
+        encoder.encodeString(value.value)
+      }
+
+      override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): {{enumName}} =
+        fromValue(decoder.decodeString())
     }
   }
 {{/isLong}}

@@ -14,8 +14,11 @@ defmodule PetstoreClient.Models.Tier do
   string form via `value/1` when wire interop is needed.
   """
 
-  @typedoc "One of the allowed enum atoms for Tier."
-  @type t :: :small | :medium | :large
+  @typedoc "One of the declared enum atoms for Tier."
+  @type declared :: :small | :medium | :large
+
+  @typedoc "One of the allowed enum atoms for Tier, or the catch-all `:unknown_default_open_api`."
+  @type t :: declared() | :unknown_default_open_api
   @doc """
   The smallest tier.
   """
@@ -31,14 +34,17 @@ defmodule PetstoreClient.Models.Tier do
   """
   def large, do: :large
 
-  @doc "All allowed values as atoms."
-  @spec all_values() :: [t(), ...]
+  @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+  def unknown_default_open_api, do: :unknown_default_open_api
+
+  @doc "All declared values as atoms; the catch-all member is not one of them."
+  @spec all_values() :: [declared(), ...]
   def all_values do
     [small(), medium(), large()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(t()) :: String.t()
+  @spec value(declared()) :: String.t()
   def value(:small), do: "s"
   def value(:medium), do: "m"
   def value(:large), do: "l"
@@ -52,7 +58,7 @@ defmodule PetstoreClient.Models.Tier do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: t() | {:error, term()}
+  @spec from_value(term()) :: declared() | {:error, term()}
   def from_value("s"), do: :small
   def from_value("m"), do: :medium
   def from_value("l"), do: :large

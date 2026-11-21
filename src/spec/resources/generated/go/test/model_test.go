@@ -188,14 +188,20 @@ func TestBhvMisc105_Model_CopyingNeverValidatesTheValuesItIsGiven(t *testing.T) 
 	}
 }
 
-func TestBhvSerializationobject182_Model_DecodingAnUnknownEnumValueFailsLoudly(t *testing.T) {
+func TestBhvSerializationobject182_Model_DecodingAnUnknownEnumValueGivesTheCatchAllMember(t *testing.T) {
 	t.Parallel()
 	var item models.StockItem
-	if err := json.Unmarshal([]byte(`{"priority":1,"availability":"not-a-member"}`), &item); err == nil {
-		t.Error("expected the unknown availability to be rejected on decode")
+	if err := json.Unmarshal([]byte(`{"priority":1,"availability":"not-a-member"}`), &item); err != nil {
+		t.Fatalf("expected the unknown availability to decode, got %v", err)
 	}
-	if err := json.Unmarshal([]byte(`{"priority":99}`), &item); err == nil {
-		t.Error("expected the unknown priority to be rejected on decode")
+	if item.Availability == nil || *item.Availability != models.AvailabilityUnknownDefaultOpenApi {
+		t.Errorf("expected the catch-all availability, got %v", item.Availability)
+	}
+	if err := json.Unmarshal([]byte(`{"priority":99}`), &item); err != nil {
+		t.Fatalf("expected the unknown priority to decode, got %v", err)
+	}
+	if item.Priority != models.PriorityUnknownDefaultOpenApi {
+		t.Errorf("expected the catch-all priority, got %v", item.Priority)
 	}
 }
 
@@ -247,7 +253,7 @@ func TestBhvSerialization003_Model_DecodingAWireValueYieldsTheMemberCarryingIt(t
 
 // A generated enum lists its declared members, maps each to its wire value and
 // refuses any value outside them.
-func TestBhvSerialization004_Model_EnumListsItsMembersAndRefusesAnyOtherValue(t *testing.T) {
+func TestBhvSerialization004_Model_EnumListsItsMembersAndGivesTheCatchAllForAnyOtherValue(t *testing.T) {
 	t.Parallel()
 	members := models.AllAvailabilityValues()
 	if len(members) != 7 {
@@ -268,8 +274,8 @@ func TestBhvSerialization004_Model_EnumListsItsMembersAndRefusesAnyOtherValue(t 
 		t.Error("expected a value outside the declared members to be refused on marshal")
 	}
 	var decoded models.Availability
-	if err := json.Unmarshal([]byte(`"extreme"`), &decoded); err == nil {
-		t.Error("expected a value outside the declared members to be refused on decode")
+	if err := json.Unmarshal([]byte(`"extreme"`), &decoded); err != nil || decoded != models.AvailabilityUnknownDefaultOpenApi {
+		t.Errorf("expected a value outside the declared members to decode to the catch-all member, got %q (%v)", decoded, err)
 	}
 }
 

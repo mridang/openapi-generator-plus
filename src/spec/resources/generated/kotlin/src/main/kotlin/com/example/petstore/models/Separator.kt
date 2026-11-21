@@ -11,26 +11,21 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
 /** String enum whose values sanitise to an empty or colliding identifier */
-@Serializable
+@Serializable(with = Separator.Serializer::class)
 enum class Separator(
     val value: String,
 ) {
-    @SerialName(" ")
     SPACE_1(" "),
-
-    @SerialName("@@")
     VALUE_0040_0040("@@"),
-
-    @SerialName("a-b")
     A_B("a-b"),
-
-    @SerialName("a_b")
     A_B_2("a_b"),
+
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(""),
     ;
 
     /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -39,6 +34,26 @@ enum class Separator(
     companion object {
         fun fromValue(value: String): Separator =
             entries.firstOrNull { it.value == value }
-                ?: throw IllegalArgumentException("Unexpected value '$value'")
+                ?: UNKNOWN_DEFAULT_OPEN_API
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<Separator> {
+        override val descriptor =
+            kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+                "Separator",
+                kotlinx.serialization.descriptors.PrimitiveKind.STRING,
+            )
+
+        override fun serialize(
+            encoder: kotlinx.serialization.encoding.Encoder,
+            value: Separator,
+        ) {
+            if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+            }
+            encoder.encodeString(value.value)
+        }
+
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Separator = fromValue(decoder.decodeString())
     }
 }

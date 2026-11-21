@@ -2860,11 +2860,11 @@ void main() {
      * to a default or an `unknown` sentinel — matching the throw-on-unknown
      * behaviour of the other SDKs. */
     test(
-      'bhv serializationobject 182 unknown enum value on deserialize throws',
+      'bhv serializationobject 182 unknown enum value on deserialize gives the catch-all member',
       () {
         expect(
-          () => PetStatusEnum.fromJson('not-a-real-status'),
-          throwsA(isA<ArgumentError>()),
+          PetStatusEnum.fromJson('not-a-real-status'),
+          equals(PetStatusEnum.unknownDefaultOpenApi),
         );
         // A known value still deserializes correctly.
         expect(

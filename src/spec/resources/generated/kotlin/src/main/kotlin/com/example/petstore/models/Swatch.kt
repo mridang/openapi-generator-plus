@@ -11,22 +11,19 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
-@Serializable
+@Serializable(with = Swatch.Serializer::class)
 enum class Swatch(
     val value: String,
 ) {
-    @SerialName("red")
     RED("red"),
-
-    @SerialName("green")
     GREEN("green"),
-
-    @SerialName("blue")
     BLUE("blue"),
+
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(""),
     ;
 
     /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -35,6 +32,26 @@ enum class Swatch(
     companion object {
         fun fromValue(value: String): Swatch =
             entries.firstOrNull { it.value == value }
-                ?: throw IllegalArgumentException("Unexpected value '$value'")
+                ?: UNKNOWN_DEFAULT_OPEN_API
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<Swatch> {
+        override val descriptor =
+            kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+                "Swatch",
+                kotlinx.serialization.descriptors.PrimitiveKind.STRING,
+            )
+
+        override fun serialize(
+            encoder: kotlinx.serialization.encoding.Encoder,
+            value: Swatch,
+        ) {
+            if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+            }
+            encoder.encodeString(value.value)
+        }
+
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Swatch = fromValue(decoder.decodeString())
     }
 }

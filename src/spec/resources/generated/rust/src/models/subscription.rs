@@ -29,6 +29,9 @@ pub enum SubscriptionIntervalEnum {
     /// Billed every year.
     #[serde(rename = "year")]
     YEARLY,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for SubscriptionIntervalEnum {
@@ -37,6 +40,7 @@ impl std::fmt::Display for SubscriptionIntervalEnum {
         f.write_str(match self {
             SubscriptionIntervalEnum::MONTHLY => "month",
             SubscriptionIntervalEnum::YEARLY => "year",
+            SubscriptionIntervalEnum::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

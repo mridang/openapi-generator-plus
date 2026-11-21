@@ -21,4 +21,6 @@ enum Color: string
     case RED = 'red';
     case GREEN = 'green';
     case BLUE = 'blue';
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    case UNKNOWN_DEFAULT_OPEN_API = '__unknown_default_open_api__';
 }

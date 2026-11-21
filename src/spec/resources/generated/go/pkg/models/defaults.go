@@ -22,6 +22,8 @@ const (
 	DefaultsModeEnumLow    DefaultsModeEnum = "low"
 	DefaultsModeEnumMedium DefaultsModeEnum = "medium"
 	DefaultsModeEnumHigh   DefaultsModeEnum = "high"
+	/* DefaultsModeEnumUnknownDefaultOpenApi is what a wire value this SDK does not list decodes to; it has no wire value and cannot be written. */
+	DefaultsModeEnumUnknownDefaultOpenApi DefaultsModeEnum = "__unknown_default_open_api__"
 )
 
 // AllDefaultsModeEnumValues returns all allowed values.
@@ -49,8 +51,8 @@ func (v DefaultsModeEnum) String() string {
 	return string(v)
 }
 
-// UnmarshalJSON validates the value is one of the declared
-// enum members at deserialise time.
+// UnmarshalJSON decodes a declared member to itself and any other wire value
+// to the catch-all member.
 func (v *DefaultsModeEnum) UnmarshalJSON(data []byte) error {
 	var raw string
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -63,11 +65,12 @@ func (v *DefaultsModeEnum) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %v for enum DefaultsModeEnum", raw)
+	*v = DefaultsModeEnumUnknownDefaultOpenApi
+	return nil
 }
 
-// MarshalJSON enforces the same membership on the way out, so a value outside
-// the declared members is rejected instead of being sent.
+// MarshalJSON enforces membership on the way out: the catch-all member and any
+// value outside the declared members are rejected instead of being sent.
 func (v DefaultsModeEnum) MarshalJSON() ([]byte, error) {
 	for _, allowed := range AllDefaultsModeEnumValues() {
 		if allowed == v {

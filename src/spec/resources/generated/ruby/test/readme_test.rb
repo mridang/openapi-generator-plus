@@ -43,7 +43,7 @@ describe 'README' do
   it 'bhv_langruby_072 documents the per-call options, the error request context and the design notes' do
     ['### Per-call options', '### Errors', '`request_path`', '### Response compression', '### Logging',
      '### Streaming', '### Versioning', '### Credentials', '### Optional and nullable are not told apart',
-     '### An unknown enum value or discriminator fails loudly', '### Repeated response headers are joined',
+     '### Unknown enum values and discriminators', '### Repeated response headers are joined',
      '### `Configuration` and `TransportOptions`'].each do |text|
       _(readme).must_include text
     end

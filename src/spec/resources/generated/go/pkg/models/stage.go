@@ -24,6 +24,8 @@ const (
 	StageActive Stage = "active"
 	// Running.
 	StageActive2 Stage = "live"
+	/* StageUnknownDefaultOpenApi is what a wire value this SDK does not list decodes to; it has no wire value and cannot be written. */
+	StageUnknownDefaultOpenApi Stage = "__unknown_default_open_api__"
 )
 
 // AllStageValues returns all allowed values of Stage.
@@ -55,9 +57,9 @@ func (v Stage) String() string {
 	return string(v)
 }
 
-// UnmarshalJSON enforces that the deserialized value is one of the
-// declared enum members and returns an error otherwise. The default
-// json.Unmarshal would silently accept any value, masking spec drift.
+// UnmarshalJSON decodes a declared enum member to itself and any other wire
+// value to the catch-all member, so a value the spec does not list yet never
+// fails the whole decode.
 func (v *Stage) UnmarshalJSON(data []byte) error {
 	var raw string
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -70,11 +72,12 @@ func (v *Stage) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %v for enum Stage", raw)
+	*v = StageUnknownDefaultOpenApi
+	return nil
 }
 
-// MarshalJSON enforces the same membership on the way out, so a value outside
-// the declared members is rejected instead of being sent.
+// MarshalJSON enforces membership on the way out: the catch-all member and any
+// value outside the declared members are rejected instead of being sent.
 func (v Stage) MarshalJSON() ([]byte, error) {
 	for _, allowed := range AllStageValues() {
 		if allowed == v {

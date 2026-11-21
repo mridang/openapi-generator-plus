@@ -2206,6 +2206,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 ctx.put("baseName", var.baseName);
                 ctx.put("enumClassName", enumClassName);
                 ctx.put("backingType", var.isInteger || var.isLong ? "int" : "string");
+                ctx.put("isIntBacked", var.isInteger || var.isLong);
                 ctx.put("enumVars", var.allowableValues.get("enumVars"));
                 writePhpClassFile(modelFileFolder(), enumClassName,
                         "models/inline_enum.mustache", ctx);

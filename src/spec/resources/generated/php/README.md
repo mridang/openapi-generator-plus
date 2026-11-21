@@ -335,9 +335,12 @@ breaks `format: int64` schema validation against strict mock servers
 
 A property that is not required is `null` when the response leaves it out and when it carries an explicit `null`; the model cannot tell the two apart. A property that is required and nullable keeps an explicit `null` and is written as `null` when unset. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
 
-### Unknown values fail loudly
+### Unknown enum values and discriminators
 
-A response value that is not in a declared enum, or a `oneOf` payload whose discriminator is missing or not mapped, is not guessed at: decoding throws `SerializationException` (or `InvalidArgumentException` from `build()`), so a new server-side value surfaces as an error instead of a wrong model.
+An enum value the spec does not list decodes to the enum's catch-all member (`UNKNOWN_DEFAULT_OPEN_API`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationException`. A `oneOf` payload whose discriminator is missing or not mapped still fails
+loudly with `SerializationException`.
 
 ### Repeated response headers
 

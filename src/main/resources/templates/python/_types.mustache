@@ -7,6 +7,7 @@ import math
 import re
 import secrets
 from decimal import Decimal
+from enum import Enum
 from typing import Annotated, Any, Callable, TypeVar
 
 from pydantic import (
@@ -21,6 +22,7 @@ from pydantic import (
     SerializationInfo,
     Strict,
 )
+from pydantic_core import core_schema
 
 
 # An absolute RFC 3986 URI: a scheme, then ':', then no whitespace or control
@@ -50,6 +52,29 @@ _IPV6_PATTERN = re.compile(r'[0-9A-Fa-f:.]+')
 
 
 _InitT = TypeVar('_InitT', bound=Callable[..., None])
+
+
+class CatchAllEnum(Enum):
+    """The base of every generated enum: a value the SDK does not list decodes to
+    the catch-all member ``UNKNOWN_DEFAULT_OPEN_API``, and that member has no wire
+    value, so writing it raises."""
+
+    @classmethod
+    def _missing_(cls, value: object) -> Any:
+        return cls.__members__.get('UNKNOWN_DEFAULT_OPEN_API')
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source: Any, handler: Any) -> Any:
+        return core_schema.no_info_after_validator_function(
+            lambda member: member,
+            handler(source),
+            serialization=core_schema.plain_serializer_function_ser_schema(cls._wire_value),
+        )
+
+    def _wire_value(self) -> Any:
+        if self.name == 'UNKNOWN_DEFAULT_OPEN_API':
+            raise ValueError('The catch-all enum member UNKNOWN_DEFAULT_OPEN_API has no wire value and cannot be written')
+        return self.value
 
 
 def lenient_init(init: _InitT) -> _InitT:

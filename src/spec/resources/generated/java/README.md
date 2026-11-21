@@ -396,11 +396,12 @@ model cannot tell a missing key from an explicit `null`. The one exception is a
 property that is both required and nullable, which must be present when decoding
 and is always written, `null` included. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
 
-### Unknown enum values and discriminators fail loudly
+### Unknown enum values and discriminators
 
-An enum value the spec does not list, and a discriminator value that maps to no
-variant, are errors (`SerializationException`), never a silent fallback. Regenerate
-the client when the API adds a value.
+An enum value the spec does not list decodes to the enum's catch-all member (`UNKNOWN_DEFAULT_OPEN_API`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationException`. A discriminator value that maps to no variant still fails
+loudly with `SerializationException`.
 
 ### Response headers are one string each
 

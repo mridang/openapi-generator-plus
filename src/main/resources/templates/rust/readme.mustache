@@ -250,10 +250,10 @@ the inner type and stores `Some(value)`.
   required nullable property keeps the difference: its key must be present when
   decoding and is written as `null` when the value is `None`.
   A required nullable query parameter is kept the same way: when its value is `None` the key is still sent, with an empty value (`?key=`).
-- **Unknown values fail loudly.** A string that is not one of an enum's values,
-  and a discriminator value that is not in the mapping, make decoding fail with a
-  `SerializationError` that names the value; they are never replaced by a
-  default.
+- **Unknown enum values decode to a catch-all.** A string that is not one of an enum's
+  values decodes to its `UnknownDefaultOpenApi` variant, which has no wire value and
+  cannot be written; a discriminator value that is not in the mapping still makes
+  decoding fail with a `SerializationError` that names the value.
 - **Repeated response headers.** `ApiResult::headers()` is a map with one entry
   per lower-cased name, and a header the server sent more than once is joined
   into that entry with `, ` in wire order (RFC 9110 section 5.3).

@@ -15,7 +15,9 @@ public enum Stage {
   /** The {@code "active"} value. */
   ACTIVE("active"),
   /** Running. */
-  ACTIVE2("live");
+  ACTIVE2("live"),
+  /** Any wire value this SDK does not list; it cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API("");
 
   private final String value;
 
@@ -47,8 +49,7 @@ public enum Stage {
    * Returns the enum constant for the given wire value.
    *
    * @param value the wire value
-   * @return the matching enum constant
-   * @throws IllegalArgumentException if no constant matches
+   * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
    */
   @com.fasterxml.jackson.annotation.JsonCreator
   public static Stage fromValue(String value) {
@@ -57,6 +58,6 @@ public enum Stage {
         return b;
       }
     }
-    throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    return UNKNOWN_DEFAULT_OPEN_API;
   }
 }

@@ -12,15 +12,17 @@ from pydantic import ConfigDict, Field, field_validator
 from pydantic import StrictBool, StrictStr
 from petstore_client._types import ApiModel, hash_model
 from typing import Any, Optional
-from enum import Enum
+from petstore_client._types import CatchAllEnum
 
 
-class EdgeCasesPhaseEnum(str, Enum):
+class EdgeCasesPhaseEnum(str, CatchAllEnum):
     """EdgeCases - phase"""
 
     IN_STOCK = "In-Stock"
     ON_HOLD = "on-hold"
     OUT_OF_STOCK = "OUT_OF_STOCK"
+    #: Any wire value this SDK does not list; it has no wire value and cannot be written.
+    UNKNOWN_DEFAULT_OPEN_API = "__unknown_default_open_api__"
 
     def __str__(self) -> str:
         """The wire value, so interpolating a member gives the text the server sees."""
