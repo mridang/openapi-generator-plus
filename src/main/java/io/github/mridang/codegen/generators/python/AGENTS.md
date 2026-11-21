@@ -501,6 +501,18 @@ Rule: `BetterPythonCodegen.markBinaryStream` (run after the shared pass that fil
 Where: `BetterPythonCodegen`, `api/api.mustache`, `readme.mustache`, `skills.mustache`.
 Test: golden `test_pet_api` (the existing avatar, document and photo rows close their stream), `TestByteStreamTransport` (029).
 
+## Streaming: JSON Lines and server-sent events (capability 2 of #114, D120 to D122, D125)
+
+### The stream method and the types
+Rule: an operation with `streamOnly` (decorators `streamsSse` or `streamsJsonLines`, set by `BetterPythonCodegen.markBinaryStream`, which also sets `streamTyped`, `streamItemPython`, `streamMethodPython` and a `SseStream[T]` or `JsonLinesStream[T]` return type) has no buffered method and no `_with_http_info` variant in the class or the `Protocol`; `api/api.mustache` emits `<op>_stream(...signatureArgs, stream_options=None)`, with the path, query, header and options code shared with `_with_http_info` through the `api/operation_prelude` partial and the argument list through `api/operation_args`. `StreamOptions` is a frozen dataclass; `ServerSentEvent[T]` a frozen dataclass with `raw`; both streams are async iterators and async context managers with an idempotent sync `close()`.
+Where: `event_stream.mustache`, `server_sent_event.mustache`, `stream_options.mustache`, `json_lines_stream.mustache`, `sse_stream.mustache`, `base_api.mustache` (`_invoke_api_for_json_lines`, `_invoke_api_for_sse`), `api/*.mustache`, `BetterPythonCodegen`.
+Test: `test_event_stream.mustache` (the one mirror file: `streaming002` to `005` and the `sse` parser and engine rows), `test_default_api_client_unit.mustache` (`TestEventStreamTransport`: `streaming006`, `007`, `sse007`, `015`, `018` over the raw server), `test_base_api.mustache` (`TestEventStreams`: `streaming028`, `sse006`, `012`, `013`, `020`), `test_client.mustache` (`TestMocking` lists `<op>_stream` for a stream-only operation).
+
+### The engine
+Rule: `SseStream.open` awaits the first request (its failure is raised from the operation method) and checks the answer; each reconnect is `opener(last_event_id)`, which `BaseApi` implements as a fresh `_invoke_api_for_stream` (so the headers and the credential are built again and the call hook runs again) with `Last-Event-ID` added only when the id is not empty. A clean end counts as a failure against `max_reconnects` (`StreamException` when exhausted; `0` ends quietly). The wait is the server `retry`, else `Retry-After` of a 429, 502, 503 or 504, else `reconnect_delay` doubling to 30 s with up to 25% jitter, computed by the pure `reconnect_wait_millis` that the tests call without sleeping. `ByteStream` closed by the caller reads as `ValueError`, which ends the stream quietly; the closed-client `RuntimeError` is never retried. The idle timeout of `StreamOptions` is passed to `send_streaming`, so a stall is a `NetworkTimeoutException` and reconnects. A `DecodeError` of a compressed body is an `ApiException` with the real status, never a `StreamException`.
+Where: `sse_stream.mustache`, `base_api.mustache`, `default_api_client.mustache`.
+Test: `test_event_stream.mustache`, `TestEventStreams`.
+
 ## Compiled examples (#111)
 
 - `examples/quickstart.py` (`templates/python/examples/quickstart.mustache`, registered by `BetterPythonCodegen.getSupportingFileSpecs` when `generateExamples` is on) wraps the README Usage statements in `async def main()` and runs it with `asyncio.run(main())`. The statements live once in `usage_statements.mustache`, included by the README Usage fence, the SKILLS Quick Start fence and the quickstart (`langpython212`); the client is closed by the `with` block. With no example operation the `with` body is `pass`.

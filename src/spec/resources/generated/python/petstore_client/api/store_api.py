@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Mapping, Optional, Protocol
-from pydantic import AwareDatetime, StrictInt, StrictStr
+from pydantic import AwareDatetime, StrictInt
 
 from petstore_client.models.account import Account
 from petstore_client.models.api_response import ApiResponse
@@ -21,6 +21,9 @@ from petstore_client.models.reserve_stock_response import ReserveStockResponse
 from petstore_client.models.stock_item import StockItem
 from petstore_client.models.swatch import Swatch
 from petstore_client.models.tree_node import TreeNode
+from petstore_client.json_lines_stream import JsonLinesStream
+from petstore_client.sse_stream import SseStream
+from petstore_client.stream_options import StreamOptions
 import uuid
 
 from ..api_client import ApiClient
@@ -94,18 +97,12 @@ class StoreApiProtocol(Protocol):
         """The ``delete_order`` operation with its status code, headers and body."""
         ...
 
-    async def export_orders(
+    async def export_orders_stream(
         self,
         options: Optional[ExportOrdersOptions] = None,
-    ) -> Order:
-        """The ``export_orders`` operation."""
-        ...
-
-    async def export_orders_with_http_info(
-        self,
-        options: Optional[ExportOrdersOptions] = None,
-    ) -> "ApiResult[Order]":
-        """The ``export_orders`` operation with its status code, headers and body."""
+        stream_options: Optional[StreamOptions] = None,
+    ) -> JsonLinesStream[Order]:
+        """The ``export_orders_stream`` operation: its JSON Lines items as a stream."""
         ...
 
     async def get_audit_trail(
@@ -368,32 +365,20 @@ class StoreApiProtocol(Protocol):
         """The ``search_store`` operation with its status code, headers and body."""
         ...
 
-    async def watch_notices(
+    async def watch_notices_stream(
         self,
         options: Optional[WatchNoticesOptions] = None,
-    ) -> StrictStr:
-        """The ``watch_notices`` operation."""
+        stream_options: Optional[StreamOptions] = None,
+    ) -> SseStream[str]:
+        """The ``watch_notices_stream`` operation: its server-sent events as a stream."""
         ...
 
-    async def watch_notices_with_http_info(
-        self,
-        options: Optional[WatchNoticesOptions] = None,
-    ) -> "ApiResult[StrictStr]":
-        """The ``watch_notices`` operation with its status code, headers and body."""
-        ...
-
-    async def watch_orders(
+    async def watch_orders_stream(
         self,
         options: Optional[WatchOrdersOptions] = None,
-    ) -> Order:
-        """The ``watch_orders`` operation."""
-        ...
-
-    async def watch_orders_with_http_info(
-        self,
-        options: Optional[WatchOrdersOptions] = None,
-    ) -> "ApiResult[Order]":
-        """The ``watch_orders`` operation with its status code, headers and body."""
+        stream_options: Optional[StreamOptions] = None,
+    ) -> SseStream[Order]:
+        """The ``watch_orders_stream`` operation: its server-sent events as a stream."""
         ...
 
 
@@ -460,7 +445,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = account
-
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -526,7 +510,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "DELETE",
             path,
@@ -543,47 +526,22 @@ class StoreApi(BaseApi):
             request_options=options,
         )
 
-    async def export_orders(
+    async def export_orders_stream(
         self,
         options: Optional[ExportOrdersOptions] = None,
-    ) -> Order:
+        stream_options: Optional[StreamOptions] = None,
+    ) -> JsonLinesStream[Order]:
         """Exports every order as JSON Lines
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
-        :return: Order
-        :raises ApiException: if fails to make API call
-        """
-        result = await self.export_orders_with_http_info(
-            options=options,
-        )
-
-        if result.data is None:
-            # This operation declares a non-void return type, so an empty /
-            # undecodable response body is a contract violation. Raise the
-            # SDK's typed ApiException (rather than an assert that vanishes
-            # under -O, or a silent None) so callers get one catchable error.
-            raise ApiException(
-                status_code=result.status_code,
-                message="Expected a response body for export_orders but received none",
-                response_body=result.raw_body,
-                response_headers=result.headers,
-            )
-        return result.data
-
-    async def export_orders_with_http_info(
-        self,
-        options: Optional[ExportOrdersOptions] = None,
-    ) -> "ApiResult[Order]":
-        """Exports every order as JSON Lines (with HTTP info)
-        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
-        :return: ApiResult containing the response data, status code, raw body, and headers
-        :raises ApiException: if fails to make API call
+        :param stream_options: the stream settings: idle timeout, reconnects, reconnect delay, last event id and the longest line or event
+        :return: JsonLinesStream[Order]
+        :raises ApiException: if the first request fails
         """
         path = "/store/orders/export"
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
-        return await self._invoke_api_for_result(
+        return await self._invoke_api_for_json_lines(
             "GET",
             path,
             query_params,
@@ -591,12 +549,13 @@ class StoreApi(BaseApi):
             body,
             ["application/x-ndjson"],
             "application/json",
-            "Order",
             NO_AUTH,
             operation_name="export_orders",
             operation_id="exportOrders",
             url_template="/store/orders/export",
             request_options=options,
+            item_type="Order",
+            stream_options=stream_options,
         )
 
     async def get_audit_trail(
@@ -640,7 +599,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -749,7 +707,6 @@ class StoreApi(BaseApi):
                 )
             )
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -805,7 +762,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -861,7 +817,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -917,7 +872,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -973,7 +927,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1029,7 +982,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1151,7 +1103,6 @@ class StoreApi(BaseApi):
                 )
             )
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1229,7 +1180,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1309,7 +1259,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1383,7 +1332,6 @@ class StoreApi(BaseApi):
             )
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1439,7 +1387,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1495,7 +1442,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1551,7 +1497,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1607,7 +1552,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1670,7 +1614,6 @@ class StoreApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = order
-
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -1845,7 +1788,6 @@ class StoreApi(BaseApi):
                 "header",
             )
         body = None
-
         return await self._invoke_api_for_result(
             "GET",
             path,
@@ -1862,47 +1804,22 @@ class StoreApi(BaseApi):
             request_options=options,
         )
 
-    async def watch_notices(
+    async def watch_notices_stream(
         self,
         options: Optional[WatchNoticesOptions] = None,
-    ) -> StrictStr:
+        stream_options: Optional[StreamOptions] = None,
+    ) -> SseStream[str]:
         """Streams plain text notices as server-sent events
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
-        :return: StrictStr
-        :raises ApiException: if fails to make API call
-        """
-        result = await self.watch_notices_with_http_info(
-            options=options,
-        )
-
-        if result.data is None:
-            # This operation declares a non-void return type, so an empty /
-            # undecodable response body is a contract violation. Raise the
-            # SDK's typed ApiException (rather than an assert that vanishes
-            # under -O, or a silent None) so callers get one catchable error.
-            raise ApiException(
-                status_code=result.status_code,
-                message="Expected a response body for watch_notices but received none",
-                response_body=result.raw_body,
-                response_headers=result.headers,
-            )
-        return result.data
-
-    async def watch_notices_with_http_info(
-        self,
-        options: Optional[WatchNoticesOptions] = None,
-    ) -> "ApiResult[StrictStr]":
-        """Streams plain text notices as server-sent events (with HTTP info)
-        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
-        :return: ApiResult containing the response data, status code, raw body, and headers
-        :raises ApiException: if fails to make API call
+        :param stream_options: the stream settings: idle timeout, reconnects, reconnect delay, last event id and the longest line or event
+        :return: SseStream[str]
+        :raises ApiException: if the first request fails
         """
         path = "/store/notices"
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
-
-        return await self._invoke_api_for_result(
+        return await self._invoke_api_for_sse(
             "GET",
             path,
             query_params,
@@ -1910,48 +1827,24 @@ class StoreApi(BaseApi):
             body,
             ["text/event-stream"],
             "application/json",
-            "StrictStr",
             NO_AUTH,
             operation_name="watch_notices",
             operation_id="watchNotices",
             url_template="/store/notices",
             request_options=options,
+            stream_options=stream_options,
         )
 
-    async def watch_orders(
+    async def watch_orders_stream(
         self,
         options: Optional[WatchOrdersOptions] = None,
-    ) -> Order:
+        stream_options: Optional[StreamOptions] = None,
+    ) -> SseStream[Order]:
         """Streams order changes as server-sent events
         :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
-        :return: Order
-        :raises ApiException: if fails to make API call
-        """
-        result = await self.watch_orders_with_http_info(
-            options=options,
-        )
-
-        if result.data is None:
-            # This operation declares a non-void return type, so an empty /
-            # undecodable response body is a contract violation. Raise the
-            # SDK's typed ApiException (rather than an assert that vanishes
-            # under -O, or a silent None) so callers get one catchable error.
-            raise ApiException(
-                status_code=result.status_code,
-                message="Expected a response body for watch_orders but received none",
-                response_body=result.raw_body,
-                response_headers=result.headers,
-            )
-        return result.data
-
-    async def watch_orders_with_http_info(
-        self,
-        options: Optional[WatchOrdersOptions] = None,
-    ) -> "ApiResult[Order]":
-        """Streams order changes as server-sent events (with HTTP info)
-        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
-        :return: ApiResult containing the response data, status code, raw body, and headers
-        :raises ApiException: if fails to make API call
+        :param stream_options: the stream settings: idle timeout, reconnects, reconnect delay, last event id and the longest line or event
+        :return: SseStream[Order]
+        :raises ApiException: if the first request fails
         """
         path = "/store/orders/events"
         query_params: Dict[str, Any] = {}
@@ -1975,8 +1868,7 @@ class StoreApi(BaseApi):
             )
         header_params: Dict[str, str] = {}
         body = None
-
-        return await self._invoke_api_for_result(
+        return await self._invoke_api_for_sse(
             "GET",
             path,
             query_params,
@@ -1984,10 +1876,11 @@ class StoreApi(BaseApi):
             body,
             ["text/event-stream"],
             "application/json",
-            "Order",
             NO_AUTH,
             operation_name="watch_orders",
             operation_id="watchOrders",
             url_template="/store/orders/events",
             request_options=options,
+            item_type="Order",
+            stream_options=stream_options,
         )

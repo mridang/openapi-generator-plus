@@ -37,6 +37,9 @@ from ..api_http_response import ApiHttpResponse
 from ..api_result import ApiResult
 from ..api_stream_response import ApiStreamResponse
 from ..byte_stream import ByteStream
+from ..json_lines_stream import JsonLinesStream
+from ..sse_stream import SseStream
+from ..stream_options import StreamOptions
 from ..default_api_client import (
     DefaultApiClient,
     RequestHandle,
@@ -303,6 +306,7 @@ class BaseApi:
         operation_id: str = "",
         url_template: str = "",
         stream: bool = False,
+        idle_timeout: Optional[int] = None,
     ) -> "ApiResult[Any]":
         """Invoke an API operation and return the full result including status
         code, headers, and raw body alongside the deserialized data.
@@ -337,6 +341,8 @@ class BaseApi:
                 the call hook.
             stream: Return the body as an open :class:`ByteStream` instead of
                 reading it (a binary operation, see :meth:`_invoke_api_for_stream`).
+            idle_timeout: For a stream, the longest silence in the body in milliseconds
+                (``0`` disables it); ``None`` keeps the transport's setting.
 
         Returns:
             ApiResult containing deserialized data, status code, raw body,
@@ -660,6 +666,7 @@ class BaseApi:
                         effective_auth,
                         call_timeout,
                         call_max_retries,
+                        idle_timeout,
                     )
                 except NetworkException as error:
                     error._with_request(method, request_path)
@@ -867,6 +874,7 @@ class BaseApi:
         auth: Optional[Authenticator],
         call_timeout: Optional[int] = None,
         call_max_retries: Optional[int] = None,
+        idle_timeout: Optional[int] = None,
     ) -> ApiStreamResponse:
         """:meth:`_send_with_policy` for a stream: everything up to the response headers.
 
@@ -878,7 +886,9 @@ class BaseApi:
         async def send(
             current: Dict[str, str], deadline: Optional[float]
         ) -> ApiStreamResponse:
-            return await self._send_stream(method, url, current, body, deadline)
+            return await self._send_stream(
+                method, url, current, body, deadline, idle_timeout
+            )
 
         return await self._send_under_policy(
             method,
@@ -1060,6 +1070,7 @@ class BaseApi:
         headers: Dict[str, str],
         body: Any,
         deadline: Optional[float] = None,
+        idle_timeout: Optional[int] = None,
     ) -> ApiStreamResponse:
         """:meth:`_send` for a stream: returns at the response headers, with the body unread.
 
@@ -1071,7 +1082,7 @@ class BaseApi:
             raise NotImplementedError(f"{type(client).__qualname__} cannot stream")
         if not isinstance(client, DefaultApiClient):
             return await asyncio.to_thread(
-                client.send_streaming, method, url, headers, body
+                client.send_streaming, method, url, headers, body, idle_timeout
             )
         handle = RequestHandle()
         pending = asyncio.ensure_future(
@@ -1081,7 +1092,7 @@ class BaseApi:
                 url,
                 headers,
                 body,
-                None,
+                idle_timeout,
                 handle,
                 deadline,
             )
@@ -1147,6 +1158,7 @@ class BaseApi:
         error_schemas: Optional[Mapping[str, ErrorFactory]] = None,
         operation_id: str = "",
         url_template: str = "",
+        idle_timeout: Optional[int] = None,
     ) -> "ApiResult[ByteStream]":
         """Invoke an operation whose success response is binary and return its body as a
         stream, unread.
@@ -1178,8 +1190,175 @@ class BaseApi:
             operation_id=operation_id,
             url_template=url_template,
             stream=True,
+            idle_timeout=idle_timeout,
         )
         return cast("ApiResult[ByteStream]", result)
+
+    async def _invoke_api_for_json_lines(
+        self,
+        method: str,
+        path: str,
+        query_params: Dict[str, Any],
+        header_params: Dict[str, str],
+        body: Any,
+        accepts: List[str],
+        content_type: Optional[str],
+        auth: Union[Authenticator, "_NoAuth", None] = None,
+        raw_body: bool = False,
+        operation_name: str = "",
+        request_options: Optional[CallOptions] = None,
+        error_schemas: Optional[Mapping[str, ErrorFactory]] = None,
+        operation_id: str = "",
+        url_template: str = "",
+        item_type: Optional[str] = None,
+        stream_options: Optional[StreamOptions] = None,
+    ) -> JsonLinesStream[Any]:
+        """Invoke an operation whose success response is a JSON Lines body and return its items
+        as a lazy stream.
+
+        Everything up to the response headers is the buffered call; a non-2xx status raises the
+        typed error and no stream is returned.
+
+        Args:
+            item_type: The type of each line, or ``None`` to hand each line over as a string.
+            stream_options: The stream settings, or ``None``.
+
+        Raises:
+            ApiException: If the API call fails.
+        """
+        options = stream_options if stream_options is not None else StreamOptions()
+        result = await self._invoke_api_for_stream(
+            method,
+            path,
+            query_params,
+            header_params,
+            body,
+            accepts,
+            content_type,
+            auth,
+            raw_body=raw_body,
+            operation_name=operation_name,
+            request_options=request_options,
+            error_schemas=error_schemas,
+            operation_id=operation_id,
+            url_template=url_template,
+            idle_timeout=options.idle_timeout,
+        )
+        stream = result.data
+        if stream is None:
+            raise ApiException(
+                status_code=result.status_code, message="The call returned no stream"
+            )
+        decoder: Callable[[str], Any] = (
+            (lambda line: line)
+            if item_type is None
+            else (lambda line: self._object_serializer.deserialize(line, item_type))
+        )
+        limit = (
+            options.max_event_bytes
+            if options.max_event_bytes is not None
+            else 1024 * 1024
+        )
+        return JsonLinesStream(stream, decoder, limit, method, urlsplit(path).path)
+
+    async def _invoke_api_for_sse(
+        self,
+        method: str,
+        path: str,
+        query_params: Dict[str, Any],
+        header_params: Dict[str, str],
+        body: Any,
+        accepts: List[str],
+        content_type: Optional[str],
+        auth: Union[Authenticator, "_NoAuth", None] = None,
+        raw_body: bool = False,
+        operation_name: str = "",
+        request_options: Optional[CallOptions] = None,
+        error_schemas: Optional[Mapping[str, ErrorFactory]] = None,
+        operation_id: str = "",
+        url_template: str = "",
+        item_type: Optional[str] = None,
+        terminator: Optional[str] = None,
+        stream_options: Optional[StreamOptions] = None,
+    ) -> SseStream[Any]:
+        """Invoke an operation whose success response is a server-sent events body and return its
+        events as a lazy stream that reconnects.
+
+        Each connection is a fresh buffered-style call, so the headers and the credential are built
+        again and the call hook runs again; the stream adds ``Accept: text/event-stream`` (from the
+        operation), ``Cache-Control: no-cache`` and ``Accept-Encoding: identity`` unless the caller
+        set them, and ``Last-Event-ID`` once it has an id.
+
+        Args:
+            item_type: The type of the ``data`` field, or ``None`` to hand it over as a string.
+            terminator: A ``data`` value that ends the stream, or ``None``.
+            stream_options: The stream settings, or ``None``.
+
+        Raises:
+            ApiException: If the first request fails.
+        """
+        options = stream_options if stream_options is not None else StreamOptions()
+        call_headers = request_options.headers if request_options is not None else None
+        sse_headers = dict(header_params)
+        for name, value in (
+            ("Cache-Control", "no-cache"),
+            ("Accept-Encoding", "identity"),
+        ):
+            wanted = name.lower()
+            already = any(
+                key.lower() == wanted
+                for source in (
+                    sse_headers,
+                    call_headers or {},
+                    self._config.default_headers,
+                )
+                for key in source
+            )
+            if not already:
+                sse_headers[name] = value
+
+        async def opener(last_event_id: str) -> ByteStream:
+            headers = dict(sse_headers)
+            if last_event_id:
+                headers["Last-Event-ID"] = last_event_id
+            result = await self._invoke_api_for_stream(
+                method,
+                path,
+                dict(query_params),
+                headers,
+                body,
+                accepts,
+                content_type,
+                auth,
+                raw_body=raw_body,
+                operation_name=operation_name,
+                request_options=request_options,
+                error_schemas=error_schemas,
+                operation_id=operation_id,
+                url_template=url_template,
+                idle_timeout=options.idle_timeout,
+            )
+            if result.data is None:
+                raise ApiException(
+                    status_code=result.status_code,
+                    message="The call returned no stream",
+                )
+            return result.data
+
+        decoder: Optional[Callable[[str], Any]] = (
+            None
+            if item_type is None
+            else (lambda data: self._object_serializer.deserialize(data, item_type))
+        )
+        return await SseStream.open(
+            opener,
+            decoder,
+            terminator,
+            options,
+            body is not None,
+            method,
+            urlsplit(path).path,
+        )
 
     async def _invoke_api(
         self,
