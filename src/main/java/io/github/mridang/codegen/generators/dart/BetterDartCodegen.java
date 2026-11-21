@@ -450,6 +450,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsDir, "internal_server_error_exception.dart"),
             new SupportingFileSpec("errors/network_exception.mustache", errorsDir, "network_exception.dart"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsDir, "network_timeout_exception.dart"),
+            new SupportingFileSpec("errors/stream_exception.mustache", errorsDir, "stream_exception.dart"),
             new SupportingFileSpec("errors/serialization_exception.mustache", errorsDir, "serialization_exception.dart"),
             new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsDir, "oauth2_server_exception.dart"),
             new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsDir, "oauth2_token_exception.dart"),
@@ -463,6 +464,8 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("call_outcome.mustache", srcDir, "call_outcome.dart"),
             new SupportingFileSpec("api_response.mustache", srcDir, "api_http_response.dart"),
             new SupportingFileSpec("api_result.mustache", srcDir, "api_result.dart"),
+            new SupportingFileSpec("api_stream_response.mustache", srcDir, "api_stream_response.dart"),
+            new SupportingFileSpec("byte_stream.mustache", srcDir, "byte_stream.dart"),
             new SupportingFileSpec("api_client.mustache", srcDir, "api_client.dart"),
             new SupportingFileSpec("abstract_api_client.mustache", srcDir, "abstract_api_client.dart"),
             new SupportingFileSpec("default_api_client.mustache", srcDir, "default_api_client.dart"),
@@ -1358,6 +1361,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                     final boolean hasMultipleConsumes =
                             op.consumes != null && op.consumes.size() > 1;
                     opDeco.put("hasMultipleConsumes", hasMultipleConsumes);
+                    markBinaryStream(op, opDeco);
                     final Object sigArgs = opDeco.get("signatureArgs");
                     if (sigArgs instanceof List) {
                         opDeco.put(
@@ -1407,6 +1411,66 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         }
         return objs;
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator
+     * {@code streamsBinary} tells the API template to call {@code invokeApiForStream}.
+     */
+    static void markBinaryStream(final CodegenOperation op, final Map<String, Object> decorators) {
+        final boolean binary = "binary".equals(decorators.get("streamKind"));
+        decorators.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        CodegenOperation found = null;
+        Object group = null;
+        final Object apiInfo = objs.get("apiInfo");
+        if (apiInfo instanceof Map) {
+            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+            if (apis instanceof List) {
+                for (final Object api : (List<Object>) apis) {
+                    final Object operations = ((Map<String, Object>) api).get("operations");
+                    if (!(operations instanceof Map)) {
+                        continue;
+                    }
+                    final Object list = ((Map<String, Object>) operations).get("operation");
+                    if (!(list instanceof List)) {
+                        continue;
+                    }
+                    for (final Object candidate : (List<Object>) list) {
+                        final CodegenOperation op = (CodegenOperation) candidate;
+                        final Object decorators =
+                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                        if (found == null
+                                && decorators instanceof Map
+                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
+                            found = op;
+                            group = operations;
+                        }
+                    }
+                }
+            }
+        }
+        objs.put("hasBinaryStreamOperation", found != null);
+        if (found != null) {
+            objs.put("binaryStreamOperation", found);
+            objs.put("binaryStreamGroup", group);
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**

@@ -227,6 +227,108 @@ class _CountingAuth extends BaseAuthenticator {
   }
 }
 
+/// Answers a stream call from a script of statuses and keeps what each call
+/// was sent.
+class _ScriptedStreamingClient implements RetryingApiClient, StreamingApiClient {
+  _ScriptedStreamingClient(this.contentType, this.body, this.statuses);
+
+  final String contentType;
+  final List<int> body;
+  final List<int> statuses;
+  final List<Map<String, String>> streamHeaders = [];
+  final List<_CloseTrackingBody> opened = [];
+
+  @override
+  int get maxRetries => 0;
+
+  @override
+  int? get timeoutMillis => null;
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+  }) async =>
+      ApiHttpResponse(
+          statusCode: 200, body: '{}', headers: {'content-type': 'application/json'});
+
+  @override
+  Future<ApiStreamResponse> sendStreaming(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+    int? idleTimeout,
+  }) async {
+    final index =
+        streamHeaders.length < statuses.length ? streamHeaders.length : statuses.length - 1;
+    streamHeaders.add(Map<String, String>.from(headers));
+    final opening = _CloseTrackingBody(this.body);
+    opened.add(opening);
+    return ApiStreamResponse(
+      statusCode: statuses[index],
+      headers: {'content-type': contentType},
+      body: opening.stream,
+    );
+  }
+}
+
+/// A response body that remembers whether its subscription was cancelled.
+class _CloseTrackingBody {
+  _CloseTrackingBody(List<int> bytes) {
+    _controller = StreamController<List<int>>(onCancel: () => closed = true);
+    _controller
+      ..add(bytes)
+      ..close();
+  }
+
+  late final StreamController<List<int>> _controller;
+  bool closed = false;
+
+  Stream<List<int>> get stream => _controller.stream;
+}
+
+/// A transport written before streaming existed: it implements the buffered
+/// call only.
+class _BufferedOnlyClient implements ApiClient {
+  String sentUrl = '';
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+  }) async {
+    sentUrl = url;
+    return ApiHttpResponse(
+        statusCode: 200, body: '{}', headers: {'content-type': 'application/json'});
+  }
+}
+
+/// A [BaseApi] on a real server that retries without waiting.
+class _ServerApi extends BaseApi {
+  _ServerApi(String baseUrl, ApiClient client, {CallHook? hook})
+      : super(
+          apiClient: client,
+          config: ConfigurationBuilder().baseUrl(baseUrl).callHook(hook).build(),
+        );
+
+  @override
+  Future<void> sleepBeforeRetry(Duration delay) async {}
+}
+
 PetApi _chasmApi({Map<String, Authenticator>? schemes}) {
   final config = ConfigurationBuilder()
       .baseUrl(chasmHttpUrl)
@@ -5482,6 +5584,215 @@ void main() {
     test('bhv tracing 016 an operation called with no active span sends no traceparent even when a propagator is configured', () async {
       expect((await callUnder(traceA))['traceparent'], equals(traceA));
       expect((await callUnder(null)).containsKey('traceparent'), isFalse);
+    });
+  });
+
+  group('BaseApi binary streams', () {
+    Future<ApiResult<ByteStream>> streamCall(
+      ApiClient client, {
+      Authenticator? authenticator,
+    }) =>
+        _RecordingApi(client, authenticator: authenticator).invokeApiForStream(
+          method: 'GET',
+          path: '/items/blob',
+          accepts: ['application/octet-stream'],
+          contentType: 'application/json',
+        );
+
+    Map<String, String> headersOf(String head) {
+      final headers = <String, String>{};
+      for (final line in head.split('\r\n')) {
+        final colon = line.indexOf(':');
+        if (colon > 0 && !line.startsWith('GET ')) {
+          headers[line.substring(0, colon).toLowerCase()] =
+              line.substring(colon + 1).trim();
+        }
+      }
+      return headers;
+    }
+
+    test('bhv streaming 008 a non-2xx streaming call raises the typed error with the status and the error body and never returns a stream', () async {
+      final client = _ScriptedStreamingClient(
+          'application/json', utf8.encode('{"message":"gone"}'), [404]);
+      await expectLater(
+        streamCall(client),
+        throwsA(isA<NotFoundException>()
+            .having((e) => e.statusCode, 'statusCode', 404)
+            .having((e) => e.responseBody, 'responseBody', contains('gone'))
+            .having((e) => e.requestPath, 'requestPath', '/items/blob')),
+      );
+      expect(client.opened.first.closed, isTrue,
+          reason: 'the connection was closed after the error body');
+
+      final large = _ScriptedStreamingClient('text/plain', List<int>.filled(200000, 0x61), [502]);
+      await expectLater(
+        streamCall(large),
+        throwsA(isA<ServerException>().having(
+            (e) => e.responseBody?.length, 'bounded body', 64 * 1024)),
+      );
+      expect(large.opened.first.closed, isTrue);
+    });
+
+    test('bhv streaming 012 a connection reset in the middle of the body raises a network error and is not retried', () async {
+      final server = await RawServer.serve((self, socket, hit, head) async {
+        await rawHead(socket, 200, ['Transfer-Encoding: chunked']);
+        await rawChunk(socket, 'ab');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        socket.destroy();
+      });
+      try {
+        final api = _ServerApi(server.url(''), DefaultApiClient());
+        final result = await api.invokeApiForStream(method: 'GET', path: '/items/blob');
+        await expectLater(
+            result.data!.readAll(), throwsA(isA<NetworkException>()));
+        expect(server.hits, equals(1),
+            reason: 'the default of two retries does not apply to a body');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv streaming 014 a streaming call retries a 503 before the headers and then streams the retried response', () async {
+      final server = await RawServer.serve((self, socket, hit, head) async {
+        if (hit == 1) {
+          await rawHead(socket, 503, ['Retry-After: 0', 'Content-Length: 4']);
+          await rawBytes(socket, utf8.encode('nope'));
+          return;
+        }
+        await rawHead(socket, 200, ['Content-Length: 5']);
+        await rawBytes(socket, utf8.encode('hello'));
+      });
+      try {
+        final api = _ServerApi(server.url(''), DefaultApiClient());
+        final result = await api.invokeApiForStream(method: 'GET', path: '/items/blob');
+        expect(result.statusCode, equals(200));
+        expect(utf8.decode(await result.data!.readAll()), equals('hello'));
+        expect(server.hits, equals(2));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv streaming 015 a streaming call never retries after the first body byte was delivered', () async {
+      final server = await RawServer.serve((self, socket, hit, head) async {
+        await rawHead(socket, 200, ['Transfer-Encoding: chunked']);
+        await rawChunk(socket, 'part');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        socket.destroy();
+      });
+      try {
+        final api = _ServerApi(server.url(''), DefaultApiClient());
+        final result = await api.invokeApiForStream(method: 'GET', path: '/items/blob');
+        final reader = StreamIterator(result.data!);
+        expect(await reader.moveNext(), isTrue);
+        expect(utf8.decode(reader.current), equals('part'));
+        await expectLater(reader.moveNext(), throwsA(isA<NetworkException>()));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        expect(server.hits, equals(1), reason: 'no second request after the first body byte');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv streaming 017 a streaming call sends the same User-Agent, request id, trace context and authentication headers as a buffered call', () async {
+      final server = await RawServer.serve((self, socket, hit, head) async {
+        await rawHead(socket, 200, ['Content-Type: text/plain', 'Content-Length: 2']);
+        await rawBytes(socket, utf8.encode('ok'));
+      });
+      try {
+        final hook = _RecordingHook(
+          edit: (headers) => headers['traceparent'] =
+              '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+          returnsObserver: false,
+        );
+        final api = _ServerApi(
+          server.url(''),
+          DefaultApiClient(
+            transportOptions:
+                TransportOptionsBuilder().injectRequestId(true).maxRetries(0).build(),
+          ),
+          hook: hook,
+        );
+        final auth = ApiKeyAuthenticator(
+          host: server.url(''),
+          keyParamName: 'X-Api-Key',
+          apiKey: 'k-123',
+          location: ApiKeyLocation.header,
+        );
+        await api.invokeApi(
+          method: 'GET',
+          path: '/items/blob',
+          accepts: ['application/octet-stream'],
+          contentType: 'application/json',
+          auth: auth,
+        );
+        final streamed = await api.invokeApiForStream(
+          method: 'GET',
+          path: '/items/blob',
+          accepts: ['application/octet-stream'],
+          contentType: 'application/json',
+          auth: auth,
+        );
+        await streamed.data!.close();
+
+        final buffered = headersOf(server.heads[0]);
+        final sent = headersOf(server.heads[1]);
+        expect(sent.keys.toSet(), equals(buffered.keys.toSet()),
+            reason: 'the same header names are sent');
+        for (final name in [
+          'user-agent',
+          'x-api-key',
+          'traceparent',
+          'accept',
+          'accept-encoding',
+        ]) {
+          expect(sent[name], isNotNull, reason: name);
+          expect(sent[name], equals(buffered[name]), reason: name);
+        }
+        expect(sent['x-request-id'], isNotNull);
+        expect(sent['x-request-id'], isNot(equals(buffered['x-request-id'])),
+            reason: 'each call has its own request id');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv streaming 018 a 401 on a streaming call authenticated by OAuth2 refreshes the token and replays once before the stream is returned', () async {
+      final auth = _RotatingAuth();
+      final client = _ScriptedStreamingClient(
+          'application/octet-stream', utf8.encode('ok'), [401, 200]);
+      final result = await streamCall(client, authenticator: auth);
+      expect(client.streamHeaders, hasLength(2));
+      expect(client.streamHeaders[0]['Authorization'], equals('Bearer t1'));
+      expect(client.streamHeaders[1]['Authorization'], equals('Bearer t2'));
+      expect(auth.invalidations, equals(1));
+      expect(client.opened.first.closed, isTrue,
+          reason: 'the refused response was closed');
+      expect(utf8.decode(await result.data!.readAll()), equals('ok'));
+
+      final refused = _ScriptedStreamingClient(
+          'application/octet-stream', const <int>[], [401]);
+      await expectLater(streamCall(refused, authenticator: _RotatingAuth()),
+          throwsA(isA<UnauthorizedException>()));
+      expect(refused.streamHeaders, hasLength(2),
+          reason: 'a second 401 is not replayed again');
+    });
+
+    test('bhv streaming 030 a transport that does not implement the streaming method makes a stream call fail with the unsupported error that names the transport, and buffered calls on it keep working', () async {
+      final transport = _BufferedOnlyClient();
+      await expectLater(
+        streamCall(transport),
+        throwsA(isA<UnsupportedError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('_BufferedOnlyClient'), contains('cannot stream')))),
+      );
+      expect(transport.sentUrl, isEmpty,
+          reason: 'nothing was sent and nothing was buffered instead');
+
+      await _RecordingApi(transport).invokeApi(method: 'GET', path: '/items');
+      expect(transport.sentUrl, endsWith('/items'),
+          reason: 'the buffered call still works');
     });
   });
 

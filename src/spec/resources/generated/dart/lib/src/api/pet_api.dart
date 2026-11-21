@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import '../api_result.dart';
 import '../auth/authenticator.dart';
+import '../byte_stream.dart';
 import 'base_api.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
@@ -263,13 +264,13 @@ abstract interface class PetApiInterface {
     int petId,
     DeletePetOptions? options,
   );
-  Future<Uint8List> downloadPetDocument(
+  Future<ByteStream> downloadPetDocument(
     int petId,
     int documentId,
     DownloadPetDocumentOptions? options,
   );
 
-  Future<ApiResult<Uint8List>> downloadPetDocumentWithHttpInfo(
+  Future<ApiResult<ByteStream>> downloadPetDocumentWithHttpInfo(
     int petId,
     int documentId,
     DownloadPetDocumentOptions? options,
@@ -312,9 +313,9 @@ abstract interface class PetApiInterface {
     GetMultiServerPetInfoServer? server,
     GetMultiServerPetInfoOptions? options,
   );
-  Future<Uint8List> getPetAvatar(int petId, GetPetAvatarOptions? options);
+  Future<ByteStream> getPetAvatar(int petId, GetPetAvatarOptions? options);
 
-  Future<ApiResult<Uint8List>> getPetAvatarWithHttpInfo(
+  Future<ApiResult<ByteStream>> getPetAvatarWithHttpInfo(
     int petId,
     GetPetAvatarOptions? options,
   );
@@ -355,13 +356,13 @@ abstract interface class PetApiInterface {
     int petId,
     GetPetPassportOptions? options,
   );
-  Future<Uint8List> getPetPhoto(
+  Future<ByteStream> getPetPhoto(
     int petId,
     int photoId,
     GetPetPhotoOptions? options,
   );
 
-  Future<ApiResult<Uint8List>> getPetPhotoWithHttpInfo(
+  Future<ApiResult<ByteStream>> getPetPhotoWithHttpInfo(
     int petId,
     int photoId,
     GetPetPhotoOptions? options,
@@ -930,9 +931,11 @@ class PetApi extends BaseApi implements PetApiInterface {
   /// Download a vet document
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
   /// Throws `NotFoundException` on HTTP 404.
   @override
-  Future<Uint8List> downloadPetDocument(
+  Future<ByteStream> downloadPetDocument(
     int petId,
     int documentId,
     DownloadPetDocumentOptions? options,
@@ -947,7 +950,7 @@ class PetApi extends BaseApi implements PetApiInterface {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
        * typed ApiException (matching C#/Swift) instead of the Dart runtime
-       * TypeError that `null as Uint8List` would otherwise throw, so
+       * TypeError that `null as ByteStream` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
@@ -961,9 +964,11 @@ class PetApi extends BaseApi implements PetApiInterface {
   }
 
   /// Performs the downloadPetDocument operation and returns the full API result.
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
   /// Throws `NotFoundException` on HTTP 404.
   @override
-  Future<ApiResult<Uint8List>> downloadPetDocumentWithHttpInfo(
+  Future<ApiResult<ByteStream>> downloadPetDocumentWithHttpInfo(
     int petId,
     int documentId,
     DownloadPetDocumentOptions? options,
@@ -1018,7 +1023,7 @@ class PetApi extends BaseApi implements PetApiInterface {
 
     final Object? requestBody = null;
 
-    return invokeApiForResult<Uint8List>(
+    return invokeApiForStream(
       method: 'GET',
       operation: 'PetApi.downloadPetDocument',
       operationId: 'downloadPetDocument',
@@ -1029,12 +1034,10 @@ class PetApi extends BaseApi implements PetApiInterface {
       body: requestBody,
       accepts: ['application/octet-stream'],
       contentType: 'application/json',
-      returnType: 'Uint8List',
       auth: null,
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
-      deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
 
@@ -1440,9 +1443,11 @@ class PetApi extends BaseApi implements PetApiInterface {
   /// Get the pet's profile photo
   /// Returns the raw image bytes of the pet's current avatar.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
   /// Throws `NotFoundException` on HTTP 404.
   @override
-  Future<Uint8List> getPetAvatar(
+  Future<ByteStream> getPetAvatar(
     int petId,
     GetPetAvatarOptions? options,
   ) async {
@@ -1452,7 +1457,7 @@ class PetApi extends BaseApi implements PetApiInterface {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
        * typed ApiException (matching C#/Swift) instead of the Dart runtime
-       * TypeError that `null as Uint8List` would otherwise throw, so
+       * TypeError that `null as ByteStream` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
@@ -1465,9 +1470,11 @@ class PetApi extends BaseApi implements PetApiInterface {
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
   /// Throws `NotFoundException` on HTTP 404.
   @override
-  Future<ApiResult<Uint8List>> getPetAvatarWithHttpInfo(
+  Future<ApiResult<ByteStream>> getPetAvatarWithHttpInfo(
     int petId,
     GetPetAvatarOptions? options,
   ) async {
@@ -1500,7 +1507,7 @@ class PetApi extends BaseApi implements PetApiInterface {
 
     final Object? requestBody = null;
 
-    return invokeApiForResult<Uint8List>(
+    return invokeApiForStream(
       method: 'GET',
       operation: 'PetApi.getPetAvatar',
       operationId: 'getPetAvatar',
@@ -1511,12 +1518,10 @@ class PetApi extends BaseApi implements PetApiInterface {
       body: requestBody,
       accepts: ['image/jpeg', 'image/png'],
       contentType: 'application/json',
-      returnType: 'Uint8List',
       auth: null,
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
-      deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
 
@@ -2001,9 +2006,11 @@ class PetApi extends BaseApi implements PetApiInterface {
   /// Get a photo or its metadata
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
   /// Throws `NotFoundException` on HTTP 404.
   @override
-  Future<Uint8List> getPetPhoto(
+  Future<ByteStream> getPetPhoto(
     int petId,
     int photoId,
     GetPetPhotoOptions? options,
@@ -2014,7 +2021,7 @@ class PetApi extends BaseApi implements PetApiInterface {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
        * operation received an empty/undecodable body. Surface the uniform
        * typed ApiException (matching C#/Swift) instead of the Dart runtime
-       * TypeError that `null as Uint8List` would otherwise throw, so
+       * TypeError that `null as ByteStream` would otherwise throw, so
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
@@ -2027,9 +2034,11 @@ class PetApi extends BaseApi implements PetApiInterface {
   }
 
   /// Performs the getPetPhoto operation and returns the full API result.
+  /// Returns as soon as the response headers arrive: the body is read as the [ByteStream] is
+  /// consumed, so close it when you stop early.
   /// Throws `NotFoundException` on HTTP 404.
   @override
-  Future<ApiResult<Uint8List>> getPetPhotoWithHttpInfo(
+  Future<ApiResult<ByteStream>> getPetPhotoWithHttpInfo(
     int petId,
     int photoId,
     GetPetPhotoOptions? options,
@@ -2084,7 +2093,7 @@ class PetApi extends BaseApi implements PetApiInterface {
 
     final Object? requestBody = null;
 
-    return invokeApiForResult<Uint8List>(
+    return invokeApiForStream(
       method: 'GET',
       operation: 'PetApi.getPetPhoto',
       operationId: 'getPetPhoto',
@@ -2095,12 +2104,10 @@ class PetApi extends BaseApi implements PetApiInterface {
       body: requestBody,
       accepts: ['image/jpeg', 'image/png', 'application/json'],
       contentType: 'application/json',
-      returnType: 'Uint8List',
       auth: null,
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
-      deserialize: (body) => deserializeRaw(body) as Uint8List,
     );
   }
 

@@ -25,7 +25,8 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 | `string` with `format: uuid` | `UuidValue` | A class the SDK defines itself, which validates on construction. It deliberately shadows the type of the same name in `package:uuid`, whose `fromString` does not validate. |
 | `string` with `format: uri` | `String` | Checked as an absolute RFC 3986 URI when decoded. Not `Uri`, because `dart:core` `Uri` rewrites `[`, `]` and the apostrophe, which would change the text on a round trip. |
 | `string` with `format: email`, `hostname`, `ipv4`, `ipv6` | `String` | |
-| `string` with `format: byte`, `binary`, file upload and download | `Uint8List` | Bodies are held in memory. |
+| `string` with `format: byte`, and a `format: binary` file upload | `Uint8List` | The body is held in memory. |
+| `string` with `format: binary` in a success response | `ByteStream`, a `Stream<List<int>>` | The body is read as you consume it, see Streaming. |
 | `array` | `List<T>` | |
 | `array` with `uniqueItems` | `Set<T>` | Order is not specified. |
 | `additionalProperties` map | `Map<String, T>` | `T` is the declared value type; a free-form bucket keeps the any-type |
@@ -121,7 +122,7 @@ The names come from the specification, so the seam is the normaliser: the `RUN_S
 
 ### Status, headers and the raw body
 
-Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A live response object is exposed only for a binary response: its operation returns a `ByteStream` that carries the status code and the lower-cased headers, and `...WithHttpInfo` returns it in `data` with an empty `rawBody`. To see or change what goes over the wire, use the call hook above or the transport you supply.
 
 ```dart
 final result = await client.pet.addPetWithHttpInfo(pet);
@@ -135,6 +136,14 @@ try {
   print('${e.statusCode} ${e.responseHeaders} ${e.responseBody}');
 }
 ```
+
+### Streaming
+
+An operation whose success response is binary returns a `Future<ByteStream>` that completes when the response headers arrive; the body is read as the stream is consumed, so a large download never has to fit in memory. `ByteStream` is a single-subscription `Stream<List<int>>` with `statusCode`, the lower-cased `headers`, `bytesDelivered`, an idempotent `close()` that aborts the connection instead of draining it (cancelling the subscription closes it too), and `readAll()`, which reads the rest into memory and leaves the stream closed. Its string form shows only the status code and the bytes delivered.
+
+`package:http` exports a class named `ByteStream` too, so a file that imports `package:http/http.dart` without a prefix and this package meets an ambiguous name; import one of them with `as`.
+
+The transport gains one optional capability, `StreamingApiClient.sendStreaming`, next to the buffered `sendRequest`. It is a second interface that the SDK checks at call time, as the capability interfaces `RetryingApiClient` and `AdmittingApiClient` already are, and not a default method on `ApiClient`: Dart does not inherit a default body into a class that `implements` the interface, so a default would stop every existing custom transport from compiling. A transport that does not implement it keeps serving buffered calls, and a stream call through it throws an `UnsupportedError` naming the transport. `DefaultApiClient` implements it on both the `dart:io` and the web transport. `TransportOptions.builder().idleTimeout(ms)` (default 60000, `0` or `null` disables it) bounds the gap between two chunks of the body and raises `NetworkTimeoutException`; the call `timeout` stops at the headers. A connection reset or a body shorter than its `Content-Length` raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the open streams, and the next read of each raises the `StateError` of a closed client.
 
 ## Known limits
 
@@ -158,7 +167,7 @@ These are ideas from a review of the type mapping against current Dart. None is 
 - Decide what `format: date` should be. One option is to keep `DateTime` and document that it is UTC midnight, with a test that a host in a non-UTC zone never shifts the day. Another is an SDK-owned `LocalDate` class, which would be a public API addition that has to match the other eleven SDKs.
 - Optionally map `format: uri` to `dart:core` `Uri`, if the rewriting of `[`, `]` and the apostrophe is acceptable. Otherwise record the decision to keep `String`.
 - Move the `oneOf` wrappers to sealed classes with pattern matching, which Dart has had since 3.0. The current wrapper cannot be switched exhaustively. This is a public API change.
-- Offer a streaming path for uploads and downloads, using `ByteStream` from `package:http`, which needs no new dependency.
+- Offer a streaming path for uploads. Downloads are done: a binary response is a `ByteStream`, see Streaming.
 - The `iso8601_duration.dart` file name is misleading, since it holds protobuf-JSON helpers around `Duration`. The generator's AGENTS file also describes an SDK-owned duration class that does not exist.
 
 Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. The hook runs in the operation's own zone, after the credential await, so a hook that reads the zone's context sees the caller's span; the base-api tests prove this with a zone value.
