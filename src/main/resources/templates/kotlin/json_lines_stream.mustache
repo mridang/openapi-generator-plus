@@ -1,0 +1,145 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.errors.SerializationException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import java.util.concurrent.atomic.AtomicBoolean
+
+/**
+ * The items of a JSON Lines response, decoded one per line as they arrive. Blank lines are
+ * skipped, and a last line without a newline counts. A line that does not decode raises a
+ * [SerializationException] that names its 1-based line number and ends the stream, as does a line
+ * over `maxEventBytes`.
+ *
+ * Collect [items], which reads the body once and closes the stream when the collection ends, or
+ * take the items one by one with [next]. [close] is idempotent and aborts the connection instead
+ * of draining it, so close the stream (`use { }`) when you stop early. Closing the client cancels
+ * the streams still open: their next read raises [IllegalStateException]. [toString] shows the
+ * status code and the lines read, never the content.
+ *
+ * @param T the item type
+ * @param source the open body; this stream closes it
+ * @param decoder decodes one line into an item, or returns `null` for a line with no value
+ * @param maxLineBytes the longest a line may be
+ * @param method the HTTP method of the request, for errors
+ * @param path the path of the request, for errors
+ */
+class JsonLinesStream<T>(
+    private val source: ByteStream,
+    private val decoder: (String) -> T?,
+    maxLineBytes: Int,
+    private val method: String,
+    private val path: String,
+) : AutoCloseable {
+    private val lines = LineReader(source, maxLineBytes)
+    private val closedByCaller = AtomicBoolean()
+
+    @Volatile private var lineNumber = 0L
+
+    @Volatile private var done = false
+
+    /** The HTTP status code of the response. */
+    val statusCode: Int
+        get() = source.statusCode
+
+    /** The lower-cased response headers. */
+    val headers: Map<String, String>
+        get() = source.headers
+
+    /**
+     * The remaining items as a cold [Flow]. Collecting it reads the body once; the stream is closed
+     * when the collection ends, whether it read to the end, stopped early or failed.
+     *
+     * @return the items, in order
+     */
+    fun items(): Flow<T> =
+        flow {
+            try {
+                while (true) {
+                    emit(next() ?: break)
+                }
+            } finally {
+                close()
+            }
+        }
+
+    /**
+     * Reads the next item, suspending until its line has arrived.
+     *
+     * @return the item, or `null` once the stream has ended or was closed
+     * @throws SerializationException for a line that does not decode or is too long; the stream
+     *   ends
+     */
+    suspend fun next(): T? {
+        if (done) {
+            return null
+        }
+        try {
+            return readItem()
+        } catch (tooLong: TooLongException) {
+            finish()
+            throw failure("Line ${lineNumber + 1} of the JSON Lines response is too long: ${tooLong.message}", tooLong)
+        } catch (cancelled: CancellationException) {
+            finish()
+            throw cancelled
+        } catch (error: Throwable) {
+            finish()
+            if (closedByCaller.get()) {
+                return null
+            }
+            throw error
+        }
+    }
+
+    private suspend fun readItem(): T? {
+        while (true) {
+            val line = lines.readLine()
+            if (line == null) {
+                finish()
+                return null
+            }
+            lineNumber++
+            if (line.isNotBlank()) {
+                return decode(line)
+            }
+        }
+    }
+
+    private fun decode(line: String): T {
+        val value =
+            try {
+                decoder(line)
+            } catch (error: SerializationException) {
+                throw failure("Line $lineNumber of the JSON Lines response does not decode: ${error.message}", error)
+            }
+        return value ?: throw failure("Line $lineNumber of the JSON Lines response decodes to nothing", null)
+    }
+
+    private fun failure(
+        message: String,
+        cause: Throwable?,
+    ): SerializationException {
+        val error = if (cause == null) SerializationException(message) else SerializationException(message, cause)
+        error.statusCode = source.statusCode
+        error.responseHeaders = source.headers
+        error.requestMethod = method
+        error.requestPath = path
+        return error
+    }
+
+    private fun finish() {
+        done = true
+        source.close()
+    }
+
+    /** Closes the stream and aborts the connection; later calls do nothing. */
+    override fun close() {
+        closedByCaller.set(true)
+        finish()
+    }
+
+    override fun toString(): String = "JsonLinesStream(statusCode=${source.statusCode}, linesRead=$lineNumber)"
+}

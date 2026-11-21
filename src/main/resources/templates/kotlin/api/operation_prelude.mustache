@@ -1,0 +1,240 @@
+{{#vendorExtensions.op.hasOptionsParam}}
+        val callTimeout: Long? = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.timeout
+        val callHeaders: Map<String, String>? = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.headers
+        val callMaxRetries: Int? = options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.maxRetries
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+{{/vendorExtensions.op.hasOptionsParam}}
+{{#pathParams}}
+{{#required}}
+        requireNotNull({{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{#isString}}
+{{^isUuid}}
+        require({{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{/isUuid}}
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        requireNotNull({{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{/required}}
+{{/bodyParam}}
+{{! required-nested-param-validation: query/header/form/cookie params live in
+    options. A REQUIRED one must fail loud when absent rather than be silently
+    dropped by the `!= null` guards below — mirrors the path/body checks. }}
+{{#queryParams}}
+{{#required}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+{{#isString}}
+{{^isUuid}}
+        require(options.{{paramName}}?.isNotEmpty() != false) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{/isUuid}}
+{{/isString}}
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
+        requireNotNull(options.{{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{#isString}}
+{{^isUuid}}
+        require(options.{{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{/isUuid}}
+{{/isString}}
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        requireNotNull(options.{{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{#isString}}
+{{^isUuid}}
+        require(options.{{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{/isUuid}}
+{{/isString}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        requireNotNull(options.{{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{#isString}}
+{{^isUuid}}
+        require(options.{{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{/isUuid}}
+{{/isString}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        requireNotNull(options.{{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{#isString}}
+{{^isUuid}}
+        require(options.{{paramName}}.isNotEmpty()) {
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        }
+{{/isUuid}}
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
+        var path{{^pathParams}} = "{{{path}}}"{{/pathParams}}{{#pathParams}}{{#-first}} =
+                "{{{path}}}"{{/-first}}
+                        .replace(
+                                "{" + "{{baseName}}" + "}",
+                                {{#vendorExtensions.param.queryContent}}ValueSerializer.serializeContent("{{baseName}}", {{{paramName}}}, "path") as String{{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String{{/vendorExtensions.param.queryContent}}){{/pathParams}}{{#pathParams}}{{#-last}}{{/-last}}{{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if (server != null) {
+            val serverUrl = server.getUrl()
+            if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+                path = serverUrl + path
+            }
+        }
+{{/-first}}
+{{/servers}}
+        val queryParams = mutableMapOf<String, Any?>()
+{{#queryParams}}
+{{#vendorExtensions.param.queryDeepObject}}
+{{^required}}
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+{{/required}}
+            queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}))
+{{^required}}
+        }
+{{/required}}
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+{{^required}}
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+{{/required}}
+            queryParams["{{baseName}}"] = objectSerializer.serialize(options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}})
+{{^required}}
+        }
+{{/required}}
+{{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        val {{paramName}}Value = options.{{paramName}}
+        if ({{paramName}}Value == null) {
+            queryParams["{{baseName}}"] = ""
+        } else {
+            ValueSerializer.putQuery(queryParams, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", {{paramName}}Value, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{#vendorExtensions.param.queryStyledAllowEmpty}}
+        if (options != null) {
+            val {{paramName}}Styled = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
+            ValueSerializer.putQuery(queryParams, "{{baseName}}", {{paramName}}Styled, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+        }
+{{/vendorExtensions.param.queryStyledAllowEmpty}}
+{{#vendorExtensions.param.queryStyled}}
+{{^required}}
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+{{/required}}
+            ValueSerializer.putQuery(queryParams, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+{{^required}}
+        }
+{{/required}}
+{{/vendorExtensions.param.queryStyled}}
+{{/queryParams}}
+        val headerParams = mutableMapOf<String, String>()
+{{#headerParams}}
+{{^required}}
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+{{/required}}
+{{#vendorExtensions.param.queryContent}}
+            headerParams["{{baseName}}"] = ValueSerializer.serializeContent("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "header") as String
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
+            headerParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "header", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String
+{{/vendorExtensions.param.queryContent}}
+{{^required}}
+        }
+{{/required}}
+{{/headerParams}}
+{{#hasCookieParams}}
+        val cookieParts = mutableListOf<String>()
+{{#cookieParams}}
+{{#required}}
+        run {
+{{/required}}
+{{^required}}
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+{{/required}}
+            // RFC 6265 — validate the assembled cookie name/value before it is
+            // joined into the Cookie header, exactly as the auth-cookie path in
+            // BaseApi does. A CR/LF or other control character in the serialized
+            // value must fail closed here to prevent request-header injection,
+            // rather than being interpolated raw into the Cookie header.
+            val cookieName = "{{baseName}}"
+{{#vendorExtensions.param.queryContent}}
+            val cookieValue = ValueSerializer.serializeContent("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "cookie") as String
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryContent}}
+            val cookieValue = ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String
+{{/vendorExtensions.param.queryContent}}
+            require(isValidCookieName(cookieName)) {
+                "Cookie name '$cookieName' contains characters forbidden by RFC 6265"
+            }
+            require(isValidCookieValue(cookieValue)) {
+                "Cookie value for '$cookieName' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+            }
+            cookieParts.add("$cookieName=$cookieValue")
+{{#required}}
+        }
+{{/required}}
+{{^required}}
+        }
+{{/required}}
+{{/cookieParams}}
+        if (cookieParts.isNotEmpty()) {
+            headerParams["Cookie"] = cookieParts.joinToString("; ")
+        }
+{{/hasCookieParams}}
+{{#hasFormParams}}
+        val formBody = mutableMapOf<String, Any?>()
+{{#formParams}}
+{{#required}}
+        formBody["{{baseName}}"] = options.{{paramName}}
+{{/required}}
+{{^required}}
+        if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+            formBody["{{baseName}}"] = options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}
+        }
+{{/required}}
+{{/formParams}}
+
+{{/hasFormParams}}
+{{#consumes}}{{#-last}}{{^-first}}
+        // Reject an unrecognised requestContentType client-side so a typo never
+        // rides the wire as an undeclared Content-Type (matching java/elixir and
+        // the other SDKs); null defaults to the first declared type.
+        val declaredConsumes = listOf({{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}})
+        val effectiveRequestContentType = when {
+            requestContentType == null -> "{{vendorExtensions.op.effectiveConsumes}}"
+            requestContentType in declaredConsumes -> requestContentType
+            else -> throw IllegalArgumentException(
+                "Unsupported request content-type '$requestContentType' for {{operationId}}; declared types are $declaredConsumes")
+        }
+{{/-first}}{{/-last}}{{/consumes}}

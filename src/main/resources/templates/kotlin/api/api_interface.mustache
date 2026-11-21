@@ -7,6 +7,15 @@ import {{invokerPackage}}.ApiResult
 {{#hasBinaryStream}}
 import {{invokerPackage}}.ByteStream
 {{/hasBinaryStream}}
+{{#hasJsonLinesStream}}
+import {{invokerPackage}}.JsonLinesStream
+{{/hasJsonLinesStream}}
+{{#hasSseStream}}
+import {{invokerPackage}}.SseStream
+{{/hasSseStream}}
+{{#hasEventStream}}
+import {{invokerPackage}}.StreamOptions
+{{/hasEventStream}}
 {{#imports}}import {{import}}
 {{/imports}}
 {{#optionsImports}}
@@ -29,6 +38,15 @@ import {{modelPackage}}.{{{returnType}}}
  */
 interface {{classname}}Interface {
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+    /** The `{{operationId}}` operation as a stream; it has no buffered form. */
+{{#isDeprecated}}
+    @Deprecated("This operation is deprecated.")
+{{/isDeprecated}}
+    suspend fun {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}, streamOptions: StreamOptions? = null): {{{returnType}}}
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 {{#servers}}{{#-first}}
 
     /** Same as [{{operationId}}] but sends the request to the default server. */
@@ -59,6 +77,7 @@ interface {{classname}}Interface {
     @Deprecated("This operation is deprecated.")
 {{/isDeprecated}}
     suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}}{{#nullable}}? = null{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = null{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}>
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
 {{/operations}}
