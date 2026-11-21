@@ -1,0 +1,299 @@
+{{>api_info}}
+
+/* The line splitter and the server-sent events parser behind `JsonLinesStream` and
+ * `SseStream`. The grammar is the one of the WHATWG HTML standard, "Server-sent events":
+ * UTF-8, a leading byte order mark dropped, lines ended by CRLF, LF or CR, a blank line
+ * dispatches, an empty data buffer is not dispatched but its id is kept, a line that starts
+ * with a colon is a comment, one space after the colon is removed, unknown fields are
+ * ignored, data lines are joined with a line feed, an id with a NUL is ignored, a retry
+ * value only counts when it is digits, and an event cut off by the end of the stream is
+ * discarded. Both parsers are fed chunks of bytes and keep what is left over, so a line
+ * or a multi-byte character split across two chunks is whole when it is used. */
+
+use std::fmt;
+
+/// A line or event that is longer than the configured limit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TooLong {
+    message: String,
+}
+
+impl fmt::Display for TooLong {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for TooLong {}
+
+/// Splits a byte stream into lines on CRLF, LF or a lone CR, decoding UTF-8.
+pub(crate) struct LineSplitter {
+    buffer: Vec<u8>,
+    max_bytes: usize,
+    skip_line_feed: bool,
+    first: bool,
+}
+
+impl LineSplitter {
+    pub(crate) fn new(max_bytes: usize) -> Self {
+        Self {
+            buffer: Vec::new(),
+            max_bytes,
+            skip_line_feed: false,
+            first: true,
+        }
+    }
+
+    /// Adds a chunk and appends every line it completes to `lines`. A line past
+    /// the limit is an error; the lines completed before it are already in
+    /// `lines`.
+    pub(crate) fn push(&mut self, chunk: &[u8], lines: &mut Vec<String>) -> Result<(), TooLong> {
+        for &byte in chunk {
+            if self.skip_line_feed {
+                self.skip_line_feed = false;
+                if byte == b'\n' {
+                    continue;
+                }
+            }
+            if byte == b'\n' || byte == b'\r' {
+                self.skip_line_feed = byte == b'\r';
+                lines.push(self.take_line());
+                continue;
+            }
+            if self.buffer.len() >= self.max_bytes {
+                return Err(TooLong {
+                    message: format!("A line is longer than {} bytes", self.max_bytes),
+                });
+            }
+            self.buffer.push(byte);
+        }
+        Ok(())
+    }
+
+    /// The last line of a stream that ended without a line terminator, or
+    /// `None` when the stream ended after one.
+    pub(crate) fn finish(&mut self) -> Option<String> {
+        if self.buffer.is_empty() {
+            None
+        } else {
+            Some(self.take_line())
+        }
+    }
+
+    fn take_line(&mut self) -> String {
+        let text = String::from_utf8_lossy(&self.buffer).into_owned();
+        self.buffer.clear();
+        if self.first {
+            self.first = false;
+            if let Some(stripped) = text.strip_prefix('\u{feff}') {
+                return stripped.to_string();
+            }
+        }
+        text
+    }
+}
+
+/// One dispatched event, before its data is decoded.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RawEvent {
+    pub(crate) id: Option<String>,
+    pub(crate) event: String,
+    pub(crate) data: String,
+    pub(crate) retry: Option<u64>,
+}
+
+/// Reads events from chunks of bytes.
+pub(crate) struct SseParser {
+    lines: LineSplitter,
+    max_event_bytes: usize,
+    data: String,
+    has_data: bool,
+    name: String,
+    id_buffer: String,
+    last_event_id: String,
+    retry: Option<u64>,
+}
+
+impl SseParser {
+    pub(crate) fn new(max_event_bytes: usize, last_event_id: &str) -> Self {
+        Self {
+            lines: LineSplitter::new(max_event_bytes),
+            max_event_bytes,
+            data: String::new(),
+            has_data: false,
+            name: String::new(),
+            id_buffer: last_event_id.to_string(),
+            last_event_id: last_event_id.to_string(),
+            retry: None,
+        }
+    }
+
+    /// The last event id seen, which a reconnect sends; empty when none.
+    pub(crate) fn last_event_id(&self) -> &str {
+        &self.last_event_id
+    }
+
+    /// The reconnection time the server last named, in milliseconds.
+    pub(crate) fn retry(&self) -> Option<u64> {
+        self.retry
+    }
+
+    /// Adds a chunk and appends every event it completes to `events`. A line or
+    /// an event past the limit is an error; the events dispatched before it are
+    /// already in `events`.
+    pub(crate) fn push(&mut self, chunk: &[u8], events: &mut Vec<RawEvent>) -> Result<(), TooLong> {
+        let mut lines = Vec::new();
+        let split = self.lines.push(chunk, &mut lines);
+        for line in lines {
+            self.process(&line, events)?;
+        }
+        split
+    }
+
+    fn process(&mut self, line: &str, events: &mut Vec<RawEvent>) -> Result<(), TooLong> {
+        if line.is_empty() {
+            self.last_event_id = self.id_buffer.clone();
+            if !self.has_data {
+                self.name.clear();
+                return Ok(());
+            }
+            let mut text = std::mem::take(&mut self.data);
+            text.pop();
+            self.has_data = false;
+            let name = std::mem::take(&mut self.name);
+            events.push(RawEvent {
+                id: if self.last_event_id.is_empty() {
+                    None
+                } else {
+                    Some(self.last_event_id.clone())
+                },
+                event: if name.is_empty() { "message".to_string() } else { name },
+                data: text,
+                retry: self.retry,
+            });
+            return Ok(());
+        }
+        if line.starts_with(':') {
+            return Ok(());
+        }
+        let (field, value) = match line.find(':') {
+            Some(colon) => {
+                let value = &line[colon + 1..];
+                (&line[..colon], value.strip_prefix(' ').unwrap_or(value))
+            }
+            None => (line, ""),
+        };
+        match field {
+            "data" => {
+                if self.data.len() + value.len() + 1 > self.max_event_bytes {
+                    return Err(TooLong {
+                        message: format!("An event is longer than {} bytes", self.max_event_bytes),
+                    });
+                }
+                self.data.push_str(value);
+                self.data.push('\n');
+                self.has_data = true;
+            }
+            "event" => self.name = value.to_string(),
+            "id" if !value.contains('\0') => self.id_buffer = value.to_string(),
+            "retry" if !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit()) && value.len() < 18 => {
+                self.retry = value.parse().ok();
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(text: &str) -> Vec<RawEvent> {
+        let mut parser = SseParser::new(1024, "");
+        let mut events = Vec::new();
+        parser.push(text.as_bytes(), &mut events).expect("within the limit");
+        events
+    }
+
+    #[test]
+    fn test_bhv_sse_001_an_sse_stream_yields_the_id_event_data_and_retry_fields_of_each_event_with_message_as_the_default() {
+        let events = parse("id: 7\nevent: tick\nretry: 250\ndata: one\n\ndata: two\n\n");
+        assert_eq!(2, events.len());
+        assert_eq!(
+            RawEvent {
+                id: Some("7".to_string()),
+                event: "tick".to_string(),
+                data: "one".to_string(),
+                retry: Some(250)
+            },
+            events[0]
+        );
+        assert_eq!("message", events[1].event);
+        assert_eq!("two", events[1].data);
+        assert_eq!(Some("7".to_string()), events[1].id, "the id persists until another arrives");
+    }
+
+    #[test]
+    fn test_bhv_sse_002_an_sse_stream_joins_consecutive_data_lines_with_a_newline_and_skips_comment_lines() {
+        let events = parse(": a comment\ndata: one\n: another\ndata: two\n\n");
+        assert_eq!(1, events.len());
+        assert_eq!("one\ntwo", events[0].data);
+    }
+
+    #[test]
+    fn test_bhv_sse_003_an_sse_stream_drops_a_byte_order_mark_accepts_every_line_end_and_removes_one_space_after_the_colon() {
+        for end in ["\n", "\r", "\r\n"] {
+            let events = parse(&format!("\u{feff}data: a{end}data:  b{end}{end}"));
+            assert_eq!(1, events.len(), "line end {:?}", end);
+            assert_eq!("a\n b", events[0].data);
+        }
+        assert_eq!("x", parse("data:x\n\n")[0].data, "no space to remove");
+        /* The same bytes one at a time, so a CRLF and a character are split across chunks. */
+        let text = "\u{feff}data: caf\u{e9}\r\ndata: b\r\n\r\n";
+        let mut parser = SseParser::new(1024, "");
+        let mut events = Vec::new();
+        for byte in text.as_bytes() {
+            parser.push(&[*byte], &mut events).expect("within the limit");
+        }
+        assert_eq!(1, events.len());
+        assert_eq!("caf\u{e9}\nb", events[0].data);
+    }
+
+    #[test]
+    fn test_bhv_sse_004_an_sse_event_with_an_empty_data_buffer_is_not_delivered_but_its_id_is_kept() {
+        let mut parser = SseParser::new(1024, "");
+        let mut events = Vec::new();
+        parser.push(b"id: 9\n\n", &mut events).expect("within the limit");
+        assert!(events.is_empty());
+        assert_eq!("9", parser.last_event_id());
+    }
+
+    #[test]
+    fn test_bhv_sse_014_an_sse_retry_field_that_is_not_digits_and_an_id_containing_nul_are_ignored() {
+        let mut parser = SseParser::new(1024, "");
+        let mut events = Vec::new();
+        parser
+            .push(b"retry: 12x\nid: a\0b\ndata: x\n\n", &mut events)
+            .expect("within the limit");
+        assert_eq!(1, events.len());
+        assert_eq!("x", events[0].data);
+        assert_eq!(None, events[0].id);
+        assert_eq!(None, parser.retry());
+    }
+
+    #[test]
+    fn test_bhv_sse_019_an_sse_event_cut_off_by_the_end_of_the_connection_is_discarded() {
+        let events = parse("data: whole\n\ndata: cut off\n");
+        assert_eq!(1, events.len());
+        assert_eq!("whole", events[0].data);
+        assert!(parse("data: no newline at all").is_empty());
+    }
+
+    #[test]
+    fn test_bhv_sse_023_an_unknown_sse_field_is_ignored() {
+        let events = parse("mystery: 1\ndata: x\nanother\n\n");
+        assert_eq!(1, events.len());
+        assert_eq!("x", events[0].data);
+    }
+}

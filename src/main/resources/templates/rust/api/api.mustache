@@ -14,6 +14,15 @@ use crate::auth::Authenticator;
 {{#hasBinaryStream}}
 use crate::byte_stream::ByteStream;
 {{/hasBinaryStream}}
+{{#hasJsonLinesStream}}
+use crate::json_lines_stream::JsonLinesStream;
+{{/hasJsonLinesStream}}
+{{#hasSseStream}}
+use crate::sse_stream::SseStream;
+{{/hasSseStream}}
+{{#hasEventStream}}
+use crate::stream_options::StreamOptions;
+{{/hasEventStream}}
 use crate::configuration::Configuration;
 use crate::models::*;
 use crate::object_serializer;
@@ -129,6 +138,67 @@ impl {{classname}} {
         self
     }
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+{{#summary}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/summary}}
+{{#notes}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/notes}}
+    ///
+    /// The response is returned as a stream that is read as it arrives; the call
+    /// returns once the response headers have arrived, and a status that is not a
+    /// success raises the usual typed error. There is no buffered form of this
+    /// operation.
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
+{{#externalDocs}}
+    /// See <{{url}}> {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
+{{/externalDocs}}
+{{#allParams}}
+{{#description}}
+    /// * `{{paramName}}`: {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+{{/description}}
+{{/allParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}    /// * `options`: Options for query, header, form, and cookie parameters.
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+    /// * `stream_options`: the stream settings, or `None` for the defaults.
+    pub async fn {{vendorExtensions.op.streamMethodName}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+        stream_options: Option<&StreamOptions>,
+    ) -> Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>> {
+        self.{{operationId}}_invoke(
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}            {{paramName}},
+{{/isPath}}{{#isBody}}            {{paramName}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}            server,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}            options,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+            request_content_type.unwrap_or("{{vendorExtensions.op.effectiveConsumes}}"),
+{{/consumes.1}}
+{{^consumes.1}}
+            "{{vendorExtensions.op.effectiveConsumes}}",
+{{/consumes.1}}
+            stream_options,
+        )
+        .await
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 
 {{#summary}}
     /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
@@ -256,6 +326,8 @@ impl {{classname}} {
         .await
     }
 
+{{/vendorExtensions.op.streamOnly}}
+
     /// Shared implementation for the {{operationId}} operation. The resolved
     /// request Content-Type is taken as an argument so the public entry points
     /// can either default to the first declared content-type or honour an
@@ -269,7 +341,13 @@ impl {{classname}} {
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
 {{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
         request_content_type: &str,
+{{#vendorExtensions.op.streamOnly}}
+        stream_options: Option<&StreamOptions>,
+    ) -> Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>> {
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+{{/vendorExtensions.op.streamOnly}}
 {{#consumes.1}}
         /* Reject an unrecognised request content-type client-side so a typo
          * never rides the wire as an undeclared Content-Type (matching
@@ -1020,6 +1098,33 @@ impl {{classname}} {
          * returns once the response headers have arrived. */
         self.base.invoke_api_for_stream(params).await
 {{/vendorExtensions.op.streamsBinary}}
+{{#vendorExtensions.op.streamsJsonLines}}
+        /* A JSON Lines response is returned as a stream of decoded items, not
+         * read yet; the call returns once the response headers have arrived. */
+        self.base
+            .invoke_api_for_json_lines::<{{{vendorExtensions.op.streamItemRust}}}>(params, stream_options, {{^vendorExtensions.op.streamTyped}}true{{/vendorExtensions.op.streamTyped}}{{#vendorExtensions.op.streamTyped}}false{{/vendorExtensions.op.streamTyped}})
+            .await
+{{/vendorExtensions.op.streamsJsonLines}}
+{{#vendorExtensions.op.streamsSse}}
+        /* An event stream is returned as a stream of events that reconnects when
+         * the connection is lost; the call returns once the response headers of
+         * the first connection have arrived. */
+        self.base
+            .invoke_api_for_sse::<{{{vendorExtensions.op.streamItemRust}}}>(
+                params,
+{{#hasAuthMethods}}
+                credential.clone(),
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+                None,
+{{/hasAuthMethods}}
+                stream_options,
+                {{#hasSseTerminator}}Some("{{{sseTerminator}}}"){{/hasSseTerminator}}{{^hasSseTerminator}}None{{/hasSseTerminator}},
+                {{^vendorExtensions.op.streamTyped}}true{{/vendorExtensions.op.streamTyped}}{{#vendorExtensions.op.streamTyped}}false{{/vendorExtensions.op.streamTyped}},
+            )
+            .await
+{{/vendorExtensions.op.streamsSse}}
+{{^vendorExtensions.op.streamOnly}}
 {{^vendorExtensions.op.streamsBinary}}
 {{#returnType}}
 {{#vendorExtensions.op.hasMultiple2xx}}
@@ -1046,6 +1151,7 @@ impl {{classname}} {
         self.base.invoke_api_for_empty_result(params).await
 {{/returnType}}
 {{/vendorExtensions.op.streamsBinary}}
+{{/vendorExtensions.op.streamOnly}}
     }
 {{/operation}}
 }
@@ -1056,6 +1162,25 @@ impl {{classname}} {
 /// per-operation server traits are not.
 pub trait {{classname}}Trait {
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
+    fn {{vendorExtensions.op.streamMethodName}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>>>;
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 {{#isDeprecated}}
     #[deprecated]
 {{/isDeprecated}}
@@ -1086,11 +1211,44 @@ pub trait {{classname}}Trait {
         request_content_type: Option<&str>,
 {{/consumes.1}}
     ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>>>;
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
 
 impl {{classname}}Trait for {{classname}} {
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{vendorExtensions.op.streamMethodName}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>>> {
+        {{classname}}::{{vendorExtensions.op.streamMethodName}}(
+            self,
+{{#vendorExtensions.op.signatureArgs}}
+{{^isServer}}{{^isOptions}}            {{paramName}},
+{{/isOptions}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}            server,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}            options,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+            request_content_type,
+{{/consumes.1}}
+            stream_options,
+        )
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 {{#isDeprecated}}
     #[allow(deprecated)]
 {{/isDeprecated}}
@@ -1146,6 +1304,7 @@ impl {{classname}}Trait for {{classname}} {
 {{/consumes.1}}
         )
     }
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
 {{/operations}}

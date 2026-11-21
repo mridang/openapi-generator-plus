@@ -12,6 +12,7 @@ use futures_util::StreamExt as _;
 use raw_server::RawServer;
 
 use {{packageName}}::*;
+use {{packageName}}::api::StoreApi;
 use {{packageName}}::api_client::{RequestBody, RequestOptions};
 
 // The `default_api_client` module is crate-private, so its free helpers
@@ -4713,4 +4714,137 @@ async fn test_bhv_streaming_021_closing_the_client_cancels_the_open_streams_and_
         .await
         .expect_err("a call on a closed client is refused");
     assert!(matches!(refused.downcast_ref::<ConfigurationError>(), Some(ConfigurationError::InvalidState(_))));
+}
+
+/* JSON Lines and server-sent events over the real transport, through the API group: a gzip body
+ * decoded as it arrives, and a feed that is cut, stalls or goes quiet. */
+
+fn store_api(server: &RawServer, transport: Option<TransportOptions>) -> StoreApi {
+    let config = ConfigurationBuilder::new().base_url(&server.url("")).build();
+    StoreApi::new(Arc::new(DefaultApiClient::new(transport)), config, None)
+}
+
+fn fast_reconnect() -> StreamOptions {
+    StreamOptions::new().reconnect_delay(std::time::Duration::from_millis(1))
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_006_a_gzip_encoded_stream_is_decoded_incrementally_so_the_first_item_arrives_before_the_body_ends() {
+    use std::io::Write as _;
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(b"{\"id\":1}\n").expect("first line");
+    encoder.flush().expect("a sync flush makes the first line decodable");
+    let head = std::mem::take(encoder.get_mut());
+    encoder.write_all(b"{\"id\":2}\n").expect("second line");
+    let rest = encoder.finish().expect("the end of the gzip body");
+    let server = RawServer::serve(move |conn| {
+        let _ = conn.head(
+            200,
+            &["Content-Type: application/x-ndjson", "Content-Encoding: gzip", "Transfer-Encoding: chunked"],
+        );
+        let _ = conn.chunk_bytes(&head);
+        conn.await_release();
+        let _ = conn.chunk_bytes(&rest);
+        let _ = conn.end();
+    });
+
+    let mut items = store_api(&server, None).export_orders_stream(None, None).await.expect("the stream opens");
+    assert_eq!(Some(1), items.next().await.expect("a first item").expect("decoded").id, "it arrived while the body was unfinished");
+    server.release();
+    assert_eq!(Some(2), items.next().await.expect("a second item").expect("decoded").id);
+    assert!(items.next().await.is_none());
+    assert!(!items.headers().contains_key("content-encoding"), "the headers describe the decoded body");
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_007_a_corrupt_compressed_stream_raises_an_api_error_with_the_real_status_and_the_decoder_error_and_is_not_retried() {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Type: application/x-ndjson", "Content-Encoding: gzip", "Content-Length: 8"]);
+        let _ = conn.write(b"notgzip!");
+    });
+
+    let mut items = store_api(&server, None).export_orders_stream(None, None).await.expect("the stream opens");
+    let failure = items.next().await.expect("the failure is an item").expect_err("a corrupt body fails");
+    let api_error = failure
+        .downcast_ref::<ApiError>()
+        .unwrap_or_else(|| panic!("expected an ApiError, got: {failure}"));
+    assert_eq!(200, api_error.status_code());
+    assert!(std::error::Error::source(api_error).is_some(), "the decoder error is the cause");
+    assert_eq!(1, server.hits(), "a corrupt body is not retried");
+}
+
+#[tokio::test]
+async fn test_bhv_sse_007_an_sse_stream_reconnects_after_the_connection_drops_and_sends_the_last_event_id_in_last_event_id() {
+    let server = RawServer::serve(|conn| {
+        if conn.hit >= 3 {
+            let _ = conn.head(204, &["Content-Length: 0"]);
+            return;
+        }
+        let _ = conn.head(200, &["Content-Type: text/event-stream", "Transfer-Encoding: chunked"]);
+        let _ = conn.chunk(if conn.hit == 1 {
+            "id: 1\ndata: a\n\nid: 2\ndata: b\n\n"
+        } else {
+            "id: 3\ndata: c\n\n"
+        });
+        let _ = conn.end();
+    });
+
+    let mut stream = store_api(&server, None)
+        .watch_notices_stream(None, Some(&fast_reconnect()))
+        .await
+        .expect("opens");
+    let mut data = Vec::new();
+    while let Some(event) = stream.next().await {
+        data.push(event.expect("an event").data);
+    }
+    assert_eq!(vec!["a", "b", "c"], data);
+    let heads: Vec<String> = server.heads().iter().map(|head| head.to_lowercase()).collect();
+    assert!(!heads[0].contains("last-event-id"));
+    assert!(heads[1].contains("last-event-id: 2"));
+    assert!(heads[2].contains("last-event-id: 3"));
+}
+
+#[tokio::test]
+async fn test_bhv_sse_015_an_idle_timeout_on_an_sse_stream_counts_as_a_lost_connection_and_reconnects() {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Type: text/event-stream", "Transfer-Encoding: chunked"]);
+        if conn.hit == 1 {
+            let _ = conn.chunk("id: 1\ndata: a\n\n");
+            conn.await_release();
+            return;
+        }
+        let _ = conn.chunk("id: 2\ndata: b\n\n");
+        let _ = conn.end();
+    });
+
+    let transport = TransportOptions::builder().idle_timeout(Some(300)).build().expect("valid transport options");
+    let mut stream = store_api(&server, Some(transport))
+        .watch_notices_stream(None, Some(&fast_reconnect().max_reconnects(1)))
+        .await
+        .expect("opens");
+    assert_eq!("a", stream.next().await.expect("an event").expect("decoded").data);
+    assert_eq!("b", stream.next().await.expect("an event").expect("decoded").data, "the stalled connection was replaced");
+    assert!(server.heads()[1].to_lowercase().contains("last-event-id: 1"));
+    server.release();
+}
+
+#[tokio::test]
+async fn test_bhv_sse_018_an_sse_comment_line_such_as_a_heartbeat_is_skipped_and_counts_as_activity_for_the_idle_timeout() {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Type: text/event-stream", "Transfer-Encoding: chunked"]);
+        for _ in 0..6 {
+            let _ = conn.chunk(": heartbeat\n\n");
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        let _ = conn.chunk("data: late\n\n");
+        let _ = conn.end();
+    });
+
+    let transport = TransportOptions::builder().idle_timeout(Some(300)).build().expect("valid transport options");
+    let mut stream = store_api(&server, Some(transport))
+        .watch_notices_stream(None, Some(&fast_reconnect().max_reconnects(0)))
+        .await
+        .expect("opens");
+    assert_eq!("late", stream.next().await.expect("an event").expect("decoded").data, "the quiet feed outlived the idle timeout");
+    assert_eq!(1, server.hits(), "no reconnect was needed");
 }

@@ -64,6 +64,10 @@ pub struct RequestOptions {
     /// `BaseApi`) sets it, so the transport gives each request only what is
     /// left of the budget. `None` lets the transport start its own timeout.
     pub deadline: Option<std::time::Instant>,
+    /// The longest a stream's body may stay silent between two reads, for this
+    /// request only: `Some(Duration::ZERO)` disables the idle timeout and `None`
+    /// keeps the transport's. Only a streaming call reads it.
+    pub idle_timeout: Option<std::time::Duration>,
 }
 
 impl RequestOptions {
@@ -75,6 +79,12 @@ impl RequestOptions {
     /// Sets the end-to-end deadline shared by the requests of one call.
     pub fn deadline(mut self, value: Option<std::time::Instant>) -> Self {
         self.deadline = value;
+        self
+    }
+
+    /// Sets the idle timeout of a streamed body for this request.
+    pub fn idle_timeout(mut self, value: Option<std::time::Duration>) -> Self {
+        self.idle_timeout = value;
         self
     }
 

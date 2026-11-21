@@ -5093,3 +5093,283 @@ async fn test_bhv_streaming_030_a_transport_that_cannot_stream_fails_a_stream_ca
         .expect("the buffered call still works");
     assert_eq!(1, transport.sent.load(std::sync::atomic::Ordering::SeqCst));
 }
+
+/* JSON Lines and server-sent events through the API groups: a transport that answers each
+ * connection from a script and keeps the headers it was sent. */
+
+struct EventsClient {
+    bodies: Vec<&'static str>,
+    sent: Mutex<Vec<HashMap<String, String>>>,
+}
+
+impl EventsClient {
+    fn new(bodies: Vec<&'static str>) -> Arc<Self> {
+        Arc::new(Self {
+            bodies,
+            sent: Mutex::new(Vec::new()),
+        })
+    }
+
+    fn header(&self, connection: usize, name: &str) -> Option<String> {
+        self.sent.lock().unwrap()[connection]
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.clone())
+    }
+
+    fn header_count(&self, connection: usize, name: &str) -> usize {
+        self.sent.lock().unwrap()[connection]
+            .keys()
+            .filter(|key| key.eq_ignore_ascii_case(name))
+            .count()
+    }
+}
+
+impl petstore::api_client::ApiClient for EventsClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&petstore::api_client::RequestBody>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::api_http_response::ApiHttpResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        Box::pin(async {
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
+                200,
+                "{}".to_string(),
+                HashMap::new(),
+            ))
+        })
+    }
+
+    fn send_streaming(
+        &self,
+        _method: &str,
+        _url: &str,
+        headers: &HashMap<String, String>,
+        _body: Option<&petstore::api_client::RequestBody>,
+        _options: &petstore::api_client::RequestOptions,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::ApiStreamResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        let index = self.sent.lock().unwrap().len().min(self.bodies.len() - 1);
+        self.sent.lock().unwrap().push(headers.clone());
+        let text = self.bodies[index];
+        let response = if text.is_empty() {
+            petstore::ApiStreamResponse::new(
+                204,
+                HashMap::new(),
+                futures_util::stream::iter(Vec::new()),
+            )
+        } else {
+            let mut response_headers = HashMap::new();
+            response_headers.insert("content-type".to_string(), "text/event-stream".to_string());
+            petstore::ApiStreamResponse::new(
+                200,
+                response_headers,
+                futures_util::stream::iter(vec![Ok(bytes::Bytes::from(text))]),
+            )
+        };
+        Box::pin(async move { Ok(response) })
+    }
+}
+
+fn notices_api(
+    client: &Arc<EventsClient>,
+    config: Configuration,
+    authenticator: Option<Arc<dyn petstore::auth::Authenticator>>,
+) -> StoreApi {
+    StoreApi::new(client.clone(), config, authenticator)
+}
+
+fn local_config() -> Configuration {
+    ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build()
+}
+
+fn fast_reconnect() -> StreamOptions {
+    StreamOptions::new().reconnect_delay(std::time::Duration::from_millis(1))
+}
+
+async fn drain(mut stream: SseStream<String>) {
+    while let Some(event) = stream.next().await {
+        event.expect("an event");
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_streaming_028_an_operation_with_a_streaming_media_type_gets_a_stream_method_and_an_sse_or_json_lines_only_operation_gets_no_buffered_method(
+) {
+    let source = std::fs::read_to_string("src/api/store_api.rs").expect("the group source");
+    for operation in ["export_orders", "watch_orders", "watch_notices"] {
+        assert!(
+            source.contains(&format!("pub async fn {operation}_stream(")),
+            "{operation}_stream"
+        );
+        assert!(
+            !source.contains(&format!("pub async fn {operation}(")),
+            "no buffered {operation}"
+        );
+        assert!(
+            !source.contains(&format!("pub async fn {operation}_with_http_info(")),
+            "no raw {operation}"
+        );
+    }
+
+    /* The carriers are typed by the schema of the item, and a plain payload is a string. */
+    let lines = EventsClient::new(vec!["{\"id\":7}\n{\"id\":8}\n"]);
+    let mut orders: JsonLinesStream<Order> = notices_api(&lines, local_config(), None)
+        .export_orders_stream(None, None)
+        .await
+        .expect("the stream opens");
+    assert_eq!(
+        Some(7),
+        orders
+            .next()
+            .await
+            .expect("a first order")
+            .expect("decoded")
+            .id
+    );
+    assert_eq!(
+        Some(8),
+        orders
+            .next()
+            .await
+            .expect("a second order")
+            .expect("decoded")
+            .id
+    );
+    assert!(orders.next().await.is_none());
+
+    let typed = EventsClient::new(vec!["data: {\"id\":3}\n\n"]);
+    let mut events: SseStream<Order> = notices_api(&typed, local_config(), None)
+        .watch_orders_stream(None, None)
+        .await
+        .expect("the stream opens");
+    assert_eq!(
+        Some(3),
+        events
+            .next()
+            .await
+            .expect("an event")
+            .expect("decoded")
+            .data
+            .id
+    );
+
+    let text = EventsClient::new(vec!["data: plain text\n\n"]);
+    let mut notices: SseStream<String> = notices_api(&text, local_config(), None)
+        .watch_notices_stream(None, None)
+        .await
+        .expect("the stream opens");
+    assert_eq!(
+        "plain text",
+        notices
+            .next()
+            .await
+            .expect("an event")
+            .expect("decoded")
+            .data
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_sse_006_an_sse_request_sends_accept_text_event_stream_cache_control_no_cache_and_identity_encoding_unless_the_caller_set_them(
+) {
+    let client = EventsClient::new(vec!["data: a\n\n", ""]);
+    let stream = notices_api(&client, local_config(), None)
+        .watch_notices_stream(None, Some(&fast_reconnect()))
+        .await
+        .expect("opens");
+    drain(stream).await;
+    assert_eq!(
+        Some("text/event-stream".to_string()),
+        client.header(0, "Accept")
+    );
+    assert_eq!(
+        Some("no-cache".to_string()),
+        client.header(0, "Cache-Control")
+    );
+    assert_eq!(
+        Some("identity".to_string()),
+        client.header(0, "Accept-Encoding")
+    );
+
+    let own = EventsClient::new(vec!["data: a\n\n", ""]);
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .default_headers(HashMap::from([(
+            "accept-encoding".to_string(),
+            "gzip".to_string(),
+        )]))
+        .build();
+    let options = WatchNoticesOptions::new().header("cache-control", "max-age=0");
+    let stream = notices_api(&own, config, None)
+        .watch_notices_stream(Some(&options), Some(&fast_reconnect()))
+        .await
+        .expect("opens");
+    drain(stream).await;
+    assert_eq!(
+        Some("max-age=0".to_string()),
+        own.header(0, "Cache-Control")
+    );
+    assert_eq!(1, own.header_count(0, "Cache-Control"));
+    assert_eq!(
+        Some("gzip".to_string()),
+        own.header(0, "Accept-Encoding"),
+        "the caller's own encoding is kept"
+    );
+    assert_eq!(1, own.header_count(0, "Accept-Encoding"));
+}
+
+#[tokio::test]
+async fn test_bhv_sse_012_an_sse_stream_sends_the_initial_last_event_id_of_the_call_on_its_first_request(
+) {
+    let client = EventsClient::new(vec!["data: a\n\n", ""]);
+    let options = fast_reconnect().last_event_id("42");
+    let stream = notices_api(&client, local_config(), None)
+        .watch_notices_stream(None, Some(&options))
+        .await
+        .expect("opens");
+    drain(stream).await;
+    assert_eq!(Some("42".to_string()), client.header(0, "Last-Event-ID"));
+}
+
+#[tokio::test]
+async fn test_bhv_sse_020_an_sse_reconnect_sends_last_event_id_only_when_the_last_event_id_is_not_empty(
+) {
+    let client = EventsClient::new(vec!["data: a\n\n", "id: 5\ndata: b\n\n", ""]);
+    let stream = notices_api(&client, local_config(), None)
+        .watch_notices_stream(None, Some(&fast_reconnect()))
+        .await
+        .expect("opens");
+    drain(stream).await;
+    assert_eq!(3, client.sent.lock().unwrap().len());
+    assert_eq!(None, client.header(0, "Last-Event-ID"));
+    assert_eq!(
+        None,
+        client.header(1, "Last-Event-ID"),
+        "no id yet, so none is sent"
+    );
+    assert_eq!(Some("5".to_string()), client.header(2, "Last-Event-ID"));
+}

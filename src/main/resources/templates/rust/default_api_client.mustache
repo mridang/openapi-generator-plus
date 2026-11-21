@@ -151,7 +151,7 @@ impl DefaultApiClient {
     /// path reads the body from it; the streaming path hands it on.
     ///
     /// With `streaming` the end-to-end `deadline` bounds the wait for each
-    /// response's headers only, and the request is asked for an unencoded body.
+    /// response's headers only.
     async fn dispatch(
         &self,
         method: String,
@@ -196,12 +196,9 @@ impl DefaultApiClient {
             }
         }
         if !has_header(&merged, "Accept-Encoding") {
-            /* A streamed body is handed on as the server sends it, so it is
-             * asked for unencoded; the buffered path decodes whole bodies. */
-            merged.insert(
-                "Accept-Encoding".to_string(),
-                if streaming { "identity" } else { "gzip, deflate, br, zstd" }.to_string(),
-            );
+            /* A streamed body is decoded as it arrives, so it is asked for the
+             * same encodings as a buffered one. An event stream asks for none. */
+            merged.insert("Accept-Encoding".to_string(), "gzip, deflate, br, zstd".to_string());
         }
         if !has_header(&merged, "X-Request-ID") && self.transport_options.inject_request_id() {
             merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());
@@ -623,9 +620,10 @@ impl ApiClient for DefaultApiClient {
     /// of the body and fails with `NetworkTimeoutError`. A body that ends before
     /// its declared length, or a connection reset, fails with `StreamError`.
     /// Closing the client cancels the open streams: their next read is a
-    /// `ConfigurationError::InvalidState`. The body is handed on as the server
-    /// sent it (the request asks for `identity`), with its `content-encoding`
-    /// header kept.
+    /// `ConfigurationError::InvalidState`. A body the server compressed (gzip,
+    /// deflate, br or zstd) is decoded as it arrives, so the first items are
+    /// available before the body ends; one that does not decode fails with an
+    /// `ApiError` that carries the real status and the decoder error.
     fn send_streaming(
         &self,
         method: &str,
@@ -639,6 +637,7 @@ impl ApiClient for DefaultApiClient {
         let headers = headers.clone();
         let body = body.cloned();
         let options = options.clone();
+        let idle_override = options.idle_timeout;
 
         Box::pin(async move {
             let (response, _deadline) = self
@@ -646,12 +645,29 @@ impl ApiClient for DefaultApiClient {
                 .await?;
             let status_code = response.status().as_u16();
             let resp_headers = collect_headers(response.headers());
-            let idle = self
-                .transport_options
-                .idle_timeout()
-                .and_then(|ms| u64::try_from(ms).ok())
-                .map(Duration::from_millis);
+            let idle = match idle_override {
+                Some(gap) => Some(gap).filter(|gap| !gap.is_zero()),
+                None => self
+                    .transport_options
+                    .idle_timeout()
+                    .and_then(|ms| u64::try_from(ms).ok())
+                    .map(Duration::from_millis),
+            };
+            let mut resp_headers = resp_headers;
             let body = wire_body(response, idle, self.closed.clone(), self.streams.clone());
+            /* A body the server compressed is decoded as it arrives, and the two
+             * headers that described the compressed body are dropped as the
+             * buffered path does. */
+            let encoding = resp_headers.get("content-encoding").cloned().unwrap_or_default();
+            let body = match ContentDecoder::for_encoding(&encoding) {
+                Ok(Some(decoder)) => {
+                    resp_headers.remove("content-encoding");
+                    resp_headers.remove("content-length");
+                    decoded_body(body, decoder, encoding, status_code, resp_headers.clone())
+                }
+                Ok(None) => body,
+                Err(unsupported) => failing_body(unsupported, status_code, resp_headers.clone()),
+            };
             Ok(ApiStreamResponse::new(status_code, resp_headers, body))
         })
     }
@@ -795,6 +811,152 @@ fn wire_body(
             }
         }
     }))
+}
+
+/// A decoder that takes the compressed body in pieces and hands out what each
+/// piece decodes to, so a stream is decoded as it arrives.
+enum ContentDecoder {
+    Gzip(flate2::write::MultiGzDecoder<Vec<u8>>),
+    Deflate(flate2::write::ZlibDecoder<Vec<u8>>),
+    Brotli(Box<brotli::DecompressorWriter<Vec<u8>>>),
+    Zstd(Box<zstd::stream::write::Decoder<'static, Vec<u8>>>),
+}
+
+impl ContentDecoder {
+    /// The decoder for a `Content-Encoding` value: `None` when the body is not
+    /// encoded, an error naming an encoding the client cannot decode.
+    fn for_encoding(encoding: &str) -> Result<Option<Self>, String> {
+        match encoding.trim().to_ascii_lowercase().as_str() {
+            "gzip" | "x-gzip" => Ok(Some(Self::Gzip(flate2::write::MultiGzDecoder::new(Vec::new())))),
+            "deflate" => Ok(Some(Self::Deflate(flate2::write::ZlibDecoder::new(Vec::new())))),
+            "br" => Ok(Some(Self::Brotli(Box::new(brotli::DecompressorWriter::new(Vec::new(), 4096))))),
+            "zstd" => zstd::stream::write::Decoder::new(Vec::new())
+                .map(|decoder| Some(Self::Zstd(Box::new(decoder))))
+                .map_err(|e| e.to_string()),
+            "" | "identity" => Ok(None),
+            other => Err(format!("Unsupported Content-Encoding '{other}'")),
+        }
+    }
+
+    /// Feeds a piece of the compressed body and returns what it decoded to.
+    fn push(&mut self, chunk: &[u8]) -> std::io::Result<Vec<u8>> {
+        use std::io::Write;
+        match self {
+            Self::Gzip(d) => {
+                d.write_all(chunk)?;
+                d.flush()?;
+                Ok(std::mem::take(d.get_mut()))
+            }
+            Self::Deflate(d) => {
+                d.write_all(chunk)?;
+                d.flush()?;
+                Ok(std::mem::take(d.get_mut()))
+            }
+            Self::Brotli(d) => {
+                d.write_all(chunk)?;
+                d.flush()?;
+                Ok(std::mem::take(d.get_mut()))
+            }
+            Self::Zstd(d) => {
+                d.write_all(chunk)?;
+                d.flush()?;
+                Ok(std::mem::take(d.get_mut()))
+            }
+        }
+    }
+
+    /// Ends the body and returns what is left to hand out.
+    fn finish(self) -> std::io::Result<Vec<u8>> {
+        match self {
+            Self::Gzip(d) => d.finish(),
+            Self::Deflate(d) => d.finish(),
+            Self::Brotli(mut d) => {
+                use std::io::Write;
+                d.flush()?;
+                Ok(std::mem::take(d.get_mut()))
+            }
+            Self::Zstd(mut d) => {
+                use std::io::Write;
+                d.flush()?;
+                Ok(std::mem::take(d.get_mut()))
+            }
+        }
+    }
+}
+
+/// The failure of a body that does not decode: the real status, the response
+/// headers and the decoder's error as the source, as for a buffered body.
+fn decode_failure(
+    encoding: &str,
+    error: std::io::Error,
+    status_code: u16,
+    headers: &HashMap<String, String>,
+) -> Box<dyn std::error::Error + Send + Sync> {
+    Box::new(ApiError::with_source(
+        status_code,
+        format!("Failed to decompress {} response body: {}", encoding, error),
+        None,
+        Some(headers.clone()),
+        Arc::new(error),
+    ))
+}
+
+/// The body as the decoder turns it: every chunk of the compressed body is fed
+/// to the decoder and what it yields is the next item, so an item arrives before
+/// the body has ended. A body that does not decode ends the stream with an
+/// `ApiError`.
+fn decoded_body(
+    body: BodyStream,
+    decoder: ContentDecoder,
+    encoding: String,
+    status_code: u16,
+    headers: HashMap<String, String>,
+) -> BodyStream {
+    use futures_util::StreamExt as _;
+    Box::pin(futures_util::stream::unfold(
+        Some((body, decoder)),
+        move |state| {
+            let encoding = encoding.clone();
+            let headers = headers.clone();
+            async move {
+                let (mut body, mut decoder) = state?;
+                loop {
+                    match body.next().await {
+                        Some(Ok(chunk)) => match decoder.push(&chunk) {
+                            Ok(decoded) if decoded.is_empty() => continue,
+                            Ok(decoded) => {
+                                return Some((Ok(bytes::Bytes::from(decoded)), Some((body, decoder))));
+                            }
+                            Err(error) => {
+                                return Some((Err(decode_failure(&encoding, error, status_code, &headers)), None));
+                            }
+                        },
+                        Some(Err(failure)) => return Some((Err(failure), None)),
+                        None => {
+                            return match decoder.finish() {
+                                Ok(rest) if rest.is_empty() => None,
+                                Ok(rest) => Some((Ok(bytes::Bytes::from(rest)), None)),
+                                Err(error) => Some((Err(decode_failure(&encoding, error, status_code, &headers)), None)),
+                            };
+                        }
+                    }
+                }
+            }
+        },
+    ))
+}
+
+/// A body that fails on its first read, for an encoding the client cannot decode.
+fn failing_body(message: String, status_code: u16, headers: HashMap<String, String>) -> BodyStream {
+    let error = std::io::Error::new(std::io::ErrorKind::InvalidData, message.clone());
+    let failure: Box<dyn std::error::Error + Send + Sync> = Box::new(ApiError::with_source(
+        status_code,
+        format!("Failed to decompress response body: {}", message),
+        None,
+        Some(headers),
+        Arc::new(error),
+    ));
+    Box::pin(futures_util::stream::once(async move { Err(failure) }))
 }
 
 /// What a read of a stream raises after the client was closed.

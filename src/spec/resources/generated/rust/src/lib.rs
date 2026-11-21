@@ -11,10 +11,18 @@ pub mod api_client;
 pub mod auth;
 pub mod client;
 /* The carrier of a binary response, read as it arrives. */
+pub mod byte_stream;
+/* The line splitter and the server-sent events parser behind the JSON Lines and
+ * event streams. Crate-private: the carriers below are the public surface. */
+pub(crate) mod event_stream;
+/* The carriers of a JSON Lines response and of a server-sent events response. */
 pub mod api_http_response;
 pub mod api_result;
 pub mod api_stream_response;
-pub mod byte_stream;
+pub mod json_lines_stream;
+pub mod server_sent_event;
+pub mod sse_stream;
+pub mod stream_options;
 /* The call hook that runs around every operation call. It names no
  * OpenTelemetry type: the adapter is its own module. */
 pub mod call_hook;
@@ -69,6 +77,10 @@ pub use client::ClientTrait;
 pub use configuration::{Configuration, ConfigurationBuilder};
 pub use credentials::Credentials;
 pub use default_api_client::DefaultApiClient;
+pub use json_lines_stream::JsonLinesStream;
+pub use server_sent_event::ServerSentEvent;
+pub use sse_stream::SseStream;
+pub use stream_options::StreamOptions;
 /* The whole SDK error tree, from the root trait down to the OAuth2 and
  * configuration errors, is declared in `errors` and re-exported here. */
 pub use errors::*;
