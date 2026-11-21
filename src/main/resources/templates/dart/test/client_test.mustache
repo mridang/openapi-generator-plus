@@ -612,8 +612,13 @@ void main() {
           {{clientPropertyName}}Source.indexOf('abstract interface class {{classname}}Interface {'),
           {{clientPropertyName}}Source.indexOf('class {{classname}} extends BaseApi'));
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+      expect({{clientPropertyName}}Interface, contains(' {{vendorExtensions.op.streamMethodName}}('));
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
       expect({{clientPropertyName}}Interface, contains(' {{operationId}}('));
       expect({{clientPropertyName}}Interface, contains(' {{operationId}}WithHttpInfo('));
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

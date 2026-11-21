@@ -1,0 +1,330 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+import 'package:{{packageName}}/src/event_stream.dart';
+
+ByteStream _bytes(String text) => ByteStream(
+      statusCode: 200,
+      headers: {'content-type': 'text/event-stream'},
+      source: Stream<List<int>>.value(utf8.encode(text)),
+    );
+
+ByteStream _noContent() => ByteStream(
+      statusCode: 204,
+      headers: const {},
+      source: const Stream<List<int>>.empty(),
+    );
+
+Future<List<RawEvent>> _parse(String text) async {
+  final parser = SseParser(Stream<List<int>>.value(utf8.encode(text)), 1024);
+  final events = <RawEvent>[];
+  for (var event = await parser.next(); event != null; event = await parser.next()) {
+    events.add(event);
+  }
+  return events;
+}
+
+Future<List<String>> _lines(String text) => JsonLinesStream<String>(
+      _bytes(text),
+      (line) => line,
+      1024,
+      'GET',
+      '/items',
+    ).toList();
+
+/// Opens an event stream whose n-th connection (from 1) is the n-th entry: a
+/// string is the body, a [ByteStream] is used as it is and an error is thrown.
+class _Script {
+  _Script(this.connections);
+
+  final List<Object> connections;
+  final List<String> lastIds = [];
+
+  Future<ByteStream> call(String lastEventId) async {
+    lastIds.add(lastEventId);
+    final index =
+        lastIds.length < connections.length ? lastIds.length : connections.length;
+    final next = connections[index - 1];
+    if (next is Error) {
+      throw next;
+    }
+    if (next is Exception) {
+      throw next;
+    }
+    if (next is ByteStream) {
+      return next;
+    }
+    return _bytes(next as String);
+  }
+}
+
+const StreamOptions _fast = StreamOptions(reconnectDelay: 1);
+
+Future<SseStream<T>> _sse<T>(
+  _Script script,
+  StreamOptions options, {
+  bool hasBody = false,
+  T Function(String)? decoder,
+  String? terminator,
+  String method = 'GET',
+}) =>
+    SseStream.open<T>(
+      opener: script.call,
+      decoder: decoder,
+      terminator: terminator,
+      options: options,
+      hasBody: hasBody,
+      method: method,
+      path: '/events',
+    );
+
+Future<List<String>> _dataOf(SseStream<String> stream) async => [
+      await for (final event in stream) event.data,
+    ];
+
+int _number(String text) {
+  final value = int.tryParse(text);
+  if (value == null) {
+    throw const SerializationException('not a number');
+  }
+  return value;
+}
+
+void main() {
+  group('EventStream', () {
+    test('bhv streaming 002 a JSON Lines stream yields one decoded item per line and skips blank lines', () async {
+      expect(await _lines('a\n\n  \nb\nc\n'), equals(['a', 'b', 'c']));
+    });
+
+    test('bhv streaming 003 a JSON Lines stream accepts CRLF line ends and a last line without a newline', () async {
+      expect(await _lines('a\r\nb\r\nc'), equals(['a', 'b', 'c']));
+    });
+
+    test('bhv streaming 004 a JSON Lines line that does not decode raises a serialization error naming the 1-based line and ends the stream after the items before it', () async {
+      final stream = JsonLinesStream<int>(
+          _bytes('1\n2\nnope\n4\n'), _number, 1024, 'GET', '/items');
+      final reader = StreamIterator(stream);
+      expect(await reader.moveNext(), isTrue);
+      expect(reader.current, equals(1));
+      expect(await reader.moveNext(), isTrue);
+      expect(reader.current, equals(2));
+      await expectLater(
+        reader.moveNext(),
+        throwsA(isA<SerializationException>()
+            .having((e) => e.message, 'message', contains('Line 3'))),
+      );
+      expect(await reader.moveNext(), isFalse,
+          reason: 'the stream ended at the bad line');
+    });
+
+    test('bhv streaming 005 a line or event longer than the limit raises a serialization error and ends the stream', () async {
+      final lineStream = JsonLinesStream<String>(
+          _bytes('ok\n${'x' * 50}\nlater\n'), (line) => line, 10, 'GET', '/items');
+      final lines = StreamIterator(lineStream);
+      expect(await lines.moveNext(), isTrue);
+      expect(lines.current, equals('ok'));
+      await expectLater(lines.moveNext(), throwsA(isA<SerializationException>()));
+      expect(await lines.moveNext(), isFalse);
+
+      final events = await _sse<String>(
+          _Script(['data: ${'y' * 50}\n\n']), const StreamOptions(maxEventBytes: 10));
+      final reader = StreamIterator(events);
+      await expectLater(reader.moveNext(), throwsA(isA<SerializationException>()));
+      expect(await reader.moveNext(), isFalse);
+    });
+
+    test('bhv sse 001 an SSE stream yields the id, event, data and retry fields of each event, with message as the default event', () async {
+      final events =
+          await _parse('id: 7\nevent: tick\nretry: 250\ndata: one\n\ndata: two\n\n');
+      expect(events, hasLength(2));
+      expect(events[0], equals(const RawEvent('7', 'tick', 'one', 250)));
+      expect(events[1].event, equals('message'));
+      expect(events[1].data, equals('two'));
+      expect(events[1].id, equals('7'), reason: 'the id persists until another arrives');
+
+      final stream = await _sse<String>(
+          _Script(['id: 7\nevent: tick\nretry: 250\ndata: one\n\n']), _fast);
+      final event = await stream.first;
+      expect(event.id, equals('7'));
+      expect(event.event, equals('tick'));
+      expect(event.data, equals('one'));
+      expect(event.retry, equals(250));
+      expect(event.raw, equals('one'));
+    });
+
+    test('bhv sse 002 an SSE stream joins consecutive data lines with a newline and skips comment lines', () async {
+      final events = await _parse(': a comment\ndata: one\n: another\ndata: two\n\n');
+      expect(events, hasLength(1));
+      expect(events[0].data, equals('one\ntwo'));
+    });
+
+    test('bhv sse 003 an SSE stream drops a leading byte order mark, accepts CR, LF and CRLF line ends and removes one space after the colon', () async {
+      for (final end in ['\n', '\r', '\r\n']) {
+        final events = await _parse('﻿data: a${end}data:  b$end$end');
+        expect(events, hasLength(1), reason: 'line end ${end.codeUnits}');
+        expect(events[0].data, equals('a\n b'));
+      }
+      expect((await _parse('data:x\n\n'))[0].data, equals('x'),
+          reason: 'no space to remove');
+    });
+
+    test('bhv sse 004 an SSE event with an empty data buffer is not delivered but its id is kept', () async {
+      final parser = SseParser(Stream<List<int>>.value(utf8.encode('id: 9\n\n')), 1024);
+      expect(await parser.next(), isNull);
+      expect(parser.lastEventId, equals('9'));
+    });
+
+    test('bhv sse 005 an SSE data payload is decoded as the declared schema, and a payload that does not decode raises a serialization error and ends the stream', () async {
+      final stream = await _sse<int>(
+        _Script(['data: 1\n\ndata: oops\n\ndata: 3\n\n']),
+        _fast,
+        decoder: _number,
+      );
+      final reader = StreamIterator(stream);
+      expect(await reader.moveNext(), isTrue);
+      expect(reader.current.data, equals(1));
+      await expectLater(reader.moveNext(), throwsA(isA<SerializationException>()));
+      expect(await reader.moveNext(), isFalse);
+    });
+
+    test('bhv sse 008 an SSE reconnect waits the server retry value, else the reconnect delay doubling to a cap', () {
+      expect(SseStream.reconnectWaitMillis(3, 1000, 250, null, 0.0), equals(250));
+      expect(SseStream.reconnectWaitMillis(1, 1000, null, null, 0.0), equals(1000));
+      expect(SseStream.reconnectWaitMillis(2, 1000, null, null, 0.0), equals(2000));
+      expect(SseStream.reconnectWaitMillis(3, 1000, null, null, 0.0), equals(4000));
+      expect(SseStream.reconnectWaitMillis(10, 1000, null, null, 0.0), equals(30000));
+      expect(SseStream.reconnectWaitMillis(1, 1000, null, null, 1.0), equals(750),
+          reason: 'jitter takes up to 25%');
+      expect(SseStream.reconnectWaitMillis(1, 1000, null, 5000, 0.0), equals(5000),
+          reason: 'Retry-After replaces it');
+    });
+
+    test('bhv sse 009 an SSE GET stream stops after five consecutive failed reconnects by default and raises the last failure', () async {
+      final script = _Script(['']);
+      final stream = await _sse<String>(script, _fast);
+      await expectLater(_dataOf(stream), throwsA(isA<NetworkException>()));
+      expect(script.lastIds, hasLength(6), reason: 'one request and five reconnects');
+    });
+
+    test('bhv sse 010 an SSE reconnect counter resets after an event is received', () async {
+      final script = _Script(['data: a\n\n', 'data: b\n\n', 'data: c\n\n', '']);
+      final stream = await _sse<String>(
+          script, const StreamOptions(reconnectDelay: 1, maxReconnects: 1));
+      final seen = <String>[];
+      await expectLater(
+        stream.forEach((event) => seen.add(event.data)),
+        throwsA(isA<NetworkException>()),
+      );
+      expect(seen, equals(['a', 'b', 'c']),
+          reason: 'three events survived a limit of one reconnect');
+    });
+
+    test('bhv sse 011 an SSE stream does not reconnect after a 204, a 4xx status or a response that is not text/event-stream', () async {
+      final none = _Script([_noContent()]);
+      expect(await _dataOf(await _sse<String>(none, _fast)), isEmpty);
+      expect(none.lastIds, hasLength(1));
+
+      final refused = _Script([
+        'data: a\n\n',
+        const ApiException(statusCode: 404, message: 'missing', responseBody: '{}'),
+      ]);
+      await expectLater(
+        _dataOf(await _sse<String>(refused, _fast)),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 404)),
+      );
+
+      final wrongType = _Script([
+        'data: a\n\n',
+        ByteStream(
+          statusCode: 200,
+          headers: {'content-type': 'text/html'},
+          source: const Stream<List<int>>.empty(),
+        ),
+      ]);
+      await expectLater(_dataOf(await _sse<String>(wrongType, _fast)),
+          throwsA(isA<SerializationException>()));
+      expect(wrongType.lastIds, hasLength(2),
+          reason: 'asked once more, then refused the answer');
+    });
+
+    test('bhv sse 014 an SSE retry field that is not digits and an id containing NUL are ignored', () async {
+      final parser = SseParser(
+        Stream<List<int>>.value(utf8.encode('retry: 12x\nid: a\u0000b\ndata: x\n\n')),
+        1024,
+      );
+      final event = await parser.next();
+      expect(event!.data, equals('x'));
+      expect(event.id, isNull);
+      expect(parser.retry, isNull);
+    });
+
+    test('bhv sse 016 an SSE request that has a body is not reconnected unless the caller turns reconnect on, and a single use body is never reconnected', () async {
+      final off = _Script(['data: a\n\n', 'data: b\n\n']);
+      final noReconnect =
+          await _sse<String>(off, _fast, hasBody: true, method: 'POST');
+      expect(await _dataOf(noReconnect), equals(['a']));
+      expect(off.lastIds, hasLength(1));
+
+      final on = _Script(['data: a\n\n', 'data: b\n\n', _noContent()]);
+      final reconnect = await _sse<String>(
+        on,
+        const StreamOptions(reconnectDelay: 1, maxReconnects: 2),
+        hasBody: true,
+        method: 'POST',
+      );
+      expect(await _dataOf(reconnect), equals(['a', 'b']));
+    });
+
+    test('bhv sse 017 an SSE event with an id and no data is not dispatched but updates the last event id, and a reconnect resumes from it', () async {
+      final script = _Script(['data: a\nid: 1\n\nid: 2\n\n', 'data: b\nid: 3\n\n', _noContent()]);
+      final stream = await _sse<String>(script, _fast);
+      expect(await _dataOf(stream), equals(['a', 'b']));
+      expect(script.lastIds.sublist(0, 2), equals(['', '2']));
+    });
+
+    test('bhv sse 019 an SSE event cut off by the end of the connection is discarded', () async {
+      final events = await _parse('data: whole\n\ndata: cut off\n');
+      expect(events, hasLength(1));
+      expect(events[0].data, equals('whole'));
+      expect(await _parse('data: no newline at all'), isEmpty);
+    });
+
+    test('bhv sse 021 the configured SSE terminator ends the stream and is not delivered', () async {
+      final stream = await _sse<String>(
+        _Script(['data: a\n\ndata: [DONE]\n\ndata: b\n\n']),
+        _fast,
+        terminator: '[DONE]',
+      );
+      expect(await _dataOf(stream), equals(['a']));
+    });
+
+    test('bhv sse 022 an SSE event named error raises the SDK API error with the response status and the data as its body and is not reconnected, and an event with any other name is an item', () async {
+      final script = _Script([
+        'event: update\ndata: fine\n\nevent: error\ndata: {"why":"bad"}\n\n',
+        'data: again\n\n',
+      ]);
+      final stream = await _sse<String>(script, _fast);
+      final reader = StreamIterator(stream);
+      expect(await reader.moveNext(), isTrue);
+      expect(reader.current.event, equals('update'));
+      await expectLater(
+        reader.moveNext(),
+        throwsA(isA<ApiException>()
+            .having((e) => e.statusCode, 'statusCode', 200)
+            .having((e) => e.responseBody, 'responseBody', '{"why":"bad"}')),
+      );
+      expect(script.lastIds, hasLength(1), reason: 'an error event is not reconnected');
+    });
+
+    test('bhv sse 023 an unknown SSE field is ignored', () async {
+      final events = await _parse('mystery: 1\ndata: x\nanother\n\n');
+      expect(events, hasLength(1));
+      expect(events[0].data, equals('x'));
+    });
+  });
+}
+{{/generateTests}}

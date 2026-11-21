@@ -5,6 +5,9 @@ import '../api_client.dart';
 import '../api_result.dart';
 import '../auth/authenticator.dart';
 import '../byte_stream.dart';
+import '../json_lines_stream.dart';
+import '../sse_stream.dart';
+import '../stream_options.dart';
 import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
@@ -77,6 +80,13 @@ class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 /// your own tests.
 abstract interface class {{classname}}Interface {
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  Future<{{{returnType}}}> {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}, [{{#vendorExtensions.op.hasMultipleConsumes}}String? requestContentType, {{/vendorExtensions.op.hasMultipleConsumes}}StreamOptions? streamOptions]);
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
@@ -86,6 +96,7 @@ abstract interface class {{classname}}Interface {
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
   Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}});
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
 
@@ -102,6 +113,90 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
          schemeAuthenticators: schemeAuthenticators,
        );
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+{{#summary}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/summary}}
+{{#notes}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/notes}}
+{{#allParams}}
+{{#description}}
+  /// `{{paramName}}` {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/description}}
+{{/allParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+  /// `options` {{#vendorExtensions.op.hasOptionsParam}}options for query, header, form, and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}options carrying the per-call timeout, headers and retry budget{{/vendorExtensions.op.hasOptionsParam}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+  /// `streamOptions` the stream settings, or null for the defaults
+{{#externalDocs}}
+  /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/externalDocs}}
+  /// Returns the open stream once the response headers arrive; close it when you stop early.
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  @override
+  Future<{{{returnType}}}> {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}, [{{#vendorExtensions.op.hasMultipleConsumes}}String? requestContentType, {{/vendorExtensions.op.hasMultipleConsumes}}StreamOptions? streamOptions]) async {
+{{>api/operation_prelude}}
+    return {{#vendorExtensions.op.streamsSse}}invokeApiForSse{{/vendorExtensions.op.streamsSse}}{{^vendorExtensions.op.streamsSse}}invokeApiForJsonLines{{/vendorExtensions.op.streamsSse}}<{{{vendorExtensions.op.streamItemDart}}}>(
+      method: '{{httpMethod}}',
+      operation: '{{classname}}.{{operationId}}',
+      operationId: '{{#lambda.dartString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.dartString}}',
+      urlTemplate: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+{{#vendorExtensions.op.hasMultipleConsumes}}
+      contentType: requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.hasMultipleConsumes}}
+      contentType: '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{#bodyParam}}
+{{#isBinary}}
+      rawBody: true,
+{{/isBinary}}
+{{/bodyParam}}
+      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+      timeout: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.timeout,
+      callHeaders: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.headers,
+      maxRetries: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.maxRetries,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+      errorSchemas: const {
+{{#vendorExtensions.op.errorSchemaResponses}}
+        '{{{status}}}': {{{schemaClassName}}}.fromErrorResponse,
+{{/vendorExtensions.op.errorSchemaResponses}}
+      },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{#vendorExtensions.op.streamTyped}}
+{{#vendorExtensions.op.streamItemIsModel}}
+      decoder: (data) => deserialize(data, {{{vendorExtensions.op.streamItemDart}}}.fromJson) as {{{vendorExtensions.op.streamItemDart}}},
+{{/vendorExtensions.op.streamItemIsModel}}
+{{^vendorExtensions.op.streamItemIsModel}}
+      decoder: (data) => deserializeRaw(data) as {{{vendorExtensions.op.streamItemDart}}},
+{{/vendorExtensions.op.streamItemIsModel}}
+{{/vendorExtensions.op.streamTyped}}
+{{#vendorExtensions.op.streamsSse}}
+{{#hasSseTerminator}}
+      terminator: '{{{sseTerminator}}}',
+{{/hasSseTerminator}}
+{{/vendorExtensions.op.streamsSse}}
+      streamOptions: streamOptions,
+    );
+  }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 
 {{#summary}}
   /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
@@ -175,360 +270,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/isDeprecated}}
   @override
   Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
-{{#hasAuthMethods}}
-    {{! The credential of the security scheme this operation's spec names, set }}
-    {{! on the client; a scheme without a credential fails the call. }}
-{{#vendorExtensions.op.hasAllOfGroup}}
-    final Authenticator? auth = requirementAuthenticator(const <List<String>>[{{#vendorExtensions.op.securityGroups}}[{{#schemes}}'{{name}}'{{^-last}}, {{/-last}}{{/schemes}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityGroups}}]);
-{{/vendorExtensions.op.hasAllOfGroup}}
-{{^vendorExtensions.op.hasAllOfGroup}}
-    final Authenticator? auth = schemeAuthenticator(const [{{#authMethods}}'{{name}}'{{^-last}}, {{/-last}}{{/authMethods}}]);
-{{/vendorExtensions.op.hasAllOfGroup}}
-{{/hasAuthMethods}}
-{{! Cross-cutting `required-nested-param-validation`: a REQUIRED query/header/ }}
-{{! form/cookie param carried on the Options object must be rejected at }}
-{{! runtime when missing, for parity with the SDKs that throw. }}
-{{! }}
-{{! Two cases: }}
-{{!  - Options REQUIRED (optionsParamRequired): the field is generated }}
-{{!    non-nullable (`final String foo;` + `required this.foo`), so a missing }}
-{{!    value is already rejected by Dart's sound null safety at construction }}
-{{!    and at the call boundary — the type system IS the guard. We still emit }}
-{{!    an explicit ArgumentError.checkNotNull so the enforcement point is }}
-{{!    uniform across SDKs and survives a value that slips past static typing }}
-{{!    (e.g. an unsound-null caller). checkNotNull is lint-safe: it is a }}
-{{!    method call, not a `== null` comparison on a non-nullable. }}
-{{!  - Options OPTIONAL: the object itself can be null, which would silently }}
-{{!    drop the required param; guard the whole object so the call throws }}
-{{!    instead of sending an incomplete request. }}
-{{! }}
-{{! For a REQUIRED STRING param we additionally reject the empty string "", }}
-{{! matching go/rust/swift/elixir which treat "" as "absent" for required }}
-{{! string params. The check is gated on isString so non-string params are }}
-{{! unaffected. The null check above is preserved. }}
-{{#pathParams}}{{#required}}{{#isString}}{{^isUuid}}
-    if ({{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/isUuid}}{{/isString}}{{/required}}{{/pathParams}}
-{{#queryParams}}{{#required}}
-{{#vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.param.queryRequiredNullable}}
-    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{#isString}}{{^isUuid}}
-    if (options.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/isUuid}}{{/isString}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options?.{{paramName}} == null) {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{#isString}}{{^isUuid}}
-    if (options?.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/isUuid}}{{/isString}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/required}}{{/queryParams}}
-{{#headerParams}}{{#required}}
-{{#vendorExtensions.op.optionsParamRequired}}
-    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
-{{#isString}}{{^isUuid}}
-    if (options.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/isUuid}}{{/isString}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options?.{{paramName}} == null) {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{#isString}}{{^isUuid}}
-    if (options?.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/isUuid}}{{/isString}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/required}}{{/headerParams}}
-{{#formParams}}{{#required}}
-{{#vendorExtensions.op.optionsParamRequired}}
-    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
-{{#isString}}{{^isUuid}}
-    if (options.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/isUuid}}{{/isString}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options?.{{paramName}} == null) {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{#isString}}{{^isUuid}}
-    if (options?.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/isUuid}}{{/isString}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/required}}{{/formParams}}
-{{#cookieParams}}{{#required}}
-{{#vendorExtensions.op.optionsParamRequired}}
-    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
-{{#isString}}{{^isUuid}}
-    if (options.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/isUuid}}{{/isString}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options?.{{paramName}} == null) {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{#isString}}{{^isUuid}}
-    if (options?.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/isUuid}}{{/isString}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/required}}{{/cookieParams}}
-
-    var path = '{{{path}}}';
-{{#pathParams}}
-    /* Cross-cutting `path-double-encoding`: serializeStyled already
-     * percent-encodes each path segment via encodePathSegment, so wrapping
-     * the result in a second encoder would encode it twice (a space would
-     * become %2520, `a/b` would become a%252Fb). Substitute the styled
-     * value directly — it is encoded exactly once. A `format: date`
-     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
-     * before it flows through serializeStyled. */
-    path = path.replaceAll('{' + '{{{baseName}}}' + '}', {{#vendorExtensions.param.queryContent}}encodePathSegment(serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}serializeStyled('{{baseName}}', {{#isDate}}stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates({{paramName}}){{/items.isDate}}{{^items.isDate}}{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}{{paramName}}{{/isArray}}{{/isDate}}, 'path','{{{dataType}}}', '', '{{style}}', {{isExplode}}).toString(){{/vendorExtensions.param.queryContent}});
-{{/pathParams}}
-{{#servers}}
-{{#-first}}
-    if (server != null) {
-      final serverUrl = server.getUrl();
-      if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
-        path = serverUrl + path;
-      }
-    }
-{{/-first}}
-{{/servers}}
-
-    final queryParams = <String, Object?>{};
-{{#queryParams}}
-{{#vendorExtensions.param.queryRequiredNullable}}
-    if (options.{{paramName}} == null) {
-      queryParams['{{baseName}}'] = '';
-    } else {
-      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-    }
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{^vendorExtensions.param.queryRequiredNullable}}
-{{#isAllowEmptyValue}}
-{{#vendorExtensions.op.optionsParamRequired}}
-{{#required}}
-    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-{{/required}}
-{{^required}}
-    if (options.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-    }
-{{/required}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options != null && options.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-    }
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
-{{#vendorExtensions.op.optionsParamRequired}}
-{{#required}}
-{{#vendorExtensions.param.queryDeepObject}}
-    serializeDeepObject('{{baseName}}', parameterObject(options.{{paramName}})).forEach((k, v) {
-      queryParams[k] = v;
-    });
-{{/vendorExtensions.param.queryDeepObject}}
-{{#vendorExtensions.param.queryContent}}
-    queryParams['{{baseName}}'] = serialize(options.{{paramName}});
-{{/vendorExtensions.param.queryContent}}
-{{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
-    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-{{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
-{{/required}}
-{{^required}}
-    if (options.{{paramName}} != null) {
-{{#vendorExtensions.param.queryDeepObject}}
-      serializeDeepObject('{{baseName}}', parameterObject(options.{{paramName}})).forEach((k, v) {
-        queryParams[k] = v;
-      });
-{{/vendorExtensions.param.queryDeepObject}}
-{{#vendorExtensions.param.queryContent}}
-      queryParams['{{baseName}}'] = serialize(options.{{paramName}});
-{{/vendorExtensions.param.queryContent}}
-{{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
-      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-{{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
-    }
-{{/required}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options != null && options.{{paramName}} != null) {
-{{#vendorExtensions.param.queryDeepObject}}
-      serializeDeepObject('{{baseName}}', parameterObject(options.{{paramName}})).forEach((k, v) {
-        queryParams[k] = v;
-      });
-{{/vendorExtensions.param.queryDeepObject}}
-{{#vendorExtensions.param.queryContent}}
-      queryParams['{{baseName}}'] = serialize(options.{{paramName}});
-{{/vendorExtensions.param.queryContent}}
-{{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
-      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-{{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
-    }
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/isAllowEmptyValue}}
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{/queryParams}}
-
-    final headerParams = <String, String>{};
-{{#headerParams}}
-{{#vendorExtensions.op.optionsParamRequired}}
-{{#required}}
-    headerParams['{{baseName}}'] = {{#vendorExtensions.param.queryContent}}serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}};
-{{/required}}
-{{^required}}
-    if (options.{{paramName}} != null) {
-      headerParams['{{baseName}}'] = {{#vendorExtensions.param.queryContent}}serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}};
-    }
-{{/required}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options != null && options.{{paramName}} != null) {
-      headerParams['{{baseName}}'] = {{#vendorExtensions.param.queryContent}}serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}};
-    }
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/headerParams}}
-{{#hasCookieParams}}
-    final cookieParts = <String>[];
-    /* RFC 6265 cookie-value grammar, identical to the auth-cookie path in
-       base_api. Operation cookie params are interpolated straight into the
-       Cookie request header, so an attacker-controlled CR/LF/control-char
-       value would otherwise smuggle in extra headers. Validate every
-       assembled value the same way the auth-cookie path does and fail closed
-       with the same ArgumentError so header injection is impossible. */
-    final operationCookieValueRe = RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');
-    void addCookiePart(String name, String value) {
-      if (!operationCookieValueRe.hasMatch(value)) {
-        throw ArgumentError("Cookie value for '$name' contains characters forbidden by RFC 6265");
-      }
-      cookieParts.add('$name=$value');
-    }
-{{#cookieParams}}
-{{#vendorExtensions.op.optionsParamRequired}}
-{{#required}}
-    addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
-{{/required}}
-{{^required}}
-    if (options.{{paramName}} != null) {
-      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
-    }
-{{/required}}
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options != null && options.{{paramName}} != null) {
-      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
-    }
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/cookieParams}}
-    if (cookieParts.isNotEmpty) {
-      headerParams['Cookie'] = cookieParts.join('; ');
-    }
-{{/hasCookieParams}}
-
-{{#hasFormParams}}
-    /* The form body is a `Map<String, Object?>` (NOT `Map<String, String>`)
-     * so values reach the serializer in their native shape:
-     *   - a `List` stays a list, which the form-urlencoded encoder expands
-     *     into repeated keys (`tags=a&tags=b`) and the multipart builder
-     *     emits as repeated parts (form-array-repeated-keys);
-     *   - a binary file (`Uint8List`/`List<int>`) stays bytes so the
-     *     multipart builder routes it through the binary branch with a
-     *     filename-derived Content-Type instead of stringifying the bytes;
-     *   - a scalar is stringified at the edge by the serializer.
-     * Optional null/absent fields are never added, so they are omitted on
-     * the wire (form-optional-null-omitted). */
-    final formBody = <String, Object?>{};
-{{#formParams}}
-{{#required}}
-{{#vendorExtensions.op.optionsParamRequired}}
-    formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options != null) {
-      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
-    }
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/required}}
-{{^required}}
-{{#vendorExtensions.op.optionsParamRequired}}
-    if (options.{{paramName}} != null) {
-      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
-    }
-{{/vendorExtensions.op.optionsParamRequired}}
-{{^vendorExtensions.op.optionsParamRequired}}
-    if (options != null && options.{{paramName}} != null) {
-      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
-    }
-{{/vendorExtensions.op.optionsParamRequired}}
-{{/required}}
-{{/formParams}}
-{{#vendorExtensions.op.hasMultipleConsumes}}
-    /* multi-content-type-binary-body: this operation declares more than one
-     * request Content-Type — `multipart/form-data` AND a raw binary type
-     * (e.g. `application/octet-stream`). When the caller selects a
-     * non-multipart type, the wire body must be the single binary part's RAW
-     * bytes (Content-Type: application/octet-stream), NOT a multipart/form-data
-     * envelope and NOT the formBody Map (which base_api would JSON-stringify
-     * for a non-multipart content type). Only build the multipart Map when the
-     * effective content type is `multipart/form-data`; otherwise stream the
-     * binary field's bytes directly, mirroring the single-binary-body path
-     * used by setPetAvatar. */
-    final Object? requestBody =
-        (requestContentType == null ||
-                requestContentType == 'multipart/form-data')
-            ? formBody
-{{#formParams}}
-{{#isBinary}}
-            : options.{{paramName}};
-{{/isBinary}}
-{{/formParams}}
-{{/vendorExtensions.op.hasMultipleConsumes}}
-{{^vendorExtensions.op.hasMultipleConsumes}}
-    final Object? requestBody = formBody;
-{{/vendorExtensions.op.hasMultipleConsumes}}
-{{/hasFormParams}}
-{{^hasFormParams}}
-{{#bodyParam}}
-    final Object? requestBody = {{paramName}};
-{{/bodyParam}}
-{{^bodyParam}}
-    final Object? requestBody = null;
-{{/bodyParam}}
-{{/hasFormParams}}
-{{#vendorExtensions.op.hasMultipleConsumes}}
-    /* Reject an unrecognised requestContentType client-side so a typo never
-     * rides the wire as an undeclared Content-Type (matching java/elixir and
-     * the other SDKs); null defaults to the first declared type below. */
-    const declaredConsumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}];
-    if (requestContentType != null &&
-        !declaredConsumes.contains(requestContentType)) {
-      throw ArgumentError(
-          "Unsupported request content-type '$requestContentType' for {{operationId}}; declared types are $declaredConsumes");
-    }
-{{/vendorExtensions.op.hasMultipleConsumes}}
+{{>api/operation_prelude}}
 
     return {{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{#returnType}}<{{{.}}}>{{/returnType}}{{^returnType}}<void>{{/returnType}}{{/vendorExtensions.op.streamsBinary}}(
       method: '{{httpMethod}}',
@@ -661,6 +403,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{/vendorExtensions.op.streamsBinary}}
     );
   }
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
 
