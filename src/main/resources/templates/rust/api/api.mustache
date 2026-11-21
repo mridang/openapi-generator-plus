@@ -11,6 +11,9 @@ use crate::api_client::MultipartValue;
 use crate::errors::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
+{{#hasBinaryStream}}
+use crate::byte_stream::ByteStream;
+{{/hasBinaryStream}}
 use crate::configuration::Configuration;
 use crate::models::*;
 use crate::object_serializer;
@@ -1012,6 +1015,12 @@ impl {{classname}} {
 {{/hasAuthMethods}}
         };
 
+{{#vendorExtensions.op.streamsBinary}}
+        /* A binary response is returned as a stream, not read yet; the call
+         * returns once the response headers have arrived. */
+        self.base.invoke_api_for_stream(params).await
+{{/vendorExtensions.op.streamsBinary}}
+{{^vendorExtensions.op.streamsBinary}}
 {{#returnType}}
 {{#vendorExtensions.op.hasMultiple2xx}}
         /* Several 2xx responses with different schemas: the body is decoded as
@@ -1036,6 +1045,7 @@ impl {{classname}} {
 {{^returnType}}
         self.base.invoke_api_for_empty_result(params).await
 {{/returnType}}
+{{/vendorExtensions.op.streamsBinary}}
     }
 {{/operation}}
 }

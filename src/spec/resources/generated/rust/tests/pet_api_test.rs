@@ -546,6 +546,26 @@ async fn test_bhv_operations_023_pet_api_add_pet_photos() {
 }
 
 #[tokio::test]
+async fn test_bhv_streaming_009_a_binary_stream_exposes_the_status_and_the_lower_cased_response_headers(
+) {
+    let api = new_pet_api_for_integration();
+    let result = api
+        .get_pet_avatar_with_http_info(1, None)
+        .await
+        .expect("get_pet_avatar_with_http_info failed");
+    let stream = result.data().expect("the stream");
+    assert_eq!(200, stream.status_code());
+    assert!(stream.headers().contains_key("content-type"));
+    assert!(stream
+        .headers()
+        .keys()
+        .all(|name| *name == name.to_lowercase()));
+    assert_eq!(stream.status_code(), result.status_code());
+    assert_eq!(stream.headers(), result.headers());
+    assert_eq!("", result.raw_body());
+}
+
+#[tokio::test]
 async fn test_bhv_operations_035_pet_api_download_pet_document() {
     let api = new_pet_api_for_integration();
     let result = api.download_pet_document(1, 1, None).await;
@@ -559,21 +579,27 @@ async fn test_bhv_operations_035_pet_api_download_pet_document() {
 #[tokio::test]
 async fn test_bhv_serializationwire_060_a_binary_return_type_gets_the_raw_bytes_of_a_json_body() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", r#"{"a":1}"#);
-    let bytes = api
+    let mut stream = api
         .download_pet_document(1, 1, None)
         .await
         .expect("download failed");
-    assert_eq!(bytes, br#"{"a":1}"#.to_vec());
+    assert_eq!(
+        stream.read_all().await.expect("the body"),
+        br#"{"a":1}"#.to_vec()
+    );
 }
 
 #[tokio::test]
 async fn test_bhv_operations_055_pet_api_get_pet_photo() {
     let (api, _) = new_pet_api_for_mock(200, "image/jpeg", "FAKE_JPEG_BYTES");
-    let photo = api
+    let mut photo = api
         .get_pet_photo(1, 1, None)
         .await
         .expect("get_pet_photo failed");
-    assert_eq!(photo, b"FAKE_JPEG_BYTES".to_vec());
+    assert_eq!(
+        photo.read_all().await.expect("the body"),
+        b"FAKE_JPEG_BYTES".to_vec()
+    );
 }
 
 #[tokio::test]
@@ -1800,11 +1826,14 @@ async fn test_bhv_operations_038_pet_api_error_handling_server_error() {
 async fn test_bhv_operations_034_pet_api_download_binary_mock() {
     let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
-    let avatar = api
+    let mut avatar = api
         .get_pet_avatar(1, None)
         .await
         .expect("get_pet_avatar failed");
-    assert_eq!(avatar, b"FAKE_BINARY_DATA".to_vec());
+    assert_eq!(
+        avatar.read_all().await.expect("the body"),
+        b"FAKE_BINARY_DATA".to_vec()
+    );
 }
 
 #[tokio::test]
@@ -2589,7 +2618,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document({:?},{:?}, options={})",
             pet_id,
@@ -2605,7 +2634,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document_with_http_info({:?},{:?}, options={})",
@@ -2734,7 +2763,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar({:?}, options={})",
             pet_id,
@@ -2748,7 +2777,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar_with_http_info({:?}, options={})",
@@ -2903,7 +2932,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo({:?},{:?}, options={})",
             pet_id,
@@ -2919,7 +2948,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo_with_http_info({:?},{:?}, options={})",
@@ -3637,16 +3666,16 @@ async fn test_bhv_misc_220_a_full_response_call_keeps_the_status_code_and_the_de
 }
 
 #[tokio::test]
-async fn test_bhv_misc_216_a_binary_response_is_returned_as_bytes_and_the_raw_body_keeps_its_text()
-{
+async fn test_bhv_misc_216_a_binary_response_is_returned_as_a_stream_and_the_raw_body_is_empty() {
     let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "hello");
     let result = api
         .get_pet_avatar_with_http_info(1, None)
         .await
-        .expect("the binary response decodes");
+        .expect("the binary response opens a stream");
+    assert_eq!(result.raw_body(), "", "a stream result has no raw body");
+    let mut stream = result.into_data().expect("the stream");
     assert_eq!(
-        result.data().map(|bytes| bytes.as_slice()),
-        Some(&b"hello"[..])
+        stream.read_all().await.expect("the body"),
+        b"hello".to_vec()
     );
-    assert_eq!(result.raw_body(), "aGVsbG8=");
 }
