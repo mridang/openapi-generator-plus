@@ -112,6 +112,32 @@ class GeneratedFileLayoutTest {
         "the mock seam: IClient is the interface a fake implements, declared in its own file beside"
             + " the Client class that implements it");
 
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "streamingapiclient",
+        "PHP 8.3 interfaces cannot carry a default method, so the transport that can stream is a"
+            + " second interface that the SDK checks at call time (D118)");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "eventstream",
+        "the line splitter and the server-sent events parser, one class per file in PHP");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "ssestream",
+        "the reconnecting stream of server-sent events, a class of its own in PHP");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "serversentevent",
+        "the envelope of one server-sent event, a class of its own in PHP");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "streamoptions",
+        "the settings of one JSON Lines or server-sent events call, a class of its own in PHP");
     allow(ALLOWED_EXTRA, "php", "rawstreamresponse", "the internal pair of status, headers and open body that a PHP transport hands to the ByteStream");
     allow(ALLOWED_EXTRA, "swift", "streamtransfer", "the URLSession delegate that feeds the AsyncThrowingStream, because AsyncBytes is absent on Linux");
     allow(ALLOWED_EXTRA, "go", "doc", "a go package description can only live in a package comment file");

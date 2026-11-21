@@ -33,7 +33,9 @@ use {{invokerPackage}}\Errors\InternalServerErrorException;
 use {{invokerPackage}}\ApiClient;
 use {{invokerPackage}}\ApiHttpResponse;
 use {{invokerPackage}}\ByteStream;
+use {{invokerPackage}}\SseStream;
 use {{invokerPackage}}\StreamingApiClient;
+use {{invokerPackage}}\StreamOptions;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use {{apiPackage}}\PetApi;
@@ -3144,5 +3146,137 @@ test('bhv streaming 030 a transport that cannot stream fails a stream call namin
 
     $api->call('GET', '/items/blob', [], [], null, ['application/json'], null);
     expect($client->capturedUrl)->toBe('http://localhost/items/blob');
+});
+
+/**
+ * A transport that answers every connection of an event stream with the next scripted body (an empty
+ * one is a 204), recording the headers it was sent.
+ *
+ * @param list<string> $bodies
+ */
+function eventStreamTransport(array $bodies): ScriptedApiClient
+{
+    return new ScriptedApiClient(array_map(
+        static fn (string $text): ApiHttpResponse => $text === ''
+            ? new ApiHttpResponse(204, '', [])
+            : new ApiHttpResponse(200, $text, ['Content-Type' => 'text/event-stream']),
+        $bodies
+    ));
+}
+
+/**
+ * The value of a header, whatever the casing of its name.
+ *
+ * @param array<string, string> $headers
+ */
+function sentHeader(array $headers, string $name): ?string
+{
+    foreach ($headers as $key => $value) {
+        if (strcasecmp((string) $key, $name) === 0) {
+            return $value;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * How often a header is present, whatever the casing of its name.
+ *
+ * @param array<string, string> $headers
+ */
+function sentHeaderCount(array $headers, string $name): int
+{
+    return count(array_filter(array_keys($headers), static fn (int|string $key): bool => strcasecmp((string) $key, $name) === 0));
+}
+
+test('bhv streaming 028 an operation with a streaming media type gets a stream method and an sse or json lines only operation gets no buffered method', function (): void {
+    foreach (['exportOrders', 'watchOrders', 'watchNotices'] as $operation) {
+        expect(method_exists(StoreApi::class, $operation . 'Stream'))->toBeTrue();
+        expect(method_exists(StoreApi::class, $operation))->toBeFalse();
+        expect(method_exists(StoreApi::class, $operation . 'WithHttpInfo'))->toBeFalse();
+    }
+    $exportType = (new \ReflectionMethod(StoreApi::class, 'exportOrdersStream'))->getReturnType();
+    $watchType = (new \ReflectionMethod(StoreApi::class, 'watchNoticesStream'))->getReturnType();
+    assert($exportType instanceof \ReflectionNamedType && $watchType instanceof \ReflectionNamedType);
+    expect($exportType->getName())->toBe(\Generator::class);
+    expect($watchType->getName())->toBe(SseStream::class);
+});
+
+test('bhv sse 006 an sse request sends accept text event stream, cache control no cache and identity encoding unless the caller set them', function (): void {
+    $client = eventStreamTransport(["data: a\n\n", '']);
+    foreach ((new TestableApi($client, new Configuration('http://localhost')))->events([], new StreamOptions(reconnectDelay: 1)) as $ignored) {
+    }
+    $sent = $client->requests[0]['headers'];
+    expect(sentHeader($sent, 'Accept'))->toBe('text/event-stream');
+    expect(sentHeader($sent, 'Cache-Control'))->toBe('no-cache');
+    expect(sentHeader($sent, 'Accept-Encoding'))->toBe('identity');
+
+    $own = eventStreamTransport(["data: a\n\n", '']);
+    $api = new TestableApi($own, new Configuration('http://localhost', ['accept-encoding' => 'gzip']));
+    foreach ($api->events(['cache-control' => 'max-age=0'], new StreamOptions(reconnectDelay: 1)) as $ignored) {
+    }
+    $chosen = $own->requests[0]['headers'];
+    expect(sentHeader($chosen, 'Cache-Control'))->toBe('max-age=0');
+    expect(sentHeaderCount($chosen, 'Cache-Control'))->toBe(1);
+    expect(sentHeader($chosen, 'Accept-Encoding'))->toBe('gzip');
+    expect(sentHeaderCount($chosen, 'Accept-Encoding'))->toBe(1);
+});
+
+test('bhv sse 012 an sse stream sends the initial last event id of the call on its first request', function (): void {
+    $client = eventStreamTransport(["data: a\n\n", '']);
+
+    foreach ((new TestableApi($client, new Configuration('http://localhost')))->events([], new StreamOptions(reconnectDelay: 1, lastEventId: '42')) as $ignored) {
+    }
+
+    expect(sentHeader($client->requests[0]['headers'], 'Last-Event-ID'))->toBe('42');
+});
+
+test('bhv sse 013 an sse reconnect rebuilds the headers so a refreshed token is the one sent', function (): void {
+    $client = eventStreamTransport(["data: a\n\n", '']);
+    $rotating = new class implements Authenticator {
+        private int $issued = 0;
+
+        public function getHost(): string
+        {
+            return '';
+        }
+
+        public function getAuthHeaders(): array
+        {
+            $this->issued++;
+
+            return ['Authorization' => 'Bearer t' . $this->issued];
+        }
+
+        public function getQueryParams(): array
+        {
+            return [];
+        }
+
+        public function getCookieParams(): array
+        {
+            return [];
+        }
+    };
+
+    foreach ((new TestableApi($client, new Configuration('http://localhost'), $rotating))->events([], new StreamOptions(reconnectDelay: 1)) as $ignored) {
+    }
+
+    expect($client->requests)->toHaveCount(2);
+    expect(sentHeader($client->requests[0]['headers'], 'Authorization'))->toBe('Bearer t1');
+    expect(sentHeader($client->requests[1]['headers'], 'Authorization'))->toBe('Bearer t2');
+});
+
+test('bhv sse 020 an sse reconnect sends last event id only when the last event id is not empty', function (): void {
+    $client = eventStreamTransport(["data: a\n\n", "id: 5\ndata: b\n\n", '']);
+
+    foreach ((new TestableApi($client, new Configuration('http://localhost')))->events([], new StreamOptions(reconnectDelay: 1)) as $ignored) {
+    }
+
+    expect($client->requests)->toHaveCount(3);
+    expect(sentHeader($client->requests[0]['headers'], 'Last-Event-ID'))->toBeNull();
+    expect(sentHeader($client->requests[1]['headers'], 'Last-Event-ID'))->toBeNull();
+    expect(sentHeader($client->requests[2]['headers'], 'Last-Event-ID'))->toBe('5');
 });
 
