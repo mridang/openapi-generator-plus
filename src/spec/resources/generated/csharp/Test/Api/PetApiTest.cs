@@ -500,10 +500,27 @@ public class PetApiTest
     [Fact]
     public async Task BhvOperations045TestGetPetAvatar()
     {
-        var result = await _api.GetPetAvatarAsync(1L);
+        await using ByteStream result = await _api.GetPetAvatarAsync(1L);
 
         Assert.NotNull(result);
         Assert.IsType<Stream>(result, exactMatch: false);
+    }
+
+    [Fact]
+    public async Task BhvStreaming009ABinaryStreamExposesTheStatusAndTheLowerCasedResponseHeaders()
+    {
+        await using (ByteStream stream = await _api.GetPetAvatarAsync(1L))
+        {
+            Assert.Equal(200, stream.StatusCode);
+            Assert.True(stream.Headers.ContainsKey("content-type"));
+            Assert.All(stream.Headers.Keys, name => Assert.False(name.Any(char.IsUpper), name));
+        }
+
+        ApiResult<ByteStream> result = await _api.GetPetAvatarWithHttpInfoAsync(1L);
+        await using ByteStream data = result.Data!;
+        Assert.Equal(result.StatusCode, data.StatusCode);
+        Assert.Equal(result.Headers, data.Headers);
+        Assert.Empty(result.RawBody);
     }
 
     [Fact]
@@ -578,7 +595,7 @@ public class PetApiTest
     [Fact]
     public async Task BhvOperations035TestDownloadPetDocument()
     {
-        var result = await _api.DownloadPetDocumentAsync(1L, 100L);
+        await using ByteStream result = await _api.DownloadPetDocumentAsync(1L, 100L);
 
         Assert.NotNull(result);
         Assert.IsType<Stream>(result, exactMatch: false);
@@ -587,7 +604,7 @@ public class PetApiTest
     [Fact]
     public async Task BhvOperations055TestGetPetPhoto()
     {
-        var result = await _api.GetPetPhotoAsync(1L, 100L);
+        await using ByteStream result = await _api.GetPetPhotoAsync(1L, 100L);
 
         Assert.NotNull(result);
         Assert.IsType<Stream>(result, exactMatch: false);
@@ -889,6 +906,27 @@ public class PetApiTest
             _statusCode = statusCode;
             _contentType = contentType;
             _body = body;
+        }
+
+        public Task<PetstoreClient.ApiStreamResponse> SendStreamingAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            int? idleTimeout,
+            CancellationToken cancellationToken
+        )
+        {
+            return Task.FromResult(
+                new PetstoreClient.ApiStreamResponse(
+                    _statusCode,
+                    new Dictionary<string, string> { { "content-type", _contentType } },
+                    new MemoryStream(System.Text.Encoding.UTF8.GetBytes(_body))
+                )
+            );
         }
 
         public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
@@ -2002,8 +2040,12 @@ public class PetApiTest
     {
         var mockApi = NewPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
-        var result = await mockApi.GetPetAvatarAsync(1L);
+        await using ByteStream result = await mockApi.GetPetAvatarAsync(1L);
         Assert.NotNull(result);
+        Assert.Equal(
+            "FAKE_BINARY_DATA",
+            System.Text.Encoding.UTF8.GetString(await result.ReadAllAsync())
+        );
     }
 
     [Fact]

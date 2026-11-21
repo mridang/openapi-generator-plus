@@ -91,7 +91,7 @@ public interface IPetApi
     );
 
     /// <summary>The <c>DownloadPetDocument</c> operation.</summary>
-    Task<System.IO.Stream> DownloadPetDocumentAsync(
+    Task<ByteStream> DownloadPetDocumentAsync(
         long petId,
         long documentId,
         DownloadPetDocumentOptions? options = null,
@@ -99,7 +99,7 @@ public interface IPetApi
     );
 
     /// <summary>The <c>DownloadPetDocument</c> operation with its status code, headers and body.</summary>
-    Task<ApiResult<System.IO.Stream>> DownloadPetDocumentWithHttpInfoAsync(
+    Task<ApiResult<ByteStream>> DownloadPetDocumentWithHttpInfoAsync(
         long petId,
         long documentId,
         DownloadPetDocumentOptions? options = null,
@@ -167,14 +167,14 @@ public interface IPetApi
     );
 
     /// <summary>The <c>GetPetAvatar</c> operation.</summary>
-    Task<System.IO.Stream> GetPetAvatarAsync(
+    Task<ByteStream> GetPetAvatarAsync(
         long petId,
         GetPetAvatarOptions? options = null,
         CancellationToken cancellationToken = default
     );
 
     /// <summary>The <c>GetPetAvatar</c> operation with its status code, headers and body.</summary>
-    Task<ApiResult<System.IO.Stream>> GetPetAvatarWithHttpInfoAsync(
+    Task<ApiResult<ByteStream>> GetPetAvatarWithHttpInfoAsync(
         long petId,
         GetPetAvatarOptions? options = null,
         CancellationToken cancellationToken = default
@@ -253,7 +253,7 @@ public interface IPetApi
     );
 
     /// <summary>The <c>GetPetPhoto</c> operation.</summary>
-    Task<System.IO.Stream> GetPetPhotoAsync(
+    Task<ByteStream> GetPetPhotoAsync(
         long petId,
         long photoId,
         GetPetPhotoOptions? options = null,
@@ -261,7 +261,7 @@ public interface IPetApi
     );
 
     /// <summary>The <c>GetPetPhoto</c> operation with its status code, headers and body.</summary>
-    Task<ApiResult<System.IO.Stream>> GetPetPhotoWithHttpInfoAsync(
+    Task<ApiResult<ByteStream>> GetPetPhotoWithHttpInfoAsync(
         long petId,
         long photoId,
         GetPetPhotoOptions? options = null,

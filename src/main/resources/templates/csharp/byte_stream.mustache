@@ -1,0 +1,157 @@
+{{>api_info}}
+
+using System.Collections.ObjectModel;
+
+namespace {{packageName}};
+
+/// <summary>
+/// The body of a binary response, read as it arrives. An operation whose
+/// success response is binary returns one instead of buffering the bytes, so a
+/// large download never has to fit in memory.
+///
+/// It is a <see cref="Stream"/>: read it, copy it with
+/// <see cref="Stream.CopyToAsync(Stream)"/>, or take every byte with
+/// <see cref="ReadAllAsync"/>. It also carries the <see cref="StatusCode"/> and
+/// the lower-cased response <see cref="Headers"/>.
+///
+/// <see cref="Stream.Dispose()"/> is idempotent and aborts the connection
+/// instead of draining the rest of the body, so dispose the stream
+/// (<c>await using</c>) when you stop early. A failure after the headers
+/// surfaces from a read as a <see cref="Errors.StreamException"/>; a stall
+/// longer than the transport's <c>IdleTimeout</c> is a
+/// <see cref="Errors.NetworkTimeoutException"/>. Disposing the client cancels
+/// the streams still open: their next read raises
+/// <see cref="InvalidOperationException"/>.
+///
+/// <see cref="ToString"/> shows the status code and the number of bytes
+/// delivered, never the headers, the URL or the content.
+/// </summary>
+public sealed class ByteStream : Stream
+{
+    private readonly Stream _source;
+    private long _delivered;
+    private int _closed;
+
+    /// <summary>Wraps an open response body.</summary>
+    /// <param name="statusCode">The HTTP status code.</param>
+    /// <param name="headers">The response headers, lower-cased.</param>
+    /// <param name="source">The open body; this stream disposes it.</param>
+    public ByteStream(int statusCode, IReadOnlyDictionary<string, string> headers, Stream source)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+        ArgumentNullException.ThrowIfNull(source);
+        StatusCode = statusCode;
+        Headers = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(headers));
+        _source = source;
+    }
+
+    /// <summary>The HTTP status code of the response.</summary>
+    public int StatusCode { get; }
+
+    /// <summary>The response headers, with lower-cased names and repeated values joined by <c>", "</c> (unmodifiable).</summary>
+    public IReadOnlyDictionary<string, string> Headers { get; }
+
+    /// <inheritdoc/>
+    public override bool CanRead => Volatile.Read(ref _closed) == 0 && _source.CanRead;
+
+    /// <inheritdoc/>
+    public override bool CanSeek => false;
+
+    /// <inheritdoc/>
+    public override bool CanWrite => false;
+
+    /// <inheritdoc/>
+    public override long Length => throw new NotSupportedException();
+
+    /// <inheritdoc/>
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+
+    /// <inheritdoc/>
+    public override void Flush() { }
+
+    /// <inheritdoc/>
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        return Read(buffer.AsSpan(offset, count));
+    }
+
+    /// <inheritdoc/>
+    public override int Read(Span<byte> buffer)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _closed) != 0, this);
+        int count = _source.Read(buffer);
+        _ = Interlocked.Add(ref _delivered, count);
+        return count;
+    }
+
+    /// <inheritdoc/>
+    public override async ValueTask<int> ReadAsync(
+        Memory<byte> buffer,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _closed) != 0, this);
+        int count = await _source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+        _ = Interlocked.Add(ref _delivered, count);
+        return count;
+    }
+
+    /// <summary>
+    /// Reads every remaining byte and disposes the stream, so the call leaves
+    /// nothing open.
+    /// </summary>
+    /// <param name="cancellationToken">Token that cancels the read.</param>
+    /// <returns>The remaining bytes, in order.</returns>
+    /// <exception cref="ObjectDisposedException">The stream was disposed before.</exception>
+    public async Task<byte[]> ReadAllAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using MemoryStream all = new();
+            await CopyToAsync(all, 81920, cancellationToken).ConfigureAwait(false);
+            return all.ToArray();
+        }
+        finally
+        {
+            await DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    /// <inheritdoc/>
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+    /// <inheritdoc/>
+    public override void SetLength(long value) => throw new NotSupportedException();
+
+    /// <inheritdoc/>
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    /// <summary>Disposes the stream and aborts the connection; later calls do nothing.</summary>
+    /// <param name="disposing">Whether the call comes from <see cref="Stream.Dispose()"/>.</param>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && Interlocked.Exchange(ref _closed, 1) == 0)
+        {
+            /* Aborting: the connection is being dropped either way. */
+            try
+            {
+                _source.Dispose();
+            }
+            catch (IOException) { }
+        }
+        base.Dispose(disposing);
+    }
+
+    /// <summary>
+    /// Describes the stream by its status code and the bytes delivered so far.
+    /// </summary>
+    /// <returns>The redacted description.</returns>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(StatusCode={StatusCode}, BytesDelivered={Interlocked.Read(ref _delivered)})";
+    }
+}
