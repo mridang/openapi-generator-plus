@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Test;
 
 use PetstoreClient\Auth\ApiKeyLocation;
+use PetstoreClient\BodySource;
 use PetstoreClient\ByteStream;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\NetworkException;
@@ -4534,4 +4535,297 @@ test('bhv sse 018 an sse comment line such as a heartbeat is skipped and counts 
 
     expect($stream->getIterator()->current()->data)->toBe('late');
     expect($server->hits())->toBe(1);
+});
+
+/**
+ * Both bundled transports, each on the default options with no waiting between retries.
+ *
+ * @return array<string, \PetstoreClient\AbstractApiClient>
+ */
+function uploadTransports(): array
+{
+    $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
+    $options = TransportOptions::builder()->maxRedirects(5)->build();
+
+    return [
+        'symfony' => new DefaultApiClient($options),
+        'psr18' => new \PetstoreClient\Psr18ApiClient(new \Symfony\Component\HttpClient\Psr18Client(\Symfony\Component\HttpClient\HttpClient::create(['max_redirects' => 0])), $factory, $factory, $options),
+    ];
+}
+
+/**
+ * A stream resource over the given bytes, read from the start.
+ *
+ * @return resource
+ */
+function streamOver(string $bytes)
+{
+    $stream = fopen('php://temp', 'w+');
+    expect($stream)->toBeResource();
+    assert(is_resource($stream));
+    fwrite($stream, $bytes);
+    rewind($stream);
+
+    return $stream;
+}
+
+/** The sentence a server head holds in lower case, for matching the headers that were sent. */
+function sentHead(RawServer $server, int $hit = 0): string
+{
+    return strtolower($server->heads()[$hit]);
+}
+
+test('bhv streaming 023 a streamed upload of unknown length is sent chunked and arrives intact', function (): void {
+    $payload = random_bytes(200_000);
+    foreach (uploadTransports() as $client) {
+        $server = RawServer::serve(<<<'PHP'
+            recordBody($socket, $head, $hit);
+            reply($socket, 204, 'Content-Length: 0');
+            PHP);
+
+        $response = $client->sendRequest(
+            'PUT',
+            $server->url('/items/blob'),
+            ['Content-Type' => 'application/octet-stream'],
+            BodySource::fromFactory(static fn () => streamOver($payload))
+        );
+
+        expect($response->statusCode)->toBe(204);
+        expect(sentHead($server))->toContain('transfer-encoding: chunked');
+        expect(sentHead($server))->not->toContain('content-length');
+        expect($server->body())->toBe($payload);
+    }
+});
+
+test('bhv streaming 024 a streamed upload with a known length sends content length', function (): void {
+    $payload = random_bytes(150_000);
+    $path = (string) tempnam(sys_get_temp_dir(), 'upload');
+    file_put_contents($path, $payload);
+    $sources = [
+        'bytes' => static fn (): BodySource => BodySource::of($payload),
+        'file' => static fn (): BodySource => BodySource::ofFile($path),
+        'single use' => static fn (): BodySource => BodySource::once(streamOver($payload), strlen($payload)),
+        'factory' => static fn (): BodySource => BodySource::fromFactory(static fn () => streamOver($payload), strlen($payload)),
+    ];
+    foreach (uploadTransports() as $client) {
+        foreach ($sources as $kind => $make) {
+            $source = $make();
+            $server = RawServer::serve(<<<'PHP'
+                recordBody($socket, $head, $hit);
+                reply($socket, 204, 'Content-Length: 0');
+                PHP);
+
+            $client->sendRequest('PUT', $server->url('/items/blob'), ['Content-Type' => 'application/octet-stream'], $source);
+
+            expect(sentHead($server))->toContain('content-length: ' . strlen($payload));
+            expect(sentHead($server))->not->toContain('transfer-encoding');
+            expect($server->body())->toBe($payload);
+            expect((string) $source)->toBe('BodySource[' . $kind . ', ' . strlen($payload) . ' bytes]');
+        }
+    }
+    unlink($path);
+});
+
+/**
+ * A PSR-7 stream over bytes that counts how often it is closed.
+ *
+ * @param int $closes receives the number of close() calls
+ */
+function closeCountingStream(string $bytes, int &$closes): \Psr\Http\Message\StreamInterface
+{
+    $inner = (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream($bytes);
+
+    return new class ($inner, $closes) implements \Psr\Http\Message\StreamInterface {
+        public function __construct(private readonly \Psr\Http\Message\StreamInterface $inner, private int &$closes)
+        {
+        }
+
+        public function __toString(): string
+        {
+            return (string) $this->inner;
+        }
+
+        public function close(): void
+        {
+            $this->closes++;
+        }
+
+        public function detach()
+        {
+            return $this->inner->detach();
+        }
+
+        public function getSize(): ?int
+        {
+            return $this->inner->getSize();
+        }
+
+        public function tell(): int
+        {
+            return $this->inner->tell();
+        }
+
+        public function eof(): bool
+        {
+            return $this->inner->eof();
+        }
+
+        public function isSeekable(): bool
+        {
+            return $this->inner->isSeekable();
+        }
+
+        public function seek(int $offset, int $whence = SEEK_SET): void
+        {
+            $this->inner->seek($offset, $whence);
+        }
+
+        public function rewind(): void
+        {
+            $this->inner->rewind();
+        }
+
+        public function isWritable(): bool
+        {
+            return false;
+        }
+
+        public function write(string $string): int
+        {
+            return $this->inner->write($string);
+        }
+
+        public function isReadable(): bool
+        {
+            return $this->inner->isReadable();
+        }
+
+        public function read(int $length): string
+        {
+            return $this->inner->read($length);
+        }
+
+        public function getContents(): string
+        {
+            return $this->inner->getContents();
+        }
+
+        public function getMetadata(?string $key = null)
+        {
+            return $this->inner->getMetadata($key);
+        }
+    };
+}
+
+test('bhv streaming 025 a caller supplied upload stream is never closed by the sdk', function (): void {
+    $payload = 'caller-owned-bytes';
+    foreach (uploadTransports() as $client) {
+        $server = RawServer::serve(<<<'PHP'
+            recordBody($socket, $head, $hit);
+            reply($socket, 204, 'Content-Length: 0');
+            PHP);
+        $resource = streamOver($payload);
+        $closes = 0;
+        $psr = closeCountingStream($payload, $closes);
+
+        $client->sendRequest('PUT', $server->url('/items/blob'), [], BodySource::once($resource, strlen($payload)));
+        $client->sendRequest('PUT', $server->url('/items/blob'), [], BodySource::once($psr, strlen($payload)));
+
+        expect(is_resource($resource))->toBeTrue();
+        expect($closes)->toBe(0);
+        expect($server->body(1))->toBe($payload);
+        expect($server->body(2))->toBe($payload);
+    }
+
+    $opened = [];
+    $factory = static function () use (&$opened, $payload) {
+        $stream = streamOver($payload);
+        $opened[] = $stream;
+
+        return $stream;
+    };
+    $server = RawServer::serve(<<<'PHP'
+        recordBody($socket, $head, $hit);
+        reply($socket, 204, 'Content-Length: 0');
+        PHP);
+    (new DefaultApiClient(TransportOptions::builder()->build()))
+        ->sendRequest('PUT', $server->url('/items/blob'), [], BodySource::fromFactory($factory, strlen($payload)));
+    expect($opened)->toHaveCount(1);
+    expect(is_resource($opened[0]))->toBeFalse();
+});
+
+test('bhv streaming 026 a replayable upload is rewound and retried after a 503, and a single use upload is not retried and surfaces the original error', function (): void {
+    $payload = random_bytes(70_000);
+    $script = <<<'PHP'
+        recordBody($socket, $head, $hit);
+        if ($hit === 1) {
+            reply($socket, 503, 'Retry-After: 0', 'Content-Length: 0');
+            return;
+        }
+        reply($socket, 204, 'Content-Length: 0');
+        PHP;
+    foreach (uploadTransports() as $client) {
+        $server = RawServer::serve($script);
+        $retried = $client->sendWithRetries('PUT', $server->url('/items/blob'), static fn (): array => [], BodySource::fromFactory(static fn () => streamOver($payload), strlen($payload)), null, 2);
+        expect($retried->statusCode)->toBe(204);
+        expect($server->hits())->toBe(2);
+        expect($server->body(1))->toBe($payload);
+        expect($server->body(2))->toBe($payload);
+
+        $single = RawServer::serve($script);
+        $failed = $client->sendWithRetries('PUT', $single->url('/items/blob'), static fn (): array => [], BodySource::once(streamOver($payload), strlen($payload)), null, 2);
+        expect($failed->statusCode)->toBe(503);
+        expect($single->hits())->toBe(1);
+    }
+
+    $dropping = RawServer::serve(<<<'PHP'
+        recordBody($socket, $head, $hit);
+        if ($hit === 1) {
+            return;
+        }
+        reply($socket, 204, 'Content-Length: 0');
+        PHP);
+    $client = new DefaultApiClient(TransportOptions::builder()->maxRetries(2)->build());
+    $client->sendWithRetries('PUT', $dropping->url('/items/blob'), static fn (): array => [], BodySource::of($payload));
+    expect($dropping->hits())->toBe(2);
+    expect($dropping->body(2))->toBe($payload);
+
+    $lost = RawServer::serve(<<<'PHP'
+        recordBody($socket, $head, $hit);
+        PHP);
+    expect(fn () => $client->sendWithRetries('PUT', $lost->url('/items/blob'), static fn (): array => [], BodySource::once(streamOver($payload), strlen($payload))))
+        ->toThrow(NetworkException::class);
+    expect($lost->hits())->toBe(1);
+});
+
+test('bhv streaming 027 a 307 or 308 with a single use upload is refused and the body is never buffered', function (): void {
+    $payload = random_bytes(40_000);
+    foreach ([307, 308] as $status) {
+        foreach (uploadTransports() as $client) {
+            $target = RawServer::serve(<<<'PHP'
+                recordBody($socket, $head, $hit);
+                reply($socket, 204, 'Content-Length: 0');
+                PHP);
+            $script = str_replace(['TARGET', 'STATUS'], [$target->url('/items/final'), (string) $status], <<<'PHP'
+                recordBody($socket, $head, $hit);
+                reply($socket, STATUS, 'Location: TARGET', 'Content-Length: 0');
+                PHP);
+
+            $replayed = RawServer::serve($script);
+            expect($client->sendRequest('PUT', $replayed->url('/items/blob'), [], BodySource::of($payload))->statusCode)->toBe(204);
+            expect($target->body())->toBe($payload);
+
+            $refusing = RawServer::serve($script);
+            $before = $target->hits();
+            try {
+                $client->sendRequest('PUT', $refusing->url('/items/blob'), [], BodySource::once(streamOver($payload), strlen($payload)));
+                test()->fail('Expected the redirect to be refused');
+            } catch (ApiException $refused) {
+                expect($refused->getStatusCode())->toBe($status);
+                expect($refused->getMessage())->toContain('Refusing to replay a streamed request body');
+            }
+            expect($target->hits())->toBe($before);
+            expect($refusing->hits())->toBe(1);
+        }
+    }
 });

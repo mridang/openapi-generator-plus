@@ -1,0 +1,41 @@
+    /**
+{{>api/operation_pages_doc}}
+     */
+    public function {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}): Paginator
+    {
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        $pageOptions = {{#nullable}}$options ?? new {{{dataType}}}(){{/nullable}}{{^nullable}}$options{{/nullable}};
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.pagination.isToken}}
+
+        /** @var Paginator<{{{vendorExtensions.op.pagination.phpItemType}}}, {{{vendorExtensions.op.pagination.phpCursorType}}}> $pages */
+        $pages = Paginator::ofCursor(
+            $pageOptions->{{vendorExtensions.op.pagination.requestParamName}},
+            fn (?{{{vendorExtensions.op.pagination.cursorType}}} $pageCursor): ApiResult => $this->{{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}$pageOptions->withPageCursor($pageCursor){{/isOptions}}{{^isOptions}}${{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}),
+            static fn ({{{vendorExtensions.phpNativeReturnType}}} $page): iterable => $page->{{vendorExtensions.op.pagination.itemsPropertyName}} ?? [],
+            static fn ({{{vendorExtensions.phpNativeReturnType}}} $page): ?{{{vendorExtensions.op.pagination.cursorType}}} => $page->{{vendorExtensions.op.pagination.responsePropertyName}},
+            '{{#lambda.phpSingleQuoted}}{{{path}}}{{/lambda.phpSingleQuoted}}'
+        );
+
+        return $pages;
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+
+        /** @var Paginator<{{{vendorExtensions.op.pagination.phpItemType}}}, {{{vendorExtensions.op.pagination.phpCursorType}}}> $pages */
+        $pages = Paginator::ofLink(
+            $this->config->baseUrl,
+            fn (?string $pageUrl): ApiResult => $this->{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{#isOptions}}$pageOptions{{/isOptions}}{{^isOptions}}${{paramName}}{{/isOptions}}, {{/vendorExtensions.op.signatureArgs}}$pageUrl),
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+            static fn ({{{vendorExtensions.phpNativeReturnType}}} $page): iterable => $page,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+            static fn ({{{vendorExtensions.phpNativeReturnType}}} $page): iterable => $page->{{vendorExtensions.op.pagination.itemsPropertyName}} ?? [],
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+            '{{#lambda.phpSingleQuoted}}{{{path}}}{{/lambda.phpSingleQuoted}}'
+        );
+
+        return $pages;
+{{/vendorExtensions.op.pagination.isLink}}
+    }

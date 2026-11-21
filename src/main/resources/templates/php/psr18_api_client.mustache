@@ -83,6 +83,10 @@ class Psr18ApiClient extends AbstractApiClient
                 ->withBody($this->streamFactory->createStream($raw));
         } elseif (is_string($body)) {
             $request = $request->withBody($this->streamFactory->createStream($body));
+        } elseif ($body instanceof BodySource) {
+            /* Sent as it is read, never buffered: the PSR-7 stream pulls the chunks while the client
+             * sends them. Its size is the Content-Length the base class set, or unknown. */
+            $request = $request->withBody(self::streamOf($body));
         } else {
             /* A null body on a body-bearing verb is sent as an explicit empty
              * body (the base class already injected Content-Length: 0);
@@ -94,6 +98,134 @@ class Psr18ApiClient extends AbstractApiClient
         }
 
         return $request;
+    }
+
+    /**
+     * A read-only, forward-only PSR-7 stream over a body source: the content is pulled from the
+     * source as the client reads it and is never held in memory as a whole.
+     */
+    private static function streamOf(BodySource $source): \Psr\Http\Message\StreamInterface
+    {
+        return new class ($source) implements \Psr\Http\Message\StreamInterface {
+            /** @var \Generator<int, string>|null */
+            private ?\Generator $chunks = null;
+
+            private bool $started = false;
+
+            private string $pending = '';
+
+            private bool $ended = false;
+
+            private int $position = 0;
+
+            public function __construct(private readonly BodySource $source)
+            {
+            }
+
+            public function __toString(): string
+            {
+                try {
+                    return $this->getContents();
+                } catch (\Throwable) {
+                    return '';
+                }
+            }
+
+            public function close(): void
+            {
+                $this->chunks = null;
+                $this->pending = '';
+                $this->ended = true;
+            }
+
+            public function detach()
+            {
+                $this->close();
+
+                return null;
+            }
+
+            public function getSize(): ?int
+            {
+                return $this->source->length();
+            }
+
+            public function tell(): int
+            {
+                return $this->position;
+            }
+
+            public function eof(): bool
+            {
+                return $this->ended && $this->pending === '';
+            }
+
+            public function isSeekable(): bool
+            {
+                return false;
+            }
+
+            public function seek(int $offset, int $whence = SEEK_SET): void
+            {
+                throw new \RuntimeException('A request body that is read as it is sent cannot seek');
+            }
+
+            public function rewind(): void
+            {
+                throw new \RuntimeException('A request body that is read as it is sent cannot be rewound');
+            }
+
+            public function isWritable(): bool
+            {
+                return false;
+            }
+
+            public function write(string $string): int
+            {
+                throw new \RuntimeException('A request body is read only');
+            }
+
+            public function isReadable(): bool
+            {
+                return true;
+            }
+
+            public function read(int $length): string
+            {
+                while (strlen($this->pending) < $length && !$this->ended) {
+                    $this->chunks ??= $this->source->chunks();
+                    if ($this->started) {
+                        $this->chunks->next();
+                    }
+                    $this->started = true;
+                    if ($this->chunks->valid()) {
+                        $this->pending .= $this->chunks->current();
+                    } else {
+                        $this->ended = true;
+                    }
+                }
+                $data = substr($this->pending, 0, $length);
+                $this->pending = (string) substr($this->pending, strlen($data));
+                $this->position += strlen($data);
+
+                return $data;
+            }
+
+            public function getContents(): string
+            {
+                $all = '';
+                while (!$this->eof()) {
+                    $all .= $this->read(65536);
+                }
+
+                return $all;
+            }
+
+            public function getMetadata(?string $key = null)
+            {
+                return $key === null ? [] : null;
+            }
+        };
     }
 
     /**

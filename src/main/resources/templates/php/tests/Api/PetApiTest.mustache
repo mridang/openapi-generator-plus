@@ -24,6 +24,7 @@ use {{invokerPackage}}\Api\GetMultiServerPetInfoServerRegional;
 use {{invokerPackage}}\Api\GetMultiServerPetInfoServerRegionalRegion;
 use {{invokerPackage}}\Api\PetApi;
 use {{invokerPackage}}\ApiResult;
+use {{invokerPackage}}\BodySource;
 use {{invokerPackage}}\ByteStream;
 use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\Errors\SerializationException;
@@ -240,7 +241,7 @@ test('bhv operations 027 delete pet', function (): void {
 test('bhv operations 070 set pet avatar', function (): void {
     $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
     file_put_contents($tmpFile, "\xFF\xD8\xFF");
-    $body = new \SplFileObject($tmpFile, 'r');
+    $body = BodySource::ofFile($tmpFile);
 
     $this->api->setPetAvatar(1, $body);
 
@@ -253,7 +254,7 @@ test('bhv operations 076 set pet avatar rejects an unrecognised request content-
     // wire as an undeclared Content-Type.
     $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
     file_put_contents($tmpFile, "\xFF\xD8\xFF");
-    $body = new \SplFileObject($tmpFile, 'r');
+    $body = BodySource::ofFile($tmpFile);
 
     expect(fn () => $this->api->setPetAvatar(1, $body, requestContentType: 'application/unknown-type'))
         ->toThrow(
@@ -759,7 +760,9 @@ function newBodyCapturingPetApi(): array
 
         public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \{{invokerPackage}}\ApiHttpResponse
         {
-            $this->captured->body = is_string($body) ? $body : '';
+            $this->captured->body = $body instanceof BodySource
+                ? implode('', iterator_to_array($body->chunks(), false))
+                : (is_string($body) ? $body : '');
             $this->captured->url = $url;
             $this->captured->headers = $headers;
             return new \{{invokerPackage}}\ApiHttpResponse(
@@ -919,7 +922,7 @@ test('bhv operations 073 setPetAvatar streams raw bytes with declared content ty
     $rawBytes = "\xFF\xD8\xFF\xE0";
     $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
     file_put_contents($tmpFile, $rawBytes);
-    $body = new \SplFileObject($tmpFile, 'r');
+    $body = BodySource::ofFile($tmpFile);
 
     $api->setPetAvatar(1, $body);
     unlink($tmpFile);
@@ -955,13 +958,13 @@ test('bhv operations 071 setPetAvatar honours the selected request content type'
 
     // (1) No selector -> the first declared content-type (image/jpeg).
     [$api, $captured] = newBodyCapturingPetApi();
-    $body = new \SplFileObject($tmpFile, 'r');
+    $body = BodySource::ofFile($tmpFile);
     $api->setPetAvatar(1, $body);
     expect($captured->headers['Content-Type'] ?? '')->toBe('image/jpeg');
 
     // (2) Selector 'image/png' with the same raw bytes -> image/png.
     [$api, $captured] = newBodyCapturingPetApi();
-    $body = new \SplFileObject($tmpFile, 'r');
+    $body = BodySource::ofFile($tmpFile);
     $api->setPetAvatar(1, $body, requestContentType: 'image/png');
     expect($captured->headers['Content-Type'] ?? '')->toBe('image/png');
     expect($captured->body)->toBe($rawBytes);
@@ -973,12 +976,12 @@ test('bhv misc 217 setPetAvatar takes in-memory bytes and a stream without a tem
     $rawBytes = "\xFF\xD8\xFF\xE0";
 
     [$api, $captured] = newBodyCapturingPetApi();
-    $api->setPetAvatar(1, $rawBytes);
+    $api->setPetAvatar(1, BodySource::of($rawBytes));
     expect($captured->body)->toBe($rawBytes);
     expect($captured->headers['Content-Type'] ?? '')->toBe('image/jpeg');
 
     [$api, $captured] = newBodyCapturingPetApi();
-    $api->setPetAvatar(1, (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream($rawBytes));
+    $api->setPetAvatar(1, BodySource::once((new \Nyholm\Psr7\Factory\Psr17Factory())->createStream($rawBytes)));
     expect($captured->body)->toBe($rawBytes);
 });
 
@@ -988,7 +991,7 @@ test('bhv operations 072 setPetAvatar sends the bytes verbatim under the json se
     file_put_contents($tmpFile, $rawBytes);
 
     [$api, $captured] = newBodyCapturingPetApi();
-    $api->setPetAvatar(1, new \SplFileObject($tmpFile, 'r'), requestContentType: 'application/json');
+    $api->setPetAvatar(1, BodySource::ofFile($tmpFile), requestContentType: 'application/json');
     unlink($tmpFile);
 
     expect($captured->body)->toBe($rawBytes);

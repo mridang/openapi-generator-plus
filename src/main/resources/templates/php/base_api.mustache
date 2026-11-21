@@ -8,6 +8,7 @@ use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\Errors\SerializationException;
 use {{invokerPackage}}\ApiHttpResponse;
 use {{invokerPackage}}\ApiResult;
+use {{invokerPackage}}\BodySource;
 use {{invokerPackage}}\ByteStream;
 use {{invokerPackage}}\CallInfo;
 use {{invokerPackage}}\CallObserver;
@@ -583,7 +584,16 @@ class BaseApi
             ? null
             : static fn (string $data): mixed => ObjectSerializer::deserialize($data, $itemType, []);
 
-        return SseStream::open($opener, $decoder, $terminator, $options, $body !== null, $method, self::urlWithoutQuery($path));
+        return SseStream::open(
+            $opener,
+            $decoder,
+            $terminator,
+            $options,
+            $body !== null,
+            $method,
+            self::urlWithoutQuery($path),
+            singleUseBody: $body instanceof BodySource && !$body->isReplayable()
+        );
     }
 
     /**
@@ -732,7 +742,8 @@ class BaseApi
 
         $query = $this->buildQuery($queryParams, false, $allowReservedKeys);
         if ($query !== '') {
-            $url .= '?' . $query;
+            /* A next-page URL taken from a Link header already carries a query. */
+            $url .= (str_contains($url, '?') ? '&' : '?') . $query;
         }
 
         $isMultipart = $contentType === 'multipart/form-data';
@@ -873,7 +884,7 @@ class BaseApi
                 if ($response->statusCode === 401
                     && $effectiveAuth instanceof Authenticator
                     && method_exists($effectiveAuth, 'invalidateAccessToken')
-                    && ($serializedBody === null || is_string($serializedBody))
+                    && self::isReplayableBody($serializedBody)
                 ) {
                     /* A revoked or rotated token keeps failing while it is cached.
                      * Drop it, obtain a new one (a refresh grant first) and replay the
@@ -977,7 +988,7 @@ class BaseApi
         if ($stream->statusCode === 401
             && $effectiveAuth instanceof Authenticator
             && method_exists($effectiveAuth, 'invalidateAccessToken')
-            && ($serializedBody === null || is_string($serializedBody))
+            && self::isReplayableBody($serializedBody)
         ) {
             /* The same replay as a buffered call: drop the cached token, obtain a new one and send
              * the request once more. The refused response is closed unread. */
@@ -1484,6 +1495,11 @@ class BaseApi
             return null;
         }
 
+        /* A body source is sent as it is read: it is never read here. */
+        if ($body instanceof BodySource) {
+            return $body;
+        }
+
         if ($isMultipart) {
             return $body;
         }
@@ -1570,6 +1586,15 @@ class BaseApi
         }
 
         return ObjectSerializer::serialize($body);
+    }
+
+    /**
+     * Whether a request body can be sent again, which a replay after a token refresh needs: no body,
+     * bytes, or a replayable {@see BodySource}. A stream or multipart parts cannot.
+     */
+    private static function isReplayableBody(mixed $body): bool
+    {
+        return $body === null || is_string($body) || ($body instanceof BodySource && $body->isReplayable());
     }
 
     /**

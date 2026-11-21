@@ -15,6 +15,7 @@ namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiResult;
 use PetstoreClient\ByteStream;
+use PetstoreClient\Paginator;
 use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\AddPetTreatmentOptions;
@@ -35,6 +36,12 @@ use PetstoreClient\Api\Options\GetPetPhotoOptions;
 use PetstoreClient\Api\Options\GetPetSummaryOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\GetStagingPetInfoOptions;
+use PetstoreClient\Api\Options\ListPetArchiveOptions;
+use PetstoreClient\Api\Options\ListPetCatalogOptions;
+use PetstoreClient\Api\Options\ListPetEventsOptions;
+use PetstoreClient\Api\Options\ListPetFeedOptions;
+use PetstoreClient\Api\Options\ListPetMatchesOptions;
+use PetstoreClient\Api\Options\ListPetNotesOptions;
 use PetstoreClient\Api\Options\SetPetAvatarOptions;
 use PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
@@ -383,6 +390,162 @@ interface PetApiInterface
     public function getStagingPetInfoWithHttpInfo(int $petId, ?GetStagingPetInfoServer $server = null, ?GetStagingPetInfoOptions $options = null): ApiResult;
 
     /**
+     * Lists archived pets; it looks paged, and the generator option says it is not
+     * @param ListPetArchiveOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetArchive(?ListPetArchiveOptions $options = null): \PetstoreClient\Models\PetArchivePage;
+
+    /**
+     * @param ListPetArchiveOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetArchivePage>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetArchiveWithHttpInfo(?ListPetArchiveOptions $options = null): ApiResult;
+
+    /**
+     * Lists the pet catalog one page at a time with a next-cursor token
+     * @param ListPetCatalogOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetCatalog(?ListPetCatalogOptions $options = null): \PetstoreClient\Models\PetCatalogPage;
+
+    /**
+     * @param ListPetCatalogOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetCatalogPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetCatalogWithHttpInfo(?ListPetCatalogOptions $options = null): ApiResult;
+
+    /**
+     * Lists the pet catalog one page at a time with a next-cursor token
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetCatalogWithHttpInfo()}, with the same options on each page.
+     * The value of the `cursor` option is where the list starts,
+     * and the page after each one is requested with the `next_cursor`
+     * it returned.
+     *
+     * @param ListPetCatalogOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetCatalogPages(?ListPetCatalogOptions $options = null): Paginator;
+
+    /**
+     * Lists pet events; only the generator option says it is paged
+     * @param ListPetEventsOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetEvents(?ListPetEventsOptions $options = null): \PetstoreClient\Models\PetEventPage;
+
+    /**
+     * @param ListPetEventsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetEventPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetEventsWithHttpInfo(?ListPetEventsOptions $options = null): ApiResult;
+
+    /**
+     * Lists pet events; only the generator option says it is paged
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetEventsWithHttpInfo()}, with the same options on each page.
+     * The value of the `since` option is where the list starts,
+     * and the page after each one is requested with the `upto`
+     * it returned.
+     *
+     * @param ListPetEventsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<string, string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetEventsPages(?ListPetEventsOptions $options = null): Paginator;
+
+    /**
+     * Lists the pet feed one page at a time with a Link header
+     * @param ListPetFeedOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \Ds\Vector<\PetstoreClient\Models\Pet>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetFeed(?ListPetFeedOptions $options = null): \Ds\Vector;
+
+    /**
+     * @param ListPetFeedOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetFeedWithHttpInfo(?ListPetFeedOptions $options = null): ApiResult;
+
+    /**
+     * Lists the pet feed one page at a time with a Link header
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetFeedWithHttpInfo()}, with the same options on each page.
+     * The page after each one is the `rel="next"` link of its `Link` header, followed only within the
+     * origin of the client.
+     *
+     * @param ListPetFeedOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, null>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetFeedPages(?ListPetFeedOptions $options = null): Paginator;
+
+    /**
+     * Finds pets and their owners; two lists make it ambiguous, so it is not paged
+     * @param ListPetMatchesOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetMatches(?ListPetMatchesOptions $options = null): \PetstoreClient\Models\PetMatchPage;
+
+    /**
+     * @param ListPetMatchesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetMatchPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetMatchesWithHttpInfo(?ListPetMatchesOptions $options = null): ApiResult;
+
+    /**
+     * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+     * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetNotes(?ListPetNotesOptions $options = null): \PetstoreClient\Models\PetNotePage;
+
+    /**
+     * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetNotePage>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetNotesWithHttpInfo(?ListPetNotesOptions $options = null): ApiResult;
+
+    /**
+     * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetNotesWithHttpInfo()}, with the same options on each page.
+     * The value of the `pos` option is where the list starts,
+     * and the page after each one is requested with the `following`
+     * it returned.
+     *
+     * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<string, string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetNotesPages(?ListPetNotesOptions $options = null): Paginator;
+
+    /**
      * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
      * @param SetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
@@ -390,7 +553,7 @@ interface PetApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function setPetAvatar(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): void;
+    public function setPetAvatar(int $petId, \PetstoreClient\BodySource $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): void;
 
     /**
      * @param SetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
@@ -399,7 +562,7 @@ interface PetApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
-    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject|\Psr\Http\Message\StreamInterface|string $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): ApiResult;
+    public function setPetAvatarWithHttpInfo(int $petId, \PetstoreClient\BodySource $body, ?SetPetAvatarOptions $options = null, ?string $requestContentType = null): ApiResult;
 
     /**
      * Set the pet's avatar thumbnail as base64

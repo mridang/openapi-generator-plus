@@ -95,7 +95,7 @@ function noContentStream(): ByteStream
  *
  * @return SseStream<mixed>
  */
-function openEvents(\Closure $opener, ?StreamOptions $options = null, ?\Closure $decoder = null, ?string $terminator = null, bool $hasBody = false): SseStream
+function openEvents(\Closure $opener, ?StreamOptions $options = null, ?\Closure $decoder = null, ?string $terminator = null, bool $hasBody = false, bool $singleUseBody = false): SseStream
 {
     return SseStream::open(
         $opener,
@@ -106,7 +106,8 @@ function openEvents(\Closure $opener, ?StreamOptions $options = null, ?\Closure 
         $hasBody ? 'POST' : 'GET',
         '/events',
         static function (int $millis): void {
-        }
+        },
+        $singleUseBody
     );
 }
 
@@ -299,7 +300,7 @@ test('bhv sse 014 an sse retry field that is not digits and an id containing nul
     expect($parser->retry())->toBeNull();
 });
 
-test('bhv sse 016 an sse request with a body is not reconnected unless the caller turns reconnect on', function (): void {
+test('bhv sse 016 an sse request with a body is not reconnected unless the caller turns reconnect on, and a single use body is never reconnected', function (): void {
     $off = [];
     $noReconnect = openEvents(scriptedOpener(["data: a\n\n", "data: b\n\n"], $off), null, null, null, true);
     expect(eventData($noReconnect))->toBe(['a']);
@@ -314,6 +315,18 @@ test('bhv sse 016 an sse request with a body is not reconnected unless the calle
         true
     );
     expect(eventData($reconnect))->toBe(['a', 'b']);
+
+    $single = [];
+    $once = openEvents(
+        scriptedOpener(["data: a\n\n", "data: b\n\n"], $single),
+        new StreamOptions(maxReconnects: 2, reconnectDelay: 1),
+        null,
+        null,
+        true,
+        true
+    );
+    expect(eventData($once))->toBe(['a']);
+    expect($single)->toHaveCount(1);
 });
 
 test('bhv sse 017 an sse event with an id and no data is not dispatched but updates the last event id and a reconnect resumes from it', function (): void {

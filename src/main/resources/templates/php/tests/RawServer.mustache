@@ -12,7 +12,8 @@ namespace {{invokerPackage}}\Test;
  * reply with `reply()`, `chunk()` and `endChunks()`. Leaving the script closes the connection, so a
  * script that returns early cuts the body short. `awaitRelease()` blocks the script until the test
  * calls {@see release()}, `holdUntilGone()` waits silently until the client drops the connection, and `gone()` tells the test that the client dropped the connection.
- * Connections are served one at a time.
+ * `recordBody()` reads the request body and {@see body()} hands it to the test. Connections are served
+ * one at a time.
  */
 final class RawServer
 {
@@ -81,6 +82,80 @@ final class RawServer
                     }
                 }
             }
+        }
+
+        /**
+         * Reads the body of the request that the head announces (a Content-Length or a chunked
+         * body), saves it for the test and returns it. Answers `Expect: 100-continue` first.
+         *
+         * @param resource $socket
+         */
+        function recordBody($socket, string $head, int $hit): string
+        {
+            global $dir;
+            if (stripos($head, 'expect: 100-continue') !== false) {
+                @fwrite($socket, "HTTP/1.1 100 Continue\r\n\r\n");
+            }
+            $body = '';
+            if (preg_match('/^transfer-encoding:\s*chunked/im', $head) === 1) {
+                while (($size = stream_get_line($socket, 64, "\r\n")) !== false) {
+                    $length = (int) hexdec(trim(explode(';', $size)[0]));
+                    if ($length === 0) {
+                        stream_get_line($socket, 64, "\r\n");
+                        break;
+                    }
+                    $read = '';
+                    while (strlen($read) < $length) {
+                        $part = fread($socket, $length - strlen($read));
+                        if ($part === false || $part === '') {
+                            break;
+                        }
+                        $read .= $part;
+                    }
+                    $body .= $read;
+                    stream_get_line($socket, 64, "\r\n");
+                }
+            } elseif (preg_match('/^content-length:\s*(\d+)/im', $head, $match) === 1) {
+                $want = (int) $match[1];
+                while (strlen($body) < $want) {
+                    $part = fread($socket, $want - strlen($body));
+                    if ($part === false || $part === '') {
+                        break;
+                    }
+                    $body .= $part;
+                }
+            }
+            file_put_contents($dir . '/body.' . $hit, $body);
+
+            return $body;
+        }
+
+        /** The base URL of this server, so that a reply can point back at it. */
+        function selfUrl(): string
+        {
+            global $name;
+
+            return 'http://127.0.0.1:' . substr($name, (int) strrpos($name, ':') + 1);
+        }
+
+        /**
+         * The decoded query of the request that the head describes.
+         *
+         * @return array<string, mixed>
+         */
+        function queryOf(string $head): array
+        {
+            $target = explode(' ', $head)[1] ?? '/';
+            parse_str((string) parse_url($target, PHP_URL_QUERY), $query);
+
+            return $query;
+        }
+
+        /** @param resource $socket */
+        function replyJson($socket, int $status, string $json, string ...$headers): void
+        {
+            reply($socket, $status, 'Content-Type: application/json', 'Content-Length: ' . strlen($json), ...$headers);
+            @fwrite($socket, $json);
         }
 
         function gone(): void
@@ -171,6 +246,9 @@ final class RawServer
      */
     public function heads(): array
     {
+        if (!is_file($this->dir . '/heads')) {
+            return [];
+        }
         $lines = file($this->dir . '/heads', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         if ($lines === false) {
             return [];
@@ -179,10 +257,58 @@ final class RawServer
         return array_map(static fn (string $line): string => (string) base64_decode($line, true), $lines);
     }
 
+    /**
+     * The request body a script read with recordBody() for a connection (1 for the first).
+     */
+    public function body(int $hit = 1): string
+    {
+        $file = $this->dir . '/body.' . $hit;
+        $until = microtime(true) + 5.0;
+        while (!file_exists($file) && microtime(true) < $until) {
+            usleep(10_000);
+        }
+
+        return (string) @file_get_contents($file);
+    }
+
     /** Lets a script that waits in awaitRelease() carry on. */
     public function release(): void
     {
         touch($this->dir . '/release');
+    }
+
+    /**
+     * The path of the request of a connection (0 for the first), without its query.
+     */
+    public function path(int $connection = 0): string
+    {
+        return (string) parse_url(explode(' ', $this->heads()[$connection])[1] ?? '/', PHP_URL_PATH);
+    }
+
+    /**
+     * The decoded query of the request of a connection (0 for the first).
+     *
+     * @return array<string, mixed>
+     */
+    public function query(int $connection = 0): array
+    {
+        parse_str((string) parse_url(explode(' ', $this->heads()[$connection])[1] ?? '/', PHP_URL_QUERY), $query);
+
+        return array_combine(array_map('strval', array_keys($query)), array_values($query));
+    }
+
+    /**
+     * A header of the request of a connection (0 for the first), or null when it was not sent.
+     */
+    public function header(string $name, int $connection = 0): ?string
+    {
+        foreach (explode("\r\n", $this->heads()[$connection]) as $line) {
+            if (strncasecmp($line, $name . ':', strlen($name) + 1) === 0) {
+                return trim(substr($line, strlen($name) + 1));
+            }
+        }
+
+        return null;
     }
 
     /** Waits until a script reported that the client dropped the connection. */
