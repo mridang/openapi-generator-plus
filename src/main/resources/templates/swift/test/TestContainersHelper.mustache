@@ -219,14 +219,113 @@ func stubBodyBytes(_ body: String, contentType: String?) -> Data {
     return Data(base64Encoded: body) ?? Data(body.utf8)
 }
 
+/// A value that a script on a server thread and the test body both touch.
+final class LockedValue<Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+
+    func get() -> Value {
+        lock.withLock { value }
+    }
+
+    func set(_ new: Value) {
+        lock.withLock { value = new }
+    }
+
+    func update(_ change: (inout Value) -> Void) {
+        lock.withLock { change(&value) }
+    }
+}
+
 /// One connection of a ``RawServer``: what a script writes to the client.
 final class RawConnection: @unchecked Sendable {
+    /// What a script read of one request body.
+    struct Upload: Sendable {
+        let bytes: Data
+        let chunked: Bool
+    }
+
     let descriptor: Int32
     let server: RawServer
+    /* Bytes that arrived with the request head and belong to the body. */
+    private var pending: Data
 
-    init(descriptor: Int32, server: RawServer) {
+    init(descriptor: Int32, server: RawServer, pending: Data = Data()) {
         self.descriptor = descriptor
         self.server = server
+        self.pending = pending
+    }
+
+    private func fill() -> Bool {
+        var buffer = [UInt8](repeating: 0, count: 65_536)
+        let count = recv(descriptor, &buffer, buffer.count, 0)
+        if count <= 0 { return false }
+        pending.append(contentsOf: buffer[0..<count])
+        return true
+    }
+
+    private func take(_ count: Int) -> Data? {
+        while pending.count < count {
+            if !fill() { return nil }
+        }
+        let taken = Data(pending.prefix(count))
+        pending.removeFirst(count)
+        return taken
+    }
+
+    private func takeLine() -> String? {
+        let terminator = Data("\r\n".utf8)
+        while true {
+            if let range = pending.range(of: terminator) {
+                let line = String(decoding: pending[pending.startIndex..<range.lowerBound], as: UTF8.self)
+                pending.removeSubrange(pending.startIndex..<range.upperBound)
+                return line
+            }
+            if !fill() { return nil }
+        }
+    }
+
+    /// Reads the body that follows the request head: a chunked one chunk by
+    /// chunk and one with a Content-Length to its end. `onFirst` runs once the
+    /// first bytes are in, while the rest is still to come.
+    func readUpload(head: String, onFirst: () -> Void = {}) -> Upload {
+        let lower = head.lowercased()
+        if lower.contains("transfer-encoding: chunked") {
+            var received = Data()
+            while let line = takeLine(),
+                let size = Int(line.trimmingCharacters(in: .whitespaces), radix: 16)
+            {
+                if size == 0 {
+                    _ = takeLine()
+                    return Upload(bytes: received, chunked: true)
+                }
+                guard let chunk = take(size) else { break }
+                received.append(chunk)
+                _ = take(2)
+                onFirst()
+            }
+            return Upload(bytes: received, chunked: true)
+        }
+        if let range = lower.range(of: "content-length: "),
+            let length = Int(lower[range.upperBound...].prefix(while: { $0.isNumber }))
+        {
+            let body = take(length) ?? Data()
+            onFirst()
+            return Upload(bytes: body, chunked: false)
+        }
+        return Upload(bytes: Data(), chunked: false)
+    }
+
+    /// Answers with a status, the given headers and an empty body.
+    func reply(_ status: Int, _ headers: String...) {
+        var text = "HTTP/1.1 \(status) Test\r\n"
+        for header in headers { text += header + "\r\n" }
+        text += "Content-Length: 0\r\nConnection: close\r\n\r\n"
+        send(text)
     }
 
     /// Writes bytes; false when the client is no longer there.
@@ -453,11 +552,16 @@ final class RawServer: @unchecked Sendable {
             if count <= 0 { return }
             head.append(contentsOf: chunk[0..<count])
         }
+        /* What came after the head belongs to the body, and is kept for the script to read. */
+        let split = head.range(of: terminator)?.upperBound ?? head.endIndex
+        let headText = String(decoding: head[..<split], as: UTF8.self)
         lock.lock()
-        headLog.append(String(decoding: head, as: UTF8.self))
+        headLog.append(headText)
         let hit = headLog.count
         lock.unlock()
-        script(RawConnection(descriptor: client, server: self), hit, String(decoding: head, as: UTF8.self))
+        script(
+            RawConnection(descriptor: client, server: self, pending: Data([UInt8](head[split...]))), hit,
+            headText)
     }
 }
 

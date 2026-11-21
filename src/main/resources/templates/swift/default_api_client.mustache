@@ -479,7 +479,18 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         method: String, url: String, headers: [String: String], body: Any?,
         budget: TimeInterval?, idle: TimeInterval?, acceptCompression: Bool
     ) async throws -> ApiStreamResponse {
-        let (request, _) = try buildRequest(
+        return try await DefaultApiClient.sending(body) {
+            try await openStreamAttempt(
+                method: method, url: url, headers: headers, body: body, budget: budget, idle: idle,
+                acceptCompression: acceptCompression)
+        }
+    }
+
+    private func openStreamAttempt(
+        method: String, url: String, headers: [String: String], body: Any?,
+        budget: TimeInterval?, idle: TimeInterval?, acceptCompression: Bool
+    ) async throws -> ApiStreamResponse {
+        let (request, _, streamed) = try buildRequest(
             method: method, url: url, headers: headers, body: body, noRedirect: false,
             sendDefaultHeaders: true, streaming: true, acceptCompression: acceptCompression,
             requestTimeout: StreamTransfer.noDeadline)
@@ -539,7 +550,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             var followed = 0
             while true {
                 let task = transfer.start(
-                    next, in: streamSession, hops: followed, onTask: !ownsSession)
+                    next, in: streamSession, hops: followed, onTask: !ownsSession, source: streamed)
                 let received = try await transfer.awaitResponse()
                 if let refusal = policy.takeRedirectError(for: task) {
                     throw refusal
@@ -635,9 +646,39 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     }
 
     /// Whether a body can be sent again. Everything this SDK builds is held in
-    /// memory; only a stream is consumed by its first send.
+    /// memory; a ``BodySource`` says for itself, and a raw stream is consumed
+    /// by its first send.
     static func isReplayable(_ body: Any?) -> Bool {
+        if let source = body as? BodySource { return source.isReplayable }
         return !(body is InputStream)
+    }
+
+    /// Runs one attempt that sends `body`. A ``BodySource`` it reads is
+    /// released when the attempt ends, and a failure of the source while it was
+    /// read is raised as the failure of the attempt, ahead of the transfer's own.
+    private static func sending<R>(_ body: Any?, _ attempt: () async throws -> R) async throws -> R {
+        guard let source = body as? BodySource else {
+            return try await attempt()
+        }
+        defer { source.releaseOpened() }
+        do {
+            let result = try await attempt()
+            if let failure = source.takeFailure() {
+                throw NetworkError(
+                    statusCode: 0, message: "The request body could not be read: \(failure.localizedDescription)",
+                    underlyingError: failure)
+            }
+            return result
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            if let failure = source.takeFailure() {
+                throw NetworkError(
+                    statusCode: 0, message: "The request body could not be read: \(failure.localizedDescription)",
+                    underlyingError: failure)
+            }
+            throw error
+        }
     }
 
     /// Statuses worth retrying: 408, 409, 429 and 500 to 599 except 501.
@@ -711,12 +752,23 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
         budget: TimeInterval?, perCallTimeout: TimeInterval? = nil, sendDefaultHeaders: Bool = true
     ) async throws -> ApiHttpResponse {
+        return try await DefaultApiClient.sending(body) {
+            try await sendAttempt(
+                method: method, url: url, headers: headers, body: body, noRedirect: noRedirect,
+                budget: budget, perCallTimeout: perCallTimeout, sendDefaultHeaders: sendDefaultHeaders)
+        }
+    }
+
+    private func sendAttempt(
+        method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
+        budget: TimeInterval?, perCallTimeout: TimeInterval? = nil, sendDefaultHeaders: Bool = true
+    ) async throws -> ApiHttpResponse {
         /* A supplied session carries none of the SDK's timeouts (they are set
            on a session the SDK builds itself), so apply the timeout to the
            request. */
         let effectiveTimeout: TimeInterval? =
             budget ?? transportOptions.timeout.map { TimeInterval($0) / 1000.0 }
-        let (request, callerManagedEncoding) = try buildRequest(
+        let (request, callerManagedEncoding, streamed) = try buildRequest(
             method: method, url: url, headers: headers, body: body, noRedirect: noRedirect,
             sendDefaultHeaders: sendDefaultHeaders, streaming: false,
             requestTimeout: !ownsSession || perCallTimeout != nil ? effectiveTimeout : nil)
@@ -774,7 +826,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 (data, response, task) = try await DefaultApiClient.performDataTask(
                     on: activeSession, for: next,
                     taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil,
-                    redirects: redirects, redirectsFollowed: followed, deadline: remaining)
+                    redirects: redirects, redirectsFollowed: followed, source: streamed, deadline: remaining)
                 /* A redirect the delegate left for the caller to send (Linux,
                  * where a body cannot ride on the redirect URLSession follows). */
                 guard let followUp = redirects?.takeFollowUp(for: task) else { break }
@@ -924,12 +976,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     ///   - acceptCompression: With `streaming`, leaves `Accept-Encoding` to URLSession,
     ///     which then asks for a compressed body and decodes it as it arrives (JSON Lines).
     ///   - requestTimeout: The `timeoutInterval` of the request, or nil to leave it.
-    /// - Returns: The request, and whether the caller manages the encoding itself.
+    /// - Returns: The request, whether the caller manages the encoding itself, and the
+    ///   ``BodySource`` whose stream is on the request, if one is (a redirect that
+    ///   keeps the method reads it again, or is refused when it is single use).
     private func buildRequest(
         method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
         sendDefaultHeaders: Bool, streaming: Bool, acceptCompression: Bool = false,
         requestTimeout: TimeInterval?
-    ) throws -> (request: URLRequest, callerManagedEncoding: Bool) {
+    ) throws -> (request: URLRequest, callerManagedEncoding: Bool, streamed: BodySource?) {
         guard let requestURL = URL(string: url),
               let scheme = requestURL.scheme?.lowercased(),
               scheme == "http" || scheme == "https"
@@ -971,12 +1025,32 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         if let timeout = requestTimeout {
             request.timeoutInterval = timeout
         }
+        var streamed: BodySource?
 
         if let formParts = BaseApi.formFields(body) {
             let boundary = UUID().uuidString
             merged = BaseApi.mergeHeaders(
                 merged, overriding: ["Content-Type": "multipart/form-data; boundary=\(boundary)"])
             request.httpBody = try DefaultApiClient.buildMultipartBody(ordered: formParts, boundary: boundary)
+        } else if let source = body as? BodySource {
+            /* Sent as it is read, never buffered: a known length is the
+             * Content-Length, an unknown one makes the transfer chunked. */
+            let opened = try source.open()
+            if let data = opened.data {
+                request.httpBody = data
+            } else if let stream = opened.stream {
+                request.httpBodyStream = stream
+                streamed = source
+                if let length = opened.length {
+                    merged = BaseApi.mergeHeaders(merged, overriding: ["Content-Length": String(length)])
+#if !canImport(Darwin)
+                    /* libcurl chunks a stream body it does not know the size of,
+                     * and a blank Transfer-Encoding keeps it from adding that
+                     * next to the Content-Length. */
+                    merged = BaseApi.mergeHeaders(merged, overriding: ["Transfer-Encoding": " "])
+#endif
+                }
+            }
         } else if let data = body as? Data {
             request.httpBody = data
         } else if let text = body as? String {
@@ -1002,7 +1076,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             request.setValue(v, forHTTPHeaderField: k)
         }
 
-        return (request, callerManagedEncoding)
+        return (request, callerManagedEncoding, streamed)
     }
 
     /// Builds a multipart/form-data request body from a dictionary of form fields.
@@ -1380,6 +1454,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         taskDelegate: URLSessionTaskDelegate? = nil,
         redirects: SessionDelegate? = nil,
         redirectsFollowed: Int = 0,
+        source: BodySource? = nil,
         deadline: TimeInterval? = nil
     ) async throws -> (Data, URLResponse, URLSessionTask) {
         /* Box the task so the completion handler, the continuation body and
@@ -1470,7 +1545,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                     if let taskDelegate = taskDelegate {
                         task.delegate = taskDelegate
                     }
-                    redirects?.remember(body: request.httpBody, hops: redirectsFollowed, for: task)
+                    redirects?.remember(
+                        body: request.httpBody, source: source, hops: redirectsFollowed, for: task)
                     /* A task that is never resumed never calls its completion
                        handler, so resuming the continuation here is the only
                        resume on this path. */
@@ -1718,6 +1794,10 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
      * delegate the body of a task on every platform (on Linux it is gone from
      * the task's original request), so the SDK holds the one it built. */
     private let requestBodies = LockedTaskBodies()
+    /* The ``BodySource`` whose stream each in-flight request carries, so that a
+     * redirect that keeps the method reads it again, or is refused when the
+     * source is single use. */
+    private let streamedSources = LockedTaskSources()
     /* On Linux, the follow-up a redirect that keeps its method and its body
      * asks for, held for the call side to send (see `willPerformHTTPRedirection`). */
     private let followUps = LockedTaskFollowUps()
@@ -1737,8 +1817,9 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
 
     /// Records the body a task is sent with, for a redirect that replays it,
     /// and the redirects already followed to reach it.
-    func remember(body: Data?, hops: Int = 0, for task: URLSessionTask) {
+    func remember(body: Data?, source: BodySource? = nil, hops: Int = 0, for task: URLSessionTask) {
         requestBodies.set(body, for: task.taskIdentifier)
+        streamedSources.set(source, for: task.taskIdentifier)
         if hops > 0 {
             redirectCounts.seed(hops, for: task.taskIdentifier)
         }
@@ -1760,6 +1841,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
            callback, and a leaked count would otherwise follow the key. */
         redirectCounts.clear(for: task.taskIdentifier)
         requestBodies.clear(for: task.taskIdentifier)
+        streamedSources.clear(for: task.taskIdentifier)
         return redirectErrors.take(for: task.taskIdentifier)
     }
 
@@ -1922,7 +2004,10 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
         let currentScheme = task.currentRequest?.url?.scheme?.lowercased()
         let nextScheme = request.url?.scheme?.lowercased()
         let originalBody = requestBodies.body(for: taskKey) ?? task.originalRequest?.httpBody
-        let bodySent = !(originalBody ?? Data()).isEmpty || redirectRequest.httpBodyStream != nil
+        let streamedSource = streamedSources.source(for: taskKey)
+        let bodySent =
+            !(originalBody ?? Data()).isEmpty || redirectRequest.httpBodyStream != nil
+            || streamedSource != nil
 
         /* RFC 9110 15.4: set the follow-up method explicitly instead of
          * trusting the platform. A kept method gets its body back, because
@@ -1933,7 +2018,9 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
         if toMethod.uppercased() != fromMethod.uppercased() {
             redirectRequest.httpBody = nil
             redirectRequest.httpBodyStream = nil
-        } else if (redirectRequest.httpBody ?? Data()).isEmpty && redirectRequest.httpBodyStream == nil {
+        } else if streamedSource == nil
+            && (redirectRequest.httpBody ?? Data()).isEmpty && redirectRequest.httpBodyStream == nil
+        {
             redirectRequest.httpBody = originalBody
         }
 
@@ -1969,6 +2056,34 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
             return
         }
 
+        /* A streamed body is read again for a redirect that keeps the method:
+         * a single-use source cannot be, and is never buffered to make it
+         * possible, so the redirect is refused. */
+        if let source = streamedSource, toMethod.uppercased() == fromMethod.uppercased() {
+            if !source.isReplayable {
+                redirectErrors.set(ApiError(
+                    statusCode: response.statusCode,
+                    message: DefaultApiClient.streamedBodyReplayMessage,
+                    responseHeaders: DefaultApiClient.lowercasedHeaders(of: response)
+                ), for: taskKey)
+                completionHandler(nil)
+                return
+            }
+            do {
+                redirectRequest.httpBody = nil
+                redirectRequest.httpBodyStream = try source.open().stream
+            } catch {
+                redirectErrors.set(ApiError(
+                    statusCode: response.statusCode,
+                    message: "The request body could not be sent again: \(error.localizedDescription)",
+                    responseHeaders: DefaultApiClient.lowercasedHeaders(of: response),
+                    underlyingError: error
+                ), for: taskKey)
+                completionHandler(nil)
+                return
+            }
+        }
+
         /* When the server returned 303 the spec requires
          * a GET with no body. URLSession coerces the method to GET
          * but does not always strip a stale `Content-Length: N`
@@ -1994,7 +2109,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
          * method would be sent again with an empty body. The redirect is not
          * followed here: the response ends this task, and the call side sends
          * the follow-up itself with the body the SDK kept. */
-        if let body = redirectRequest.httpBody, !body.isEmpty {
+        if !(redirectRequest.httpBody ?? Data()).isEmpty || redirectRequest.httpBodyStream != nil {
             followUps.set(redirectRequest, hops: count, for: taskKey)
             completionHandler(nil)
             return
@@ -2018,6 +2133,22 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
     ) {
         redirectCounts.clear(for: task.taskIdentifier)
         requestBodies.clear(for: task.taskIdentifier)
+        streamedSources.clear(for: task.taskIdentifier)
+    }
+
+    /// Gives URLSession a new stream for a request body it has to send again
+    /// (after an authentication challenge, say): a replayable source reads
+    /// again, and a single-use one has nothing left to give.
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        needNewBodyStream completionHandler: @escaping @Sendable (InputStream?) -> Void
+    ) {
+        guard let source = streamedSources.source(for: task.taskIdentifier), source.isReplayable else {
+            completionHandler(nil)
+            return
+        }
+        completionHandler(try? source.open().stream)
     }
 }
 
@@ -2082,6 +2213,9 @@ extension DefaultApiClient {
     static func bodyReplayMessage(current: String, next: String) -> String {
         return "Refusing to replay request body across HTTPS->HTTP redirect: \(current) -> \(next)"
     }
+
+    /// The message for a redirect that would send a single-use request body again.
+    static let streamedBodyReplayMessage = "Refusing to replay a streamed request body"
 
     /// The statuses whose Location the client follows: 301, 302, 303, 307 and 308.
     static let followedRedirectStatuses: Set<Int> = [301, 302, 303, 307, 308]
@@ -2250,6 +2384,25 @@ private final class LockedTaskBodies: @unchecked Sendable {
 
     func clear(for key: Int) {
         lock.withLock { bodies[key] = nil }
+    }
+}
+
+/// Thread-safe PER-TASK store of the ``BodySource`` each in-flight task streams
+/// its request body from, keyed like the redirect counters.
+private final class LockedTaskSources: @unchecked Sendable {
+    private var sources: [Int: BodySource] = [:]
+    private let lock = NSLock()
+
+    func set(_ source: BodySource?, for key: Int) {
+        lock.withLock { sources[key] = source }
+    }
+
+    func source(for key: Int) -> BodySource? {
+        lock.withLock { sources[key] }
+    }
+
+    func clear(for key: Int) {
+        lock.withLock { sources[key] = nil }
     }
 }
 

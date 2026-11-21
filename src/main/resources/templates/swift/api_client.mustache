@@ -13,7 +13,8 @@ public protocol ApiClient: Sendable {
     ///   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
     ///   - url: Fully qualified URL
     ///   - headers: HTTP headers
-    ///   - body: Request body (serialized JSON `Data`, raw `Data` for binary, or
+    ///   - body: Request body (serialized JSON `Data`, raw `Data` for binary, a
+    ///     ``BodySource`` for a binary body that is sent as it is read, or
     ///     `[String: Any]` for multipart form data; may be nil)
     /// - Returns: ``ApiHttpResponse`` containing status code, body, and headers.
     /// - Throws: ``ApiError`` if the request fails.

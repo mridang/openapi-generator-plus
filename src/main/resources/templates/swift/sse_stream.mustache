@@ -54,13 +54,13 @@ public final class SseStream<T: Sendable>: AsyncSequence, @unchecked Sendable {
 
     private init(
         opener: @escaping Opener, decode: (@Sendable (String) throws -> T)?, terminator: String?,
-        options: StreamOptions?, hasBody: Bool, method: String, path: String, first: ByteStream,
-        lastEventId: String
+        options: StreamOptions?, hasBody: Bool, singleUseBody: Bool, method: String, path: String,
+        first: ByteStream, lastEventId: String
     ) {
         self.opener = opener
         self.decode = decode
         self.terminator = terminator
-        self.maxReconnects = options?.maxReconnects ?? (hasBody ? 0 : 5)
+        self.maxReconnects = singleUseBody ? 0 : options?.maxReconnects ?? (hasBody ? 0 : 5)
         self.reconnectDelay = options?.reconnectDelay ?? 1000
         self.maxEventBytes = options?.maxEventBytes ?? 1_048_576
         self.method = method
@@ -79,18 +79,21 @@ public final class SseStream<T: Sendable>: AsyncSequence, @unchecked Sendable {
     ///   - terminator: A `data` value that ends the stream and is not delivered.
     ///   - options: The stream settings, or nil for the defaults.
     ///   - hasBody: Whether the request has a body, which turns reconnecting off by default.
+    ///   - singleUseBody: Whether the body is a single-use ``BodySource``, which is read once and
+    ///     so never sent again: the stream never reconnects, whatever the options say.
     ///   - method: The method of the request, named in errors.
     ///   - path: The path of the request, named in errors.
     static func open(
         opener: @escaping Opener, decode: (@Sendable (String) throws -> T)? = nil,
         terminator: String? = nil, options: StreamOptions? = nil, hasBody: Bool = false,
-        method: String, path: String
+        singleUseBody: Bool = false, method: String, path: String
     ) async throws -> SseStream<T> {
         let lastEventId = options?.lastEventId ?? ""
         let first = try await connect(opener, lastEventId, method, path)
         return SseStream<T>(
             opener: opener, decode: decode, terminator: terminator, options: options,
-            hasBody: hasBody, method: method, path: path, first: first, lastEventId: lastEventId)
+            hasBody: hasBody, singleUseBody: singleUseBody, method: method, path: path, first: first,
+            lastEventId: lastEventId)
     }
 
     /// The HTTP status code of the current connection.
