@@ -39,7 +39,10 @@ export type {
   ApiClient,
   RequestOptions,
   SendRequestOptions,
+  SendStreamingOptions,
 } from "./api-client.js";
+export { ApiStreamResponse } from "./api-stream-response.js";
+export { ByteStream } from "./byte-stream.js";
 export type { ApiResult } from "./api-result.js";
 export { DefaultApiClient } from "#transport";
 

@@ -103,6 +103,20 @@ function assertValidMaxRetries(maxRetries: number): void {
 }
 
 /**
+ * Reject an idle timeout that is not a non-negative number.
+ *
+ * @param idleTimeout the longest silence in a streamed body in milliseconds
+ * @throws TypeError if the value is negative or not a number
+ */
+function assertValidIdleTimeout(idleTimeout: number | null): void {
+  if (idleTimeout !== null && !(idleTimeout >= 0)) {
+    throw new TypeError(
+      `Invalid idleTimeout: must not be negative (got ${idleTimeout})`,
+    );
+  }
+}
+
+/**
  * Reject a redirect limit that is not a non-negative integer.
  *
  * @param maxRedirects redirect hop limit
@@ -235,6 +249,17 @@ export class TransportOptions {
    */
   public readonly maxRetries: number;
 
+  /**
+   * The longest a streamed response body may stay silent, in milliseconds.
+   *
+   * Applies only to a call that returns a stream (a binary operation): the
+   * {@link TransportOptions.timeout} stops at the response headers, and this
+   * value bounds the gap between two reads of the body. A stalled body raises
+   * `NetworkTimeoutError`. A buffered call is unaffected. Defaults to 60000
+   * (60 seconds); `null` (or `0`) disables it.
+   */
+  public readonly idleTimeout: number | null;
+
   /** Custom User-Agent header value. */
   public readonly userAgent: string | null;
 
@@ -283,6 +308,7 @@ export class TransportOptions {
     followRedirects: boolean;
     maxRedirects: number | null;
     maxRetries?: number;
+    idleTimeout?: number | null;
     userAgent: string | null;
     defaultHeaders: Record<string, string>;
     injectRequestId: boolean;
@@ -297,6 +323,9 @@ export class TransportOptions {
       );
     }
     assertValidMaxRetries(options.maxRetries ?? 2);
+    assertValidIdleTimeout(
+      options.idleTimeout === undefined ? 60000 : options.idleTimeout,
+    );
     if (options.maxRedirects != null)
       assertValidMaxRedirects(options.maxRedirects);
     this.verifySsl = options.verifySsl;
@@ -306,6 +335,9 @@ export class TransportOptions {
     this.followRedirects = options.followRedirects;
     this.maxRedirects = options.maxRedirects;
     this.maxRetries = options.maxRetries ?? 2;
+    const idleTimeout =
+      options.idleTimeout === undefined ? 60000 : options.idleTimeout;
+    this.idleTimeout = idleTimeout === 0 ? null : idleTimeout;
     this.userAgent = options.userAgent;
     this.defaultHeaders = Object.freeze({ ...options.defaultHeaders });
     this.injectRequestId = options.injectRequestId;
@@ -339,6 +371,7 @@ export class TransportOptions {
       followRedirects: this.followRedirects,
       maxRedirects: this.maxRedirects,
       maxRetries: this.maxRetries,
+      idleTimeout: this.idleTimeout,
       userAgent: this.userAgent,
       defaultHeaders: redactHeaders(this.defaultHeaders),
       injectRequestId: this.injectRequestId,
@@ -370,6 +403,7 @@ export class TransportOptions {
  * - `maxRetries` -- `2` (`0` disables retries)
  * - `injectRequestId` -- `false`
  * - `timeout` -- `10000` (10 seconds)
+ * - `idleTimeout` -- `60000` (60 seconds; `0` or `null` disables it)
  * - `userAgent` -- a package-specific default string
  * - All other fields -- `null` or empty
  */
@@ -381,6 +415,7 @@ export class TransportOptionsBuilder {
   private _followRedirects: boolean = true;
   private _maxRedirects: number | null = null;
   private _maxRetries: number = 2;
+  private _idleTimeout: number | null = 60000;
   private _userAgent: string | null = "petstore-client/1.0.0 (node)";
   private _defaultHeaders: Record<string, string> = {};
   private _injectRequestId: boolean = false;
@@ -477,6 +512,19 @@ export class TransportOptionsBuilder {
   }
 
   /**
+   * Set the longest a streamed response body may stay silent, in milliseconds.
+   *
+   * @param idleTimeout the gap in milliseconds (positive), or `0` or `null` to disable it; the default is `60000`
+   * @returns this builder
+   * @throws TypeError if the value is negative or not a number
+   */
+  idleTimeout(idleTimeout: number | null): this {
+    assertValidIdleTimeout(idleTimeout);
+    this._idleTimeout = idleTimeout === 0 ? null : idleTimeout;
+    return this;
+  }
+
+  /**
    * Set a custom User-Agent header value.
    *
    * @param userAgent the user agent string, or null to omit
@@ -565,6 +613,7 @@ export class TransportOptionsBuilder {
       followRedirects: this._followRedirects,
       maxRedirects: this._maxRedirects,
       maxRetries: this._maxRetries,
+      idleTimeout: this._idleTimeout,
       userAgent: this._userAgent,
       defaultHeaders: { ...this._defaultHeaders },
       injectRequestId: this._injectRequestId,
