@@ -88,6 +88,28 @@ suspend fun getDefaultsWithinTwoSeconds(client: Client) {
 }
 ```
 
+## Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`use { }`). `readAll()` reads the rest into memory and leaves the stream closed.
+
+```kotlin file
+import com.example.petstore.Client
+import com.example.petstore.api.options.DownloadPetDocumentOptions
+import java.io.FileOutputStream
+import java.nio.file.Path
+
+suspend fun saveTo(client: Client, petId: Long, documentId: Long, options: DownloadPetDocumentOptions?, target: Path) {
+    client.pet.downloadPetDocument(petId, documentId, options).use { stream ->
+        println(stream.statusCode)
+        FileOutputStream(target.toFile()).use { out ->
+            stream.chunks().collect { chunk -> out.write(chunk) }
+        }
+    }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutException`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamException`, a `NetworkException` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `UnsupportedOperationException` naming it, and its buffered calls keep working.
+
 ## Custom HTTP client
 
 `TransportOptions.builder().httpClient(myKtorClient)` sends every request
@@ -235,7 +257,7 @@ credential; an operation declared with no security never sends one.
 
 `close()` is graceful and idempotent: a request already in flight finishes, the transport
 the SDK created is released after the last one, and a request issued afterwards fails with
-`IllegalStateException`. A Ktor client you supplied is never closed.
+`IllegalStateException`. Streams that are still open are cancelled. A Ktor client you supplied is never closed.
 
 ## Cookie parameters
 
@@ -345,12 +367,6 @@ loudly with `SerializationException`.
 
 `ApiResult.headers` and `ApiException.responseHeaders` hold one string per header
 name (lower-cased). A header the server sent more than once is joined with `, `.
-
-### Streaming
-
-The SDK holds every request and response body in memory. It has no streaming upload or
-download; if you need one, send the request through the Ktor `HttpClient` you inject with
-`TransportOptions.builder().httpClient(...)`.
 
 ### Configuration and transport options
 

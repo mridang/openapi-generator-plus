@@ -23,7 +23,7 @@ The build does not pin a JVM toolchain: it uses whichever JDK is on the `PATH`, 
 | `string`, `format: duration` | `java.time.Duration` | sent and read as a protobuf-JSON duration string such as `3600s` |
 | `string`, `format: uuid` | `kotlin.uuid.Uuid` | experimental in Kotlin 2.2, so generated files opt in with `ExperimentalUuidApi` |
 | `string`, `format: byte` | `ByteArray` | base64 on the wire |
-| `string`, `format: binary` | `ByteArray` | the whole body is held in memory |
+| `string`, `format: binary` | `ByteArray` for a request body; `ByteStream` for a response | the response body is read as you consume it, see Streaming |
 | `string`, `format: uri` | `java.net.URI` | Keeps the text it was built from, so a value is written back byte for byte; it rejects a square bracket in a path, as RFC 3986 does; `uri-reference` and `uri-template` stay `String` |
 | `string`, `format: email`, `hostname`, `ipv4`, `ipv6`, and plain `string` | `String` | no dedicated type |
 | `integer`, `format: int32` | `Int` | |
@@ -40,7 +40,7 @@ The build does not pin a JVM toolchain: it uses whichever JDK is on the `PATH`, 
 | nullable or optional property | `T?` | an absent key and an explicit `null` read the same; a required and nullable property keeps its key and is written as `null` when unset |
 | `enum` | `enum class` | an unknown value decodes to `UNKNOWN_DEFAULT_OPEN_API` (D117), which cannot be written; a `$ref` to an enum with a `default` next to it starts at that member, whether the model is built or decoded without the key |
 | `oneOf`, `anyOf` | a wrapper class | see Idioms |
-| file upload and download | `ByteArray` | |
+| file upload and download | `ByteArray` upload, `ByteStream` download | same as `binary` |
 
 A schema named `Error` is generated as `ModelError`.
 
@@ -89,6 +89,7 @@ The generated project also configures ktlint, detekt, Kover and Dokka, and tests
 - **Optional arguments.** Optional parameters use Kotlin default arguments. Every operation takes an options object, also one with no parameters and no security, and per-call `timeout`, `headers` and `maxRetries` go in it; an operation with nothing of its own gets an options object that holds only those three.
 - **Raw responses.** Every operation has a `*WithHttpInfo` variant returning an `ApiResult`.
 - **Call hook.** `CallHook` (a `fun interface` with `start(info, headers): CallObserver?`), `CallObserver` (`finish(outcome)`), `CallInfo` and `CallOutcome` (data classes) and `CallHook.chain(...)` are in the common source set; set the hook with `Configuration.builder().callHook(hook)` or the `callHook` argument of the `Client` constructors and factories. Both functions are plain, not `suspend`, and run inline on the calling coroutine, so they must not block. The optional `OpenTelemetryCallHook.create()` and `create(openTelemetry)` live in the JVM source set and need `opentelemetry-api` on the class path; the SDK core imports no OpenTelemetry type except in `TraceContextUtil`.
+- **Streaming.** An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns `ByteStream` from the one `suspend` operation method (there is no second method), and `...WithHttpInfo` returns `ApiResult<ByteStream>` with an empty `rawBody`. A `ByteStream` has `statusCode`, the lower-cased `headers`, `suspend fun read(buffer)`, a cold `chunks(): Flow<ByteArray>` that closes the stream when the collection ends, `suspend fun readAll()` that reads the rest and leaves the stream closed, an idempotent `close()` that aborts the connection instead of draining it, and a `toString()` that shows only the status and the bytes delivered. The transport gets `suspend fun ApiClient.sendStreaming(method, url, headers, body)`, which returns an `ApiStreamResponse` (status, headers, open `ApiStreamBody`); the per-call `timeout` and `maxRetries` reach it through the same coroutine context as `sendRequest`, and its default implementation throws `UnsupportedOperationException` naming the transport, so an injected `ApiClient` that only implements `sendRequest` keeps working for buffered calls. `DefaultApiClient` runs the buffered call's header phase (retries, redirects, the end-to-end `timeout`, the header rules) and stops there: the `timeout` ends at the response headers, `TransportOptions.builder().idleTimeout(millis)` (default 60 seconds, `0` or `null` disables) bounds the gap between two reads of the body and raises `NetworkTimeoutException`, and nothing is retried after the first body byte. A non-2xx status raises the usual typed error with its body read up to 64 KiB. A reset, or a body shorter than its `Content-Length`, raises `StreamException` (a `NetworkException`, status 0). Cancelling the calling coroutine aborts the stream and raises `CancellationException`. `client.close()` cancels the streams still open; their next read raises `IllegalStateException` ("ApiClient has been closed and can no longer send requests"). Uploads are unchanged and JSON Lines and server-sent events have no method yet.
 - **Closing.** `Client.close()` is graceful and idempotent: a request already in flight finishes, the transport the SDK created is released after the last one, a later request fails with `IllegalStateException` ("ApiClient has been closed and can no longer send requests"), and a Ktor client you supplied is never closed.
 - **Construction and decoding.** A model constructor never validates or raises, whatever the value (an out-of-range number, an out-of-pattern string, an empty collection). A payload is checked only when it is decoded: a required property that arrives as `null` or is missing, and an enum string outside the declared set, fail with `SerializationException`.
 - **Cookie parameters.** A cookie value is sent as given when every character is a legal RFC 6265 cookie-octet, and otherwise the call fails with `IllegalArgumentException` before anything is sent. The message says to percent-encode the value first, which is yours to do: `%` is a legal cookie-octet, so a value you encoded goes out unchanged. A cookie carried as `content` is serialised by the SDK and percent-encoded, since you pass an object rather than text.
@@ -130,7 +131,7 @@ The names come from the specification, so the seam is the normaliser: the `RUN_S
 
 ### Status, headers and the raw body
 
-Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A binary response is the one live body, a `ByteStream` (see Streaming); to see or change what goes over the wire, use the call hook above or the transport you supply.
 
 ```kotlin
 val result = client.pet.addPetWithHttpInfo(pet)
@@ -147,7 +148,7 @@ try {
 
 ## Known limits
 
-- Request and response bodies are held in memory; there is no streaming. To stream, inject your own Ktor `HttpClient`.
+- A request body and a JSON, text or form response body are held in memory. Only a binary response is a stream; there is no JSON Lines or server-sent events API yet.
 - Date, time and decimal types are `java.time` and `java.math` types, so the generated code compiles only for the JVM target even though the project uses the Multiplatform plugin.
 - When no proxy is configured, the Ktor CIO engine asks the JVM's default `ProxySelector`, so `http.proxyHost` and the system proxy settings apply. Set your own `ProxySelector` to override this.
 - Schema constraints are not checked on the client; the model layer checks only JSON types and required fields.
@@ -171,7 +172,6 @@ These are proposals from a review of the type mapping against current Kotlin. No
 - Map `format: duration` to `kotlin.time.Duration`, keeping the protobuf-JSON string form.
 - Map free-form objects to `kotlinx.serialization.json.JsonElement` instead of `@Contextual Any?`.
 - Emit a sealed interface with data class variants for unions that have no discriminator, instead of the `actualInstance` wrapper.
-- Offer a streaming type (Ktor `ByteReadChannel` or a kotlinx-io `Source`) for binary bodies as an additional overload.
 - Raise the Kotlin floor from 2.2.0 to 2.4.0, which the review says would make `kotlin.uuid.Uuid` stable and remove the opt-in. This is not required, and it is the owner's decision.
 
 Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. Reads the thread-local `Context.current()`; across a coroutine thread change the caller must install the span with a `ThreadContextElement` (`Context.asContextElement()`); the base-api test defines its own element, so no dependency is added.
