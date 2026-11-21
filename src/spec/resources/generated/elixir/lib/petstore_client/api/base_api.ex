@@ -103,7 +103,7 @@ defmodule PetstoreClient.Api.BaseApi do
     end)
   end
 
-  @call_keys [:timeout, :headers, :max_retries]
+  @call_keys [:timeout, :headers, :max_retries, :idle_timeout]
 
   # The most of an error body a streamed call reads before it raises the error.
   @stream_error_body_limit 64 * 1024
@@ -148,6 +148,14 @@ defmodule PetstoreClient.Api.BaseApi do
   defp validate_call_setting({:max_retries, retries}) do
     raise ArgumentError,
           "Invalid max_retries: must be a non-negative integer (got #{inspect(retries)})"
+  end
+
+  defp validate_call_setting({:idle_timeout, idle}) when is_integer(idle) and idle >= 0,
+    do: {:idle_timeout, idle}
+
+  defp validate_call_setting({:idle_timeout, idle}) do
+    raise ArgumentError,
+          "Invalid idle_timeout: must be a non-negative number of milliseconds (got #{inspect(idle)})"
   end
 
   defp validate_call_setting({:headers, headers}) when is_map(headers) or is_list(headers) do
@@ -786,7 +794,8 @@ defmodule PetstoreClient.Api.BaseApi do
            timeout: integer() | nil,
            deadline: integer() | nil | :unset,
            replayed: boolean(),
-           stream: boolean()
+           stream: boolean(),
+           idle_timeout: non_neg_integer() | nil
          }
 
   @months %{
@@ -836,7 +845,8 @@ defmodule PetstoreClient.Api.BaseApi do
       timeout: Keyword.get(call, :timeout) || timeout(transport),
       deadline: :unset,
       replayed: false,
-      stream: Keyword.get(call, :stream, false)
+      stream: Keyword.get(call, :stream, false),
+      idle_timeout: Keyword.get(call, :idle_timeout)
     })
   end
 
@@ -851,17 +861,27 @@ defmodule PetstoreClient.Api.BaseApi do
   defp attempt(state, method, effective_auth, build_request, ctx) do
     {url, headers, serialized_body} = build_request.(:attempt)
     ctx = if ctx.deadline == :unset, do: %{ctx | deadline: deadline(ctx.timeout)}, else: ctx
-    transmit = if ctx.stream, do: &send_stream_once/6, else: &send_once/6
 
     result =
-      transmit.(
-        state.api_client,
-        method,
-        url,
-        headers,
-        serialized_body,
-        {ctx.deadline, ctx.call_timeout}
-      )
+      if ctx.stream do
+        send_stream_once(
+          state.api_client,
+          method,
+          url,
+          headers,
+          serialized_body,
+          {ctx.deadline, ctx.call_timeout, ctx.idle_timeout}
+        )
+      else
+        send_once(
+          state.api_client,
+          method,
+          url,
+          headers,
+          serialized_body,
+          {ctx.deadline, ctx.call_timeout}
+        )
+      end
 
     cond do
       not replayable?(serialized_body) ->
@@ -943,7 +963,14 @@ defmodule PetstoreClient.Api.BaseApi do
   # before streaming does not have: such a transport fails the call by name and
   # never falls back to buffering (a buffered fallback would never end on an
   # endless body).
-  defp send_stream_once(api_client, method, url, headers, body, {deadline, call_timeout}) do
+  defp send_stream_once(
+         api_client,
+         method,
+         url,
+         headers,
+         body,
+         {deadline, call_timeout, idle_timeout}
+       ) do
     ensure_streaming!(api_client)
 
     try do
@@ -956,9 +983,10 @@ defmodule PetstoreClient.Api.BaseApi do
              url,
              headers,
              body,
-             Enum.reject([deadline: deadline, timeout: call_timeout], fn {_key, value} ->
-               is_nil(value)
-             end)
+             Enum.reject(
+               [deadline: deadline, timeout: call_timeout, idle_timeout: idle_timeout],
+               fn {_key, value} -> is_nil(value) end
+             )
            )
 
          mod when is_atom(mod) ->

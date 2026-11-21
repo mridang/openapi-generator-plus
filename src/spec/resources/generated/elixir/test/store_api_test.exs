@@ -803,4 +803,86 @@ defmodule PetstoreClient.Api.StoreApiTest do
     assert {:ok, %PetstoreClient.Models.ReservationReceipt{receipt_code: "r-3"}} =
              PetstoreClient.Api.StoreApi.reserve_stock(created)
   end
+
+  # An in-process server that answers each of its next requests with one canned response.
+  defp serve_each(responses) do
+    {:ok, listen} = :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen)
+
+    spawn_link(fn ->
+      for {type, body} <- responses do
+        {:ok, socket} = :gen_tcp.accept(listen, 10_000)
+        {:ok, _head} = :gen_tcp.recv(socket, 0, 5_000)
+
+        :gen_tcp.send(
+          socket,
+          "HTTP/1.1 200 OK\r\nContent-Type: #{type}\r\nContent-Length: #{byte_size(body)}\r\nConnection: close\r\n\r\n" <>
+            body
+        )
+
+        :gen_tcp.close(socket)
+      end
+    end)
+
+    "http://127.0.0.1:#{port}"
+  end
+
+  test "bhv streaming 028 an operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method" do
+    callbacks = PetstoreClient.Api.StoreApiBehaviour.behaviour_info(:callbacks)
+
+    for name <- [
+          :export_orders_stream,
+          :export_orders_stream!,
+          :watch_orders_stream,
+          :watch_orders_stream!,
+          :watch_notices_stream
+        ] do
+      assert Enum.any?(callbacks, fn {callback, _arity} -> callback == name end),
+             "#{name} is a callback"
+    end
+
+    for name <- [
+          :export_orders,
+          :export_orders!,
+          :export_orders_with_http_info,
+          :watch_orders,
+          :watch_orders_with_http_info,
+          :watch_notices
+        ] do
+      refute Enum.any?(callbacks, fn {callback, _arity} -> callback == name end),
+             "#{name} is not a callback"
+
+      refute Enum.any?(0..6, fn arity ->
+               function_exported?(PetstoreClient.Api.StoreApi, name, arity)
+             end),
+             "#{name} is not defined"
+    end
+
+    order = ~s({"id":7,"petId":1,"quantity":2})
+
+    url =
+      serve_each([
+        {"application/x-ndjson", order <> "\n\n" <> order <> "\n"},
+        {"text/event-stream", "data: " <> order <> "\n\n"},
+        {"text/event-stream", "data: plain\n\n"}
+      ])
+
+    config = PetstoreClient.Configuration.new(base_url: url)
+    api = PetstoreClient.Api.StoreApi.new(nil, config)
+
+    assert {:ok, %PetstoreClient.JsonLinesStream{} = lines} =
+             PetstoreClient.Api.StoreApi.export_orders_stream(api)
+
+    assert [%PetstoreClient.Models.Order{id: 7}, %PetstoreClient.Models.Order{id: 7}] =
+             Enum.to_list(lines)
+
+    assert {:ok, %PetstoreClient.SseStream{} = events} =
+             PetstoreClient.Api.StoreApi.watch_orders_stream(api, nil, max_reconnects: 0)
+
+    assert [%PetstoreClient.ServerSentEvent{data: %PetstoreClient.Models.Order{id: 7}}] =
+             Enum.to_list(events)
+
+    notices = PetstoreClient.Api.StoreApi.watch_notices_stream!(api, nil, max_reconnects: 0)
+    assert [%PetstoreClient.ServerSentEvent{data: "plain", raw: "plain"}] = Enum.to_list(notices)
+  end
 end

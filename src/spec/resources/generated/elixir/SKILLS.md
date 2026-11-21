@@ -354,6 +354,38 @@ end
 
 The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `Client.close/1` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `RuntimeError` naming it, and its buffered calls keep working.
 
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered function. It has a `<operation>_stream` function that takes the operation's parameters, its options struct and the trailing `opts` keyword list that carries the stream settings, and returns `{:ok, stream}`, a `JsonLinesStream` of the schema type or an `SseStream` of `ServerSentEvent` (`id`, `event`, `data`, `retry` and the raw `data` text; the `data` is the schema of the `data`, or a string). Enumerate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `max_event_bytes` (1 MiB), raise `SerializationError` and end the stream.
+
+```elixir file
+defmodule ExportLines do
+  def run(client, options) do
+    {:ok, stream} = PetstoreClient.Api.StoreApi.export_orders_stream(client.store, options)
+
+    try do
+      Enum.each(stream, fn item -> IO.inspect(item) end)
+    after
+      PetstoreClient.JsonLinesStream.close(stream)
+    end
+  end
+end
+```
+
+```elixir file
+defmodule FollowEvents do
+  def run(client, options) do
+    {:ok, stream} = PetstoreClient.Api.StoreApi.watch_notices_stream(client.store, options, max_reconnects: 3)
+
+    try do
+      Enum.each(stream, fn item -> IO.inspect(item) end)
+    after
+      PetstoreClient.SseStream.close(stream)
+    end
+  end
+end
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnect_delay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `max_reconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `Client.close/1`. An event named `error` raises `ApiError` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `opts` also takes `idle_timeout` and `last_event_id`.
+
 ### Custom HTTP client
 
 Pass Req options such as an `:adapter` function or a `:plug` through `req_options`. The SDK's own settings (timeouts, redirect policy, proxy, TLS, user agent) are applied on top, and the SDK never closes anything you supply. Combining `:connect_options` or `:finch` with `proxy`, `ca_cert_path` or `verify_ssl: false` raises `ArgumentError`.

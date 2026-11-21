@@ -100,6 +100,46 @@ end
 
 The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `{{clientClassName}}.close/1` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `RuntimeError` naming it, and its buffered calls keep working.
 
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered function. It has a `<operation>_stream` function that takes the operation's parameters, its options struct and the trailing `opts` keyword list that carries the stream settings, and returns `{:ok, stream}`, a `JsonLinesStream` of the schema type or an `SseStream` of `ServerSentEvent` (`id`, `event`, `data`, `retry` and the raw `data` text; the `data` is the schema of the `data`, or a string). Enumerate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `max_event_bytes` (1 MiB), raise `SerializationError` and end the stream.
+{{#hasJsonLinesStreamOperation}}
+
+```elixir file
+defmodule ExportLines do
+{{#jsonLinesStreamOperation}}
+  def run(client{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) do
+    {:ok, stream} = {{moduleName}}.Api.{{#jsonLinesStreamGroup}}{{classname}}{{/jsonLinesStreamGroup}}.{{operationId}}_stream(client.{{#jsonLinesStreamGroup}}{{clientPropertyName}}{{/jsonLinesStreamGroup}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})
+
+    try do
+      Enum.each(stream, fn item -> IO.inspect(item) end)
+    after
+      {{moduleName}}.JsonLinesStream.close(stream)
+    end
+  end
+{{/jsonLinesStreamOperation}}
+end
+```
+{{/hasJsonLinesStreamOperation}}
+{{#hasSseStreamOperation}}
+
+```elixir file
+defmodule FollowEvents do
+{{#sseStreamOperation}}
+  def run(client{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) do
+    {:ok, stream} = {{moduleName}}.Api.{{#sseStreamGroup}}{{classname}}{{/sseStreamGroup}}.{{operationId}}_stream(client.{{#sseStreamGroup}}{{clientPropertyName}}{{/sseStreamGroup}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, max_reconnects: 3)
+
+    try do
+      Enum.each(stream, fn item -> IO.inspect(item) end)
+    after
+      {{moduleName}}.SseStream.close(stream)
+    end
+  end
+{{/sseStreamOperation}}
+end
+```
+{{/hasSseStreamOperation}}
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnect_delay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `max_reconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `{{clientClassName}}.close/1`. An event named `error` raises `ApiError` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `opts` also takes `idle_timeout` and `last_event_id`.
+
 ### Custom HTTP client
 
 Pass Req options such as an `:adapter` or a `:plug` through `TransportOptions.new(req_options: [...])`. The SDK's own settings win and the SDK never closes a transport you supply.
@@ -264,7 +304,7 @@ A model is a struct, and a struct never changes in place. Make a changed copy wi
 - An optional property that is absent and a property that is `null` both decode to `nil`; the model cannot tell them apart. A required property that is also nullable must be present, and an explicit `null` is kept. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
 - An enum value the SDK does not know decodes to the catch-all member `:unknown_default_open_api`, which has no wire value, so writing it raises a `SerializationError`; a discriminator value the SDK does not know still raises a `SerializationError`.
 - A response header that repeats arrives as one entry in `headers`, its values joined with `, ` and its name in lower case.
-- A request body and a JSON, text or form response body are held in memory. Only a binary response is a stream (see the Streaming section); there is no JSON Lines or server-sent events API yet.
+- A request body and a JSON, text or form response body are held in memory. A binary, JSON Lines or server-sent events response is a stream (see the Streaming section).
 - `Configuration` (the base URL and the headers of API calls) and `TransportOptions` (proxy, TLS, timeouts, retries) stay separate structs on purpose: the first describes the API, the second the connection.
 
 ## Caveats

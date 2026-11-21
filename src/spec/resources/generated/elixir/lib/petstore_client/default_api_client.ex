@@ -327,6 +327,7 @@ defmodule PetstoreClient.DefaultApiClient do
 
     no_redirect = Keyword.get(request_opts, :no_redirect, false)
     idle_timeout = Keyword.get(request_opts, :idle_timeout, opts.idle_timeout)
+    idle_timeout = if idle_timeout == 0, do: nil, else: idle_timeout
 
     response =
       with_transport_errors(fn ->
