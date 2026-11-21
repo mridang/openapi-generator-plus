@@ -4117,6 +4117,22 @@ test('bhv misc 133 a 300 or 305 response is returned as it is, even with a locat
     '305' => [305],
 ]);
 
+/**
+ * A PSR-18 transport that answers one canned 200 response.
+ *
+ * @param array<string, string> $headers
+ */
+function inlinePsr18Client(string $body, array $headers): \{{invokerPackage}}\Psr18ApiClient
+{
+    $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
+    $response = $factory->createResponse(200)->withBody($factory->createStream($body));
+    foreach ($headers as $name => $value) {
+        $response = $response->withHeader($name, $value);
+    }
+
+    return new \{{invokerPackage}}\Psr18ApiClient(new StubPsr18Client($response), $factory, $factory);
+}
+
 /** Opens a stream on a path of a raw test server with the default transport options. */
 function rawStreamOf(RawServer $server, string $path): ByteStream
 {
@@ -4138,6 +4154,12 @@ test('bhv streaming 001 a binary stream delivers the bytes in order and returns 
     expect($stream->read(6))->toBe('first-');
     $server->release();
     expect($stream->readAll())->toBe('second');
+
+    $psr = inlinePsr18Client('payload', ['X-Mixed-Case' => 'kept'])
+        ->sendStreaming('GET', 'http://example.com/items/blob', [], null);
+    expect($psr->headers)->toHaveKey('x-mixed-case');
+    expect($psr->read(3))->toBe('pay');
+    expect($psr->readAll())->toBe('load');
 });
 
 test('bhv streaming 010 the call timeout bounds only the wait for the response headers, not the body', function (): void {
@@ -4197,6 +4219,10 @@ test('bhv streaming 013 a body shorter than its content length raises a network 
     $stream = rawStreamOf($server, '/items/blob');
 
     expect(fn (): string => $stream->readAll())->toThrow(NetworkException::class);
+
+    $psr = inlinePsr18Client('abcd', ['Content-Length' => '10'])
+        ->sendStreaming('GET', 'http://example.com/items/blob', [], null);
+    expect(fn (): string => $psr->readAll())->toThrow(StreamException::class);
 });
 
 test('bhv streaming 014 a streaming call retries a 503 before the headers and then streams the retried response', function (): void {
