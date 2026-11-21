@@ -10,6 +10,7 @@
 package com.example.petstore.api
 
 import com.example.petstore.ApiResult
+import com.example.petstore.BodySource
 import com.example.petstore.ByteStream
 import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
@@ -31,6 +32,12 @@ import com.example.petstore.api.options.GetPetPhotoOptions
 import com.example.petstore.api.options.GetPetSummaryOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.GetStagingPetInfoOptions
+import com.example.petstore.api.options.ListPetArchiveOptions
+import com.example.petstore.api.options.ListPetCatalogOptions
+import com.example.petstore.api.options.ListPetEventsOptions
+import com.example.petstore.api.options.ListPetFeedOptions
+import com.example.petstore.api.options.ListPetMatchesOptions
+import com.example.petstore.api.options.ListPetNotesOptions
 import com.example.petstore.api.options.SetPetAvatarOptions
 import com.example.petstore.api.options.SetPetAvatarThumbnailOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
@@ -39,6 +46,11 @@ import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
 import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Pet
+import com.example.petstore.models.PetArchivePage
+import com.example.petstore.models.PetCatalogPage
+import com.example.petstore.models.PetEventPage
+import com.example.petstore.models.PetMatchPage
+import com.example.petstore.models.PetNotePage
 import com.example.petstore.models.PetPassport
 import com.example.petstore.models.PetTreatment
 import com.example.petstore.models.Photo
@@ -353,10 +365,46 @@ interface PetApiInterface {
         options: GetStagingPetInfoOptions? = null,
     ): ApiResult<Pet>
 
+    /** The `listPetArchive` operation. */
+    suspend fun listPetArchive(options: ListPetArchiveOptions? = null): PetArchivePage
+
+    /** The `listPetArchive` operation with its status code, headers and body. */
+    suspend fun listPetArchiveWithHttpInfo(options: ListPetArchiveOptions? = null): ApiResult<PetArchivePage>
+
+    /** The `listPetCatalog` operation. */
+    suspend fun listPetCatalog(options: ListPetCatalogOptions? = null): PetCatalogPage
+
+    /** The `listPetCatalog` operation with its status code, headers and body. */
+    suspend fun listPetCatalogWithHttpInfo(options: ListPetCatalogOptions? = null): ApiResult<PetCatalogPage>
+
+    /** The `listPetEvents` operation. */
+    suspend fun listPetEvents(options: ListPetEventsOptions? = null): PetEventPage
+
+    /** The `listPetEvents` operation with its status code, headers and body. */
+    suspend fun listPetEventsWithHttpInfo(options: ListPetEventsOptions? = null): ApiResult<PetEventPage>
+
+    /** The `listPetFeed` operation. */
+    suspend fun listPetFeed(options: ListPetFeedOptions? = null): List<Pet>
+
+    /** The `listPetFeed` operation with its status code, headers and body. */
+    suspend fun listPetFeedWithHttpInfo(options: ListPetFeedOptions? = null): ApiResult<List<Pet>>
+
+    /** The `listPetMatches` operation. */
+    suspend fun listPetMatches(options: ListPetMatchesOptions? = null): PetMatchPage
+
+    /** The `listPetMatches` operation with its status code, headers and body. */
+    suspend fun listPetMatchesWithHttpInfo(options: ListPetMatchesOptions? = null): ApiResult<PetMatchPage>
+
+    /** The `listPetNotes` operation. */
+    suspend fun listPetNotes(options: ListPetNotesOptions? = null): PetNotePage
+
+    /** The `listPetNotes` operation with its status code, headers and body. */
+    suspend fun listPetNotesWithHttpInfo(options: ListPetNotesOptions? = null): ApiResult<PetNotePage>
+
     /** The `setPetAvatar` operation. */
     suspend fun setPetAvatar(
         petId: Long,
-        body: ByteArray,
+        body: BodySource,
         options: SetPetAvatarOptions? = null,
         requestContentType: String? = null,
     ): Unit
@@ -364,7 +412,7 @@ interface PetApiInterface {
     /** The `setPetAvatar` operation with its status code, headers and body. */
     suspend fun setPetAvatarWithHttpInfo(
         petId: Long,
-        body: ByteArray,
+        body: BodySource,
         options: SetPetAvatarOptions? = null,
         requestContentType: String? = null,
     ): ApiResult<Unit>

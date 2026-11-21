@@ -11,6 +11,7 @@ import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
 import com.example.petstore.ApiResult
 import com.example.petstore.ApiStreamResponse
+import com.example.petstore.BodySource
 import com.example.petstore.ByteStream
 import com.example.petstore.CallInfo
 import com.example.petstore.CallSettings
@@ -481,6 +482,7 @@ abstract class BaseApi {
                             extractBinaryPart(body)
                         }
                         body is ByteArray ||
+                            body is BodySource ||
                             contentType.startsWith("image/") ||
                             "application/octet-stream" == contentType -> body
                         "multipart/form-data" == contentType && body is Map<*, *> -> body
@@ -549,11 +551,11 @@ abstract class BaseApi {
                 // A cached OAuth2 token the API no longer accepts must not outlive this answer.
                 effectiveAuth.invalidateAccessToken()
                 /* The request is replayed once with a freshly obtained token (a refresh grant first when
-                 * a refresh token is held). A multipart body is not replayed, and a re-authentication
+                 * a refresh token is held). A multipart body and a single-use body source are not replayed, and a re-authentication
                  * that fails leaves the 401 as the answer. A second 401 is reported as usual. Only the
                  * OAuth2 and OpenID Connect authenticators take part: API key, basic and bearer
                  * credentials are static, so a new attempt could not change the outcome. */
-                if (requestBody !is Map<*, *>) {
+                if (requestBody !is Map<*, *> && !(requestBody is BodySource && !requestBody.isReplayable)) {
                     val freshAuthHeaders =
                         try {
                             effectiveAuth.getAuthHeaders()
@@ -1078,6 +1080,7 @@ abstract class BaseApi {
             terminator,
             options,
             body != null,
+            body is BodySource && !body.isReplayable,
             method,
             requestPathOf(resolveUrl(path)),
         )

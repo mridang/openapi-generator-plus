@@ -15,8 +15,11 @@ import io.ktor.http.*
 import {{invokerPackage}}.errors.NetworkException
 import {{invokerPackage}}.errors.NetworkTimeoutException
 import {{invokerPackage}}.errors.StreamException
+import io.ktor.http.content.OutgoingContent
 import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readAvailable
+import io.ktor.utils.io.writeFully
 
 /**
  * Default implementation of [ApiClient] using Ktor.
@@ -263,7 +266,9 @@ class DefaultApiClient internal constructor(
         // hop, the body read and every wait between retries draw from it.
         val callSettings = kotlin.coroutines.coroutineContext[CallSettings]
         val budget = TimeoutBudget(callSettings?.timeout ?: transportOptions.timeout)
-        val maxRetries = callSettings?.maxRetries ?: transportOptions.maxRetries
+        /* A single-use body has been read to its end by the first request, so there is nothing to
+         * send again: it is never retried and the first outcome is reported unchanged. */
+        val maxRetries = if (body is BodySource && !body.isReplayable) 0 else callSettings?.maxRetries ?: transportOptions.maxRetries
         var attempt = 0
         while (true) {
             val response =
@@ -486,6 +491,18 @@ class DefaultApiClient internal constructor(
                         }
                     }
 
+                    if (nextBody is BodySource && !nextBody.isReplayable) {
+                        /* The one stream was read to its end by the request that was just sent, so
+                         * there is nothing to send again, and it is never buffered to make that
+                         * possible. */
+                        throw ApiException(
+                            statusCode,
+                            "Refusing to replay a streamed request body",
+                            responseHeadersOf(hop.response),
+                            null,
+                        )
+                    }
+
                     if (nextBody == null) {
                         redirectHeaders.keys
                             .filter {
@@ -671,6 +688,18 @@ class DefaultApiClient internal constructor(
                 val contentType = mergedHeaders["Content-Type"] ?: ContentType.Application.OctetStream.toString()
                 builder.contentType(ContentType.parse(contentType))
                 builder.setBody(body)
+            }
+            body is BodySource -> {
+                /* Sent as it is read, never buffered: a known length is a Content-Length, an
+                 * unknown one is chunked. A replayable source is opened again for every send. */
+                val contentType = ContentType.parse(mergedHeaders["Content-Type"] ?: ContentType.Application.OctetStream.toString())
+                builder.contentType(contentType)
+                val inMemory = body.bytesOrNull()
+                if (inMemory != null) {
+                    builder.setBody(inMemory)
+                } else {
+                    builder.setBody(BodySourceContent(body, contentType, body.length()))
+                }
             }
             else -> {
                 val contentType = mergedHeaders["Content-Type"] ?: "application/json"
@@ -1170,6 +1199,24 @@ internal class CallSettings(
     val idleTimeout: Long? = null,
 ) : kotlin.coroutines.AbstractCoroutineContextElement(Key) {
     internal companion object Key : kotlin.coroutines.CoroutineContext.Key<CallSettings>
+}
+
+/**
+ * The content of a [BodySource] that is not held in memory: it is written to the connection piece
+ * by piece as the source is read, so the body is never buffered. A known [length] is sent as
+ * `Content-Length`; `null` is sent chunked.
+ */
+private class BodySourceContent(
+    private val source: BodySource,
+    override val contentType: ContentType,
+    override val contentLength: Long?,
+) : OutgoingContent.WriteChannelContent() {
+    override suspend fun writeTo(channel: ByteWriteChannel) {
+        source.chunks().collect { piece ->
+            channel.writeFully(piece)
+            channel.flush()
+        }
+    }
 }
 
 /**

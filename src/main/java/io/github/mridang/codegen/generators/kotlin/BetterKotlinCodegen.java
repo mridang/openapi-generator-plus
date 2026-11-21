@@ -559,6 +559,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.kt"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.kt"),
             new SupportingFileSpec("api_stream_response.mustache", invokerFolder, "ApiStreamResponse.kt"),
+            new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.kt"),
             new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.kt"),
             new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.kt"),
             new SupportingFileSpec("server_sent_event.mustache", invokerFolder, "ServerSentEvent.kt"),
@@ -1411,7 +1412,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
+        if (objs.getOperations() != null) {
+            for (final CodegenOperation op : objs.getOperations().getOperation()) {
+                markBinaryUpload(op);
+            }
+        }
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        boolean anyBodySource = false;
         boolean anyBinaryStream = false;
         boolean anySseStream = false;
         boolean anyJsonLinesStream = false;
@@ -1422,6 +1429,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 }
                 final Object deco = op.vendorExtensions.get("op");
                 markBinaryStream(op);
+                anyBodySource |= op.bodyParam != null && "BodySource".equals(op.bodyParam.dataType);
                 anyBinaryStream |= "ByteStream".equals(op.returnType);
                 anySseStream |= "SseStream".equals(op.returnBaseType);
                 anyJsonLinesStream |= "JsonLinesStream".equals(op.returnBaseType);
@@ -1436,11 +1444,42 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 }
             }
         }
+        result.put("hasBodySource", anyBodySource);
         result.put("hasBinaryStream", anyBinaryStream);
         result.put("hasSseStream", anySseStream);
         result.put("hasJsonLinesStream", anyJsonLinesStream);
         result.put("hasEventStream", anySseStream || anyJsonLinesStream);
         return result;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of a {@code ByteArray}. It runs before the shared pass, which copies the
+     * body type into the signature arguments. Multipart and every other body kind keep the type
+     * the spec maps.
+     *
+     * @param op the operation to mark
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
     }
 
     /**

@@ -11,6 +11,7 @@ package com.example.petstore.api
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiResult
+import com.example.petstore.BodySource
 import com.example.petstore.ByteStream
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
@@ -34,6 +35,12 @@ import com.example.petstore.api.options.GetPetPhotoOptions
 import com.example.petstore.api.options.GetPetSummaryOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.GetStagingPetInfoOptions
+import com.example.petstore.api.options.ListPetArchiveOptions
+import com.example.petstore.api.options.ListPetCatalogOptions
+import com.example.petstore.api.options.ListPetEventsOptions
+import com.example.petstore.api.options.ListPetFeedOptions
+import com.example.petstore.api.options.ListPetMatchesOptions
+import com.example.petstore.api.options.ListPetNotesOptions
 import com.example.petstore.api.options.SetPetAvatarOptions
 import com.example.petstore.api.options.SetPetAvatarThumbnailOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
@@ -44,6 +51,11 @@ import com.example.petstore.auth.Authenticator
 import com.example.petstore.errors.ApiException
 import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Pet
+import com.example.petstore.models.PetArchivePage
+import com.example.petstore.models.PetCatalogPage
+import com.example.petstore.models.PetEventPage
+import com.example.petstore.models.PetMatchPage
+import com.example.petstore.models.PetNotePage
 import com.example.petstore.models.PetPassport
 import com.example.petstore.models.PetTreatment
 import com.example.petstore.models.Photo
@@ -1663,6 +1675,326 @@ class PetApi :
     }
 
     /**
+     * Lists archived pets; it looks paged, and the generator option says it is not
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return PetArchivePage
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetArchive(options: ListPetArchiveOptions?): PetArchivePage =
+        listPetArchiveWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetArchive but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetArchive] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetArchiveWithHttpInfo(options: ListPetArchiveOptions?): ApiResult<PetArchivePage> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/archive"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.cursor != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "cursor",
+                ValueSerializer.serializeStyled("cursor", options!!.cursor, "query", "String", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<PetArchivePage>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetArchive",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetArchive",
+            urlTemplate = "/pet/archive",
+        )
+    }
+
+    /**
+     * Lists the pet catalog one page at a time with a next-cursor token
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return PetCatalogPage
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetCatalog(options: ListPetCatalogOptions?): PetCatalogPage =
+        listPetCatalogWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetCatalog but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetCatalog] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetCatalogWithHttpInfo(options: ListPetCatalogOptions?): ApiResult<PetCatalogPage> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/catalog"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.limit != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "limit",
+                ValueSerializer.serializeStyled("limit", options!!.limit, "query", "Int", null, "form", true),
+                false,
+            )
+        }
+        if (options?.cursor != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "cursor",
+                ValueSerializer.serializeStyled("cursor", options!!.cursor, "query", "String", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<PetCatalogPage>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetCatalog",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetCatalog",
+            urlTemplate = "/pet/catalog",
+        )
+    }
+
+    /**
+     * Lists pet events; only the generator option says it is paged
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return PetEventPage
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetEvents(options: ListPetEventsOptions?): PetEventPage =
+        listPetEventsWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetEvents but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetEvents] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetEventsWithHttpInfo(options: ListPetEventsOptions?): ApiResult<PetEventPage> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/events"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.since != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "since",
+                ValueSerializer.serializeStyled("since", options!!.since, "query", "String", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<PetEventPage>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetEvents",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetEvents",
+            urlTemplate = "/pet/events",
+        )
+    }
+
+    /**
+     * Lists the pet feed one page at a time with a Link header
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return List<Pet>
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetFeed(options: ListPetFeedOptions?): List<Pet> =
+        listPetFeedWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetFeed but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetFeed] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetFeedWithHttpInfo(options: ListPetFeedOptions?): ApiResult<List<Pet>> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/feed"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.limit != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "limit",
+                ValueSerializer.serializeStyled("limit", options!!.limit, "query", "Int", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<List<Pet>>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetFeed",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetFeed",
+            urlTemplate = "/pet/feed",
+        )
+    }
+
+    /**
+     * Finds pets and their owners; two lists make it ambiguous, so it is not paged
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return PetMatchPage
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetMatches(options: ListPetMatchesOptions?): PetMatchPage =
+        listPetMatchesWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetMatches but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetMatches] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetMatchesWithHttpInfo(options: ListPetMatchesOptions?): ApiResult<PetMatchPage> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/matches"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.cursor != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "cursor",
+                ValueSerializer.serializeStyled("cursor", options!!.cursor, "query", "String", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<PetMatchPage>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetMatches",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetMatches",
+            urlTemplate = "/pet/matches",
+        )
+    }
+
+    /**
+     * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return PetNotePage
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetNotes(options: ListPetNotesOptions?): PetNotePage =
+        listPetNotesWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetNotes but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetNotes] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetNotesWithHttpInfo(options: ListPetNotesOptions?): ApiResult<PetNotePage> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/notes"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.pos != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "pos",
+                ValueSerializer.serializeStyled("pos", options!!.pos, "query", "String", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<PetNotePage>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetNotes",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetNotes",
+            urlTemplate = "/pet/notes",
+        )
+    }
+
+    /**
      * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
      * @param petId  (required)
@@ -1676,7 +2008,7 @@ class PetApi :
      */
     override suspend fun setPetAvatar(
         petId: Long,
-        body: ByteArray,
+        body: BodySource,
         options: SetPetAvatarOptions?,
         requestContentType: String?,
     ) {
@@ -1686,7 +2018,7 @@ class PetApi :
     /** Same as [setPetAvatar] but returns the full [ApiResult] (status code, headers and body). */
     override suspend fun setPetAvatarWithHttpInfo(
         petId: Long,
-        body: ByteArray,
+        body: BodySource,
         options: SetPetAvatarOptions?,
         requestContentType: String?,
     ): ApiResult<Unit> {

@@ -661,13 +661,17 @@ class BaseApiTest {
     }
 
     @Test
-    @DisplayName("bhvMisc217 a binary upload accepts in-memory bytes and sends them without writing a temporary file")
-    fun bhvMisc217BinaryUploadAcceptsInMemoryBytes() =
+    @DisplayName("bhvMisc217 a binary upload accepts in-memory bytes and a body source and hands them to the transport as given")
+    fun bhvMisc217BinaryUploadAcceptsInMemoryBytesAndABodySource() =
         runBlocking<Unit> {
             val client = CapturingApiClient()
             TestableApiWithClient(client, "http://localhost")
                 .call("POST", "/test/echo", body = "docu".toByteArray(), contentType = "application/octet-stream")
             assertEquals("docu", (client.capturedBody as ByteArray).toString(Charsets.UTF_8))
+            val source = BodySource.once(java.io.ByteArrayInputStream("docu".toByteArray()))
+            TestableApiWithClient(client, "http://localhost")
+                .call("POST", "/test/echo", body = source, contentType = "application/json")
+            assertSame(source, client.capturedBody)
         }
 
     @Test

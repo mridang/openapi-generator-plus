@@ -43,12 +43,15 @@ class SseStream<T> private constructor(
     private val terminator: String?,
     given: StreamOptions,
     hasBody: Boolean,
+    singleUseBody: Boolean,
     private val method: String,
     private val path: String,
     first: ByteStream,
     private var lastEventId: String,
 ) : AutoCloseable {
-    private val maxReconnects: Int = given.maxReconnects ?: if (hasBody) 0 else DEFAULT_MAX_RECONNECTS
+    // A single use body has been read to its end, so a reconnect has nothing to send.
+    private val maxReconnects: Int =
+        if (singleUseBody) 0 else given.maxReconnects ?: if (hasBody) 0 else DEFAULT_MAX_RECONNECTS
     private val reconnectDelay: Long = given.reconnectDelay ?: DEFAULT_RECONNECT_DELAY_MILLIS
     private val maxEventBytes: Int = given.maxEventBytes ?: DEFAULT_MAX_EVENT_BYTES
 
@@ -263,7 +266,7 @@ class SseStream<T> private constructor(
         private const val NO_CONTENT = 204
 
         /**
-         * Opens the first connection of an event stream; a failure of that request is raised here.
+         * Opens the first connection of an event stream whose request body can be sent again.
          *
          * @param T the data type
          * @param opener sends one request with the given last event id (`""` for none) and returns
@@ -284,11 +287,38 @@ class SseStream<T> private constructor(
             hasBody: Boolean,
             method: String,
             path: String,
+        ): SseStream<T> = open(opener, decoder, terminator, options, hasBody, false, method, path)
+
+        /**
+         * Opens the first connection of an event stream; a failure of that request is raised here.
+         *
+         * @param T the data type
+         * @param opener sends one request with the given last event id (`""` for none) and returns
+         *   its open body, or raises the typed error of a failed status
+         * @param decoder decodes the `data` field, or `null` to hand it over as a string
+         * @param terminator a `data` value that ends the stream and is not delivered, or `null`
+         * @param options the call's settings, or `null`
+         * @param hasBody whether the request has a body, which turns reconnecting off by default
+         * @param singleUseBody whether the body can be sent only once, which turns reconnecting off
+         *   whatever the options say
+         * @param method the HTTP method, for errors
+         * @param path the request path, for errors
+         * @return the open stream
+         */
+        suspend fun <T> open(
+            opener: suspend (String) -> ByteStream,
+            decoder: ((String) -> T?)?,
+            terminator: String?,
+            options: StreamOptions?,
+            hasBody: Boolean,
+            singleUseBody: Boolean,
+            method: String,
+            path: String,
         ): SseStream<T> {
             val given = options ?: StreamOptions()
             val lastEventId = given.lastEventId ?: ""
             val first = connectTo(opener, lastEventId, method, path)
-            return SseStream(opener, decoder, terminator, given, hasBody, method, path, first, lastEventId)
+            return SseStream(opener, decoder, terminator, given, hasBody, singleUseBody, method, path, first, lastEventId)
         }
 
         /** Sends the request and checks that the answer is an event stream. */

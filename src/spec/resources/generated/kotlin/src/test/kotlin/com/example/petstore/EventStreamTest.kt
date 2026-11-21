@@ -302,6 +302,21 @@ class EventStreamTest {
             val on = EventScript("data: a\n\n", "data: b\n\n", noContent())
             val reconnect = sse(on, StreamOptions(reconnectDelay = 1, maxReconnects = 2), hasBody = true)
             assertEquals(listOf<String?>("a", "b"), dataOf(reconnect))
+
+            val onceBody = EventScript("data: a\n\n", "data: b\n\n", noContent())
+            val singleUse =
+                SseStream.open<String>(
+                    onceBody.opener,
+                    null,
+                    null,
+                    StreamOptions(reconnectDelay = 1, maxReconnects = 5),
+                    true,
+                    true,
+                    "POST",
+                    "/events",
+                )
+            assertEquals(listOf<String?>("a"), dataOf(singleUse))
+            assertEquals(1, onceBody.lastIds.size, "a single use body is never sent again")
         }
     }
 

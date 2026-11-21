@@ -6,6 +6,9 @@ package {{package}}
 import {{invokerPackage}}.ApiClient
 import {{invokerPackage}}.errors.ApiException
 import {{invokerPackage}}.ApiResult
+{{#hasBodySource}}
+import {{invokerPackage}}.BodySource
+{{/hasBodySource}}
 {{#hasBinaryStream}}
 import {{invokerPackage}}.ByteStream
 {{/hasBinaryStream}}
