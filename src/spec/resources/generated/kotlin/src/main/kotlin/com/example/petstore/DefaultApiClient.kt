@@ -1236,7 +1236,7 @@ internal class CallSettings(
 
 /**
  * The content of a [BodySource] that is not held in memory: it is written to the connection piece
- * by piece as the source is read, so the body is never buffered. A known [length] is sent as
+ * by piece as the source is read, so the body is never buffered. A known `contentLength` is sent as
  * `Content-Length`; `null` is sent chunked.
  */
 private class BodySourceContent(
