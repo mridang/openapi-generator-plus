@@ -49,7 +49,7 @@ defmodule PetstoreClient.Errors.OpenAPIError do
        │   │       (and the PetstoreClient.Errors.ServerError grouping)
        │   ├─ one error per declared error schema, named from the schema's model
        │   │   and specialising the status error of the status it is declared under
-       │   └─ no response: NetworkError, NetworkTimeoutError (status 0)
+       │   └─ no response: NetworkError, NetworkTimeoutError, StreamError (status 0)
        ├─ PetstoreClient.Errors.SerializationError  (every encode/decode failure)
        ├─ PetstoreClient.Errors.OAuth2ServerError  (token endpoint returned 4xx/5xx)
        └─ PetstoreClient.Errors.OAuth2TokenError   (token endpoint answered unusably)
@@ -84,6 +84,7 @@ defmodule PetstoreClient.Errors.OpenAPIError do
     PetstoreClient.Errors.InternalServerError,
     PetstoreClient.Errors.NetworkError,
     PetstoreClient.Errors.NetworkTimeoutError,
+    PetstoreClient.Errors.StreamError,
     PetstoreClient.Errors.SerializationError,
     PetstoreClient.Errors.OAuth2ServerError,
     PetstoreClient.Errors.OAuth2TokenError,
@@ -120,6 +121,7 @@ defmodule PetstoreClient.Errors.OpenAPIError do
           | PetstoreClient.Errors.InternalServerError.t()
           | PetstoreClient.Errors.NetworkError.t()
           | PetstoreClient.Errors.NetworkTimeoutError.t()
+          | PetstoreClient.Errors.StreamError.t()
           | PetstoreClient.Errors.SerializationError.t()
           | PetstoreClient.Errors.OAuth2ServerError.t()
           | PetstoreClient.Errors.OAuth2TokenError.t()

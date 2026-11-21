@@ -341,6 +341,31 @@ defmodule NoRetriesClient do
 end
 ```
 
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close/1` that aborts the connection instead of draining it, so close it when you stop early (in an `after` block). `read_all/1` reads the rest into memory and leaves the stream closed.
+{{#hasBinaryStreamOperation}}
+
+```elixir file
+defmodule Download do
+{{#binaryStreamOperation}}
+  def save_to(client{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, path) do
+    {:ok, stream} = {{moduleName}}.Api.{{#binaryStreamGroup}}{{classname}}{{/binaryStreamGroup}}.{{operationId}}(client.{{#binaryStreamGroup}}{{clientPropertyName}}{{/binaryStreamGroup}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}})
+
+    try do
+      IO.puts(stream.status_code)
+      Enum.into(stream, File.stream!(path))
+    after
+      {{moduleName}}.ByteStream.close(stream)
+    end
+  end
+{{/binaryStreamOperation}}
+end
+```
+{{/hasBinaryStreamOperation}}
+
+The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `{{clientClassName}}.close/1` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `RuntimeError` naming it, and its buffered calls keep working.
+
 ### Custom HTTP client
 
 Pass Req options such as an `:adapter` function or a `:plug` through `req_options`. The SDK's own settings (timeouts, redirect policy, proxy, TLS, user agent) are applied on top, and the SDK never closes anything you supply. Combining `:connect_options` or `:finch` with `proxy`, `ca_cert_path` or `verify_ssl: false` raises `ArgumentError`.
@@ -442,7 +467,7 @@ For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCal
 
 ### Closing the client
 
-`{{moduleName}}.{{clientClassName}}.close/1` closes the client and is idempotent. A call already in flight finishes, and a call that starts after it raises `RuntimeError` ("ApiClient has been closed and can no longer send requests"). The processes the SDK started (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. A transport you supply through `req_options` is never closed by the SDK.
+`{{moduleName}}.{{clientClassName}}.close/1` closes the client and is idempotent. A call already in flight finishes, and a call that starts after it raises `RuntimeError` ("ApiClient has been closed and can no longer send requests"). Streams that are still open are cancelled. The processes the SDK started (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. A transport you supply through `req_options` is never closed by the SDK.
 
 ```elixir file
 defmodule Closing do
@@ -484,7 +509,7 @@ Models never change in place. Make a changed copy with the struct update syntax:
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `binary()`. Binary response bodies are returned as `binary()`.
+File upload parameters are typed as `binary()`. A binary response body is returned as a `ByteStream`, an `Enumerable` of binaries (see Streaming).
 
 ## Comment Style
 
