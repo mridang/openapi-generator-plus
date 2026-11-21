@@ -35,4 +35,21 @@ public sealed class ListPetEventsOptions
     /// When null the transport's setting applies.
     /// </summary>
     public int? MaxRetries { get; init; }
+
+    /// <summary>
+    /// Returns a copy of these options that starts at another cursor: the same value for every
+    /// other parameter, the same timeout, retry count and headers. A paged list uses it to send
+    /// each page with its own cursor.
+    /// </summary>
+    /// <param name="cursor">The cursor of the copy.</param>
+    internal ListPetEventsOptions WithCursor(string? cursor)
+    {
+        return new ListPetEventsOptions
+        {
+            Since = cursor,
+            Timeout = this.Timeout,
+            Headers = this.Headers,
+            MaxRetries = this.MaxRetries,
+        };
+    }
 }

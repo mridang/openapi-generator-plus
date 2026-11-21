@@ -3119,6 +3119,38 @@ public class PetApi : BaseApi, IPetApi
     }
 
     /// <summary>
+    /// Lists the pet catalog one page at a time with a next-cursor token (as a lazy paginator over its items)
+    /// </summary>
+    /// <remarks>
+    /// Returns the items as a lazy <see cref="Paginator{T, TCursor}"/>: no request is sent until you
+    /// first read an item or a page, and each next page is requested only when you ask for more.
+    /// Every page is an ordinary call of <c>ListPetCatalogWithHttpInfoAsync</c>, with the same options
+    /// on each page.
+    /// The value of the <c>Cursor</c> option is where
+    /// the list starts, and the page after each one is requested with the
+    /// <c>NextCursor</c> it returned.
+    /// </remarks>
+    /// <param name="options">Options for query, header, form, and cookie parameters; they are sent on every page.</param>
+    /// <param name="cancellationToken">Token that cancels the page request in flight. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>The paginator over the items.</returns>
+    public Paginator<Pet, string?> ListPetCatalogPagesAsync(
+        ListPetCatalogOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ListPetCatalogOptions pageOptions = options ?? new ListPetCatalogOptions();
+        return Paginator<Pet, string?>.OfCursor<PetCatalogPage>(
+            pageOptions.Cursor,
+            (pageCursor, pageToken) =>
+                ListPetCatalogWithHttpInfoAsync(pageOptions.WithCursor(pageCursor), pageToken),
+            page => page.Items,
+            page => page.NextCursor,
+            "/pet/catalog",
+            cancellationToken
+        );
+    }
+
+    /// <summary>
     /// Lists pet events; only the generator option says it is paged
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
@@ -3213,6 +3245,38 @@ public class PetApi : BaseApi, IPetApi
     }
 
     /// <summary>
+    /// Lists pet events; only the generator option says it is paged (as a lazy paginator over its items)
+    /// </summary>
+    /// <remarks>
+    /// Returns the items as a lazy <see cref="Paginator{T, TCursor}"/>: no request is sent until you
+    /// first read an item or a page, and each next page is requested only when you ask for more.
+    /// Every page is an ordinary call of <c>ListPetEventsWithHttpInfoAsync</c>, with the same options
+    /// on each page.
+    /// The value of the <c>Since</c> option is where
+    /// the list starts, and the page after each one is requested with the
+    /// <c>Upto</c> it returned.
+    /// </remarks>
+    /// <param name="options">Options for query, header, form, and cookie parameters; they are sent on every page.</param>
+    /// <param name="cancellationToken">Token that cancels the page request in flight. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>The paginator over the items.</returns>
+    public Paginator<string, string?> ListPetEventsPagesAsync(
+        ListPetEventsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ListPetEventsOptions pageOptions = options ?? new ListPetEventsOptions();
+        return Paginator<string, string?>.OfCursor<PetEventPage>(
+            pageOptions.Since,
+            (pageCursor, pageToken) =>
+                ListPetEventsWithHttpInfoAsync(pageOptions.WithCursor(pageCursor), pageToken),
+            page => page.Events,
+            page => page.Upto,
+            "/pet/events",
+            cancellationToken
+        );
+    }
+
+    /// <summary>
     /// Lists the pet feed one page at a time with a Link header
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
@@ -3257,9 +3321,18 @@ public class PetApi : BaseApi, IPetApi
     /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<List<Pet>>> ListPetFeedWithHttpInfoAsync(
+    public Task<ApiResult<List<Pet>>> ListPetFeedWithHttpInfoAsync(
         ListPetFeedOptions? options = null,
         CancellationToken cancellationToken = default
+    )
+    {
+        return ListPetFeedPageAsync(options, null, cancellationToken);
+    }
+
+    private async Task<ApiResult<List<Pet>>> ListPetFeedPageAsync(
+        ListPetFeedOptions? options,
+        string? pageUrl,
+        CancellationToken cancellationToken
     )
     {
         string path = "/pet/feed";
@@ -3282,6 +3355,11 @@ public class PetApi : BaseApi, IPetApi
         }
         Dictionary<string, string> headerParams = [];
 
+        if (pageUrl != null)
+        {
+            path = pageUrl;
+            queryParams.Clear();
+        }
         return await InvokeApiForResultAsync<List<Pet>>(
                 "GET",
                 path,
@@ -3301,6 +3379,34 @@ public class PetApi : BaseApi, IPetApi
                 maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists the pet feed one page at a time with a Link header (as a lazy paginator over its items)
+    /// </summary>
+    /// <remarks>
+    /// Returns the items as a lazy <see cref="Paginator{T, TCursor}"/>: no request is sent until you
+    /// first read an item or a page, and each next page is requested only when you ask for more.
+    /// Every page is an ordinary call of <c>ListPetFeedWithHttpInfoAsync</c>, with the same options
+    /// on each page.
+    /// The page after each one is the <c>rel="next"</c> link of its <c>Link</c> header, followed only
+    /// within the origin of the client.
+    /// </remarks>
+    /// <param name="options">Options for query, header, form, and cookie parameters; they are sent on every page.</param>
+    /// <param name="cancellationToken">Token that cancels the page request in flight. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>The paginator over the items.</returns>
+    public Paginator<Pet, string?> ListPetFeedPagesAsync(
+        ListPetFeedOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return Paginator<Pet, string?>.OfLink<List<Pet>>(
+            Config.BaseUrl,
+            (pageUrl, pageToken) => ListPetFeedPageAsync(options, pageUrl, pageToken),
+            page => page,
+            "/pet/feed",
+            cancellationToken
+        );
     }
 
     /// <summary>
@@ -3489,6 +3595,38 @@ public class PetApi : BaseApi, IPetApi
                 maxRetries: options?.MaxRetries
             )
             .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged (as a lazy paginator over its items)
+    /// </summary>
+    /// <remarks>
+    /// Returns the items as a lazy <see cref="Paginator{T, TCursor}"/>: no request is sent until you
+    /// first read an item or a page, and each next page is requested only when you ask for more.
+    /// Every page is an ordinary call of <c>ListPetNotesWithHttpInfoAsync</c>, with the same options
+    /// on each page.
+    /// The value of the <c>Pos</c> option is where
+    /// the list starts, and the page after each one is requested with the
+    /// <c>Following</c> it returned.
+    /// </remarks>
+    /// <param name="options">Options for query, header, form, and cookie parameters; they are sent on every page.</param>
+    /// <param name="cancellationToken">Token that cancels the page request in flight. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>The paginator over the items.</returns>
+    public Paginator<string, string?> ListPetNotesPagesAsync(
+        ListPetNotesOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ListPetNotesOptions pageOptions = options ?? new ListPetNotesOptions();
+        return Paginator<string, string?>.OfCursor<PetNotePage>(
+            pageOptions.Pos,
+            (pageCursor, pageToken) =>
+                ListPetNotesWithHttpInfoAsync(pageOptions.WithCursor(pageCursor), pageToken),
+            page => page.Rows,
+            page => page.Following,
+            "/pet/notes",
+            cancellationToken
+        );
     }
 
     /// <summary>

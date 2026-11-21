@@ -340,6 +340,12 @@ public interface IPetApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>ListPetCatalog</c> operation as a lazy paginator over its items.</summary>
+    Paginator<Pet, string?> ListPetCatalogPagesAsync(
+        ListPetCatalogOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>ListPetEvents</c> operation.</summary>
     Task<PetEventPage> ListPetEventsAsync(
         ListPetEventsOptions? options = null,
@@ -352,6 +358,12 @@ public interface IPetApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>ListPetEvents</c> operation as a lazy paginator over its items.</summary>
+    Paginator<string, string?> ListPetEventsPagesAsync(
+        ListPetEventsOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>ListPetFeed</c> operation.</summary>
     Task<List<Pet>> ListPetFeedAsync(
         ListPetFeedOptions? options = null,
@@ -360,6 +372,12 @@ public interface IPetApi
 
     /// <summary>The <c>ListPetFeed</c> operation with its status code, headers and body.</summary>
     Task<ApiResult<List<Pet>>> ListPetFeedWithHttpInfoAsync(
+        ListPetFeedOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetFeed</c> operation as a lazy paginator over its items.</summary>
+    Paginator<Pet, string?> ListPetFeedPagesAsync(
         ListPetFeedOptions? options = null,
         CancellationToken cancellationToken = default
     );
@@ -384,6 +402,12 @@ public interface IPetApi
 
     /// <summary>The <c>ListPetNotes</c> operation with its status code, headers and body.</summary>
     Task<ApiResult<PetNotePage>> ListPetNotesWithHttpInfoAsync(
+        ListPetNotesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetNotes</c> operation as a lazy paginator over its items.</summary>
+    Paginator<string, string?> ListPetNotesPagesAsync(
         ListPetNotesOptions? options = null,
         CancellationToken cancellationToken = default
     );

@@ -1,0 +1,44 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>
+/// One page of a paged list: the items it holds, the cursor of the page after it, and the
+/// result of the request that returned it.
+/// </summary>
+/// <typeparam name="T">The item type.</typeparam>
+/// <typeparam name="TCursor">
+/// The type of the cursor request parameter (nullable, such as <c>string?</c>); <c>string?</c>
+/// for a list that is followed by a <c>Link</c> header.
+/// </typeparam>
+public sealed class Page<T, TCursor>
+{
+    /// <summary>Creates a page; the items are copied so the page cannot be changed afterwards.</summary>
+    /// <param name="items">The items of this page, in order.</param>
+    /// <param name="nextCursor">The cursor of the next page, or null on the last page.</param>
+    /// <param name="result">What the matching <c>WithHttpInfoAsync</c> method returns for this page.</param>
+    public Page(IEnumerable<T> items, TCursor nextCursor, IApiResult result)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(result);
+        Items = Array.AsReadOnly([.. items]);
+        NextCursor = nextCursor;
+        Result = result;
+    }
+
+    /// <summary>The items of this page, in order (read-only).</summary>
+    public IReadOnlyList<T> Items { get; }
+
+    /// <summary>
+    /// The cursor of the next page, or null on the last page; always null for a list that is
+    /// followed by a <c>Link</c> header.
+    /// </summary>
+    public TCursor NextCursor { get; }
+
+    /// <summary>
+    /// What the matching <c>WithHttpInfoAsync</c> method returns for this page: the status, the
+    /// headers, the raw body and the decoded body. Cast it to <see cref="ApiResult{T}"/> of the page
+    /// type for the typed body.
+    /// </summary>
+    public IApiResult Result { get; }
+}

@@ -11,6 +11,27 @@ using System.Collections.ObjectModel;
 namespace PetstoreClient;
 
 /// <summary>
+/// The part of an <see cref="ApiResult{T}"/> that does not depend on the type of its data: the
+/// status code, the raw body, the headers and the decoded data as an object. It is the type a
+/// page of a paged list carries, because the pages of one list all have the same data type but
+/// the page type does not name it.
+/// </summary>
+public interface IApiResult
+{
+    /// <summary>The HTTP status code.</summary>
+    int StatusCode { get; }
+
+    /// <summary>The deserialized response body as an object (null for void responses).</summary>
+    object? Data { get; }
+
+    /// <summary>The raw response body string (never null; empty for no body).</summary>
+    string RawBody { get; }
+
+    /// <summary>The response headers (unmodifiable).</summary>
+    IReadOnlyDictionary<string, string> Headers { get; }
+}
+
+/// <summary>
 /// Represents a typed API response with deserialized data, status code,
 /// raw body, and headers. Returned by <c>WithHttpInfoAsync</c> methods.
 /// </summary>
@@ -20,7 +41,7 @@ public class ApiResult<T>(
     T? data,
     string rawBody,
     IReadOnlyDictionary<string, string> headers
-)
+) : IApiResult
 {
     /// <summary>The HTTP status code.</summary>
     public int StatusCode { get; } = statusCode;
@@ -34,4 +55,7 @@ public class ApiResult<T>(
     /// <summary>The response headers (unmodifiable).</summary>
     public IReadOnlyDictionary<string, string> Headers { get; } =
         new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(headers));
+
+    /// <inheritdoc/>
+    object? IApiResult.Data => Data;
 }

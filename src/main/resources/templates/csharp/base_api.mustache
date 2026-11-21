@@ -500,7 +500,7 @@ public abstract class BaseApi
         string query = BuildQueryString(queryParams);
         if (!string.IsNullOrEmpty(query))
         {
-            url += "?" + query;
+            url += (url.Contains('?', StringComparison.Ordinal) ? "&" : "?") + query;
         }
 
         bool isMultipart = contentType == "multipart/form-data";

@@ -280,7 +280,18 @@ public class {{classname}} : BaseApi, I{{classname}}
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
+{{#vendorExtensions.op.pagination.isLink}}
+    public Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}CancellationToken cancellationToken = default)
+    {
+        return {{operationId}}PageAsync({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}null, cancellationToken);
+    }
+
+    {{! One page of the list: the first when pageUrl is null, else the URL the Link header named. }}
+    private async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}PageAsync({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}, {{/vendorExtensions.op.signatureArgs}}string? pageUrl, CancellationToken cancellationToken)
+{{/vendorExtensions.op.pagination.isLink}}
+{{^vendorExtensions.op.pagination.isLink}}
     public async {{#vendorExtensions.op.streamOnly}}Task<{{{returnType}}}> {{operationId}}StreamAsync({{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{/vendorExtensions.op.streamOnly}}{{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}{{#vendorExtensions.op.streamOnly}}StreamOptions? streamOptions = null, {{/vendorExtensions.op.streamOnly}}CancellationToken cancellationToken = default)
+{{/vendorExtensions.op.pagination.isLink}}
     {
 {{! L10: only guard `options` against null when the Options arg is non-nullable
     (i.e. the operation has at least one REQUIRED query/header/form/cookie
@@ -602,6 +613,13 @@ public class {{classname}} : BaseApi, I{{classname}}
             effectiveRequestContentType = requestContentType;
         }
 {{/-first}}{{/-last}}{{/consumes}}
+{{#vendorExtensions.op.pagination.isLink}}
+        if (pageUrl != null)
+        {
+            path = pageUrl;
+            queryParams.Clear();
+        }
+{{/vendorExtensions.op.pagination.isLink}}
         return await {{#vendorExtensions.op.streamsBinary}}InvokeApiForStreamAsync({{/vendorExtensions.op.streamsBinary}}{{#vendorExtensions.op.streamsSse}}InvokeApiForSseAsync<{{{vendorExtensions.op.streamItemCs}}}>({{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}InvokeApiForJsonLinesAsync<{{{vendorExtensions.op.streamItemCs}}}>({{/vendorExtensions.op.streamsJsonLines}}{{^vendorExtensions.op.isStreamCall}}InvokeApiForResultAsync<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>({{/vendorExtensions.op.isStreamCall}}
                 "{{httpMethod}}",
                 path,
@@ -677,6 +695,9 @@ public class {{classname}} : BaseApi, I{{classname}}
             )
             .ConfigureAwait(false);
     }
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
     {{/operation}}
 }
 {{/operations}}

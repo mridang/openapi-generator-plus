@@ -35,6 +35,9 @@ public interface I{{classname}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
     Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}CancellationToken cancellationToken = default);
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{^-last}}
 
