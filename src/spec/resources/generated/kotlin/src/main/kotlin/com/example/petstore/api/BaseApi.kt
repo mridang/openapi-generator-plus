@@ -18,7 +18,10 @@ import com.example.petstore.CallTracker
 import com.example.petstore.Configuration
 import com.example.petstore.DefaultApiClient
 import com.example.petstore.HeaderSelector
+import com.example.petstore.JsonLinesStream
 import com.example.petstore.ObjectSerializer
+import com.example.petstore.SseStream
+import com.example.petstore.StreamOptions
 import com.example.petstore.TraceContextUtil
 import com.example.petstore.ValueSerializer
 import com.example.petstore.auth.Authenticator
@@ -30,6 +33,9 @@ import kotlinx.coroutines.withContext
 
 /** The most of an error body that a stream call reads before it raises the error. */
 private const val STREAM_ERROR_BODY_LIMIT = 64 * 1024
+
+/** The most bytes one line or event of a JSON Lines or server-sent events stream may have. */
+private const val DEFAULT_MAX_EVENT_BYTES = 1024 * 1024
 
 /**
  * Base class for all API classes. Provides the [invokeApi] method that
@@ -277,6 +283,7 @@ abstract class BaseApi {
             urlTemplate,
             tracker,
             BufferedCall(apiClient),
+            null,
         )
 
     /**
@@ -354,6 +361,7 @@ abstract class BaseApi {
         urlTemplate: String?,
         tracker: CallTracker,
         transport: CallTransport<R>,
+        idleTimeout: Long?,
     ): R {
         require(callTimeout == null || callTimeout > 0) {
             "Invalid timeout: must be a positive number of milliseconds (got $callTimeout)"
@@ -513,7 +521,11 @@ abstract class BaseApi {
 
             val requestPath = requestPathOf(url)
             val callSettings =
-                if (callTimeout != null || callMaxRetries != null) CallSettings(callTimeout, callMaxRetries) else null
+                if (callTimeout != null || callMaxRetries != null || idleTimeout != null) {
+                    CallSettings(callTimeout, callMaxRetries, idleTimeout)
+                } else {
+                    null
+                }
 
             suspend fun send(sentHeaders: Map<String, String>): R =
                 try {
@@ -857,6 +869,7 @@ abstract class BaseApi {
      * @param errorSchemas the operation's error factories by declared status, or null
      * @param operationId the operation id exactly as written in the spec, told to the call hook
      * @param urlTemplate the spec path template of the operation, told to the call hook
+     * @param idleTimeout optional idle timeout of the body in milliseconds for this call only; `0` disables it
      * @return the result whose data is the open [ByteStream]; its raw body is empty
      * @throws ApiException if the API call fails
      */
@@ -875,6 +888,7 @@ abstract class BaseApi {
         errorSchemas: Map<String, com.example.petstore.errors.ErrorFactory>? = null,
         operationId: String? = null,
         urlTemplate: String? = null,
+        idleTimeout: Long? = null,
     ): ApiResult<ByteStream> {
         val tracker = newCallTracker()
         val response =
@@ -895,6 +909,7 @@ abstract class BaseApi {
                 urlTemplate,
                 tracker,
                 StreamingCall(apiClient),
+                idleTimeout,
             )
         tracker.finishOk(response.statusCode, response.headers)
         return ApiResult(
@@ -902,6 +917,169 @@ abstract class BaseApi {
             ByteStream(response.statusCode, response.headers, response.body),
             "",
             response.headers,
+        )
+    }
+
+    /**
+     * Invoke an operation whose success response is a JSON Lines body and return its items as a
+     * lazy stream. Everything up to the headers is the buffered call; a non-2xx status raises the
+     * typed error and no stream is returned.
+     *
+     * @param method     HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path       URL path (with path params already substituted)
+     * @param queryParams query parameters
+     * @param headerParams custom header parameters
+     * @param body       request body (model object or null)
+     * @param accepts    acceptable response content types
+     * @param contentType request content type
+     * @param auth       the credential of the operation's security scheme, [NoAuth] for an unauthenticated operation, or null for the default authenticator
+     * @param callTimeout optional timeout in milliseconds up to the response headers, for this call only
+     * @param callHeaders optional headers for this call only; they replace a header of the same name
+     * @param callMaxRetries optional number of retries for this call only; `0` disables them
+     * @param errorSchemas the operation's error factories by declared status, or null
+     * @param operationId the operation id exactly as written in the spec, told to the call hook
+     * @param urlTemplate the spec path template of the operation, told to the call hook
+     * @param decoder decodes one line into an item, or null to hand each line over as a string
+     * @param streamOptions the stream settings, or null
+     * @return the open stream of items
+     * @throws ApiException if the API call fails
+     */
+    protected suspend fun <T> invokeApiForJsonLines(
+        method: String,
+        path: String,
+        queryParams: MutableMap<String, Any?>,
+        headerParams: MutableMap<String, String>,
+        body: Any?,
+        accepts: Array<String>,
+        contentType: String,
+        auth: Authenticator?,
+        callTimeout: Long? = null,
+        callHeaders: Map<String, String>? = null,
+        callMaxRetries: Int? = null,
+        errorSchemas: Map<String, com.example.petstore.errors.ErrorFactory>? = null,
+        operationId: String? = null,
+        urlTemplate: String? = null,
+        decoder: ((String) -> T?)? = null,
+        streamOptions: StreamOptions? = null,
+    ): JsonLinesStream<T> {
+        val options = streamOptions ?: StreamOptions()
+        val stream =
+            invokeApiForStream(
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                auth,
+                callTimeout,
+                callHeaders,
+                callMaxRetries,
+                errorSchemas,
+                operationId,
+                urlTemplate,
+                options.idleTimeout,
+            ).data!!
+
+        @Suppress("UNCHECKED_CAST")
+        val lineDecoder: (String) -> T? = decoder ?: { line -> line as T }
+        return JsonLinesStream(
+            stream,
+            lineDecoder,
+            options.maxEventBytes ?: DEFAULT_MAX_EVENT_BYTES,
+            method,
+            requestPathOf(resolveUrl(path)),
+        )
+    }
+
+    /**
+     * Invoke an operation whose success response is a server-sent events body and return its events
+     * as a lazy stream that reconnects. Each connection is a fresh buffered-style call, so the
+     * headers and the credential are built again; the stream adds `Cache-Control: no-cache` and
+     * `Accept-Encoding: identity` unless the caller set them, and `Last-Event-ID` once it has an id.
+     *
+     * @param method     HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path       URL path (with path params already substituted)
+     * @param queryParams query parameters
+     * @param headerParams custom header parameters
+     * @param body       request body (model object or null)
+     * @param accepts    acceptable response content types
+     * @param contentType request content type
+     * @param auth       the credential of the operation's security scheme, [NoAuth] for an unauthenticated operation, or null for the default authenticator
+     * @param callTimeout optional timeout in milliseconds up to the response headers, for this call only
+     * @param callHeaders optional headers for this call only; they replace a header of the same name
+     * @param callMaxRetries optional number of retries for this call only; `0` disables them
+     * @param errorSchemas the operation's error factories by declared status, or null
+     * @param operationId the operation id exactly as written in the spec, told to the call hook
+     * @param urlTemplate the spec path template of the operation, told to the call hook
+     * @param decoder decodes the `data` field, or null to hand it over as a string
+     * @param terminator a `data` value that ends the stream, or null
+     * @param streamOptions the stream settings, or null
+     * @return the open stream of events
+     * @throws ApiException if the first request fails
+     */
+    protected suspend fun <T> invokeApiForSse(
+        method: String,
+        path: String,
+        queryParams: MutableMap<String, Any?>,
+        headerParams: MutableMap<String, String>,
+        body: Any?,
+        accepts: Array<String>,
+        contentType: String,
+        auth: Authenticator?,
+        callTimeout: Long? = null,
+        callHeaders: Map<String, String>? = null,
+        callMaxRetries: Int? = null,
+        errorSchemas: Map<String, com.example.petstore.errors.ErrorFactory>? = null,
+        operationId: String? = null,
+        urlTemplate: String? = null,
+        decoder: ((String) -> T?)? = null,
+        terminator: String? = null,
+        streamOptions: StreamOptions? = null,
+    ): SseStream<T> {
+        val options = streamOptions ?: StreamOptions()
+        val sseHeaders = LinkedHashMap(headerParams)
+        for ((name, value) in listOf("Cache-Control" to "no-cache", "Accept-Encoding" to "identity")) {
+            val set =
+                sseHeaders.keys.any { it.equals(name, ignoreCase = true) } ||
+                    config.defaultHeaders.keys.any { it.equals(name, ignoreCase = true) } ||
+                    callHeaders?.keys?.any { it.equals(name, ignoreCase = true) } == true
+            if (!set) {
+                sseHeaders[name] = value
+            }
+        }
+        val opener: suspend (String) -> ByteStream = { lastEventId ->
+            val headers = LinkedHashMap(sseHeaders)
+            if (lastEventId.isNotEmpty()) {
+                headers["Last-Event-ID"] = lastEventId
+            }
+            invokeApiForStream(
+                method,
+                path,
+                LinkedHashMap(queryParams),
+                headers,
+                body,
+                accepts,
+                contentType,
+                auth,
+                callTimeout,
+                callHeaders,
+                callMaxRetries,
+                errorSchemas,
+                operationId,
+                urlTemplate,
+                options.idleTimeout,
+            ).data!!
+        }
+        return SseStream.open(
+            opener,
+            decoder,
+            terminator,
+            options,
+            body != null,
+            method,
+            requestPathOf(resolveUrl(path)),
         )
     }
 

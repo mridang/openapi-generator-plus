@@ -1,0 +1,25 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/**
+ * One server-sent event: the fields of the standard envelope, with the data decoded.
+ *
+ * [toString] shows the event name and the id, never the data.
+ *
+ * @param T the type the `data` field is decoded into (`String` for a plain payload)
+ * @property id the event id, or `null` when the stream has none
+ * @property event the event name, `"message"` when the server sent none
+ * @property data the decoded `data` field
+ * @property retry the reconnection time in milliseconds the server named with this event, or `null`
+ * @property raw the `data` field exactly as it arrived, lines joined with a line feed
+ */
+data class ServerSentEvent<T>(
+    val id: String? = null,
+    val event: String = "message",
+    val data: T? = null,
+    val retry: Long? = null,
+    val raw: String = "",
+) {
+    override fun toString(): String = "ServerSentEvent(event=$event, id=$id)"
+}

@@ -858,7 +858,7 @@ class DefaultApiClient internal constructor(
                 handle,
                 declaredLength,
                 if (identity) null else encoding,
-                transportOptions.idleTimeout,
+                idleTimeoutFor(kotlin.coroutines.coroutineContext[CallSettings]),
             )
         openStreams.add(body)
         if (closed) {
@@ -867,6 +867,15 @@ class DefaultApiClient internal constructor(
             throw IllegalStateException(CLOSED_MESSAGE)
         }
         return ApiStreamResponse(status, responseHeaders, body)
+    }
+
+    /**
+     * The idle timeout of a stream: the one the call asked for, else the transport's. A call
+     * that asks for `0` disables it.
+     */
+    private fun idleTimeoutFor(settings: CallSettings?): Long? {
+        val asked = settings?.idleTimeout ?: return transportOptions.idleTimeout
+        return if (asked == 0L) null else asked
     }
 
     /** The path of [url] without its query string or fragment. */
@@ -1149,14 +1158,16 @@ private fun openDecoder(
     }
 
 /**
- * The timeout and retry count one call asks for in place of the client's own
+ * The timeout, retry count and stream idle timeout one call asks for in place of the client's own
  * [TransportOptions]. A generated API class puts it in the coroutine context of the request
- * (the per-call `timeout` and `maxRetries` of an operation's options), and [DefaultApiClient]
- * reads it; another [ApiClient] implementation keeps its own settings.
+ * (the per-call `timeout` and `maxRetries` of an operation's options, and the `idleTimeout` of a
+ * stream call's [StreamOptions]), and [DefaultApiClient] reads it; another [ApiClient]
+ * implementation keeps its own settings.
  */
 internal class CallSettings(
     val timeout: Long?,
     val maxRetries: Int?,
+    val idleTimeout: Long? = null,
 ) : kotlin.coroutines.AbstractCoroutineContextElement(Key) {
     internal companion object Key : kotlin.coroutines.CoroutineContext.Key<CallSettings>
 }

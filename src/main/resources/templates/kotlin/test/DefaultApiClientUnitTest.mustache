@@ -5194,4 +5194,176 @@ class DefaultApiClientUnitTest {
             }
         }
     }
+
+    private fun rawChunkBytes(
+        socket: java.net.Socket,
+        data: ByteArray,
+    ) {
+        val out = socket.getOutputStream()
+        out.write((Integer.toHexString(data.size) + "\r\n").toByteArray(Charsets.ISO_8859_1))
+        out.write(data)
+        out.write("\r\n".toByteArray(Charsets.ISO_8859_1))
+        out.flush()
+    }
+
+    /** What an operation does for an event stream: one request per connection, over the transport. */
+    private fun eventOpener(
+        server: RawServer,
+        options: TransportOptions,
+    ): suspend (String) -> ByteStream {
+        val client = DefaultApiClient(options)
+        return { lastEventId ->
+            val headers = mutableMapOf<String, String>()
+            if (lastEventId.isNotEmpty()) {
+                headers["Last-Event-ID"] = lastEventId
+            }
+            byteStreamOf(client.sendStreaming("GET", server.url("/items/events"), headers, null))
+        }
+    }
+
+    private fun eventsHead(socket: java.net.Socket) {
+        rawHead(socket, 200, "Content-Type: text/event-stream", "Transfer-Encoding: chunked")
+    }
+
+    @Test
+    @DisplayName("bhvStreaming006 a gzip encoded stream is decoded incrementally, so the first item arrives before the body ends")
+    fun bhvStreaming006AGzipEncodedStreamIsDecodedIncrementallySoTheFirstItemArrivesBeforeTheBodyEnds() {
+        val sink = java.io.ByteArrayOutputStream()
+        val gzip = java.util.zip.GZIPOutputStream(sink, true)
+        gzip.write("first\n".toByteArray(Charsets.UTF_8))
+        gzip.flush()
+        val head = sink.toByteArray()
+        sink.reset()
+        gzip.write("second\n".toByteArray(Charsets.UTF_8))
+        gzip.close()
+        val rest = sink.toByteArray()
+        RawServer.serve { self, socket, _, _ ->
+            rawHead(socket, 200, "Content-Encoding: gzip", "Transfer-Encoding: chunked")
+            rawChunkBytes(socket, head)
+            self.awaitRelease()
+            rawChunkBytes(socket, rest)
+            rawEnd(socket)
+        }.use { server ->
+            runBlocking {
+                val items = JsonLinesStream(byteStreamOf(streamOf(server, "/items/export")), { it }, 1024, "GET", "/items/export")
+                assertEquals("first", items.next(), "the first item arrived while the body was unfinished")
+                server.release.countDown()
+                assertEquals("second", items.next())
+                assertNull(items.next())
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming007 a corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried")
+    fun bhvStreaming007ACorruptCompressedStreamRaisesAnApiErrorWithTheStatusAndTheDecoderErrorAndIsNotRetried() {
+        RawServer.serve { _, socket, _, _ ->
+            rawHead(socket, 200, "Content-Encoding: gzip", "Content-Length: 8")
+            rawBody(socket, "notgzip!".toByteArray(Charsets.UTF_8))
+        }.use { server ->
+            runBlocking {
+                val items = JsonLinesStream(byteStreamOf(streamOf(server, "/items/export")), { it }, 1024, "GET", "/items/export")
+                val failure = assertThrows(ApiException::class.java) { runBlocking { items.next() } }
+                assertFalse(failure is NetworkException)
+                assertEquals(200, failure.statusCode)
+                assertNotNull(failure.cause)
+                assertEquals(1, server.hits.get())
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse007 an SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID")
+    fun bhvSse007AnSseStreamReconnectsAfterTheConnectionDropsAndSendsTheLastEventIdInLastEventId() {
+        RawServer.serve { _, socket, hit, _ ->
+            if (hit >= 3) {
+                rawHead(socket, 204, "Content-Length: 0")
+            } else {
+                eventsHead(socket)
+                rawChunk(socket, if (hit == 1) "id: 1\ndata: a\n\nid: 2\ndata: b\n\n" else "id: 3\ndata: c\n\n")
+                rawEnd(socket)
+            }
+        }.use { server ->
+            runBlocking {
+                val stream =
+                    SseStream.open<String>(
+                        eventOpener(server, TransportOptions.builder().maxRetries(0).build()),
+                        null,
+                        null,
+                        StreamOptions(reconnectDelay = 1),
+                        false,
+                        "GET",
+                        "/items/events",
+                    )
+                val data = mutableListOf<String?>()
+                stream.events().collect { data.add(it.data) }
+                assertEquals(listOf<String?>("a", "b", "c"), data)
+                assertFalse(server.heads[0].lowercase().contains("last-event-id"))
+                assertTrue(server.heads[1].lowercase().contains("last-event-id: 2"))
+                assertTrue(server.heads[2].lowercase().contains("last-event-id: 3"))
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse015 an idle timeout on an SSE stream counts as a lost connection and reconnects")
+    fun bhvSse015AnIdleTimeoutOnAnSseStreamCountsAsALostConnectionAndReconnects() {
+        RawServer.serve { self, socket, hit, _ ->
+            eventsHead(socket)
+            if (hit == 1) {
+                rawChunk(socket, "id: 1\ndata: a\n\n")
+                self.awaitRelease()
+            } else {
+                rawChunk(socket, "id: 2\ndata: b\n\n")
+                rawEnd(socket)
+            }
+        }.use { server ->
+            runBlocking {
+                val stream =
+                    SseStream.open<String>(
+                        eventOpener(server, TransportOptions.builder().maxRetries(0).idleTimeout(300).build()),
+                        null,
+                        null,
+                        StreamOptions(reconnectDelay = 1, maxReconnects = 1),
+                        false,
+                        "GET",
+                        "/items/events",
+                    )
+                assertEquals("a", stream.next()!!.data)
+                assertEquals("b", stream.next()!!.data, "the stalled connection was replaced")
+                assertTrue(server.heads[1].lowercase().contains("last-event-id: 1"))
+                stream.close()
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse018 an SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout")
+    fun bhvSse018AnSseCommentLineSuchAsAHeartbeatIsSkippedAndCountsAsActivityForTheIdleTimeout() {
+        RawServer.serve { _, socket, _, _ ->
+            eventsHead(socket)
+            repeat(8) {
+                rawChunk(socket, ": heartbeat\n\n")
+                Thread.sleep(100)
+            }
+            rawChunk(socket, "data: late\n\n")
+            rawEnd(socket)
+        }.use { server ->
+            runBlocking {
+                val stream =
+                    SseStream.open<String>(
+                        eventOpener(server, TransportOptions.builder().maxRetries(0).idleTimeout(400).build()),
+                        null,
+                        null,
+                        StreamOptions(reconnectDelay = 1, maxReconnects = 0),
+                        false,
+                        "GET",
+                        "/items/events",
+                    )
+                assertEquals("late", stream.next()!!.data, "the quiet feed outlived the idle timeout")
+                assertEquals(1, server.hits.get(), "no reconnect was needed")
+                stream.close()
+            }
+        }
+    }
 }

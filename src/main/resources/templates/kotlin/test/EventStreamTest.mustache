@@ -1,0 +1,342 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import {{invokerPackage}}.errors.ApiException
+import {{invokerPackage}}.errors.NetworkException
+import {{invokerPackage}}.errors.SerializationException
+
+/** A body that hands out its bytes [chunk] at a time. */
+private class EventBytesBody(
+    private val bytes: ByteArray,
+    private val chunk: Int,
+) : ApiStreamBody {
+    private var position = 0
+
+    override suspend fun read(buffer: ByteArray): Int {
+        if (position >= bytes.size) {
+            return -1
+        }
+        val count = minOf(buffer.size, bytes.size - position, chunk)
+        System.arraycopy(bytes, position, buffer, 0, count)
+        position += count
+        return count
+    }
+
+    override fun close() {
+        position = bytes.size
+    }
+}
+
+private fun bytes(
+    text: String,
+    chunk: Int = Int.MAX_VALUE,
+): ByteStream = ByteStream(200, mapOf("content-type" to "text/event-stream"), EventBytesBody(text.toByteArray(Charsets.UTF_8), chunk))
+
+private fun noContent(): ByteStream = ByteStream(204, emptyMap(), EventBytesBody(ByteArray(0), 1))
+
+/** Opens an event stream whose n-th connection (from 1) is the n-th script entry. */
+private class EventScript(
+    vararg connections: Any,
+) {
+    private val scripted = connections.toList()
+    val lastIds = mutableListOf<String>()
+
+    val opener: suspend (String) -> ByteStream = { lastEventId ->
+        lastIds.add(lastEventId)
+        when (val next = scripted[minOf(lastIds.size, scripted.size) - 1]) {
+            is RuntimeException -> throw next
+            is ByteStream -> next
+            else -> bytes(next as String)
+        }
+    }
+}
+
+private fun fast(): StreamOptions = StreamOptions(reconnectDelay = 1)
+
+private suspend fun sse(
+    script: EventScript,
+    options: StreamOptions = fast(),
+    hasBody: Boolean = false,
+    decoder: ((String) -> String?)? = null,
+    terminator: String? = null,
+): SseStream<String> = SseStream.open(script.opener, decoder, terminator, options, hasBody, "GET", "/events")
+
+private suspend fun dataOf(stream: SseStream<String>): List<String?> = stream.events().toList().map { it.data }
+
+/** The line splitter, the server-sent events parser and the two stream types over canned bytes. */
+class EventStreamTest {
+    /** Parses [text] whole and one byte at a time, which must give the same events. */
+    private fun parse(text: String): List<RawEvent> =
+        runBlocking {
+            val results =
+                listOf(Int.MAX_VALUE, 1).map { chunk ->
+                    val parser = SseParser(bytes(text, chunk), 1024, null)
+                    val events = mutableListOf<RawEvent>()
+                    while (true) {
+                        events.add(parser.next() ?: break)
+                    }
+                    events
+                }
+            assertEquals(results[0], results[1], "the events do not depend on how the bytes are split")
+            results[0]
+        }
+
+    private fun lines(text: String): List<String> =
+        runBlocking {
+            JsonLinesStream(bytes(text), { it }, 1024, "GET", "/items").use { it.items().toList() }
+        }
+
+    @Test
+    @DisplayName("bhvStreaming002 a JSON Lines stream yields one decoded item per line and skips blank lines")
+    fun bhvStreaming002AJsonLinesStreamYieldsOneDecodedItemPerLineAndSkipsBlankLines() {
+        assertEquals(listOf("a", "b", "c"), lines("a\n\n  \nb\nc\n"))
+    }
+
+    @Test
+    @DisplayName("bhvStreaming003 a JSON Lines stream accepts CRLF line ends and a last line without a newline")
+    fun bhvStreaming003AJsonLinesStreamAcceptsCrlfLineEndsAndALastLineWithoutANewline() {
+        assertEquals(listOf("a", "b", "c"), lines("a\r\nb\r\nc"))
+    }
+
+    @Test
+    @DisplayName("bhvStreaming004 a JSON Lines line that does not decode raises a serialization error naming the 1-based line and ends the stream after the items before it")
+    fun bhvStreaming004AJsonLinesLineThatDoesNotDecodeNamesItsLineAndEndsTheStream() {
+        val stream =
+            JsonLinesStream(
+                bytes("1\n2\nnope\n4\n"),
+                { line -> line.toIntOrNull() ?: throw SerializationException("not a number") },
+                1024,
+                "GET",
+                "/items",
+            )
+        runBlocking {
+            assertEquals(1, stream.next())
+            assertEquals(2, stream.next())
+            val failure = assertThrows(SerializationException::class.java) { runBlocking { stream.next() } }
+            assertTrue(failure.message!!.contains("Line 3"), failure.message)
+            assertEquals(200, failure.statusCode)
+            assertEquals("/items", failure.requestPath)
+            assertNull(stream.next(), "the stream ended at the bad line")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvStreaming005 a line or event longer than the limit raises a serialization error and ends the stream")
+    fun bhvStreaming005ALineOrEventLongerThanTheLimitRaisesASerializationErrorAndEndsTheStream() {
+        runBlocking {
+            val lineStream = JsonLinesStream(bytes("ok\n" + "x".repeat(50) + "\nlater\n"), { it }, 10, "GET", "/items")
+            assertEquals("ok", lineStream.next())
+            assertThrows(SerializationException::class.java) { runBlocking { lineStream.next() } }
+            assertNull(lineStream.next())
+
+            val events = sse(EventScript("data: " + "y".repeat(50) + "\n\n"), StreamOptions(reconnectDelay = 1, maxEventBytes = 10))
+            assertThrows(SerializationException::class.java) { runBlocking { events.next() } }
+            assertNull(events.next())
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse001 an SSE stream yields the id, event, data and retry fields of each event, with message as the default event")
+    fun bhvSse001AnSseStreamYieldsTheIdEventDataAndRetryFieldsOfEachEventWithMessageAsTheDefault() {
+        val events = parse("id: 7\nevent: tick\nretry: 250\ndata: one\n\ndata: two\n\n")
+        assertEquals(2, events.size)
+        assertEquals(RawEvent("7", "tick", "one", 250L), events[0])
+        assertEquals("message", events[1].event)
+        assertEquals("two", events[1].data)
+        assertEquals("7", events[1].id, "the id persists until another arrives")
+
+        runBlocking {
+            val event = sse(EventScript("id: 7\nevent: tick\nretry: 250\ndata: one\n\n")).next()!!
+            assertEquals("7", event.id)
+            assertEquals("tick", event.event)
+            assertEquals("one", event.data)
+            assertEquals(250L, event.retry)
+            assertEquals("one", event.raw)
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse002 an SSE stream joins consecutive data lines with a newline and skips comment lines")
+    fun bhvSse002AnSseStreamJoinsConsecutiveDataLinesWithANewlineAndSkipsCommentLines() {
+        val events = parse(": a comment\ndata: one\n: another\ndata: two\n\n")
+        assertEquals(1, events.size)
+        assertEquals("one\ntwo", events[0].data)
+    }
+
+    @Test
+    @DisplayName("bhvSse003 an SSE stream drops a leading byte order mark, accepts CR, LF and CRLF line ends and removes one space after the colon")
+    fun bhvSse003AnSseStreamDropsAByteOrderMarkAcceptsEveryLineEndAndRemovesOneSpaceAfterTheColon() {
+        for (end in listOf("\n", "\r", "\r\n")) {
+            val events = parse("﻿data: a${end}data:  b$end$end")
+            assertEquals(1, events.size, "line end " + end.replace("\r", "CR").replace("\n", "LF"))
+            assertEquals("a\n b", events[0].data)
+        }
+        assertEquals("x", parse("data:x\n\n")[0].data, "no space to remove")
+    }
+
+    @Test
+    @DisplayName("bhvSse004 an SSE event with an empty data buffer is not delivered but its id is kept")
+    fun bhvSse004AnSseEventWithAnEmptyDataBufferIsNotDeliveredButItsIdIsKept() {
+        runBlocking {
+            val parser = SseParser(bytes("id: 9\n\n"), 1024, null)
+            assertNull(parser.next())
+            assertEquals("9", parser.lastEventId)
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse005 an SSE data payload is decoded as the declared schema, and a payload that does not decode raises a serialization error and ends the stream")
+    fun bhvSse005AnSseDataPayloadIsDecodedAndAPayloadThatDoesNotDecodeRaisesASerializationErrorAndEndsTheStream() {
+        runBlocking {
+            val stream =
+                SseStream.open<Int>(
+                    EventScript("data: 1\n\ndata: oops\n\ndata: 3\n\n").opener,
+                    { data -> data.toIntOrNull() ?: throw SerializationException("not a number") },
+                    null,
+                    fast(),
+                    false,
+                    "GET",
+                    "/events",
+                )
+            assertEquals(1, stream.next()!!.data)
+            assertThrows(SerializationException::class.java) { runBlocking { stream.next() } }
+            assertNull(stream.next())
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse008 an SSE reconnect waits the server retry value, else the reconnect delay doubling to a cap")
+    fun bhvSse008AnSseReconnectWaitsTheServerRetryValueElseTheReconnectDelayDoublingToACap() {
+        assertEquals(250L, SseStream.reconnectWaitMillis(3, 1000, 250L, null, 0.0))
+        assertEquals(1000L, SseStream.reconnectWaitMillis(1, 1000, null, null, 0.0))
+        assertEquals(2000L, SseStream.reconnectWaitMillis(2, 1000, null, null, 0.0))
+        assertEquals(4000L, SseStream.reconnectWaitMillis(3, 1000, null, null, 0.0))
+        assertEquals(30_000L, SseStream.reconnectWaitMillis(10, 1000, null, null, 0.0))
+        assertEquals(750L, SseStream.reconnectWaitMillis(1, 1000, null, null, 1.0), "jitter takes up to 25%")
+        assertEquals(5000L, SseStream.reconnectWaitMillis(1, 1000, null, 5000L, 0.0), "Retry-After replaces it")
+    }
+
+    @Test
+    @DisplayName("bhvSse009 an SSE GET stream stops after five consecutive failed reconnects by default and raises the last failure")
+    fun bhvSse009AnSseGetStreamStopsAfterFiveFailedReconnectsByDefaultAndRaisesTheLastFailure() {
+        runBlocking {
+            val script = EventScript("")
+            val stream = sse(script)
+            assertThrows(NetworkException::class.java) { runBlocking { stream.next() } }
+            assertEquals(6, script.lastIds.size, "one request and five reconnects")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse010 an SSE reconnect counter resets after an event is received")
+    fun bhvSse010AnSseReconnectCounterResetsAfterAnEventIsReceived() {
+        runBlocking {
+            val stream = sse(EventScript("data: a\n\n", "data: b\n\n", "data: c\n\n", ""), StreamOptions(reconnectDelay = 1, maxReconnects = 1))
+            val seen = mutableListOf<String?>()
+            assertThrows(NetworkException::class.java) {
+                runBlocking { stream.events().collect { seen.add(it.data) } }
+            }
+            assertEquals(listOf("a", "b", "c"), seen, "three events survived a limit of one reconnect")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse011 an SSE stream does not reconnect after a 204, a 4xx status or a response that is not text/event-stream")
+    fun bhvSse011AnSseStreamDoesNotReconnectAfterA204A4xxStatusOrAResponseThatIsNotAnEventStream() {
+        runBlocking {
+            val none = EventScript(noContent())
+            assertEquals(emptyList<String?>(), dataOf(sse(none)))
+            assertEquals(1, none.lastIds.size)
+
+            val refused = EventScript("data: a\n\n", ApiException(404, "missing", emptyMap(), "{}"))
+            val failure = assertThrows(ApiException::class.java) { runBlocking { dataOf(sse(refused)) } }
+            assertEquals(404, failure.statusCode)
+
+            val wrongType = EventScript("data: a\n\n", ByteStream(200, mapOf("content-type" to "text/html"), EventBytesBody(ByteArray(0), 1)))
+            assertThrows(SerializationException::class.java) { runBlocking { dataOf(sse(wrongType)) } }
+            assertEquals(2, wrongType.lastIds.size, "asked once more, then refused the answer")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse014 an SSE retry field that is not digits and an id containing NUL are ignored")
+    fun bhvSse014AnSseRetryFieldThatIsNotDigitsAndAnIdContainingNulAreIgnored() {
+        runBlocking {
+            val parser = SseParser(bytes("retry: 12x\nid: a\u0000b\ndata: x\n\n"), 1024, null)
+            val event = parser.next()!!
+            assertEquals("x", event.data)
+            assertNull(event.id)
+            assertNull(parser.retry)
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse016 an SSE request with a body is not reconnected unless the caller turns reconnect on, and a single use body is never reconnected")
+    fun bhvSse016AnSseRequestWithABodyIsNotReconnectedUnlessTheCallerTurnsReconnectOn() {
+        runBlocking {
+            val off = EventScript("data: a\n\n", "data: b\n\n")
+            assertEquals(listOf<String?>("a"), dataOf(sse(off, fast(), hasBody = true)))
+            assertEquals(1, off.lastIds.size)
+
+            val on = EventScript("data: a\n\n", "data: b\n\n", noContent())
+            val reconnect = sse(on, StreamOptions(reconnectDelay = 1, maxReconnects = 2), hasBody = true)
+            assertEquals(listOf<String?>("a", "b"), dataOf(reconnect))
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse017 an SSE event with an id and no data is not dispatched but updates the last event id, and a reconnect resumes from it")
+    fun bhvSse017AnSseEventWithAnIdAndNoDataIsNotDispatchedButUpdatesTheLastEventIdAndAReconnectResumesFromIt() {
+        runBlocking {
+            val script = EventScript("data: a\nid: 1\n\nid: 2\n\n", "data: b\nid: 3\n\n", noContent())
+            assertEquals(listOf<String?>("a", "b"), dataOf(sse(script)))
+            assertEquals(listOf("", "2"), script.lastIds.subList(0, 2))
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse019 an SSE event cut off by the end of the connection is discarded")
+    fun bhvSse019AnSseEventCutOffByTheEndOfTheConnectionIsDiscarded() {
+        val events = parse("data: whole\n\ndata: cut off\n")
+        assertEquals(1, events.size)
+        assertEquals("whole", events[0].data)
+        assertTrue(parse("data: no newline at all").isEmpty())
+    }
+
+    @Test
+    @DisplayName("bhvSse021 the configured SSE terminator ends the stream and is not delivered")
+    fun bhvSse021TheConfiguredSseTerminatorEndsTheStreamAndIsNotDelivered() {
+        runBlocking {
+            val stream = sse(EventScript("data: a\n\ndata: [DONE]\n\ndata: b\n\n"), terminator = "[DONE]")
+            assertEquals(listOf<String?>("a"), dataOf(stream))
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse022 an SSE event named error raises the SDK API error with the response status and the data as its body and is not reconnected, and an event with any other name is an item")
+    fun bhvSse022AnSseEventNamedErrorRaisesTheApiErrorWithTheStatusAndDataAndAnyOtherNameIsAnItem() {
+        runBlocking {
+            val script = EventScript("event: update\ndata: fine\n\nevent: error\ndata: {\"why\":\"bad\"}\n\n", "data: again\n\n")
+            val stream = sse(script)
+            assertEquals("update", stream.next()!!.event)
+            val failure = assertThrows(ApiException::class.java) { runBlocking { stream.next() } }
+            assertEquals(200, failure.statusCode)
+            assertEquals("{\"why\":\"bad\"}", failure.responseBody)
+            assertEquals(1, script.lastIds.size, "an error event is not reconnected")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvSse023 an unknown SSE field is ignored")
+    fun bhvSse023AnUnknownSseFieldIsIgnored() {
+        val events = parse("mystery: 1\ndata: x\nanother\n\n")
+        assertEquals(1, events.size)
+        assertEquals("x", events[0].data)
+    }
+}
