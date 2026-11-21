@@ -353,17 +353,15 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
   }
 
   func didRead(bytes: Int) {
-    let resumable: URLSessionTask? = lock.withLock {
+    lock.withLock {
       waiting = false
       lastActivity = StreamTransfer.now()
       pending = max(pending - bytes, 0)
       if suspended && pending <= StreamTransfer.lowWater {
         suspended = false
-        return task
+        task?.resume()
       }
-      return nil
     }
-    resumable?.resume()
   }
 
   func urlSession(
@@ -399,7 +397,6 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
   }
 
   func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-    var hold: URLSessionTask?
     lock.withLock {
       guard task === dataTask, !ended else { return }
       received += data.count
@@ -410,12 +407,13 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
       } else {
         early.append(data)
       }
+      /* Suspended and resumed under the lock, so a reader that drains
+         the buffer cannot resume the task before this suspend runs. */
       if pending > StreamTransfer.highWater && !suspended {
         suspended = true
-        hold = dataTask
+        dataTask.suspend()
       }
     }
-    hold?.suspend()
   }
 
   func urlSession(

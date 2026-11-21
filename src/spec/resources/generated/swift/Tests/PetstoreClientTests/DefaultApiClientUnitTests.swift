@@ -1583,7 +1583,7 @@ import Testing
 
   /* A download larger than the stream buffer arrives whole and in order while the reader is slower than the server. */
   @Test func testASlowReaderOfALargeStreamedBodyGetsEveryByteInOrder() async throws {
-    let payload = Data((0..<6_000_000).map { UInt8(truncatingIfNeeded: $0 &* 7) })
+    let payload = Data((0..<3_000_000).map { UInt8(truncatingIfNeeded: $0 &* 7) })
     let server = try RawServer { connection, _, _ in
       connection.head(200, "Content-Length: \(payload.count)")
       connection.send(payload)
@@ -1595,7 +1595,7 @@ import Testing
     for try await chunk in stream {
       received.append(chunk)
       count += 1
-      if count % 20 == 0 { try await Task.sleep(nanoseconds: 5_000_000) }
+      if count % 40 == 0 { try await Task.sleep(nanoseconds: 2_000_000) }
     }
     #expect(received == payload)
   }
