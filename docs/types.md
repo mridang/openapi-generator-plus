@@ -86,7 +86,7 @@ PHP, Dart, Go, Rust and Elixir use their native float, and Swift uses `Foundatio
 
 ## Binary data
 
-`byte` is a base64 string on the wire and raw bytes in the language: `byte[]`, `ByteArray`, `Buffer`, `Uint8List`, `[]byte`, `Vec<u8>`, `Data`, `binary()`. PHP gives back a raw string, and Ruby a binary-encoded `String`. `binary` and file parts are streams where the platform makes that natural (`InputStream` in Java, `Stream` in C#, `io.Reader` for a Go upload, `\SplFileObject` in PHP) and byte arrays elsewhere. No SDK streams a response: bodies are read whole into memory, so large downloads need your own HTTP client.
+`byte` is a base64 string on the wire and raw bytes in the language: `byte[]`, `ByteArray`, `Buffer`, `Uint8List`, `[]byte`, `Vec<u8>`, `Data`, `binary()`. PHP gives back a raw string, and Ruby a binary-encoded `String`. A binary response is a `ByteStream` in every language (a read-all helper reads it into memory), a raw binary request body is a `BodySource`, and multipart file parts are native streams or byte arrays as the language prefers. JSON and text responses are read whole.
 
 ## Collections and free-form objects
 
