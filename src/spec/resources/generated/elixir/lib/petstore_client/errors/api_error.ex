@@ -379,7 +379,8 @@ defmodule PetstoreClient.Errors.ApiError do
     PetstoreClient.Errors.ServerError,
     PetstoreClient.Errors.InternalServerError,
     PetstoreClient.Errors.NetworkError,
-    PetstoreClient.Errors.NetworkTimeoutError
+    PetstoreClient.Errors.NetworkTimeoutError,
+    PetstoreClient.Errors.StreamError
   ]
 
   @doc """
@@ -413,7 +414,7 @@ defmodule PetstoreClient.Errors.ApiError do
   @doc """
   Returns `true` if `term` is an `ApiError` or one of the errors that
   specialise it (the 4xx and 5xx errors, the errors generated for a declared error schema,
-  `NetworkError` and `NetworkTimeoutError`), `false` otherwise. Elixir exceptions have no
+  `NetworkError`, `NetworkTimeoutError` and `StreamError`), `false` otherwise. Elixir exceptions have no
   inheritance, so this predicate expresses the hierarchy the other SDKs
   express with subclasses.
   """

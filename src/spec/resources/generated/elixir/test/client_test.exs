@@ -74,6 +74,42 @@ defmodule PetstoreClient.ClientTest do
     assert err.message == "ApiClient has been closed and can no longer send requests"
   end
 
+  test "bhv streaming 021 closing the client cancels the open streams, the next read of each raises the closed-client error, and new calls are refused" do
+    {:ok, listen} = :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen)
+
+    spawn_link(fn ->
+      {:ok, socket} = :gen_tcp.accept(listen, 10_000)
+      {:ok, _head} = :gen_tcp.recv(socket, 0, 5_000)
+
+      :gen_tcp.send(
+        socket,
+        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n4\r\ntick\r\n"
+      )
+
+      Process.sleep(20_000)
+    end)
+
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
+    client = PetstoreClient.Client.new(authenticator)
+    url = "http://127.0.0.1:#{port}/items/events"
+    open = PetstoreClient.DefaultApiClient.send_streaming(client.api_client, :get, url, %{}, nil)
+    assert Enum.take(open.body, 1) == ["tick"]
+
+    started = System.monotonic_time(:millisecond)
+    assert PetstoreClient.Client.close(client) == :ok
+
+    assert System.monotonic_time(:millisecond) - started < 5_000,
+           "closing did not wait for the endless stream"
+
+    cancelled = assert_raise RuntimeError, fn -> Enum.to_list(open.body) end
+    assert cancelled.message == "ApiClient has been closed and can no longer send requests"
+
+    assert_raise RuntimeError, fn ->
+      PetstoreClient.DefaultApiClient.send_streaming(client.api_client, :get, url, %{}, nil)
+    end
+  end
+
   test "bhv langelixir 021 close works for an authenticator that starts nothing" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
     client = PetstoreClient.Client.new(authenticator)

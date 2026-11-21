@@ -273,6 +273,12 @@ defmodule {{moduleName}}.Api.{{classname}} do
     # The per-call settings: the options struct's `timeout`, `headers` and
     # `max_retries`, overridden by the same keys of `opts`.
     call = {{moduleName}}.Api.BaseApi.call_settings({{#vendorExtensions.op.optionsArgOptional}}options{{/vendorExtensions.op.optionsArgOptional}}{{^vendorExtensions.op.optionsArgOptional}}{{#vendorExtensions.op.optionsParamRequired}}options{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}nil{{/vendorExtensions.op.optionsParamRequired}}{{/vendorExtensions.op.optionsArgOptional}}, opts)
+{{#vendorExtensions.op.streamsBinary}}
+
+    # A binary response is returned as a `ByteStream`, read as it arrives: the
+    # call is made as a stream.
+    call = Keyword.put(call, :stream, true)
+{{/vendorExtensions.op.streamsBinary}}
 
 {{#vendorExtensions.op.hasSecuritySchemes}}
     # The credential of the first scheme in this operation's own security
@@ -570,7 +576,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
       api, :{{httpMethod}}, path, query_params, header_params, request_body,
       [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
       {{#consumes.1}}content_type{{/consumes.1}}{{^consumes.1}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes.1}},
-      {{#vendorExtensions.op.hasMultiple2xx}}{"{{{returnType}}}", [{{#vendorExtensions.op.successResponses}}{"{{statusCode}}", "{{{returnType}}}"}{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}}]}{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.op.hasMultiple2xx}},
+      {{#vendorExtensions.op.streamsBinary}}nil{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}{{#vendorExtensions.op.hasMultiple2xx}}{"{{{returnType}}}", [{{#vendorExtensions.op.successResponses}}{"{{statusCode}}", "{{{returnType}}}"}{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}}]}{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.op.hasMultiple2xx}}{{/vendorExtensions.op.streamsBinary}},
       auth,
       Keyword.put(call, :operation, {"{{#lambda.elixirString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.elixirString}}", "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"}),
       {{#vendorExtensions.op.hasErrorSchemaResponses}}

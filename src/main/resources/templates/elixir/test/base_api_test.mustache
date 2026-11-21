@@ -3875,5 +3875,384 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert length(token_requests(client)) == 1
   end
 
+  # ---------------------------------------------------------------------------
+  # Binary streams: the stream call shares the buffered call's retries, headers
+  # and error contract up to the response headers
+  # ---------------------------------------------------------------------------
+
+  # An in-process HTTP/1.1 server on a raw socket, so a test can stall a body,
+  # cut it short or reset the connection, which neither the shared mock server
+  # nor a plain HTTP server can do. `script` runs once per connection with the
+  # server, the socket, the number of the connection (1 for the first) and the
+  # request head.
+  defmodule RawServer do
+    @moduledoc false
+
+    defstruct [:port, :state, :owner]
+
+    def start(script) do
+      owner = self()
+      {:ok, state} = Agent.start_link(fn -> %{hits: 0, heads: [], handlers: []} end)
+
+      pid =
+        spawn_link(fn ->
+          {:ok, listen} =
+            :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true, backlog: 50])
+
+          {:ok, port} = :inet.port(listen)
+          send(owner, {:listening, self(), port})
+          accept_loop(listen, script, %__MODULE__{port: port, state: state, owner: owner})
+        end)
+
+      receive do
+        {:listening, ^pid, port} -> %__MODULE__{port: port, state: state, owner: owner}
+      end
+    end
+
+    defp accept_loop(listen, script, server) do
+      case :gen_tcp.accept(listen) do
+        {:ok, socket} ->
+          handler = spawn(fn -> handle(socket, script, server) end)
+          :ok = :gen_tcp.controlling_process(socket, handler)
+          Agent.update(server.state, fn state -> %{state | handlers: [handler | state.handlers]} end)
+          accept_loop(listen, script, server)
+
+        {:error, _closed} ->
+          :ok
+      end
+    end
+
+    defp handle(socket, script, server) do
+      head = read_head(socket, "")
+
+      hit =
+        Agent.get_and_update(server.state, fn state ->
+          {state.hits + 1, %{state | hits: state.hits + 1, heads: state.heads ++ [head]}}
+        end)
+
+      script.(server, socket, hit, head)
+      :gen_tcp.close(socket)
+    end
+
+    defp read_head(socket, acc) do
+      if String.ends_with?(acc, "\r\n\r\n") do
+        acc
+      else
+        case :gen_tcp.recv(socket, 0, 5_000) do
+          {:ok, data} -> read_head(socket, acc <> data)
+          {:error, _reason} -> acc
+        end
+      end
+    end
+
+    def url(%__MODULE__{port: port}, path), do: "http://127.0.0.1:#{port}#{path}"
+
+    def hits(%__MODULE__{state: state}), do: Agent.get(state, & &1.hits)
+
+    def heads(%__MODULE__{state: state}), do: Agent.get(state, & &1.heads)
+
+    # Lets every script that is waiting in `hold/1` carry on.
+    def release(%__MODULE__{state: state}) do
+      for handler <- Agent.get(state, & &1.handlers), do: send(handler, :go)
+      :ok
+    end
+
+    # Waits in a script until the test releases the server.
+    def hold(_server) do
+      receive do
+        :go -> :ok
+      after
+        20_000 -> :ok
+      end
+    end
+
+    # Waits in a script until the client drops the connection, and tells the test.
+    def watch(%__MODULE__{owner: owner}, socket) do
+      case :gen_tcp.recv(socket, 0, 20_000) do
+        {:error, :closed} -> send(owner, :client_gone)
+        _other -> :ok
+      end
+    end
+
+    def head(socket, status, headers) do
+      lines = Enum.map_join(headers, "", fn header -> header <> "\r\n" end)
+      :ok = :gen_tcp.send(socket, "HTTP/1.1 #{status} Test\r\n" <> lines <> "Connection: close\r\n\r\n")
+    end
+
+    def chunk(socket, data) do
+      :ok = :gen_tcp.send(socket, [Integer.to_string(byte_size(data), 16), "\r\n", data, "\r\n"])
+    end
+
+    def finish(socket), do: :gen_tcp.send(socket, "0\r\n\r\n")
+
+    def body(socket, data), do: :gen_tcp.send(socket, data)
+
+    # The next close of the socket resets the connection instead of ending it cleanly.
+    def reset(socket), do: :inet.setopts(socket, linger: {true, 0})
+
+    # Sends chunks until the client drops the connection, and tells the test.
+    def endless(%__MODULE__{owner: owner} = server, socket) do
+      case :gen_tcp.send(socket, ["1000\r\n", String.duplicate("x", 4096), "\r\n"]) do
+        :ok ->
+          Process.sleep(5)
+          endless(server, socket)
+
+        {:error, _closed} ->
+          send(owner, :client_gone)
+      end
+    end
+  end
+
+  # A transport that answers a stream call from a script of statuses, keeps
+  # what each call was sent and tells the test process when a body is closed.
+  # Its buffered `send_request/5` serves the token endpoint of an OAuth2
+  # authenticator, handing out `t1`, `t2` and so on.
+  defmodule ScriptedStreamApiClient do
+    defstruct [:agent, :statuses, :content_type, :body, :notify]
+
+    def new(content_type, body, statuses) do
+      {:ok, agent} = Agent.start_link(fn -> %{streams: [], tokens: 0} end)
+      %__MODULE__{agent: agent, statuses: statuses, content_type: content_type, body: body, notify: self()}
+    end
+
+    def send_request(%__MODULE__{agent: agent}, _method, _url, _headers, _body) do
+      count = Agent.get_and_update(agent, fn state -> {state.tokens + 1, %{state | tokens: state.tokens + 1}} end)
+
+      %{{moduleName}}.ApiHttpResponse{
+        status_code: 200,
+        headers: %{},
+        body: Jason.encode!(%{"access_token" => "t#{count}", "expires_in" => 3600})
+      }
+    end
+
+    def send_streaming(%__MODULE__{} = client, _method, _url, headers, _body, _opts) do
+      index = Agent.get_and_update(client.agent, fn state -> {length(state.streams), %{state | streams: state.streams ++ [headers]}} end)
+      status = Enum.at(client.statuses, index) || List.last(client.statuses)
+      notify = client.notify
+
+      %{{moduleName}}.ApiStreamResponse{
+        status_code: status,
+        headers: %{"content-type" => client.content_type},
+        body: [client.body],
+        close: fn ->
+          send(notify, {:closed, index})
+          :ok
+        end
+      }
+    end
+
+    def sent(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.streams)
+  end
+
+  # A transport written before streaming existed: it implements the buffered call only.
+  defmodule BufferedOnlyApiClient do
+    defstruct [:notify]
+
+    def send_request(%__MODULE__{notify: notify}, _method, url, _headers, _body) do
+      send(notify, {:sent, url})
+      %{{moduleName}}.ApiHttpResponse{status_code: 200, headers: %{"content-type" => "application/json"}, body: "{}"}
+    end
+  end
+
+  defp stream_state(api_client, authenticator \\ nil) do
+    %{
+      config: {{moduleName}}.Configuration.new(base_url: "http://stream.invalid"),
+      api_client: api_client,
+      authenticator: authenticator
+    }
+  end
+
+  defp raw_state(server, transport_options \\ [], authenticator \\ nil) do
+    %{
+      config: {{moduleName}}.Configuration.new(base_url: RawServer.url(server, "")),
+      api_client: {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(transport_options)),
+      authenticator: authenticator
+    }
+  end
+
+  defp stream_call(state, call \\ []) do
+    {{moduleName}}.Api.BaseApi.invoke_api_for_result(
+      state,
+      :get,
+      "/items/blob",
+      [],
+      %{},
+      nil,
+      ["application/octet-stream"],
+      "application/json",
+      nil,
+      nil,
+      Keyword.put(call, :stream, true),
+      %{}
+    )
+  end
+
+  test "bhv streaming 008 a non-2xx streaming call raises the typed error with the status and the error body and never returns a stream" do
+    client = ScriptedStreamApiClient.new("application/json", ~s({"message":"gone"}), [404])
+
+    assert {:error, %{{moduleName}}.Errors.NotFoundError{} = error} = client |> stream_state() |> stream_call()
+    assert error.status_code == 404
+    assert error.response_body =~ "gone"
+    assert error.request_path == "/items/blob"
+    assert_received {:closed, 0}, "the connection was closed after the error body"
+
+    large = ScriptedStreamApiClient.new("text/plain", String.duplicate("x", 200_000), [502])
+
+    assert {:error, %{{moduleName}}.Errors.BadGatewayError{} = bounded} = large |> stream_state() |> stream_call()
+    assert byte_size(bounded.response_body) == 64 * 1024, "the error body is bounded"
+  end
+
+  test "bhv streaming 012 a connection reset in the middle of the body raises a network error and is not retried" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, "ab")
+        Process.sleep(100)
+        RawServer.reset(socket)
+      end)
+
+    assert {:ok, result} = server |> raw_state() |> stream_call()
+
+    assert {:error, error} = {{moduleName}}.ByteStream.read_all(result.data)
+    assert {{moduleName}}.Errors.NetworkError.network_error?(error)
+    Process.sleep(300)
+    assert RawServer.hits(server) == 1, "the default of two retries does not apply to a body"
+  end
+
+  test "bhv streaming 014 a streaming call retries a 503 before the headers and then streams the retried response" do
+    server =
+      RawServer.start(fn _server, socket, hit, _head ->
+        if hit == 1 do
+          RawServer.head(socket, 503, ["Retry-After: 0", "Content-Length: 4"])
+          RawServer.body(socket, "nope")
+        else
+          RawServer.head(socket, 200, ["Content-Length: 5"])
+          RawServer.body(socket, "hello")
+        end
+      end)
+
+    assert {:ok, result} = server |> raw_state() |> stream_call()
+
+    assert result.status_code == 200
+    assert {:ok, "hello"} = {{moduleName}}.ByteStream.read_all(result.data)
+    assert RawServer.hits(server) == 2
+  end
+
+  test "bhv streaming 015 a streaming call never retries after the first body byte was delivered" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, "part")
+        Process.sleep(100)
+        RawServer.reset(socket)
+      end)
+
+    assert {:ok, result} = server |> raw_state() |> stream_call()
+
+    parent = self()
+
+    assert_raise {{moduleName}}.Errors.StreamError, fn ->
+      Enum.each(result.data, fn chunk -> send(parent, {:chunk, chunk}) end)
+    end
+
+    assert_received {:chunk, "part"}
+    Process.sleep(300)
+    assert RawServer.hits(server) == 1, "no second request after the first body byte"
+  end
+
+  test "bhv streaming 017 a streaming call sends the same user agent, request id, trace context and authentication as a buffered call" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Type: application/octet-stream", "Content-Length: 2"])
+        RawServer.body(socket, "ok")
+      end)
+
+    authenticator = {{moduleName}}.Auth.ApiKeyAuthenticator.new(RawServer.url(server, ""), "X-Api-Key", "k-123", :header)
+    state = raw_state(server, [inject_request_id: true, max_retries: 0], authenticator)
+    start_tracing()
+
+    Tracer.with_span "caller" do
+      assert {:ok, _buffered} =
+               {{moduleName}}.Api.BaseApi.invoke_api_for_result(
+                 state, :get, "/items/blob", [], %{}, nil, ["application/octet-stream"], "application/json", "String.t()"
+               )
+
+      assert {:ok, result} = stream_call(state)
+      assert {:ok, "ok"} = {{moduleName}}.ByteStream.read_all(result.data)
+      assert base_api_traceparent(Tracer.current_span_ctx()) =~ "00-"
+    end
+
+    [buffered, streamed] = server |> RawServer.heads() |> Enum.map(&request_headers/1)
+
+    for name <- ["user-agent", "x-api-key", "traceparent", "accept"] do
+      assert streamed[name] != nil, name
+      assert streamed[name] == buffered[name], name
+    end
+
+    assert Map.keys(streamed) -- ["accept-encoding"] == Map.keys(buffered) -- ["accept-encoding"], "the same header names are sent"
+    assert streamed["x-request-id"] != nil
+    assert streamed["x-request-id"] != buffered["x-request-id"], "each call has its own request id"
+    assert streamed["accept-encoding"] =~ "gzip"
+  end
+
+  defp request_headers(head) do
+    head
+    |> String.split("\r\n")
+    |> Enum.drop(1)
+    |> Enum.take_while(&(&1 != ""))
+    |> Map.new(fn line ->
+      [name, value] = String.split(line, ":", parts: 2)
+      {String.downcase(name), String.trim(value)}
+    end)
+  end
+
+  test "bhv streaming 018 a 401 on a streaming call authenticated by OAuth2 refreshes the token and replays once before the stream is returned" do
+    client = ScriptedStreamApiClient.new("application/octet-stream", "ok", [401, 200])
+
+    assert {:ok, result} = client |> oauth_stream_state() |> stream_call()
+    assert [first, second] = ScriptedStreamApiClient.sent(client)
+    assert first["Authorization"] == "Bearer t1"
+    assert second["Authorization"] == "Bearer t2"
+    assert_received {:closed, 0}, "the refused response was closed unread"
+    assert {:ok, "ok"} = {{moduleName}}.ByteStream.read_all(result.data)
+
+    refused = ScriptedStreamApiClient.new("application/octet-stream", "", [401])
+
+    assert {:error, %{{moduleName}}.Errors.UnauthorizedError{}} = refused |> oauth_stream_state() |> stream_call()
+    assert length(ScriptedStreamApiClient.sent(refused)) == 2, "a second 401 is not replayed again"
+  end
+
+  defp oauth_stream_state(client) do
+    auth =
+      {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/token",
+        []
+      )
+
+    auth = {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(auth, client)
+
+    %{config: {{moduleName}}.Configuration.new(base_url: "https://api.example.com"), api_client: client, authenticator: auth}
+  end
+
+  test "bhv streaming 030 a transport that cannot stream fails a stream call naming itself, and buffered calls keep working" do
+    transport = %BufferedOnlyApiClient{notify: self()}
+
+    error = assert_raise RuntimeError, fn -> transport |> stream_state() |> stream_call() end
+
+    assert error.message =~ inspect(BufferedOnlyApiClient)
+    assert error.message =~ "cannot stream"
+    refute_received {:sent, _url}, "nothing was sent and nothing was buffered instead"
+
+    assert {:ok, _result} =
+             {{moduleName}}.Api.BaseApi.invoke_api_for_result(
+               stream_state(transport), :get, "/items/blob", [], %{}, nil, ["application/json"], "application/json", nil
+             )
+
+    assert_received {:sent, url}
+    assert String.ends_with?(url, "/items/blob"), "the buffered call still works"
+  end
 end
 {{/generateTests}}

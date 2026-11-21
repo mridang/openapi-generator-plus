@@ -1,0 +1,58 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Errors.StreamError do
+  @moduledoc """
+  Exception for a response body that failed after its headers arrived: the
+  connection was reset, or the body ended before its declared length. It is a
+  `NetworkError` (see `NetworkError.network_error?/1`), so the status code is
+  always 0; the headers had arrived, but the body the caller was promised did
+  not. The underlying failure is kept as the `cause`. An idle stall is a
+  `NetworkTimeoutError` and a body that cannot be decoded is a
+  `SerializationError`, not this.
+  """
+
+  alias {{moduleName}}.Errors.ApiError
+
+  defexception [
+    :message,
+    :status_code,
+    :response_headers,
+    :response_body,
+    :error_body,
+    :cause,
+    :request_method,
+    :request_path
+  ]
+
+  @type t :: %__MODULE__{
+          message: String.t(),
+          status_code: integer() | nil,
+          response_headers: map() | nil,
+          response_body: String.t() | nil,
+          error_body: term() | nil,
+          cause: Exception.t() | nil,
+          request_method: String.t() | nil,
+          request_path: String.t() | nil
+        }
+
+  @impl true
+  def exception(opts) when is_list(opts), do: exception(Map.new(opts))
+
+  def exception(opts) when is_map(opts) do
+    %__MODULE__{
+      message: Map.get(opts, :message, "Stream error"),
+      status_code: Map.get(opts, :status_code, 0),
+      response_headers: Map.get(opts, :response_headers),
+      response_body: Map.get(opts, :response_body),
+      error_body: Map.get(opts, :error_body),
+      cause: Map.get(opts, :cause),
+      request_method: Map.get(opts, :request_method),
+      request_path: Map.get(opts, :request_path)
+    }
+  end
+
+  def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg, status_code: 0}
+
+  @impl true
+  def message(%__MODULE__{} = error), do: ApiError.message(struct(ApiError, Map.from_struct(error)))
+end
