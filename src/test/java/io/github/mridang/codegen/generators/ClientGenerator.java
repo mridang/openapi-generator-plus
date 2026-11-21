@@ -61,6 +61,12 @@ public final class ClientGenerator {
     Map<String, Object> props = new HashMap<>(properties);
     props.put("generateTests", "true");
     props.put("generateExamples", "true");
+    // Two petstore operations are paged or left alone by this option alone, not by inference or a hint.
+    props.putIfAbsent(
+        "paginationOverrides",
+        "{\"listPetEvents\":{\"style\":\"token\",\"requestParam\":\"since\","
+            + "\"responseProperty\":\"upto\",\"itemsProperty\":\"events\"},"
+            + "\"listPetArchive\":\"none\"}");
 
     CodegenConfigurator configurator =
         new CodegenConfigurator()

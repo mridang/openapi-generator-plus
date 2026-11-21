@@ -152,6 +152,29 @@ paths:
                 type: string
                 format: binary
 
+  /probe.v1.RELAYService/Records:
+    get:
+      tags: [RELAYService]
+      operationId: listRecords
+      summary: Lists records one page at a time with a page token.
+      parameters:
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: page_token
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: One page of records.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordPage'
+
 components:
   securitySchemes:
     probeBearer:
@@ -171,6 +194,16 @@ components:
           format: int64
         grade:
           $ref: '#/components/schemas/Grade'
+
+    RecordPage:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Probe'
+        next_page_token:
+          type: string
 
     Grade:
       type: string

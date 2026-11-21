@@ -3284,3 +3284,31 @@ streaming024 | A streamed upload with a known length sends Content-Length
 streaming025 | A caller supplied upload stream is never closed by the SDK
 streaming026 | A replayable upload is rewound and retried after a 503, and a single use upload is not retried and surfaces the original error
 streaming027 | A 307 or 308 with a single use upload is refused and the body is never buffered
+pagination001 | A paged operation reads no page until the first item or page is requested
+pagination002 | A token-cursor operation yields every item of every page in order and sends the next page's cursor
+pagination003 | The next request is sent only when the consumer asks for more items
+pagination007 | A Link-header operation follows rel=next and ends when it is absent
+pagination008 | A Link next URL on another origin is refused and no credentials are sent to it
+pagination009 | An empty page with a next cursor continues and an absent, null or empty cursor ends
+pagination010 | Pages yields one page per response with its items, status, headers, decoded body and next cursor
+pagination011 | The cursor passed to the paged method is the starting position and the first request sends it
+pagination012 | Resuming with the next cursor of a page continues with the following page
+pagination013 | Every other parameter, including the page size, is repeated unchanged on each page request
+pagination014 | A cursor equal to the one just sent, or an offset that did not advance, raises a PaginationError instead of looping
+pagination015 | An error on a later page is raised after the earlier pages' items were delivered and ends iteration
+pagination016 | A 503 on the second page is retried under the retry rules and iteration continues
+pagination017 | The per-call timeout, headers and retry count apply to each page request
+pagination018 | Stopping early sends no further request and leaves nothing to close
+pagination019 | Cancelling mid-iteration aborts the in-flight page request and is not reported as a timeout
+pagination020 | Iterating a second time starts again from the starting position
+pagination021 | An unknown enum value on a later page fails with the serialization error
+pagination022 | A refreshed credential is used for the next page
+pagination023 | An error from a Link-driven page request carries the path without the query
+pagination024 | An operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method
+pagination025 | A paged method has the same parameters in the same order as the base method and the base method is unchanged
+pagination026 | The generator option overrides inference and can switch an operation or the whole feature off
+pagination027 | Headers and options given to the paged method are sent on every page request
+pagination028 | The cursor for the next page is taken from the accepted response, never from a retried attempt
+pagination030 | A vendor extension on an operation is read as a hint, and the override option wins over it
+pagination031 | The repeated-cursor failure is a PaginationError and is not a network error or an API error
+pagination032 | An operation that is streamed is never also given a paged method
