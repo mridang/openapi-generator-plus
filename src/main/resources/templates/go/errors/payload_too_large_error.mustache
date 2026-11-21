@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// PayloadTooLargeError is the error for HTTP 413 Payload Too Large.
+type PayloadTooLargeError struct {
+	ClientError
+}

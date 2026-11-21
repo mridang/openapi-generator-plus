@@ -1,0 +1,53 @@
+{{>api_info}}
+package errors
+
+import "{{packageName}}/pkg/models"
+
+// {{className}} is the error for a response whose body is a {{schemaName}}, declared under HTTP
+// {{#statuses}}{{.}}{{^-last}}, {{/-last}}{{/statuses}}. It embeds {{parentClassName}}, so errors.As matches it
+// at its own type and at every type above it, and every accessor of {{parentClassName}} is
+// available on it.
+type {{className}} struct {
+	{{parentClassName}}
+	body *models.{{schemaName}}
+}
+
+// Body returns the response body decoded as {{schemaName}}.
+func (e *{{className}}) Body() *models.{{schemaName}} {
+	return e.body
+}
+
+// Unwrap returns the {{parentClassName}} this error is a kind of, so errors.As reaches
+// every level above it.
+func (e *{{className}}) Unwrap() error {
+	return &e.{{parentClassName}}
+}
+
+// New{{className}}FromResponse builds the error for a response whose body is declared as a
+// {{schemaName}}. A body that is empty or does not match the schema gives the plain status
+// error with the raw body and the decoding failure as its cause, so the real failure is
+// never masked. The method and path of the request are recorded, the path without its query.
+func New{{className}}FromResponse(method, path string, statusCode int, headers map[string]string, body string) error {
+	if body == "" {
+		return statusFallback(method, path, statusCode, headers, body, nil)
+	}
+	var decoded models.{{schemaName}}
+	if err := unmarshalErrorBody([]byte(body), &decoded); err != nil {
+		return statusFallback(method, path, statusCode, headers, body, err)
+	}
+{{#parentIsFamily}}
+	base := newApiErrorBase(statusCode, headers, body)
+	base.errorBody = &decoded
+	typed := &{{className}}{ {{parentClassName}}: new{{parentClassName}}FromBase(base), body: &decoded}
+{{/parentIsFamily}}
+{{^parentIsFamily}}
+	parent, ok := FromResponse(statusCode, headers, body).(*{{parentClassName}})
+	if !ok {
+		return statusFallback(method, path, statusCode, headers, body, nil)
+	}
+	parent.errorBody = &decoded
+	typed := &{{className}}{ {{parentClassName}}: *parent, body: &decoded}
+{{/parentIsFamily}}
+	typed.AttachRequest(method, path)
+	return typed
+}

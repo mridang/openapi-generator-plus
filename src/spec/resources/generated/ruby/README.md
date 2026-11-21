@@ -1,0 +1,426 @@
+# Swagger Petstore - OpenAPI 3.0 SDK
+
+Auto-generated Ruby SDK client for the Swagger Petstore - OpenAPI 3.0 API.
+
+## Requirements
+
+- Ruby `>= 3.2` (the oldest Ruby release that still receives security fixes;
+  older runtimes are not supported and rubocop is configured with
+  `TargetRubyVersion: 3.2`).
+- Bundler `>= 2.x` (`gem install bundler` if missing).
+
+## Installation
+
+Add the gem to your `Gemfile` and install it with Bundler:
+
+```bash
+bundle add petstore_client
+```
+
+## Usage
+
+```ruby statements
+require 'petstore_client'
+
+host = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL')
+token = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN')
+client = Petstore::Client::Petstore.with_token(host, token)
+begin
+  result = client.store.get_defaults
+  pp result
+ensure
+  client.close
+end
+```
+
+### Credentials
+
+A credential comes from the first of: the value you pass to the constructor, for a Bearer token a token provider (`token_provider:`, called for every request), and the environment variable of its security scheme. The variable is read only when neither was passed, once, when the authenticator is built, and an empty variable counts as unset. A client whose required credential is missing is not built: the constructor raises `ArgumentError`.
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+| `adminBasic` | `USERNAME` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |
+| `adminBasic` | `PASSWORD` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` |
+| `apiKeyHeader` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` |
+| `apiKeyQuery` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` |
+| `browserAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` |
+| `internalApiKey` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` |
+| `legacyAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` |
+| `legacyAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` |
+| `legacyAuth` | `USERNAME` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` |
+| `legacyAuth` | `PASSWORD` | `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` |
+| `machineAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` |
+| `machineAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` |
+| `petStoreBasic` | `USERNAME` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` |
+| `petStoreBasic` | `PASSWORD` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` |
+| `petStoreBearer` | `TOKEN` | `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` |
+| `serviceToken` | `TOKEN` | `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` |
+| `sessionCookie` | `API_KEY` | `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` |
+| `ssoAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` |
+| `ssoAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` |
+| `ssoAuth` | `REDIRECT_URI` | `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` |
+| `userAuth` | `CLIENT_ID` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` |
+| `userAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` |
+| `userAuth` | `REDIRECT_URI` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
+
+An authenticator you build without a scheme (`Client.with_token`, or `BearerAuthenticator`, `BasicAuthenticator` and `ApiKeyAuthenticator` on their own) reads `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, `SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME`, `SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD` or `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY`.
+
+### Credentials per security scheme
+
+`Petstore.new` takes one optional credential for each security scheme of the API, named after the scheme: `pet_store_basic:`, `admin_basic:`, `pet_store_bearer:`, `service_token:`, `api_key_header:`, `internal_api_key:`, `api_key_query:`, `session_cookie:`, `machine_auth:`, `legacy_auth:`, `user_auth:`, `browser_auth:`, `sso_auth:`. Each operation uses the credential of the first scheme in its own security requirement that you configured; there is no per-call override. An optional `authenticator` (the first argument) serves any operation no scheme credential matches, and an operation that declares no security sends no credential of its own. The client is refused, with an `ArgumentError`, when it gets no credential at all.
+
+See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
+
+## Configuration
+
+`TransportOptions.builder` sets `timeout` (milliseconds, one end-to-end budget across redirects; a non-positive value raises `ArgumentError`), `proxy`, `verify_ssl`, `ca_cert_path`, `follow_redirects`, `max_redirects`, `user_agent`, `default_headers`, `inject_request_id` and `max_retries`. The proxy is exactly what you configure: `HTTP_PROXY` and `NO_PROXY` are ignored. Every request carries an `X-Request-ID` header unless you send one.
+
+### Closing the client
+
+`client.close` is graceful and idempotent. The client is marked closed at once and a request started afterwards raises a `RuntimeError` ("ApiClient has been closed and can no longer send requests"); a request already in flight finishes, and the connection the SDK built is released when the last one completes. A second `close` does nothing, and a `Faraday::Connection` you supplied is never closed.
+
+### Cookie parameters
+
+A cookie parameter is sent as it is, without percent-encoding, when every character of its value is a legal RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash). Any other value raises an `ArgumentError` before the request is sent, so encode the value yourself first if it holds one of those characters.
+
+### Custom HTTP client
+
+`TransportOptions.builder.connection(faraday_connection)` supplies your own `Faraday::Connection`. The SDK keeps applying its timeout, user agent, redirect policy and query encoding, and never closes a connection you supplied.
+
+### Testing your code
+
+Every API group has an interface (`_PetApiInterface`, an RBS interface) and the client has one (`_PetstoreInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```ruby statements
+# A fake is any object that responds to the operations you use; Ruby needs no base class.
+fake = Class.new do
+  def close; end
+end.new
+
+# Code under test takes anything that satisfies the group interface, never the generated class.
+use = ->(api) { api }
+use.call(fake)
+```
+
+A new operation in the API adds a method to the interface, so a fake that must satisfy the whole interface for Steep fails to type-check after you regenerate; fake only the operations your code calls, or delegate the rest to a base fake.
+
+### Automatic retries
+
+`TransportOptions.builder.max_retries(n)` sets how many times a failed request is sent again (default `2`; `0` turns retries off). A request is retried after a network error that happened before any response, and after a `408`, `409`, `429` or `5xx` (not `501`) response. The wait starts at 0.5 seconds and doubles up to 8 seconds, with up to 25% jitter; a `Retry-After` header (seconds or an HTTP date, at most 60 seconds) is honoured instead. The `timeout` budget is never extended by retries, a TLS failure is not retried, and a multipart or stream body is never sent twice. Every retry is a new request: its headers, authentication included, are built again.
+
+### Per-call options
+
+Every operation takes an optional Options object, which accepts three members that apply to that call alone: `timeout` (milliseconds, replacing the client's end-to-end timeout), `headers` (sent in addition to the default headers, and replacing a default of the same name) and `max_retries` (replacing the client's retry count). A member left `nil` keeps the client's value. A client built with your own `ApiClient` receives the headers only. An operation that has no query, header, form or cookie parameter and no security has an Options object that carries only these three members.
+
+```ruby file
+require 'petstore_client'
+
+def get_defaults_within_two_seconds(client)
+  options = Petstore::Client::Api::Options::GetDefaultsOptions.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
+  client.store.get_defaults(options)
+end
+```
+
+### `Configuration` and `TransportOptions`
+
+`Configuration` holds what a request says (the base URL and the default headers) and `TransportOptions` holds how it is sent (timeouts, proxy, TLS, redirects, retries). They stay two objects on purpose: a `Configuration` is cheap to rebuild per tenant, while a `TransportOptions` owns the connection settings the client reuses.
+
+### Errors
+
+An `ApiError` (and every subclass, `NetworkError` included) carries `status_code`, `response_headers`, `response_body`, `error_body`, `request_method` and `request_path`, the path of the request without its query string. The message names them as `Request: GET /items/1` after the status code line.
+
+An operation that declares an error response with a schema raises a class of its own for it: one error class per distinct schema, named after the schema with an `Error` suffix, subclassing the class of the status it is declared under (`4XX` gives `ClientError`, `5XX` gives `ServerError`, `default` gives `ApiError`). Its `error_body` is the decoded schema object, and the same status can be a different class in two operations. A body that does not match the schema never hides the real error: the status error is raised with the raw body and the decoding failure as its `cause`. `retryable?` is true for the statuses the client itself retries and `request_id` is the `x-request-id` response header. A response body that cannot be decoded raises a `SerializationError` carrying `status_code`, `response_headers`, `response_body`, `request_method` and `request_path`.
+
+### Raw responses
+
+Every operation has a `<operation>_with_http_info` variant returning an `ApiResult` with `status_code`, `headers` (a frozen copy, lower-cased names) and `data`.
+
+### Cancellation
+
+The SDK has no cancellation API of its own. Ruby's native mechanisms (`Timeout`, killing the thread) apply; a call that exceeds the request timeout fails with `NetworkTimeoutError`.
+
+### Response compression
+
+The SDK asks for `gzip, deflate` and decompresses the body itself; `br` and `zstd` are also advertised when the optional `brotli` and `zstd-ruby` gems are installed (the `optional` group in the `Gemfile`). A body that cannot be decoded raises an `ApiError` carrying the response's status.
+
+### Logging
+
+The SDK writes no log. To log requests, supply a `Faraday::Connection` with the logging middleware you want through `TransportOptions.builder.connection(...)`. Authorization headers and other credentials are never part of an error message or of `inspect`.
+
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the request is sent and observe the status or the error afterwards, and without a hook set the call does nothing extra.
+
+A hook is any object that responds to `start(info, headers)`. `info` is a `CallInfo` with `operation_id` (exactly as the spec writes it), `http_method`, `url_template` (the spec path, for example `/items/{id}`), `url` (without query string and fragment) and `server_address` (the host, lower-case, without port or IPv6 brackets). `headers` is the final, mutable set of request headers: defaults, call headers, authentication, cookies and trace context are already in it. `start` returns an observer, an object that responds to `finish(outcome)`, or `nil`. `outcome` is a `CallOutcome` with `status_code` (0 when no response arrived), `headers` (lower-cased names, `nil` when no response arrived) and `error` (the very error the caller receives, or `nil`). Set the hook with `Configuration.builder.call_hook(hook)` or the `call_hook:` keyword of the client, and use `CallHook.chain(first, second)` to run several: they start in the order given and finish in the reverse order.
+
+`start` runs once per operation call, however many times the transport sends the request, and `finish` runs exactly once on every way the call can end. A header the hook sets is on every send of the call, and the fresh credentials of the one replay after a 401 still replace a header of the same name. An error raised by `start` reaches the caller unchanged and nothing is sent. An error raised by `finish` is swallowed. The hook runs above the transport, so it also runs when you supply your own, and it runs inline on the calling thread, so it must not block. Headers are a plain `Hash`: reuse the spelling of an existing name to replace it.
+
+```ruby statements
+require 'petstore_client'
+
+tenant_hook = Class.new do
+  def start(_info, headers)
+    headers['X-Tenant'] = 'a'
+    nil
+  end
+end.new
+
+client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: tenant_hook)
+```
+
+#### OpenTelemetry
+
+This SDK ships no OpenTelemetry adapter and the SDK itself depends on no OpenTelemetry gem: the Ruby OpenTelemetry metrics API is not stable yet, so the same hook is shown as a recipe instead. It records one span per call, named with the operation id, of kind client, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code as text for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). It also records the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) with the same attributes, under an instrumentation scope named after the gem and carrying its version. It injects the `traceparent` header itself, so the span sent to the server is the client span. Add `opentelemetry-api` and `opentelemetry-metrics-api` to your own `Gemfile`; without an OpenTelemetry SDK it does nothing.
+
+```rb
+require 'opentelemetry-api'
+require 'opentelemetry-metrics-api'
+
+# A call hook that records one span, one request count and one duration per
+# call. It needs the opentelemetry-api and opentelemetry-metrics-api gems, and
+# does nothing until you configure an OpenTelemetry SDK or pass providers.
+class TelemetryCallHook
+  # Ends the span and records the count and the duration of one call.
+  class Observer
+    def initialize(span, attributes, count, duration, started)
+      @span = span
+      @attributes = attributes
+      @count = count
+      @duration = duration
+      @started = started
+    end
+
+    def finish(outcome)
+      attributes = @attributes.dup
+      attributes['http.response.status_code'] = outcome.status_code if outcome.status_code.positive?
+      failure = error_type(outcome)
+      attributes['error.type'] = failure if failure
+      @span.add_attributes(attributes.slice('http.response.status_code', 'error.type'))
+      @span.status = OpenTelemetry::Trace::Status.error(failure) if failure
+      @span.finish
+      @count.add(1, attributes: attributes)
+      @duration.record(Process.clock_gettime(Process::CLOCK_MONOTONIC) - @started, attributes: attributes)
+    end
+
+    private
+
+    def error_type(outcome)
+      return outcome.status_code.to_s if outcome.status_code >= 400
+
+      case outcome.error
+      when nil then nil
+      when ::Petstore::Client::Errors::NetworkTimeoutError then 'timeout'
+      when ::Petstore::Client::Errors::NetworkError then 'network_error'
+      when ::Petstore::Client::Errors::SerializationError then 'serialization_error'
+      when ::SignalException then 'cancelled'
+      else '_OTHER'
+      end
+    end
+  end
+
+  def initialize(tracer_provider: OpenTelemetry.tracer_provider, meter_provider: OpenTelemetry.meter_provider)
+    @tracer = tracer_provider.tracer('petstore_client', ::Petstore::Client::VERSION)
+    meter = meter_provider.meter('petstore_client', version: ::Petstore::Client::VERSION)
+    @count = meter.create_counter('http.client.request.count', unit: '{request}')
+    @duration = meter.create_histogram('http.client.request.duration', unit: 's')
+  end
+
+  def start(info, headers)
+    attributes = {
+      'http.request.method' => info.http_method,
+      'url.template' => info.url_template,
+      'server.address' => info.server_address
+    }
+    span = @tracer.start_span(info.operation_id, kind: :client, attributes: attributes)
+    OpenTelemetry.propagation.inject(headers, context: OpenTelemetry::Trace.context_with_span(span))
+    Observer.new(span, attributes, @count, @duration, Process.clock_gettime(Process::CLOCK_MONOTONIC))
+  end
+end
+```
+
+```rb
+client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TelemetryCallHook.new)
+```
+
+### Streaming
+
+Streaming request and response bodies are not supported: a response is read in full before it is returned and a request body is a string, a model or a file read in full. For a streaming transport, inject your own `Faraday::Connection`.
+
+### Versioning
+
+The gem follows semantic versioning (`1.0.0` today). The supported Ruby versions are the ones that still receive security fixes (`>= 3.2` today); dropping an end-of-life Ruby is a minor release.
+
+## Gem
+
+- Name: `petstore_client`
+- Version: `1.0.0`
+- License: MIT
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+`format: decimal` / `format: number` values are typed as `BigDecimal`
+(stdlib `bigdecimal`). A typed field is read from the JSON text with
+`decimal_class: BigDecimal`, so no digit passes through a binary float, and it
+is written back as a bare JSON number in plain notation with no exponent. A
+`BigDecimal` keeps no trailing zero, so `12.50` is written as `12.5`. A
+`type: string` decimal is read from a JSON string only and written as a JSON
+string. A number in an untyped or free-form value is still a `Float`, and
+`format: float` / `format: double` map to `Float`, which **cannot** represent
+every decimal fraction exactly (`0.1 + 0.2` is `0.30000000000000004`): do not
+use a `Float`-typed field for money.
+
+`format: int64` is unaffected — Ruby's `Integer` is arbitrary-
+precision (`Bignum`) and represents the full 64-bit range without
+loss.
+
+### `format: byte` is base64-decoded into binary Strings
+
+Properties typed `string` + `format: byte` are exposed as raw,
+binary-encoded Ruby `String`s on the model surface — **not** as the
+base64 text from the wire. The transport layer base64-decodes on
+read and base64-encodes (strict, no line breaks) on write.
+
+```ruby statements
+require 'petstore_client'
+
+json = '{"seal":"aGVsbG8="}'
+model = Petstore::Client::ObjectSerializer.deserialize(json, 'BinaryVault')
+model.seal.encoding  # => #<Encoding:ASCII-8BIT>
+File.binwrite('out.bin', model.seal)
+```
+
+Assigning a non-base64 string when serializing raises
+`SerializationError`. Round-tripping a wire value preserves the
+original bytes exactly.
+
+### `format: uuid` is a validated String
+
+Properties typed `string` + `format: uuid` remain Ruby `String`s
+(no `uuid` gem dependency), but are validated against RFC 4122
+canonical form (`/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/`) on both
+the deserialize and serialize paths. Invalid values raise
+`SerializationError`. Use `SecureRandom.uuid` to generate new
+identifiers.
+
+### Optional and nullable are not told apart
+
+A property that is optional and a property that is nullable both read as `nil` when absent or `null`. Use `with` to build a changed copy of a model (models have no writers) and `additional_properties` where the schema allows extras. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
+
+### Unknown enum values and discriminators
+
+An enum value the spec does not list decodes to the enum's catch-all member (`UNKNOWN_DEFAULT_OPEN_API`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationError`. A discriminator value that maps to no variant still fails
+loudly with `SerializationError`.
+
+### Repeated response headers are joined
+
+`headers` of a response is a map of lower-cased name to one string: a header the server sent several times is joined with `, ` in the order received, `Set-Cookie` included.
+
+### Several 2xx responses decode by status
+
+An operation that declares different schemas for several 2xx statuses returns the union, and the body is decoded as the schema of the status the response actually carries; use `as_<variant>`, `<variant>_variant?` and `from_<variant>` on the union module to narrow the result.
+
+### Discriminator no-match raises
+
+A `oneOf` payload whose discriminator value is missing, or whose
+value is not listed in the schema's `discriminator.mapping`, raises
+`SerializationError` instead of silently falling through to the
+base type.
+
+## Not supported
+
+### Webhooks and callbacks
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Only JSON, form, multipart and binary bodies are generated. `application/xml` request and response bodies and the `xml` schema keywords (`nodeType`, `attribute`, `wrapped`) are not supported.
+
+### Link Objects
+
+Response Link Objects are ignored; follow links in your own code.
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes are not generated. Supply a client certificate through your own `Faraday::Connection` (see Custom HTTP client).
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
+
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server. The
+generated models are `Dry::Struct` classes that check types but declare no
+constraint predicates, so Ruby does not enforce them client-side. If you want
+fast-fail validation before the network round trip, plug in a JSON Schema
+validator.
+
+`uniqueItems` arrays are modelled as `Set`. A `Set` is sent in its own iteration
+order: the SDK does not sort it, so do not rely on the order of the values on the wire.
+
+### SOCKS proxies
+
+`TransportOptions.builder.proxy(url)` accepts only `http://` and `https://` URLs.
+Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
+at construction time with a clear error. SOCKS support would
+require enabling extra dependencies / feature flags on the underlying
+HTTP library in every one of the 12 SDKs we generate, with non-trivial
+API divergence; we explicitly chose not to. If you need SOCKS, route
+through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.
+
+## Development
+
+### Install
+
+```bash
+bundle install
+```
+
+### Test
+
+```bash
+bundle exec rake test
+```
+
+### Lint / Format
+
+`rubocop` is the formatter and the linter. Lint without modifying
+files, then auto-correct in place:
+
+```bash
+bundle exec rubocop          # lint only
+bundle exec rubocop -A       # auto-correct (format)
+```
+
+### Static analysis
+
+`steep` type-checks the gem against the bundled RBS signatures in
+`sig/`:
+
+```bash
+bundle exec steep check
+```

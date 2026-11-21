@@ -1,0 +1,36 @@
+{{>api_info}}
+{{#imports}}
+using {{{.}}};
+{{/imports}}
+
+namespace {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}};
+
+/// <summary>
+/// Scheme-specific authenticator for the <c>{{schemeName}}</c> security scheme.
+/// Each credential argument left null is read once, in the constructor, from its
+/// environment variable; an empty variable counts as unset, and a credential that is
+/// neither passed nor set fails the constructor with <see cref="InvalidOperationException"/>.
+/// <list type="bullet">
+{{#envVars}}
+/// <item><description><c>{{envName}}</c> for <c>{{field}}</c></description></item>
+{{/envVars}}
+/// </list>
+/// </summary>
+public sealed class {{className}} : {{baseClass}}
+{
+    /// <summary>Creates the authenticator, reading each credential left null from the environment.</summary>
+    /// <param name="host">API base URL.</param>
+{{#credentialParams}}
+    /// <param name="{{name}}">The {{name}}, or null to read <c>{{envName}}</c>.</param>
+{{/credentialParams}}
+    public {{className}}(string host{{#credentialParams}}, {{#isUri}}Uri{{/isUri}}{{^isUri}}string{{/isUri}}? {{name}} = null{{/credentialParams}})
+        : base({{{superCall}}}) { }
+{{#isBearer}}
+
+    /// <summary>Creates the authenticator with a token that a callback returns before every request.</summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="tokenProvider">Returns the current bearer token; it wins over the environment.</param>
+    public {{className}}(string host, Func<CancellationToken, Task<string>> tokenProvider)
+        : base(host, tokenProvider) { }
+{{/isBearer}}
+}

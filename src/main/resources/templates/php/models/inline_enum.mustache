@@ -1,0 +1,18 @@
+{{>api_info}}
+
+namespace {{modelPackage}};
+
+/**
+ * Allowed values of the {{baseName}} property of {{modelClassname}}.
+ */
+enum {{enumClassName}}: {{backingType}}
+{
+{{#enumVars}}
+{{#enumDescription}}
+    /** {{#lambda.singleLine}}{{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}{{/lambda.singleLine}} */
+{{/enumDescription}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    case UNKNOWN_DEFAULT_OPEN_API = {{#isIntBacked}}PHP_INT_MIN{{/isIntBacked}}{{^isIntBacked}}'__unknown_default_open_api__'{{/isIntBacked}};
+}

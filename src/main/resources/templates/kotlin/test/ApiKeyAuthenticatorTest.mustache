@@ -1,0 +1,536 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth
+
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class ApiKeyAuthenticatorTest {
+
+    @Test
+    @DisplayName("bhvAuthapikey014 valid header key is exposed via getAuthHeaders")
+    fun validHeaderKeyPasses() = runBlocking {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER
+        )
+        val headers = auth.getAuthHeaders()
+        assertEquals("abc123", headers["X-API-Key"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey015 valid query key is exposed via getQueryParams")
+    fun validQueryKeyPasses() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "api_key", "abc123", ApiKeyLocation.QUERY
+        )
+        val params = auth.getQueryParams()
+        assertEquals("abc123", params["api_key"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey013 valid cookie key is exposed via getCookieParams")
+    fun validCookieKeyPasses() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "session", "abc123", ApiKeyLocation.COOKIE
+        )
+        val params = auth.getCookieParams()
+        assertEquals("abc123", params["session"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey005 empty header key throws at construction")
+    fun emptyKeyHeaderThrowsAtConstruction() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "", ApiKeyLocation.HEADER
+            )
+        }
+        assertTrue(ex.message!!.contains("must not be empty"))
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey006 empty query key throws at construction")
+    fun emptyKeyQueryThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", "", ApiKeyLocation.QUERY
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey004 empty cookie key throws at construction")
+    fun emptyKeyCookieThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "session", "", ApiKeyLocation.COOKIE
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey017 whitespace-only key throws at construction")
+    fun whitespaceOnlyKeyThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "   ", ApiKeyLocation.HEADER
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey011 only ASCII whitespace counts as blank")
+    fun onlyAsciiWhitespaceCountsAsBlank() {
+        for (blank in listOf("\u000C", "\u000B", " \t\r\n")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator(
+                    "https://api.example.com", "api_key", blank, ApiKeyLocation.QUERY
+                )
+            }
+        }
+        for (valid in listOf("\u00A0", "\u2003")) {
+            assertEquals(
+                mapOf("api_key" to valid),
+                ApiKeyAuthenticator(
+                    "https://api.example.com", "api_key", valid, ApiKeyLocation.QUERY
+                ).getQueryParams()
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey003 CR/LF in query key throws at construction")
+    fun crlfInQueryKeyThrowsAtConstruction() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", "abc\r\n", ApiKeyLocation.QUERY
+            )
+        }
+        assertTrue(ex.message!!.contains("forbidden control"))
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey002 CR/LF in cookie key throws at construction")
+    fun crlfInCookieKeyThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "session", "abc\n", ApiKeyLocation.COOKIE
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey018 CR/LF in header key throws at construction")
+    fun crlfInHeaderKeyThrowsAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "abc\rdef", ApiKeyLocation.HEADER
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey009 ApiKey query location accepts non-ASCII characters")
+    fun apiKeyQueryAcceptsNonAscii() {
+        // The QUERY location is URL-encoded downstream, so it must accept a
+        // non-ASCII key value verbatim and surface it through getQueryParams.
+        assertEquals(
+            mapOf("api_key" to "kéy"),
+            ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", "kéy", ApiKeyLocation.QUERY
+            ).getQueryParams()
+        )
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey016 valid query key passes")
+    fun validQueryKeyPassesAndIsExposed() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "api_key", "abc123", ApiKeyLocation.QUERY
+        )
+        assertEquals(mapOf("api_key" to "abc123"), auth.getQueryParams())
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey001 a Unicode space is not blank and is a valid query key")
+    fun unicodeSpaceIsAValidQueryKey() {
+        assertEquals(
+            mapOf("api_key" to " "),
+            ApiKeyAuthenticator(
+                "https://api.example.com", "api_key", " ", ApiKeyLocation.QUERY
+            ).getQueryParams()
+        )
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey008 HEADER location rejects a non-ASCII key")
+    fun headerLocationRejectsNonAsciiKey() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator(
+                "https://api.example.com", "X-API-Key", "kéy", ApiKeyLocation.HEADER
+            )
+        }
+    }
+
+    /**
+     * The default toString() must mask the stored API key: the secret value
+     * must be absent and a *** redaction marker present.
+     */
+    @Test
+    @DisplayName("bhvAuthapikey010 toString() redacts the API key and shows ***")
+    fun redactsSecret() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER
+        )
+        val repr = auth.toString()
+        assertFalse(repr.contains("abc123"))
+        assertTrue(repr.contains("***"))
+    }
+
+    @Test
+    fun bhvAuthapikey012RedactedReprShowsExactlyTheNonSecretFields() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.COOKIE
+        )
+        assertEquals(
+            "ApiKeyAuthenticator(host=https://api.example.com, keyParamName=X-API-Key, apiKey=***, location=COOKIE)",
+            auth.toString(),
+        )
+    }
+
+    @Test
+    fun bhvAuthapikey007GeneratedSchemeWrappersEmitTheirKeyAtTheirSpecLocation() = runBlocking {
+        val header = ApiKeyHeaderAuthenticator("https://api.example.com", "k1")
+        assertEquals(mapOf("X-API-Key" to "k1"), header.getAuthHeaders())
+        assertTrue(header.getQueryParams().isEmpty())
+        assertTrue(header.getCookieParams().isEmpty())
+
+        val internal = InternalApiKeyAuthenticator("https://api.example.com", "k2")
+        assertEquals(mapOf("X-Internal-Key" to "k2"), internal.getAuthHeaders())
+
+        val query = ApiKeyQueryAuthenticator("https://api.example.com", "k3")
+        assertEquals(mapOf("api_key" to "k3"), query.getQueryParams())
+        assertTrue(query.getAuthHeaders().isEmpty())
+        assertTrue(query.getCookieParams().isEmpty())
+
+        val cookie = SessionCookieAuthenticator("https://api.example.com", "k4")
+        assertEquals(mapOf("SESSION_ID" to "k4"), cookie.getCookieParams())
+        assertTrue(cookie.getAuthHeaders().isEmpty())
+        assertTrue(cookie.getQueryParams().isEmpty())
+    }
+
+    @Test
+    fun bhvAuthapikey020GeneratedSchemeWrappersValidateEagerlyAndMaskTheKey() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyQueryAuthenticator("https://api.example.com", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            SessionCookieAuthenticator("https://api.example.com", "a\r\nb")
+        }
+        assertEquals(
+            "SessionCookieAuthenticator(host=https://api.example.com, keyParamName=SESSION_ID, apiKey=***, location=COOKIE)",
+            SessionCookieAuthenticator("https://api.example.com", "k4").toString(),
+        )
+        assertFalse(ApiKeyHeaderAuthenticator("https://api.example.com", "k1").toString().contains("k1"))
+        assertFalse(InternalApiKeyAuthenticator("https://api.example.com", "k2").toString().contains("k2"))
+        assertFalse(ApiKeyQueryAuthenticator("https://api.example.com", "k3").toString().contains("k3"))
+    }
+
+    @Test
+    fun bhvAuthapikey019WrappersRejectAnEmptyKeyAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyHeaderAuthenticator("https://api.example.com", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            InternalApiKeyAuthenticator("https://api.example.com", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyQueryAuthenticator("https://api.example.com", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            SessionCookieAuthenticator("https://api.example.com", "")
+        }
+    }
+
+    @Test
+    fun bhvAuthapikey022KeyIsEmittedOnlyAtItsOwnLocation() = runBlocking {
+        val header = ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "k", ApiKeyLocation.HEADER)
+        assertEquals(mapOf("X-API-Key" to "k"), header.getAuthHeaders())
+        assertTrue(header.getQueryParams().isEmpty())
+        assertTrue(header.getCookieParams().isEmpty())
+
+        val query = ApiKeyAuthenticator("https://api.example.com", "api_key", "k", ApiKeyLocation.QUERY)
+        assertTrue(query.getAuthHeaders().isEmpty())
+        assertEquals(mapOf("api_key" to "k"), query.getQueryParams())
+        assertTrue(query.getCookieParams().isEmpty())
+
+        val cookie = ApiKeyAuthenticator("https://api.example.com", "SESSION_ID", "k", ApiKeyLocation.COOKIE)
+        assertTrue(cookie.getAuthHeaders().isEmpty())
+        assertTrue(cookie.getQueryParams().isEmpty())
+        assertEquals(mapOf("SESSION_ID" to "k"), cookie.getCookieParams())
+    }
+
+    @Test
+    fun bhvAuthapikey023CookieKeyAcceptsANonAsciiValue() {
+        val auth = ApiKeyAuthenticator("https://api.example.com", "SESSION_ID", "clé-é", ApiKeyLocation.COOKIE)
+        assertEquals(mapOf("SESSION_ID" to "clé-é"), auth.getCookieParams())
+    }
+
+    @Test
+    fun bhvAuthapikey025GeneratedApiKeySchemeWrappersMaskTheKeyInTheirDebugOutput() {
+        assertEquals(
+            "ApiKeyHeaderAuthenticator(host=https://api.example.com, keyParamName=X-API-Key, apiKey=***, location=HEADER)",
+            ApiKeyHeaderAuthenticator("https://api.example.com", "k1").toString(),
+        )
+        assertEquals(
+            "ApiKeyQueryAuthenticator(host=https://api.example.com, keyParamName=api_key, apiKey=***, location=QUERY)",
+            ApiKeyQueryAuthenticator("https://api.example.com", "k3").toString(),
+        )
+    }
+
+    @Test
+    fun bhvAuthapikey026ApiKeyAuthenticatorDoesNotLeakItsKeyInItsDefaultDebugOutput() {
+        val secret = "sec" + "ret-" + "key"
+        val auth = ApiKeyAuthenticator("https://api.example.com", "X-API-Key", secret, ApiKeyLocation.HEADER)
+        assertFalse("$auth".contains(secret))
+        assertFalse(listOf(auth).toString().contains(secret))
+    }
+
+    @Test
+    @DisplayName("bhvAuthscheme012 an empty environment variable for the api key scheme credential is treated as unset and fails naming the variable")
+    fun bhvAuthscheme012EmptyApiKeyVariableIsUnsetAndNamed() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY" to "")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator("https://api.example.com", "X-API-Key", null, ApiKeyLocation.HEADER)
+            }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_API_KEY"), ex.message)
+    }
+
+    @Test
+    fun bhvAuthscheme005ApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY_HEADER_API_KEY" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { ApiKeyHeaderAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_API_KEY_HEADER_API_KEY"), ex.message)
+    }
+
+    @Test
+    fun bhvAuthscheme006ApiKeyQueryAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY_QUERY_API_KEY" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { ApiKeyQueryAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_API_KEY_QUERY_API_KEY"), ex.message)
+    }
+
+    @Test
+    fun bhvAuthscheme007SessionCookieAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_SESSION_COOKIE_API_KEY" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { SessionCookieAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_SESSION_COOKIE_API_KEY"), ex.message)
+    }
+
+    private fun <T> withEnvironment(values: Map<String, String>, body: () -> T): T {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> values[name] }
+        try {
+            return body()
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthapikey021 with no key passed, {{envVarPrefix}}_API_KEY is read once at construction, and a passed key wins")
+    fun bhvAuthapikey021KeyComesFromTheEnvironmentAndAPassedKeyWins() = runBlocking {
+        val auth = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY" to "from-env")) {
+            ApiKeyAuthenticator("https://api.example.com", "X-API-Key", location = ApiKeyLocation.HEADER)
+        }
+        assertEquals("from-env", auth.getAuthHeaders()["X-API-Key"])
+        val explicit = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY" to "from-env")) {
+            ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "explicit", ApiKeyLocation.HEADER)
+        }
+        assertEquals("explicit", explicit.getAuthHeaders()["X-API-Key"])
+    }
+
+    @Test
+    @DisplayName("bhvSerializationobject187 F862: an explicit key wins over the environment, and a missing key fails at construction")
+    fun explicitKeyWinsAndAMissingKeyFails() {
+        val auth = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY" to "from-env")) {
+            ApiKeyAuthenticator("https://api.example.com", "api_key", "explicit", ApiKeyLocation.QUERY)
+        }
+        assertEquals("explicit", auth.getQueryParams()["api_key"])
+        val ex = withEnvironment(emptyMap()) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator("https://api.example.com", "api_key", location = ApiKeyLocation.QUERY)
+            }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_API_KEY"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth005 F862: a key provider feeds the header, query and cookie locations on every request")
+    fun keyProviderFeedsEveryLocation() = runBlocking {
+        var calls = 0
+        for (location in ApiKeyLocation.values()) {
+            val auth = withEnvironment(emptyMap()) {
+                ApiKeyAuthenticator(
+                    "https://api.example.com", "k", location = location, apiKeyProvider = { "key-" + (++calls) },
+                )
+            }
+            val headers = auth.getAuthHeaders()
+            val seen =
+                headers["k"] ?: auth.getQueryParams()["k"] ?: auth.getCookieParams()["k"]
+            assertEquals("key-$calls", seen)
+        }
+        assertEquals(ApiKeyLocation.values().size, calls)
+    }
+
+    @Test
+    @DisplayName("bhvAuthscheme009 a credential passed explicitly wins over its environment variable")
+    fun explicitArgumentWinsOverEnvironment() = runBlocking {
+        val env = mapOf("{{envVarPrefix}}_API_KEY" to "from-env")
+        val explicit = withEnvironment(env) {
+            ApiKeyAuthenticator("https://api.example.com", "k", "explicit", ApiKeyLocation.HEADER)
+        }
+        assertEquals("explicit", explicit.getAuthHeaders()["k"])
+        val fromEnv = withEnvironment(env) {
+            ApiKeyAuthenticator("https://api.example.com", "k", location = ApiKeyLocation.HEADER)
+        }
+        assertEquals("from-env", fromEnv.getAuthHeaders()["k"])
+    }
+
+    @Test
+    @DisplayName("bhvMisc060 an API key and an API key provider passed together are refused")
+    fun keyAndProviderTogetherAreRefused() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("https://api.example.com", "k", "x", ApiKeyLocation.HEADER, { "y" })
+        }
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin001 F862: a security scheme's authenticator reads the variable of its own scheme")
+    fun bhvLangkotlin001SchemeWrapperReadsItsOwnVariable() = runBlocking {
+        val env = mapOf("{{envVarPrefix}}_API_KEY_HEADER_API_KEY" to "from-env")
+        val auth =
+            withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com") }
+        assertEquals("from-env", auth.getAuthHeaders()["X-API-Key"])
+        val explicit =
+            withEnvironment(env) { ApiKeyHeaderAuthenticator("https://api.example.com", "explicit") }
+        assertEquals("explicit", explicit.getAuthHeaders()["X-API-Key"])
+        val other = withEnvironment(env) {
+            assertThrows(IllegalArgumentException::class.java) { InternalApiKeyAuthenticator("https://api.example.com") }
+        }
+        assertTrue(other.message!!.contains("{{envVarPrefix}}_INTERNAL_API_KEY_API_KEY"), other.message)
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin002 F862: a scheme's authenticator uses its provider when neither argument nor variable is set")
+    fun bhvLangkotlin002SchemeWrapperFallsBackToItsProvider() = runBlocking {
+        val auth = withEnvironment(mapOf("{{envVarPrefix}}_API_KEY_HEADER_API_KEY" to "")) {
+            ApiKeyHeaderAuthenticator("https://api.example.com", apiKeyProvider = { "from-provider" })
+        }
+        assertEquals("from-provider", auth.getAuthHeaders()["X-API-Key"])
+        val ex = withEnvironment(emptyMap()) {
+            assertThrows(IllegalArgumentException::class.java) { ApiKeyHeaderAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_API_KEY_HEADER_API_KEY"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth006 an API key sent in a header appears under the header name the spec declares")
+    fun apiKeyHeaderUsesTheDeclaredName() = runBlocking {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "X-Declared-Key", "k-42", ApiKeyLocation.HEADER
+        )
+        assertEquals(mapOf("X-Declared-Key" to "k-42"), auth.getAuthHeaders())
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin003 an API key that holds a line break or NUL is refused when built")
+    fun bhvLangkotlin003ApiKeyWithLineBreakOrNulIsRefusedWhenBuilt() {
+        for (bad in listOf("abc\r\nInjected: yes", "abc\u0000")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator("https://api.example.com", "X-API-Key", bad, ApiKeyLocation.HEADER)
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth031 an API key sent in a header carries the fixed name and value on the wire")
+    fun bhvAuth031ApiKeyHeaderIsExactOnTheWire() = runBlocking {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER
+        )
+        assertEquals(mapOf("X-API-Key" to "abc123"), auth.getAuthHeaders())
+    }
+
+    @Test
+    @DisplayName("bhvAuth032 a session-cookie key is sent as the SESSION_ID cookie with exact name and value")
+    fun bhvAuth032SessionCookieIsExactOnTheWire() {
+        val auth = SessionCookieAuthenticator("https://api.example.com", "k4")
+        assertEquals(mapOf("SESSION_ID" to "k4"), auth.getCookieParams())
+    }
+
+    @Test
+    @DisplayName("bhvAuth033 printing an API-key authenticator never reveals its secret")
+    fun bhvAuth033ToStringNeverRevealsTheSecret() {
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER
+        )
+        assertFalse(auth.toString().contains("abc123"), auth.toString())
+    }
+
+    @Test
+    @DisplayName("bhvAuth034 an API-key authenticator rejects a blank key when it is constructed")
+    fun bhvAuth034BlankKeyIsRejectedAtConstruction() {
+        for (blank in listOf("", "   ", "\t\n")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator("https://api.example.com", "X-API-Key", blank, ApiKeyLocation.HEADER)
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth035 a key containing NUL or a non-ASCII character in a header is rejected")
+    fun bhvAuth035ControlAndNonAsciiHeaderValuesAreRejected() {
+        for (bad in listOf("abc\u0000def", "kéy")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                ApiKeyAuthenticator("https://api.example.com", "X-API-Key", bad, ApiKeyLocation.HEADER)
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth037 a key provider is asked again for each request and its current value is sent")
+    fun bhvAuth037ProviderIsAskedOnEachRequest() = runBlocking {
+        var calls = 0
+        val auth = ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", null, ApiKeyLocation.HEADER,
+            apiKeyProvider = { "key-${++calls}" },
+        )
+        assertEquals(mapOf("X-API-Key" to "key-1"), auth.getAuthHeaders())
+        assertEquals(mapOf("X-API-Key" to "key-2"), auth.getAuthHeaders())
+    }
+
+    @Test
+    @DisplayName("bhvMisc057 an API key configured for one location is never sent at another location")
+    fun bhvMisc057ApiKeyIsSentOnlyAtItsConfiguredLocation() = runBlocking {
+        for (location in ApiKeyLocation.values()) {
+            val auth = ApiKeyAuthenticator("https://api.example.com", "k", "key-value", location = location)
+            val placed = listOf(auth.getAuthHeaders(), auth.getQueryParams(), auth.getCookieParams())
+                .filter { it.containsValue("key-value") }
+            assertEquals(1, placed.size, location.toString())
+        }
+    }
+    @Test
+    @DisplayName("bhvMisc189 the API-key query wrapper sends its key as the api_key query parameter")
+    fun bhvMisc189ApiKeyQueryWrapperSendsTheKeyAsTheApiKeyParameter() {
+        val auth = ApiKeyAuthenticator("https://api.example.com", "api_key", "key-value", ApiKeyLocation.QUERY)
+        assertEquals("key-value", auth.getQueryParams()["api_key"])
+    }
+
+}

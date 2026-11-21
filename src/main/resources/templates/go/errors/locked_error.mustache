@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// LockedError is the error for HTTP 423 Locked.
+type LockedError struct {
+	ClientError
+}

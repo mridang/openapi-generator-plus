@@ -1,0 +1,89 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import org.junit.jupiter.api.DisplayName;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class ApiResultTest {
+
+    @Test
+    void bhvResults003CarriesDataStatusCodeHeadersAndRawBodyAsConstructed() {
+        ApiResult<String> result =
+                new ApiResult<>(
+                        200,
+                        "payload",
+                        "{\"value\":\"payload\"}",
+                        Map.of("content-type", "application/json"));
+
+        assertEquals(200, result.statusCode());
+        assertEquals("payload", result.data());
+        assertEquals("{\"value\":\"payload\"}", result.rawBody());
+        assertEquals("application/json", result.headers().get("content-type"));
+    }
+
+    @Test
+    void bhvResults001AllowsNullDataForVoidResponses() {
+        // data is @Nullable — void responses carry a null payload but still
+        // expose status, raw body, and headers.
+        ApiResult<String> result = new ApiResult<>(204, null, "", Map.of());
+
+        assertEquals(204, result.statusCode());
+        assertNull(result.data());
+        assertEquals("", result.rawBody());
+        assertEquals(Map.of(), result.headers());
+    }
+
+    @Test
+    void bhvResults002AResultExposesTheResponseHeaders() {
+        ApiResult<String> result =
+                new ApiResult<>(200, "payload", "payload", Map.of("x-request-id", "abc"));
+
+        assertEquals("abc", result.headers().get("x-request-id"));
+    }
+
+    @Test
+    void bhvResults004ExposesTheDeserializedData() {
+        Map<String, Object> data = Map.of("id", 1, "name", "example");
+        ApiResult<Map<String, Object>> result = new ApiResult<>(200, data, "", Map.of());
+
+        assertEquals(data, result.data());
+    }
+
+    @Test
+    void bhvResults005ExposesTheRawResponseBody() {
+        ApiResult<String> result =
+                new ApiResult<>(200, "payload", "{\"value\":\"payload\"}", Map.of());
+
+        assertEquals("{\"value\":\"payload\"}", result.rawBody());
+    }
+
+    @Test
+    void bhvResults006HeadersAreDefensivelyCopiedAndUnmodifiable() {
+        // The compact constructor wraps the headers in an unmodifiable copy, so
+        // mutation attempts on the exposed map throw.
+        ApiResult<String> result =
+                new ApiResult<>(200, "ok", "ok", Map.of("x-trace", "abc"));
+
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> result.headers().put("x-evil", "1"));
+    }
+
+    @Test
+    @DisplayName("bhvResults007 a result returns the payload, the raw body and the headers together")
+    void bhvResults007AResultReturnsThePayloadTheRawBodyAndTheHeadersTogether() {
+        ApiResult<String> result = new ApiResult<>(200, "payload", "{\"a\":1}",
+                java.util.Map.of("content-type", "application/json"));
+
+        assertEquals(200, result.statusCode());
+        assertEquals("payload", result.data());
+        assertEquals("{\"a\":1}", result.rawBody());
+        assertEquals("application/json", result.headers().get("content-type"));
+    }
+}

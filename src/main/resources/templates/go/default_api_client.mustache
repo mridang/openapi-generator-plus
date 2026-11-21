@@ -1,0 +1,1076 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"bytes"
+	"compress/gzip"
+	"compress/zlib"
+	"context"
+	"crypto/tls"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net"
+	"net/http"
+	"net/textproto"
+	"net/url"
+	"os"
+	"sort"
+	"strings"
+	"sync/atomic"
+	"time"
+
+	"github.com/andybalholm/brotli"
+	"github.com/google/uuid"
+	"github.com/klauspost/compress/zstd"
+
+	errors_pkg "{{packageName}}/pkg/errors"
+)
+
+// ErrClientClosed is returned by a request sent through a DefaultApiClient
+// after Close. Match it with errors.Is.
+var ErrClientClosed = errors.New("API client has been closed and can no longer send requests")
+
+// ErrInvalidRequest is returned when a request cannot be built from its
+// arguments: a malformed URL or an unsupported body type. Match it with
+// errors.Is.
+var ErrInvalidRequest = errors.New("invalid request")
+
+// noRedirectContextKey is the unexported context key under which
+// SendRequestWithOptions stashes a true bool when the caller wants the
+// transport to refuse every 3xx redirect. The shared CheckRedirect
+// callback reads it back off req.Context() so the per-request flag does
+// not require constructing a one-off *http.Client.
+type noRedirectContextKey struct{}
+
+// authRequestContextKey marks a token or discovery request sent for an
+// authenticator. Such a request carries only the SDK's own headers: the
+// caller's default headers (an Authorization or API-key header meant for the
+// API) must not reach the identity provider.
+type authRequestContextKey struct{}
+
+// DefaultApiClient is the default HTTP client implementation backed by net/http.
+//
+// Applies transport-level settings from TransportOptions: TLS verification,
+// custom CA certificates, proxy routing, timeouts, redirect handling,
+// User-Agent injection, X-Request-ID injection, and transport-level
+// default headers.
+//
+// Header merge order (lowest to highest priority):
+//  1. TransportOptions.DefaultHeaders -- transport-level defaults
+//  2. Caller-provided headers (from baseApi -- includes config defaults, auth, operation headers)
+//  3. TransportOptions.UserAgent -- injected if not already set
+//  4. TransportOptions.InjectRequestID -- injected if not already set
+type DefaultApiClient struct {
+	transportOptions *TransportOptions
+	httpClient       *http.Client
+	/* doer sends the request: the SDK's policy client, or the caller's own
+	 * HttpDoer when one was injected that is not an *http.Client. */
+	doer HttpDoer
+	/* owned is the transport this client created and therefore closes; nil
+	 * when the caller supplied the transport, which the caller owns. */
+	owned *http.Transport
+	/* closed is set by Close(). Once closed, any further SendRequest must fail
+	 * with a uniform SDK error rather than silently succeeding (or leaking a
+	 * foreign library error), matching the use-after-close contract of the
+	 * other SDKs. A request already in flight is not touched: it finishes, and
+	 * only its own context cancels it. */
+	closed atomic.Bool
+}
+
+// NewDefaultApiClient creates a client with the given transport settings.
+// If transportOptions is nil, default transport settings are used.
+func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
+	if transportOptions == nil {
+		transportOptions = defaultTransportOptions()
+	}
+
+	c := &DefaultApiClient{transportOptions: transportOptions}
+
+	/* A caller-supplied transport is wrapped, never replaced: the SDK keeps its
+	 * redirect policy, timeout, user agent and headers on top of it, and never
+	 * closes it. A bare *http.Client contributes only its Transport; any other
+	 * HttpDoer is called as given. */
+	supplied := transportOptions.roundTripper
+	if supplied == nil {
+		switch hc := transportOptions.httpClient.(type) {
+		case nil:
+		case *http.Client:
+			supplied = hc.Transport
+		default:
+			c.doer = hc
+		}
+	}
+	switch {
+	case c.doer != nil:
+	case supplied != nil:
+		c.httpClient = newPolicyClient(transportOptions, &locationGuardTransport{inner: supplied})
+		c.doer = c.httpClient
+	default:
+		c.owned = newOwnedTransport(transportOptions)
+		c.httpClient = newPolicyClient(transportOptions, &locationGuardTransport{inner: c.owned})
+		c.doer = c.httpClient
+	}
+	return c
+}
+
+// retryPolicy reports the retry limit and the end-to-end timeout (zero for
+// none) to the API layer, which retries a failed request with freshly built
+// headers.
+func (c *DefaultApiClient) retryPolicy() (int, time.Duration) {
+	var timeout time.Duration
+	if t := c.transportOptions.Timeout(); t != nil {
+		timeout = time.Duration(*t) * time.Millisecond
+	}
+	return c.transportOptions.MaxRetries(), timeout
+}
+
+// cancellationError reports a request aborted by context cancellation. It
+// wraps context.Canceled, so errors.Is(err, context.Canceled) holds, and it is
+// never a *NetworkTimeoutError. Close does not cancel a request: cancellation is
+// the call context's alone.
+func (c *DefaultApiClient) cancellationError() error {
+	return fmt.Errorf("request cancelled: %w", context.Canceled)
+}
+
+// SendRequest sends an HTTP request and returns the response, with
+// transport-level settings applied.
+//
+// Convenience wrapper that delegates to SendRequestWithOptions with no
+// per-request overrides.
+func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]string, body any) (*ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+// SendRequestWithOptions sends an HTTP request applying RequestOptions on
+// top of the transport-level defaults.
+//
+// Merges headers according to the priority order documented on the struct,
+// then dispatches via net/http. When opts.NoRedirect is true the redirect
+// loop refuses every 3xx response and returns it to the caller verbatim —
+// used by OAuth2TokenManager on token endpoint POSTs so 307/308 cannot
+// replay the form-encoded client_secret onto an attacker host.
+// hasHeader reports whether headers holds name under ASCII case-folding (RFC
+// 9110 section 5.1), so a caller's "user-agent" suppresses the injected
+// User-Agent and the caller's key and value are sent exactly as written.
+func hasHeader(headers map[string]string, name string) bool {
+	for k := range headers {
+		if strings.EqualFold(k, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// redactURL renders u with its userinfo and fragment removed and its query
+// replaced by "***": an authenticator's query-parameter API key is part of the
+// query, and error messages reach logs and error trackers. net/http redacts only
+// a userinfo password.
+func redactURL(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+	redacted := *u
+	redacted.User = nil
+	redacted.Fragment = ""
+	redacted.RawFragment = ""
+	if redacted.RawQuery != "" {
+		redacted.RawQuery = "***"
+	}
+	return redacted.String()
+}
+
+// redactedTransportMessage is err's text with the query of a *url.Error's URL
+// replaced by "***". The original error stays reachable as the cause.
+func redactedTransportMessage(err error) string {
+	var urlErr *url.Error
+	if !errors.As(err, &urlErr) {
+		return err.Error()
+	}
+	parsed, perr := url.Parse(urlErr.URL)
+	if perr != nil {
+		return err.Error()
+	}
+	/* The request target is shown as its path only: no scheme, host, query or fragment. */
+	return fmt.Sprintf("%s %q: %v", urlErr.Op, parsed.EscapedPath(), urlErr.Err)
+}
+
+// redirectRefusalMessage is the text of a refused redirect: the CheckRedirect
+// error with net/http's *url.Error wrapper ("Get \"...\": ...") removed.
+func redirectRefusalMessage(err error) string {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Err != nil {
+		return urlErr.Err.Error()
+	}
+	return err.Error()
+}
+
+// mergeHeaders copies src into dst. A key that differs from an existing one
+// only in case replaces it, so the later layer wins and keeps its spelling (RFC
+// 9110 section 5.1). The keys of src are visited in sorted order, so the result
+// never depends on map iteration order.
+func mergeHeaders(dst, src map[string]string) {
+	keys := make([]string, 0, len(src))
+	for k := range src {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		removeHeader(dst, k)
+		dst[k] = src[k]
+	}
+}
+
+// removeHeader deletes every spelling of name from headers.
+func removeHeader(headers map[string]string, name string) {
+	for k := range headers {
+		if strings.EqualFold(k, name) {
+			delete(headers, k)
+		}
+	}
+}
+
+func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
+	if c.closed.Load() {
+		return nil, ErrClientClosed
+	}
+	merged := make(map[string]string)
+	if opts == nil || (!opts.NoDefaultHeaders && (opts.Context == nil || opts.Context.Value(authRequestContextKey{}) == nil)) {
+		mergeHeaders(merged, c.transportOptions.DefaultHeaders())
+	}
+	mergeHeaders(merged, headers)
+	if !hasHeader(merged, "User-Agent") && c.transportOptions.UserAgent() != nil {
+		merged["User-Agent"] = *c.transportOptions.UserAgent()
+	}
+	if !hasHeader(merged, "X-Request-ID") && c.transportOptions.InjectRequestID() {
+		merged["X-Request-ID"] = uuid.New().String()
+	}
+	if !hasHeader(merged, "Accept-Encoding") {
+		merged["Accept-Encoding"] = supportedEncodings()
+	}
+
+	var bodyReader io.Reader
+	switch b := body.(type) {
+	case nil:
+		// no body -- remove Content-Type to avoid sending it without a body
+		removeHeader(merged, "Content-Type")
+	case []byte:
+		/* A generated operation without a body passes a typed nil slice, not an
+		 * untyped nil, so it takes the same path as no body at all. */
+		if b == nil {
+			removeHeader(merged, "Content-Type")
+		}
+		bodyReader = bytes.NewReader(b)
+	case map[string]any:
+		buf, contentType, err := buildTransportMultipartBody(b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build multipart body: %w", err)
+		}
+		bodyReader = buf
+		mergeHeaders(merged, map[string]string{"Content-Type": contentType})
+	default:
+		return nil, fmt.Errorf("%w: unsupported body type %T", ErrInvalidRequest, body)
+	}
+
+	// Some servers / WAFs treat POST/PUT/PATCH with no body and no
+	// Content-Length as malformed (411 Length Required) or behave
+	// inconsistently. Attach an empty bytes.Reader on body-bearing
+	// verbs so net/http emits an explicit `Content-Length: 0`, matching
+	// Kotlin's `ByteArray(0)` and the other 11 SDKs.
+	if bodyReader == nil {
+		upper := strings.ToUpper(method)
+		if upper == "POST" || upper == "PUT" || upper == "PATCH" {
+			bodyReader = bytes.NewReader(nil)
+		}
+	}
+
+	callCtx := context.Background()
+	if opts != nil && opts.Context != nil {
+		callCtx = opts.Context
+	}
+	ctx := callCtx
+	doer := c.doer
+	var callTimeout *time.Duration
+	if opts != nil {
+		callTimeout = opts.Timeout
+	}
+	if c.httpClient != nil && callTimeout != nil {
+		/* A per-call timeout replaces the client's own for this request: a
+		 * copy of the policy client carries it, so the shared client is never
+		 * changed. */
+		scoped := *c.httpClient
+		scoped.Timeout = *callTimeout
+		doer = &scoped
+	}
+	if c.httpClient == nil {
+		budget := time.Duration(0)
+		if c.transportOptions.Timeout() != nil {
+			budget = time.Duration(*c.transportOptions.Timeout()) * time.Millisecond
+		}
+		if callTimeout != nil {
+			budget = *callTimeout
+		}
+		if budget > 0 {
+			/* An injected HttpDoer has no client-level timeout, so the SDK's
+			 * end-to-end budget is a deadline on the request context. */
+			var stop context.CancelFunc
+			ctx, stop = context.WithTimeout(ctx, budget)
+			defer stop()
+		}
+	}
+	if opts != nil && opts.NoRedirect {
+		ctx = context.WithValue(ctx, noRedirectContextKey{}, true)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+	}
+
+	for k, v := range merged {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := doer.Do(req)
+	if err != nil {
+		if resp != nil {
+			// A refused redirect (too many hops, a non-HTTP scheme, an
+			// HTTPS→HTTP downgrade): a response arrived but cannot be used,
+			// so it is an *ApiError carrying that response's real status.
+			_ = resp.Body.Close()
+			return nil, errors_pkg.NewApiError(
+				resp.StatusCode,
+				redirectRefusalMessage(err),
+				"", refusedResponseHeaders(resp.Header), nil, err,
+			)
+		}
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return nil, c.cancellationError()
+		}
+		// No HTTP response: a timeout surfaces as *NetworkTimeoutError, any
+		// other transport failure (connection refused, DNS, TLS, reset) as
+		// *NetworkError. Both carry status 0 and keep the net/http error as
+		// the cause, so errors.Is / errors.As still reach it.
+		return nil, newTransportError(fmt.Sprintf("request failed: %s", redactedTransportMessage(err)), err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// A failure reading the body AFTER headers were received (connection reset,
+	// truncated chunked encoding, a timeout) is a transport failure like a
+	// send-phase one.
+	rawBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return nil, c.cancellationError()
+		}
+		return nil, newTransportError(fmt.Sprintf("failed to read response body: %s", err.Error()), err)
+	}
+
+	respHeaders := lowerCaseHeaders(resp.Header)
+
+	// A body that arrived but cannot be decompressed is not a network
+	// failure: the server answered, so it is an *ApiError carrying the
+	// response's real status code.
+	respBody, err := decompressBody(resp.Header.Get("Content-Encoding"), rawBody)
+	if err != nil {
+		return nil, errors_pkg.NewApiError(
+			resp.StatusCode,
+			fmt.Sprintf("failed to decompress %s response body: %s", resp.Header.Get("Content-Encoding"), err.Error()),
+			"", respHeaders, nil, err,
+		)
+	}
+
+	/* D92: once the body was decoded the headers describe the body the caller
+	 * receives, so the encoding and the encoded length are dropped. */
+	if encoding := strings.ToLower(resp.Header.Get("Content-Encoding")); encoding != "" && encoding != "identity" && len(rawBody) > 0 {
+		delete(respHeaders, "content-encoding")
+		delete(respHeaders, "content-length")
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	var responseBody string
+	if isTextContentType(contentType) {
+		responseBody = decodeBodyByCharset(respBody, contentType)
+	} else {
+		responseBody = base64.StdEncoding.EncodeToString(respBody)
+	}
+
+	return &ApiHttpResponse{
+		StatusCode: resp.StatusCode,
+		Body:       responseBody,
+		Headers:    respHeaders,
+	}, nil
+}
+
+// lowerCaseHeaders flattens response headers into a map.
+//
+// Gap BE+BF: response header keys are normalised to lowercase so callers
+// can look them up consistently regardless of the casing the server used
+// (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
+// HTTP/2 mandates lowercase on the wire). Repeated header lines (for
+// example multiple Link or Set-Cookie headers) are joined with ", " to
+// preserve order per RFC 7230 section 3.2.2. The joined form is not
+// directly parseable for Set-Cookie; callers needing structured cookie
+// access should use resp.Cookies() on the underlying *http.Response.
+func lowerCaseHeaders(header http.Header) map[string]string {
+	respHeaders := make(map[string]string, len(header))
+	for k, vs := range header {
+		respHeaders[strings.ToLower(k)] = strings.Join(vs, ", ")
+	}
+	return respHeaders
+}
+
+// refusedResponseHeaders is lowerCaseHeaders for a refused redirect. The
+// Location of that response is the URL the SDK refused to follow, and it can
+// carry a query-parameter credential, so its query is replaced by "***" as it
+// is in the refusal message. Without it the error text would repeat the secret.
+func refusedResponseHeaders(header http.Header) map[string]string {
+	respHeaders := lowerCaseHeaders(header)
+	if location, ok := respHeaders["location"]; ok {
+		respHeaders["location"] = redactLocation(location)
+	}
+	return respHeaders
+}
+
+// redactLocation renders a Location value with its query replaced by "***". A
+// value that does not parse as a URL has everything after its first "?"
+// replaced, so no query text survives.
+func redactLocation(location string) string {
+	parsed, err := url.Parse(location)
+	if err != nil {
+		if i := strings.IndexByte(location, '?'); i >= 0 {
+			return location[:i] + "?***"
+		}
+		return location
+	}
+	return redactURL(parsed)
+}
+
+// newTransportError classifies a net/http transport failure. An error that
+// reports Timeout() — a *url.Error from http.Client.Timeout, or the body read
+// cut short by it — becomes *NetworkTimeoutError; anything else *NetworkError.
+func newTransportError(msg string, err error) error {
+	var timeout interface{ Timeout() bool }
+	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeout) && timeout.Timeout()) {
+		return errors_pkg.NewNetworkTimeoutError(msg, err)
+	}
+	return errors_pkg.NewNetworkError(msg, err)
+}
+
+// Close marks the client closed and releases the idle connections of the
+// transport the SDK created. It is graceful and idempotent: a request already
+// in flight finishes (only its own context cancels it), and every request sent
+// afterwards returns ErrClientClosed. A transport supplied by the caller is
+// never closed: the caller owns its lifecycle.
+func (c *DefaultApiClient) Close() error {
+	if c.closed.Swap(true) {
+		return nil
+	}
+	if c.owned != nil {
+		c.owned.CloseIdleConnections()
+	}
+	return nil
+}
+
+// locationGuardTransport makes an unusable Location behave like a missing one.
+//
+// net/http parses the Location of a 301, 302, 303, 307 or 308 before
+// CheckRedirect runs and fails the whole call with a *url.Error, and no
+// response, when it cannot. Every SDK instead returns such a 3xx untouched,
+// as it does a 3xx without Location. The guard moves a Location the request
+// URL cannot resolve to the non-canonical "location" key: net/http looks it up
+// canonically and so sees none, while the response keeps the header (headers
+// reach callers lowercased) and its body.
+type locationGuardTransport struct {
+	inner http.RoundTripper
+}
+
+// RoundTrip sends the request on the inner transport and hides an
+// unresolvable redirect Location from the redirect loop.
+func (t *locationGuardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.inner.RoundTrip(req)
+	if err != nil || resp == nil {
+		return resp, err
+	}
+	switch resp.StatusCode {
+	case http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther,
+		http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
+		locations := resp.Header.Values("Location")
+		if len(locations) == 0 {
+			break
+		}
+		if _, perr := req.URL.Parse(locations[0]); perr != nil {
+			resp.Header.Del("Location")
+			resp.Header[strings.ToLower("Location")] = locations
+		}
+	}
+	return resp, nil
+}
+
+// buildHTTPClient builds the policy client over a transport the SDK owns.
+func buildHTTPClient(opts *TransportOptions) *http.Client {
+	return newPolicyClient(opts, &locationGuardTransport{inner: newOwnedTransport(opts)})
+}
+
+// newOwnedTransport builds the net/http transport the SDK itself owns, with
+// the TLS, CA bundle and proxy settings of the transport options.
+func newOwnedTransport(opts *TransportOptions) *http.Transport {
+	/* Mirror the standard library's default transport limits rather than a
+	 * zero-value Transport, which has no idle-connection timeout, no dial or
+	 * TLS-handshake timeout and no TCP keep-alive. Built literally (not cloned
+	 * from http.DefaultTransport) so a replaced global cannot change it. There is
+	 * no environment proxy and no HTTP/2 upgrade: a proxy is opt-in through the
+	 * transport options and the transport stays HTTP/1.1. */
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	tlsConfig := &tls.Config{}
+
+	if !opts.VerifySsl() {
+		tlsConfig.InsecureSkipVerify = true
+	}
+
+	// Gap T4: the CA bundle was read and parsed by TransportOptionsBuilder.Build,
+	// which reports an unreadable file as ErrInvalidCACertificate rather than
+	// silently falling back to the system trust store.
+	if opts.caCertPool != nil {
+		tlsConfig.RootCAs = opts.caCertPool
+	}
+
+	transport.TLSClientConfig = tlsConfig
+
+	if opts.Proxy() != nil {
+		transport.Proxy = http.ProxyURL(opts.Proxy())
+	}
+
+	return transport
+}
+
+// newPolicyClient wraps a RoundTripper with the SDK's timeout and redirect
+// policy, whether the transport is the SDK's own or the caller's.
+func newPolicyClient(opts *TransportOptions, transport http.RoundTripper) *http.Client {
+	client := &http.Client{
+		Transport: transport,
+	}
+
+	if opts.Timeout() != nil {
+		client.Timeout = time.Duration(*opts.Timeout()) * time.Millisecond
+	}
+
+	if !opts.FollowRedirects() {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	} else {
+		// Gap BH: net/http re-sends Authorization / Cookie / Proxy-Authorization
+		// across same-origin AND cross-origin 3xx redirects by default, which
+		// leaks bearer tokens to attacker-controlled hosts via malicious 302.
+		// CheckRedirect runs before the next request is dispatched; we strip
+		// the sensitive headers from req when the redirect target's origin
+		// (scheme + host + port) differs from the original request's origin.
+		// Default to 20 hops when caller does not configure an explicit
+		// cap — unified across all 12 SDKs to avoid surprising behavior
+		// differences between languages.
+		maxRedirects := 20
+		if opts.MaxRedirects() != nil {
+			maxRedirects = *opts.MaxRedirects()
+		}
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			/* Gap 3.2: per-request NoRedirect (set by OAuth2TokenManager
+			 * on token endpoint POSTs) hard-refuses every 3xx response so
+			 * a 307 / 308 from a malicious or misconfigured authorization
+			 * server cannot replay the form-encoded `client_secret` /
+			 * `refresh_token` onto an attacker-controlled host. The flag
+			 * is plumbed through request.Context so we do not have to
+			 * construct a one-off *http.Client per request. */
+			if v, _ := req.Context().Value(noRedirectContextKey{}).(bool); v {
+				return http.ErrUseLastResponse
+			}
+			/* via holds the requests already sent, so len(via) is the index of
+			 * the redirect being decided; refuse only past maxRedirects so that
+			 * exactly maxRedirects hops are followed. */
+			if len(via) > maxRedirects {
+				return fmt.Errorf("too many redirects (exceeded %d)", maxRedirects)
+			}
+			if !strings.EqualFold(req.URL.Scheme, "http") && !strings.EqualFold(req.URL.Scheme, "https") {
+				return fmt.Errorf("refusing to follow redirect to non-HTTP(S) URL: %s", redactURL(req.URL))
+			}
+			if len(via) == 0 {
+				return nil
+			}
+			origURL := via[0].URL
+			/* `req.Response` is the response that caused THIS request
+			 * (the redirect response). `via[].Response` is nil for the
+			 * original request and only set for subsequent redirects,
+			 * so reading the status from `req.Response` is the correct
+			 * source of the redirect's status code. */
+			var prevStatus int
+			if req.Response != nil {
+				prevStatus = req.Response.StatusCode
+			}
+			/* Gap 3.3: refuse to replay a request body across an
+			 * HTTPS → HTTP scheme downgrade. 307 / 308 preserve method
+			 * and body per RFC 7231 §6.4.7 / RFC 7538, so a malicious
+			 * 307 from an HTTPS endpoint to an HTTP one would leak the
+			 * request body (which may carry credentials, tokens, or
+			 * PII) onto the network in plaintext. */
+			// Anchor on the hop that RECEIVED the redirect (via[len-1], whose
+			// body would be replayed), not the original request (via[0]): an
+			// http→https→http chain downgrades on the final hop even though
+			// the first request was already http, which a via[0] anchor misses.
+			// Only a real body is at risk: net/http hands a bodyless GET (nil
+			// Body) and an empty POST (http.NoBody) to the redirect as no body.
+			/* RFC 9110 sec 15.4: on 301 and 302 only POST becomes GET; PUT, PATCH,
+			 * DELETE and any other method keep their method and body. net/http
+			 * demotes every method but GET and HEAD, so put the original method
+			 * and a fresh body back. 303 (every method but HEAD becomes GET, which
+			 * net/http already does) and 307 / 308 (never change) need no help. */
+			replayed := false
+			if prevStatus == 301 || prevStatus == 302 {
+				prev := via[len(via)-1]
+				if prev.Method != http.MethodGet && prev.Method != http.MethodHead &&
+					prev.Method != http.MethodPost && req.Method != prev.Method {
+					req.Method = prev.Method
+					if prev.GetBody != nil {
+						body, gerr := prev.GetBody()
+						if gerr != nil {
+							return fmt.Errorf("cannot replay the request body on a %d redirect: %w", prevStatus, gerr)
+						}
+						req.Body = body
+						req.GetBody = prev.GetBody
+						req.ContentLength = prev.ContentLength
+						replayed = body != http.NoBody
+					} else if prev.Body != nil && prev.Body != http.NoBody {
+						return fmt.Errorf("cannot replay the request body on a %d redirect", prevStatus)
+					}
+				}
+			}
+			// Only 303 may cross the downgrade: it coerces to GET and carries no
+			// body. 301, 302, 307 and 308 would put the body on the wire in
+			// cleartext, so a body on the hop that received the redirect is refused.
+			// net/http drops a POST body on 301/302 before this check, so the
+			// body is read from the previous hop, which still holds it.
+			prevHasBody := via[len(via)-1].Body != nil && via[len(via)-1].Body != http.NoBody
+			hasBody := req.Body != nil && req.Body != http.NoBody
+			if prevStatus != 303 && (prevHasBody || hasBody || replayed) &&
+				strings.EqualFold(via[len(via)-1].URL.Scheme, "https") &&
+				strings.EqualFold(req.URL.Scheme, "http") {
+				return fmt.Errorf(
+					"refusing to replay request body across HTTPS->HTTP redirect: %s -> %s",
+					redactURL(via[len(via)-1].URL), redactURL(req.URL))
+			}
+			if !sameOrigin(origURL, req.URL) {
+				for name := range opts.DefaultHeaders() {
+					req.Header.Del(name)
+				}
+				for _, name := range sensitiveHeaderAllowlist {
+					req.Header.Del(name)
+				}
+				/* A caller default header or a custom authenticator may carry a
+				 * credential under any name, so every header the string forms
+				 * already treat as a secret (S15) goes too. */
+				for name := range req.Header {
+					if isSecretHeaderName(name) {
+						req.Header.Del(name)
+					}
+				}
+			}
+			/* Gap 3.4: when the previous response was 303 the Go runtime
+			 * coerces the follow-up to GET and clears the body (RFC 7231
+			 * §6.4.4). Explicitly drop the `Content-Length` header on the
+			 * outbound request so it reflects the empty body — matches
+			 * the Java/Kotlin/PHP/Node code paths and prevents stale
+			 * Content-Length: N being sent on a now-empty GET. */
+			/* The same holds for a 301 / 302 that demotes a POST to GET: net/http
+			 * re-copies the ORIGINAL request's headers onto each hop, so without
+			 * this the bodyless GET would still carry the POST's Content-Type. */
+			if prevStatus == 303 || !hasBody {
+				req.Header.Del("Content-Length")
+				req.Header.Del("Content-Type")
+			}
+			return nil
+		}
+	}
+
+	return client
+}
+
+// sensitiveHeaderAllowlist names the request headers that must be stripped
+// from a cross-origin 3xx redirect. The static entries match the matrix
+// shared with the other 11 SDKs (Authorization, Cookie,
+// Proxy-Authorization); the dynamic entries are the API-key header names
+// harvested from the OpenAPI `securitySchemes` of type
+// `apiKey, in: header` so cross-origin redirects also strip caller-provided
+// API-key headers even when the key is not literally named "Authorization".
+var sensitiveHeaderAllowlist = []string{
+	"Authorization",
+	"Cookie",
+	"Proxy-Authorization",
+{{#apiKeyHeaderNames}}
+	"{{#goStringLiteral}}{{{name}}}{{/goStringLiteral}}",
+{{/apiKeyHeaderNames}}
+}
+
+// sameOrigin reports whether two URLs share scheme, host, and effective
+// port. Used by CheckRedirect to decide when to strip sensitive headers.
+func sameOrigin(a, b *url.URL) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	if !strings.EqualFold(a.Scheme, b.Scheme) {
+		return false
+	}
+	if !strings.EqualFold(a.Hostname(), b.Hostname()) {
+		return false
+	}
+	return effectivePort(a) == effectivePort(b)
+}
+
+func effectivePort(u *url.URL) string {
+	if p := u.Port(); p != "" {
+		return p
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	}
+	return ""
+}
+
+func supportedEncodings() string {
+	return "gzip, deflate, br, zstd"
+}
+
+// decompressBody decodes a response body that was already read in full, so a
+// failure here is always a corrupt body and never a transport failure.
+func decompressBody(contentEncoding string, raw []byte) ([]byte, error) {
+	// An empty body (a legitimate 204/304/HEAD or empty 200) carries nothing to
+	// decompress, so it passes through unchanged for any declared encoding,
+	// matching java/kotlin/python/ruby/php/rust.
+	if len(raw) == 0 {
+		return raw, nil
+	}
+
+	encoding := strings.ToLower(contentEncoding)
+
+	switch encoding {
+	case "gzip", "x-gzip":
+		reader, err := gzip.NewReader(bytes.NewReader(raw))
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = reader.Close() }()
+		return io.ReadAll(reader)
+	case "deflate":
+		reader, err := zlib.NewReader(bytes.NewReader(raw))
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = reader.Close() }()
+		return io.ReadAll(reader)
+	case "br":
+		return io.ReadAll(brotli.NewReader(bytes.NewReader(raw)))
+	case "zstd":
+		reader, err := zstd.NewReader(bytes.NewReader(raw))
+		if err != nil {
+			return nil, err
+		}
+		defer reader.Close()
+		return io.ReadAll(reader)
+	case "", "identity":
+		return raw, nil
+	default:
+		// An unrecognised (or multi-value) Content-Encoding is a response the
+		// client cannot honour. Return an error — the caller wraps it in an
+		// ApiError carrying the response status (matching csharp/elixir and the
+		// documented contract) rather than handing back still-encoded bytes.
+		return nil, fmt.Errorf("unsupported Content-Encoding '%s'", contentEncoding)
+	}
+}
+
+// extractCharset returns the lower-cased charset parameter from a
+// Content-Type header, or empty string when absent.
+func extractCharset(contentType string) string {
+	parts := strings.Split(contentType, ";")
+	for _, p := range parts[1:] {
+		kv := strings.SplitN(strings.TrimSpace(p), "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(kv[0]), "charset") {
+			v := strings.TrimSpace(kv[1])
+			v = strings.Trim(v, "\"'")
+			return strings.ToLower(v)
+		}
+	}
+	return ""
+}
+
+// decodeBodyByCharset converts a byte slice to a string using the charset
+// declared in the Content-Type header. Falls back to UTF-8 when the charset
+// is absent or unrecognised so unknown values never panic.
+func decodeBodyByCharset(body []byte, contentType string) string {
+	charset := extractCharset(contentType)
+	switch charset {
+	case "", "utf-8", "utf8", "us-ascii", "ascii":
+		return string(body)
+	case "iso-8859-1", "latin1", "latin-1":
+		runes := make([]rune, len(body))
+		for i, b := range body {
+			runes[i] = rune(b)
+		}
+		return string(runes)
+	case "windows-1252", "cp1252":
+		return decodeWindows1252(body)
+	case "utf-16le", "utf16le":
+		return decodeUtf16(body, false)
+	case "utf-16", "utf16", "utf-16be", "utf16be":
+		// A BOM-less utf-16 body defaults to big-endian per RFC 2781.
+		return decodeUtf16(body, true)
+	default:
+		return string(body)
+	}
+}
+
+// decodeUtf16 decodes UTF-16 byte sequences (with optional BOM) to a UTF-8
+// string. Handles surrogate pairs per Unicode 15. bigEndian selects byte
+// order when no BOM is present. Matches the other SDKs, which decode UTF-16
+// via native charset support.
+func decodeUtf16(body []byte, bigEndian bool) string {
+	if len(body) < 2 {
+		return string(body)
+	}
+	// Honour BOM if present.
+	if body[0] == 0xFF && body[1] == 0xFE {
+		bigEndian = false
+		body = body[2:]
+	} else if body[0] == 0xFE && body[1] == 0xFF {
+		bigEndian = true
+		body = body[2:]
+	}
+	if len(body)%2 != 0 {
+		body = body[:len(body)-1]
+	}
+	units := make([]uint16, 0, len(body)/2)
+	for i := 0; i+1 < len(body); i += 2 {
+		if bigEndian {
+			units = append(units, uint16(body[i])<<8|uint16(body[i+1]))
+		} else {
+			units = append(units, uint16(body[i+1])<<8|uint16(body[i]))
+		}
+	}
+	runes := make([]rune, 0, len(units))
+	for i := 0; i < len(units); i++ {
+		u := units[i]
+		if u >= 0xD800 && u <= 0xDBFF && i+1 < len(units) {
+			low := units[i+1]
+			if low >= 0xDC00 && low <= 0xDFFF {
+				r := 0x10000 + (rune(u-0xD800) << 10) + rune(low-0xDC00)
+				runes = append(runes, r)
+				i++
+				continue
+			}
+		}
+		runes = append(runes, rune(u))
+	}
+	return string(runes)
+}
+
+// windows1252Overrides maps the 0x80–0x9F range from Windows-1252 to their
+// Unicode equivalents. Bytes outside this range round-trip 1:1 like
+// ISO-8859-1, so we only need a small override table.
+var windows1252Overrides = map[byte]rune{
+	0x80: 0x20AC, 0x82: 0x201A, 0x83: 0x0192, 0x84: 0x201E,
+	0x85: 0x2026, 0x86: 0x2020, 0x87: 0x2021, 0x88: 0x02C6,
+	0x89: 0x2030, 0x8A: 0x0160, 0x8B: 0x2039, 0x8C: 0x0152,
+	0x8E: 0x017D, 0x91: 0x2018, 0x92: 0x2019, 0x93: 0x201C,
+	0x94: 0x201D, 0x95: 0x2022, 0x96: 0x2013, 0x97: 0x2014,
+	0x98: 0x02DC, 0x99: 0x2122, 0x9A: 0x0161, 0x9B: 0x203A,
+	0x9C: 0x0153, 0x9E: 0x017E, 0x9F: 0x0178,
+}
+
+func decodeWindows1252(body []byte) string {
+	runes := make([]rune, 0, len(body))
+	for _, b := range body {
+		if r, ok := windows1252Overrides[b]; ok {
+			runes = append(runes, r)
+		} else {
+			runes = append(runes, rune(b))
+		}
+	}
+	return string(runes)
+}
+
+func isTextContentType(contentType string) bool {
+	parts := strings.SplitN(contentType, ";", 2)
+	mediaType := strings.ToLower(strings.TrimSpace(parts[0]))
+	if mediaType == "" {
+		return true
+	}
+	if strings.HasPrefix(mediaType, "text/") {
+		return true
+	}
+	return mediaType == "application/json" ||
+		mediaType == "application/xml" ||
+		mediaType == "application/javascript" ||
+		strings.HasSuffix(mediaType, "+json") ||
+		strings.HasSuffix(mediaType, "+xml")
+}
+
+// buildTransportMultipartBody constructs a multipart/form-data request body from
+// a map of form field names to values. Values may be []byte (sent as file parts),
+// strings/numbers/bools (sent as text parts), or any other type (JSON-serialized).
+func buildTransportMultipartBody(formFields map[string]any) (*bytes.Buffer, string, error) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	for _, fieldName := range orderedKeys(formFields, nil) {
+		value := formFields[fieldName]
+		// Gap W2: every Content-Disposition header below interpolates
+		// fieldName into a quoted name="..." parameter, so the name
+		// must be validated for CR/LF/NUL and quote-escaped exactly
+		// like the filename has been since Gap BI.
+		if err := validateMultipartFieldName(fieldName); err != nil {
+			return nil, "", err
+		}
+		escapedFieldName := escapeQuotes(fieldName)
+		switch v := value.(type) {
+		case []byte:
+			if err := validateMultipartFilename(fieldName); err != nil {
+				return nil, "", err
+			}
+			partHeader := make(textproto.MIMEHeader)
+			partHeader.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, buildFilenameDirective(fieldName)))
+			partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
+			part, err := writer.CreatePart(partHeader)
+			if err != nil {
+				return nil, "", err
+			}
+			if _, err := part.Write(v); err != nil {
+				return nil, "", err
+			}
+		case *os.File:
+			// *os.File is the SDK's own file type; without this case it would
+			// fall to the default branch and json.Marshal to "{}", silently
+			// corrupting the upload. Stream it as a file part for parity with
+			// base_api's writeMultipartField.
+			if v == nil {
+				continue
+			}
+			if err := validateMultipartFilename(fieldName); err != nil {
+				return nil, "", err
+			}
+			partHeader := make(textproto.MIMEHeader)
+			partHeader.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, buildFilenameDirective(fieldName)))
+			partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
+			part, err := writer.CreatePart(partHeader)
+			if err != nil {
+				return nil, "", err
+			}
+			if _, err := v.Seek(0, io.SeekStart); err != nil {
+				return nil, "", fmt.Errorf("failed to rewind multipart file %q: %w", fieldName, err)
+			}
+			if _, err := io.Copy(part, v); err != nil {
+				return nil, "", err
+			}
+		case io.Reader:
+			if err := validateMultipartFilename(fieldName); err != nil {
+				return nil, "", err
+			}
+			partHeader := make(textproto.MIMEHeader)
+			partHeader.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, buildFilenameDirective(fieldName)))
+			partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
+			part, err := writer.CreatePart(partHeader)
+			if err != nil {
+				return nil, "", err
+			}
+			if _, err := io.Copy(part, v); err != nil {
+				return nil, "", err
+			}
+		case string:
+			if err := writer.WriteField(fieldName, v); err != nil {
+				return nil, "", err
+			}
+		case bool:
+			if err := writer.WriteField(fieldName, fmt.Sprintf("%t", v)); err != nil {
+				return nil, "", err
+			}
+		case int, int64, float64:
+			if err := writer.WriteField(fieldName, fmt.Sprintf("%v", v)); err != nil {
+				return nil, "", err
+			}
+		case []any:
+			for _, item := range v {
+				if b, ok := item.([]byte); ok {
+					if err := validateMultipartFilename(fieldName); err != nil {
+						return nil, "", err
+					}
+					partHeader := make(textproto.MIMEHeader)
+					partHeader.Set("Content-Disposition",
+						fmt.Sprintf(`form-data; name="%s"; %s`, escapedFieldName, buildFilenameDirective(fieldName)))
+					partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
+					part, err := writer.CreatePart(partHeader)
+					if err != nil {
+						return nil, "", err
+					}
+					if _, err := part.Write(b); err != nil {
+						return nil, "", err
+					}
+				} else {
+					jsonBytes, err := serialize(item)
+					if err != nil {
+						return nil, "", fmt.Errorf("failed to serialize multipart field %q: %w", fieldName, err)
+					}
+					partHeader := make(textproto.MIMEHeader)
+					partHeader.Set("Content-Disposition",
+						fmt.Sprintf(`form-data; name="%s"`, escapedFieldName))
+					partHeader.Set("Content-Type", "application/json")
+					part, err := writer.CreatePart(partHeader)
+					if err != nil {
+						return nil, "", err
+					}
+					if _, err := part.Write(jsonBytes); err != nil {
+						return nil, "", err
+					}
+				}
+			}
+		default:
+			jsonBytes, err := serialize(v)
+			if err != nil {
+				return nil, "", fmt.Errorf("failed to serialize multipart field %q: %w", fieldName, err)
+			}
+			partHeader := make(textproto.MIMEHeader)
+			partHeader.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"`, escapedFieldName))
+			partHeader.Set("Content-Type", "application/json")
+			part, err := writer.CreatePart(partHeader)
+			if err != nil {
+				return nil, "", err
+			}
+			if _, err := part.Write(jsonBytes); err != nil {
+				return nil, "", err
+			}
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, "", err
+	}
+
+	return body, writer.FormDataContentType(), nil
+}

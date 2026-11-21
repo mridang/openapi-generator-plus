@@ -1,0 +1,1364 @@
+{{>api_info}}
+
+package {{modelPackage}};
+
+{{#imports}}
+import {{import}};
+{{/imports}}
+import javax.annotation.Nullable;
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+{{#description}}
+/** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+{{/description}}
+{{^description}}
+/** {{classname}}. */
+{{/description}}
+{{#isInteger}}
+public enum {{classname}} {
+  {{#allowableValues}}
+  {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+  {{/enumDescription}}
+  {{^enumDescription}}
+  /** The {@code {{{value}}}} value. */
+  {{/enumDescription}}
+  {{{name}}}({{{value}}}),
+  {{/enumVars}}
+  {{/allowableValues}}
+  /** Any wire value this SDK does not list; it cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API(0);
+
+  private final int value;
+
+  {{classname}}(int value) {
+    this.value = value;
+  }
+
+  /**
+   * Returns the wire value of this enum constant.
+   *
+   * @return the wire value
+   */
+  @com.fasterxml.jackson.annotation.JsonValue
+  public int getValue() {
+    return value;
+  }
+
+  /**
+   * Returns the wire value, so the string form of a constant is what is sent.
+   *
+   * @return the wire value as a string
+   */
+  @Override
+  public String toString() {
+    return String.valueOf(value);
+  }
+
+  /**
+   * Returns the enum constant for the given wire value.
+   *
+   * @param value the wire value
+   * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
+   */
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public static {{classname}} fromValue(int value) {
+    for ({{classname}} b : values()) {
+      if (b.value == value) {
+        return b;
+      }
+    }
+    return UNKNOWN_DEFAULT_OPEN_API;
+  }
+}
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+public enum {{classname}} {
+  {{#allowableValues}}
+  {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+  {{/enumDescription}}
+  {{^enumDescription}}
+  /** The {@code {{{value}}}} value. */
+  {{/enumDescription}}
+  {{{name}}}({{{value}}}L),
+  {{/enumVars}}
+  {{/allowableValues}}
+  /** Any wire value this SDK does not list; it cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API(0L);
+
+  private final long value;
+
+  {{classname}}(long value) {
+    this.value = value;
+  }
+
+  /**
+   * Returns the wire value of this enum constant.
+   *
+   * @return the wire value
+   */
+  @com.fasterxml.jackson.annotation.JsonValue
+  public long getValue() {
+    return value;
+  }
+
+  /**
+   * Returns the wire value, so the string form of a constant is what is sent.
+   *
+   * @return the wire value as a string
+   */
+  @Override
+  public String toString() {
+    return String.valueOf(value);
+  }
+
+  /**
+   * Returns the enum constant for the given wire value.
+   *
+   * @param value the wire value
+   * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
+   */
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public static {{classname}} fromValue(long value) {
+    for ({{classname}} b : values()) {
+      if (b.value == value) {
+        return b;
+      }
+    }
+    return UNKNOWN_DEFAULT_OPEN_API;
+  }
+}
+{{/isLong}}
+{{^isLong}}
+public enum {{classname}} {
+  {{#allowableValues}}
+  {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+  {{/enumDescription}}
+  {{^enumDescription}}
+  /** The {@code {{{value}}}} value. */
+  {{/enumDescription}}
+  {{{name}}}({{{value}}}),
+  {{/enumVars}}
+  {{/allowableValues}}
+  /** Any wire value this SDK does not list; it cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API("");
+
+  private final String value;
+
+  {{classname}}(String value) {
+    this.value = value;
+  }
+
+  /**
+   * Returns the wire value of this enum constant.
+   *
+   * @return the wire value
+   */
+  @com.fasterxml.jackson.annotation.JsonValue
+  public String getValue() {
+    return value;
+  }
+
+  /**
+   * Returns the wire value, so the string form of a constant is what is sent.
+   *
+   * @return the wire value as a string
+   */
+  @Override
+  public String toString() {
+    return String.valueOf(value);
+  }
+
+  /**
+   * Returns the enum constant for the given wire value.
+   *
+   * @param value the wire value
+   * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
+   */
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public static {{classname}} fromValue(String value) {
+    for ({{classname}} b : values()) {
+      if (b.value.equals(value)) {
+        return b;
+      }
+    }
+    return UNKNOWN_DEFAULT_OPEN_API;
+  }
+}
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+{{/externalDocumentation}}
+ */
+@Deprecated
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+ *
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{classname}}. */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+{{#discriminator}}
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "{{discriminator.propertyBaseName}}",
+    visible = true)
+@JsonSubTypes({
+{{#mappedModels}}
+  @JsonSubTypes.Type(value = {{modelName}}.class, name = "{{mappingName}}"){{^-last}},{{/-last}}
+{{/mappedModels}}
+})
+public abstract class {{classname}} {
+
+  /** Creates a new instance. */
+  protected {{classname}}() {}
+}
+{{/discriminator}}
+{{^discriminator}}
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+    using = {{classname}}.{{classname}}Deserializer.class)
+public class {{classname}} {
+
+  /* Variant type tokens for the union, in schema declaration order (the
+   * first variant that decodes wins). TypeReference (not Class.class) is
+   * used so that primitive/array/generic variants — e.g. String, byte[],
+   * List<String> — are representable; List<String>.class is not legal Java. */
+  private static final java.util.List<com.fasterxml.jackson.core.type.TypeReference<?>>
+      ONE_OF_SCHEMAS = java.util.List.of(
+    {{#composedSchemas.oneOf}}new com.fasterxml.jackson.core.type.TypeReference<{{{dataType}}}>() {}{{^-last}},
+    {{/-last}}{{/composedSchemas.oneOf}}
+  );
+
+  private Object actualInstance;
+
+  /**
+   * Wraps a concrete variant of this union.
+   *
+   * @param value the concrete variant instance
+   */
+  public {{classname}}(Object value) {
+    this.actualInstance = value;
+  }
+
+  /**
+   * Returns the wrapped concrete variant instance.
+   *
+   * @return the concrete variant instance
+   */
+  @JsonValue
+  public Object getActualInstance() {
+    return actualInstance;
+  }
+
+{{#composedSchemas.oneOf}}
+
+  /**
+   * Wraps a {@code {{{dataType}}}} as this union.
+   *
+   * @param value the {@code {{{dataType}}}} variant
+   * @return the union holding {@code value}
+   */
+  public static {{classname}} of{{vendorExtensions.variantName}}({{{dataType}}} value) {
+    return new {{classname}}(value);
+  }
+{{#vendorExtensions.isPlainVariant}}
+
+  /**
+   * Tells whether this union holds a {@code {{{dataType}}}}.
+   *
+   * @return {@code true} when the wrapped variant is a {@code {{{dataType}}}}
+   */
+  public boolean is{{vendorExtensions.variantName}}() {
+    return actualInstance instanceof {{{dataType}}};
+  }
+
+  /**
+   * Returns the wrapped variant as a {@code {{{dataType}}}}.
+   *
+   * @return the variant, or empty when this union holds another variant
+   */
+  public java.util.Optional<{{{dataType}}}> as{{vendorExtensions.variantName}}() {
+    return actualInstance instanceof {{{dataType}}} variant
+        ? java.util.Optional.of(variant)
+        : java.util.Optional.empty();
+  }
+{{/vendorExtensions.isPlainVariant}}
+{{/composedSchemas.oneOf}}
+
+  /* Value equality on the wrapped variant, so two unions decoded from the
+   * same JSON compare equal (byte[] and List variants by content). */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof {{classname}} other)) {
+      return false;
+    }
+    return {{invokerPackage}}.ObjectSerializer.structuralEquals(
+        this.actualInstance, other.actualInstance);
+  }
+
+  @Override
+  public int hashCode() {
+    return {{invokerPackage}}.ObjectSerializer.structuralHashCode(actualInstance);
+  }
+
+  static class {{classname}}Deserializer
+      extends com.fasterxml.jackson.databind.JsonDeserializer<{{classname}}> {
+    @Override
+    public {{classname}} deserialize(
+        com.fasterxml.jackson.core.JsonParser p,
+        com.fasterxml.jackson.databind.DeserializationContext ctxt)
+        throws java.io.IOException {
+      com.fasterxml.jackson.databind.JsonNode node = p.readValueAsTree();
+      for (com.fasterxml.jackson.core.type.TypeReference<?> schema : ONE_OF_SCHEMAS) {
+        try {
+          com.fasterxml.jackson.databind.JavaType type =
+              ctxt.getTypeFactory().constructType(schema);
+          Object value = ctxt.readTreeAsValue(node, type);
+          return new {{classname}}(value);
+        } catch (Exception ignored) {
+          /* This union variant did not match; try the next. A total
+             no-match throws after the loop. */
+        }
+      }
+      /* No schema in the union matched — throw rather than silently store
+       * the raw JSON tree as the actualInstance. This aligns the oneOf
+       * (no-discriminator) path with the seven SDKs that already throw on
+       * no-match (Python, Swift, Dart, Go, Rust, ...) and with this SDK's
+       * own anyOf path, so data-shape bugs surface loudly. */
+      throw com.fasterxml.jackson.databind.exc.MismatchedInputException.from(
+          p,
+          {{classname}}.class,
+          "JSON did not match any schema in the {{classname}} union: " + node);
+    }
+  }
+}
+{{/discriminator}}
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+{{/externalDocumentation}}
+ */
+@Deprecated
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+ *
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{classname}}. */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+    using = {{classname}}.{{classname}}Deserializer.class)
+public class {{classname}} {
+
+  private static final Class<?>[] ANY_OF_SCHEMAS = {
+    {{#composedSchemas.anyOf}}{{{dataType}}}.class{{^-last}}, {{/-last}}{{/composedSchemas.anyOf}}
+  };
+
+  /* anyOf is inclusive: a payload may satisfy several variants at once
+   * (e.g. an object whose fields cover both Medication and Surgery). Unlike
+   * oneOf — which picks exactly one variant — every variant that
+   * successfully decodes is retained here so a co-satisfying payload
+   * round-trips losslessly instead of silently dropping the variants past
+   * the first match. The list preserves schema declaration order. */
+  private final java.util.List<Object> matchedInstances = new java.util.ArrayList<>();
+
+  /**
+   * Wraps a single concrete variant of this union; a {@code null} value wraps no instance.
+   *
+   * @param value the concrete variant instance, or {@code null} for none
+   */
+  public {{classname}}(@Nullable Object value) {
+    if (value != null) {
+      this.matchedInstances.add(value);
+    }
+  }
+
+  /**
+   * Wraps every concrete variant that this union matched.
+   *
+   * @param values the concrete variant instances, in schema declaration order
+   */
+  public {{classname}}(java.util.List<Object> values) {
+    this.matchedInstances.addAll(values);
+  }
+
+  /**
+   * Returns the first variant that this union matched.
+   *
+   * <p>For an anyOf payload that satisfied several variants at once this is
+   * still only the first retained variant in schema declaration order. Use
+   * {@link #getMatchedInstances()} to access every retained variant.
+   *
+   * @return the first matched variant, or {@code null} if none were retained
+   */
+  @Nullable
+  public Object getActualInstance() {
+    return matchedInstances.isEmpty() ? null : matchedInstances.get(0);
+  }
+
+  /* The wire value: the single matched variant, or the merged field-set when
+   * several variants matched, so a co-satisfying payload round-trips
+   * losslessly. Kept private so it is not part of the public surface. */
+  @JsonValue
+  @Nullable
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = {"UPM_UNCALLED_PRIVATE_METHOD"},
+      justification = "Jackson invokes this method through the JsonValue annotation")
+  private Object jsonValue() {
+    if (matchedInstances.isEmpty()) {
+      return null;
+    }
+    for (Object instance : matchedInstances) {
+      boolean isVariant = false;
+      for (Class<?> schema : ANY_OF_SCHEMAS) {
+        if (schema.isInstance(instance)) {
+          isVariant = true;
+          break;
+        }
+      }
+      if (!isVariant) {
+        throw new {{invokerPackage}}.errors.SerializationException(
+            "{{classname}} holds a value that is not one of its variants: "
+                + instance.getClass().getName());
+      }
+    }
+    if (matchedInstances.size() == 1) {
+      return matchedInstances.get(0);
+    }
+    return mergedValue();
+  }
+
+  /**
+   * Returns every concrete variant instance that this union matched.
+   *
+   * <p>For an anyOf a payload may satisfy more than one variant; all of them
+   * are retained so the value can be re-encoded without data loss.
+   *
+   * @return the matched concrete variant instances, in schema declaration
+   *     order
+   */
+  public java.util.List<Object> getMatchedInstances() {
+    return java.util.Collections.unmodifiableList(matchedInstances);
+  }
+
+{{#composedSchemas.anyOf}}
+
+  /**
+   * Wraps a {@code {{{dataType}}}} as this union.
+   *
+   * @param value the {@code {{{dataType}}}} variant
+   * @return the union holding {@code value}
+   */
+  public static {{classname}} of{{vendorExtensions.variantName}}({{{dataType}}} value) {
+    return new {{classname}}((Object) value);
+  }
+{{#vendorExtensions.isPlainVariant}}
+
+  /**
+   * Tells whether this union retained a {@code {{{dataType}}}}.
+   *
+   * @return {@code true} when a retained variant is a {@code {{{dataType}}}}
+   */
+  public boolean is{{vendorExtensions.variantName}}() {
+    return matchedInstances.stream().anyMatch(instance -> instance instanceof {{{dataType}}});
+  }
+
+  /**
+   * Returns the first retained variant that is a {@code {{{dataType}}}}.
+   *
+   * @return the variant, or empty when no retained variant is a {@code {{{dataType}}}}
+   */
+  public java.util.Optional<{{{dataType}}}> as{{vendorExtensions.variantName}}() {
+    for (Object instance : matchedInstances) {
+      if (instance instanceof {{{dataType}}} variant) {
+        return java.util.Optional.of(variant);
+      }
+    }
+    return java.util.Optional.empty();
+  }
+{{/vendorExtensions.isPlainVariant}}
+{{/composedSchemas.anyOf}}
+
+  /* Value equality on the retained variants, in order, so two unions decoded
+   * from the same JSON compare equal (byte[] and List variants by content). */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof {{classname}} other)) {
+      return false;
+    }
+    return {{invokerPackage}}.ObjectSerializer.structuralEquals(
+        this.matchedInstances, other.matchedInstances);
+  }
+
+  @Override
+  public int hashCode() {
+    return {{invokerPackage}}.ObjectSerializer.structuralHashCode(matchedInstances);
+  }
+
+  /* Re-encode as the union of every retained variant's fields. When the
+   * payload satisfied several object variants their serialized field-sets
+   * are merged (later-declared variants win on key collisions) so no
+   * co-satisfied field is dropped on round-trip and the emitted object
+   * carries each key exactly once. A single non-object variant (e.g. a
+   * scalar or byte[]) is emitted as-is. */
+  private Object mergedValue() {
+    com.fasterxml.jackson.databind.ObjectMapper mapper =
+        new com.fasterxml.jackson.databind.ObjectMapper();
+    com.fasterxml.jackson.databind.node.ObjectNode merged =
+        mapper.getNodeFactory().objectNode();
+    for (Object instance : matchedInstances) {
+      com.fasterxml.jackson.databind.JsonNode node = mapper.valueToTree(instance);
+      if (node instanceof com.fasterxml.jackson.databind.node.ObjectNode objectNode) {
+        for (java.util.Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> entry :
+            objectNode.properties()) {
+          /* Later-declared variants overwrite earlier ones on a shared key,
+           * so a collision resolves to the last member's value. */
+          merged.set(entry.getKey(), entry.getValue());
+        }
+      } else {
+        /* A non-object variant cannot be merged into a field-set; emit the
+         * first such variant verbatim to preserve scalar/array unions. */
+        return instance;
+      }
+    }
+    return merged;
+  }
+
+  static class {{classname}}Deserializer
+      extends com.fasterxml.jackson.databind.JsonDeserializer<{{classname}}> {
+    @Override
+    public {{classname}} deserialize(
+        com.fasterxml.jackson.core.JsonParser p,
+        com.fasterxml.jackson.databind.DeserializationContext ctxt)
+        throws java.io.IOException {
+      com.fasterxml.jackson.databind.JsonNode node = p.readValueAsTree();
+      java.util.List<Object> matched = new java.util.ArrayList<>();
+      for (Class<?> schema : ANY_OF_SCHEMAS) {
+        /* anyOf is inclusive: keep scanning and retain EVERY variant that
+           decodes. tryDecodeVariant probes one variant and returns null when
+           it does not match, so the non-matching exception is converted to a
+           sentinel here rather than swallowed in an empty catch. A total
+           no-match (matched stays empty) throws after the loop. */
+        Object value = tryDecodeVariant(ctxt, node, schema);
+        if (value != null) {
+          matched.add(value);
+        }
+      }
+      if (!matched.isEmpty()) {
+        return new {{classname}}(matched);
+      }
+      /* No schema in the union matched — throw rather than silently
+       * fall back to a raw Object. Five SDKs throw (Python, Swift,
+       * Dart, Go, Rust); we align the other seven (Java here, plus
+       * Kotlin/C#/PHP/Ruby/Node/Elixir) to the same strict behaviour
+       * so data-shape bugs surface loudly. */
+      throw com.fasterxml.jackson.databind.exc.MismatchedInputException.from(
+          p,
+          {{classname}}.class,
+          "JSON did not match any schema in the {{classname}} union: " + node);
+    }
+
+    /* Probe a single anyOf variant. Returns the decoded value, or null when the
+       node does not satisfy this variant — converting the (expected) mismatch
+       to a sentinel so the caller's loop has no empty catch to swallow. */
+    @Nullable
+    private static Object tryDecodeVariant(
+        com.fasterxml.jackson.databind.DeserializationContext ctxt,
+        com.fasterxml.jackson.databind.JsonNode node,
+        Class<?> schema) {
+      try {
+        return ctxt.readTreeAsValue(node, schema);
+      } catch (Exception variantDidNotMatch) {
+        return null;
+      }
+    }
+  }
+}
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+{{#isDeprecated}}
+{{#description}}
+/**
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+ *
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+{{/externalDocumentation}}
+ */
+{{/description}}
+{{^description}}
+/**
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+{{/externalDocumentation}}
+ */
+{{/description}}
+@Deprecated
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+ *
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{classname}}. */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+{{#vendorExtensions.x-allof-base}}
+@com.fasterxml.jackson.annotation.JsonTypeInfo(
+    use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME,
+    include = com.fasterxml.jackson.annotation.JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "{{discriminator.propertyBaseName}}",
+    visible = true)
+@com.fasterxml.jackson.annotation.JsonSubTypes({
+{{#discriminator}}
+{{#mappedModels}}
+  @com.fasterxml.jackson.annotation.JsonSubTypes.Type(value = {{modelName}}.class, name = "{{mappingName}}"){{^-last}},{{/-last}}
+{{/mappedModels}}
+{{/discriminator}}
+})
+public abstract class {{classname}} {
+{{/vendorExtensions.x-allof-base}}
+{{^vendorExtensions.x-allof-base}}
+{{#parent}}
+{{^vendorExtensions.x-allof-child}}
+@com.fasterxml.jackson.annotation.JsonTypeInfo(use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NONE)
+{{/vendorExtensions.x-allof-child}}
+{{/parent}}
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = {{classname}}.Builder.class)
+{{#vendorExtensions.x-allof-child}}
+@com.fasterxml.jackson.annotation.JsonTypeInfo(
+    use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME,
+    include = com.fasterxml.jackson.annotation.JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "{{vendorExtensions.x-allof-discriminator-property}}",
+    visible = true,
+    defaultImpl = {{classname}}.class)
+{{/vendorExtensions.x-allof-child}}
+public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
+{{#parent}}
+{{^vendorExtensions.x-allof-child}}
+  /* A subtype reads its own discriminator as an ordinary property, so an absent key falls back to the
+   * builder default (the mapping value) instead of failing as a missing type id. */
+{{/vendorExtensions.x-allof-child}}
+{{/parent}}
+{{/vendorExtensions.x-allof-base}}
+{{#vars}}
+{{#isEnum}}
+
+  /** Allowed values for the {@code {{name}}} property. */
+{{#isInteger}}
+  public enum {{enumName}} {
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{#enumDescription}}
+    /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+    {{/enumDescription}}
+    {{^enumDescription}}
+    /** The {@code {{{value}}}} value. */
+    {{/enumDescription}}
+    {{{name}}}({{{value}}}),
+    {{/enumVars}}
+    {{/allowableValues}}
+    /** Any wire value this SDK does not list; it cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(0);
+
+    private final int value;
+
+    {{enumName}}(int value) {
+      this.value = value;
+    }
+
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
+    @JsonValue
+    public int getValue() {
+      return value;
+    }
+
+    /**
+     * Returns the wire value, so the string form of a constant is what is sent.
+     *
+     * @return the wire value as a string
+     */
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
+     */
+    @JsonCreator
+    public static {{enumName}} fromValue(int value) {
+      for ({{enumName}} b : values()) {
+        if (b.value == value) {
+          return b;
+        }
+      }
+      return UNKNOWN_DEFAULT_OPEN_API;
+    }
+  }
+{{/isInteger}}
+{{^isInteger}}
+{{#isLong}}
+  public enum {{enumName}} {
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{#enumDescription}}
+    /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+    {{/enumDescription}}
+    {{^enumDescription}}
+    /** The {@code {{{value}}}} value. */
+    {{/enumDescription}}
+    {{{name}}}({{{value}}}L),
+    {{/enumVars}}
+    {{/allowableValues}}
+    /** Any wire value this SDK does not list; it cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(0L);
+
+    private final long value;
+
+    {{enumName}}(long value) {
+      this.value = value;
+    }
+
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
+    @JsonValue
+    public long getValue() {
+      return value;
+    }
+
+    /**
+     * Returns the wire value, so the string form of a constant is what is sent.
+     *
+     * @return the wire value as a string
+     */
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
+     */
+    @JsonCreator
+    public static {{enumName}} fromValue(long value) {
+      for ({{enumName}} b : values()) {
+        if (b.value == value) {
+          return b;
+        }
+      }
+      return UNKNOWN_DEFAULT_OPEN_API;
+    }
+  }
+{{/isLong}}
+{{^isLong}}
+  public enum {{enumName}} {
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{#enumDescription}}
+    /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+    {{/enumDescription}}
+    {{^enumDescription}}
+    /** The {@code {{{value}}}} value. */
+    {{/enumDescription}}
+    {{{name}}}({{{value}}}),
+    {{/enumVars}}
+    {{/allowableValues}}
+    /** Any wire value this SDK does not list; it cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API("");
+
+    private final String value;
+
+    {{enumName}}(String value) {
+      this.value = value;
+    }
+
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    /**
+     * Returns the wire value, so the string form of a constant is what is sent.
+     *
+     * @return the wire value as a string
+     */
+    @Override
+    public String toString() {
+      return String.valueOf(value);
+    }
+
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
+     */
+    @JsonCreator
+    public static {{enumName}} fromValue(String value) {
+      for ({{enumName}} b : values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      return UNKNOWN_DEFAULT_OPEN_API;
+    }
+  }
+{{/isLong}}
+{{/isInteger}}
+{{/isEnum}}
+{{/vars}}
+
+{{#vars}}
+{{^vendorExtensions.x-inherited}}
+  {{! L2: a single Javadoc block per property. Description, the singular example,
+      and any plural x-examples are all merged here as proper Javadoc (the
+      pluralExamples block previously used the `///` markdown-doc idiom, inert on
+      Java 17/21, and emitted a SECOND doc comment that orphaned the first).
+      Example values go inside {@code ...}: doclint renders the angle brackets and
+      braces of a JSON value literally without HTML entities (which the formatting
+      spec forbids). @deprecated and the @Deprecated annotation follow. }}
+  /**
+  {{#description}}
+   * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+  {{/description}}
+  {{^description}}
+   * The {@code {{name}}} property.
+  {{/description}}
+  {{#example}}
+   *
+   * <p>Example: {@code {{{.}}}}
+  {{/example}}
+  {{#vendorExtensions.pluralExamples}}
+   *
+   * <p>{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}: {@code {{{value}}}}
+  {{/vendorExtensions.pluralExamples}}
+  {{#isReadOnly}}
+   *
+   * <p>Read-only: the server sets this value. It is still sent and
+   * received like any other property.
+  {{/isReadOnly}}
+  {{#isWriteOnly}}
+   *
+   * <p>Write-only: the server accepts this value but does not return it.
+   * It is still sent and received like any other property.
+  {{/isWriteOnly}}
+  {{#deprecated}}
+   *
+   * @deprecated This property is deprecated.
+  {{/deprecated}}
+   */
+  {{#deprecated}}
+  @Deprecated
+  {{/deprecated}}
+  @JsonProperty("{{baseName}}")
+  {{#vendorExtensions.isDecimalString}}@com.fasterxml.jackson.databind.annotation.JsonSerialize(using = {{invokerPackage}}.ObjectSerializer.StringDecimalSerializer.class)
+  {{/vendorExtensions.isDecimalString}}{{^required}}@Nullable{{/required}}{{#required}}{{#isNullable}}@Nullable
+  @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.ALWAYS){{/isNullable}}{{/required}}
+  public final {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}};
+
+{{/vendorExtensions.x-inherited}}
+{{/vars}}
+{{#vendorExtensions.x-allof-base}}
+
+  /**
+   * Creates the base of a composed model and sets the properties that the subtypes share.
+   *
+   * <p>The subtypes pass their own values up, so a required property is checked once and read the
+   * same through the base.
+   *
+  {{#vars}}
+   * @param {{name}} the {{name}} property
+  {{/vars}}
+   */
+  protected {{classname}}({{#vars}}{{^required}}@Nullable {{/required}}{{#required}}{{#isNullable}}@Nullable {{/isNullable}}{{/required}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/vars}}) {
+{{#vars}}
+{{#required}}
+{{^isNullable}}
+    this.{{name}} =
+        {{#isByteArray}}{{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+            new java.util.{{vendorExtensions.copyImpl}}<>({{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/isNullable}}
+{{#isNullable}}
+    this.{{name}} =
+        {{#isByteArray}}{{name}} == null ? null : {{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}{{name}} == null
+            ? null
+            : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+                new java.util.{{vendorExtensions.copyImpl}}<>({{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/isNullable}}
+{{/required}}
+{{^required}}
+    this.{{name}} =
+        {{#isByteArray}}{{name}} == null ? null : {{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}{{name}} == null
+            ? null
+            : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+                new java.util.{{vendorExtensions.copyImpl}}<>({{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/required}}
+{{/vars}}
+  }
+{{/vendorExtensions.x-allof-base}}
+{{^vendorExtensions.x-allof-base}}
+{{#isAdditionalPropertiesTrue}}
+
+  /* Wire names of the declared properties; an additional property with one of
+   * these keys is never serialised (the declared property wins). */
+  private static final java.util.Set<String> DECLARED_PROPERTY_NAMES =
+      java.util.Set.of({{#allVars}}"{{baseName}}"{{^-last}}, {{/-last}}{{/allVars}});
+
+  /* Not a property itself: the entries are written flat by the any-getter. */
+  @com.fasterxml.jackson.annotation.JsonIgnore
+  private final java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties;
+
+  /**
+   * Returns the additional, undeclared properties.
+   *
+   * @return the additional properties, keyed by property name
+   */
+  @com.fasterxml.jackson.annotation.JsonAnyGetter
+  public java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> getAdditionalProperties() {
+    /* A key that equals a declared property's wire name is dropped here, so the
+     * declared value wins and the serialised object never carries a duplicate
+     * key. The copy is unmodifiable so callers cannot mutate internal state
+     * through the accessor (SpotBugs EI_EXPOSE_REP-clean without a suppression). */
+    java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> extras = new java.util.LinkedHashMap<>(this.additionalProperties);
+    extras.keySet().removeAll(DECLARED_PROPERTY_NAMES);
+    return java.util.Collections.unmodifiableMap(extras);
+  }
+{{/isAdditionalPropertiesTrue}}
+{{#hasRequired}}
+
+  /**
+   * Creates an instance with all required properties.
+   *
+{{#requiredVars}}
+   * @param {{name}} the {@code {{baseName}}} property
+{{/requiredVars}}
+   */
+  public {{classname}}({{#requiredVars}}{{#isNullable}}@Nullable {{/isNullable}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
+    this(new Builder(){{#requiredVars}}.{{vendorExtensions.builderName}}({{name}}){{/requiredVars}});
+  }
+{{/hasRequired}}
+{{^hasRequired}}
+
+  /** Creates an instance with every property at its default. */
+  public {{classname}}() {
+    this(new Builder());
+  }
+{{/hasRequired}}
+
+  /* The one place an instance is made, so the required properties are checked for the
+   * constructor, the builder and deserialization alike. A collection is copied into an
+   * unmodifiable one, so the instance never shares a list with its caller. */
+  private {{classname}}(Builder builder) {
+{{#vendorExtensions.x-allof-child}}
+    super({{{vendorExtensions.superArgs}}});
+{{/vendorExtensions.x-allof-child}}
+    builder.requireNullableProperties();
+{{#vars}}
+{{^vendorExtensions.x-inherited}}
+{{#required}}
+{{^isNullable}}
+    this.{{name}} =
+        {{#isByteArray}}java.util.Objects.requireNonNull(builder.{{name}}, "{{name}} is required").clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+            new java.util.{{vendorExtensions.copyImpl}}<>(
+                java.util.Objects.requireNonNull(builder.{{name}}, "{{name}} is required"))){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}java.util.Objects.requireNonNull(builder.{{name}}, "{{name}} is required"){{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/isNullable}}
+{{#isNullable}}
+    this.{{name}} =
+        {{#isByteArray}}builder.{{name}} == null ? null : builder.{{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}builder.{{name}} == null
+            ? null
+            : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+                new java.util.{{vendorExtensions.copyImpl}}<>(builder.{{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}builder.{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/isNullable}}
+{{/required}}
+{{^required}}
+    this.{{name}} =
+        {{#isByteArray}}builder.{{name}} == null ? null : builder.{{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}builder.{{name}} == null
+            ? null
+            : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+                new java.util.{{vendorExtensions.copyImpl}}<>(builder.{{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}builder.{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/required}}
+{{/vendorExtensions.x-inherited}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    this.additionalProperties = new java.util.LinkedHashMap<>(builder.additionalProperties);
+{{/isAdditionalPropertiesTrue}}
+  }
+
+  /**
+   * Creates a builder with every property at its default.
+   *
+   * @return a new builder
+   */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Creates a builder that starts from this instance, so a copy with one property changed is
+   * {@code instance.toBuilder().property(value).build()}.
+   *
+   * @return a new builder holding this instance's properties
+   */
+  public Builder toBuilder() {
+    Builder builder = new Builder();
+{{#vars}}
+    builder.{{name}} = this.{{name}};
+{{#required}}
+{{#isNullable}}
+    builder.{{name}}IsSet = true;
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    builder.additionalProperties.putAll(this.additionalProperties);
+{{/isAdditionalPropertiesTrue}}
+    return builder;
+  }
+
+  /** Builds {{classname}} instances; it is also what deserialization populates. */
+  @com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder(withPrefix = "")
+  @com.fasterxml.jackson.annotation.JsonAutoDetect(
+      fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE,
+      creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)
+  public static final class Builder {
+{{#vars}}
+    @Nullable private {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}}{{^isContainer}} = {{{.}}}{{/isContainer}}{{#isContainer}}{{#required}} = {{{.}}}{{/required}}{{/isContainer}}{{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}};
+{{#required}}
+{{#isNullable}}
+    private boolean {{name}}IsSet;
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    private final java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties = new java.util.LinkedHashMap<>();
+{{/isAdditionalPropertiesTrue}}
+
+    private Builder() {}
+{{#vars}}
+
+    /**
+     * Sets the "{{baseName}}" property.
+     *
+     * @param {{vendorExtensions.builderName}} the new value
+     * @return this builder
+{{#deprecated}}
+     * @deprecated This property is deprecated.
+{{/deprecated}}
+     */
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
+    @JsonProperty("{{baseName}}")
+{{#vendorExtensions.isDecimalString}}
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = {{invokerPackage}}.ObjectSerializer.StringDecimalDeserializer.class)
+{{/vendorExtensions.isDecimalString}}
+    public Builder {{vendorExtensions.builderName}}({{^required}}@Nullable {{/required}}{{#required}}{{#isNullable}}@Nullable {{/isNullable}}{{/required}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{vendorExtensions.builderName}}) {
+      this.{{name}} = {{#isByteArray}}{{vendorExtensions.builderName}} == null ? null : {{vendorExtensions.builderName}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}{{vendorExtensions.builderName}} == null
+          ? null
+          : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+              new java.util.{{vendorExtensions.copyImpl}}<>({{vendorExtensions.builderName}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}{{vendorExtensions.builderName}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{#required}}
+{{#isNullable}}
+      this.{{name}}IsSet = true;
+{{/isNullable}}
+{{/required}}
+      return this;
+    }
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    /**
+     * Replaces all additional, undeclared properties.
+     *
+     * @param additionalProperties the additional properties, keyed by property name
+     * @return this builder
+     */
+    public Builder additionalProperties(java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties) {
+      this.additionalProperties.clear();
+      this.additionalProperties.putAll(additionalProperties);
+      return this;
+    }
+
+    /**
+     * Adds one additional, undeclared property; deserialization uses it for every key the
+     * schema does not declare.
+     *
+     * @param key the property name
+     * @param value the property value
+     * @return this builder
+     */
+{{^vendorExtensions.additionalPropertiesValue.isString}}
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+{{/vendorExtensions.additionalPropertiesValue.isString}}
+    public Builder putAdditionalProperty(String key, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}} value) {
+{{#vendorExtensions.additionalPropertiesValue}}
+{{^isNullable}}
+      /* A null extra is rejected unless the value schema is nullable, like a null element of a map. */
+      java.util.Objects.requireNonNull(value, "additional property value must not be null");
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
+      this.additionalProperties.put(key, value);
+      return this;
+    }
+{{#vendorExtensions.additionalPropertiesValue.isString}}
+
+    /**
+     * Captures an undeclared JSON property whose value is a string. A null is kept only when the
+     * value schema is nullable; a number, a boolean, an object or an array is the wrong JSON type.
+     *
+     * @param key the property name
+     * @param value the JSON value
+     */
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    void absorbAdditionalProperty(String key, com.fasterxml.jackson.databind.JsonNode value) {
+      if (value.isNull()) {
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isNullable}}
+        this.additionalProperties.put(key, null);
+        return;
+{{/isNullable}}
+{{^isNullable}}
+        throw new IllegalArgumentException("additional property value must not be null");
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
+      }
+      if (!value.isTextual()) {
+        throw new IllegalArgumentException("additional property '" + key + "' must be a JSON string");
+      }
+      putAdditionalProperty(key, value.asText());
+    }
+{{/vendorExtensions.additionalPropertiesValue.isString}}
+
+    /**
+     * Adds every entry of the given map as an additional, undeclared property.
+     *
+     * @param additionalProperties the properties to add, keyed by property name
+     * @return this builder
+     */
+    public Builder putAllAdditionalProperties(java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties) {
+      this.additionalProperties.putAll(additionalProperties);
+      return this;
+    }
+
+    /**
+     * Removes one additional, undeclared property.
+     *
+     * @param key the property name
+     * @return this builder
+     */
+    public Builder removeAdditionalProperty(String key) {
+      this.additionalProperties.remove(key);
+      return this;
+    }
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+
+    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+     * any JSON key not declared above must be rejected at deserialization time. The first
+     * such key is remembered and the build refuses it. */
+    @Nullable private String unknownProperty;
+
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    void setUnknownProperty(String key, Object value) {
+      if (unknownProperty == null) {
+        unknownProperty = key;
+      }
+    }
+{{/isUnevaluatedPropertiesFalse}}
+
+    /* A required nullable property accepts null but not silence, so it must have been set. */
+    void requireNullableProperties() {
+{{#isUnevaluatedPropertiesFalse}}
+      if (unknownProperty != null) {
+        throw new IllegalArgumentException(
+            "Unknown property '" + unknownProperty + "' on {{classname}} (unevaluatedProperties:false)");
+      }
+{{/isUnevaluatedPropertiesFalse}}
+{{#vars}}
+{{#required}}
+{{#isNullable}}
+      if (!{{name}}IsSet) {
+        throw new IllegalArgumentException("{{name}} is required");
+      }
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+    }
+
+    /**
+     * Builds the instance.
+     *
+     * @return the new instance
+     * @throws NullPointerException if a required property is not set
+     * @throws IllegalArgumentException if a required nullable property was never set
+     */
+    public {{classname}} build() {
+      return new {{classname}}(this);
+    }
+  }
+
+  /* Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}} (including
+   * the additionalProperties map){{/isAdditionalPropertiesTrue}}. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions.
+   * Uses pattern-matching `instanceof other` (Java 16+) — required by
+   * Error Prone's PatternMatchingInstanceof rule and avoids the
+   * EqualsGetClass warning that plain getClass() comparison triggers. */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof {{classname}} other)) {
+      return false;
+    }
+    return {{^vars}}true{{/vars}}{{#vars}}{{#isByteArray}}java.util.Arrays.equals(this.{{name}}, other.{{name}}){{/isByteArray}}{{^isByteArray}}{{#isContainer}}{{invokerPackage}}.ObjectSerializer.structuralEquals(this.{{name}}, other.{{name}}){{/isContainer}}{{^isContainer}}{{#isNumber}}{{invokerPackage}}.ObjectSerializer.structuralEquals(this.{{name}}, other.{{name}}){{/isNumber}}{{^isNumber}}{{#isDecimal}}{{invokerPackage}}.ObjectSerializer.structuralEquals(this.{{name}}, other.{{name}}){{/isDecimal}}{{^isDecimal}}java.util.Objects.equals(this.{{name}}, other.{{name}}){{/isDecimal}}{{/isNumber}}{{/isContainer}}{{/isByteArray}}{{^-last}}
+        && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
+        && java.util.Objects.equals(this.additionalProperties, other.additionalProperties){{/isAdditionalPropertiesTrue}};
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash({{#vars}}{{#isByteArray}}java.util.Arrays.hashCode({{name}}){{/isByteArray}}{{^isByteArray}}{{#isContainer}}{{invokerPackage}}.ObjectSerializer.structuralHashCode({{name}}){{/isContainer}}{{^isContainer}}{{#isNumber}}{{invokerPackage}}.ObjectSerializer.structuralHashCode({{name}}){{/isNumber}}{{^isNumber}}{{#isDecimal}}{{invokerPackage}}.ObjectSerializer.structuralHashCode({{name}}){{/isDecimal}}{{^isDecimal}}{{name}}{{/isDecimal}}{{/isNumber}}{{/isContainer}}{{/isByteArray}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties{{/isAdditionalPropertiesTrue}});
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+{{#vars}}
+    sb.append("{{^-first}}, {{/-first}}{{name}}=").append({{#isByteArray}}java.util.Arrays.toString({{name}}){{/isByteArray}}{{^isByteArray}}{{#isContainer}}{{invokerPackage}}.ObjectSerializer.structuralToString({{name}}){{/isContainer}}{{^isContainer}}{{#isPassword}}({{name}} == null ? "null" : "***"){{/isPassword}}{{^isPassword}}{{name}}{{/isPassword}}{{/isContainer}}{{/isByteArray}});
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    sb.append("{{#hasVars}}, {{/hasVars}}additionalProperties=").append({{invokerPackage}}.ObjectSerializer.structuralToString(additionalProperties));
+{{/isAdditionalPropertiesTrue}}
+    sb.append("}");
+    return sb.toString();
+  }
+{{/vendorExtensions.x-allof-base}}
+}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

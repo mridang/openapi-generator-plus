@@ -1,0 +1,62 @@
+/// A hand-written fake of the {{classname}} group: it implements every operation, records each
+/// call as "operation(path arguments, options)" and fails with the typed not-found error.
+struct Fake{{classname}} {
+    calls: std::sync::Mutex<Vec<String>>,
+}
+
+impl Fake{{classname}} {
+    fn new() -> Self {
+        Self { calls: std::sync::Mutex::new(Vec::new()) }
+    }
+
+    fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+        let api_error = {{packageName}}::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
+        let client_error = {{packageName}}::errors::client_error::ClientError::try_from(api_error).expect("a 404 is a client error");
+        Box::new({{packageName}}::errors::not_found_error::NotFoundError::try_from(client_error).expect("a 404 is not found"))
+    }
+}
+
+#[allow(unused_variables)]
+impl {{classname}}Trait for Fake{{classname}} {
+{{#operation}}
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{operationId}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> impl Future<Output = Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!("{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{operationId}}_with_http_info(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
+{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!("{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{:?},{{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}} options={}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}})", {{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}options.is_some(){{/isOptions}}{{/vendorExtensions.op.signatureArgs}}));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+{{/operation}}
+}

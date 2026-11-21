@@ -1,0 +1,62 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * Generated server configurations from the OpenAPI specification.
+ *
+ * Each constant corresponds to a server entry defined in the spec's
+ * servers array. Use these constants with Configuration::builder()
+ * to select a server:
+ *
+ *     $config = Configuration::builder()
+ *         ->baseUrl(Servers::server0()->getUrl())
+ *         ->build();
+ *
+ * For servers with variables, pass overrides:
+ *
+ *     $url = Servers::server1()->getUrl(['environment' => 'staging']);
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+final class Servers
+{
+{{#serverConfigs}}
+    /**
+     * Server {{serverIndex}}: {{#lambda.phpdocDescription}}{{{serverUrl}}}{{/lambda.phpdocDescription}}{{#serverDescription}}
+     *
+     * {{#lambda.phpdocDescription}}{{{serverDescription}}}{{/lambda.phpdocDescription}}{{/serverDescription}}
+     */
+    public static function server{{serverIndex}}(): ServerConfiguration
+    {
+        return new ServerConfiguration(
+            urlTemplate: '{{#lambda.phpSingleQuoted}}{{{serverUrl}}}{{/lambda.phpSingleQuoted}}',
+            description: {{#serverDescription}}'{{#lambda.phpSingleQuoted}}{{{serverDescription}}}{{/lambda.phpSingleQuoted}}'{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+            variables: {{#hasVariables}}[
+{{#serverVariables}}                '{{#lambda.phpSingleQuoted}}{{{varName}}}{{/lambda.phpSingleQuoted}}' => new ServerVariable(
+                    defaultValue: '{{#lambda.phpSingleQuoted}}{{{varDefault}}}{{/lambda.phpSingleQuoted}}',
+                    description: {{#varDescription}}'{{#lambda.phpSingleQuoted}}{{{varDescription}}}{{/lambda.phpSingleQuoted}}'{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                    enumValues: {{#hasEnumValues}}[{{#varEnumValues}}'{{#lambda.phpSingleQuoted}}{{{.}}}{{/lambda.phpSingleQuoted}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}},
+                ),
+{{/serverVariables}}            ]{{/hasVariables}}{{^hasVariables}}[]{{/hasVariables}},
+        );
+    }
+
+{{/serverConfigs}}
+    /**
+     * Return all server configurations in declaration order.
+     *
+     * @return ServerConfiguration[]
+     */
+    public static function all(): array
+    {
+        return [
+{{#serverConfigs}}            self::server{{serverIndex}}(),
+{{/serverConfigs}}        ];
+    }
+
+    /** @codeCoverageIgnore */
+    private function __construct()
+    {
+    }
+}

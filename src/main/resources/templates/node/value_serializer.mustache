@@ -1,0 +1,481 @@
+{{>api_info}}
+
+import { ObjectSerializer, plainDate } from './object-serializer{{importFileExtension}}';
+import { SerializationError } from './errors/serialization-error{{importFileExtension}}';
+
+/**
+ * Serializes parameter values for HTTP requests based on their location and format.
+ *
+ * Converts values into their string representations suitable for HTTP request
+ * paths, query strings, and headers. Handles null values, collections with various
+ * collection formats, and URL encoding.
+ */
+export class ValueSerializer {
+  /**
+   * Serialize a parameter value for use in an HTTP request.
+   *
+   * @param value the value to serialize
+   * @param location where the parameter appears: 'path', 'query', 'header', 'form', or 'cookie'
+   * @param schemaType the OpenAPI schema type (e.g. 'string', 'integer', 'boolean', 'array')
+   * @param collectionFormat for array query params: 'csv', 'ssv', 'tsv', 'pipes', or 'multi'
+   * @returns the serialized value ready for the HTTP request
+   */
+  static serialize(
+    value: unknown,
+    location: 'path' | 'query' | 'header' | 'form' | 'cookie',
+    schemaType: string,
+    collectionFormat?: string
+  ): string | string[] | undefined {
+    if (value === null || value === undefined) {
+      if (location === 'query') return undefined;
+      return '';
+    }
+    value = ValueSerializer.normalize(value, schemaType, 'value');
+
+    if (Array.isArray(value)) {
+      const items = value.map((v) => ObjectSerializer.stringify(v));
+      if (location === 'query') {
+        if (collectionFormat === 'multi') return items;
+        if (collectionFormat === 'ssv') return items.join(' ');
+        if (collectionFormat === 'tsv') return items.join('\t');
+        if (collectionFormat === 'pipes') return items.join('|');
+        return items.join(',');
+      }
+      if (location === 'header') {
+        return items.join(',');
+      }
+    }
+
+    const str = ObjectSerializer.stringify(value);
+
+    if (location === 'path') {
+      return ValueSerializer.encodePathSegment(str);
+    }
+
+    return str;
+  }
+
+  /**
+   * Serialize a parameter value using the OAS 3.0 style/explode conventions.
+   *
+   * When style is null or empty the method falls back to the existing
+   * {@link serialize} behaviour.
+   *
+   * @param paramName the parameter name (used for matrix/label prefixes)
+   * @param value the value to serialize
+   * @param location where the parameter appears: 'path', 'query', 'header', 'form', or 'cookie'
+   * @param schemaType the OpenAPI schema type
+   * @param collectionFormat legacy collection format (csv/ssv/tsv/pipes/multi)
+   * @param style OAS 3.0 style (matrix, label, simple, form, spaceDelimited, pipeDelimited)
+   * @param explode whether to explode array/object values
+   * @returns the serialized value
+   */
+  static serializeStyled(
+    paramName: string,
+    value: unknown,
+    location: string,
+    schemaType: string,
+    collectionFormat: string | null,
+    style: string | null,
+    explode: boolean
+  ): string | string[] | ExplodedObject | undefined {
+    /* Path parameters are required components of the URL — accepting an
+     * empty string would silently produce a malformed URL like
+     * `/resource//details`, which most servers route to 404 instead of
+     * surfacing the bug at the call site. The required-non-null check
+     * lives in the operation method; here we catch the empty-string
+     * case that slips through it. */
+    if (location === 'path' && typeof value === 'string' && value === '') {
+      throw new TypeError(`Path parameter '${paramName}' must not be empty`);
+    }
+    /* A path value of exactly `.` or `..` is a dot segment (RFC 3986
+     * section 5.2.4): the WHATWG URL parser resolves it, even when percent
+     * encoded, and silently re-routes the request to another endpoint.
+     * Reject it before dispatch. */
+    if (location === 'path' && (value === '.' || value === '..')) {
+      throw new TypeError(`Path parameter '${paramName}' must not be '.' or '..'`);
+    }
+
+    if (value === null || value === undefined) {
+      if (location === 'query') return undefined;
+      return '';
+    }
+    value = ValueSerializer.normalize(value, schemaType, paramName);
+
+    if (!style) {
+      return ValueSerializer.serialize(
+        value,
+        location as 'path' | 'query' | 'header' | 'form' | 'cookie',
+        schemaType,
+        collectionFormat ?? undefined
+      );
+    }
+
+    const encodeIfPath = (s: string) =>
+      location === 'path' ? ValueSerializer.encodePathSegment(s) : s;
+
+    if (ValueSerializer.isObjectValue(value)) {
+      return ValueSerializer.styleObject(paramName, value, style, explode, encodeIfPath);
+    }
+
+    switch (style) {
+      case 'matrix': {
+        if (Array.isArray(value)) {
+          const items = value.map((v) => encodeIfPath(ObjectSerializer.stringify(v)));
+          if (explode) {
+            return items.map((item) => `;${paramName}=${item}`).join('');
+          }
+          return `;${paramName}=${items.join(',')}`;
+        }
+        return `;${paramName}=${encodeIfPath(ObjectSerializer.stringify(value))}`;
+      }
+      case 'label': {
+        if (Array.isArray(value)) {
+          const items = value.map((v) => encodeIfPath(ObjectSerializer.stringify(v)));
+          if (explode) {
+            return '.' + items.join('.');
+          }
+          return '.' + items.join(',');
+        }
+        return '.' + encodeIfPath(ObjectSerializer.stringify(value));
+      }
+      case 'simple': {
+        if (Array.isArray(value)) {
+          return value.map((v) => encodeIfPath(ObjectSerializer.stringify(v))).join(',');
+        }
+        return encodeIfPath(ObjectSerializer.stringify(value));
+      }
+      case 'form': {
+        if (Array.isArray(value)) {
+          const items = value.map((v) => ObjectSerializer.stringify(v));
+          if (explode) {
+            return items;
+          }
+          return items.join(',');
+        }
+        return ObjectSerializer.stringify(value);
+      }
+      case 'spaceDelimited': {
+        if (Array.isArray(value)) {
+          const items = value.map((v) => ObjectSerializer.stringify(v));
+          if (explode) {
+            return items;
+          }
+          return items.join(' ');
+        }
+        return ObjectSerializer.stringify(value);
+      }
+      case 'pipeDelimited': {
+        if (Array.isArray(value)) {
+          const items = value.map((v) => ObjectSerializer.stringify(v));
+          if (explode) {
+            return items;
+          }
+          return items.join('|');
+        }
+        return ObjectSerializer.stringify(value);
+      }
+      default:
+        return ValueSerializer.serialize(
+          value,
+          location as 'path' | 'query' | 'header' | 'form' | 'cookie',
+          schemaType,
+          collectionFormat ?? undefined
+        );
+    }
+  }
+
+  /**
+   * Bring a parameter value into its wire shape before styling.
+   *
+   * A `uniqueItems` array arrives as a Set and is expanded exactly like an
+   * array (in the Set's iteration order). A `format: uuid` value (schema
+   * type `UUID`) must have the 8-4-4-4-12 hex shape in any letter case and
+   * is written lowercase (RFC 9562 section 4); anything else is rejected
+   * before the request is sent.
+   *
+   * @param value the parameter value
+   * @param schemaType the parameter's schema type
+   * @param paramName the parameter name, for the error message
+   * @returns the normalized value
+   * @throws TypeError if a uuid value is malformed
+   */
+  static normalize(value: unknown, schemaType: string, paramName: string): unknown {
+    const expanded = value instanceof Set ? [...value] : value;
+    if (!/\bUUID\b/.test(schemaType ?? '')) {
+      return expanded;
+    }
+    const canonical = (v: unknown): unknown => {
+      if (typeof v !== 'string') {
+        return v;
+      }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) {
+        throw new TypeError(`Parameter '${paramName}' is not a canonical UUID: ${JSON.stringify(v)}`);
+      }
+      return v.toLowerCase();
+    };
+    return Array.isArray(expanded) ? expanded.map(canonical) : canonical(expanded);
+  }
+
+  /**
+   * Formats a `format: date` value for the wire. A date is a plain
+   * `YYYY-MM-DD` string, validated and sent unchanged; a `Date` is read as its
+   * UTC date. A date-time string, free text or an impossible day throws.
+   *
+   * @param value the date string, or a Date
+   * @returns the date as `YYYY-MM-DD`
+   * @throws TypeError when the value is not a real calendar date
+   */
+  static stringifyDate(value: Date | string): string {
+    return plainDate(value);
+  }
+
+  /**
+   * Formats every element of an array (or Set) of `format: date` values as
+   * YYYY-MM-DD, in iteration order, so a date array is styled and joined
+   * like any other array instead of sending each item as a date-time.
+   */
+  static stringifyDates(values: Iterable<Date | string>): string[] {
+    return Array.from(values, (value) => ValueSerializer.stringifyDate(value));
+  }
+
+  /**
+   * Percent-encodes a value for use as a URL path segment.
+   *
+   * Mirrors Swift's `.urlPathAllowed` character set: encodes characters that
+   * are not allowed in a URI path segment per RFC 3986, but preserves the
+   * sub-delimiters (including `;`, `=`, `,`, `:`, etc.) that OAS 3.0
+   * matrix/label/simple styles use as structural separators in the styled
+   * value.
+   */
+  static encodePathSegment(value: string): string {
+    return encodeURIComponent(value)
+      .replace(/%3B/g, ';')
+      .replace(/%3D/g, '=')
+      .replace(/%2C/g, ',')
+      .replace(/%3A/g, ':')
+      .replace(/%40/g, '@')
+      .replace(/%21/g, '!')
+      .replace(/%24/g, '$')
+      .replace(/%26/g, '&')
+      .replace(/%27/g, "'")
+      .replace(/%28/g, '(')
+      .replace(/%29/g, ')')
+      .replace(/%2A/g, '*')
+      .replace(/%2B/g, '+');
+  }
+
+  /**
+   * Percent-encodes a query key or value, leaving only the RFC 3986 unreserved
+   * characters `A-Za-z0-9-._~` literal.
+   *
+   * `encodeURIComponent` also keeps `! ' ( ) *` literal; those are escaped here
+   * so the bytes match the other SDKs.
+   */
+  static encodeQueryComponent(value: string): string {
+    return encodeURIComponent(value).replace(
+      /[!'()*]/g,
+      (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase()
+    );
+  }
+
+  /**
+   * Percent-encodes the JSON text of a `content:` cookie parameter. Only
+   * `A-Za-z0-9-_~` stay literal: the query component encoding keeps the dot,
+   * so the dot is encoded here as well.
+   */
+  static encodeCookieComponent(value: string): string {
+    return ValueSerializer.encodeQueryComponent(value).replace(/\./g, '%2E');
+  }
+
+  /**
+   * Percent-encodes a query value while leaving RFC 3986 reserved characters
+   * literal (OAS `allowReserved: true`).
+   *
+   * Only the characters RFC 3986 section 3.4 permits in a query component
+   * stay literal: `: / ? @ ! $ & ' ( ) * + , ; =` plus the unreserved set.
+   * `#` (the fragment delimiter, which would truncate the query), `[` and
+   * `]` are always percent-encoded, as are spaces, control characters and
+   * non-ASCII. `encodeURIComponent` already leaves the unreserved set (and
+   * `! ' ( ) *`) alone and encodes a space as `%20`; here the remaining
+   * query-legal reserved characters are restored.
+   *
+   * This output is the contract. FORCED exception: the WHATWG URL parser
+   * used by fetch rewrites a literal `'` in the query to `%27` after this
+   * encoder runs (its special-query percent-encode set). The server decodes
+   * both forms to the same value, so the SDK does not try to defeat it.
+   */
+  static encodeQueryAllowingReserved(value: string): string {
+    return encodeURIComponent(value)
+      .replace(/%25(?=[0-9A-Fa-f]{2})/g, '%')
+      .replace(/%3A/g, ':')
+      .replace(/%2F/g, '/')
+      .replace(/%3F/g, '?')
+      .replace(/%40/g, '@')
+      .replace(/%21/g, '!')
+      .replace(/%24/g, '$')
+      .replace(/%26/g, '&')
+      .replace(/%27/g, "'")
+      .replace(/%28/g, '(')
+      .replace(/%29/g, ')')
+      .replace(/%2A/g, '*')
+      .replace(/%2B/g, '+')
+      .replace(/%2C/g, ',')
+      .replace(/%3B/g, ';')
+      .replace(/%3D/g, '=');
+  }
+
+  /**
+   * Whether a parameter value is an object (a model or a free-form map) that
+   * the OAS style rules expand into name and value pairs, as opposed to a
+   * scalar-like value (a `Date`, a byte array or a Temporal value).
+   */
+  private static isObjectValue(value: unknown): value is object {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
+    if (value instanceof Date || value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
+      return false;
+    }
+    const tag = (value as { [Symbol.toStringTag]?: unknown })[Symbol.toStringTag];
+    return !(typeof tag === 'string' && tag.startsWith('Temporal.'));
+  }
+
+  /**
+   * The ordered, wire-keyed name and value pairs of an object-valued
+   * parameter. Wire names, canonical date-times and omitted nulls follow the
+   * body path (it goes through `ObjectSerializer.serialize`).
+   *
+   * @param paramName the parameter name, for the error message
+   * @param value the model or map to expand
+   * @returns the pairs in declaration order, with null leaves dropped
+   * @throws SerializationError if a leaf is itself an object or an array
+   */
+  static toWireMap(paramName: string, value: object): Array<[string, string]> {
+    const plain: unknown = JSON.parse(ObjectSerializer.serialize(value));
+    if (plain === null || typeof plain !== 'object' || Array.isArray(plain)) {
+      throw new SerializationError(`Parameter '${paramName}' must serialize to an object`);
+    }
+    const pairs: Array<[string, string]> = [];
+    for (const [key, leaf] of Object.entries(plain as Record<string, unknown>)) {
+      if (leaf === null || leaf === undefined) {
+        continue;
+      }
+      if (typeof leaf === 'object') {
+        throw new SerializationError(
+          `Parameter '${paramName}' has a nested value under '${key}', ` +
+            `which cannot be written in this style`
+        );
+      }
+      pairs.push([key, String(leaf)]);
+    }
+    return pairs;
+  }
+
+  /**
+   * Expand an object-valued parameter per the OAS style and explode rules.
+   * A query parameter of style `form` with `explode: true` becomes one query
+   * entry per property ({@link ExplodedObject}); every other combination is
+   * a single string.
+   */
+  private static styleObject(
+    paramName: string,
+    value: object,
+    style: string,
+    explode: boolean,
+    encode: (s: string) => string
+  ): string | ExplodedObject {
+    const pairs = ValueSerializer.toWireMap(paramName, value).map(
+      ([k, v]) => [encode(k), encode(v)] as [string, string]
+    );
+    const flat = pairs.flat();
+    const joined = pairs.map(([k, v]) => `${k}=${v}`);
+    switch (style) {
+      case 'matrix':
+        return explode ? joined.map((pair) => `;${pair}`).join('') : `;${paramName}=${flat.join(',')}`;
+      case 'label':
+        return explode ? '.' + joined.join('.') : '.' + flat.join(',');
+      case 'simple':
+        return explode ? joined.join(',') : flat.join(',');
+      case 'spaceDelimited':
+        return flat.join(' ');
+      case 'pipeDelimited':
+        return flat.join('|');
+      default:
+        return explode ? new ExplodedObject(pairs) : flat.join(',');
+    }
+  }
+
+  /**
+   * Wraps `value` in an {@link AllowReservedValue} when the parameter declares
+   * `allowReserved: true`; otherwise returns it unchanged. The query-string
+   * builder unwraps the marker and encodes the value with
+   * {@link encodeQueryAllowingReserved} so RFC 3986 reserved characters stay
+   * literal on the wire.
+   *
+   * @param value the serialized query value (a string, a string[] for
+   *   exploded arrays, or an {@link ExplodedObject} for an exploded object)
+   * @param allowReserved whether the parameter preserves reserved characters
+   * @returns the value, wrapped iff `allowReserved` is true
+   */
+  static maybeAllowReserved(
+    value: string | string[] | ExplodedObject | undefined,
+    allowReserved: boolean
+  ): string | string[] | ExplodedObject | AllowReservedValue | undefined {
+    if (value === null || value === undefined || !allowReserved) {
+      return value;
+    }
+    return new AllowReservedValue(value);
+  }
+
+  /**
+   * Serialize a deepObject-style query parameter.
+   *
+   * Produces a record of flattened keys in the form `paramName[key]` to
+   * stringified values, suitable for inclusion in a query string.
+   *
+   * @param paramName the parameter name (e.g. 'filter')
+   * @param value the object value to serialize
+   * @returns a record of expanded keys to serialized values
+   */
+  static serializeDeepObject(
+    paramName: string,
+    value: Record<string, unknown> | null | undefined
+  ): Record<string, string> {
+    const result: Record<string, string> = {};
+    if (value == null) {
+      return result;
+    }
+    for (const [key, val] of ValueSerializer.toWireMap(paramName, value)) {
+      result[`${paramName}[${key}]`] = val;
+    }
+    return result;
+  }
+
+}
+
+/**
+ * Wraps a query value so the query-string builder preserves RFC 3986
+ * reserved characters (OAS `allowReserved: true`) instead of percent-encoding
+ * them. Produced by {@link ValueSerializer.maybeAllowReserved} and unwrapped
+ * when the query string is assembled.
+ *
+ * @remarks The wrapped value is a string, or a string[] for exploded parameters.
+ */
+export class AllowReservedValue {
+  constructor(readonly value: string | string[] | ExplodedObject) {}
+}
+
+/**
+ * The query entries of an object-valued parameter of style `form` with
+ * `explode: true`: one `name=value` entry per property, under the property's
+ * own wire name rather than the parameter's. The query-string builder expands
+ * it; any other consumer sees the entries joined with `&`.
+ */
+export class ExplodedObject {
+  constructor(readonly entries: ReadonlyArray<readonly [string, string]>) {}
+
+  toString(): string {
+    return this.entries.map(([k, v]) => `${k}=${v}`).join('&');
+  }
+}

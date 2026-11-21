@@ -1,0 +1,849 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+import 'testcontainers_helper.dart';
+
+StoreApi _newStoreApiForIntegration() {
+  final config = ConfigurationBuilder()
+      .baseUrl(chasmUrl)
+      .defaultHeader('Authorization', 'Bearer test-token')
+      .build();
+  final client = DefaultApiClient();
+  return StoreApi(apiClient: client, config: config);
+}
+
+/// Serves [body] as JSON for every request, so a response shape can be
+/// decoded without the mock container.
+Future<HttpServer> _serveJson(String body) async {
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  server.listen((request) {
+    request.response
+      ..statusCode = 200
+      ..headers.contentType = ContentType.json
+      ..write(body)
+      ..close();
+  });
+  return server;
+}
+
+StoreApi _storeApiFor(HttpServer server) {
+  final config =
+      ConfigurationBuilder().baseUrl('http://localhost:${server.port}').build();
+  return StoreApi(apiClient: DefaultApiClient(), config: config);
+}
+
+void main() {
+  setUpAll(() async {
+    await setUpContainers();
+  });
+
+  tearDownAll(() async {
+    await tearDownContainers();
+  });
+
+  group('StoreApi', () {
+    test('bhv misc 074 an alternative that names two schemes sends the credentials of both', () async {
+      final received = <String, String>{};
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.headers.forEach((name, values) => received[name] = values.join(','));
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final config =
+            ConfigurationBuilder().baseUrl('http://localhost:${server.port}').build();
+        final api = StoreApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          schemeAuthenticators: {
+            'petStoreBearer':
+                BearerAuthenticator(host: 'localhost', token: 'bearer-token'),
+            'apiKeyHeader': ApiKeyAuthenticator(
+              host: 'localhost',
+              keyParamName: 'X-API-Key',
+              apiKey: 'key-token',
+              location: ApiKeyLocation.header,
+            ),
+          },
+        );
+
+        await api.getAuditTrail(null);
+
+        expect(received['authorization'], equals('Bearer bearer-token'));
+        expect(received['x-api-key'], equals('key-token'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv langdart 004 searchStore expands a uniqueItems query array into repeated pairs', () async {
+      String? query;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        query = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.searchStore(
+          const SearchStoreOptions(labels: ['red', 'blue']),
+        );
+
+        expect(query!.split('&'), unorderedEquals(['labels=red', 'labels=blue']));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 121 searchStore sends a content-encoded header as the SDK JSON', () async {
+      String? header;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        header = request.headers.value('X-Filter');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.searchStore(const SearchStoreOptions(xFilter: {'k': 'v'}));
+
+        expect(header, equals('{"k":"v"}'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 097 searchStore sends the content query parameter as the object serializer output', () async {
+      String? query;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        query = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.searchStore(
+          SearchStoreOptions(q: PhotoMetadata(caption: 'x')),
+        );
+
+        expect(Uri.decodeQueryComponent(query ?? ''), contains('"caption":"x"'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 128 a content query parameter that cannot be serialized raises a serialization error and sends no request', () async {
+      var requests = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        requests++;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final api = _storeApiFor(server);
+
+        await expectLater(
+          api.searchStore(
+            SearchStoreOptions(
+              q: PhotoMetadata(
+                location: PhotoMetadataLocation(lat: double.nan),
+              ),
+            ),
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(requests, equals(0));
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('bhv operations 139 a time query parameter keeps its fractional seconds when non-zero', () async {
+      String? query;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        query = request.uri.query;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final api = _storeApiFor(server);
+
+        await api.searchStore(SearchStoreOptions(at: '10:30:00.123'));
+
+        expect(Uri.decodeQueryComponent(query ?? ''), contains('at=10:30:00.123'));
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('bhv misc 082 an enum in a path parameter is sent as its wire value', () async {
+      String? path;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        path = request.uri.path;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"sample"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getBySwatch(Swatch.red, null);
+
+        expect(path, endsWith('/red'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 107 getBySwatch omits the optional query parameter and header when they are not set', () async {
+      String? query;
+      String? header;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        query = request.uri.query;
+        header = request.headers.value('preferred-swatch');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"sample"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getBySwatch(Swatch.red, null);
+
+        expect(query, equals(''));
+        expect(header, isNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 098 createAccount sends the writeOnly password and decodes the readOnly id', () async {
+      String? requestBody;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        requestBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":7,"username":"u"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final created =
+            await api.createAccount(const Account(username: 'u', password: 'p'), null);
+
+        expect(requestBody, contains('"password":"p"'));
+        expect(created.id, equals(7));
+        expect(created.username, equals('u'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 124 getOrderByTrackingId puts the lowercase uuid in the path', () async {
+      String? path;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        path = request.uri.path;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getOrderByTrackingId(
+            UuidValue.fromString('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'), null);
+
+        expect(path,
+            equals('/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 111 a malformed uuid path argument is refused before any request', () {
+      expect(() => UuidValue.fromString('not-a-uuid'), throwsArgumentError);
+    });
+
+    test('bhv operations 117 placeOrder', () async {
+      final api = _newStoreApiForIntegration();
+
+      final result = await api.placeOrder(Order(), null);
+      expect(result, isNotNull);
+    });
+
+    test('bhv operations 126 place order without an argument sends no body', () async {
+      var bodyLength = -1;
+      String? contentType = 'unset';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        bodyLength = (await utf8.decoder.bind(request).join()).length;
+        contentType = request.headers.value('content-type');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1}')
+          ..close();
+      });
+
+      try {
+        final api = _storeApiFor(server);
+
+        await api.placeOrder(null, null);
+
+        expect(bodyLength, equals(0));
+        expect(contentType, isNull);
+      } finally {
+        await server.close(force: true);
+      }
+    });
+
+    test('bhv operations 119 placeOrderWithHttpInfo', () async {
+      final api = _newStoreApiForIntegration();
+
+      final result = await api.placeOrderWithHttpInfo(Order(), null);
+      expect(result.statusCode, greaterThanOrEqualTo(200));
+      expect(result.statusCode, lessThan(300));
+      expect(result.data, isNotNull);
+      expect(result.rawBody, isNotEmpty);
+    });
+
+    /* optional-enum-default-omitted: an OPTIONAL enum field with a schema
+     * `default` must be initialised to that default variant, so a
+     * default-constructed model serialises the default on the wire
+     * (`"status":"placed"`) like the other SDKs — rather than omitting it. */
+    test('bhv langdart 005 default-constructed Order serializes the default status', () {
+      final json = Order().toJson();
+      expect(json['status'], equals('placed'));
+    });
+
+    test('bhv operations 102 getInventory', () async {
+      final api = _newStoreApiForIntegration();
+
+      final result = await api.getInventory(null);
+      expect(result, isNotNull);
+    });
+
+    test('bhv operations 103 getInventoryWithHttpInfo', () async {
+      final api = _newStoreApiForIntegration();
+
+      final result = await api.getInventoryWithHttpInfo(null);
+      expect(result.statusCode, equals(200));
+      expect(result.data, isNotNull);
+    });
+
+    test('bhv misc 009 a call without an options object sends none of the per-call headers', () async {
+      String? perCall;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        perCall = request.headers.value('X-Per-Call');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"available":1}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getInventory(null);
+
+        expect(perCall, isNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv misc 011 a no-parameter operation accepts the call settings and applies them', () async {
+      String? perCall;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        perCall = request.headers.value('X-Per-Call');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"available":1}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final inventory = await api.getInventory(GetInventoryOptions(
+          timeout: 1000,
+          headers: {'X-Per-Call': 'yes'},
+          maxRetries: 0,
+        ));
+
+        expect(perCall, equals('yes'));
+        expect(inventory['available'], equals(1));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv misc 013 a no-parameter operation called without options returns its result', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"available":3}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final inventory = await api.getInventory(null);
+
+        expect(inventory['available'], equals(3));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 104 getOrderById', () async {
+      final api = _newStoreApiForIntegration();
+
+      final result = await api.getOrderById(1, null);
+      expect(result, isNotNull);
+    });
+
+    test('bhv operations 105 getOrderByIdWithHttpInfo', () async {
+      final api = _newStoreApiForIntegration();
+
+      final result = await api.getOrderByIdWithHttpInfo(1, null);
+      expect(result.statusCode, equals(200));
+      expect(result.headers, isNotNull);
+    });
+
+    test('bhv operations 099 deleteOrder', () async {
+      final api = _newStoreApiForIntegration();
+      await api.deleteOrder(1, null);
+    });
+
+    test('bhv operations 106 getOrderNotFound', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('$chasmHttpUrl/test/status/404')
+          .build();
+      final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+      try {
+        await api.getOrderById(99999, null);
+        fail('Expected error for non-existent order');
+      } on NotFoundException {
+        // Expected
+      }
+    });
+
+    test('bhv operations 110 getOrderById picks the status-specific error class for each typed status route', () async {
+      final config = ConfigurationBuilder()
+          .baseUrl('$chasmHttpUrl/test/status/500')
+          .build();
+      final api = StoreApi(
+          apiClient: DefaultApiClient(
+              transportOptions: TransportOptions.builder().maxRetries(0).build()),
+          config: config);
+
+      try {
+        await api.getOrderById(1, null);
+        fail('Expected error for server error response');
+      } on InternalServerErrorException {
+        // Expected
+      }
+    });
+
+    test('bhv operations 118 placeOrderServerError', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 500
+          ..headers.contentType = ContentType.json
+          ..write('{"message":"Internal server error"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(
+            apiClient: DefaultApiClient(
+                transportOptions: TransportOptions.builder().maxRetries(0).build()),
+            config: config);
+
+        await api.placeOrder(Order(), null);
+        fail('Expected error for server error response');
+      } on InternalServerErrorException {
+        // Expected
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* recursive-container-deserialize: getGroupedCategories returns a nested
+     * generic container (List<Map<String, Category>>). The deserializer must
+     * descend every container level so the innermost values are TYPED Category
+     * instances, not raw maps. Drive the generated operation against a local
+     * echo server returning the nested body and assert the leaf types. */
+    test('bhv operations 101 getGroupedCategories decodes nested container leaves into Category', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getGroupedCategories(null);
+        expect(result, hasLength(2));
+
+        final first = result[0]['a'];
+        expect(first, isA<Category>());
+        expect(first!.id, equals(1));
+        expect(first.name, equals('Dogs'));
+
+        final second = result[1]['b'];
+        expect(second, isA<Category>());
+        expect(second!.id, equals(2));
+        expect(second.name, equals('Cats'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* recursive-container-deserialize: getMatrix returns List<List<int>>, a
+     * nested array whose leaves are NOT maps. The top-level deserializer must
+     * not hard-cast each outer element to a Map. */
+    test('bhv operations 109 getMatrix decodes an array of integer arrays', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[[1,2],[3,4]]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getMatrix(null);
+        expect(result, equals([[1, 2], [3, 4]]));
+        expect(result[0][0], isA<int>());
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* Strict containers: a container of primitives is checked element by
+     * element like a single primitive; a quoted number, a fractional for an
+     * integer or a null raises the SDK SerializationException. */
+    test('bhv langdart 006 getInventory rejects each wrong-typed element', () async {
+      for (final bad in const [
+        '{"available":"abc"}',
+        '{"available":"5"}',
+        '{"available":1.9}',
+        '{"available":null}',
+        '{"available":true}',
+      ]) {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write(bad)
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(api.getInventory(null), throwsA(isA<SerializationException>()), reason: bad);
+        } finally {
+          await server.close();
+        }
+      }
+    });
+
+    test('bhv langdart 007 getMatrix rejects each wrong-typed element', () async {
+      for (final bad in const ['[[1,"2"]]', '[[1.5]]', '[[null]]']) {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write(bad)
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          await expectLater(api.getMatrix(null), throwsA(isA<SerializationException>()), reason: bad);
+        } finally {
+          await server.close();
+        }
+      }
+    });
+
+    /* recursive-container-deserialize: getSwatchGroups returns
+     * List<Map<String, Swatch>> — an enum leaf. The leaf must go through the
+     * enum's String fromJson, not the model fromJson(Map) path. */
+    test('bhv operations 114 getSwatchGroups decodes enum leaves into Swatch', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[{"a":"red"},{"b":"blue"}]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getSwatchGroups(null);
+        expect(result, hasLength(2));
+        expect(result[0]['a'], equals(Swatch.red));
+        expect(result[1]['b'], equals(Swatch.blue));
+      } finally {
+        await server.close();
+      }
+    });
+
+    /* recursive-container-deserialize: getTimestampGroups returns
+     * List<Map<String, DateTime>> — a date-time leaf must be parsed into a
+     * DateTime, not left as a raw String. */
+    test('bhv operations 115 getTimestampGroups decodes date-time leaves into DateTime', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[{"t":"2020-01-02T03:04:05Z"}]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getTimestampGroups(null);
+        expect(result, hasLength(1));
+        final ts = result[0]['t'];
+        expect(ts, isA<DateTime>());
+        expect(ts!.toUtc().year, equals(2020));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 113 getSwatch decodes a bare enum', () async {
+      final server = await _serveJson('"green"');
+      try {
+        expect(await _storeApiFor(server).getSwatch(null), equals(Swatch.green));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 116 getTree decodes the self-recursive model', () async {
+      final server = await _serveJson(
+          '{"value":"a","child":{"value":"b","child":{"value":"c"}}}');
+      try {
+        final tree = await _storeApiFor(server).getTree(null);
+        expect(tree.value, equals('a'));
+        expect(tree.child?.value, equals('b'));
+        expect(tree.child?.child?.value, equals('c'));
+        expect(tree.child?.child?.child, isNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 108 getDepartment decodes the mutually recursive models', () async {
+      final server = await _serveJson(
+          '{"name":"d","lead":{"name":"e","department":{"name":"d2"}}}');
+      try {
+        final department = await _storeApiFor(server).getDepartment(null);
+        expect(department.name, equals('d'));
+        expect(department.lead?.name, equals('e'));
+        expect(department.lead?.department?.name, equals('d2'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv misc 215 getDefaults fills every declared default when the body is an empty object', () async {
+      final server = await _serveJson('{}');
+      try {
+        final defaults = await _storeApiFor(server).getDefaults(null);
+        expect(defaults.retries, equals(3));
+        expect(defaults.label, equals('untitled'));
+        expect(defaults.scale, equals(0.25));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 123 getDefaults applies the typed schema defaults to an empty object', () async {
+      final server = await _serveJson('{}');
+      try {
+        final defaults = await _storeApiFor(server).getDefaults(null);
+        expect(defaults.retries, equals(3));
+        expect(defaults.label, equals('untitled'));
+        expect(defaults.ratio, equals(1.5));
+        expect(defaults.scale, equals(0.25));
+        expect(defaults.weight, equals(2.0));
+        expect(defaults.ceiling, equals(9000000000));
+        expect(defaults.swatch, equals(Swatch.green));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 112 getStockItem decodes the int enum and the nested arrays', () async {
+      final server =
+          await _serveJson('{"priority":2,"matrix":[[1,2],[3]]}');
+      try {
+        final item = await _storeApiFor(server).getStockItem(null);
+        expect(item.priority, equals(Priority.number2));
+        expect(item.matrix, equals([[1, 2], [3]]));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 100 deleteOrderNotFound', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 404
+          ..headers.contentType = ContentType.json
+          ..write('{"message":"Order not found"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.deleteOrder(99999, null);
+        fail('Expected error for deleting non-existent order');
+      } on NotFoundException {
+        // Expected
+      } finally {
+        await server.close();
+      }
+    });
+  });
+}
+{{/generateTests}}

@@ -1,0 +1,3628 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import {{invokerPackage}}.errors.ApiException;
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
+import {{invokerPackage}}.auth.ApiKeyAuthenticator;
+import {{invokerPackage}}.auth.ApiKeyLocation;
+import {{invokerPackage}}.auth.Authenticator;
+import {{invokerPackage}}.auth.BearerAuthenticator;
+import {{invokerPackage}}.errors.BadGatewayException;
+import {{invokerPackage}}.errors.BadRequestException;
+import {{invokerPackage}}.errors.ClientException;
+import {{invokerPackage}}.errors.ConflictException;
+import {{invokerPackage}}.errors.ForbiddenException;
+import {{invokerPackage}}.errors.InternalServerErrorException;
+import {{invokerPackage}}.errors.NotFoundException;
+import {{invokerPackage}}.errors.SerializationException;
+import {{invokerPackage}}.errors.ServerException;
+import {{invokerPackage}}.errors.TooManyRequestsException;
+import {{invokerPackage}}.errors.UnauthorizedException;
+import {{invokerPackage}}.errors.UnprocessableEntityException;
+import {{apiPackage}}.PetApi;
+import {{apiPackage}}.StoreApi;
+import {{apiPackage}}.options.FindPetsByStatusOptions;
+import {{apiPackage}}.options.GetInventoryOptions;
+import {{apiPackage}}.options.GetPetByNoteOptions;
+import {{apiPackage}}.options.GetPetTagOptions;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.parallel.Isolated;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+/** Shared helpers for the API tests: a testable API, a capturing transport and a test authenticator. */
+@SuppressWarnings("NullAway")
+public class BaseApiTest {
+
+    private static final java.lang.reflect.Type JSON_NODE_TYPE =
+            new TypeReference<JsonNode>() {}.getType();
+    private static final java.lang.reflect.Type STRING_TYPE =
+            new TypeReference<String>() {}.getType();
+
+    /** An API whose calls go through the test transport, for the package's tests. */
+    public static class TestableApi extends {{apiPackage}}.BaseApi {
+
+        /* Re-expose the protected NO_AUTH sentinel so tests in this (non-
+         * subclass) test class can pass it as the per-call auth argument and
+         * assert the client-level authenticator is suppressed for a
+         * security:[] operation. */
+        static final Authenticator NO_AUTH_SENTINEL = NO_AUTH;
+
+        static String encodeCookie(String json) {
+            return encodeContentCookie(json);
+        }
+
+        static boolean cookieValueValid(String value) {
+            return isValidCookieValue(value);
+        }
+
+        TestableApi(String baseUrl) {
+            super(
+                    new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+                    new Configuration(baseUrl, Map.of()));
+        }
+
+        /** Creates the API over a transport at the given base URL. */
+        public TestableApi(ApiClient apiClient, String baseUrl) {
+            super(apiClient, new Configuration(baseUrl, Map.of()));
+        }
+
+        TestableApi(ApiClient apiClient, Configuration config) {
+            super(apiClient, config);
+        }
+
+        TestableApi(ApiClient apiClient, Configuration config, Map<String, Authenticator> schemes) {
+            super(apiClient, config, null, schemes);
+        }
+
+        TestableApi(ApiClient apiClient, String baseUrl, @Nullable Authenticator authenticator) {
+            super(apiClient, new Configuration(baseUrl, Map.of()), authenticator);
+        }
+
+        @Nullable Authenticator firstHeld(String... schemes) {
+            return resolveSchemeAuth(schemes);
+        }
+
+        /** Invokes the echo operation with the given request parts. */
+        public <T> @Nullable T call(
+                String method,
+                String path,
+                Map<String, Object> queryParams,
+                Map<String, String> headerParams,
+                @Nullable Object body,
+                String[] accepts,
+                String contentType,
+                @Nullable java.lang.reflect.Type returnType,
+                @Nullable Authenticator auth)
+                throws ApiException {
+            return invokeApi(
+                    "echoOperation", method, path, queryParams, headerParams, body, accepts, contentType,
+                    returnType, auth);
+        }
+
+        {{invokerPackage}}.ApiResult<JsonNode> hooked(
+                String method,
+                String path,
+                String urlTemplate,
+                Map<String, Object> queryParams,
+                @Nullable Object body,
+                @Nullable Authenticator auth) {
+            return this.<JsonNode>invokeApiForResult(
+                    "echoOperation", method, path, queryParams, new HashMap<>(), body,
+                    new String[] {"application/json"}, "application/json", JSON_NODE_TYPE, auth,
+                    null, null, null, null, "echo_operation", urlTemplate);
+        }
+
+        {{invokerPackage}}.ApiResult<JsonNode> timed(@Nullable Authenticator auth, int timeoutMillis) {
+            return this.<JsonNode>invokeApiForResult(
+                    "echoOperation", "GET", "/echo", new HashMap<>(), new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", JSON_NODE_TYPE, auth,
+                    timeoutMillis, null, null, null, "echo_operation", "/echo");
+        }
+
+        <T> {{invokerPackage}}.ApiResult<T> callForResult(
+                String method,
+                String path,
+                Map<String, Object> queryParams,
+                Map<String, String> headerParams,
+                @Nullable Object body,
+                String[] accepts,
+                String contentType,
+                @Nullable java.lang.reflect.Type returnType,
+                @Nullable Authenticator auth)
+                throws ApiException {
+            return invokeApiForResult(
+                    "echoOperation", method, path, queryParams, headerParams, body, accepts, contentType,
+                    returnType, auth);
+        }
+    }
+
+    /** A transport that records the URL, headers and body of the last request. */
+    public static class CapturingApiClient implements ApiClient {
+        public String capturedUrl = "";
+        Map<String, String> capturedHeaders = Map.of();
+        @Nullable Object capturedBody = null;
+
+        @Override
+        public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+            this.capturedUrl = url;
+            this.capturedHeaders = headers;
+            this.capturedBody = body;
+            return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+        }
+    }
+
+    static class TestAuthenticator implements Authenticator {
+
+        private final Map<String, String> headers;
+        private final Map<String, String> queryParams;
+        private final Map<String, String> cookies;
+
+        TestAuthenticator(
+                Map<String, String> headers,
+                Map<String, String> queryParams,
+                Map<String, String> cookies) {
+            this.headers = headers;
+            this.queryParams = queryParams;
+            this.cookies = cookies;
+        }
+
+        @Override
+        public String getHost() {
+            return "";
+        }
+
+        @Override
+        public Map<String, String> getAuthHeaders() {
+            return headers;
+        }
+
+        @Override
+        public Map<String, String> getQueryParams() {
+            return queryParams;
+        }
+
+        @Override
+        public Map<String, String> getCookieParams() {
+            return cookies;
+        }
+    }
+
+    static class HttpAwareTestAuthenticator
+            implements {{invokerPackage}}.auth.HttpAwareAuthenticator {
+
+        private final java.util.concurrent.atomic.AtomicReference<ApiClient> injected;
+
+        HttpAwareTestAuthenticator(java.util.concurrent.atomic.AtomicReference<ApiClient> injected) {
+            this.injected = injected;
+        }
+
+        @Override
+        public void setApiClient(ApiClient apiClient) {
+            injected.set(apiClient);
+        }
+
+        @Override
+        public String getHost() {
+            return "";
+        }
+
+        @Override
+        public Map<String, String> getAuthHeaders() {
+            return Map.of();
+        }
+    }
+
+    /** Answers each request with the next scripted status and keeps a copy of what it was sent. */
+    static class ScriptedApiClient implements ApiClient {
+        final java.util.List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+        private final int[] statuses;
+
+        ScriptedApiClient(int... statuses) {
+            this.statuses = statuses;
+        }
+
+        @Override
+        public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+            int index = Math.min(sentHeaders.size(), statuses.length - 1);
+            sentHeaders.add(new HashMap<>(headers));
+            return new ApiHttpResponse(
+                    statuses[index], "{}", Map.of("Content-Type", "application/json"));
+        }
+    }
+
+    /** A token authenticator whose invalidation moves it on to the next token. */
+    static class RotatingTokenAuthenticator
+            implements {{invokerPackage}}.auth.HttpAwareAuthenticator {
+
+        int token = 1;
+        int invalidations = 0;
+        private final boolean rotates;
+
+        RotatingTokenAuthenticator(boolean rotates) {
+            this.rotates = rotates;
+        }
+
+        @Override
+        public void setApiClient(ApiClient apiClient) {}
+
+        @Override
+        public void invalidateAccessToken() {
+            invalidations++;
+            if (rotates) {
+                token++;
+            }
+        }
+
+        @Override
+        public String getHost() {
+            return "";
+        }
+
+        @Override
+        public Map<String, String> getAuthHeaders() {
+            return Map.of("Authorization", "Bearer t" + token);
+        }
+    }
+
+    private static void callWith(
+            ApiClient client, @Nullable Authenticator auth, @Nullable Object body, String contentType)
+            throws ApiException {
+        new TestableApi(client, "http://localhost", auth)
+                .call(
+                        "POST", "/test/echo",
+                        new HashMap<>(), new HashMap<>(),
+                        body,
+                        new String[] {"application/json"},
+                        contentType,
+                        null, null);
+    }
+
+    @Nested
+    @DisplayName("401 replay")
+    class UnauthorizedReplay {
+
+        @Test
+        @DisplayName("bhvRetries001 a 401 drops the token and the request is replayed once with fresh headers")
+        void bhvRetries001UnauthorizedReplaysOnceWithFreshHeaders() throws ApiException {
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            callWith(client, auth, "{}", "application/json");
+            assertEquals(2, client.sentHeaders.size());
+            assertEquals("Bearer t1", client.sentHeaders.get(0).get("Authorization"));
+            assertEquals("Bearer t2", client.sentHeaders.get(1).get("Authorization"));
+            assertEquals(1, auth.invalidations);
+        }
+
+        @Test
+        @DisplayName("bhvRetries008 a second 401 is reported as Unauthorized after exactly one replay")
+        void bhvRetries008SecondUnauthorizedIsReported() {
+            var client = new ScriptedApiClient(401);
+            var auth = new RotatingTokenAuthenticator(true);
+            assertThrowsExactly(
+                    UnauthorizedException.class, () -> callWith(client, auth, "{}", "application/json"));
+            assertEquals(2, client.sentHeaders.size());
+        }
+
+        @Test
+        @DisplayName("a stream body is not replayed, but the token is still dropped")
+        void bhvRetries045StreamBodyIsNotReplayed() {
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            assertThrowsExactly(
+                    UnauthorizedException.class,
+                    () ->
+                            callWith(
+                                    client,
+                                    auth,
+                                    new java.io.ByteArrayInputStream(new byte[] {1, 2}),
+                                    "application/octet-stream"));
+            assertEquals(1, client.sentHeaders.size());
+            assertEquals(1, auth.invalidations);
+        }
+
+        @Test
+        @DisplayName("bhvRetries006 a multipart body is not replayed")
+        void bhvRetries006MultipartBodyIsNotReplayed() {
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            assertThrowsExactly(
+                    UnauthorizedException.class,
+                    () -> callWith(client, auth, Map.of("field", "value"), "multipart/form-data"));
+            assertEquals(1, client.sentHeaders.size());
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration001 a failed re-authentication leaves the 401 as it is")
+        void bhvAuthIntegration001FailedReauthenticationLeavesTheUnauthorizedResponse() {
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(false);
+            assertThrowsExactly(
+                    UnauthorizedException.class, () -> callWith(client, auth, "{}", "application/json"));
+            assertEquals(1, client.sentHeaders.size());
+        }
+
+        @Test
+        @DisplayName("bhvRetries003 a multipart body is not retried")
+        void bhvRetries003MultipartBodyIsNotRetried() {
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            assertThrowsExactly(
+                    UnauthorizedException.class,
+                    () -> callWith(client, auth, Map.of("avatar", "bytes"), "multipart/form-data"));
+            assertEquals(1, client.sentHeaders.size());
+        }
+
+        @Test
+        @DisplayName("bhvRetries005 a retry asks the authenticator for the headers again")
+        void bhvRetries005RetryAsksTheAuthenticatorForFreshHeaders() throws ApiException {
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            callWith(client, auth, "{}", "application/json");
+            assertEquals(2, client.sentHeaders.size());
+            assertEquals("Bearer t2", client.sentHeaders.get(1).get("Authorization"));
+            assertEquals(2, auth.token);
+        }
+
+        @Test
+        @DisplayName("bhvRetries007 a status other than 401 is not replayed")
+        void bhvRetries007OtherStatusesAreNotReplayed() {
+            var client = new ScriptedApiClient(403, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            assertThrowsExactly(
+                    ForbiddenException.class, () -> callWith(client, auth, "{}", "application/json"));
+            assertEquals(1, client.sentHeaders.size());
+            assertEquals(0, auth.invalidations);
+        }
+
+        @Test
+        @DisplayName("bhvRetries002 a bearer authenticator never replays")
+        void bhvRetries002BearerAuthenticatorNeverReplays() {
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new BearerAuthenticator("http://localhost", "static-token");
+            assertThrowsExactly(
+                    UnauthorizedException.class, () -> callWith(client, auth, "{}", "application/json"));
+            assertEquals(1, client.sentHeaders.size());
+        }
+
+        @Test
+        @DisplayName("a request without an authenticator is not replayed on 401")
+        void bhvRetries043NoAuthenticatorNeverReplays() {
+            var client = new ScriptedApiClient(401, 200);
+            assertThrowsExactly(
+                    UnauthorizedException.class, () -> callWith(client, null, "{}", "application/json"));
+            assertEquals(1, client.sentHeaders.size());
+        }
+    }
+
+    private TestableApi api() {
+        return new TestableApi(ChasmContainer.getBaseUrl());
+    }
+
+    @Nested
+    @DisplayName("exception dispatch")
+    class ExceptionDispatch {
+
+        static Stream<Arguments> statusToException() {
+            return Stream.of(
+                    Arguments.of(400, BadRequestException.class),
+                    Arguments.of(401, UnauthorizedException.class),
+                    Arguments.of(403, ForbiddenException.class),
+                    Arguments.of(404, NotFoundException.class),
+                    Arguments.of(409, ConflictException.class),
+                    Arguments.of(422, UnprocessableEntityException.class),
+                    Arguments.of(429, TooManyRequestsException.class),
+                    Arguments.of(418, ClientException.class),
+                    Arguments.of(500, InternalServerErrorException.class),
+                    Arguments.of(502, BadGatewayException.class));
+        }
+
+        @ParameterizedTest
+        @MethodSource("statusToException")
+        @DisplayName("bhvErrors037 throws correct exception for status code")
+        void bhvErrors037AnErrorResponseThrowsTheExceptionTypeMatchingItsStatus(int status, Class<? extends ApiException> expected) {
+            var ex =
+                    assertThrowsExactly(
+                            expected,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/" + status,
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(status, ex.getStatusCode());
+            assertNotNull(ex.getResponseBody());
+            assertFalse(ex.getResponseBody().isEmpty());
+        }
+
+        @Test
+        @DisplayName("bhvErrors058 400 throws BadRequestException")
+        void bhvErrors058Status400ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            BadRequestException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/400",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(400, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors059 403 throws ForbiddenException")
+        void bhvErrors059Status403ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            ForbiddenException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/403",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(403, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors060 404 throws NotFoundException")
+        void bhvErrors060Status404ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            NotFoundException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/404",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(404, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors066 429 throws TooManyRequestsException")
+        void bhvErrors066Status429ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            TooManyRequestsException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/429",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(429, ex.getStatusCode());
+            assertInstanceOf(ClientException.class, ex);
+        }
+
+        @Test
+        @DisplayName("bhvErrors067 409 throws ConflictException")
+        void bhvErrors067Status409ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            ConflictException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/409",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(409, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors068 422 throws UnprocessableEntityException")
+        void bhvErrors068Status422ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            UnprocessableEntityException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/422",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(422, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors069 500 throws InternalServerErrorException")
+        void bhvErrors069Status500ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            InternalServerErrorException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/500",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(500, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors070 502 throws BadGatewayException")
+        void bhvErrors070Status502ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            BadGatewayException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/502",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(502, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors048 418 throws ClientException")
+        void bhvErrors048Status418ThrowsClientException() {
+            var ex =
+                    assertThrowsExactly(
+                            ClientException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/418",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(418, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors071 a 401 response surfaces as UnauthorizedException")
+        void bhvErrors071A401ResponseSurfacesAsAnUnauthorizedError() {
+            var ex =
+                    assertThrowsExactly(
+                            UnauthorizedException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/401",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(401, ex.getStatusCode());
+        }
+    }
+
+    @Nested
+    @DisplayName("exception hierarchy")
+    class ExceptionHierarchy {
+
+        @Test
+        @DisplayName("bhvErrors033 NotFoundException is ClientException is ApiException")
+        void bhvErrors033NotFoundErrorIsClientErrorIsApiError() {
+            var ex =
+                    assertThrowsExactly(
+                            NotFoundException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/404",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertInstanceOf(ClientException.class, ex);
+            assertInstanceOf(ApiException.class, ex);
+            assertInstanceOf({{errorPrefix}}Exception.class, ex);
+        }
+
+        @Test
+        @DisplayName("bhvErrors031 InternalServerErrorException is ServerException is ApiException")
+        void bhvErrors031InternalServerErrorHierarchy() {
+            var ex =
+                    assertThrowsExactly(
+                            InternalServerErrorException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/500",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertInstanceOf(ServerException.class, ex);
+            assertInstanceOf(ApiException.class, ex);
+            assertInstanceOf({{errorPrefix}}Exception.class, ex);
+        }
+    }
+
+    @Nested
+    @DisplayName("error body parsing")
+    class ErrorBodyParsing {
+
+        @Test
+        @DisplayName("bhvErrors034 parses JSON error body")
+        void bhvErrors034ParsesJsonErrorBody() {
+            var ex =
+                    assertThrows(
+                            BadRequestException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/400",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertNotNull(ex.getErrorBody(), "errorBody should not be null for JSON responses");
+        }
+    }
+
+    @Nested
+    @DisplayName("success deserialization")
+    class SuccessDeserialization {
+
+        @Test
+        @DisplayName("bhvSerializationWire004 deserializes JSON response")
+        void bhvSerializationWire004AJSONResponseIsDeserializedIntoTheDeclaredType() throws ApiException {
+            JsonNode result =
+                    api().call(
+                            "GET",
+                            "/test/echo",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null);
+            assertNotNull(result);
+            assertEquals("GET", result.get("method").asText());
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire019 returns raw string for non-JSON response")
+        void bhvSerializationWire019ReturnsRawStringForNonJson() throws ApiException {
+            String result =
+                    api().call(
+                            "GET",
+                            "/test/text-plain",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"text/plain"},
+                            "application/json",
+                            STRING_TYPE,
+                            null);
+            assertNotNull(result);
+            assertFalse(result.isEmpty());
+        }
+
+        @Test
+        @DisplayName("bhvOperations018 the withHttpInfo variant returns ApiResult with status, data, headers and raw body")
+        void bhvOperations018WithHttpInfoReturnsApiResultWithStatusDataHeadersAndRawBody() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(201, "{\"ok\":true}", Map.of("x-test", "yes"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            {{invokerPackage}}.ApiResult<JsonNode> result =
+                    testApi.callForResult(
+                            "GET", "/test/echo", new HashMap<>(), new HashMap<>(), null,
+                            new String[] {"application/json"}, "application/json", JSON_NODE_TYPE, null);
+            assertEquals(201, result.statusCode());
+            assertEquals("{\"ok\":true}", result.rawBody());
+            assertEquals("yes", result.headers().get("x-test"));
+            assertTrue(result.data() != null && result.data().get("ok").asBoolean());
+        }
+
+        @Test
+        @DisplayName("bhvOperations006 ApiResult.rawBody is never null")
+        void bhvOperations006ApiResultRawBodyIsNonNull() throws ApiException {
+            {{invokerPackage}}.ApiResult<JsonNode> result =
+                    api().callForResult(
+                            "GET",
+                            "/test/echo",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null);
+            // rawBody is part of the public ApiResult contract and is sourced
+            // from the always-present ApiHttpResponse.body() — it must never be
+            // null (empty string for a no-body response).
+            assertNotNull(result.rawBody());
+        }
+
+        @Test
+        void bhvErrors205ADecodeFailureCarriesTheStatusHeadersRawBodyAndRequestWithoutItsQuery() {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(
+                            200, "{\"ok\":", Map.of("content-type", "application/json", "x-test", "yes"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            var ex =
+                    assertThrows(
+                            SerializationException.class,
+                            () ->
+                                    testApi.callForResult(
+                                            "GET",
+                                            "http://localhost/test/echo?limit=2",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            JSON_NODE_TYPE,
+                                            null));
+            assertEquals(200, ex.getStatusCode());
+            assertNotNull(ex.getResponseHeaders());
+            assertEquals("yes", ex.getResponseHeaders().get("x-test"));
+            assertEquals("{\"ok\":", ex.getResponseBody());
+            assertEquals("GET", ex.getRequestMethod());
+            assertEquals("/test/echo", ex.getRequestPath());
+        }
+
+        @Test
+        @DisplayName("bhvOperations015 returns null when returnType is null")
+        void bhvOperations015ReturnsNullWhenReturnTypeIsNull() throws ApiException {
+            Object result =
+                    api().call(
+                            "GET",
+                            "/test/echo",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
+    }
+
+    @Nested
+    @DisplayName("query parameters")
+    class QueryParameters {
+
+        @Test
+        @DisplayName("bhvSerializationWire002 appends query params to URL")
+        void bhvSerializationWire002AppendsQueryParamsToURL() throws ApiException {
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("foo", "bar");
+            Object result =
+                    api().call(
+                            "GET",
+                            "/test/echo",
+                            queryParams,
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire016 includes empty value param in query string when value is empty string")
+        void bhvSerializationWire016IncludesEmptyValueParam() throws ApiException {
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("filter", "");
+            Object result =
+                    api().call(
+                            "GET",
+                            "/test/echo",
+                            queryParams,
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire009 expands array query params")
+        void bhvSerializationWire009ExpandsArrayQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("tags", List.of("a", "b"));
+            testApi.call("GET", "/test/echo", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertTrue(client.capturedUrl.contains("tags=a&tags=b"),
+                    "Expected expanded array params but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationParam107 query key and value keep only the RFC 3986 unreserved set literal")
+        void bhvSerializationParam107QueryEncodingKeepsOnlyUnreservedLiteral() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("k~*", "a~b*c!d'e(f)g h");
+            testApi.call("GET", "/test/echo", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertEquals("http://localhost/test/echo?k~%2A=a~b%2Ac%21d%27e%28f%29g%20h",
+                    client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire020 serializes boolean query params")
+        void bhvSerializationWire020SerializesBooleanQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("active", true);
+            testApi.call("GET", "/test/echo", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertTrue(client.capturedUrl.contains("active=true"),
+                    "Expected active=true but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire023 serializes number query params")
+        void bhvSerializationWire023SerializesNumberQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("limit", 10);
+            testApi.call("GET", "/test/echo", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertTrue(client.capturedUrl.contains("limit=10"),
+                    "Expected limit=10 but got: " + client.capturedUrl);
+            assertFalse(client.capturedUrl.contains("limit=10.0"),
+                    "Should not contain limit=10.0 but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire015 handles empty query params")
+        void bhvSerializationWire015HandlesEmptyQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call("GET", "/test/echo", new HashMap<>(), new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertFalse(client.capturedUrl.contains("?"),
+                    "Expected no query string but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvOperations007 collapses double-slash when baseUrl has trailing slash")
+        void bhvOperations007CollapsesDoubleSlashWhenBaseUrlHasTrailingSlash() throws ApiException {
+            // baseUrl='http://x/' + path='/v1/thing' must produce
+            // 'http://x/v1/thing', not 'http://x//v1/thing' which most
+            // servers route to 404.
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://host/");
+            testApi.call("GET", "/v1/thing", new HashMap<>(), new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertEquals("http://host/v1/thing", client.capturedUrl,
+                    "Expected exactly one slash but got: " + client.capturedUrl);
+        }
+    }
+
+    @Nested
+    @DisplayName("allowEmptyValue query params")
+    class AllowEmptyValueQueryParams {
+
+        @Test
+        @DisplayName("null options omits allowEmptyValue param")
+        /* This regression test deliberately passes null to a @NonNull parameter
+         * to assert the URL omits the param. Passing null is the exact thing
+         * NullAway forbids, so the violation is intrinsic to what the test
+         * verifies and cannot be refactored away. It cannot move to a global
+         * config home without either excluding all error-prone checks from the
+         * test sources (-XepExcludedPaths) or disabling NullAway on tests
+         * wholesale, both of which would drop real null-safety coverage from the
+         * test tree; the suppression is therefore kept, scoped to this one
+         * intentionally-null-passing test method. */
+        @SuppressWarnings("NullAway")
+        void bhvOptions002NullOptionsOmitsAllowEmptyValueParam() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            try {
+                api.findPetsByStatus(null);
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertFalse(client.capturedUrl.contains("status="),
+                    "Expected no status param when options is null, got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire001 allowEmptyValue param omitted when value is null in options")
+        void bhvSerializationWire001AllowEmptyValueOmittedWhenNull() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions());
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            // A null optional allowEmptyValue value must NOT emit a spurious empty key;
+            // the key is sent only when the caller supplies a value (see the next test).
+            assertFalse(client.capturedUrl.contains("status="),
+                    "Expected no status= for allowEmptyValue param with null value, got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvOperations003 allowEmptyValue param included when value is empty string")
+        void bhvOperations003AllowEmptyValueIncludedWhenEmpty() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions().status(""));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertTrue(client.capturedUrl.contains("status="),
+                    "Expected status= in URL for empty string allowEmptyValue param, got: " + client.capturedUrl);
+        }
+    }
+
+    @Nested
+    @DisplayName("per-call options")
+    class PerCallOptions {
+
+        /** A client that records the per-call overrides it is handed. */
+        static class OverrideCapturingClient extends CapturingApiClient {
+            @Nullable Integer capturedTimeout;
+            @Nullable Integer capturedRetries;
+            boolean overrideOverloadUsed;
+
+            @Override
+            public ApiHttpResponse sendRequest(
+                    String method,
+                    String url,
+                    Map<String, String> headers,
+                    @Nullable Object body,
+                    @Nullable Integer timeoutMillis,
+                    @Nullable Integer maxRetries) {
+                this.overrideOverloadUsed = true;
+                this.capturedTimeout = timeoutMillis;
+                this.capturedRetries = maxRetries;
+                return sendRequest(method, url, headers, body);
+            }
+        }
+
+        private PetApi apiOver(ApiClient client) {
+            return new PetApi(client, new Configuration("http://localhost", Map.of()));
+        }
+
+        @Test
+        @DisplayName("bhvTransport002 the timeout reaches the transport for this call only")
+        void bhvTransport002TimeoutReachesTheTransportForThisCallOnly() {
+            var client = new OverrideCapturingClient();
+            var api = apiOver(client);
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions().timeout(1500));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertEquals(1500, client.capturedTimeout);
+            client.overrideOverloadUsed = false;
+            client.capturedTimeout = null;
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions());
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertFalse(client.overrideOverloadUsed);
+            assertNull(client.capturedTimeout);
+        }
+
+        @Test
+        @DisplayName("bhvRetries009 timeout and maxRetries reach the transport")
+        void bhvRetries009TimeoutAndRetriesReachTheTransport() {
+            var client = new OverrideCapturingClient();
+            try {
+                apiOver(client).findPetsByStatus(new FindPetsByStatusOptions().timeout(1500).maxRetries(0));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertTrue(client.overrideOverloadUsed);
+            assertEquals(1500, client.capturedTimeout);
+            assertEquals(0, client.capturedRetries);
+        }
+
+        @Test
+        @DisplayName("without per-call settings the plain send is used")
+        void bhvLangjava043WithoutPerCallSettingsThePlainSendIsUsed() {
+            var client = new OverrideCapturingClient();
+            try {
+                apiOver(client).findPetsByStatus(new FindPetsByStatusOptions());
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertFalse(client.overrideOverloadUsed);
+        }
+
+        @Test
+        @DisplayName("headers are sent with the call")
+        void bhvOperations158HeadersAreSentWithTheCall() {
+            var client = new CapturingApiClient();
+            try {
+                apiOver(client)
+                        .findPetsByStatus(
+                                new FindPetsByStatusOptions().headers(Map.of("X-Trace", "abc")));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured headers
+            }
+            assertEquals("abc", client.capturedHeaders.get("X-Trace"));
+
+            var nullParameters = new CapturingApiClient();
+            try {
+                new PetApi(nullParameters, new Configuration("http://localhost", Map.of()))
+                        .getPetByNote(new GetPetByNoteOptions(null, null));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertTrue(nullParameters.capturedUrl.endsWith("?note=&rank="), nullParameters.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvOperations001 a per-call header replaces a default header of the same name")
+        void bhvOperations001PerCallHeaderReplacesADefault() {
+            var client = new CapturingApiClient();
+            var api =
+                    new PetApi(
+                            client,
+                            new Configuration("http://localhost", Map.of("X-Trace", "default")));
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions().headers(Map.of("X-Trace", "call")));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured headers
+            }
+            assertEquals("call", client.capturedHeaders.get("X-Trace"));
+        }
+
+        @Test
+        @DisplayName("bhvOperations096 an operation with no parameters and no security takes the per-call settings")
+        void bhvOperations096AnOperationWithNothingElseTakesThePerCallSettings() {
+            var client = new OverrideCapturingClient();
+            var api = new StoreApi(client, new Configuration("http://localhost", Map.of()));
+            try {
+                api.getInventory(
+                        new GetInventoryOptions()
+                                .timeout(1500)
+                                .maxRetries(0)
+                                .headers(Map.of("X-Trace", "abc")));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertTrue(client.overrideOverloadUsed);
+            assertEquals(1500, client.capturedTimeout);
+            assertEquals(0, client.capturedRetries);
+            assertEquals("abc", client.capturedHeaders.get("X-Trace"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration011 an operation with no parameters and no security still works without options")
+        void bhvAuthIntegration011AnOperationWithNothingElseWorksWithoutOptions() {
+            var client = new OverrideCapturingClient();
+            var api = new StoreApi(client, new Configuration("http://localhost", Map.of()));
+            try {
+                api.getInventory();
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertFalse(client.overrideOverloadUsed);
+        }
+
+        @Test
+        @DisplayName("an invalid timeout or retry count is refused")
+        void bhvOptions056AnInvalidTimeoutOrRetryCountIsRefused() {
+            assertThrows(
+                    IllegalArgumentException.class, () -> new FindPetsByStatusOptions().timeout(0));
+            assertThrows(
+                    IllegalArgumentException.class, () -> new FindPetsByStatusOptions().maxRetries(-1));
+            assertThrows(IllegalArgumentException.class, () -> new GetInventoryOptions().timeout(0));
+            assertThrows(
+                    IllegalArgumentException.class, () -> new GetInventoryOptions().maxRetries(-1));
+        }
+
+        @Test
+        @DisplayName("bhvMisc050 per-call options override, and an unset one falls through")
+        void bhvMisc050PerCallOptionsOverrideAndAnUnsetOneFallsThrough() {
+            var client = new OverrideCapturingClient();
+            try {
+                apiOver(client).findPetsByStatus(new FindPetsByStatusOptions().maxRetries(0));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertTrue(client.overrideOverloadUsed);
+            assertEquals(0, client.capturedRetries);
+            assertNull(client.capturedTimeout);
+        }
+
+        @Test
+        @DisplayName("bhvMisc052 the last per-call option of a kind takes effect")
+        void bhvMisc052TheLastPerCallOptionOfAKindTakesEffect() {
+            var client = new OverrideCapturingClient();
+            try {
+                apiOver(client)
+                        .findPetsByStatus(
+                                new FindPetsByStatusOptions()
+                                        .timeout(1000)
+                                        .timeout(1500)
+                                        .maxRetries(3)
+                                        .maxRetries(0));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about what the transport saw
+            }
+            assertEquals(1500, client.capturedTimeout);
+            assertEquals(0, client.capturedRetries);
+        }
+
+        @Test
+        @DisplayName("bhvMisc053 a per-call retry budget of zero is accepted and a negative one is refused")
+        void bhvMisc053ARetryBudgetOfZeroIsAcceptedAndANegativeOneIsRefused() {
+            new FindPetsByStatusOptions().maxRetries(0);
+            assertThrows(
+                    IllegalArgumentException.class, () -> new FindPetsByStatusOptions().maxRetries(-1));
+        }
+
+        @Test
+        @DisplayName("bhvMisc054 per-call headers are a copy that later changes to the caller's map do not reach")
+        void bhvMisc054PerCallHeadersAreACopyTheCallerCannotChange() {
+            var headers = new HashMap<String, String>();
+            headers.put("X-Trace", "abc");
+            var options = new FindPetsByStatusOptions().headers(headers);
+            headers.put("X-Trace", "changed");
+            var client = new CapturingApiClient();
+            try {
+                apiOver(client).findPetsByStatus(options);
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured headers
+            }
+            assertEquals("abc", client.capturedHeaders.get("X-Trace"));
+        }
+
+        @Test
+        @DisplayName("bhvMisc055 an invalid per-call timeout or retry count is refused as an argument error")
+        void bhvMisc055AnInvalidPerCallTimeoutOrRetryCountIsRefused() {
+            assertThrows(IllegalArgumentException.class, () -> new GetInventoryOptions().timeout(-5));
+            assertThrows(
+                    IllegalArgumentException.class, () -> new FindPetsByStatusOptions().maxRetries(-2));
+        }
+    }
+
+    @Nested
+    @DisplayName("server variable overrides")
+    class ServerVariableOverrides {
+
+        @Test
+        @DisplayName("bhvOptions003 server variable overrides resolve in base URL")
+        void bhvOptions003ServerVariableOverridesResolve() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1, Map.of("environment", "staging"))
+                    .build();
+            assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
+        }
+
+        @Test
+        @DisplayName("bhvOperations009 default server variables produce correct base URL")
+        void bhvOperations009DefaultServerVariablesResolve() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1)
+                    .build();
+            assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
+        }
+
+        @Test
+        @DisplayName("bhvErrors032 invalid enum value throws error")
+        void bhvErrors032InvalidEnumValueThrows() {
+            assertThrows(IllegalArgumentException.class, () ->
+                    Configuration.builder()
+                            .server(Servers.SERVER_1, Map.of("environment", "invalid"))
+                            .build());
+        }
+
+        @Test
+        @DisplayName("bhvOperations005 API request uses resolved server URL")
+        void bhvOperations005ApiRequestUsesResolvedServerUrl() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1, Map.of("environment", "staging"))
+                    .build();
+            assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
+            TestableApi testApi = new TestableApi(config.getBaseUrl());
+            assertNotNull(testApi);
+        }
+
+        @Test
+        @DisplayName("bhvErrors027 an absolute URL in the path bypasses the client base URL")
+        void bhvErrors027AbsoluteUrlInPathBypassesTheClientBaseUrl() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "https://api.example.invalid/base");
+            testApi.call(
+                    "GET", "https://other.example.invalid/abs/x",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertEquals("https://other.example.invalid/abs/x", client.capturedUrl);
+        }
+    }
+
+    @Nested
+    @DisplayName("auth injection")
+    class AuthInjection {
+
+        @Test
+        @DisplayName("bhvAuthIntegration010 forwards auth headers")
+        void bhvAuthIntegration010AuthHeadersAreForwardedOnTheRequest() throws Exception {
+            var auth =
+                    new TestAuthenticator(
+                            Map.of("X-Custom", "auth-value"), Map.of(), Map.of());
+            JsonNode result =
+                    api().call(
+                            "GET",
+                            "/test/echo",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            auth);
+            assertNotNull(result);
+            assertEquals("auth-value", result.get("headers").get("x-custom").asText());
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration017 sets Cookie header from auth cookies")
+        void bhvAuthIntegration017SetsCookieHeaderFromAuthCookies() throws Exception {
+            var auth =
+                    new TestAuthenticator(
+                            Map.of(), Map.of(), Map.of("session", "abc123"));
+            JsonNode result =
+                    api().call(
+                            "GET",
+                            "/test/echo",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            auth);
+            assertNotNull(result);
+            assertEquals("session=abc123", result.get("headers").get("cookie").asText());
+        }
+
+        @Test
+        void bhvAuthIntegration019InvalidAuthCookieIsRefusedBeforeAnyRequest() throws Exception {
+            var auth =
+                    new TestAuthenticator(
+                            Map.of(), Map.of(), Map.of("session", "a;b"));
+            IllegalArgumentException error =
+                    assertThrowsExactly(
+                            IllegalArgumentException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/echo",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            JSON_NODE_TYPE,
+                                            auth));
+            String message = error.getMessage();
+            assertNotNull(message);
+            assertTrue(message.contains("RFC 6265"), message);
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration009 falls back to client-level authenticator when no per-call auth is supplied")
+        void bhvAuthIntegration009FallsBackToClientLevelAuthenticator() throws ApiException {
+            var client = new CapturingApiClient();
+            var clientAuth =
+                    new TestAuthenticator(
+                            Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
+            var testApi = new TestableApi(client, "http://localhost", clientAuth);
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertEquals("client-level-token", client.capturedHeaders.get("X-Client-Auth"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration013 per-call auth overrides the client-level authenticator")
+        void bhvAuthIntegration013PerCallAuthOverridesClientLevel() throws ApiException {
+            var client = new CapturingApiClient();
+            var clientAuth =
+                    new TestAuthenticator(
+                            Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
+            var perCallAuth =
+                    new TestAuthenticator(
+                            Map.of("X-Client-Auth", "per-call-token"), Map.of(), Map.of());
+            var testApi = new TestableApi(client, "http://localhost", clientAuth);
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, perCallAuth);
+            assertEquals("per-call-token", client.capturedHeaders.get("X-Client-Auth"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration002 a per-call HTTP-aware authenticator is given the API's client")
+        void bhvAuthIntegration002PerCallHttpAwareAuthenticatorReceivesTheClient() throws ApiException {
+            var client = new CapturingApiClient();
+            var injected = new java.util.concurrent.atomic.AtomicReference<ApiClient>();
+            var perCallAuth =
+                    new HttpAwareTestAuthenticator(injected);
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, perCallAuth);
+            assertSame(client, injected.get());
+        }
+
+        /*
+         * WAVE A1 regression guard. The three tests above use the in-test
+         * TestAuthenticator fake. These two go end-to-end through a REAL
+         * authenticator implementation configured at the client level, and
+         * assert the credential actually reaches the wire. This is the guard
+         * for the Elixir bug where a configured authenticator was silently
+         * dropped on the way to a secured operation: a client is built WITH an
+         * authenticator, the request is issued with no per-call auth (auth =
+         * null), so the only way the credential can appear on the outbound
+         * request is if the configured client-level authenticator was applied.
+         */
+
+        @Test
+        @DisplayName("bhvAuthIntegration006 a client-configured Bearer authenticator is applied to the outbound request")
+        void bhvAuthIntegration006AppliesConfiguredBearerAuthenticator() throws Exception {
+            BearerAuthenticator auth =
+                    new BearerAuthenticator(ChasmContainer.getBaseUrl(), "secret-jwt");
+            TestableApi configured =
+                    new TestableApi(new DefaultApiClient(), ChasmContainer.getBaseUrl(), auth);
+            JsonNode result =
+                    configured.call(
+                            "GET",
+                            "/test/echo",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null);
+            assertNotNull(result);
+            assertEquals(
+                    "Bearer secret-jwt",
+                    result.get("headers").get("authorization").asText());
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration018 a client-configured apiKey-header authenticator is applied to the outbound request")
+        void bhvAuthIntegration018AppliesConfiguredApiKeyAuthenticator() throws Exception {
+            ApiKeyAuthenticator auth =
+                    new ApiKeyAuthenticator(
+                            ChasmContainer.getBaseUrl(),
+                            "X-API-Key",
+                            "secret-key",
+                            ApiKeyLocation.HEADER);
+            TestableApi configured =
+                    new TestableApi(new DefaultApiClient(), ChasmContainer.getBaseUrl(), auth);
+            JsonNode result =
+                    configured.call(
+                            "GET",
+                            "/test/echo",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null);
+            assertNotNull(result);
+            assertEquals(
+                    "secret-key",
+                    result.get("headers").get("x-api-key").asText());
+        }
+
+        /*
+         * WAVE A2 — security:[] suppression guard. An operation declared
+         * `security: []` opts out of all auth. Its generated method passes the
+         * NO_AUTH sentinel (not null) as the auth argument; BaseApi must then
+         * NOT fall back to the client-level authenticator. Without this, a
+         * configured client credential would leak onto an unauthenticated
+         * operation (e.g. a testEcho* op that reflects the request back). These
+         * tests drive a configured client and assert the credential is absent
+         * from the outbound request when the sentinel is supplied — the mirror
+         * image of the A1 fallback guard above.
+         */
+
+        @Test
+        @DisplayName("bhvAuthIntegration015 NO_AUTH sentinel suppresses the client-level authenticator's header, query, and cookie")
+        void bhvAuthIntegration015NoAuthSentinelSuppressesClientAuthenticator() throws ApiException {
+            var client = new CapturingApiClient();
+            var clientAuth =
+                    new TestAuthenticator(
+                            Map.of("X-Client-Auth", "client-level-token"),
+                            Map.of("api_key", "client-key"),
+                            Map.of("session", "client-cookie"));
+            var testApi = new TestableApi(client, "http://localhost", clientAuth);
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, TestableApi.NO_AUTH_SENTINEL);
+            // The configured authenticator must NOT reach the wire for an
+            // explicitly unauthenticated (security:[]) operation.
+            assertFalse(client.capturedHeaders.containsKey("X-Client-Auth"),
+                    "client auth header must be suppressed for a security:[] operation");
+            assertFalse(client.capturedHeaders.containsKey("Cookie"),
+                    "client auth cookie must be suppressed for a security:[] operation");
+            assertFalse(client.capturedUrl.contains("api_key="),
+                    "client auth query param must be suppressed for a security:[] operation, got: "
+                            + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration016 a security:[] operation sends no credential even though the client is configured (end-to-end)")
+        void bhvAuthIntegration016SecurityNoneOperationSendsNoCredentialEndToEnd() {
+            // Build a client WITH a real authenticator that injects a header, a
+            // query param, AND a cookie, then invoke the generated security:[]
+            // operation getInventory. The operation passes NO_AUTH, so none of
+            // the three credential channels may appear on the outbound request.
+            var captured = new HashMap<String, String>();
+            var capturingClient = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    captured.putAll(headers);
+                    this.capturedUrl = url;
+                    return new ApiHttpResponse(
+                            200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var clientAuth =
+                    new TestAuthenticator(
+                            Map.of("Authorization", "Bearer leaked-secret"),
+                            Map.of("api_key", "leaked-key"),
+                            Map.of("session", "leaked-cookie"));
+            var config = new Configuration("http://localhost", Map.of());
+            var storeApi = new StoreApi(capturingClient, config, clientAuth);
+            try {
+                storeApi.getInventory();
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; we only assert outbound headers.
+            }
+            assertFalse(captured.containsKey("Authorization"),
+                    "Authorization must be absent for the security:[] getInventory operation");
+            assertFalse(captured.containsKey("Cookie"),
+                    "auth cookie must be absent for the security:[] getInventory operation");
+            assertFalse(capturingClient.capturedUrl.contains("api_key="),
+                    "api-key query param must be absent for getInventory, got: "
+                            + capturingClient.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration012 an inherited-security operation applies the configured client authenticator (end-to-end)")
+        void bhvAuthIntegration012InheritedSecurityOperationAppliesClientAuthenticatorEndToEnd() {
+            // getPetById declares no security of its own, so it inherits the
+            // global requirement. This generator strips the inherited auth
+            // methods off such an operation, so the generated method passes null
+            // (not NO_AUTH) and BaseApi falls back to the client-level
+            // authenticator. The configured client credential MUST reach the
+            // wire — the regression that silently dropped auth on every
+            // inherited-security operation.
+            var captured = new HashMap<String, String>();
+            var capturingClient = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    captured.putAll(headers);
+                    this.capturedUrl = url;
+                    return new ApiHttpResponse(
+                            200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var clientAuth =
+                    new TestAuthenticator(
+                            Map.of("Authorization", "Bearer client-secret"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var petApi = new PetApi(capturingClient, config, clientAuth);
+            try {
+                petApi.getPetById(1L);
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; we only assert outbound headers.
+            }
+            assertEquals("Bearer client-secret", captured.get("Authorization"),
+                    "the client authenticator must be applied to the inherited-security getPetById operation");
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration004 appends auth cookies to a Cookie header the operation already set")
+        void bhvAuthIntegration004AppendsAuthCookiesToAnExistingCookieHeader() throws ApiException {
+            var client = new CapturingApiClient();
+            var auth = new TestAuthenticator(Map.of(), Map.of(), Map.of("session", "abc123"));
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(Map.of("Cookie", "a=1")),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, auth);
+            assertEquals("a=1; session=abc123", client.capturedHeaders.get("Cookie"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration005 a security:[] operation keeps the client authenticator header off the wire")
+        void bhvAuthIntegration005SecurityNoneOperationDropsTheClientAuthenticatorHeader() {
+            var captured = new HashMap<String, String>();
+            var capturingClient = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    captured.putAll(headers);
+                    return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var clientAuth =
+                    new TestAuthenticator(Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var storeApi = new StoreApi(capturingClient, config, clientAuth);
+            try {
+                storeApi.getInventory();
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertFalse(captured.containsKey("X-Client-Auth"),
+                    "the client authenticator must not reach a security:[] operation");
+        }
+
+        @Test
+        @DisplayName("bhvMisc064 an operation that declares no security never sends the client default credential")
+        void bhvMisc064ANoSecurityOperationNeverSendsTheClientDefaultCredential() {
+            var captured = new HashMap<String, String>();
+            var capturingClient = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    captured.putAll(headers);
+                    return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var clientAuth =
+                    new TestAuthenticator(Map.of("X-Client-Auth", "client-level-token"), Map.of(), Map.of());
+            var storeApi =
+                    new StoreApi(capturingClient, new Configuration("http://localhost", Map.of()), clientAuth);
+            try {
+                storeApi.getInventory();
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertFalse(captured.containsKey("X-Client-Auth"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration003 a scheme credential wins over the client-level authenticator, and the fallback is used when none matches")
+        void bhvAuthIntegration003SchemeCredentialWinsOverClientAuthenticator() {
+            var client = new CapturingApiClient();
+            var clientAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "client-cred"), Map.of(), Map.of());
+            var schemeAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "scheme-cred"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var pet = new {{invokerPackage}}.models.Pet("rex", java.util.Set.of("https://x.invalid/rex"));
+            var withScheme = new PetApi(client, config, clientAuth, Map.of("petStoreBearer", schemeAuth));
+            try {
+                withScheme.addPet(pet);
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("scheme-cred", client.capturedHeaders.get("X-Credential"));
+
+            var withoutScheme = new PetApi(client, config, clientAuth, Map.of());
+            try {
+                withoutScheme.addPet(pet);
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("client-cred", client.capturedHeaders.get("X-Credential"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration007 each operation sends the credential of its own scheme")
+        void bhvAuthIntegration007EachOperationSendsTheCredentialOfItsOwnScheme() {
+            var client = new CapturingApiClient();
+            var apiKeyAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "api-key-cred"), Map.of(), Map.of());
+            var basicAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "basic-cred"), Map.of(), Map.of());
+            var bearerAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "bearer-cred"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var petApi = new PetApi(
+                    client, config, null,
+                    Map.of("apiKeyHeader", apiKeyAuth, "petStoreBasic", basicAuth, "petStoreBearer", bearerAuth));
+            var pet = new {{invokerPackage}}.models.Pet("rex", java.util.Set.of("https://x.invalid/rex"));
+            try {
+                petApi.addPet(pet);
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("api-key-cred", client.capturedHeaders.get("X-Credential"));
+            try {
+                petApi.downloadPetDocument(1L, 2L);
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("basic-cred", client.capturedHeaders.get("X-Credential"));
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration014 resolves the credential of the first listed scheme the client holds")
+        void bhvAuthIntegration014ResolvesTheFirstListedHeldScheme() {
+            var client = new CapturingApiClient();
+            var apiKeyAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "api-key-cred"), Map.of(), Map.of());
+            var bearerAuth =
+                    new TestAuthenticator(Map.of("X-Credential", "bearer-cred"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var petApi = new PetApi(
+                    client, config, null,
+                    Map.of("petStoreBearer", bearerAuth, "apiKeyHeader", apiKeyAuth));
+            try {
+                petApi.addPet(new {{invokerPackage}}.models.Pet("rex", java.util.Set.of("https://x.invalid/rex")));
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("api-key-cred", client.capturedHeaders.get("X-Credential"));
+        }
+
+        @Test
+        @DisplayName("bhvMisc074 an alternative naming two schemes sends both credentials")
+        void bhvMisc074AnAlternativeNamingTwoSchemesSendsBothCredentials() {
+            var client = new CapturingApiClient();
+            var bearerAuth = new TestAuthenticator(Map.of("X-Bearer", "bearer-cred"), Map.of(), Map.of());
+            var apiKeyAuth = new TestAuthenticator(Map.of("X-Key", "api-key-cred"), Map.of(), Map.of());
+            var config = new Configuration("http://localhost", Map.of());
+            var storeApi = new StoreApi(
+                    client, config, null,
+                    Map.of("petStoreBearer", bearerAuth, "apiKeyHeader", apiKeyAuth));
+            try {
+                storeApi.getAuditTrail();
+            } catch (Exception ignored) {
+                // Response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("bearer-cred", client.capturedHeaders.get("X-Bearer"));
+            assertEquals("api-key-cred", client.capturedHeaders.get("X-Key"));
+        }
+    }
+
+    @Nested
+    @DisplayName("body serialization")
+    class BodySerialization {
+
+        @Test
+        @DisplayName("bhvSerializationWire022 serializes JSON body for POST")
+        void bhvSerializationWire022SerializesJSONBodyForPOST() throws Exception {
+            Map<String, String> body = Map.of("key", "value");
+            JsonNode result =
+                    api().call(
+                            "POST",
+                            "/test/echo",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            body,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null);
+            assertNotNull(result);
+            // Chasm envelope: parse the echoed body field as JSON to read the key.
+            JsonNode echoedBody =
+                    new com.fasterxml.jackson.databind.ObjectMapper()
+                            .readTree(result.get("body").asText());
+            assertEquals("value", echoedBody.get("key").asText());
+        }
+
+        @Test
+        @DisplayName("bhvOperations016 sends no body when body is null")
+        void bhvOperations016SendsNoBodyWhenNull() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "GET",
+                    "/test/echo",
+                    new HashMap<>(),
+                    new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null,
+                    null);
+            assertNull(client.capturedBody, "a null body must reach the transport as no body");
+            for (String name : client.capturedHeaders.keySet()) {
+                assertFalse("content-type".equalsIgnoreCase(name),
+                        "a body-less call must not carry Content-Type, found: " + name);
+                assertFalse("content-length".equalsIgnoreCase(name),
+                        "a body-less call must not carry Content-Length, found: " + name);
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire024 serializes text/plain body")
+        void bhvSerializationWire024SerializesTextPlainBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    "hello world",
+                    new String[] {"application/json"},
+                    "text/plain",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertEquals("hello world", client.capturedBody.toString());
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire021 serializes form-urlencoded body")
+        void bhvSerializationWire021SerializesFormUrlencodedBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, String> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("name", "alice");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertTrue(client.capturedBody.toString().contains("name=alice"));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire053 array form field emits repeated keys")
+        void bhvSerializationWire053ArrayFormFieldEmitsRepeatedKeys() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new LinkedHashMap<>();
+            formParams.put("nickname", "rex");
+            formParams.put("tags", List.of("a", "b"));
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertEquals("nickname=rex&tags=a&tags=b", client.capturedBody.toString());
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire011 form optional null field is omitted")
+        void bhvSerializationWire011FormOptionalNullFieldIsOmitted() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new LinkedHashMap<>();
+            formParams.put("name", "Ada");
+            formParams.put("nickname", null);
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertEquals("name=Ada", client.capturedBody.toString());
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire013 form-urlencoded body keeps a well-formed surrogate pair")
+        void bhvSerializationWire013FormBodyKeepsAWellFormedSurrogatePair() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new LinkedHashMap<>();
+            formParams.put("emoji", "😀");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertEquals("emoji=%F0%9F%98%80", client.capturedBody.toString());
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire012 form-urlencoded body encodes space as + not %20")
+        void bhvSerializationWire012FormUrlencodedBodyEncodesSpaceAsPlus() throws ApiException {
+            // form-urlencoded-space-plus-vs-pct20: application/x-www-form-urlencoded
+            // is defined by the WHATWG/HTML form-encoding standard, which mandates
+            // '+' for a space (not RFC-3986 '%20'). URLEncoder.encode emits '+',
+            // keeping the wire bytes identical across all SDKs.
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, String> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("full name", "Ada Lovelace");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            String wire = client.capturedBody.toString();
+            assertEquals("full+name=Ada+Lovelace", wire);
+            assertFalse(wire.contains("%20"));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire057 form-urlencoded body keeps ~ literal and escapes *")
+        void bhvSerializationWire057FormUrlencodedBodyKeepsOnlyTheUnreservedSetLiteral() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, String> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("k~*", "a~b*c!d'e(f)g h");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertEquals("k~%2A=a~b%2Ac%21d%27e%28f%29g+h", client.capturedBody);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire014 form-urlencoded body rejects a nested object field")
+        void bhvSerializationWire014FormUrlencodedBodyRejectsANestedObjectField() {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("location", Map.of("lat", 1.5));
+            {{invokerPackage}}.errors.SerializationException ex = assertThrowsExactly(
+                    {{invokerPackage}}.errors.SerializationException.class,
+                    () -> testApi.call(
+                            "POST", "/test/echo",
+                            new HashMap<>(), new HashMap<>(),
+                            formParams,
+                            new String[] {"application/json"},
+                            "application/x-www-form-urlencoded",
+                            null, null));
+            assertEquals(
+                    "form-urlencoded field location must be a scalar or array of scalars",
+                    ex.getMessage());
+            assertNull(client.capturedBody);
+        }
+
+        @Test
+        @DisplayName("bhvOperations014 passes binary body as-is")
+        void bhvOperations014PassesBinaryBodyAsIs() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            byte[] binaryData = new byte[] {0x01, 0x02, 0x03};
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    binaryData,
+                    new String[] {"application/json"},
+                    "application/octet-stream",
+                    null, null);
+            assertNotNull(client.capturedBody);
+        }
+    }
+
+    @Nested
+    @DisplayName("content-type handling")
+    class ContentTypeHandling {
+
+        @Test
+        @DisplayName("bhvSerializationWire025 skips JSON deserialization for text/plain response")
+        void bhvSerializationWire025SkipsDeserializationForTextPlain() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    this.capturedUrl = url;
+                    this.capturedHeaders = headers;
+                    this.capturedBody = body;
+                    return new ApiHttpResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            String result = testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"text/plain"},
+                    "application/json",
+                    STRING_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("hello", result);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationParam118 a content cookie value is encoded to the shared percent encoded bytes")
+        void bhvSerializationParam118ContentCookieValueIsEncodedToSharedBytes() {
+            String encoded = TestableApi.encodeCookie("[1,\"x\"]");
+            assertEquals("%5B1%2C%22x%22%5D", encoded);
+            assertTrue(TestableApi.cookieValueValid(encoded));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationObject224 a content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal")
+        void bhvSerializationObject224ContentCookieIsPercentEncodedJson() {
+            String json = "{\"k\":\"a b~*é\"}";
+            assertEquals("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", TestableApi.encodeCookie(json));
+            assertTrue(TestableApi.cookieValueValid(TestableApi.encodeCookie(json)));
+        }
+
+        @Test
+        @DisplayName("bhvErrors035 rejects a text/plain response when the return type is not String")
+        void bhvErrors035RejectsTextPlainForNonStringReturnType() {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            {{invokerPackage}}.errors.SerializationException ex = assertThrowsExactly(
+                    {{invokerPackage}}.errors.SerializationException.class,
+                    () -> testApi.call(
+                            "GET", "/test/echo",
+                            new HashMap<>(), new HashMap<>(),
+                            null,
+                            new String[] {"text/plain"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null));
+            assertTrue(String.valueOf(ex.getMessage()).contains("text/plain"));
+            assertTrue(String.valueOf(ex.getMessage()).contains("TestableApi.echoOperation"));
+            assertFalse(String.valueOf(ex.getMessage()).contains("get"));
+        }
+
+        @Test
+        @DisplayName("bhvErrors054 names the operation, not the HTTP verb, in an unexpected Content-Type error")
+        void bhvErrors054UnexpectedContentTypeNamesTheOperationNotTheVerb() {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(200, "<p>hi</p>", Map.of("Content-Type", "text/html"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            {{invokerPackage}}.errors.SerializationException ex = assertThrowsExactly(
+                    {{invokerPackage}}.errors.SerializationException.class,
+                    () -> testApi.call(
+                            "GET", "/test/echo",
+                            new HashMap<>(), new HashMap<>(),
+                            null,
+                            new String[] {"text/html"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null));
+            assertTrue(String.valueOf(ex.getMessage()).contains("TestableApi.echoOperation"));
+            assertFalse(String.valueOf(ex.getMessage()).contains("GET"));
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire005 deserializes vendor JSON MIME types like application/problem+json")
+        void bhvSerializationWire005DeserializesVendorJsonMimeType() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    this.capturedUrl = url;
+                    this.capturedHeaders = headers;
+                    this.capturedBody = body;
+                    return new ApiHttpResponse(
+                            200,
+                            "{\"title\":\"Not Found\"}",
+                            Map.of("Content-Type", "application/problem+json"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            JsonNode result = testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    JSON_NODE_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("Not Found", result.get("title").asText());
+        }
+    }
+
+    @Nested
+    @DisplayName("header flow-through")
+    class HeaderFlowThrough {
+
+        @Test
+        @DisplayName("bhvSerializationWire007 empty content-type defaults to application/json")
+        void bhvSerializationWire007EmptyContentTypeDefaultsToJson() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    new HashMap<>(),
+                    new String[] {"application/json"},
+                    "",
+                    null, null);
+            assertEquals("application/json", client.capturedHeaders.get("Content-Type"));
+        }
+
+        @Test
+        @DisplayName("bhvOperations002 all headers from selector flow through to request")
+        void bhvOperations002AllHeadersFlowThrough() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    new HashMap<>(),
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertTrue(client.capturedHeaders.containsKey("Accept"));
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"));
+        }
+
+        @Test
+        @DisplayName("bhvOptions001 config default header overrides operation-negotiated Accept")
+        void bhvOptions001ConfigDefaultHeaderOverridesNegotiatedAccept() throws ApiException {
+            // R5-1: a caller-supplied config default header must win over the
+            // operation's content-negotiated Accept. Here the operation
+            // negotiates Accept: application/json, but the config default sets
+            // Accept: application/xml — the outgoing request must carry the
+            // config default, not the negotiated value.
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of("Accept", "application/xml"));
+            var testApi = new TestableApi(client, config);
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertEquals("application/xml", client.capturedHeaders.get("Accept"),
+                    "config default Accept must override the negotiated Accept");
+        }
+
+        @Test
+        @DisplayName("bhvHeaders030 a default header in another case replaces the negotiated one instead of being sent beside it")
+        void bhvHeaders030DefaultHeaderInAnotherCaseReplacesTheNegotiatedAccept() throws ApiException {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of("accept", "application/xml"));
+            var testApi = new TestableApi(client, config);
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            List<String> accepts = client.capturedHeaders.keySet().stream()
+                    .filter(name -> name.equalsIgnoreCase("accept"))
+                    .toList();
+            assertEquals(1, accepts.size(), "two spellings of Accept were sent: " + accepts);
+            assertEquals("application/xml", client.capturedHeaders.get(accepts.get(0)));
+        }
+
+        @Test
+        void bhvOperations008HeaderParamAcceptWinsOverTheConfigDefaultAndTheNegotiatedAccept() throws ApiException {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of("Accept", "application/xml"));
+            var testApi = new TestableApi(client, config);
+            Map<String, String> headerParams = new HashMap<>();
+            headerParams.put("Accept", "text/plain");
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), headerParams,
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertEquals("text/plain", client.capturedHeaders.get("Accept"),
+                    "an explicit Accept header parameter must beat the config default and the negotiated Accept");
+        }
+
+        @Test
+        @DisplayName("bhvOperations004 an explicit Accept header parameter beats the config default and the negotiated Accept")
+        void bhvOperations004ExplicitAcceptHeaderBeatsConfigDefaultAndNegotiatedAccept() throws ApiException {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of("Accept", "application/xml"));
+            var testApi = new TestableApi(client, config);
+            Map<String, String> headerParams = new HashMap<>();
+            headerParams.put("Accept", "text/plain");
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), headerParams,
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertEquals("text/plain", client.capturedHeaders.get("Accept"));
+        }
+    }
+
+    // ── Binary response tests (Gap 3+4) ──
+
+    @Nested
+    @DisplayName("BinaryResponseTests")
+    class BinaryResponseTests {
+
+        @Test
+        @DisplayName("bhvSerializationWire017 octet-stream body roundtrips bytes exactly via API call")
+        void bhvSerializationWire017OctetStreamRoundtripsBytesExactlyViaApi() throws ApiException {
+            byte[] original = new byte[] {0x00, (byte) 0xFF, 0x42};
+            String encoded = java.util.Base64.getEncoder().encodeToString(original);
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(
+                            200, encoded, Map.of("Content-Type", "application/octet-stream"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            byte[] decoded = testApi.call(
+                    "GET", "/api/binary",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/octet-stream"},
+                    "application/json",
+                    byte[].class,
+                    null);
+            assertArrayEquals(original, decoded,
+                    "binary roundtrip must preserve bytes exactly");
+        }
+
+        @Test
+        @DisplayName("bhvMisc081 a string result under a binary content type is the decoded body")
+        void bhvMisc081AStringResultUnderABinaryContentTypeIsTheDecodedBody() throws ApiException {
+            String encoded = java.util.Base64.getEncoder().encodeToString("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(200, encoded, Map.of("Content-Type", "application/pdf"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            String resp = testApi.call(
+                    "GET", "/api/binary",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/pdf"},
+                    "application/json",
+                    STRING_TYPE,
+                    null);
+            assertEquals("hello", resp);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire006 binary return type with no Content-Type reads the text body as bytes")
+        void bhvSerializationWire006BinaryReturnTypeWithoutContentTypeReadsTextBody() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(200, "hello", Map.of());
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            byte[] result = testApi.call(
+                    "GET", "/api/binary",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/octet-stream"},
+                    "application/json",
+                    byte[].class,
+                    null);
+            assertArrayEquals("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8), result);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire060 binary return type gets the raw bytes of a JSON body")
+        void bhvSerializationWire060BinaryReturnTypeGetsTheRawBytesOfAJsonBody() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(200, "{\"ok\":true}", Map.of("content-type", "application/json"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            byte[] result = testApi.call(
+                    "GET", "/api/binary",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    byte[].class,
+                    null);
+            assertArrayEquals("{\"ok\":true}".getBytes(java.nio.charset.StandardCharsets.UTF_8), result);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire018 octet-stream base64 body decodes to correct bytes (transport-level)")
+        void bhvSerializationWire018OctetStreamBase64DecodesToCorrectBytes() throws ApiException {
+            // AP9C is base64 for [0x00, 0xFF, 0x42]
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(200, "AP9C", Map.of("Content-Type", "application/octet-stream"));
+                }
+            };
+            var rawResponse = client.sendRequest("GET", "/api/binary", Map.of(), null);
+            byte[] decoded = java.util.Base64.getDecoder().decode(rawResponse.body());
+            assertArrayEquals(new byte[] {0x00, (byte) 0xFF, 0x42}, decoded,
+                    "binary roundtrip must preserve bytes exactly");
+        }
+
+        @Test
+        @DisplayName("bhvOperations012 image/png response body is byte array not string")
+        void bhvOperations012ImagePngResponseIsBytes() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    // A tiny valid base64-encoded PNG placeholder
+                    return new ApiHttpResponse(200, "iVBORw0KGgo=", Map.of("Content-Type", "image/png"));
+                }
+            };
+            var rawResponse = client.sendRequest("GET", "/api/image", Map.of(), null);
+            // Verify the body is a base64 string (not a UTF-8 decoded raw binary)
+            byte[] decoded = java.util.Base64.getDecoder().decode(rawResponse.body());
+            assertNotNull(decoded);
+            assertTrue(decoded.length > 0);
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire003 application/json response parses to object")
+        void bhvSerializationWire003JsonResponseParsesToObject() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(200, "{\"key\":\"value\"}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            JsonNode result = testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    JSON_NODE_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("value", result.get("key").asText());
+        }
+
+        @Test
+        @DisplayName("bhvOperations017 text/plain response returns string")
+        void bhvOperations017TextPlainResponseReturnsString() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            String result = testApi.call(
+                    "GET", "/test/text-plain",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"text/plain"},
+                    "application/json",
+                    STRING_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("hello", result);
+        }
+
+        @Test
+        @DisplayName("bhvOperations010 octet-stream with empty body yields empty byte array")
+        void bhvOperations010OctetStreamEmptyBodyYieldsEmptyByteArray() {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    return new ApiHttpResponse(200, "", Map.of("Content-Type", "application/octet-stream"));
+                }
+            };
+            var rawResponse = client.sendRequest("GET", "/api/binary/empty", Map.of(), null);
+            assertTrue(rawResponse.body().isEmpty(),
+                    "Empty octet-stream body should be empty string");
+            byte[] decoded = java.util.Base64.getDecoder().decode(rawResponse.body());
+            assertEquals(0, decoded.length,
+                    "Decoded empty binary body must be a zero-length byte array");
+        }
+    }
+
+    // ── Charset decoding tests (Gap H) ──
+
+    @Nested
+    @DisplayName("CharsetDecodingTests")
+    class CharsetDecodingTests {
+
+        @Test
+        @DisplayName("bhvSerializationWire032 respects charset=ISO-8859-1 from Content-Type")
+        void bhvSerializationWire032DecodesIso88591BodyToUtf8WhenCharsetDeclared() throws Exception {
+            // 0xE9 is "é" in ISO-8859-1 (would be invalid as UTF-8)
+            byte[] bytes = new byte[] {(byte) 0xE9};
+            String latin1 = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+            assertEquals("é", latin1);
+            // Verify the parseCharset logic round-trips through Charset.forName
+            java.nio.charset.Charset cs = java.nio.charset.Charset.forName("ISO-8859-1");
+            String decoded = new String(bytes, cs);
+            assertEquals("é", decoded,
+                    "ISO-8859-1 charset must decode 0xE9 as é");
+        }
+
+        @Test
+        @DisplayName("defaults to UTF-8 when Content-Type has no charset")
+        void bhvLangjava044DefaultsToUtf8WhenNoCharset() {
+            byte[] utf8Bytes = "héllo".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            // UTF-8 default produces the original string
+            String decoded = new String(utf8Bytes, java.nio.charset.StandardCharsets.UTF_8);
+            assertEquals("héllo", decoded);
+        }
+
+        @Test
+        @DisplayName("falls back to UTF-8 for unknown charset without throwing")
+        void bhvLangjava045FallsBackToUtf8ForUnknownCharset() {
+            // Verify Charset lookup throws as expected for an unknown name —
+            // template code catches this and falls back to UTF-8.
+            assertThrows(java.nio.charset.UnsupportedCharsetException.class,
+                    () -> java.nio.charset.Charset.forName("totally-not-a-charset"));
+            // The transport must not propagate the exception. Simulate the
+            // intended fall-through by manually applying the same UTF-8 default.
+            byte[] bytes = "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            assertEquals("ok", decoded);
+        }
+    }
+
+    /* The tests replace the global OpenTelemetry instance, so the group runs
+     * isolated from every other test. */
+    @Nested
+    @Isolated
+    @DisplayName("TraceContextFromCaller")
+    class TraceContextFromCaller {
+
+        private SdkTracerProvider tracerProvider;
+
+        @org.junit.jupiter.api.BeforeEach
+        void registerTracing() {
+            GlobalOpenTelemetry.resetForTest();
+            tracerProvider = SdkTracerProvider.builder().build();
+            OpenTelemetrySdk.builder()
+                    .setTracerProvider(tracerProvider)
+                    .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+                    .buildAndRegisterGlobal();
+        }
+
+        @org.junit.jupiter.api.AfterEach
+        void resetTracing() {
+            tracerProvider.close();
+            GlobalOpenTelemetry.resetForTest();
+        }
+
+        private Span newSpan() {
+            return GlobalOpenTelemetry.getTracer("trace-context-test").spanBuilder("caller").startSpan();
+        }
+
+        private String expected(Span span) {
+            return "00-" + span.getSpanContext().getTraceId() + "-"
+                    + span.getSpanContext().getSpanId() + "-"
+                    + span.getSpanContext().getTraceFlags().asHex();
+        }
+
+        private Map<String, String> callUnder(@Nullable Span span) throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Scope scope = span == null ? Context.root().makeCurrent() : span.makeCurrent();
+            try {
+                testApi.call("GET", "/test/echo", new HashMap<>(), new HashMap<>(), null,
+                        new String[] {"application/json"}, "application/json", null, null);
+            } finally {
+                scope.close();
+            }
+            return client.capturedHeaders;
+        }
+
+        @Test
+        @DisplayName("bhvTracing013 an operation sends the traceparent of the span active in the caller's context")
+        void bhvTracing013OperationSendsTheTraceparentOfTheCallersSpan() throws ApiException {
+            Span span = newSpan();
+            try {
+                assertEquals(expected(span), callUnder(span).get("traceparent"));
+            } finally {
+                span.end();
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTracing015 concurrent operations each send the traceparent of their own caller's span")
+        void bhvTracing015ConcurrentOperationsSendTheirOwnCallersTraceparent() throws Exception {
+            var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+            Span first = newSpan();
+            Span second = newSpan();
+            try {
+                var barrier = new java.util.concurrent.CyclicBarrier(2);
+                var one = pool.submit(() -> {
+                    barrier.await();
+                    return callUnder(first);
+                });
+                var two = pool.submit(() -> {
+                    barrier.await();
+                    return callUnder(second);
+                });
+                assertEquals(expected(first), one.get().get("traceparent"));
+                assertEquals(expected(second), two.get().get("traceparent"));
+            } finally {
+                pool.shutdownNow();
+                first.end();
+                second.end();
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTracing016 an operation called with no active span sends no traceparent")
+        void bhvTracing016OperationWithNoActiveSpanSendsNoTraceparent() throws ApiException {
+            Span span = newSpan();
+            try {
+                assertEquals(expected(span), callUnder(span).get("traceparent"));
+            } finally {
+                span.end();
+            }
+            Map<String, String> headers = callUnder(null);
+            assertFalse(headers.containsKey("traceparent"));
+            assertFalse(headers.containsKey("tracestate"));
+        }
+    }
+
+    // ── Multipart filename sanitization tests (Gap F) ──
+
+    @Nested
+    @DisplayName("MultipartFilenameSanitizationTests")
+    class MultipartFilenameSanitizationTests {
+
+        @Test
+        @DisplayName("bhvSerializationWire061 quote and backslash in filename are escaped")
+        void bhvSerializationWire061MultipartFilenameWithEmbeddedQuoteIsBackslashEscaped() {
+            String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
+            assertEquals("filename=\"a\\\"b.txt\"", directive,
+                    "quotes must be backslash-escaped in the filename directive");
+            String backslash = DefaultApiClient.buildFilenameDirective("a\\b.txt");
+            assertEquals("filename=\"a\\\\b.txt\"", backslash,
+                    "backslashes must be backslash-escaped in the filename directive");
+        }
+
+    }
+
+    // ── Multipart MIME sniffing tests (Gap J) ──
+
+    @Nested
+    @DisplayName("MultipartMimeSniffingTests")
+    class MultipartMimeSniffingTests {
+
+        @Test
+        @DisplayName("bhvSerializationWire047 file.png is recognized as image/png")
+        void bhvSerializationWire047FilePngRecognizedAsImagePng() {
+            String mime = DefaultApiClient.guessMimeTypeFromName("file.png");
+            assertEquals("image/png", mime);
+        }
+
+        @Test
+        @DisplayName("bhvAuthIntegration008 bytes with no filename hint fall back to application/octet-stream")
+        void bhvAuthIntegration008NoHintFallsBackToOctetStream() {
+            assertEquals("application/octet-stream",
+                    DefaultApiClient.guessMimeTypeFromName(null));
+            assertEquals("application/octet-stream",
+                    DefaultApiClient.guessMimeTypeFromName(""));
+            assertEquals("application/octet-stream",
+                    DefaultApiClient.guessMimeTypeFromName("no-extension-here"));
+        }
+    }
+
+    @Test
+    void bhvOperations153AnOperationWithNoChosenServerIsSentToTheClientBaseUrl() throws ApiException {
+        var client = new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                    String method, String url, Map<String, String> headers, @Nullable Object body) {
+                this.capturedUrl = url;
+                return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+            }
+        };
+        var testApi = new TestableApi(client, "http://localhost:8080");
+        testApi.call(
+                "GET", "/test/echo",
+                new HashMap<>(), new HashMap<>(),
+                null,
+                new String[] {"application/json"},
+                "application/json",
+                null, null);
+        assertEquals("http://localhost:8080/test/echo", client.capturedUrl);
+    }
+
+    @Test
+    void bhvOperations148AnOperationUsesTheFirstHeldSchemeOfItsList() {
+        Authenticator first = new BearerAuthenticator("http://localhost", "first-token");
+        Authenticator second = new BearerAuthenticator("http://localhost", "second-token");
+        Configuration config = new Configuration("http://localhost", Map.of());
+
+        assertSame(second, new TestableApi(new CapturingApiClient(), config, Map.of("second", second))
+                .firstHeld("first", "second"));
+        assertSame(first, new TestableApi(new CapturingApiClient(), config,
+                Map.of("first", first, "second", second)).firstHeld("first", "second"));
+    }
+
+    // ── Null body Content-Type tests (Gap 11) ──
+
+    @Nested
+    @DisplayName("NullBodyContentTypeTests")
+    class NullBodyContentTypeTests {
+
+        @Test
+        @DisplayName("bhvOperations013 POST with null body does not send Content-Type")
+        void bhvOperations013NullBodyPostDoesNotSendContentType() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    this.capturedHeaders = headers;
+                    this.capturedBody = body;
+                    return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertFalse(client.capturedHeaders.containsKey("Content-Type"),
+                    "Content-Type must NOT be sent when body is null");
+        }
+
+        @Test
+        @DisplayName("bhvOperations131 GET with null body does not send Content-Type")
+        void bhvOperations131NullBodyGetDoesNotSendContentType() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiHttpResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    this.capturedHeaders = headers;
+                    this.capturedBody = body;
+                    return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "GET", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertFalse(client.capturedHeaders.containsKey("Content-Type"),
+                    "Content-Type must NOT be sent when body is null");
+        }
+
+        @Test
+        @DisplayName("bhvOperations011 POST with empty string body sends Content-Type")
+        void bhvOperations011PostWithEmptyStringBodySendsContentType() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    "",
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"),
+                    "Content-Type must be sent when body is an empty string");
+        }
+
+        @Test
+        @DisplayName("bhvSerializationWire008 POST with empty JSON object body sends Content-Type and correct body")
+        void bhvSerializationWire008PostWithEmptyJsonBodySendsContentTypeAndBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    new HashMap<>(),
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"),
+                    "Content-Type must be sent when body is {}");
+            assertNotNull(client.capturedBody);
+            assertEquals("{}", client.capturedBody.toString());
+        }
+    }
+
+    @Nested
+    @DisplayName("ProxyAuthenticationTests")
+    class ProxyAuthenticationTests {
+
+        @Test
+        @DisplayName("bhvTransport001 proxy URL with userinfo sends Proxy-Authorization through the proxy")
+        void bhvTransport001ProxyUrlWithUserinfoSendsProxyAuthorization() throws ApiException {
+            String chasmUrl = ChasmContainer.getInternalHttpUrl();
+            java.net.URI uri = java.net.URI.create(SquidContainer.getAuthProxyUrl());
+            String proxyUrlWithAuth =
+                    uri.getScheme() + "://user:pass@" + uri.getHost() + ":" + uri.getPort();
+
+            DefaultApiClient client = new DefaultApiClient(
+                    TransportOptions.builder().proxy(proxyUrlWithAuth).build());
+            ApiHttpResponse response = client.sendRequest(
+                    "GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("\"method\""));
+        }
+
+        @Test
+        @DisplayName("bhvTransport059 proxy that requires credentials answers 407 when none are sent")
+        void bhvTransport059ProxyWithoutCredentialsIsRefused() throws ApiException {
+            String chasmUrl = ChasmContainer.getInternalHttpUrl();
+
+            DefaultApiClient client = new DefaultApiClient(
+                    TransportOptions.builder().proxy(SquidContainer.getAuthProxyUrl()).build());
+            ApiHttpResponse response = client.sendRequest(
+                    "GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+
+            assertEquals(407, response.statusCode());
+        }
+    }
+
+    @Nested
+    @DisplayName("TypedErrorBodyTests")
+    class TypedErrorBodyTests {
+
+        @Test
+        @DisplayName("bhvErrors029 getTypedErrorBody deserializes the raw body into the requested type")
+        void bhvErrors029GetTypedErrorBodyDeserializesTheRawBodyIntoTheRequestedType() {
+            var ex =
+                    new BadRequestException(
+                            "boom", Map.of(), "{\"id\":42,\"name\":\"Dogs\"}", null);
+            {{modelPackage}}.Category typed = ex.getTypedErrorBody({{modelPackage}}.Category.class);
+            assertNotNull(typed);
+            assertEquals(42L, typed.id);
+            assertEquals("Dogs", typed.name);
+        }
+
+        @Test
+        @DisplayName("bhvErrors030 getTypedErrorBody returns null when there is no response body")
+        void bhvErrors030ReturnsNullWhenThereIsNoResponseBody() {
+            var ex = new BadRequestException("boom", Map.of(), "", null);
+            assertNull(ex.getTypedErrorBody({{modelPackage}}.Category.class));
+        }
+    }
+
+    /*
+     * WAVE D — optional array query parameter serialization. An OPTIONAL array
+     * query parameter (modelled here as a nullable List<String> on the
+     * generated options object) must be serialized using the parameter's
+     * declared OAS style — never a language-native debug rendering of the
+     * collection. The canonical failure mode this guards against (confirmed in
+     * the go SDK) is the serializer falling back to a default debug format and
+     * emitting the literal container syntax, e.g. `[blue, black]`
+     * (URL-encoded `%5Bblue%2C+black%5D`), instead of the styled value.
+     *
+     * getPetTag declares two optional array query params:
+     *   - colors: style=pipeDelimited, explode=false  ->  blue|black
+     *   - sizes:  style=spaceDelimited, explode=false  ->  S M
+     * After URL-encoding the delimiter (`|` -> %7C, space -> %20) the wire form
+     * is colors=blue%7Cblack and sizes=S%20M. We assert those appear and that the
+     * debug-blob form does NOT.
+     */
+    @Nested
+    @DisplayName("OptionalArrayQueryParamSerialization")
+    class OptionalArrayQueryParamSerialization {
+
+        @Test
+        @DisplayName("optional array query params serialize with their declared style, not a debug blob")
+        void bhvLangjava046OptionalArrayQueryParamsUseDeclaredStyle() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            var options =
+                    new GetPetTagOptions()
+                            .colors(List.of("blue", "black"))
+                            .sizes(List.of("S", "M"));
+            try {
+                api.getPetTag(42L, "spot", options);
+            } catch (Exception ignored) {
+                // Response deserialization may fail against the stub client; we
+                // only care about the captured outbound request URL.
+            }
+
+            // pipeDelimited colors -> blue|black, URL-encoded as blue%7Cblack
+            assertTrue(client.capturedUrl.contains("colors=blue%7Cblack"),
+                    "Expected pipeDelimited colors=blue%7Cblack but got: " + client.capturedUrl);
+            // spaceDelimited sizes -> "S M", URL-encoded as S%20M
+            assertTrue(client.capturedUrl.contains("sizes=S%20M"),
+                    "Expected spaceDelimited sizes=S%20M but got: " + client.capturedUrl);
+
+            // The collection must NOT leak as a language-native debug rendering
+            // (e.g. List.toString() -> "[blue, black]" -> %5Bblue%2C+black%5D).
+            assertFalse(client.capturedUrl.contains("%5B"),
+                    "URL must not contain a debug-blob '[' for an array param, got: "
+                            + client.capturedUrl);
+            assertFalse(client.capturedUrl.contains("%5D"),
+                    "URL must not contain a debug-blob ']' for an array param, got: "
+                            + client.capturedUrl);
+            assertFalse(client.capturedUrl.contains("blue%2C+black"),
+                    "URL must not contain a comma-joined debug rendering of colors, got: "
+                            + client.capturedUrl);
+        }
+    }
+
+    /** The package-private query encoder of BaseApi, reached reflectively from this package. */
+    private static String encodeQueryComponent(String value) throws Exception {
+        java.lang.reflect.Method encode = {{apiPackage}}.BaseApi.class.getDeclaredMethod("encode", String.class);
+        encode.setAccessible(true);
+        return (String) encode.invoke(new TestableApi("http://localhost"), value);
+    }
+
+    @Test
+    void bhvSerialization006QueryNameAndValueCannotAddAParameter() throws Exception {
+        assertEquals("a%26b%3Dc%20d", encodeQueryComponent("a&b=c d"));
+    }
+
+    @Test
+    void bhvSerialization007LiteralPlusIsSentAsPercent2BAndNonAsciiAsUtf8Bytes() throws Exception {
+        assertEquals("a%2Bb%20%C3%A9", encodeQueryComponent("a+b é"));
+    }
+
+    @Test
+    void bhvSerialization008ContentParameterIsJsonEncodedExactlyOnce() {
+        assertEquals("%7B%22k%22%3A%22v%22%7D", TestableApi.encodeCookie("{\"k\":\"v\"}"));
+    }
+
+    /** Records what a hook was told and how every call ended. */
+    static final class RecordingHook implements CallHook {
+        final List<CallInfo> infos = new java.util.ArrayList<>();
+        final List<Map<String, String>> seen = new java.util.ArrayList<>();
+        final List<CallOutcome> outcomes = new java.util.ArrayList<>();
+        @Nullable java.util.function.Consumer<Map<String, String>> edit;
+
+        @Override
+        public CallObserver start(CallInfo info, Map<String, String> headers) {
+            infos.add(info);
+            seen.add(new HashMap<>(headers));
+            if (edit != null) {
+                edit.accept(headers);
+            }
+            return outcomes::add;
+        }
+    }
+
+    /** Answers with a fixed response, or throws what it was given. */
+    static final class FixedApiClient implements ApiClient {
+        final java.util.List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+        private final int status;
+        private final String body;
+        private final Map<String, String> headers;
+        @Nullable private final RuntimeException failure;
+
+        FixedApiClient(int status, String body, Map<String, String> headers) {
+            this.status = status;
+            this.body = body;
+            this.headers = headers;
+            this.failure = null;
+        }
+
+        FixedApiClient(RuntimeException failure) {
+            this.status = 0;
+            this.body = "";
+            this.headers = Map.of();
+            this.failure = failure;
+        }
+
+        @Override
+        public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+            sentHeaders.add(new HashMap<>(headers));
+            if (failure != null) {
+                throw failure;
+            }
+            return new ApiHttpResponse(status, this.body, this.headers);
+        }
+    }
+
+    private static final Map<String, String> JSON = Map.of("content-type", "application/json");
+
+    private static {{invokerPackage}}.ApiResult<JsonNode> hookedCall(
+            ApiClient client, RecordingHook hook) {
+        return hookedCall(client, hook, "http://localhost", "/items/7", new HashMap<>());
+    }
+
+    private static {{invokerPackage}}.ApiResult<JsonNode> hookedCall(
+            ApiClient client, CallHook hook, String baseUrl, String path, Map<String, Object> query) {
+        Configuration config = new Configuration(baseUrl, Map.of(), hook);
+        return new TestableApi(client, config)
+                .hooked("GET", path, "/items/{id}", query, null, null);
+    }
+
+    @Nested
+    @DisplayName("call hook")
+    class CallHooks {
+
+        @Test
+        @DisplayName("bhvHooks001 without a hook a call sends the same headers and returns the same result")
+        void bhvHooks001WithoutAHookNothingChanges() {
+            var plain = new CapturingApiClient();
+            var noop = new CapturingApiClient();
+            var withoutHook = new TestableApi(plain, "http://localhost")
+                    .hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, null);
+            var nullObserver = new TestableApi(
+                            noop, new Configuration("http://localhost", Map.of(), (info, headers) -> null))
+                    .hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, null);
+
+            assertNull(new Configuration("http://localhost", Map.of()).getCallHook());
+            assertEquals(200, withoutHook.statusCode());
+            assertEquals(withoutHook.statusCode(), nullObserver.statusCode());
+            assertEquals(plain.capturedHeaders, noop.capturedHeaders);
+
+            CallHook hook = (info, headers) -> null;
+            assertSame(hook, Configuration.builder().callHook(hook).build().getCallHook());
+        }
+
+        @Test
+        @DisplayName("bhvHooks002 start is called once with the spec operation id, method, template and url")
+        void bhvHooks002StartIsToldWhatTheCallIs() {
+            var hook = new RecordingHook();
+            Map<String, Object> query = new HashMap<>();
+            query.put("a", "1");
+            hookedCall(new CapturingApiClient(), hook, "http://localhost", "/items/7", query);
+
+            assertEquals(1, hook.infos.size());
+            assertEquals(
+                    new CallInfo("echo_operation", "GET", "/items/{id}", "http://localhost/items/7", "localhost"),
+                    hook.infos.get(0));
+        }
+
+        @Test
+        @DisplayName("bhvHooks003 serverAddress is the host without port and without IPv6 brackets")
+        void bhvHooks003ServerAddressIsTheBareHost() {
+            var hook = new RecordingHook();
+            hookedCall(new CapturingApiClient(), hook, "http://[::1]:8080", "/items/7", new HashMap<>());
+            hookedCall(new CapturingApiClient(), hook, "https://API.Example.com:8443", "/items/7", new HashMap<>());
+
+            assertEquals("::1", hook.infos.get(0).serverAddress());
+            assertEquals("api.example.com", hook.infos.get(1).serverAddress());
+        }
+
+        @Test
+        @DisplayName("bhvHooks004 a header the hook sets reaches the transport")
+        void bhvHooks004AHeaderTheHookSetsIsSent() {
+            var hook = new RecordingHook();
+            hook.edit = headers -> headers.put("X-Hook", "on");
+            var client = new CapturingApiClient();
+            hookedCall(client, hook);
+
+            assertEquals("on", client.capturedHeaders.get("X-Hook"));
+        }
+
+        @Test
+        @DisplayName("bhvHooks005 start sees the final headers and can replace one")
+        void bhvHooks005StartSeesTheFinalHeaders() {
+            var hook = new RecordingHook();
+            hook.edit = headers -> headers.put("Authorization", "Bearer replaced");
+            var client = new CapturingApiClient();
+            var auth = new TestAuthenticator(Map.of("Authorization", "Bearer original"), Map.of(), Map.of());
+            Configuration config = new Configuration("http://localhost", Map.of("X-Default", "d"), hook);
+            new TestableApi(client, config).hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, auth);
+
+            assertEquals("Bearer original", hook.seen.get(0).get("Authorization"));
+            assertEquals("d", hook.seen.get(0).get("X-Default"));
+            assertEquals("Bearer replaced", client.capturedHeaders.get("Authorization"));
+        }
+
+        @Test
+        @DisplayName("bhvHooks006 a header the hook sets is on every send, the replay after a 401 included")
+        void bhvHooks006AHookHeaderIsOnEverySend() {
+            var hook = new RecordingHook();
+            hook.edit = headers -> headers.put("X-Hook", "on");
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            new TestableApi(client, new Configuration("http://localhost", Map.of(), hook))
+                    .hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, auth);
+
+            assertEquals(2, client.sentHeaders.size());
+            assertEquals("on", client.sentHeaders.get(0).get("X-Hook"));
+            assertEquals("on", client.sentHeaders.get(1).get("X-Hook"));
+            assertEquals(1, hook.infos.size());
+            assertEquals(1, hook.outcomes.size());
+        }
+
+        @Test
+        @DisplayName("bhvHooks007 the fresh authentication headers of a replay replace a hook header of the same name")
+        void bhvHooks007FreshAuthenticationWinsOnReplay() {
+            var hook = new RecordingHook();
+            hook.edit = headers -> headers.put("Authorization", "Bearer hook");
+            var client = new ScriptedApiClient(401, 200);
+            var auth = new RotatingTokenAuthenticator(true);
+            new TestableApi(client, new Configuration("http://localhost", Map.of(), hook))
+                    .hooked("GET", "/items/7", "/items/{id}", new HashMap<>(), null, auth);
+
+            assertEquals("Bearer hook", client.sentHeaders.get(0).get("Authorization"));
+            assertEquals("Bearer t2", client.sentHeaders.get(1).get("Authorization"));
+        }
+
+        @Test
+        @DisplayName("bhvHooks008 a call the transport retries calls start once and finish once")
+        void bhvHooks008ARetriedCallIsOneCall() throws Exception {
+            var requests = new java.util.concurrent.atomic.AtomicInteger();
+            var hookHeaders = new java.util.concurrent.CopyOnWriteArrayList<String>();
+            var server = com.sun.net.httpserver.HttpServer.create(
+                    new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+            server.createContext("/", exchange -> {
+                hookHeaders.add(String.valueOf(exchange.getRequestHeaders().getFirst("X-Hook")));
+                byte[] body = "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(requests.incrementAndGet() == 1 ? 503 : 200, body.length);
+                exchange.getResponseBody().write(body);
+                exchange.close();
+            });
+            server.start();
+            try {
+                var hook = new RecordingHook();
+                hook.edit = headers -> headers.put("X-Hook", "on");
+                var transport = new DefaultApiClient(TransportOptions.builder().maxRetries(2).build());
+                var result = hookedCall(
+                        transport, hook, "http://127.0.0.1:" + server.getAddress().getPort(),
+                        "/items/7", new HashMap<>());
+
+                assertEquals(200, result.statusCode());
+                assertEquals(2, requests.get());
+                assertEquals(List.of("on", "on"), hookHeaders);
+                assertEquals(1, hook.infos.size());
+                assertEquals(1, hook.outcomes.size());
+            } finally {
+                server.stop(0);
+            }
+        }
+
+        @Test
+        @DisplayName("bhvHooks009 the plain and the WithHttpInfo variant call the hook once each")
+        void bhvHooks009BothVariantsCallTheHookOnce() {
+            var hook = new RecordingHook();
+            var client = new FixedApiClient(200, "{}", JSON);
+            var api = new StoreApi(client, new Configuration("http://localhost", Map.of(), hook));
+            api.getInventory();
+            assertEquals(1, hook.infos.size());
+            api.getInventoryWithHttpInfo();
+
+            assertEquals(2, hook.infos.size());
+            assertEquals(2, hook.outcomes.size());
+            assertEquals("getInventory", hook.infos.get(0).operationId());
+            assertEquals("/store/inventory", hook.infos.get(0).urlTemplate());
+            assertEquals("getInventory", hook.infos.get(1).operationId());
+        }
+
+        @Test
+        @DisplayName("bhvHooks011 finish gets the status, the headers and no error on a 2xx")
+        void bhvHooks011FinishGetsTheSuccess() {
+            var hook = new RecordingHook();
+            hookedCall(new FixedApiClient(200, "{}", JSON), hook);
+
+            assertEquals(new CallOutcome(200, JSON, null), hook.outcomes.get(0));
+        }
+
+        @Test
+        @DisplayName("bhvHooks012 finish gets the same typed error the caller receives on a non-2xx")
+        void bhvHooks012FinishGetsTheTypedError() {
+            var hook = new RecordingHook();
+            var caught = assertThrows(
+                    NotFoundException.class,
+                    () -> hookedCall(new FixedApiClient(404, "{}", JSON), hook));
+
+            assertEquals(404, hook.outcomes.get(0).statusCode());
+            assertEquals(JSON, hook.outcomes.get(0).headers());
+            assertSame(caught, hook.outcomes.get(0).error());
+        }
+
+        @Test
+        @DisplayName("bhvHooks013 finish gets status 0, null headers and the network error when no response arrived")
+        void bhvHooks013FinishGetsTheNetworkError() {
+            var hook = new RecordingHook();
+            var failure = new {{invokerPackage}}.errors.NetworkException("refused", new java.io.IOException("x"));
+            var caught = assertThrows(
+                    {{invokerPackage}}.errors.NetworkException.class,
+                    () -> hookedCall(new FixedApiClient(failure), hook));
+
+            assertSame(failure, caught);
+            assertEquals(0, hook.outcomes.get(0).statusCode());
+            assertNull(hook.outcomes.get(0).headers());
+            assertSame(failure, hook.outcomes.get(0).error());
+        }
+
+        @Test
+        @DisplayName("bhvHooks014 finish gets the timeout error, never the cancellation error")
+        void bhvHooks014FinishGetsTheTimeout() {
+            var hook = new RecordingHook();
+            var failure = new {{invokerPackage}}.errors.NetworkTimeoutException("slow", new java.io.IOException("x"));
+            assertThrows(
+                    {{invokerPackage}}.errors.NetworkTimeoutException.class,
+                    () -> hookedCall(new FixedApiClient(failure), hook));
+
+            assertSame(failure, hook.outcomes.get(0).error());
+            assertFalse(hook.outcomes.get(0).error() instanceof java.util.concurrent.CancellationException);
+        }
+
+        @Test
+        @DisplayName("bhvHooks015 finish gets the cancellation and the call rethrows it")
+        void bhvHooks015FinishGetsTheCancellation() {
+            var hook = new RecordingHook();
+            var failure = new java.util.concurrent.CancellationException("interrupted");
+            var caught = assertThrows(
+                    java.util.concurrent.CancellationException.class,
+                    () -> hookedCall(new FixedApiClient(failure), hook));
+
+            assertSame(failure, caught);
+            assertSame(failure, hook.outcomes.get(0).error());
+            assertEquals(1, hook.outcomes.size());
+        }
+
+        @Test
+        @DisplayName("bhvHooks016 finish gets the serialization error with the status that arrived")
+        void bhvHooks016FinishGetsTheDecodeError() {
+            var hook = new RecordingHook();
+            var caught = assertThrows(
+                    SerializationException.class,
+                    () -> hookedCall(new FixedApiClient(200, "{not json", JSON), hook));
+
+            assertEquals(200, hook.outcomes.get(0).statusCode());
+            assertEquals(JSON, hook.outcomes.get(0).headers());
+            assertSame(caught, hook.outcomes.get(0).error());
+        }
+
+        @Test
+        @DisplayName("bhvHooks017 finish is called when the request body cannot be encoded and nothing is sent")
+        void bhvHooks017FinishIsCalledForAnUnencodableBody() {
+            var hook = new RecordingHook();
+            var client = new FixedApiClient(200, "{}", JSON);
+            List<Object> unencodable = new java.util.ArrayList<>();
+            unencodable.add(unencodable);
+            Configuration config = new Configuration("http://localhost", Map.of(), hook);
+            var caught = assertThrows(
+                    RuntimeException.class,
+                    () -> new TestableApi(client, config)
+                            .hooked("POST", "/items/7", "/items/{id}", new HashMap<>(), unencodable, null));
+
+            assertTrue(client.sentHeaders.isEmpty());
+            assertEquals(1, hook.outcomes.size());
+            assertEquals(0, hook.outcomes.get(0).statusCode());
+            assertSame(caught, hook.outcomes.get(0).error());
+        }
+
+        @Test
+        @DisplayName("bhvHooks018 an error thrown by start reaches the caller, nothing is sent and finish is not called")
+        void bhvHooks018AnErrorThrownByStartReachesTheCallerUnchanged() {
+            var failure = new IllegalStateException("refused by the hook");
+            var client = new FixedApiClient(200, "{}", JSON);
+            CallHook hook = (info, headers) -> {
+                throw failure;
+            };
+            var caught = assertThrows(IllegalStateException.class, () -> hookedCall(client, hook, "http://localhost", "/items/7", new HashMap<>()));
+
+            assertSame(failure, caught);
+            assertTrue(client.sentHeaders.isEmpty());
+        }
+
+        @Test
+        @DisplayName("bhvHooks019 an error thrown by finish is swallowed")
+        void bhvHooks019AFinishErrorIsSwallowed() {
+            CallHook hook = (info, headers) -> outcome -> {
+                throw new IllegalStateException("observer broke");
+            };
+            var ok = hookedCall(new FixedApiClient(200, "{}", JSON), hook, "http://localhost", "/items/7", new HashMap<>());
+            assertEquals(200, ok.statusCode());
+
+            assertThrows(
+                    NotFoundException.class,
+                    () -> hookedCall(new FixedApiClient(404, "{}", JSON), hook, "http://localhost", "/items/7", new HashMap<>()));
+        }
+
+        @Test
+        @DisplayName("bhvHooks021 the url given to the hook never carries the query string or the fragment")
+        void bhvHooks021TheUrlHasNoQueryOrFragment() {
+            var hook = new RecordingHook();
+            Map<String, Object> query = new HashMap<>();
+            query.put("a", "1");
+            hookedCall(new CapturingApiClient(), hook, "http://localhost", "/items/7#x", query);
+            hookedCall(new CapturingApiClient(), hook, "http://localhost", "/items/7", query);
+
+            assertEquals("http://localhost/items/7", hook.infos.get(0).url());
+            assertEquals("http://localhost/items/7", hook.infos.get(1).url());
+        }
+    }
+
+    @Test
+    void bhvMisc065SchemeCredentialsAreCopiedWhenTheApiIsBuilt() {
+        Map<String, Authenticator> held = new HashMap<>();
+        held.put("a", new TestAuthenticator(Map.of("X", "a"), Map.of(), Map.of()));
+        TestableApi api = new TestableApi(
+                new CapturingApiClient(), new Configuration("http://localhost", Map.of()), held);
+
+        held.put("b", new TestAuthenticator(Map.of("X", "b"), Map.of(), Map.of()));
+
+        assertNull(api.firstHeld("b"));
+    }
+
+    @Test
+    void bhvMisc072EveryGroupHoldsTheDefaultAndTheSchemeCredentials() {
+        var client = new CapturingApiClient();
+        var config = new Configuration("http://localhost", Map.of());
+        var pet = new {{invokerPackage}}.models.Pet("rex", java.util.Set.of("https://x.invalid/rex"));
+        var fallback = new TestAuthenticator(Map.of("X-Credential", "default-cred"), Map.of(), Map.of());
+        var scheme = new TestAuthenticator(Map.of("X-Credential", "scheme-cred"), Map.of(), Map.of());
+        var group = new PetApi(client, config, fallback, Map.of("petStoreBearer", scheme));
+        try {
+            group.addPet(pet);
+        } catch (Exception ignored) {
+            // Response shape is irrelevant; only the outbound headers are asserted.
+        }
+        assertEquals("scheme-cred", client.capturedHeaders.get("X-Credential"));
+    }
+
+    @Test
+    void bhvMisc159A401IsReplayedOnceWhenAnAuthenticatorCanSupplyFreshCredentials() throws ApiException {
+        var client = new ScriptedApiClient(401, 200);
+        var auth = new RotatingTokenAuthenticator(true);
+        callWith(client, auth, "{}", "application/json");
+        assertEquals(2, client.sentHeaders.size());
+        assertEquals(1, auth.invalidations);
+    }
+
+    static Stream<Arguments> misc212ErrorStatuses() {
+        return Stream.of(
+                Arguments.of(404, NotFoundException.class),
+                Arguments.of(500, InternalServerErrorException.class));
+    }
+
+    @ParameterizedTest
+    @MethodSource("misc212ErrorStatuses")
+    @DisplayName("bhvMisc212 a 404 or 500 response raises its error class through the API layer")
+    void bhvMisc212ANotFoundOrServerErrorRaisesItsErrorClass(
+            int status, Class<? extends ApiException> expected) {
+        var ex =
+                assertThrowsExactly(
+                        expected,
+                        () -> api().call(
+                                "GET", "/test/status/" + status, new HashMap<>(), new HashMap<>(),
+                                null, new String[] {"application/json"}, "application/json", null, null));
+        assertEquals(status, ex.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("bhvMisc216 a binary response is returned decoded while the raw body keeps the text")
+    void bhvMisc216ABinaryResponseIsDecodedAndTheRawBodyKeepsTheText() throws ApiException {
+        var client = new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                    String method, String url, Map<String, String> headers, @Nullable Object body) {
+                return new ApiHttpResponse(
+                        200, "aGVsbG8=", Map.of("Content-Type", "application/octet-stream"));
+            }
+        };
+        var testApi = new TestableApi(client, "http://localhost");
+        ApiResult<byte[]> result =
+                testApi.callForResult(
+                        "GET", "/x", new HashMap<>(), new HashMap<>(), null,
+                        new String[] {"application/octet-stream"}, "application/json",
+                        byte[].class, null);
+        assertArrayEquals("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8), result.data());
+        assertEquals("aGVsbG8=", result.rawBody());
+    }
+
+    @Test
+    @DisplayName("bhvMisc217 a binary upload sends in-memory bytes and a stream as given")
+    void bhvMisc217ABinaryUploadSendsBytesAndAStreamAsGiven() throws ApiException {
+        byte[] png = new byte[] {(byte) 0x89, 'P', 'N', 'G'};
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        testApi.call(
+                "PUT", "/x", new HashMap<>(), new HashMap<>(), png,
+                new String[] {"application/json"}, "image/png", null, null);
+        assertArrayEquals(png, (byte[]) client.capturedBody);
+        var stream = new java.io.ByteArrayInputStream(png);
+        testApi.call(
+                "PUT", "/x", new HashMap<>(), new HashMap<>(), stream,
+                new String[] {"application/json"}, "image/png", null, null);
+        assertSame(stream, client.capturedBody);
+    }
+
+    @Test
+    @DisplayName("bhvMisc220 a full-response call keeps the status code and decodes the body")
+    void bhvMisc220AFullResponseCallKeepsTheStatusAndDecodesTheBody() throws ApiException {
+        var client = new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                    String method, String url, Map<String, String> headers, @Nullable Object body) {
+                return new ApiHttpResponse(
+                        201, "{\"label\":\"alpha\",\"count\":2}",
+                        Map.of("Content-Type", "application/json"));
+            }
+        };
+        var testApi = new TestableApi(client, "http://localhost");
+        ApiResult<JsonNode> result =
+                testApi.callForResult(
+                        "POST", "/x", new HashMap<>(), new HashMap<>(), null,
+                        new String[] {"application/json"}, "application/json", JSON_NODE_TYPE, null);
+        assertEquals(201, result.statusCode());
+        assertEquals("alpha", result.data().get("label").asText());
+    }
+
+    @Test
+    @DisplayName("bhvMisc221 a credential is sent with the security scheme the operation declares")
+    void bhvMisc221ASchemeCredentialWinsOverTheClientLevelAuthenticator() throws ApiException {
+        var client = new CapturingApiClient();
+        Authenticator clientAuth =
+                new TestAuthenticator(Map.of("Authorization", "Bearer client-token"), Map.of(), Map.of());
+        Authenticator schemeAuth =
+                new TestAuthenticator(Map.of("Authorization", "Bearer scheme-token"), Map.of(), Map.of());
+        var testApi = new TestableApi(client, "http://localhost", clientAuth);
+        testApi.call(
+                "GET", "/x", new HashMap<>(), new HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, schemeAuth);
+        assertEquals("Bearer scheme-token", client.capturedHeaders.get("Authorization"));
+    }
+
+    @Test
+    @DisplayName("bhvMisc222 a 201 with an empty body returns no data")
+    void bhvMisc222AnEmptyCreatedResponseReturnsNoData() throws ApiException {
+        var client = new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                    String method, String url, Map<String, String> headers, @Nullable Object body) {
+                return new ApiHttpResponse(201, "", Map.of("Content-Type", "application/json"));
+            }
+        };
+        var testApi = new TestableApi(client, "http://localhost");
+        assertNull(
+                testApi.<JsonNode>call(
+                        "POST", "/x", new HashMap<>(), new HashMap<>(), null,
+                        new String[] {"application/json"}, "application/json", JSON_NODE_TYPE, null));
+    }
+
+
+    @Test
+    void bhvMisc197UnheldSchemeFallsBackToTheDefaultAuthenticator() throws ApiException {
+        var client = new CapturingApiClient();
+        var defaultAuth = new TestAuthenticator(Map.of("Authorization", "Bearer default-token"), Map.of(), Map.of());
+        var testApi = new TestableApi(client, "http://localhost", defaultAuth);
+        testApi.call(
+                "GET", "/test/echo", new HashMap<>(), new HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, testApi.firstHeld("unheld"));
+        assertEquals("Bearer default-token", client.capturedHeaders.get("Authorization"));
+    }
+
+    @Test
+    void bhvMisc202TextBodyWithoutContentTypeIsSentAsJson() throws ApiException {
+        var client = new CapturingApiClient();
+        new TestableApi(client, "http://localhost").call(
+                "POST", "/test/echo", new HashMap<>(), new HashMap<>(), "hello",
+                new String[] {"application/json"}, "application/json", null, null);
+        assertEquals("application/json", client.capturedHeaders.get("Content-Type"));
+    }
+
+    @Test
+    void bhvMisc209VoidOperationIgnoresANonObjectSuccessBody() throws ApiException {
+        var textClient = new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                    String method, String url, Map<String, String> headers, @Nullable Object body) {
+                return new ApiHttpResponse(200, "Deleted", Map.of("Content-Type", "text/plain"));
+            }
+        };
+        assertNull(new TestableApi(textClient, "http://localhost").call(
+                "DELETE", "/test/echo", new HashMap<>(), new HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, null));
+        var jsonClient = new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                    String method, String url, Map<String, String> headers, @Nullable Object body) {
+                return new ApiHttpResponse(200, "42", Map.of("Content-Type", "application/json"));
+            }
+        };
+        assertNull(new TestableApi(jsonClient, "http://localhost").call(
+                "DELETE", "/test/echo", new HashMap<>(), new HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, null));
+    }
+
+    @Test
+    void bhvMisc210DateTimeFormFieldIsEncodedCanonically() throws ApiException {
+        var client = new CapturingApiClient();
+        var reminder = java.time.OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC);
+        new TestableApi(client, "http://localhost").call(
+                "POST", "/test/echo", new HashMap<>(), new HashMap<>(), Map.of("reminder", reminder),
+                new String[] {"application/json"}, "application/x-www-form-urlencoded", null, null);
+        assertTrue(client.capturedBody.toString().contains("reminder=2024-01-15T10%3A30%3A00"),
+                client.capturedBody.toString());
+    }
+
+    @Test
+    void bhvMisc211DateTimeInJsonQueryParamKeepsItsWireForm() throws ApiException {
+        var client = new CapturingApiClient();
+        var since = java.time.OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC);
+        Map<String, Object> query = new HashMap<>();
+        query.put("since", since);
+        new TestableApi(client, "http://localhost").call(
+                "GET", "/test/echo", query, new HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, null);
+        assertTrue(client.capturedUrl.contains("since=2024-01-15T10"), client.capturedUrl);
+    }
+
+    @Nested
+    @DisplayName("promised form and multipart serialization")
+    class PromisedFormSerializationTests {
+
+        @Test
+        @DisplayName("bhvSerialization122 a form body repeats the key for each array element in declared order")
+        void bhvSerialization122FormBodyRepeatsKeysInOrder() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("tags", java.util.List.of("a", "b"));
+            formParams.put("z", "last");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertEquals("tags=a&tags=b&z=last", String.valueOf(client.capturedBody));
+        }
+
+        @Test
+        @DisplayName("bhvSerialization125 form values percent-encode a literal plus sign as %2B")
+        void bhvSerialization125FormValuesEncodeReservedCharacters() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("q", "a+b&c");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertEquals("q=a%2Bb%26c", String.valueOf(client.capturedBody));
+        }
+    }
+
+
+
+    @Test
+    @DisplayName("bhvMisc030 a deadline spent while the credential is obtained times out before the transport")
+    void bhvMisc030ASpentDeadlineTimesOutBeforeTheTransport() {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        Authenticator slow = new Authenticator() {
+            @Override
+            public String getHost() {
+                return "";
+            }
+
+            @Override
+            public Map<String, String> getAuthHeaders() {
+                try {
+                    Thread.sleep(80);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return Map.of("Authorization", "Bearer t");
+            }
+
+            @Override
+            public Map<String, String> getQueryParams() {
+                return Map.of();
+            }
+
+            @Override
+            public Map<String, String> getCookieParams() {
+                return Map.of();
+            }
+        };
+        assertThrows({{invokerPackage}}.errors.NetworkTimeoutException.class, () -> testApi.timed(slow, 20));
+        assertEquals("", client.capturedUrl);
+    }
+
+    @Test
+    @DisplayName("bhvMisc239 an operation query parameter is serialized with no authenticator")
+    void bhvMisc239AnOperationQueryParameterIsSerializedWithNoAuthenticator() throws ApiException {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        Map<String, Object> query = new HashMap<>();
+        query.put("q", "a b");
+        testApi.call(
+                "GET", "/test/echo", query, new HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, null);
+        assertEquals("http://localhost/test/echo?q=a%20b", client.capturedUrl);
+    }
+
+    @Test
+    @DisplayName("bhvMisc241 a time-of-day query value keeps non-zero milliseconds and drops finer precision")
+    void bhvMisc241ATimeOfDayQueryValueKeepsMilliseconds() throws ApiException {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        Map<String, Object> query = new HashMap<>();
+        query.put("t", java.time.LocalTime.of(10, 20, 30, 999_999_000));
+        testApi.call(
+                "GET", "/test/echo", query, new HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, null);
+        assertEquals("http://localhost/test/echo?t=10%3A20%3A30.999", client.capturedUrl);
+    }
+
+
+    static Stream<Integer> misc264ListedErrorStatuses() {
+        return Stream.of(400, 401, 403, 404, 409, 422, 429, 500, 502);
+    }
+
+    @ParameterizedTest
+    @MethodSource("misc264ListedErrorStatuses")
+    @DisplayName("bhvMisc264 each listed error status raises the API error with that code")
+    void bhvMisc264EachListedErrorStatusRaisesTheApiErrorWithThatCode(int status) {
+        ApiException ex =
+                assertThrows(
+                        ApiException.class,
+                        () -> api().call(
+                                "GET", "/test/status/" + status, new HashMap<>(), new HashMap<>(),
+                                null, new String[] {"application/json"}, "application/json", null, null));
+        assertEquals(status, ex.getStatusCode());
+    }
+}

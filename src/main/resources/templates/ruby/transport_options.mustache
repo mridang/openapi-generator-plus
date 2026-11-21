@@ -1,0 +1,406 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # Immutable HTTP transport configuration for {DefaultApiClient}.
+  #
+  # Controls low-level HTTP behavior such as TLS verification, proxy routing,
+  # timeouts, redirect handling, and automatic header injection. These settings
+  # are independent of API-level concerns (base URL, authentication headers)
+  # which belong in {Configuration}.
+  #
+  # This class is immutable and thread-safe. Use {TransportOptions.builder} to create instances:
+  #
+  #     transport = ::{{moduleName}}::TransportOptions.builder
+  #       .verify_ssl(false)
+  #       .proxy('http://proxy.example.com:8080')
+  #       .timeout(5000)
+  #       .user_agent('MyApp/1.0')
+  #       .build
+  class TransportOptions
+    # Whether TLS certificate verification is enabled.
+    # @return [Boolean]
+    attr_reader :verify_ssl
+
+    # Path to a custom CA certificate bundle for TLS verification.
+    # When set together with +verify_ssl=true+, the client trusts certificates
+    # signed by this CA in addition to (or instead of) the system trust store.
+    # @return [String, nil]
+    attr_reader :ca_cert_path
+
+    # HTTP or HTTPS proxy URL for all outbound requests.
+    # @return [String, nil]
+    attr_reader :proxy
+
+    # End-to-end request timeout in milliseconds. Covers the entire request
+    # lifecycle: connection, TLS handshake, sending the request body, and
+    # reading the response. A value of +nil+ means no timeout.
+    # @return [Integer, nil]
+    attr_reader :timeout
+
+    # Whether the client follows HTTP 3xx redirects automatically.
+    # @return [Boolean]
+    attr_reader :follow_redirects
+
+    # Maximum number of consecutive redirects to follow. Only meaningful
+    # when {#follow_redirects} is +true+. A value of +nil+ uses the HTTP
+    # client's built-in default.
+    # @return [Integer, nil]
+    attr_reader :max_redirects
+
+    # Custom User-Agent header value. When set, this value is sent as the
+    # User-Agent header on every request unless the caller explicitly provides one.
+    # @return [String, nil]
+    attr_reader :user_agent
+
+    # Transport-level default headers included in every request. These headers
+    # have the lowest priority: API-level headers from {Configuration#default_headers},
+    # operation-specific headers, and authentication headers all take precedence.
+    # @return [Hash{String => String}]
+    attr_reader :default_headers
+
+    # Whether to auto-inject an X-Request-ID header with a unique UUID on
+    # every request. Useful for distributed tracing and log correlation.
+    # @return [Boolean]
+    attr_reader :inject_request_id
+
+    # How many times a failed request is sent again: after a network error
+    # that happened before any response, and after a 408, 409, 429 or 5xx
+    # (not 501) response. +0+ turns retries off. Waits grow from 0.5 s to a
+    # cap of 8 s, with jitter, and a +Retry-After+ header (capped at 60 s) is
+    # honoured. The {#timeout} budget is never extended, and a multipart or
+    # stream body is never sent twice.
+    # @return [Integer]
+    attr_reader :max_retries
+
+    # A caller-supplied Faraday connection used instead of a self-built one,
+    # or +nil+ when the SDK builds its own. The caller owns its lifecycle: the
+    # SDK never closes it. Timeouts, retries, the user agent, the redirect
+    # policy and the query encoding are still applied by the SDK on top.
+    # @return [Faraday::Connection, nil]
+    attr_reader :connection
+
+    # @api private
+    def initialize(verify_ssl:, ca_cert_path:, proxy:, timeout:,
+                   follow_redirects:, max_redirects:, user_agent:,
+                   default_headers:, inject_request_id:, max_retries: 2, connection: nil)
+      self.class.validate_proxy!(proxy)
+      self.class.validate_max_redirects!(max_redirects)
+      self.class.validate_connection!(connection, verify_ssl, ca_cert_path, proxy)
+      @verify_ssl = verify_ssl
+      @ca_cert_path = ca_cert_path
+      @proxy = proxy
+      @timeout = timeout
+      @follow_redirects = follow_redirects
+      @max_redirects = max_redirects
+      @user_agent = user_agent
+      @default_headers = default_headers.freeze
+      @inject_request_id = inject_request_id
+      @max_retries = self.class.validate_max_retries!(max_retries)
+      @connection = connection
+      freeze
+    end
+
+    # Create a new builder for constructing {TransportOptions} instances.
+    # @return [Builder]
+    def self.builder
+      Builder.new
+    end
+
+    # Validate a proxy URL, so the check holds for direct construction as well
+    # as for the builder.
+    # @api private
+    # @param val [String, nil] proxy URL, or +nil+ for none
+    # @return [void]
+    # @raise [ArgumentError] if the URL is invalid
+    def self.validate_proxy!(val)
+      return unless val
+
+      begin
+        uri = URI.parse(val)
+      rescue URI::InvalidURIError => e
+        raise ArgumentError, mask_userinfo("Invalid proxy URL (#{e.message}): #{val}")
+      end
+      unless uri.scheme && %w[http https].include?(uri.scheme.downcase)
+        raise ArgumentError, mask_userinfo("Invalid proxy URL (must use http or https scheme): #{val}")
+      end
+      raise ArgumentError, mask_userinfo("Invalid proxy URL (missing host): #{val}") unless uri.host && !uri.host.empty?
+    end
+
+    # Validate a retry count, so the check holds for direct construction as
+    # well as for the builder.
+    # @api private
+    # @param val [Integer] the retry count
+    # @return [Integer] +val+
+    # @raise [ArgumentError] if it is not a non-negative integer
+    def self.validate_max_retries!(val)
+      unless val.is_a?(Integer) && val >= 0
+        raise ArgumentError, "Invalid max_retries: must be a non-negative integer (got #{val.inspect})"
+      end
+
+      val
+    end
+
+    # Reject a negative redirect limit; +nil+ keeps the client default.
+    # @api private
+    # @param val [Integer, nil] maximum redirect hops, or +nil+ for the client default
+    # @return [Integer, nil] +val+
+    # @raise [ArgumentError] if +val+ is negative
+    def self.validate_max_redirects!(val)
+      if val.is_a?(Numeric) && val.negative?
+        raise ArgumentError, "Invalid maxRedirects: must not be negative (got #{val})"
+      end
+
+      val
+    end
+
+    # +text+ with the userinfo of every URL in it replaced by +***@+, so an
+    # error message never carries a proxy user name or password (D79).
+    # @api private
+    # @param text [String] a message that may embed a URL
+    # @return [String]
+    def self.mask_userinfo(text)
+      text.gsub(%r{([A-Za-z][A-Za-z0-9+.-]*://)[^/?#\s"']*@}, '\\1***@')
+    end
+
+    # Fail fast when a caller-supplied connection is combined with the SDK's own
+    # proxy or TLS settings: the SDK would otherwise ignore them silently, as the
+    # connection already carries its own.
+    # @api private
+    # @param connection [Faraday::Connection, nil] the supplied connection, or +nil+
+    # @param verify_ssl [Boolean] the TLS verification setting
+    # @param ca_cert_path [String, nil] the custom CA bundle path
+    # @param proxy [String, nil] the proxy URL
+    # @return [void]
+    # @raise [ArgumentError] if the connection is unusable or conflicts with a setting
+    def self.validate_connection!(connection, verify_ssl, ca_cert_path, proxy)
+      return if connection.nil?
+
+      raise ArgumentError, 'connection must be a Faraday::Connection' unless connection.respond_to?(:run_request)
+
+      if follows_redirects?(connection)
+        raise ArgumentError, 'A custom connection must not follow redirects itself: the SDK follows them'
+      end
+
+      conflicts = [] # : Array[String]
+      conflicts << 'proxy' if proxy
+      conflicts << 'ca_cert_path' if ca_cert_path
+      conflicts << 'verify_ssl(false)' unless verify_ssl
+      return if conflicts.empty?
+
+      raise ArgumentError,
+            "A custom connection conflicts with the SDK's own #{conflicts.join(', ')} setting; " \
+            'configure it on the connection instead'
+    end
+
+    # Whether +connection+ carries a Faraday middleware that follows redirects
+    # on its own, which would bypass the SDK's redirect policy.
+    # @api private
+    # @param connection [Faraday::Connection] the supplied connection
+    # @return [Boolean]
+    def self.follows_redirects?(connection)
+      return false unless connection.respond_to?(:builder)
+
+      connection.builder.handlers.any? { |handler| handler.klass.to_s.include?('FollowRedirects') }
+    end
+
+    # Header names whose values never appear in a string representation:
+    # Authorization, Proxy-Authorization, Cookie, and any name containing
+    # key, token or secret (case-insensitive).
+    SENSITIVE_HEADER_NAME = /\A(?:authorization|proxy-authorization|cookie)\z|key|token|secret/i
+    private_constant :SENSITIVE_HEADER_NAME
+
+    # Whether a header name is one whose value is a credential: the redaction
+    # list above. A cross-origin redirect hop drops these as well.
+    # @api private
+    # @param name [String] a header name
+    # @return [bool]
+    def self.sensitive_header?(name)
+      SENSITIVE_HEADER_NAME.match?(name.to_s)
+    end
+
+    # Copy of +headers+ with every sensitive value replaced by +***+.
+    # @api private
+    # @param headers [Hash{String => String}] header names to values
+    # @return [Hash{String => String}]
+    def self.redact_headers(headers)
+      redacted = {} #: Hash[String, String]
+      headers.each { |name, value| redacted[name] = sensitive_header?(name) ? '***' : value }
+      redacted
+    end
+
+    # +url+ with the password in its userinfo replaced by +***+.
+    # @api private
+    # @param url [String, nil] a URL, or +nil+
+    # @return [String, nil]
+    def self.redact_url(url)
+      url&.sub(%r{\A([A-Za-z][A-Za-z0-9+.-]*://[^/?#@:]*:)[^/?#@]*@}, '\\1***@')
+    end
+
+    # A readable form of the options that never reveals secrets: the proxy
+    # password and sensitive default header values print as +***+.
+    # @return [String]
+    def inspect
+      "#<#{self.class.name} verify_ssl=#{@verify_ssl.inspect} ca_cert_path=#{@ca_cert_path.inspect} " \
+        "proxy=#{self.class.redact_url(@proxy).inspect} timeout=#{@timeout.inspect} " \
+        "follow_redirects=#{@follow_redirects.inspect} max_redirects=#{@max_redirects.inspect} " \
+        "user_agent=#{@user_agent.inspect} default_headers=#{self.class.redact_headers(@default_headers).inspect} " \
+        "inject_request_id=#{@inject_request_id.inspect} max_retries=#{@max_retries.inspect}>"
+    end
+    alias to_s inspect
+
+    # Builder for creating immutable {TransportOptions} instances.
+    #
+    # All fields have sensible defaults:
+    # - +verify_ssl+ -- +true+
+    # - +follow_redirects+ -- +true+
+    # - +inject_request_id+ -- +false+
+    # - +timeout+ -- +10_000+ (10 seconds)
+    # - +max_retries+ -- +2+
+    # - +user_agent+ -- a package-specific default string
+    # - All other fields -- +nil+ or empty
+    class Builder
+      def initialize
+        @verify_ssl = true
+        @ca_cert_path = nil
+        @proxy = nil
+        @timeout = 10_000
+        @follow_redirects = true
+        @max_redirects = nil
+        @user_agent = '{{userAgentDefault}}'
+        @default_headers = {} #: Hash[String, String]
+        @inject_request_id = false
+        @max_retries = 2
+        @connection = nil
+      end
+
+      # Use a caller-supplied Faraday connection as the transport. The SDK keeps
+      # applying its timeouts, user agent, redirect policy and query encoding on
+      # top, and never closes the connection: the caller owns its lifecycle.
+      # Combining it with {#proxy}, {#ca_cert_path} or +verify_ssl(false)+ is
+      # rejected by {#build}, since the connection carries its own.
+      # @param val [Faraday::Connection, nil] the connection, or +nil+ for the SDK's own
+      # @return [self]
+      def connection(val)
+        @connection = val
+        self
+      end
+
+      # Enable or disable TLS certificate verification.
+      # @param val [Boolean] +true+ to verify (default), +false+ to skip
+      # @return [self]
+      def verify_ssl(val)
+        @verify_ssl = val
+        self
+      end
+
+      # Set the path to a custom CA certificate bundle.
+      # @param val [String, nil] file path to a PEM-encoded CA certificate
+      # @return [self]
+      def ca_cert_path(val)
+        @ca_cert_path = val
+        self
+      end
+
+      # Set the HTTP/HTTPS proxy URL.
+      # @param val [String, nil] proxy URL (e.g. "http://proxy:3128")
+      # @return [self]
+      # @raise [ArgumentError] if the URL is invalid
+      def proxy(val)
+        TransportOptions.validate_proxy!(val)
+        @proxy = val
+        self
+      end
+
+      # Set the end-to-end request timeout in milliseconds.
+      # @param val [Numeric, nil] timeout in milliseconds, or +nil+ for no timeout
+      # @return [self]
+      def timeout(val)
+        if val && (!val.is_a?(Numeric) || val < 1)
+          raise ArgumentError, "Invalid timeout: must be at least one millisecond (got #{val})"
+        end
+
+        @timeout = val
+        self
+      end
+
+      # Enable or disable automatic redirect following.
+      # @param val [Boolean] +true+ to follow (default), +false+ to stop
+      # @return [self]
+      def follow_redirects(val)
+        @follow_redirects = val
+        self
+      end
+
+      # Set the maximum number of redirects to follow.
+      # @param val [Integer, nil] maximum redirect hops, or +nil+ for client default
+      # @return [self]
+      def max_redirects(val)
+        @max_redirects = TransportOptions.validate_max_redirects!(val)
+        self
+      end
+
+      # Set a custom User-Agent header value.
+      # @param val [String, nil] the user agent string, or +nil+ to omit
+      # @return [self]
+      def user_agent(val)
+        @user_agent = val
+        self
+      end
+
+      # Add a single transport-level default header.
+      # @param name [String] header name
+      # @param value [String] header value
+      # @return [self]
+      def default_header(name, value)
+        @default_headers[name] = value
+        self
+      end
+
+      # Add multiple transport-level default headers.
+      # @param headers [Hash{String => String}] map of header names to values
+      # @return [self]
+      def default_headers(headers)
+        @default_headers.merge!(headers)
+        self
+      end
+
+      # Enable or disable automatic X-Request-ID header injection.
+      # @param val [Boolean] +true+ to inject, +false+ to skip (default)
+      # @return [self]
+      def inject_request_id(val)
+        @inject_request_id = val
+        self
+      end
+
+      # Set how many times a failed request is sent again (see
+      # {TransportOptions#max_retries}).
+      # @param val [Integer] the retry count; +0+ disables retries (default +2+)
+      # @return [self]
+      # @raise [ArgumentError] if it is not a non-negative integer
+      def max_retries(val)
+        @max_retries = TransportOptions.validate_max_retries!(val)
+        self
+      end
+
+      # Build and return an immutable {TransportOptions} instance.
+      # @return [TransportOptions]
+      def build
+        TransportOptions.new(
+          verify_ssl: @verify_ssl,
+          ca_cert_path: @ca_cert_path,
+          proxy: @proxy,
+          timeout: @timeout,
+          follow_redirects: @follow_redirects,
+          max_redirects: @max_redirects,
+          user_agent: @user_agent,
+          default_headers: @default_headers.dup,
+          inject_request_id: @inject_request_id,
+          max_retries: @max_retries,
+          connection: @connection
+        )
+      end
+    end
+  end
+end

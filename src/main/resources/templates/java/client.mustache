@@ -1,0 +1,319 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import {{apiPackage}}.{{classname}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+import {{invokerPackage}}.auth.Authenticator;
+import {{invokerPackage}}.auth.BearerAuthenticator;
+import {{invokerPackage}}.auth.HttpAwareAuthenticator;
+{{#clientSchemes}}
+import {{{importName}}};
+{{/clientSchemes}}
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import javax.annotation.Nullable;
+
+/**
+ * Unified entry point for all API services.
+ *
+ * <p>Takes an {@link Authenticator} (one credential for every operation) or, through
+ * {@link #builder(String)}, one optional credential per security scheme named after the
+ * scheme, and optionally {@link TransportOptions}. It then exposes each API group as a typed
+ * property. If an authenticator implements {@link HttpAwareAuthenticator}, the shared
+ * {@link ApiClient} is injected so that authentication HTTP calls (token exchange, discovery)
+ * use the same transport configuration as regular API calls.
+ *
+ * <p>Each operation uses the credential of the first scheme in its own security list that the
+ * client holds, falls back to the single authenticator when it holds none of them, and sends
+ * no credential when there is neither. There is no per-call scheme override.
+ *
+ * <p>Usage:
+ * <pre>{@code
+ * // One credential for every operation
+ * {{clientClassName}} client = new {{clientClassName}}(authenticator);
+ *
+ * // Custom transport (proxy, timeouts, etc.)
+ * TransportOptions transport = TransportOptions.builder()
+ *     .proxy("http://proxy:3128")
+ *     .timeout(5000)
+ *     .build();
+ * {{clientClassName}} client = new {{clientClassName}}(authenticator, transport);
+{{#hasClientSchemes}}
+ *
+ * // One optional credential per security scheme, named after the scheme
+ * {{clientClassName}} client = {{clientClassName}}.builder(host)
+{{#clientSchemes}}
+ *     .{{methodName}}(...)
+{{/clientSchemes}}
+ *     .transportOptions(transport)
+ *     .build();
+{{/hasClientSchemes}}
+ * }</pre>
+ *
+ * <p>The client is {@link AutoCloseable}, and {@link #close()} is graceful and idempotent: it
+ * marks the client closed and returns, requests already in flight finish, and the HTTP stack
+ * the SDK built itself is released when the last of them completes. It never closes a
+ * {@link java.net.http.HttpClient} the caller supplied through {@link TransportOptions}. A
+ * request issued after closing fails with an {@link IllegalStateException}.
+ */
+@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+/* A tag the spec spells with an acronym -- BetaOIDCService -- keeps that
+ * spelling here, because the accessor is public API and every other SDK
+ * spells it the same way. */
+public final class {{clientClassName}} implements {{clientClassName}}Interface {
+
+    private final ApiClient apiClient;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /** API operations for the {{classname}} group. */
+    public final {{classname}} {{clientPropertyName}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    /**
+     * Creates a new client with the given authenticator and default transport settings.
+     *
+     * @param authenticator provides host URL and auth headers
+     * @throws IllegalArgumentException if the transport cannot be configured (never
+     *     thrown for default transport, which configures no custom CA certificate)
+     */
+    public {{clientClassName}}(Authenticator authenticator) {
+        this(authenticator, TransportOptions.builder().build());
+    }
+
+    /**
+     * Creates a new client with the given authenticator and transport options.
+     *
+     * <p>The authenticator is the credential for every operation. If it implements
+     * {@link HttpAwareAuthenticator}, the shared {@link ApiClient} is injected so that token
+     * exchange and discovery requests use the same proxy, TLS, and timeout settings.
+     *
+     * @param authenticator  provides host URL and auth headers
+     * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+     */
+    public {{clientClassName}}(Authenticator authenticator, TransportOptions transportOptions) {
+        this(hostOf(authenticator), authenticator, Map.of(), transportOptions, null);
+    }
+
+    private {{clientClassName}}(
+            String host,
+            @Nullable Authenticator authenticator,
+            Map<String, Authenticator> schemeAuthenticators,
+            TransportOptions transportOptions,
+            @Nullable CallHook callHook) {
+        ApiClient apiClient = new DefaultApiClient(transportOptions);
+        this.apiClient = apiClient;
+
+        if (authenticator instanceof HttpAwareAuthenticator httpAware) {
+            httpAware.setApiClient(apiClient);
+        }
+        for (Authenticator scheme : schemeAuthenticators.values()) {
+            if (scheme instanceof HttpAwareAuthenticator httpAware) {
+                httpAware.setApiClient(apiClient);
+            }
+        }
+
+        Configuration config = Configuration.builder()
+                .baseUrl(host)
+                .callHook(callHook)
+                .build();
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        this.{{clientPropertyName}} = new {{classname}}(apiClient, config, authenticator, schemeAuthenticators);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    private static String hostOf(Authenticator authenticator) {
+        return Objects.requireNonNull(authenticator, "authenticator").getHost();
+    }
+
+    /**
+     * Starts a client that holds one optional credential per security scheme, each named after
+     * its scheme. An operation uses the credential of the first scheme in its own security list
+     * that the client holds; an operation none of whose schemes has a credential is sent
+     * without one.
+     *
+     * @param host API base URL
+     * @return a builder for the client
+     */
+    public static Builder builder(String host) {
+        return new Builder(host);
+    }
+
+    /** Builds a client that holds one credential per security scheme. */
+    public static final class Builder {
+
+        private final String host;
+        private final Map<String, Authenticator> schemes = new LinkedHashMap<>();
+        @Nullable private TransportOptions transportOptions;
+        @Nullable private CallHook callHook;
+
+        private Builder(String host) {
+            this.host = Objects.requireNonNull(host, "host");
+        }
+{{#clientSchemes}}
+
+        /**
+         * Sets the credential for the {@code {{#lambda.javadocDescription}}{{{schemeId}}}{{/lambda.javadocDescription}}} security scheme.
+         *
+         * @param authenticator the credential, or {@code null} for none
+         * @return this builder
+         */
+        public Builder {{methodName}}(@Nullable {{className}} authenticator) {
+            return scheme("{{#lambda.javaString}}{{{schemeId}}}{{/lambda.javaString}}", authenticator);
+        }
+{{/clientSchemes}}
+
+        /**
+         * Sets the HTTP transport configuration (proxy, TLS, timeouts, etc.).
+         *
+         * @param transportOptions the transport options, or {@code null} for the defaults
+         * @return this builder
+         */
+        public Builder transportOptions(@Nullable TransportOptions transportOptions) {
+            this.transportOptions = transportOptions;
+            return this;
+        }
+
+        /**
+         * Sets the hook that runs around every operation call. Combine several with
+         * {@link CallHook#chain(CallHook...)}.
+         *
+         * @param callHook the hook, or {@code null} for none
+         * @return this builder
+         */
+        public Builder callHook(@Nullable CallHook callHook) {
+            this.callHook = callHook;
+            return this;
+        }
+
+        /**
+         * Creates the client.
+         *
+         * @return the configured client
+         * @throws IllegalArgumentException if a configured custom CA certificate cannot be read
+         *     or parsed
+         */
+        public {{clientClassName}} build() {
+            TransportOptions transport =
+                    transportOptions != null ? transportOptions : TransportOptions.builder().build();
+            return new {{clientClassName}}(host, null, new LinkedHashMap<>(schemes), transport, callHook);
+        }
+
+        private Builder scheme(String schemeId, @Nullable Authenticator authenticator) {
+            if (authenticator == null) {
+                schemes.remove(schemeId);
+            } else {
+                schemes.put(schemeId, authenticator);
+            }
+            return this;
+        }
+    }
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /**
+     * Returns the API operations of the {{classname}} group, the interface form of the
+     * {@link #{{clientPropertyName}}} field.
+     *
+     * @return the group
+     */
+    @Override
+    public {{classname}} get{{clientAccessorSuffix}}() {
+        return {{clientPropertyName}};
+    }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    /**
+     * Closes the client gracefully. The first call marks it closed and returns at once; requests
+     * already in flight finish, and the HTTP stack the SDK built is released when the last of
+     * them completes. Later calls do nothing. A transport the caller supplied is never closed,
+     * and a request issued after closing fails with an {@link IllegalStateException}.
+     */
+    @Override
+    public void close() {
+        apiClient.close();
+    }
+
+    /** The transport shared by every API group; for tests in this package. */
+    ApiClient transport() {
+        return apiClient;
+    }
+
+    /**
+     * Creates a client authenticated with a static Bearer token.
+     *
+     * @param host             API base URL
+     * @param accessToken      Bearer token
+     * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @return configured client instance
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+     */
+    public static {{clientClassName}} withToken(
+            String host,
+            String accessToken,
+            @javax.annotation.Nullable TransportOptions transportOptions) {
+        return (transportOptions != null)
+                ? new {{clientClassName}}(new BearerAuthenticator(host, accessToken), transportOptions)
+                : new {{clientClassName}}(new BearerAuthenticator(host, accessToken));
+    }
+
+    /**
+     * Creates a client authenticated with a static Bearer token.
+     *
+     * @param host        API base URL
+     * @param accessToken Bearer token
+     * @return configured client instance
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+     */
+    public static {{clientClassName}} withToken(String host, String accessToken) {
+        return withToken(host, accessToken, null);
+    }
+
+    /**
+     * Creates a client from any {@link Authenticator} implementation with default transport.
+     *
+     * <p>This is the generic entry point for bespoke authentication strategies such as
+     * OAuth2 client credentials, JWT private-key (service account), or a personal access
+     * token (PAT). Supply any {@link Authenticator} implementation; if it also implements
+     * {@link HttpAwareAuthenticator}, the shared {@link ApiClient} is injected so its HTTP
+     * calls reuse the same transport configuration.
+     *
+     * @param authenticator provides host URL and auth headers
+     * @return configured client instance
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+     */
+    public static {{clientClassName}} withAuthenticator(Authenticator authenticator) {
+        return new {{clientClassName}}(authenticator);
+    }
+
+    /**
+     * Creates a client from any {@link Authenticator} implementation with the given transport.
+     *
+     * @param authenticator    provides host URL and auth headers
+     * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @return configured client instance
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+     */
+    public static {{clientClassName}} withAuthenticator(
+            Authenticator authenticator, TransportOptions transportOptions) {
+        return new {{clientClassName}}(authenticator, transportOptions);
+    }
+}

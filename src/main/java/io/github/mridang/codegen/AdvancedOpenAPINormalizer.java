@@ -27,8 +27,13 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     private static final String RULE_CLEAN_EMPTY_REQUEST_BODIES = "CLEAN_EMPTY_REQUEST_BODIES";
     private static final String RULE_ONLY_ALLOW_JSON = "ONLY_ALLOW_JSON";
     private static final String RULE_FILTER_PATHS = "FILTER_PATHS";
+    private static final String RULE_FILTER_METHODS = "FILTER_METHODS";
+    private static final String RULE_EXCLUDE_METHODS = "EXCLUDE_METHODS";
+    private static final String RULE_FILTER_TAGS = "FILTER_TAGS";
+    private static final String RULE_EXCLUDE_TAGS = "EXCLUDE_TAGS";
     private static final String RULE_GARBAGE_COLLECT = "GARBAGE_COLLECT_COMPONENTS";
     private static final String RULE_SCRIPTABLE = "RUN_SCRIPT";
+    private static final String RULE_CONTENT_ENCODING = "CONTENT_ENCODING";
     @Nullable
     private final Logger customLogger;
     private final Map<String, String> customRules;
@@ -84,10 +89,21 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
         super.normalize();
         getLogger().info("Default normalization complete. Applying custom rules...");
 
+        SpecWarnings.check(this.openAPI, Boolean.getBoolean(SpecWarnings.STRICT_PROPERTY), getLogger());
+
+        applyRule(RULE_CONTENT_ENCODING, new ContentEncodingRule());
         applyRule(RULE_STRIP_PARAMS, new StripParametersRule());
         applyRule(RULE_CLEAN_EMPTY_REQUEST_BODIES, new CleanEmptyRequestBodiesRule());
         applyRule(RULE_ONLY_ALLOW_JSON, new OnlyAllowJsonRule());
         applyRule(RULE_FILTER_PATHS, new FilterPathsRule());
+        applyRule(RULE_FILTER_METHODS, new FilterOperationsRule(
+            RULE_FILTER_METHODS, FilterOperationsRule.Target.METHODS, false));
+        applyRule(RULE_EXCLUDE_METHODS, new FilterOperationsRule(
+            RULE_EXCLUDE_METHODS, FilterOperationsRule.Target.METHODS, true));
+        applyRule(RULE_FILTER_TAGS, new FilterOperationsRule(
+            RULE_FILTER_TAGS, FilterOperationsRule.Target.TAGS, false));
+        applyRule(RULE_EXCLUDE_TAGS, new FilterOperationsRule(
+            RULE_EXCLUDE_TAGS, FilterOperationsRule.Target.TAGS, true));
         applyRule(RULE_SCRIPTABLE, new ScriptableRule());
         applyRule(RULE_GARBAGE_COLLECT, new GarbageCollectComponentsRule());
 

@@ -1,0 +1,476 @@
+{{>api_info}}
+
+import re
+from dataclasses import dataclass, field
+from types import MappingProxyType
+from typing import Dict, Mapping, Optional
+from urllib.parse import urlparse, urlsplit
+
+
+_PROXY_USERINFO = re.compile(r'^([A-Za-z][A-Za-z0-9+.\-]*://)[^/?#]*@')
+
+
+def _proxy_in_message(proxy: str) -> str:
+    """The proxy URL for an error message, with any ``user:pass@`` userinfo shown as ``***@`` (D79)."""
+    return _PROXY_USERINFO.sub(r'\1***@', proxy)
+
+
+def _assert_valid_proxy(proxy: Optional[str]) -> None:
+    """Reject a proxy URL that is not an ``http``/``https`` URL with a host.
+
+    Shared by the constructor and the builder so a ``TransportOptions`` built
+    directly cannot carry a proxy the builder would have refused.
+
+    Raises:
+        ValueError: If the proxy URL has another scheme, no host or an
+            unterminated IPv6 literal.
+    """
+    if proxy is None:
+        return
+    try:
+        parsed = urlparse(proxy)
+    except ValueError:
+        raise ValueError(
+            f"Invalid proxy URL (unterminated IPv6 literal): {_proxy_in_message(proxy)}"
+        ) from None
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError(f"Invalid proxy URL (must use http or https scheme): {_proxy_in_message(proxy)}")
+    if not parsed.hostname:
+        raise ValueError(f"Invalid proxy URL (missing host): {_proxy_in_message(proxy)}")
+
+
+def _assert_valid_timeout(timeout: Optional[int]) -> None:
+    """Reject a timeout that is not ``None`` or a positive number of milliseconds (D77).
+
+    Shared by the constructor and the builder so a ``TransportOptions`` built
+    directly cannot carry a timeout the builder would have refused.
+
+    Raises:
+        ValueError: If the timeout is zero, negative or not a number.
+    """
+    if timeout is None:
+        return
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not timeout >= 1:
+        raise ValueError(
+            f'Invalid timeout: must be a positive number of milliseconds (got {timeout})'
+        )
+
+
+def _assert_valid_max_retries(max_retries: int) -> None:
+    """Reject a retry count that is not a whole number of at least zero.
+
+    Shared by the constructor and the builder so a ``TransportOptions`` built
+    directly cannot carry a count the builder would have refused.
+
+    Raises:
+        ValueError: If the count is negative or not an integer.
+    """
+    if isinstance(max_retries, bool) or not isinstance(max_retries, int) or max_retries < 0:
+        raise ValueError(
+            f'Invalid max_retries: must be an integer of at least 0 (got {max_retries})'
+        )
+
+
+def _assert_valid_max_redirects(max_redirects: Optional[int]) -> None:
+    """Reject a redirect budget that is not ``None`` or a whole number of at least zero.
+
+    Shared by the constructor and the builder so a ``TransportOptions`` built
+    directly cannot carry a budget the builder would have refused.
+
+    Raises:
+        ValueError: If the budget is negative or not an integer.
+    """
+    if max_redirects is None:
+        return
+    if isinstance(max_redirects, bool) or not isinstance(max_redirects, int) or max_redirects < 0:
+        raise ValueError(
+            f'Invalid max_redirects: must be an integer of at least 0 (got {max_redirects})'
+        )
+
+
+def _validated_call_headers(
+    timeout: Optional[int],
+    headers: Optional[Mapping[str, str]],
+    max_retries: Optional[int],
+) -> Optional[Mapping[str, str]]:
+    """Validate the per-call settings of an Options object and freeze its headers.
+
+    The rules are the transport's own: the timeout is ``None`` or at least one
+    millisecond, the retry budget a whole number of at least zero.
+
+    Raises:
+        ValueError: If the timeout or the retry budget is out of range.
+    """
+    _assert_valid_timeout(timeout)
+    if max_retries is not None:
+        _assert_valid_max_retries(max_retries)
+    return None if headers is None else MappingProxyType(dict(headers))
+
+
+_REDACTED = '***'
+_SENSITIVE_HEADER_NAMES = ('authorization', 'proxy-authorization', 'cookie')
+_SENSITIVE_HEADER_FRAGMENTS = ('key', 'token', 'secret')
+
+
+def _is_sensitive_header(name: str) -> bool:
+    """Whether the value of the default header ``name`` is a credential."""
+    lowered = name.lower()
+    return lowered in _SENSITIVE_HEADER_NAMES or any(
+        fragment in lowered for fragment in _SENSITIVE_HEADER_FRAGMENTS
+    )
+
+
+def _redact_headers(headers: Mapping[str, str]) -> Dict[str, str]:
+    """Copy of ``headers`` with every credential-bearing value replaced by ``***``."""
+    return {
+        name: _REDACTED if _is_sensitive_header(name) else value
+        for name, value in headers.items()
+    }
+
+
+def _redact_proxy(proxy: Optional[str]) -> Optional[str]:
+    """The proxy URL with the password of any ``user:pass@`` userinfo replaced by ``***``."""
+    if proxy is None:
+        return None
+    parts = urlsplit(proxy)
+    userinfo, at, host = parts.netloc.rpartition('@')
+    if not at:
+        return proxy
+    user, colon, _password = userinfo.partition(':')
+    masked = f'{user}:{_REDACTED}' if colon else _REDACTED
+    return parts._replace(netloc=f'{masked}@{host}').geturl()
+
+
+@dataclass(frozen=True, repr=False)
+class TransportOptions:
+    """Immutable HTTP transport configuration for :class:`DefaultApiClient`.
+
+    Controls low-level HTTP behavior such as TLS verification, proxy routing,
+    timeouts, redirect handling, and automatic header injection. These settings
+    are independent of API-level concerns (base URL, authentication headers)
+    which belong in :class:`Configuration`.
+
+    This class is immutable and thread-safe. Use :meth:`builder` to create
+    instances::
+
+        transport = TransportOptions.builder() \\
+            .verify_ssl(False) \\
+            .proxy('http://proxy.example.com:8080') \\
+            .timeout(5000) \\
+            .user_agent('MyApp/1.0') \\
+            .build()
+    """
+
+    verify_ssl: bool = True
+    """Whether TLS certificate verification is enabled.
+
+    When ``True`` (the default), the client verifies server certificates.
+    Set to ``False`` to accept any certificate (not recommended for
+    production).
+    """
+
+    ca_cert_path: Optional[str] = None
+    """Path to a custom CA certificate bundle for TLS verification.
+
+    When set together with ``verify_ssl=True``, the client trusts
+    certificates signed by this CA in addition to (or instead of) the
+    system trust store.
+    """
+
+    proxy: Optional[str] = None
+    """HTTP or HTTPS proxy URL for all outbound requests.
+
+    Example: ``'http://proxy.corp.example.com:3128'``.
+    ``None`` means direct connections (no proxy).
+    """
+
+    timeout: Optional[int] = 10000
+    """End-to-end request timeout in milliseconds.
+
+    Covers the entire request lifecycle: connection, TLS handshake,
+    sending the request body, and reading the response. Defaults to
+    10 seconds. Set to ``None`` to disable the timeout (wait
+    indefinitely).
+    """
+
+    follow_redirects: bool = True
+    """Whether the client follows HTTP 3xx redirects automatically.
+
+    When ``True`` (the default), redirects are followed. Set to ``False``
+    to return the redirect response as-is.
+    """
+
+    max_redirects: Optional[int] = None
+    """Maximum number of consecutive redirects to follow.
+
+    Only meaningful when :attr:`follow_redirects` is ``True``. ``None``
+    uses the HTTP client's built-in default.
+    """
+
+    user_agent: Optional[str] = '{{userAgentDefault}}'
+    """Custom ``User-Agent`` header value.
+
+    When set, this value is sent as the ``User-Agent`` header on every
+    request unless the caller explicitly provides one. ``None`` means
+    no custom user agent is injected.
+    """
+
+    default_headers: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
+    """Transport-level default headers included in every request.
+
+    These headers have the *lowest* priority: API-level headers from
+    :attr:`Configuration.default_headers`, operation-specific headers,
+    and authentication headers all take precedence.
+    """
+
+    inject_request_id: bool = False
+    """Whether to auto-inject an ``X-Request-ID`` header with a unique
+    UUID on every request.
+
+    Useful for distributed tracing and log correlation. The header is
+    only injected if the caller has not already set one.
+    """
+
+    max_retries: int = 2
+    """How many times a failed request is sent again.
+
+    A request is retried after a network error that happened before any
+    response and after a ``408``, ``409``, ``429`` or ``5xx`` (not ``501``)
+    response, waiting 0.5 s doubling to 8 s with up to 25% jitter, or as long
+    as a ``Retry-After`` header says (at most 60 s). The retries share the one
+    :attr:`timeout`: they never extend it. A body that cannot be sent twice (a
+    stream or a multipart upload) is never retried. ``0`` disables retries.
+    """
+
+    def __post_init__(self) -> None:
+        """Validate the proxy, the timeout, the retry count and the redirect budget, and make default_headers an immutable MappingProxyType."""
+        _assert_valid_proxy(self.proxy)
+        _assert_valid_timeout(self.timeout)
+        _assert_valid_max_retries(self.max_retries)
+        _assert_valid_max_redirects(self.max_redirects)
+        if not isinstance(self.default_headers, MappingProxyType):
+            object.__setattr__(self, 'default_headers', MappingProxyType(dict(self.default_headers)))
+
+    def __repr__(self) -> str:
+        """Redacts the proxy password and credential-bearing default header values."""
+        return (
+            f'{type(self).__name__}(verify_ssl={self.verify_ssl!r}, '
+            f'ca_cert_path={self.ca_cert_path!r}, proxy={_redact_proxy(self.proxy)!r}, '
+            f'timeout={self.timeout!r}, follow_redirects={self.follow_redirects!r}, '
+            f'max_redirects={self.max_redirects!r}, user_agent={self.user_agent!r}, '
+            f'default_headers={_redact_headers(self.default_headers)!r}, '
+            f'inject_request_id={self.inject_request_id!r}, '
+            f'max_retries={self.max_retries!r})'
+        )
+
+    @classmethod
+    def builder(cls) -> 'TransportOptionsBuilder':
+        """Create a new builder for constructing TransportOptions instances.
+
+        Returns:
+            A new builder with sensible defaults.
+        """
+        return TransportOptionsBuilder()
+
+
+class TransportOptionsBuilder:
+    """Builder for creating immutable :class:`TransportOptions` instances.
+
+    All fields have sensible defaults:
+
+    - ``verify_ssl`` -- ``True``
+    - ``follow_redirects`` -- ``True``
+    - ``inject_request_id`` -- ``False``
+    - ``timeout`` -- ``10000`` (10 seconds)
+    - ``max_retries`` -- ``2``
+    - ``user_agent`` -- a package-specific default string
+    - All other fields -- ``None`` or empty
+
+    Example::
+
+        transport = TransportOptions.builder() \\
+            .verify_ssl(False) \\
+            .proxy('http://proxy:3128') \\
+            .timeout(5000) \\
+            .build()
+    """
+
+    def __init__(self) -> None:
+        self._verify_ssl: bool = True
+        self._ca_cert_path: Optional[str] = None
+        self._proxy: Optional[str] = None
+        self._timeout: Optional[int] = 10000
+        self._follow_redirects: bool = True
+        self._max_redirects: Optional[int] = None
+        self._user_agent: Optional[str] = '{{userAgentDefault}}'
+        self._default_headers: Dict[str, str] = {}
+        self._inject_request_id: bool = False
+        self._max_retries: int = 2
+
+    def verify_ssl(self, verify_ssl: bool) -> 'TransportOptionsBuilder':
+        """Enable or disable TLS certificate verification.
+
+        Args:
+            verify_ssl: ``True`` to verify (default), ``False`` to skip.
+
+        Returns:
+            This builder.
+        """
+        self._verify_ssl = verify_ssl
+        return self
+
+    def ca_cert_path(self, ca_cert_path: Optional[str]) -> 'TransportOptionsBuilder':
+        """Set the path to a custom CA certificate bundle.
+
+        Args:
+            ca_cert_path: File path to a PEM-encoded CA certificate, or ``None``.
+
+        Returns:
+            This builder.
+        """
+        self._ca_cert_path = ca_cert_path
+        return self
+
+    def proxy(self, proxy: Optional[str]) -> 'TransportOptionsBuilder':
+        """Set the HTTP/HTTPS proxy URL.
+
+        Args:
+            proxy: Proxy URL (e.g. ``'http://proxy:3128'``), or ``None``.
+
+        Returns:
+            This builder.
+
+        Raises:
+            ValueError: If the proxy URL is not a valid URL with a scheme.
+        """
+        _assert_valid_proxy(proxy)
+        self._proxy = proxy
+        return self
+
+    def timeout(self, timeout: Optional[int]) -> 'TransportOptionsBuilder':
+        """Set the end-to-end request timeout in milliseconds.
+
+        Args:
+            timeout: Timeout in milliseconds (at least 1), or ``None`` for no timeout.
+
+        Raises:
+            ValueError: If the timeout is zero or negative.
+
+        Returns:
+            This builder.
+        """
+        _assert_valid_timeout(timeout)
+        self._timeout = timeout
+        return self
+
+    def follow_redirects(self, follow_redirects: bool) -> 'TransportOptionsBuilder':
+        """Enable or disable automatic redirect following.
+
+        Args:
+            follow_redirects: ``True`` to follow (default), ``False`` to stop.
+
+        Returns:
+            This builder.
+        """
+        self._follow_redirects = follow_redirects
+        return self
+
+    def max_redirects(self, max_redirects: Optional[int]) -> 'TransportOptionsBuilder':
+        """Set the maximum number of redirects to follow.
+
+        Args:
+            max_redirects: Maximum redirect hops, or ``None`` for client default.
+
+        Raises:
+            ValueError: If the budget is negative or not an integer.
+
+        Returns:
+            This builder.
+        """
+        _assert_valid_max_redirects(max_redirects)
+        self._max_redirects = max_redirects
+        return self
+
+    def user_agent(self, user_agent: Optional[str]) -> 'TransportOptionsBuilder':
+        """Set a custom User-Agent header value.
+
+        Args:
+            user_agent: The user agent string, or ``None`` to omit.
+
+        Returns:
+            This builder.
+        """
+        self._user_agent = user_agent
+        return self
+
+    def default_header(self, name: str, value: str) -> 'TransportOptionsBuilder':
+        """Add a single transport-level default header.
+
+        Args:
+            name: Header name.
+            value: Header value.
+
+        Returns:
+            This builder.
+        """
+        self._default_headers[name] = value
+        return self
+
+    def default_headers(self, headers: Dict[str, str]) -> 'TransportOptionsBuilder':
+        """Add multiple transport-level default headers.
+
+        Args:
+            headers: Map of header names to values.
+
+        Returns:
+            This builder.
+        """
+        self._default_headers.update(headers)
+        return self
+
+    def inject_request_id(self, inject_request_id: bool) -> 'TransportOptionsBuilder':
+        """Enable or disable automatic ``X-Request-ID`` header injection.
+
+        Args:
+            inject_request_id: ``True`` to inject, ``False`` to skip (default).
+
+        Returns:
+            This builder.
+        """
+        self._inject_request_id = inject_request_id
+        return self
+
+    def max_retries(self, max_retries: int) -> 'TransportOptionsBuilder':
+        """Set how many times a failed request is sent again.
+
+        Args:
+            max_retries: Number of retries (``0`` disables them; default ``2``).
+
+        Raises:
+            ValueError: If the count is negative or not an integer.
+
+        Returns:
+            This builder.
+        """
+        _assert_valid_max_retries(max_retries)
+        self._max_retries = max_retries
+        return self
+
+    def build(self) -> TransportOptions:
+        """Build and return an immutable :class:`TransportOptions` instance.
+
+        Returns:
+            The configured transport options.
+        """
+        return TransportOptions(
+            verify_ssl=self._verify_ssl,
+            ca_cert_path=self._ca_cert_path,
+            proxy=self._proxy,
+            timeout=self._timeout,
+            follow_redirects=self._follow_redirects,
+            max_redirects=self._max_redirects,
+            user_agent=self._user_agent,
+            default_headers=self._default_headers,
+            inject_request_id=self._inject_request_id,
+            max_retries=self._max_retries,
+        )

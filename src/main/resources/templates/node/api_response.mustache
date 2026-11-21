@@ -1,0 +1,10 @@
+{{>api_info}}
+
+/**
+ * Represents an HTTP API response.
+ */
+export interface ApiHttpResponse {
+  readonly statusCode: number;
+  readonly body: string;
+  readonly headers: Readonly<Record<string, string>>;
+}

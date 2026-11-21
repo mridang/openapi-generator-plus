@@ -1,0 +1,553 @@
+{{>api_info}}
+
+/**
+ * Render a proxy URL for an error message with any userinfo replaced by
+ * `***@`, so a configuration error never prints the proxy credentials.
+ *
+ * @param proxy proxy URL as supplied by the caller
+ * @returns the URL with its userinfo masked
+ */
+function proxyForMessage(proxy: string): string {
+  return proxy.replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^/?#]*@/, '$1***@');
+}
+
+/**
+ * Reject a proxy URL that cannot be parsed, does not use http or https, or
+ * has no host. Shared by the builder and the constructor so the invariant
+ * holds however an instance is created.
+ *
+ * @param proxy proxy URL, or null for none
+ * @throws TypeError if the URL cannot be parsed or is not an http(s) URL with a host
+ */
+function assertValidProxy(proxy: string | null): void {
+  if (proxy == null) {
+    return;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(proxy);
+  } catch {
+    /* The parser's own error carries the raw input (and so its userinfo),
+     * which is why it is not chained as the cause. */
+    throw new TypeError(`Invalid proxy URL (unparseable): ${proxyForMessage(proxy)}`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new TypeError(`Invalid proxy URL (must use http or https scheme): ${proxyForMessage(proxy)}`);
+  }
+  if (!parsed.hostname) {
+    throw new TypeError(`Invalid proxy URL (missing host): ${proxyForMessage(proxy)}`);
+  }
+}
+
+/**
+ * Reject a caller-supplied `fetch` that the SDK's own proxy, TLS or CA
+ * settings would silently bypass: a custom fetch owns its connections, so the
+ * SDK cannot apply those settings to it. Fail fast instead of ignoring them.
+ *
+ * @param options the transport settings to check
+ * @throws TypeError when a custom fetch is combined with a proxy, a custom CA or disabled TLS verification
+ */
+function assertFetchCompatible(options: {
+  fetch?: typeof fetch | null;
+  proxy: string | null;
+  caCertPath: string | null;
+  verifySsl: boolean;
+}): void {
+  if (options.fetch == null) {
+    return;
+  }
+  if (typeof options.fetch !== 'function') {
+    throw new TypeError('The HTTP connection must be a fetch function.');
+  }
+  const conflicts: string[] = [];
+  if (options.proxy != null) {
+    conflicts.push('proxy');
+  }
+  if (options.caCertPath != null) {
+    conflicts.push('caCertPath');
+  }
+  if (!options.verifySsl) {
+    conflicts.push('verifySsl(false)');
+  }
+  if (conflicts.length > 0) {
+    throw new TypeError(
+      `A custom fetch conflicts with the SDK's own ${conflicts.join(', ')} setting: `
+        + 'configure it on the fetch implementation you supply instead.'
+    );
+  }
+}
+
+/**
+ * Reject a retry count that is not a non-negative integer.
+ *
+ * @param maxRetries the number of retries after the first attempt
+ * @throws TypeError if the value is negative, fractional or not a number
+ */
+function assertValidMaxRetries(maxRetries: number): void {
+  if (!Number.isInteger(maxRetries) || maxRetries < 0) {
+    throw new TypeError(`Invalid maxRetries: must be a non-negative integer (got ${maxRetries})`);
+  }
+}
+
+/**
+ * Reject a redirect limit that is not a non-negative integer.
+ *
+ * @param maxRedirects redirect hop limit
+ * @throws TypeError when the value is not a non-negative integer
+ */
+function assertValidMaxRedirects(maxRedirects: number): void {
+  if (!Number.isInteger(maxRedirects) || maxRedirects < 0) {
+    throw new TypeError(`Invalid maxRedirects: must be a non-negative integer (got ${maxRedirects})`);
+  }
+}
+
+/**
+ * Whether a header's value must never appear in a string representation:
+ * Authorization, Proxy-Authorization, Cookie, and any name containing key,
+ * token or secret (case-insensitive).
+ *
+ * @param name header name
+ * @returns true when the value is a secret
+ */
+function isSecretHeader(name: string): boolean {
+  const lower = name.toLowerCase();
+  return (
+    lower === 'authorization' ||
+    lower === 'proxy-authorization' ||
+    lower === 'cookie' ||
+    lower.includes('key') ||
+    lower.includes('token') ||
+    lower.includes('secret')
+  );
+}
+
+/**
+ * Copy a header map with every secret header value replaced by `***`.
+ *
+ * @param headers header map
+ * @returns a redacted copy, safe to print
+ */
+export function redactHeaders(headers: Readonly<Record<string, string>>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers)) {
+    out[name] = isSecretHeader(name) ? '***' : value;
+  }
+  return out;
+}
+
+/**
+ * Replace the password in a proxy URL's userinfo with `***`.
+ *
+ * @param proxy proxy URL, or null
+ * @returns the URL without its password, or null
+ */
+function redactProxy(proxy: string | null): string | null {
+  if (proxy == null) {
+    return null;
+  }
+  try {
+    const parsed = new URL(proxy);
+    if (parsed.password === '') {
+      return proxy;
+    }
+    parsed.password = '***';
+    return parsed.toString();
+  } catch {
+    return '***';
+  }
+}
+
+/**
+ * Immutable HTTP transport configuration for `DefaultApiClient`.
+ *
+ * Controls low-level HTTP behavior such as TLS verification, proxy routing,
+ * timeouts, redirect handling, and automatic header injection. These settings
+ * are independent of API-level concerns (base URL, authentication headers)
+ * which belong in `Configuration`.
+ *
+ * This class is immutable and thread-safe. Use {@link TransportOptions.builder} to create instances:
+ *
+ * ```typescript
+ * const transport = TransportOptions.builder()
+ *   .verifySsl(false)
+ *   .proxy('http://proxy.example.com:8080')
+ *   .timeout(5000)
+ *   .userAgent('MyApp/1.0')
+ *   .build();
+ * ```
+ */
+export class TransportOptions {
+  /** Whether TLS certificate verification is enabled. */
+  public readonly verifySsl: boolean;
+
+  /** Path to a custom CA certificate bundle for TLS verification. */
+  public readonly caCertPath: string | null;
+
+  /** HTTP or HTTPS proxy URL for all outbound requests. */
+  public readonly proxy: string | null;
+
+  /**
+   * End-to-end request timeout in milliseconds.
+   *
+   * Covers the entire request lifecycle: connection, TLS handshake, sending
+   * the request body, and reading the response. Defaults to 10000 ms
+   * (10 seconds). `null` disables the timeout (waits indefinitely).
+   */
+  public readonly timeout: number | null;
+
+  /** Whether the client follows HTTP 3xx redirects automatically. */
+  public readonly followRedirects: boolean;
+
+  /**
+   * Maximum number of consecutive redirects to follow.
+   *
+   * Only meaningful when {@link TransportOptions.followRedirects} is `true`.
+   * A value of `null` uses the HTTP client's built-in default.
+   */
+  public readonly maxRedirects: number | null;
+
+  /**
+   * Maximum number of automatic retries after the first attempt (default 2;
+   * 0 disables retries).
+   *
+   * A request is retried after a network error that happened before any
+   * response arrived and after a 408, 409, 429 or 5xx (except 501) response,
+   * waiting 0.5 s doubling to 8 s (with up to 25% jitter) or the server's
+   * `Retry-After` (capped at 60 s). The retries share the one end-to-end
+   * {@link TransportOptions.timeout}: they never extend it.
+   */
+  public readonly maxRetries: number;
+
+  /** Custom User-Agent header value. */
+  public readonly userAgent: string | null;
+
+  /**
+   * Transport-level default headers included in every request.
+   *
+   * These headers have the lowest priority: API-level headers from
+   * `Configuration.defaultHeaders`, operation-specific headers, and
+   * authentication headers all take precedence.
+   */
+  public readonly defaultHeaders: Readonly<Record<string, string>>;
+
+  /** Whether to auto-inject an X-Request-ID header with a unique UUID on every request. */
+  public readonly injectRequestId: boolean;
+
+  /**
+   * Caller-supplied `fetch` implementation, or `null` for the SDK's own.
+   *
+   * Every SDK default (timeout, user agent, redirect
+   * policy) is applied on top of it. The caller owns its lifecycle: the SDK
+   * never closes it. Cannot be combined with `proxy`, `caCertPath` or
+   * `verifySsl(false)`.
+   */
+  public readonly fetch: typeof fetch | null;
+
+  /**
+   * Extra options merged into every `fetch` call (for example `credentials`
+   * or `keepalive`); the SDK's own method, headers, body, redirect policy and
+   * signal always take precedence.
+   */
+  public readonly fetchOptions: Readonly<Record<string, unknown>> | null;
+
+  /**
+   * Create transport options directly. Prefer {@link TransportOptions.builder}; the
+   * constructor applies the same proxy validation, so an invalid proxy URL is
+   * rejected up front however the instance is created.
+   *
+   * @param options every transport setting
+   * @throws TypeError if the proxy URL cannot be parsed or is not an http(s) URL with a host
+   */
+  constructor(options: {
+    verifySsl: boolean;
+    caCertPath: string | null;
+    proxy: string | null;
+    timeout: number | null;
+    followRedirects: boolean;
+    maxRedirects: number | null;
+    maxRetries?: number;
+    userAgent: string | null;
+    defaultHeaders: Record<string, string>;
+    injectRequestId: boolean;
+    fetch?: typeof fetch | null;
+    fetchOptions?: Record<string, unknown> | null;
+  }) {
+    assertValidProxy(options.proxy);
+    assertFetchCompatible(options);
+    if (options.fetchOptions?.['redirect'] === 'follow') {
+      throw new TypeError(
+        'A fetchOptions redirect of follow conflicts with the SDK redirect handling: remove it and use followRedirects and maxRedirects instead.'
+      );
+    }
+    assertValidMaxRetries(options.maxRetries ?? 2);
+    if (options.maxRedirects != null) assertValidMaxRedirects(options.maxRedirects);
+    this.verifySsl = options.verifySsl;
+    this.caCertPath = options.caCertPath;
+    this.proxy = options.proxy;
+    this.timeout = options.timeout;
+    this.followRedirects = options.followRedirects;
+    this.maxRedirects = options.maxRedirects;
+    this.maxRetries = options.maxRetries ?? 2;
+    this.userAgent = options.userAgent;
+    this.defaultHeaders = Object.freeze({ ...options.defaultHeaders });
+    this.injectRequestId = options.injectRequestId;
+    this.fetch = options.fetch ?? null;
+    this.fetchOptions = options.fetchOptions == null ? null : Object.freeze({ ...options.fetchOptions });
+    Object.freeze(this);
+  }
+
+  /**
+   * Create a new builder for constructing TransportOptions instances.
+   *
+   * @returns a new builder with sensible defaults
+   */
+  public static builder(): TransportOptionsBuilder {
+    return new TransportOptionsBuilder();
+  }
+
+  /**
+   * Printable view of these options with the proxy password and secret
+   * default header values replaced by `***`.
+   */
+  private redacted(): Record<string, unknown> {
+    return {
+      verifySsl: this.verifySsl,
+      caCertPath: this.caCertPath,
+      proxy: redactProxy(this.proxy),
+      timeout: this.timeout,
+      followRedirects: this.followRedirects,
+      maxRedirects: this.maxRedirects,
+      maxRetries: this.maxRetries,
+      userAgent: this.userAgent,
+      defaultHeaders: redactHeaders(this.defaultHeaders),
+      injectRequestId: this.injectRequestId,
+      fetch: this.fetch != null,
+      fetchOptions: this.fetchOptions == null ? null : Object.keys(this.fetchOptions)
+    };
+  }
+
+  toJSON(): Record<string, unknown> {
+    return this.redacted();
+  }
+
+  toString(): string {
+    return `TransportOptions(${JSON.stringify(this.redacted())})`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
+}
+
+/**
+ * Builder for creating immutable {@link TransportOptions} instances.
+ *
+ * All fields have sensible defaults:
+ * - `verifySsl` -- `true`
+ * - `followRedirects` -- `true`
+ * - `maxRetries` -- `2` (`0` disables retries)
+ * - `injectRequestId` -- `false`
+ * - `timeout` -- `10000` (10 seconds)
+ * - `userAgent` -- a package-specific default string
+ * - All other fields -- `null` or empty
+ */
+export class TransportOptionsBuilder {
+  private _verifySsl: boolean = true;
+  private _caCertPath: string | null = null;
+  private _proxy: string | null = null;
+  private _timeout: number | null = 10000;
+  private _followRedirects: boolean = true;
+  private _maxRedirects: number | null = null;
+  private _maxRetries: number = 2;
+  private _userAgent: string | null = '{{userAgentDefault}}';
+  private _defaultHeaders: Record<string, string> = {};
+  private _injectRequestId: boolean = false;
+  private _fetch: typeof fetch | null = null;
+  private _fetchOptions: Record<string, unknown> | null = null;
+
+  /**
+   * Enable or disable TLS certificate verification.
+   *
+   * @param verifySsl true to verify (default), false to skip
+   * @returns this builder
+   */
+  verifySsl(verifySsl: boolean): this {
+    this._verifySsl = verifySsl;
+    return this;
+  }
+
+  /**
+   * Set the path to a custom CA certificate bundle.
+   *
+   * @param caCertPath file path to a PEM-encoded CA certificate, or null
+   * @returns this builder
+   */
+  caCertPath(caCertPath: string | null): this {
+    this._caCertPath = caCertPath;
+    return this;
+  }
+
+  /**
+   * Set the HTTP/HTTPS proxy URL.
+   *
+   * @param proxy proxy URL (e.g. "http://proxy:3128"), or null
+   * @returns this builder
+   * @throws TypeError if the URL cannot be parsed or is not an http(s) URL with a host
+   */
+  proxy(proxy: string | null): this {
+    /* An empty string clears a proxy set earlier, like null. */
+    const value = proxy === '' ? null : proxy;
+    assertValidProxy(value);
+    this._proxy = value;
+    return this;
+  }
+
+  /**
+   * Set the end-to-end request timeout in milliseconds.
+   *
+   * @param timeout timeout in milliseconds, or null for no timeout
+   * @returns this builder
+   */
+  timeout(timeout: number | null): this {
+    if (timeout !== null && !(timeout > 0)) {
+      throw new TypeError(
+        `Invalid timeout: must be a positive number of milliseconds (got ${timeout})`
+      );
+    }
+    this._timeout = timeout;
+    return this;
+  }
+
+  /**
+   * Enable or disable automatic redirect following.
+   *
+   * @param followRedirects true to follow (default), false to stop
+   * @returns this builder
+   */
+  followRedirects(followRedirects: boolean): this {
+    this._followRedirects = followRedirects;
+    return this;
+  }
+
+  /**
+   * Set the maximum number of redirects to follow.
+   *
+   * @param maxRedirects maximum redirect hops, or null for client default
+   * @returns this builder
+   */
+  maxRedirects(maxRedirects: number | null): this {
+    if (maxRedirects !== null) assertValidMaxRedirects(maxRedirects);
+    this._maxRedirects = maxRedirects;
+    return this;
+  }
+
+  /**
+   * Set the maximum number of automatic retries (0 disables them).
+   *
+   * @param maxRetries retries after the first attempt, a non-negative integer (default 2)
+   * @returns this builder
+   * @throws TypeError if the value is not a non-negative integer
+   */
+  maxRetries(maxRetries: number): this {
+    assertValidMaxRetries(maxRetries);
+    this._maxRetries = maxRetries;
+    return this;
+  }
+
+  /**
+   * Set a custom User-Agent header value.
+   *
+   * @param userAgent the user agent string, or null to omit
+   * @returns this builder
+   */
+  userAgent(userAgent: string | null): this {
+    this._userAgent = userAgent;
+    return this;
+  }
+
+  /**
+   * Add a single transport-level default header.
+   *
+   * @param name header name
+   * @param value header value
+   * @returns this builder
+   */
+  defaultHeader(name: string, value: string): this {
+    this._defaultHeaders[name] = value;
+    return this;
+  }
+
+  /**
+   * Add multiple transport-level default headers.
+   *
+   * @param headers map of header names to values
+   * @returns this builder
+   */
+  defaultHeaders(headers: Record<string, string>): this {
+    Object.assign(this._defaultHeaders, headers);
+    return this;
+  }
+
+  /**
+   * Enable or disable automatic X-Request-ID header injection.
+   *
+   * @param injectRequestId true to inject, false to skip (default)
+   * @returns this builder
+   */
+  injectRequestId(injectRequestId: boolean): this {
+    this._injectRequestId = injectRequestId;
+    return this;
+  }
+
+  /**
+   * Use a caller-supplied `fetch` implementation instead of the global one.
+   *
+   * The SDK still applies its timeout, user agent, redirect policy and header
+   * handling on top of it, and never closes it. Building fails with a
+   * TypeError when combined with a proxy, a custom CA certificate or
+   * `verifySsl(false)`, because the SDK cannot apply those to a fetch it does
+   * not own.
+   *
+   * @param fetchFunction the fetch implementation, or null for the default
+   * @returns this builder
+   */
+  fetch(fetchFunction: typeof fetch | null): this {
+    this._fetch = fetchFunction;
+    return this;
+  }
+
+  /**
+   * Set extra options merged into every `fetch` call (for example
+   * `credentials` or `keepalive`). The SDK's own method, headers, body,
+   * redirect policy and signal take precedence.
+   *
+   * @param fetchOptions options passed through to `fetch`, or null for none
+   * @returns this builder
+   */
+  fetchOptions(fetchOptions: Record<string, unknown> | null): this {
+    this._fetchOptions = fetchOptions;
+    return this;
+  }
+
+  /**
+   * Build and return an immutable TransportOptions instance.
+   *
+   * @returns the configured transport options
+   */
+  build(): TransportOptions {
+    return new TransportOptions({
+      verifySsl: this._verifySsl,
+      caCertPath: this._caCertPath,
+      proxy: this._proxy,
+      timeout: this._timeout,
+      followRedirects: this._followRedirects,
+      maxRedirects: this._maxRedirects,
+      maxRetries: this._maxRetries,
+      userAgent: this._userAgent,
+      defaultHeaders: { ...this._defaultHeaders },
+      injectRequestId: this._injectRequestId,
+      fetch: this._fetch,
+      fetchOptions: this._fetchOptions == null ? null : { ...this._fetchOptions }
+    });
+  }
+}

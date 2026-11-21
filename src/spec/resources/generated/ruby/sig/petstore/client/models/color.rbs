@@ -1,0 +1,11 @@
+module Petstore::Client::Models
+  class Color
+    RED: String
+    GREEN: String
+    BLUE: String
+    UNKNOWN_DEFAULT_OPEN_API: String
+    VALUES: Array[String]
+    def self.all_vars: () -> Array[String]
+    def self.validate!: (String?) -> String?
+  end
+end

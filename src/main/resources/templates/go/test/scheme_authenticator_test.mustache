@@ -1,0 +1,566 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+{{#hasSchemeBasic}}
+	"encoding/base64"
+{{/hasSchemeBasic}}
+{{#hasSchemeBearer}}
+	"context"
+{{/hasSchemeBearer}}
+	"errors"
+{{#hasSchemeOAuth}}
+	"fmt"
+{{/hasSchemeOAuth}}
+	"os"
+	"strings"
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+{{#hasSchemeOAuth}}
+	"{{packageName}}/pkg/auth/oauth"
+{{/hasSchemeOAuth}}
+)
+
+/* F862: the authenticator of each security scheme takes its credentials from its
+ * own environment variables when none is passed. The environment is process-wide,
+ * so these tests set it with t.Setenv and never run in parallel. */
+
+const schemeHost = "https://api.example.com"
+
+func schemeEnvValue(field string) string {
+	return "env-" + field
+}
+
+func schemeArgValue(field string) string {
+	return "arg-" + field
+}
+
+/* setSchemeEnvironment gives every variable of a scheme the sample value of its
+ * field, except the one named blank: that one is set to the empty string, or
+ * removed when mode is "unset". */
+func setSchemeEnvironment(t *testing.T, variables, fields []string, blank, mode string) {
+	t.Helper()
+	for i, name := range variables {
+		value := schemeEnvValue(fields[i])
+		if blank == "*" || name == blank {
+			value = ""
+		}
+		t.Setenv(name, value)
+		if name == blank && mode == "unset" {
+			if err := os.Unsetenv(name); err != nil {
+				t.Fatalf("could not unset %s: %v", name, err)
+			}
+		}
+	}
+}
+
+/* requireMissingCredential checks the error of a constructor that found a
+ * credential neither passed nor set: it matches ErrMissingCredential and names
+ * the variable. */
+func requireMissingCredential(t *testing.T, err error, variable string) {
+	t.Helper()
+	if !errors.Is(err, auth.ErrMissingCredential) {
+		t.Fatalf("expected ErrMissingCredential, got %v", err)
+	}
+	if !strings.Contains(err.Error(), variable) {
+		t.Errorf("expected the error to name %s, got %q", variable, err.Error())
+	}
+}
+{{#hasSchemeBasic}}
+
+func schemeBasicHeader(username, password string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+}
+{{/hasSchemeBasic}}
+{{#hasSchemeApiKey}}
+
+/* schemeCarries reports whether the credential reached the header, the query
+ * or the cookie of the request. */
+func schemeCarries(want string, carried ...map[string]string) bool {
+	for _, values := range carried {
+		for _, value := range values {
+			if strings.Contains(value, want) {
+				return true
+			}
+		}
+	}
+	return false
+}
+{{/hasSchemeApiKey}}
+{{#hasSchemeOAuth}}
+
+func schemeQuoted(value string) string {
+	return fmt.Sprintf("%q", value)
+}
+{{/hasSchemeOAuth}}
+{{#hasSchemeBearer}}
+
+func schemeTokenFrom(token string) auth.TokenProvider {
+	return func(context.Context) (string, error) { return token, nil }
+}
+{{/hasSchemeBearer}}
+{{#schemeAuthTests}}
+
+var scheme{{className}}Variables = []string{ {{#envVars}}"{{envName}}"{{^-last}}, {{/-last}}{{/envVars}} }
+
+var scheme{{className}}Fields = []string{ {{#envVars}}"{{field}}"{{^-last}}, {{/-last}}{{/envVars}} }
+
+func requireScheme{{className}}Credentials(t *testing.T, a *{{package}}.{{className}}, valueOf func(string) string) {
+	t.Helper()
+{{#isBasic}}
+	if got, want := a.AuthHeaders()["Authorization"], schemeBasicHeader(valueOf("username"), valueOf("password")); got != want {
+		t.Errorf("expected the Basic header %q, got %q", want, got)
+	}
+{{/isBasic}}
+{{#isBearer}}
+	if got, want := a.AuthHeaders()["Authorization"], "Bearer "+valueOf("token"); got != want {
+		t.Errorf("expected the Bearer header %q, got %q", want, got)
+	}
+{{/isBearer}}
+{{#isApiKey}}
+	if !schemeCarries(valueOf("apiKey"), a.AuthHeaders(), a.QueryParams(), a.CookieParams()) {
+		t.Errorf("expected the request to carry the API key %q", valueOf("apiKey"))
+	}
+{{/isApiKey}}
+{{#isOAuth}}
+	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
+		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
+	}
+{{/isOAuth}}
+}
+
+func scheme{{className}}ReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireScheme{{className}}Credentials(t, a, schemeEnvValue)
+}
+
+func scheme{{className}}PrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, schemeArgValue("{{field}}"){{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireScheme{{className}}Credentials(t, a, schemeArgValue)
+}
+
+func scheme{{className}}EmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range scheme{{className}}Variables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, "empty")
+
+			a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, schemeArgValue("{{field}}"){{/envVars}})
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireScheme{{className}}Credentials(t, a, schemeArgValue)
+		})
+	}
+}
+{{#isApiKey}}
+
+func scheme{{className}}RejectsAnEmptyKey(t *testing.T) {
+	for _, variable := range scheme{{className}}Variables {
+		setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, "unset")
+
+		a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+		if err == nil {
+			t.Errorf("expected an empty key to be refused at construction for %s", variable)
+		}
+		if a != nil {
+			t.Error("expected no authenticator")
+		}
+	}
+}
+{{/isApiKey}}
+
+func scheme{{className}}FailsNamingVariable(t *testing.T) {
+	for i, variable := range scheme{{className}}Variables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(scheme{{className}}Fields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, mode)
+
+				a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+{{#isBearer}}
+				if !errors.Is(err, auth.ErrInvalidBearerToken) {
+					t.Errorf("expected a missing token to match ErrInvalidBearerToken, got %v", err)
+				}
+{{/isBearer}}
+			})
+		}
+	}
+}
+
+func scheme{{className}}FailsByIdentifier(t *testing.T) {
+	for i, variable := range scheme{{className}}Variables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(scheme{{className}}Fields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, mode)
+
+				a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+{{#isBearer}}
+				if !errors.Is(err, auth.ErrInvalidBearerToken) {
+					t.Errorf("expected a missing token to match ErrInvalidBearerToken, got %v", err)
+				}
+{{/isBearer}}
+			})
+		}
+	}
+}
+
+func scheme{{className}}FailsByMode(t *testing.T) {
+	for i, variable := range scheme{{className}}Variables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(scheme{{className}}Fields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, mode)
+
+				a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+{{#isBearer}}
+				if !errors.Is(err, auth.ErrInvalidBearerToken) {
+					t.Errorf("expected a missing token to match ErrInvalidBearerToken, got %v", err)
+				}
+{{/isBearer}}
+			})
+		}
+	}
+}
+{{#isBearer}}
+
+func scheme{{className}}ReadsTheEnvironmentOnce(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	t.Setenv(scheme{{className}}Variables[0], "changed-after-build")
+
+	requireScheme{{className}}Credentials(t, a, schemeEnvValue)
+}
+{{/isBearer}}
+{{/schemeAuthTests}}
+{{! One test per id: the scheme that owns a different id on the same behaviour keeps that id on its own test, and every other scheme is run as a subtest of the single test that carries the id. }}
+{{#schemeAuthTests}}{{#firstBasic}}
+
+func TestBhvAuthbasic001_SchemeAuthenticator_{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+	scheme{{className}}ReadsEveryCredential(t)
+}
+{{/firstBasic}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstEnvScheme}}
+
+func TestBhvAuthscheme001_SchemeAuthenticator_{{className}}_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+	scheme{{className}}ReadsEveryCredential(t)
+}
+{{/firstEnvScheme}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvLanggo116_SchemeAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+{{/-first}}{{^firstBasic}}{{^firstEnvScheme}}
+	t.Run("{{className}}", scheme{{className}}ReadsEveryCredential)
+{{/firstEnvScheme}}{{/firstBasic}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstBasic}}
+
+func TestBhvAuthbasic013_SchemeAuthenticator_{{className}}_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	scheme{{className}}PrefersTheArguments(t)
+}
+{{/firstBasic}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstBearer}}
+
+func TestBhvAuthbearer018_SchemeAuthenticator_{{className}}_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	scheme{{className}}PrefersTheArguments(t)
+}
+{{/firstBearer}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstApiKey}}
+
+func TestBhvSerializationobject187_SchemeAuthenticator_{{className}}_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	scheme{{className}}PrefersTheArguments(t)
+}
+{{/firstApiKey}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvLanggo117_SchemeAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+{{/-first}}{{^firstBasic}}{{^firstBearer}}{{^firstApiKey}}
+	t.Run("{{className}}", scheme{{className}}PrefersTheArguments)
+{{/firstApiKey}}{{/firstBearer}}{{/firstBasic}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstEnvScheme}}
+
+func TestBhvAuthscheme009_SchemeAuthenticator_{{className}}_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+	scheme{{className}}PrefersTheArguments(t)
+}
+{{/firstEnvScheme}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvLanggo118_SchemeAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+{{/-first}}{{^firstEnvScheme}}
+	t.Run("{{className}}", scheme{{className}}PrefersTheArguments)
+{{/firstEnvScheme}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstBasic}}
+
+func TestBhvAuthbasic012_SchemeAuthenticator_{{className}}_AnEmptyVariableCountsAsUnset(t *testing.T) {
+	scheme{{className}}EmptyVariableIsUnset(t)
+}
+{{/firstBasic}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstEnvScheme}}
+
+func TestBhvAuth003_SchemeAuthenticator_{{className}}_AnEmptyVariableCountsAsUnset(t *testing.T) {
+	scheme{{className}}EmptyVariableIsUnset(t)
+}
+{{/firstEnvScheme}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvLanggo119_SchemeAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+{{/-first}}{{^firstBasic}}{{^firstEnvScheme}}
+	t.Run("{{className}}", scheme{{className}}EmptyVariableIsUnset)
+{{/firstEnvScheme}}{{/firstBasic}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#isApiKey}}{{#firstApiKey}}
+
+func TestBhvAuthapikey019_SchemeAuthenticator_{{className}}_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+	scheme{{className}}RejectsAnEmptyKey(t)
+}
+{{/firstApiKey}}{{/isApiKey}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstApiKey}}
+
+// With no key passed the environment supplies it, and a passed key wins over the environment.
+func TestBhvAuthapikey021_SchemeAuthenticator_{{className}}_ReadsTheKeyFromEnvironmentUnlessOnePassed(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	fromEnvironment, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+	if err != nil {
+		t.Fatalf("expected the environment to supply the key, got %v", err)
+	}
+	requireScheme{{className}}Credentials(t, fromEnvironment, schemeEnvValue)
+
+	passed, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, schemeArgValue("{{field}}"){{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	requireScheme{{className}}Credentials(t, passed, schemeArgValue)
+}
+
+// The per-scheme wrapper never prints its key in its default string form.
+func TestBhvAuthapikey025_SchemeAuthenticator_{{className}}_MasksTheKeyInItsDebugOutput(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	secret := schemeEnvValue("apiKey")
+	if s := a.String(); strings.Contains(s, secret) {
+		t.Errorf("expected the key to be masked, got %q", s)
+	}
+}
+{{/firstApiKey}}{{/schemeAuthTests}}
+{{#hasSchemeApiKey}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvLanggo120_SchemeAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+{{/-first}}{{#isApiKey}}{{^firstApiKey}}
+	t.Run("{{className}}", scheme{{className}}RejectsAnEmptyKey)
+{{/firstApiKey}}{{/isApiKey}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{/hasSchemeApiKey}}
+{{#schemeAuthTests}}{{#firstBasic}}
+
+func TestBhvAuthbasic003_SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+	scheme{{className}}FailsNamingVariable(t)
+}
+{{/firstBasic}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstBearer}}
+
+func TestBhvAuthbearer019_SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+	scheme{{className}}FailsNamingVariable(t)
+}
+{{/firstBearer}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#failsNamingId}}
+
+func Test{{.}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+	scheme{{className}}FailsNamingVariable(t)
+}
+{{/failsNamingId}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvLanggo121_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+{{/-first}}{{^firstBasic}}{{^firstBearer}}{{^failsNamingId}}
+	t.Run("{{className}}", scheme{{className}}FailsNamingVariable)
+{{/failsNamingId}}{{/firstBearer}}{{/firstBasic}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#failsId}}
+
+func Test{{.}}SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+	scheme{{className}}FailsByIdentifier(t)
+}
+{{/failsId}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvLanggo122_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+{{/-first}}{{^failsId}}
+	t.Run("{{className}}", scheme{{className}}FailsByIdentifier)
+{{/failsId}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstBearer}}
+
+func TestBhvAuthscheme010_SchemeAuthenticator_{{className}}_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+	scheme{{className}}FailsByMode(t)
+}
+{{/firstBearer}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvLanggo123_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+{{/-first}}{{^firstBearer}}
+	t.Run("{{className}}", scheme{{className}}FailsByMode)
+{{/firstBearer}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#firstBasic}}
+
+// An empty environment variable fails construction without arguments, and the error names that variable.
+func TestBhvAuthscheme003_SchemeAuthenticator_{{className}}_FailsNamingTheVariableWhenItIsEmpty(t *testing.T) {
+	for i, variable := range scheme{{className}}Variables {
+		t.Run(scheme{{className}}Fields[i], func(t *testing.T) {
+			setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, variable, "empty")
+
+			a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+
+			requireMissingCredential(t, err, variable)
+			if a != nil {
+				t.Error("expected no authenticator")
+			}
+		})
+	}
+}
+
+// A per-scheme basic wrapper emits the same Authorization header as the base authenticator it wraps.
+func TestBhvAuthbasic019_SchemeAuthenticator_{{className}}_EmitsTheBaseBasicHeader(t *testing.T) {
+	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, schemeArgValue("{{field}}"){{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	base, err := auth.NewBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error from NewBasicAuthenticator: %v", err)
+	}
+	if got, want := a.AuthHeaders()["Authorization"], base.AuthHeaders()["Authorization"]; got != want {
+		t.Errorf("expected the base Basic header %q, got %q", want, got)
+	}
+}
+{{/firstBasic}}{{/schemeAuthTests}}
+{{#hasSchemeBearer}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvAuthscheme002_SchemeAuthenticator_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
+{{/-first}}{{#isBearer}}
+	t.Run("{{className}}", func(t *testing.T) {
+		setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+		a, err := {{package}}.New{{className}}WithProvider(schemeHost, schemeTokenFrom("provider-token"))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if got, want := a.AuthHeaders()["Authorization"], "Bearer provider-token"; got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+{{/isBearer}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{/hasSchemeBearer}}
+{{#schemeAuthTests}}{{#firstBearer}}
+
+func TestBhvLifecycle025_SchemeAuthenticator_{{className}}_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	scheme{{className}}ReadsTheEnvironmentOnce(t)
+}
+{{/firstBearer}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#isBearer}}{{^firstBearer}}
+
+func TestBhvAuthbearer025_SchemeAuthenticator_{{className}}_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	scheme{{className}}ReadsTheEnvironmentOnce(t)
+}
+{{/firstBearer}}{{/isBearer}}{{/schemeAuthTests}}
+{{#hasSchemeBearer}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvLanggo124_SchemeAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+{{/-first}}{{#isBearer}}
+	t.Run("{{className}}", scheme{{className}}ReadsTheEnvironmentOnce)
+{{/isBearer}}{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{/hasSchemeBearer}}
+{{#schemeAuthTests}}{{#isBearer}}
+
+func Test{{#firstBearer}}BhvAuth004_{{/firstBearer}}BhvLanggo125_SchemeAuthenticator_{{className}}_WithProviderRejectsANilProvider(t *testing.T) {
+	a, err := {{package}}.New{{className}}WithProvider(schemeHost, nil)
+
+	if !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken, got %v", err)
+	}
+	if a != nil {
+		t.Error("expected no authenticator")
+	}
+}
+{{/isBearer}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvMisc196_SchemeAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+{{/-first}}
+	t.Run("{{className}}", func(t *testing.T) {
+		setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "*", "")
+
+		if _, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}}); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}
+{{#schemeAuthTests}}{{#-first}}
+
+func TestBhvMisc205_SchemeAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+{{/-first}}
+	t.Run("{{className}}", func(t *testing.T) {
+		setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "*", "")
+
+		_, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+		requireMissingCredential(t, err, scheme{{className}}Variables[0])
+	})
+{{#-last}}
+}
+{{/-last}}{{/schemeAuthTests}}

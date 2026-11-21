@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The tests build with the same analyzer set as the SDK project. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-all</AnalysisLevel>
+    <AnalysisMode>All</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+    <!-- xunit.v3 runs natively on Microsoft Testing Platform (MTP). Opt in so
+         `dotnet test` dispatches to MTP instead of the legacy VSTest host,
+         which silently skips container-backed collection-fixture specs. -->
+    <UseMicrosoftTestingPlatform>true</UseMicrosoftTestingPlatform>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="src/**" />
+{{#generateExamples}}
+    <Compile Remove="examples/**" />
+{{/generateExamples}}
+    <ProjectReference Include="src/{{packageName}}/{{packageName}}.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Test/Resources/certs/**/*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Pure Microsoft Testing Platform: xunit.v3 carries the MTP runner; the
+         extensions add trx reporting and code coverage. No VSTest packages
+         (Microsoft.NET.Test.Sdk / xunit.runner.visualstudio) — they route
+         `dotnet test` through VSTest, which does not run the container
+         collection specs. -->
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="1.7.3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.0.4" />
+    <PackageReference Include="Testcontainers" Version="4.14.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

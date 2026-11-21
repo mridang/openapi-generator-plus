@@ -1,0 +1,500 @@
+# {{appNameBase}} SDK - AI Agent Reference
+
+## Installation
+
+Add to your `mix.exs`:
+
+```text
+defp deps do
+  [
+    {:{{packageName}}, "~> {{packageVersion}}"}
+  ]
+end
+```
+
+Then run:
+
+```bash
+mix deps.get
+```
+
+## Quick Start
+
+```elixir statements
+{{>usage_statements}}
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
+
+### Bearer Token
+
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
+```
+
+{{#hasBasicAuth}}
+### Basic Auth
+
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.BasicAuthenticator.new("https://api.example.com", "username", "password")
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.ApiKeyAuthenticator.new(
+      "https://api.example.com", "key-name", "key-value", :header)
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [])
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
+```
+
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2AuthorizationCode}}
+### OAuth2 Authorization Code
+
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret",
+      "https://auth.example.com/authorize", "https://auth.example.com/token",
+      "https://app.example.com/callback", [])
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
+```
+
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Password}}
+### OAuth2 Password
+
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.OAuth.OAuth2PasswordAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret",
+      "https://auth.example.com/token", "username", "password", [])
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
+```
+
+{{/hasOAuth2Password}}
+{{#hasOAuth2Implicit}}
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator =
+      {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+        "https://api.example.com", "client-id", "https://auth.example.com/authorize", [])
+      |> {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token("your-access-token")
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
+```
+
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+### OpenID Connect
+
+```elixir file
+defmodule Authentication do
+  def client do
+    authenticator = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.new(
+      "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+      "client-id", "client-secret", "https://app.example.com/callback", [])
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator)
+  end
+end
+```
+
+{{/hasOpenIdConnect}}
+{{#hasAnyOAuth2}}
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### A 401 replays the request once
+
+When an OAuth2 or OpenID Connect call is answered with 401, the SDK drops the cached access token (the refresh token is kept; `invalidate_access_token/1` on the authenticator does the same by hand) and sends the request once more with fresh headers. A second 401 is reported as the usual `UnauthorizedError`. API key, basic and bearer authenticators never replay.
+
+#### PKCE
+
+The Authorization Code and OpenID Connect flows use PKCE with S256 (RFC 7636). `build_authorization_url/2` draws a new 43-character verifier, keeps it, and adds `code_challenge` and `code_challenge_method=S256` to the URL; `exchange_code/2` sends the `code_verifier`. Call `build_authorization_url/2` before `exchange_code/2` with the same authenticator.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it before its declared expiry, by one margin of at most `60` seconds and never more than half of `expires_in` (a 60 second token is reused for 30 seconds). Expiry is measured on the monotonic clock, so a wall clock change does not extend or cut a token's life. A token response without `expires_in` is cached until the API answers 401 or the token is invalidated.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `:body` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `:basic` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```elixir file
+defmodule BasicClientAuthentication do
+  def authenticator do
+    {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+      "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", [],
+      client_auth_method: :basic)
+  end
+end
+```
+
+{{/hasAnyOAuth2}}
+{{#hasServers}}
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `{{moduleName}}.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`, plus a `{{moduleName}}.Servers.all/0` list. Pass the desired server's URL to the client:
+
+```elixir file
+defmodule ServerClient do
+  def client do
+    url = {{moduleName}}.Servers.server_0() |> {{moduleName}}.ServerConfiguration.url()
+    {{moduleName}}.{{clientClassName}}.with_token(url, "your-token")
+  end
+end
+```
+
+{{/hasServers}}
+
+## Testing
+
+The `Authenticator` behaviour is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```elixir file
+defmodule FakeAuthenticator do
+  @behaviour {{moduleName}}.Auth.Authenticator
+
+  defstruct []
+
+  @impl true
+  def host(_), do: "https://api.example.com"
+
+  @impl true
+  def auth_headers(_), do: %{"Authorization" => "Bearer test-token"}
+
+  @impl true
+  def query_params(_), do: %{}
+
+  @impl true
+  def cookie_params(_), do: %{}
+end
+
+defmodule FakeClient do
+  def client, do: {{moduleName}}.{{clientClassName}}.new(%FakeAuthenticator{})
+end
+```
+
+## Error Handling
+
+Every failure the SDK raises or returns is one of the exceptions listed by `{{moduleName}}.Errors.{{errorPrefix}}Error.exceptions/0`, and `{{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?/1` is true for each of them: that is the root to catch last. Every error for an HTTP response or a network failure derives from `ApiError`; encoding and decoding failures are `SerializationError`, and the token flows add `OAuth2ServerError` (the token endpoint answered 4xx or 5xx) and `OAuth2TokenError` (it answered unusably). The error hierarchy is:
+
+- `{{errorPrefix}}Error` (root grouping: `exceptions/0` and `{{errorPrefixSnake}}_error?/1`)
+  - `SerializationError` (a body could not be encoded or decoded)
+  - `OAuth2ServerError` (token endpoint answered 4xx or 5xx)
+  - `OAuth2TokenError` (token endpoint answered unusably)
+  - `ApiError` (an HTTP response or a network failure)
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+      - `PaymentRequiredError` (402)
+      - `MethodNotAllowedError` (405)
+      - `RequestTimeoutError` (408)
+      - `GoneError` (410)
+      - `PayloadTooLargeError` (413)
+      - `UnsupportedMediaTypeError` (415)
+      - `LockedError` (423)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+      - `NotImplementedError` (501)
+      - `BadGatewayError` (502)
+      - `ServiceUnavailableError` (503)
+      - `GatewayTimeoutError` (504)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
+
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}```elixir file
+defmodule ErrorHandling do
+  def {{operationId}}_or_report(client{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}{{#vendorExtensions.op.optionsParamRequired}}options{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}) do
+    case {{moduleName}}.Api.{{classname}}.{{operationId}}(client.{{clientPropertyName}}{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}) do
+      {:ok, result} ->
+        IO.inspect(result)
+
+      {:error, %{{moduleName}}.Errors.NotFoundError{} = e} ->
+        IO.puts("Not found: #{e.message}")
+
+      # Elixir has no inheritance: each error in the hierarchy above has a
+      # predicate that is true for it and for every error below it.
+      {:error, e} ->
+        cond do
+          {{moduleName}}.Errors.ClientError.client_error?(e) ->
+            IO.puts("Client error #{e.status_code}: #{e.message}")
+
+          {{moduleName}}.Errors.ServerError.server_error?(e) ->
+            IO.puts("Server error: #{e.message}")
+
+          {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(e) ->
+            IO.puts("SDK error: #{Exception.message(e)}")
+
+          true ->
+            IO.puts("Error: #{Exception.message(e)}")
+        end
+    end
+  end
+end
+```{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+
+An error that answers a request carries `request_method` (`"GET"`) and `request_path` (the path without the query string); its message has a `Request: GET /path` line after the status line.
+
+The text of an `ApiError` (`Exception.message/1`) cuts the response body at 1 KiB with a `... (N more bytes)` suffix, writes control characters as `\xNN`, and masks credential response headers (`Authorization`, `Cookie`, `Set-Cookie`, `WWW-Authenticate` and any name containing key, token or secret). The full body stays on `response_body` and the full headers on `response_headers`.
+
+## Configuration
+
+### Custom Transport Options
+
+```elixir file
+defmodule ProxiedClient do
+  def client do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+
+    transport =
+      {{moduleName}}.TransportOptions.new(
+        proxy: "http://proxy:3128",
+        timeout: 5000
+      )
+
+    {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+  end
+end
+```
+
+### Retries
+
+`max_retries` on `TransportOptions` is how many times a failed call is tried again (default `2`; `0` turns retries off). A call is retried after a network error that happened before any response, and after a response with status 408, 409, 429 or 500 to 599 other than 501 (a timeout, 400, 401, 403, 404, 422 and 501 are not retried). The wait starts at 0.5 s and doubles up to 8 s, less up to 25% jitter; a `Retry-After` header (seconds or an HTTP date) replaces it, capped at 60 s. Every retry is a fresh request: headers, authentication included, are rebuilt. Retries share the single end-to-end `timeout` and never extend it.
+
+```elixir file
+defmodule NoRetriesClient do
+  def client do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+    transport = {{moduleName}}.TransportOptions.new(max_retries: 0)
+    {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+  end
+end
+```
+
+### Custom HTTP client
+
+Pass Req options such as an `:adapter` function or a `:plug` through `req_options`. The SDK's own settings (timeouts, redirect policy, proxy, TLS, user agent) are applied on top, and the SDK never closes anything you supply. Combining `:connect_options` or `:finch` with `proxy`, `ca_cert_path` or `verify_ssl: false` raises `ArgumentError`.
+
+```elixir file
+defmodule AdapterClient do
+  def client do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+    adapter = fn request -> {request, Req.Response.new(status: 200)} end
+    transport = {{moduleName}}.TransportOptions.new(req_options: [adapter: adapter])
+    {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+  end
+end
+```
+
+### Per-call options
+
+Every operation takes an optional options struct, even one with no query, header, form or cookie parameter. It carries `timeout` (milliseconds), `headers` (a map) and `max_retries`; there is no per-call credential. The same three settings can be passed as `:timeout`, `:headers` and `:max_retries` in the trailing `opts` keyword list, which wins over the struct. Each replaces the client's own setting for that one call.
+
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```elixir file
+defmodule PerCall do
+  def call(client) do
+    options = %{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}{timeout: 5_000, headers: %{"X-Trace" => "1"}, max_retries: 0}
+    {{moduleName}}.Api.{{#exampleOperationGroup}}{{classname}}{{/exampleOperationGroup}}.{{operationId}}(client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}, options)
+    {{moduleName}}.Api.{{#exampleOperationGroup}}{{classname}}{{/exampleOperationGroup}}.{{operationId}}(client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}, nil, timeout: 5_000)
+  end
+end
+```
+{{/exampleOperation}}
+{{/hasExampleOperation}}
+
+### Credentials
+
+{{#hasClientSchemes}}
+The client takes one optional credential for each security scheme, named after the scheme, in the keyword list that is its third argument: {{#clientSchemes}}`{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}`{{^-last}}, {{/-last}}{{/clientSchemes}}. An operation uses the credential of the first scheme its own security requirement lists that the client holds; the authenticator in the first argument serves an operation that none of them matches, and an operation declared `security: []` sends no credential. There is no per-call override, and the client is refused when it gets no credential at all.
+
+```elixir file
+defmodule SchemeCredential do
+  def client(credential) do
+    {{moduleName}}.{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{#lambda.elixirSnake}}{{paramName}}{{/lambda.elixirSnake}}: credential{{/-first}}{{/clientSchemes}})
+  end
+end
+```
+
+{{/hasClientSchemes}}
+Pass `nil` for a credential (or leave it out of a security scheme's authenticator) and the authenticator reads it once, when it is built, from an environment variable. A value you pass wins, an empty variable counts as unset, and a missing required credential raises `ArgumentError` when the client is built. A bearer token or an API key may be a zero-argument function that returns it, called for every request.
+{{#hasSecuritySchemeEnvVars}}
+
+Each security scheme reads its own variables, named `{{envVarPrefix}}_<FIELD>`, or `{{envVarPrefix}}_<SCHEME>_<FIELD>` for every scheme that shares a field name with another:
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{#lambda.elixirSnake}}{{field}}{{/lambda.elixirSnake}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+
+An authenticator you build without a scheme (`BearerAuthenticator`, `BasicAuthenticator`, `ApiKeyAuthenticator`) reads `{{envVarPrefix}}_TOKEN`, `{{envVarPrefix}}_USERNAME`, `{{envVarPrefix}}_PASSWORD` or `{{envVarPrefix}}_API_KEY`. Set `envVarPrefix` when generating to change the `{{envVarPrefix}}` prefix.
+{{/hasSecuritySchemeEnvVars}}
+
+```elixir file
+defmodule RotatingToken do
+  def authenticator do
+    {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", fn -> System.fetch_env!("{{envVarPrefix}}_TOKEN") end)
+  end
+end
+```
+
+### Cancellation
+
+There is no cancellation argument. The SDK uses the platform's own mechanism: stop the process that is making the call, or set `timeout` on `TransportOptions`, which ends the call with `NetworkTimeoutError`.
+
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the request is sent and observe the status or the error afterwards, and without a hook set the call does nothing extra.
+
+A hook is a module that implements the `{{moduleName}}.CallHook` behaviour, or `{module, opts}`. `start(info, headers)` returns the headers to send and a state, or `nil`. `info` is a `CallInfo` (`operation_id`, `method`, `url_template`, `url`, `server_address`), `headers` is the final request header map and `outcome` is a `CallOutcome` (`status_code`, `headers`, `error`). `start` runs once per call, `finish(state, outcome)` exactly once on every way the call can end, an error raised by `start` reaches the caller and an error raised by `finish` is swallowed. `CallHook.chain([first, second])` runs several hooks in order.
+
+```elixir file
+defmodule TenantHook do
+  @behaviour {{moduleName}}.CallHook
+
+  @impl true
+  def start(_info, headers), do: {Map.put(headers, "X-Tenant", "a"), nil}
+
+  @impl true
+  def finish(_state, _outcome), do: :ok
+end
+
+defmodule TenantClient do
+  def build do
+    {{moduleName}}.{{clientClassName}}.with_token("https://api.example.com", "token", nil, call_hook: TenantHook)
+  end
+end
+```
+
+For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCallHook` recipe that records one span, one request count and one duration per call.
+
+### Closing the client
+
+`{{moduleName}}.{{clientClassName}}.close/1` closes the client and is idempotent. A call already in flight finishes, and a call that starts after it raises `RuntimeError` ("ApiClient has been closed and can no longer send requests"). The processes the SDK started (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. A transport you supply through `req_options` is never closed by the SDK.
+
+```elixir file
+defmodule Closing do
+  def close(client), do: :ok = {{moduleName}}.{{clientClassName}}.close(client)
+end
+```
+
+### Cookie parameters
+
+A cookie parameter is sent raw when every character is a legal RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash). Any other character raises `ArgumentError` before the request is sent: percent-encode the value yourself first.
+
+### Raw responses, timeouts and the request id
+
+Each operation has a `_with_http_info` variant returning an `ApiResult` (`status_code`, `data`, `raw_body`, `headers`). `timeout` on `TransportOptions` is one end-to-end budget in positive milliseconds; a call that exceeds it ends with `NetworkTimeoutError`. With `inject_request_id: true` an `X-Request-ID` header is added to each request unless you set one.
+
+## API Methods
+
+Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+
+## Models
+
+Models are generated as Elixir structs under the `{{moduleName}}.Models` namespace. A property the spec marks required (and that has no default) is an enforced key: the struct cannot be built without it.
+
+{{#models}}{{#model}}{{#-first}}
+```elixir file
+defmodule ModelCopy do
+  def copy_of(%{{moduleName}}.Models.{{classname}}{} = model) do
+{{#vars}}
+{{#-first}}
+    %{model | {{name}}: model.{{name}}}
+{{/-first}}
+{{/vars}}
+  end
+end
+```
+{{/-first}}{{/model}}{{/models}}
+
+Models never change in place. Make a changed copy with the struct update syntax: `%{model | name: "new"}`.
+
+## Binary / File Uploads
+
+File upload parameters are typed as `binary()`. Binary response bodies are returned as `binary()`.
+
+## Comment Style
+
+Never place a comment on the same line as code. Use `#` comments; `@moduledoc` and `@doc` are fine.
+
+```good
+# This explains the logic
+x = 1
+```
+
+```bad
+x = 1  # This explains the logic
+```

@@ -1,0 +1,1073 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"errors"
+	"testing"
+	"fmt"
+	"strings"
+	"os"
+	"path/filepath"
+	"net/http"
+
+	"{{packageName}}/pkg"
+	apierrors "{{packageName}}/pkg/errors"
+)
+
+func TestBhvOptions043_TransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !opts.VerifySsl() {
+		t.Error("expected VerifySsl to be true by default")
+	}
+}
+
+func TestBhvOptions018_TransportOptions_CaCertPathDefaultsToNull(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.CACertPath() != "" {
+		t.Errorf("expected empty CACertPath, got %q", opts.CACertPath())
+	}
+}
+
+func TestBhvOptions032_TransportOptions_ProxyDefaultsToNull(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Proxy() != nil {
+		t.Error("expected nil Proxy by default")
+	}
+}
+
+func TestBhvOptions033_TransportOptions_RejectsANonPositiveTimeoutWithTheCanonicalMessage(t *testing.T) {
+	t.Parallel()
+	for _, value := range []int{-1, 0} {
+		value := value
+		_, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&value).Build()
+		if !errors.Is(err, {{packageName}}.ErrInvalidTimeout) {
+			t.Fatalf("timeout %d: expected ErrInvalidTimeout, got %v", value, err)
+		}
+		want := fmt.Sprintf("invalid timeout: must be a positive number of milliseconds (got %d)", value)
+		if err.Error() != want {
+			t.Errorf("timeout %d: expected %q, got %q", value, want, err.Error())
+		}
+	}
+}
+
+func TestBhvOptions026_TransportOptions_MaxRetriesDefaultsToTwoAndZeroDisablesThem(t *testing.T) {
+	t.Parallel()
+	defaults, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := defaults.MaxRetries(); got != 2 {
+		t.Errorf("expected 2 retries by default, got %d", got)
+	}
+	disabled, err := {{packageName}}.NewTransportOptionsBuilder().MaxRetries(0).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := disabled.MaxRetries(); got != 0 {
+		t.Errorf("expected MaxRetries(0) to disable retries, got %d", got)
+	}
+	five, err := {{packageName}}.NewTransportOptionsBuilder().MaxRetries(5).Build()
+	if err != nil || five.MaxRetries() != 5 {
+		t.Errorf("expected MaxRetries(5) to be kept, got %v, %v", five, err)
+	}
+}
+
+func TestBhvOptions007_TransportOptions_RejectsANegativeMaxRetries(t *testing.T) {
+	t.Parallel()
+	_, err := {{packageName}}.NewTransportOptionsBuilder().MaxRetries(-1).Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidMaxRetries) {
+		t.Fatalf("expected ErrInvalidMaxRetries, got %v", err)
+	}
+	if want := "invalid max retries: must not be negative (got -1)"; err.Error() != want {
+		t.Errorf("expected %q, got %q", want, err.Error())
+	}
+}
+
+func TestBhvOptions038_TransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Timeout() == nil {
+		t.Fatal("expected non-nil default timeout")
+	}
+	if *opts.Timeout() != 10000 {
+		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
+	}
+}
+
+func TestBhvOptions020_TransportOptions_FollowRedirectsDefaultsToTrue(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !opts.FollowRedirects() {
+		t.Error("expected FollowRedirects to be true by default")
+	}
+}
+
+func TestBhvOptions025_TransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.MaxRedirects() != nil {
+		t.Error("expected MaxRedirects nil by default")
+	}
+}
+
+func TestBhvOptions042_TransportOptions_UserAgentDefaultsToBrandedValue(t *testing.T) {
+	t.Parallel()
+	// userAgent is a nullable *string (parity with Java @Nullable String, C#
+	// string?). The default builder injects the branded "<pkg>/<ver> (go)"
+	// value so requests are attributable; callers can pass nil to omit it.
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.UserAgent() == nil {
+		t.Fatal("expected UserAgent to default to the branded value, got nil")
+	}
+	if *opts.UserAgent() != "{{userAgentDefault}}" {
+		t.Errorf("expected UserAgent %q, got %q", "{{userAgentDefault}}", *opts.UserAgent())
+	}
+}
+
+func TestBhvOptions041_TransportOptions_UserAgentDefaultsToNonEmptyString(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.UserAgent() == nil || *opts.UserAgent() == "" {
+		t.Errorf("expected a non-empty default UserAgent, got %v", opts.UserAgent())
+	}
+}
+
+func TestBhvLanggo102_TransportOptions_UserAgentDefaultThenSet(t *testing.T) {
+	t.Parallel()
+	// The default carries the branded value; once set via the nullable setter
+	// it is applied and read back through the pointer.
+	preset, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preset.UserAgent() == nil || *preset.UserAgent() != "{{userAgentDefault}}" {
+		t.Errorf("expected branded default UserAgent, got %v", preset.UserAgent())
+	}
+
+	ua := "MyApp/1.0"
+	set, err := {{packageName}}.NewTransportOptionsBuilder().UserAgent(&ua).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set.UserAgent() == nil {
+		t.Fatal("expected non-nil UserAgent after setting it")
+	}
+	if *set.UserAgent() != "MyApp/1.0" {
+		t.Errorf("expected UserAgent 'MyApp/1.0', got %q", *set.UserAgent())
+	}
+}
+
+func TestBhvOptions019_TransportOptions_DefaultHeadersDefaultsToEmpty(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(opts.DefaultHeaders()) != 0 {
+		t.Errorf("expected empty default headers, got %v", opts.DefaultHeaders())
+	}
+}
+
+func TestBhvOptions022_TransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.InjectRequestID() {
+		t.Error("expected InjectRequestID to be false by default")
+	}
+}
+
+func TestBhvOptions017_TransportOptions_BuilderSetsAllFields(t *testing.T) {
+	t.Parallel()
+	customAgent := "CustomAgent/2.0"
+	customTimeout := 30000
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		VerifySsl(false).
+		CACertPath("../testdata/certs/ca.pem").
+		Proxy("http://proxy.example.com:8080").
+		Timeout(&customTimeout).
+		FollowRedirects(false).
+		MaxRedirects(5).
+		UserAgent(&customAgent).
+		DefaultHeader("X-Custom", "value").
+		InjectRequestID(true).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if opts.VerifySsl() {
+		t.Error("expected VerifySsl to be false")
+	}
+	if opts.CACertPath() != "../testdata/certs/ca.pem" {
+		t.Errorf("expected CACertPath '../testdata/certs/ca.pem', got %q", opts.CACertPath())
+	}
+	if opts.Proxy() == nil {
+		t.Fatal("expected non-nil Proxy")
+	}
+	if opts.Proxy().String() != "http://proxy.example.com:8080" {
+		t.Errorf("expected proxy 'http://proxy.example.com:8080', got %q", opts.Proxy().String())
+	}
+	if opts.Timeout() == nil || *opts.Timeout() != 30000 {
+		t.Error("expected timeout 30000ms")
+	}
+	if opts.FollowRedirects() {
+		t.Error("expected FollowRedirects to be false")
+	}
+	if opts.MaxRedirects() == nil || *opts.MaxRedirects() != 5 {
+		t.Error("expected MaxRedirects to be 5")
+	}
+	if opts.UserAgent() == nil || *opts.UserAgent() != "CustomAgent/2.0" {
+		t.Errorf("expected UserAgent 'CustomAgent/2.0', got %v", opts.UserAgent())
+	}
+	if opts.DefaultHeaders()["X-Custom"] != "value" {
+		t.Errorf("expected default header X-Custom='value', got %q", opts.DefaultHeaders()["X-Custom"])
+	}
+	if !opts.InjectRequestID() {
+		t.Error("expected InjectRequestID to be true")
+	}
+}
+
+func TestBhvOptions021_TransportOptions_FollowRedirectsDefaultsToTrueWithNullMaxRedirects(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !opts.FollowRedirects() {
+		t.Error("expected FollowRedirects to be true")
+	}
+	if opts.MaxRedirects() != nil {
+		t.Error("expected MaxRedirects to be nil")
+	}
+}
+
+func TestBhvOptions024_TransportOptions_InvalidProxyUrlThrowsException(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"not-a-valid-url", "ftp://proxy.example.com:21", "http://", "socks5://proxy.example.com:1080"} {
+		opts, err := {{packageName}}.NewTransportOptionsBuilder().
+			Proxy(proxy).
+			Build()
+		if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+			t.Errorf("expected ErrInvalidProxyURL for %q, got %v", proxy, err)
+		}
+		var root apierrors.{{errorPrefix}}Error
+		if errors.As(err, &root) {
+			t.Errorf("a bad proxy URL must not be a {{errorPrefix}}Error, got %T", err)
+		}
+		if opts != nil {
+			t.Errorf("expected nil TransportOptions for %q", proxy)
+		}
+	}
+}
+
+func TestBhvErrors083_TransportOptions_MissingCaCertFileIsRejected(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		CACertPath("/nonexistent/ca.pem").
+		Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidCACertificate) {
+		t.Errorf("expected ErrInvalidCACertificate, got %v", err)
+	}
+	if want := `failed to read CA certificate from "/nonexistent/ca.pem": `; err == nil || !strings.HasPrefix(err.Error(), want) {
+		t.Errorf("expected a message starting with %q, got %v", want, err)
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected the read failure to stay reachable as the cause, got %v", err)
+	}
+	var root apierrors.{{errorPrefix}}Error
+	if errors.As(err, &root) {
+		t.Errorf("a missing CA file must not be a {{errorPrefix}}Error, got %T", err)
+	}
+	if opts != nil {
+		t.Error("expected nil TransportOptions")
+	}
+}
+
+func TestBhvOptions030_TransportOptions_NullProxyUrlIsAccepted(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if opts.Proxy() != nil {
+		t.Error("expected nil Proxy for empty string")
+	}
+}
+
+func TestBhvOptions015_TransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewTransportOptionsBuilder()
+
+	testAgent := "Test/1.0"
+	testTimeout := 10000
+	result := builder.
+		VerifySsl(true).
+		UserAgent(&testAgent).
+		Timeout(&testTimeout)
+
+	if result == nil {
+		t.Fatal("expected non-nil builder from chaining")
+	}
+
+	opts, err := result.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.UserAgent() == nil || *opts.UserAgent() != "Test/1.0" {
+		t.Errorf("expected UserAgent 'Test/1.0', got %v", opts.UserAgent())
+	}
+	if opts.Timeout() == nil || *opts.Timeout() != 10000 {
+		t.Error("expected timeout 10000ms")
+	}
+}
+
+func TestBhvOptions012_TransportOptions_AccumulatesHeadersFromDefaultHeaderCalls(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeader("X-Second", "two").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	headers := opts.DefaultHeaders()
+	if len(headers) != 2 {
+		t.Errorf("expected 2 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+}
+
+func TestBhvOptions028_TransportOptions_MergesHeadersFromDefaultHeadersCall(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeaders(map[string]string{
+			"X-Second": "two",
+			"X-Third":  "three",
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	headers := opts.DefaultHeaders()
+	if len(headers) != 3 {
+		t.Errorf("expected 3 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+	if headers["X-Third"] != "three" {
+		t.Errorf("expected X-Third='three', got %q", headers["X-Third"])
+	}
+}
+
+func TestBhvOptions029_TransportOptions_ModifyingSourceMapDoesNotAffectBuiltOptions(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		DefaultHeader("X-Test", "value").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	headers := opts.DefaultHeaders()
+	headers["X-Mutated"] = "should-not-affect-options"
+
+	original := opts.DefaultHeaders()
+	if _, found := original["X-Mutated"]; found {
+		t.Error("modifying returned headers should not affect the transport options")
+	}
+}
+
+func TestBhvOptions016_TransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewTransportOptionsBuilder().VerifySsl(false)
+	first, err := builder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := builder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if first.VerifySsl() != second.VerifySsl() {
+		t.Error("expected both instances to have the same VerifySsl value")
+	}
+	if first == second {
+		t.Error("expected builder to produce independent instances")
+	}
+}
+
+// TimeoutConfigTests
+
+func TestBhvOptions039_TransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) {
+	t.Parallel()
+	// Default TransportOptions ships with a 10-second (10000ms) timeout to
+	// match Java, Python, Node, etc. and prevent runaway requests.
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Timeout() == nil {
+		t.Fatal("expected non-nil default timeout")
+	}
+	if *opts.Timeout() != 10000 {
+		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
+	}
+}
+
+func TestBhvOptions036_TransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
+	t.Parallel()
+	timeout := 5000
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&timeout).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Timeout() == nil || *opts.Timeout() != 5000 {
+		t.Error("expected timeout to be 5000")
+	}
+}
+
+// TestTransportOptions_NoTimeoutIsExpressible confirms "wait indefinitely" can
+// be asked for: Timeout(nil) clears the 10000ms default rather than being
+// indistinguishable from leaving the timeout unset.
+func TestBhvOptions037_TransportOptions_NoTimeoutIsExpressible(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Timeout() != nil {
+		t.Errorf("expected no timeout, got %d", *opts.Timeout())
+	}
+}
+
+func TestBhvOptions040_TransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
+	t.Parallel()
+	// Verify via the Timeout() accessor that the field is named 'Timeout'
+	// (not e.g. 'ConnectionTimeout' or 'OpenTimeout').
+	timeout := 1000
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&timeout).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Timeout() == nil {
+		t.Fatal("expected non-nil timeout")
+	}
+	if *opts.Timeout() != 1000 {
+		t.Errorf("expected timeout 1000, got %d", *opts.Timeout())
+	}
+}
+
+// A proxy URL that carries credentials is accepted by Build, and the URL keeps its
+// user information on read-back.
+func TestBhvOptions052_TransportOptions_ProxyURLWithCredentialsIsAccepted(t *testing.T) {
+	t.Parallel()
+	const proxy = "http://user:pass@proxy.example.com:8080"
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(proxy).Build()
+	if err != nil {
+		t.Fatalf("expected a proxy URL with credentials to be accepted, got %v", err)
+	}
+	if opts.Proxy() == nil || opts.Proxy().String() != proxy {
+		t.Errorf("expected proxy %q kept on read-back, got %v", proxy, opts.Proxy())
+	}
+}
+
+// ProxyConfigTests
+
+func TestBhvOptions035_TransportOptions_ProxyUrlIsPreservedOnReadBack(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("http://proxy.example.com:8080").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if opts.Proxy() == nil {
+		t.Fatal("expected non-nil proxy")
+	}
+	if opts.Proxy().String() != "http://proxy.example.com:8080" {
+		t.Errorf("expected proxy 'http://proxy.example.com:8080', got %q", opts.Proxy().String())
+	}
+}
+
+func TestBhvOptions034_TransportOptions_SettingProxyIsSupportedOnAllPlatforms(t *testing.T) {
+	t.Parallel()
+	// Proxy configuration must not panic on any platform.
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("http://proxy.example.com:8080").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if opts.Proxy() == nil {
+		t.Error("expected non-nil proxy")
+	}
+}
+
+// A CA file that exists and is readable but holds no PEM certificate is a caller
+// mistake just like a missing one: Build reports it, naming the file, instead of
+// the first request failing or silently falling back to the system trust store.
+func TestBhvErrors039_TransportOptions_GarbagePemCaCertFileIsRejected(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(path, []byte("this is not a certificate"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		CACertPath(path).
+		Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidCACertificate) {
+		t.Fatalf("expected ErrInvalidCACertificate, got %v", err)
+	}
+	want := fmt.Sprintf("failed to parse CA certificate from %q: no PEM blocks found", path)
+	if err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
+	}
+	var root apierrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("a garbage CA file must not be a OpenAPIError, got %T", err)
+	}
+	if opts != nil {
+		t.Error("expected nil TransportOptions")
+	}
+}
+
+// Every rejected proxy value names itself and says why: a scheme other than
+// http or https, and a URL with no host.
+func TestBhvOptions031_TransportOptions_ProxyRejectionMessages(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		proxy string
+		want  string
+	}{
+		{"not-a-valid-url", `invalid proxy URL "not-a-valid-url": must use http or https scheme`},
+		{"ftp://proxy.example.com:21", `invalid proxy URL "ftp://proxy.example.com:21": must use http or https scheme`},
+		{"socks5://proxy.example.com:1080", `invalid proxy URL "socks5://proxy.example.com:1080": must use http or https scheme`},
+		{"http://", `invalid proxy URL "http://": missing host`},
+		{"https:///only-a-path", `invalid proxy URL "https:///only-a-path": missing host`},
+		{"socks5://svc:s3cret@proxy.example.com:1080", `invalid proxy URL "socks5://***@proxy.example.com:1080": must use http or https scheme`},
+		{"http://svc:s3cret@", `invalid proxy URL "http://***@": missing host`},
+	}
+	for _, tc := range cases {
+		_, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(tc.proxy).Build()
+		if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+			t.Errorf("%q: expected ErrInvalidProxyURL, got %v", tc.proxy, err)
+			continue
+		}
+		if err.Error() != tc.want {
+			t.Errorf("%q: expected message %q, got %q", tc.proxy, tc.want, err.Error())
+		}
+	}
+}
+
+// An empty file and a directory are told apart: the empty file is readable but
+// holds no certificate, a directory cannot be read.
+func TestBhvTransport077_TransportOptions_EmptyCaCertFileAndDirectoryGetTheirOwnMessages(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	empty := filepath.Join(dir, "empty.pem")
+	if err := os.WriteFile(empty, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := {{packageName}}.NewTransportOptionsBuilder().CACertPath(empty).Build()
+	if want := fmt.Sprintf("failed to parse CA certificate from %q: no PEM blocks found", empty); err == nil || err.Error() != want {
+		t.Errorf("empty file: expected %q, got %v", want, err)
+	}
+	_, err = {{packageName}}.NewTransportOptionsBuilder().CACertPath(dir).Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidCACertificate) {
+		t.Fatalf("directory: expected ErrInvalidCACertificate, got %v", err)
+	}
+	if want := fmt.Sprintf("failed to read CA certificate from %q: ", dir); !strings.HasPrefix(err.Error(), want) {
+		t.Errorf("directory: expected a message starting with %q, got %v", want, err)
+	}
+}
+
+// A proxy URL error never shows the user-info: the password is masked.
+func TestBhvOptions008_TransportOptions_ProxyUrlErrorNeverCarriesTheUserInfo(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"socks5://svc:s3cret@proxy.example.com:1080", "http://svc:s3cret@"} {
+		_, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(proxy).Build()
+		if err == nil {
+			t.Fatalf("expected an error for %q", proxy)
+		}
+		if strings.Contains(err.Error(), "s3cret") || strings.Contains(err.Error(), "svc:") {
+			t.Errorf("expected the user-info to be masked in %q, got %q", proxy, err.Error())
+		}
+	}
+}
+
+// A bracketed IPv6 literal proxy host is accepted and read back verbatim.
+func TestBhvOptions009_TransportOptions_ProxyUrlWithAnIpv6LiteralIsAcceptedAndKeptVerbatim(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"http://[::1]:3128", "http://[2001:db8::1]:8080"} {
+		opts, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(proxy).Build()
+		if err != nil {
+			t.Fatalf("expected the IPv6 proxy %q to be accepted, got %v", proxy, err)
+		}
+		if opts.Proxy() == nil || opts.Proxy().String() != proxy {
+			t.Errorf("expected proxy %q kept verbatim, got %v", proxy, opts.Proxy())
+		}
+	}
+}
+
+// A proxy URL with no host is rejected as an invalid proxy URL.
+func TestBhvOptions011_TransportOptions_ProxyUrlWithNoHostIsRejected(t *testing.T) {
+	t.Parallel()
+	for _, proxy := range []string{"http://", "https:///only-a-path"} {
+		_, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(proxy).Build()
+		if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+			t.Errorf("%q: expected ErrInvalidProxyURL, got %v", proxy, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "missing host") {
+			t.Errorf("%q: expected a missing host message, got %q", proxy, err.Error())
+		}
+	}
+}
+
+// The proxy setter only records the value; the URL is checked by Build.
+func TestBhvOptions013_TransportOptions_InvalidProxyUrlIsRejectedAtBuildNotInTheSetter(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewTransportOptionsBuilder().Proxy("not-a-valid-url")
+	if builder == nil {
+		t.Fatal("expected the setter to return the builder")
+	}
+	opts, err := builder.Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL from Build, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected nil TransportOptions from Build")
+	}
+}
+
+// A bracketed IPv6 literal host is accepted and read back verbatim, and an
+// unterminated one is refused.
+func TestBhvOptions010_TransportOptions_ProxyUrlWithAnIpv6LiteralIsAcceptedAndAnUnterminatedOneRefused(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Proxy("http://[::1]:3128").Build()
+	if err != nil {
+		t.Fatalf("expected the IPv6 proxy to be accepted, got %v", err)
+	}
+	if opts.Proxy() == nil || opts.Proxy().String() != "http://[::1]:3128" {
+		t.Errorf("expected proxy 'http://[::1]:3128' on read-back, got %v", opts.Proxy())
+	}
+	_, err = {{packageName}}.NewTransportOptionsBuilder().Proxy("http://[::1:3128").Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL for an unterminated IPv6 literal, got %v", err)
+	}
+	if want := `invalid proxy URL "http://[::1:3128": missing ']' in host`; err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
+	}
+}
+
+// A URL scheme is case-insensitive, so an upper-case proxy scheme is accepted.
+func TestBhvOptions014_TransportOptions_UpperCaseProxySchemeIsAccepted(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("HTTP://proxy.example.com:3128").
+		Build()
+	if err != nil {
+		t.Fatalf("expected an upper-case scheme to be accepted, got %v", err)
+	}
+	if opts.Proxy() == nil || opts.Proxy().Host != "proxy.example.com:3128" {
+		t.Errorf("expected the proxy host to be kept, got %v", opts.Proxy())
+	}
+}
+
+func TestBhvOptions023_TransportOptions_StringMasksProxyPasswordAndSecretHeaders(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("http://user:p4ssw0rd@proxy.example.com:8080").
+		DefaultHeader("Authorization", "Bearer s3cret-value").
+		DefaultHeader("X-Api-Key", "s3cret-value").
+		DefaultHeader("Accept", "application/json").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, got := range []string{opts.String(), fmt.Sprintf("%v", opts), fmt.Sprintf("%+v", *opts), fmt.Sprintf("%#v", opts)} {
+		if strings.Contains(got, "p4ssw0rd") || strings.Contains(got, "s3cret-value") {
+			t.Errorf("expected secrets to be masked, got %s", got)
+		}
+		if !strings.Contains(got, "http://user:***@proxy.example.com:8080") {
+			t.Errorf("expected the proxy password to print as ***, got %s", got)
+		}
+		if !strings.Contains(got, `"Accept": "application/json"`) {
+			t.Errorf("expected a non-secret header to print as is, got %s", got)
+		}
+	}
+}
+
+func TestBhvOptions045_TransportOptions_RejectsANegativeMaxRedirectsAtBuild(t *testing.T) {
+	t.Parallel()
+	_, err := {{packageName}}.NewTransportOptionsBuilder().MaxRedirects(-1).Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidMaxRedirects) {
+		t.Fatalf("expected ErrInvalidMaxRedirects, got %v", err)
+	}
+	if want := "invalid max redirects: must not be negative (got -1)"; err.Error() != want {
+		t.Errorf("expected %q, got %q", want, err.Error())
+	}
+	zero, err := {{packageName}}.NewTransportOptionsBuilder().MaxRedirects(0).Build()
+	if err != nil || zero.MaxRedirects() == nil || *zero.MaxRedirects() != 0 {
+		t.Errorf("expected MaxRedirects(0) to be kept, got %v, %v", zero, err)
+	}
+}
+
+func TestBhvOptions047_TransportOptions_RejectsANegativeTimeoutAtConfiguration(t *testing.T) {
+	t.Parallel()
+	value := -5
+	_, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&value).Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidTimeout) {
+		t.Fatalf("expected ErrInvalidTimeout for a negative timeout, got %v", err)
+	}
+}
+
+func TestBhvOptions051_TransportOptions_ProxyWithANonHttpSchemeIsRejected(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Proxy("ftp://proxy.example.com").Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "must use http or https scheme") {
+		t.Errorf("expected the scheme reason in the message, got %q", err.Error())
+	}
+	if opts != nil {
+		t.Errorf("expected no TransportOptions for a rejected proxy, got %v", opts)
+	}
+}
+
+func TestBhvOptions060_TransportOptions_BuilderEntryPointKeepsSetValuesAndDefaults(t *testing.T) {
+	t.Parallel()
+	direct, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	set, err := {{packageName}}.NewTransportOptionsBuilder().VerifySsl(false).MaxRetries(5).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !direct.VerifySsl() || direct.MaxRetries() != 2 {
+		t.Errorf("expected the defaults, got verifySsl %t and maxRetries %d", direct.VerifySsl(), direct.MaxRetries())
+	}
+	if set.VerifySsl() || set.MaxRetries() != 5 {
+		t.Errorf("expected the set values, got verifySsl %t and maxRetries %d", set.VerifySsl(), set.MaxRetries())
+	}
+}
+
+func TestBhvOptions061_TransportOptions_UserAgentSetToNoneIsLeftUnset(t *testing.T) {
+	t.Parallel()
+	agent := "MyApp/1.0"
+	kept, err := {{packageName}}.NewTransportOptionsBuilder().UserAgent(&agent).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kept.UserAgent() == nil || *kept.UserAgent() != "MyApp/1.0" {
+		t.Errorf("expected the user agent as given, got %v", kept.UserAgent())
+	}
+	none, err := {{packageName}}.NewTransportOptionsBuilder().UserAgent(nil).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if none.UserAgent() != nil {
+		t.Errorf("expected no user agent, got %q", *none.UserAgent())
+	}
+}
+
+func TestBhvOptions062_TransportOptions_UnsetFieldsReadBackAsAbsent(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Proxy() != nil {
+		t.Errorf("expected no proxy, got %v", opts.Proxy())
+	}
+	if opts.MaxRedirects() != nil {
+		t.Errorf("expected no max redirects, got %d", *opts.MaxRedirects())
+	}
+	if opts.CACertPath() != "" {
+		t.Errorf("expected no CA certificate path, got %q", opts.CACertPath())
+	}
+	if len(opts.DefaultHeaders()) != 0 {
+		t.Errorf("expected no default headers, got %v", opts.DefaultHeaders())
+	}
+}
+
+func TestBhvOptions063_TransportOptions_BuiltValueIgnoresLaterBuilderChanges(t *testing.T) {
+	t.Parallel()
+	builder := {{packageName}}.NewTransportOptionsBuilder().DefaultHeader("X-One", "1")
+	built, err := builder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	builder.DefaultHeader("X-Two", "2").MaxRetries(7)
+	if got := built.DefaultHeaders(); len(got) != 1 || got["X-One"] != "1" {
+		t.Errorf("expected the built headers to stay as built, got %v", got)
+	}
+	if built.MaxRetries() != 2 {
+		t.Errorf("expected the built max retries to stay at 2, got %d", built.MaxRetries())
+	}
+}
+
+func TestBhvOptions064_TransportOptions_StringShowsTheMaxRetries(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().MaxRetries(5).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := opts.String(); !strings.Contains(got, "maxRetries: 5") {
+		t.Errorf("expected the max retries in the printed form, got %s", got)
+	}
+}
+
+// secretHookTripper is a caller-supplied transport whose printed form carries a secret.
+type secretHookTripper struct{}
+
+func (secretHookTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("not used")
+}
+
+func (secretHookTripper) String() string { return "hook-secret-value" }
+
+func TestBhvOptions065_TransportOptions_PrintedFormNeverShowsHookValues(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().RoundTripper(secretHookTripper{}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, got := range []string{opts.String(), fmt.Sprintf("%v", opts), fmt.Sprintf("%#v", opts)} {
+		if strings.Contains(got, "hook-secret-value") {
+			t.Errorf("expected the hook value to stay out of the printed form, got %s", got)
+		}
+	}
+}
+
+func TestBhvOptions066_TransportOptions_PrintedFormShowsAProxyWithoutCredentialsAsConfigured(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Proxy("http://proxy.example.com:8080").Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := opts.String(); !strings.Contains(got, "proxy: http://proxy.example.com:8080, ") {
+		t.Errorf("expected the proxy exactly as configured, got %s", got)
+	}
+}
+
+func TestBhvOptions067_TransportOptions_BuildKeepsAValidProxyAndLeavesItUnsetWhenAbsent(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Proxy("http://proxy.example.com:8080").Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Proxy() == nil || opts.Proxy().String() != "http://proxy.example.com:8080" {
+		t.Errorf("expected the proxy as given, got %v", opts.Proxy())
+	}
+	none, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if none.Proxy() != nil {
+		t.Errorf("expected no proxy, got %v", none.Proxy())
+	}
+}
+
+func TestBhvTransport076_TransportOptions_ProxyUserinfoIsPercentDecoded(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("http://us%40er:p%2Bss+x@proxy.example.com:8080").
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := opts.Proxy().User.Username(); got != "us@er" {
+		t.Errorf("expected the username decoded to us@er, got %q", got)
+	}
+	if got, _ := opts.Proxy().User.Password(); got != "p+ss+x" {
+		t.Errorf("expected the password decoded with its literal plus sign, got %q", got)
+	}
+}
+
+func TestBhvTransport078_TransportOptions_SuppliedClientWithProxyIsRefusedAtConstruction(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		HttpClient(&http.Client{}).
+		Proxy("http://proxy.example.com:8080").
+		Build()
+	if !errors.Is(err, {{packageName}}.ErrTransportConflict) {
+		t.Errorf("expected ErrTransportConflict, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions for a conflicting configuration")
+	}
+}
+
+func TestBhvTransport079_TransportOptions_DisablingVerificationOnASuppliedClientFailsAtConstruction(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		HttpClient(&http.Client{}).
+		VerifySsl(false).
+		Build()
+	if !errors.Is(err, {{packageName}}.ErrTransportConflict) {
+		t.Errorf("expected ErrTransportConflict for VerifySsl(false) on a supplied client, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions when verification cannot be turned off")
+	}
+}
+
+func TestBhvTransport080_TransportOptions_AProxyTheClientCannotApplyFailsConstruction(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().Proxy("socks5://proxy.example.com:1080").Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Errorf("expected ErrInvalidProxyURL, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions when the proxy cannot be applied")
+	}
+}
+
+// A caller-supplied transport refuses every SDK proxy and TLS setting, and a second transport, at construction.
+func TestBhvLifecycle041_TransportOptions_ASuppliedTransportRejectsSdkProxyAndTlsSettings(t *testing.T) {
+	t.Parallel()
+	builds := map[string]func() error{
+		"proxy": func() error {
+			_, err := {{packageName}}.NewTransportOptionsBuilder().RoundTripper(http.DefaultTransport).Proxy("http://proxy.example.com:8080").Build()
+			return err
+		},
+		"verify off": func() error {
+			_, err := {{packageName}}.NewTransportOptionsBuilder().RoundTripper(http.DefaultTransport).VerifySsl(false).Build()
+			return err
+		},
+		"client and transport": func() error {
+			_, err := {{packageName}}.NewTransportOptionsBuilder().HttpClient(&http.Client{}).RoundTripper(http.DefaultTransport).Build()
+			return err
+		},
+	}
+	for name, build := range builds {
+		if err := build(); !errors.Is(err, {{packageName}}.ErrTransportConflict) {
+			t.Errorf("%s: expected ErrTransportConflict, got %v", name, err)
+		}
+	}
+}
+
+// Configuring a proxy with a SOCKS scheme fails at construction with the documented error.
+func TestBhvOptions068_TransportOptions_ASocksProxyIsRefusedAtConstruction(t *testing.T) {
+	t.Parallel()
+	_, err := {{packageName}}.NewTransportOptionsBuilder().Proxy("socks5://proxy.example.com:1080").Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Errorf("expected ErrInvalidProxyURL for a SOCKS proxy, got %v", err)
+	}
+}
+
+// A CA certificate path that does not exist fails with an error that names the certificate and wraps the not-found cause.
+func TestBhvErrors098_TransportOptions_AMissingCaCertificateNamesThePathAndWrapsTheCause(t *testing.T) {
+	t.Parallel()
+	path := "/nonexistent/ca-certificate.pem"
+	_, err := {{packageName}}.NewTransportOptionsBuilder().CACertPath(path).Build()
+	if err == nil || !strings.Contains(err.Error(), path) || !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected an error naming the path and wrapping not-found, got %v", err)
+	}
+}
+
+// Supplying both a caller HTTP client and a caller transport is refused when the client is built.
+func TestBhvMisc034_TransportOptions_AClientAndATransportTogetherAreRefused(t *testing.T) {
+	t.Parallel()
+	_, err := {{packageName}}.NewTransportOptionsBuilder().HttpClient(&http.Client{}).RoundTripper(http.DefaultTransport).Build()
+	if !errors.Is(err, {{packageName}}.ErrTransportConflict) {
+		t.Errorf("expected ErrTransportConflict for a client and a transport, got %v", err)
+	}
+}
+
+// Supplying a custom HTTP connection with disabled TLS verification is refused, and the error names the verification setting.
+func TestBhvMisc042_TransportOptions_DisabledVerificationRefusalNamesTheSetting(t *testing.T) {
+	t.Parallel()
+	_, err := {{packageName}}.NewTransportOptionsBuilder().HttpClient(&http.Client{}).VerifySsl(false).Build()
+	if !errors.Is(err, {{packageName}}.ErrTransportConflict) || !strings.Contains(err.Error(), "VerifySsl") {
+		t.Errorf("expected a conflict naming VerifySsl, got %v", err)
+	}
+}
+
+func TestBhvMisc298_TransportOptions_MalformedProxyUrlFailsTheClientWithInvalidProxyURL(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("http://[::1").
+		Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions when the proxy URL is malformed")
+	}
+}
+
+func TestBhvMisc026_TransportOptions_ATimeoutMistakeIsNotAnApiError(t *testing.T) {
+	t.Parallel()
+	value := -1
+	_, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&value).Build()
+	var status interface{ StatusCode() int }
+	if errors.As(err, &status) {
+		t.Errorf("expected a configuration error that is not an API error, got %T", err)
+	}
+}
+
+func TestBhvMisc134_TransportOptions_AZeroTimeoutIsRefusedAtBuildAsAnArgumentError(t *testing.T) {
+	t.Parallel()
+	zero := 0
+	_, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&zero).Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidTimeout) {
+		t.Fatalf("expected ErrInvalidTimeout for a zero timeout, got %v", err)
+	}
+}

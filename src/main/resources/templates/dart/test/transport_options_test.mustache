@@ -1,0 +1,620 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('TransportOptions', () {
+    test('bhv misc 134 a zero timeout is refused when the builder sets it, with an argument error', () {
+      expect(
+        () => TransportOptions.builder().timeout(0),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('bhv misc 175 a credential header name is hidden in any letter case', () {
+      final text = TransportOptions.builder()
+          .defaultHeader('aUtHoRiZaTiOn', 'Bearer hidden-secret')
+          .build()
+          .toString();
+
+      expect(text, isNot(contains('hidden-secret')));
+    });
+
+    test('bhv misc 180 the inspect form shows the values of non-sensitive default headers', () {
+      final text = TransportOptions.builder()
+          .defaultHeader('X-Visible', 'shown-value')
+          .defaultHeader('Authorization', 'Bearer hidden-secret')
+          .build()
+          .toString();
+
+      expect(text, contains('shown-value'));
+      expect(text, isNot(contains('hidden-secret')));
+    });
+
+    test('bhv misc 186 a ready-made HTTP connection combined with a CA bundle is rejected when the options are built', () {
+      expect(
+        () => TransportOptionsBuilder()
+            .httpClient(http.Client())
+            .caCertPath('ca.pem')
+            .build(),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv misc 026 a configuration mistake is not an API exception', () {
+      expect(
+        () => TransportOptions.builder().timeout(-1),
+        throwsA(allOf(isA<ArgumentError>(), isNot(isA<ApiException>()))),
+      );
+    });
+
+    test('bhv options 060 builder is the static entry point for the builder', () {
+      final builder = TransportOptions.builder();
+      expect(builder, isA<TransportOptionsBuilder>());
+      expect(TransportOptions.builder().timeout(5000).build().timeout, equals(5000));
+    });
+
+    test('bhv options 058 httpClient defaults to null and round-trips when set', () {
+      expect(TransportOptionsBuilder().build().httpClient, isNull);
+      final custom = MockClient((_) async => http.Response('', 200));
+      expect(TransportOptionsBuilder().httpClient(custom).build().httpClient, same(custom));
+    });
+
+    test('bhv lifecycle 024 a supplied http client conflicts with proxy, caCertPath and verifySsl(false)', () {
+      final custom = MockClient((_) async => http.Response('', 200));
+      expect(
+        () => TransportOptionsBuilder().httpClient(custom).proxy('http://proxy:3128').build(),
+        throwsArgumentError,
+      );
+      expect(
+        () => TransportOptionsBuilder().httpClient(custom).caCertPath('/tmp/ca.pem').build(),
+        throwsArgumentError,
+      );
+      expect(
+        () => TransportOptionsBuilder().httpClient(custom).verifySsl(false).build(),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv options 026 maxRetries defaults to 2 and 0 disables retries', () {
+      expect(TransportOptionsBuilder().build().maxRetries, equals(2));
+      expect(TransportOptionsBuilder().maxRetries(0).build().maxRetries, equals(0));
+      expect(TransportOptionsBuilder().maxRetries(5).build().maxRetries, equals(5));
+    });
+
+    test('bhv options 007 a negative maxRetries is refused', () {
+      expect(() => TransportOptionsBuilder().maxRetries(-1), throwsArgumentError);
+    });
+
+    test('bhv langdart 079 the default client exposes the retry policy of its options', () {
+      final client = DefaultApiClient(
+        transportOptions: TransportOptionsBuilder().maxRetries(4).timeout(2500).build(),
+      );
+      addTearDown(client.close);
+
+      expect(client, isA<RetryingApiClient>());
+      expect(client.maxRetries, equals(4));
+      expect(client.timeoutMillis, equals(2500));
+    });
+
+    test('bhv options 043 verifySsl defaults to true', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.verifySsl, isTrue);
+    });
+
+    test('bhv options 018 caCertPath defaults to null', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.caCertPath, isNull);
+    });
+
+    test('bhv options 032 proxy defaults to null', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.proxy, isNull);
+    });
+
+    test('bhv options 039 timeout defaults to 10000 ms (10 seconds)', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.timeout, equals(10000));
+    });
+
+    test('bhv options 020 followRedirects defaults to true', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.followRedirects, isTrue);
+    });
+
+    test('bhv options 025 maxRedirects defaults to null', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.maxRedirects, isNull);
+    });
+
+    test('bhv options 041 userAgent defaults to non-empty string', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.userAgent, isNotEmpty);
+    });
+
+    test('bhv options 042 the default userAgent is the registry name, the version and the language', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.userAgent,
+          matches(RegExp(r'^{{packageName}}/[^ ]+ \(dart\)$')));
+    });
+
+    test('bhv options 061 userAgent can be set to null to omit the header', () {
+      final opts = TransportOptionsBuilder().userAgent(null).build();
+      expect(opts.userAgent, isNull);
+    });
+
+    test('bhv options 019 defaultHeaders defaults to empty map', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.defaultHeaders, isEmpty);
+    });
+
+    test('bhv options 022 injectRequestId defaults to false', () {
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.injectRequestId, isFalse);
+    });
+
+    test('bhv options 017 builder sets all fields', () {
+      final opts = TransportOptionsBuilder()
+          .verifySsl(false)
+          .caCertPath('/path/to/ca.pem')
+          .proxy('http://proxy.example.com:8080')
+          .timeout(30000)
+          .followRedirects(false)
+          .maxRedirects(5)
+          .userAgent('CustomAgent/2.0')
+          .defaultHeader('X-Custom', 'value')
+          .injectRequestId(true)
+          .build();
+
+      expect(opts.verifySsl, isFalse);
+      expect(opts.caCertPath, equals('/path/to/ca.pem'));
+      expect(opts.proxy, isNotNull);
+      expect(opts.proxy.toString(), contains('proxy.example.com'));
+      expect(opts.timeout, equals(30000));
+      expect(opts.followRedirects, isFalse);
+      expect(opts.maxRedirects, equals(5));
+      expect(opts.userAgent, equals('CustomAgent/2.0'));
+      expect(opts.defaultHeaders['X-Custom'], equals('value'));
+      expect(opts.injectRequestId, isTrue);
+    });
+
+    test('bhv options 021 followRedirects defaults to true with null maxRedirects', () {
+      final opts = TransportOptionsBuilder()
+          .followRedirects(true)
+          .build();
+
+      expect(opts.followRedirects, isTrue);
+      expect(opts.maxRedirects, isNull);
+    });
+
+    test('bhv options 045 a negative maxRedirects is rejected at configuration', () {
+      expect(
+        () => TransportOptionsBuilder().maxRedirects(-1),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          'Invalid maxRedirects: must not be negative (got -1)',
+        )),
+      );
+      expect(TransportOptionsBuilder().maxRedirects(0).build().maxRedirects, equals(0));
+    });
+
+    test('bhv options 051 a proxy URL with a scheme other than http or https is rejected', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('socks5://proxy.example.com:1080').build(),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          'Invalid proxy URL (must use http or https scheme)',
+        )),
+      );
+    });
+
+    test('bhv options 047 a negative timeout throws ArgumentError', () {
+      expect(
+        () => TransportOptionsBuilder().timeout(-1),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          'Invalid timeout: must be a positive number of milliseconds (got -1)',
+        )),
+      );
+    });
+
+    test('bhv options 033 rejects a non-positive timeout with the canonical message', () {
+      for (final value in [-1, 0]) {
+        expect(
+          () => TransportOptionsBuilder().timeout(value),
+          throwsA(isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            'Invalid timeout: must be a positive number of milliseconds (got $value)',
+          )),
+        );
+      }
+    });
+
+    test('bhv options 010 a proxy URL with an unterminated IPv6 literal is rejected', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('http://[::1:3128').build(),
+        throwsA(isA<ArgumentError>()
+            .having((e) => e.message, 'message', equals('Invalid proxy URL'))),
+      );
+    });
+
+    test('bhv options 011 a proxy URL with no host is rejected', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('http://:3128').build(),
+        throwsA(isA<ArgumentError>().having(
+            (e) => e.message, 'message', equals('Invalid proxy URL (missing host)'))),
+      );
+    });
+
+    test('bhv options 023 toString never reveals the proxy password or a sensitive default header', () {
+      final opts = TransportOptionsBuilder()
+          .proxy('http://user:secret-pw@proxy.test:3128')
+          .defaultHeader('Authorization', 'Bearer secret-token')
+          .build();
+
+      final text = opts.toString();
+
+      expect(text, isNot(contains('secret-pw')));
+      expect(text, isNot(contains('secret-token')));
+    });
+
+    test('bhv options 027 maxRetries set through the builder is kept, and 0 disables retries', () {
+      expect(TransportOptionsBuilder().maxRetries(5).build().maxRetries, equals(5));
+      expect(TransportOptionsBuilder().maxRetries(0).build().maxRetries, equals(0));
+    });
+
+    test('bhv options 052 a proxy URL carrying credentials is accepted', () {
+      final opts = TransportOptionsBuilder()
+          .proxy('http://user:pass@proxy.test:3128')
+          .build();
+
+      expect(opts.proxy, isNotNull);
+      expect(opts.proxy!.userInfo, equals('user:pass'));
+    });
+
+    test('bhv options 024 invalid proxy URL throws exception', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('not a valid url').build(),
+        throwsA(isA<ArgumentError>()
+            .having((e) => e, 'not an SDK exception', isNot(isA<{{errorPrefix}}Exception>()))),
+      );
+    });
+
+    test('bhv options 008 invalid proxy URL errors never carry the embedded credentials', () {
+      const rejected = {
+        'a secret@proxy:3128': 'Invalid proxy URL',
+        'ftp://user:secret@proxy:21': 'Invalid proxy URL (must use http or https scheme)',
+        'http://user:secret@:3128': 'Invalid proxy URL (missing host)',
+        'http://user:secret@[::1:3128': 'Invalid proxy URL',
+      };
+      rejected.forEach((url, message) {
+        expect(
+          () => TransportOptionsBuilder().proxy(url).build(),
+          throwsA(isA<ArgumentError>()
+              .having((e) => e.message, 'message', equals(message))
+              .having((e) => e.toString(), 'toString', isNot(contains('secret')))),
+        );
+      });
+    });
+
+    test('bhv options 009 a proxy URL with user-info, an IPv6 literal or a path is accepted', () {
+      for (final url in [
+        'http://user:pw@proxy:3128',
+        'http://[::1]:3128',
+        'http://proxy:3128/path?q=1',
+      ]) {
+        expect(TransportOptionsBuilder().proxy(url).build().proxy,
+            equals(Uri.parse(url)));
+      }
+      expect(
+          TransportOptionsBuilder().proxy('http://[::1]:3128').build().proxy!.host,
+          equals('::1'));
+    });
+
+    test('bhv options 013 an invalid proxy URL is rejected at build, not in the setter', () {
+      final builder = TransportOptionsBuilder();
+
+      expect(() => builder.proxy('ftp://proxy:21'), returnsNormally);
+      expect(builder.build, throwsArgumentError);
+    });
+
+    test('bhv misc 056 setting the proxy to an empty string removes a proxy set earlier', () {
+      final opts = TransportOptionsBuilder()
+          .proxy('http://proxy.test:8080')
+          .proxy('')
+          .build();
+
+      expect(opts.proxy, isNull);
+    });
+
+    test('bhv options 030 null proxy URL is accepted', () {
+      final opts = TransportOptionsBuilder()
+          .proxy('')
+          .build();
+
+      expect(opts.proxy, isNull);
+    });
+
+    test('bhv options 015 builder methods return the same builder instance', () {
+      final builder = TransportOptionsBuilder();
+
+      final result = builder
+          .verifySsl(true)
+          .userAgent('Test/1.0')
+          .timeout(10000);
+
+      expect(result, isNotNull);
+
+      final opts = result.build();
+      expect(opts.userAgent, equals('Test/1.0'));
+      expect(opts.timeout, equals(10000));
+    });
+
+    test('bhv options 012 accumulates headers from defaultHeader calls', () {
+      final opts = TransportOptionsBuilder()
+          .defaultHeader('X-First', 'one')
+          .defaultHeader('X-Second', 'two')
+          .build();
+
+      expect(opts.defaultHeaders.length, equals(2));
+      expect(opts.defaultHeaders['X-First'], equals('one'));
+      expect(opts.defaultHeaders['X-Second'], equals('two'));
+    });
+
+    test('bhv options 028 merges headers from defaultHeaders call', () {
+      final opts = TransportOptionsBuilder()
+          .defaultHeader('X-First', 'one')
+          .defaultHeaders({
+            'X-Second': 'two',
+            'X-Third': 'three',
+          })
+          .build();
+
+      expect(opts.defaultHeaders.length, equals(3));
+      expect(opts.defaultHeaders['X-First'], equals('one'));
+      expect(opts.defaultHeaders['X-Second'], equals('two'));
+      expect(opts.defaultHeaders['X-Third'], equals('three'));
+    });
+
+    test('bhv options 029 modifying source map does not affect built options', () {
+      final opts = TransportOptionsBuilder()
+          .defaultHeader('X-Test', 'value')
+          .build();
+
+      final headers = opts.defaultHeaders;
+      headers['X-Mutated'] = 'should-not-affect-options';
+
+      final original = opts.defaultHeaders;
+      expect(original.containsKey('X-Mutated'), isFalse);
+    });
+
+    test('bhv options 016 builder produces independent instances', () {
+      final builder = TransportOptionsBuilder().verifySsl(false);
+      final first = builder.build();
+      final second = builder.build();
+
+      expect(first.verifySsl, equals(second.verifySsl));
+      expect(identical(first, second), isFalse);
+    });
+  });
+
+  group('TransportOptions', () {
+    test('bhv options 038 timeout defaults to 10000 ms (10 seconds)', () {
+      // Default TransportOptions applies a 10-second end-to-end request timeout.
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.timeout, equals(10000));
+    });
+
+    test('bhv options 036 setting timeout to 5000 is accessible', () {
+      final opts = TransportOptionsBuilder().timeout(5000).build();
+      expect(opts.timeout, equals(5000));
+    });
+
+    test('bhv options 040 timeout field is named exactly timeout', () {
+      // Verify via the property that the field is named 'timeout'
+      // (not e.g. 'connectionTimeout').
+      final opts = TransportOptionsBuilder().timeout(1000).build();
+      expect(opts.timeout, isNotNull);
+      expect(opts.timeout, equals(1000));
+    });
+  });
+
+  group('TransportOptions', () {
+    test('bhv options 035 setting proxy URL is preserved on read-back', () {
+      final opts = TransportOptionsBuilder()
+          .proxy('http://proxy.example.com:8080')
+          .build();
+      expect(opts.proxy, isNotNull);
+      expect(opts.proxy.toString(), contains('proxy.example.com'));
+    });
+
+    test('bhv options 034 setting proxy is supported on all platforms', () {
+      // Proxy configuration must not throw on any Dart platform.
+      expect(
+        () => TransportOptionsBuilder()
+            .proxy('http://proxy.example.com:8080')
+            .build(),
+        returnsNormally,
+      );
+    });
+  });
+
+  group('TransportOptions validation', () {
+    test('bhv options 037 timeout can be explicitly disabled', () {
+      final opts = TransportOptionsBuilder().timeout(null).build();
+
+      expect(opts.timeout, isNull);
+    });
+
+    const rejected = {
+      'not-a-valid-url': 'Invalid proxy URL',
+      'ftp://proxy.example.com:21':
+          'Invalid proxy URL (must use http or https scheme)',
+      'socks5://proxy.example.com:1080':
+          'Invalid proxy URL (must use http or https scheme)',
+      'http://': 'Invalid proxy URL (missing host)',
+    };
+    test('bhv options 031 every unusable proxy URL is rejected with its canonical message', () {
+      rejected.forEach((url, message) {
+        expect(
+          () => TransportOptionsBuilder().proxy(url).build(),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              equals(message),
+            ),
+          ),
+          reason: 'proxy "$url"',
+        );
+      });
+    });
+
+    test('bhv options 014 an upper-case proxy scheme is accepted', () {
+      final opts = TransportOptionsBuilder()
+          .proxy('HTTP://proxy.example.com:8080')
+          .build();
+
+      expect(opts.proxy!.scheme, equals('http'));
+      expect(opts.proxy!.host, equals('proxy.example.com'));
+    });
+
+    test('bhv errors 083 a CA certificate path that cannot be read fails at construction with an error that names the path', () {
+      const path = '/nonexistent/dir/ca-bundle.pem';
+
+      expect(
+        () => DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().caCertPath(path).build()),
+        throwsA(isA<ArgumentError>()
+            .having((e) => '${e.message}', 'message', contains(path))),
+      );
+    });
+
+    test('bhv errors 098 a CA certificate path that does not exist names it and the read failure', () {
+      const path = '/nonexistent/ca.pem';
+
+      expect(
+        () => DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().caCertPath(path).build()),
+        throwsA(isA<ArgumentError>().having(
+            (e) => '${e.message}',
+            'message',
+            allOf(contains(path), contains('failed to read CA certificate')))),
+      );
+    });
+
+    test('bhv transport 078 a caller-supplied HTTP client is refused at construction when a proxy is also configured', () {
+      final custom = MockClient((_) async => http.Response('', 200));
+
+      expect(
+        () => TransportOptionsBuilder()
+            .httpClient(custom)
+            .proxy('http://proxy.example.com:3128')
+            .build(),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv transport 080 a proxy setting the client cannot apply makes construction fail rather than being dropped', () {
+      expect(
+        () => TransportOptionsBuilder()
+            .proxy('socks5://proxy.example.com:1080')
+            .build(),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv options 059 a caller-supplied transport hook is unset unless given and is kept unchanged when supplied', () {
+      expect(TransportOptionsBuilder().build().httpClient, isNull);
+      final custom = MockClient((_) async => http.Response('', 200));
+      final opts = TransportOptionsBuilder().httpClient(custom).build();
+
+      expect(opts.httpClient, same(custom));
+    });
+
+    test('bhv options 064 the printable form of transport options shows the configured maximum number of retries', () {
+      final text = TransportOptionsBuilder().maxRetries(4).build().toString();
+
+      expect(text, contains('maxRetries'));
+      expect(text, contains('4'));
+    });
+
+    test('bhv options 065 the printable form of transport options never shows a proxy password', () {
+      final text = TransportOptionsBuilder()
+          .proxy('http://user:hunter2@proxy.example.com:3128')
+          .build()
+          .toString();
+
+      expect(text, isNot(contains('hunter2')));
+    });
+
+    test('bhv options 066 the printable form of transport options shows a proxy URL without credentials exactly as configured', () {
+      final text = TransportOptionsBuilder()
+          .proxy('http://proxy.example.com:3128')
+          .build()
+          .toString();
+
+      expect(text, contains('http://proxy.example.com:3128'));
+    });
+
+    test('bhv options 067 building transport options with a valid proxy keeps it, and with no proxy the proxy is unset', () {
+      final withProxy = TransportOptionsBuilder()
+          .proxy('http://proxy.example.com:3128')
+          .build();
+
+      expect(withProxy.proxy.toString(), equals('http://proxy.example.com:3128'));
+      expect(TransportOptionsBuilder().build().proxy, isNull);
+    });
+  });
+  group('Transport options refusals', () {
+    test('bhv misc 034 a caller HTTP client combined with a caller proxy is refused when the client is built', () {
+      expect(
+        () => TransportOptionsBuilder()
+            .httpClient(http.Client())
+            .proxy('http://proxy.example.com:3128')
+            .build(),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('bhv misc 042 a custom HTTP connection with disabled TLS verification is refused when built and names the setting', () {
+      expect(
+        () => TransportOptionsBuilder()
+            .httpClient(http.Client())
+            .verifySsl(false)
+            .build(),
+        throwsA(isA<ArgumentError>()
+            .having((e) => '${e.message}', 'message', contains('verifySsl'))),
+      );
+    });
+    test('bhv misc 298 A client built with a malformed proxy URL fails with an invalid proxy URL error', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('not-a-valid-url').build(),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          startsWith('Invalid proxy URL'),
+        )),
+      );
+    });
+
+    test('bhv options 068 A SOCKS proxy scheme fails at construction with the documented error message', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('socks5://proxy.example.com:1080').build(),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          equals('Invalid proxy URL (must use http or https scheme)'),
+        )),
+      );
+    });
+  });
+}
+{{/generateTests}}

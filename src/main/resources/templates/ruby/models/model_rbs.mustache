@@ -1,0 +1,132 @@
+module {{moduleName}}::Models
+{{#models}}
+{{#model}}
+{{#isEnum}}
+  class {{classname}}
+{{#allowableValues}}
+{{#enumVars}}
+    {{{name}}}: {{{dataType}}}
+{{/enumVars}}
+    UNKNOWN_DEFAULT_OPEN_API: {{{dataType}}}
+    VALUES: Array[{{{dataType}}}]
+{{/allowableValues}}
+    def self.all_vars: () -> Array[{{{dataType}}}]
+    def self.validate!: ({{{dataType}}}?) -> {{{dataType}}}?
+  end
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+  module {{classname}}
+    def self.openapi_one_of: () -> Array[Symbol]
+    def self.serialize_oneof: (untyped) -> untyped
+{{#composedSchemas.oneOf}}
+{{#isModel}}
+    def self.as_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}: (untyped) -> {{{dataType}}}?
+    def self.{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}_variant?: (untyped) -> bool
+    def self.from_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}: ({{{dataType}}}) -> {{{dataType}}}
+{{/isModel}}
+{{/composedSchemas.oneOf}}
+{{#discriminator}}
+{{#propertyName}}
+    def self.openapi_discriminator_name: () -> Symbol
+{{/propertyName}}
+{{#mappedModels}}
+{{#-first}}
+    def self.openapi_discriminator_mapping: () -> Hash[String, Symbol]
+{{/-first}}
+{{/mappedModels}}
+{{/discriminator}}
+    def self.build: (untyped) -> untyped
+  end
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+  module {{classname}}
+    class Composite
+      attr_reader anyof_matched_instances: Array[untyped]
+      def initialize: (Array[untyped]) -> void
+      def method_missing: (Symbol, *untyped) ?{ (*untyped) -> untyped } -> untyped
+      def respond_to_missing?: (Symbol, ?bool) -> bool
+      def ==: (untyped) -> bool
+      def eql?: (untyped) -> bool
+      def hash: () -> Integer
+    end
+    def self.openapi_any_of: () -> Array[Symbol]
+    def self.actual_instance: (untyped) -> untyped
+    def self.matched_instances: (untyped) -> Array[untyped]
+{{#composedSchemas.anyOf}}
+{{#isModel}}
+    def self.as_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}: (untyped) -> {{{dataType}}}?
+    def self.{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}_variant?: (untyped) -> bool
+    def self.from_{{#lambda.rubySnake}}{{{dataType}}}{{/lambda.rubySnake}}: ({{{dataType}}}) -> {{{dataType}}}
+{{/isModel}}
+{{/composedSchemas.anyOf}}
+    def self.build: (untyped) -> untyped
+  end
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+  class {{classname}} < {{#parent}}{{#lambda.rbsType}}{{{.}}}{{/lambda.rbsType}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+{{#vars}}
+{{#isEnum}}
+{{#allowableValues}}
+    class {{enumName}}
+{{#enumVars}}
+      {{{name}}}: {{{dataType}}}
+{{/enumVars}}
+      UNKNOWN_DEFAULT_OPEN_API: {{{dataType}}}
+      VALUES: Array[{{{dataType}}}]
+      def self.all_vars: () -> Array[{{{dataType}}}]
+      def self.validate!: ({{{dataType}}}?) -> {{{dataType}}}?
+    end
+{{/allowableValues}}
+{{/isEnum}}
+{{/vars}}
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+{{#vendorExtensions.x-allof-base}}
+    OPENAPI_DISCRIMINATOR_NAME: String
+    OPENAPI_DISCRIMINATOR_MAPPING: Hash[String, String]
+    def self.build_subtype: (untyped) -> untyped
+{{/vendorExtensions.x-allof-base}}
+    def inspect: () -> String
+    def to_s: () -> String
+    def with: (**untyped) -> {{classname}}
+{{#isAdditionalPropertiesTrue}}
+    ADDITIONAL_PROPERTIES: bool
+{{#additionalPropertiesType}}
+    ADDITIONAL_PROPERTIES_TYPE: String
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isByteArray}}
+    ADDITIONAL_PROPERTIES_FORMAT: String
+{{/isByteArray}}
+{{#isUuid}}
+    ADDITIONAL_PROPERTIES_FORMAT: String
+{{/isUuid}}
+{{#isNullable}}
+    ADDITIONAL_PROPERTIES_NULLABLE: bool
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
+{{/additionalPropertiesType}}
+    attr_reader additional_properties: Hash[String, {{#vendorExtensions.additionalPropertiesValue}}{{#lambda.rbsType}}{{{dataType}}}{{/lambda.rbsType}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}untyped{{/vendorExtensions.additionalPropertiesValue}}]?
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+    UNEVALUATED_PROPERTIES_FALSE: bool
+{{/isUnevaluatedPropertiesFalse}}
+{{#vars}}
+    attr_reader {{name}}: {{#lambda.rbsType}}{{{dataType}}}{{/lambda.rbsType}}{{^required}}?{{/required}}
+{{/vars}}
+  end
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}
+end

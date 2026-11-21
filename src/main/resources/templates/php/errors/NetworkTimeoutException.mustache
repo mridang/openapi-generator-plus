@@ -1,0 +1,11 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+/**
+ * Exception for a request that timed out before an HTTP response arrived. The
+ * status code is always 0 and the underlying transport exception is kept as
+ * the previous exception.
+ */
+class NetworkTimeoutException extends NetworkException
+{
+}

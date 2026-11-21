@@ -1,0 +1,449 @@
+{{>api_info}}
+
+package {{modelPackage}};
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import {{invokerPackage}}.ObjectSerializer;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.junit.jupiter.api.Test;
+
+@SuppressWarnings("NullAway")
+class MetadataTest {
+
+    private static final java.lang.reflect.Type METADATA_TYPE =
+            new TypeReference<Metadata>() {}.getType();
+    private final ObjectSerializer serializer = new ObjectSerializer();
+
+    @Test
+    void bhvModels008TestSerializeEmptyMetadata() {
+        Metadata metadata = Metadata.builder().build();
+
+        String json = serializer.serialize(metadata);
+
+        assertThat(json).isNotNull();
+    }
+
+    @Test
+    void bhvModels003TestDeserializeEmptyObject() {
+        String json = "{}";
+
+        Metadata metadata = serializer.deserialize(json, METADATA_TYPE);
+
+        assertThat(metadata).isNotNull();
+    }
+
+    @Test
+    void bhvModels004TestDeserializesAdditionalStringProperties() {
+        String json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";
+        Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
+
+        assertThat(metadata.getAdditionalProperties().get("customField")).isEqualTo("hello");
+        java.util.Map<String, String> extras = metadata.getAdditionalProperties();
+        assertThatThrownBy(() -> extras.put("other", "x"))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void bhvModels001CapturesUndeclaredKeysIntoAdditionalProperties() {
+        String json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"undeclaredKey\":\"extra\"}";
+        Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
+
+        assertThat(metadata.getAdditionalProperties()).containsOnlyKeys("undeclaredKey");
+        assertThat(metadata.getAdditionalProperties().get("undeclaredKey")).isEqualTo("extra");
+    }
+
+    @Test
+    void bhvModels011TestRoundTripPreservesAdditionalProperties() {
+        Metadata metadata =
+                Metadata.builder()
+                        .putAdditionalProperty("customField", "hello")
+                        .putAdditionalProperty("anotherField", "world")
+                        .build();
+
+        String json = serializer.serialize(metadata);
+        Metadata deserialized = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
+
+        assertThat(deserialized.getAdditionalProperties().get("customField")).isEqualTo("hello");
+        assertThat(deserialized.getAdditionalProperties().get("anotherField")).isEqualTo("world");
+    }
+
+    @Test
+    void bhvLangjava028TestAdditionalPropertiesAreWrittenThroughTheBuilderNotASetter() {
+        assertThat(java.util.Arrays.stream(Metadata.class.getMethods()).map(java.lang.reflect.Method::getName))
+                .doesNotContain("setAdditionalProperty");
+        assertThat(java.util.Arrays.stream(Metadata.Builder.class.getMethods()).map(java.lang.reflect.Method::getName))
+                .contains(
+                        "additionalProperties",
+                        "putAdditionalProperty",
+                        "putAllAdditionalProperties",
+                        "removeAdditionalProperty");
+    }
+
+    @Test
+    void bhvLangjava029TestBuilderPutAllRemoveAndReplaceTheAdditionalProperties() {
+        Metadata.Builder builder =
+                Metadata.builder()
+                        .putAllAdditionalProperties(java.util.Map.of("a", "1", "b", "2"))
+                        .removeAdditionalProperty("a");
+
+        assertThat(builder.build().getAdditionalProperties()).containsOnlyKeys("b");
+        assertThat(builder.additionalProperties(java.util.Map.of("c", "3")).build().getAdditionalProperties())
+                .containsOnlyKeys("c");
+    }
+
+    @Test
+    void bhvModels023BuilderMethodsAreNotJsonProperties() {
+        {{! The builder names its extra-property methods after JSON keys a payload may carry; with }}
+        {{! the empty with-prefix they would otherwise read as properties and swallow the key. }}
+        Metadata metadata =
+                Objects.requireNonNull(
+                        serializer.deserialize(
+                                "{\"additionalProperties\":\"x\",\"removeAdditionalProperty\":\"y\"}",
+                                METADATA_TYPE));
+
+        assertThat(metadata.getAdditionalProperties())
+                .containsEntry("additionalProperties", "x")
+                .containsEntry("removeAdditionalProperty", "y");
+    }
+
+    @Test
+    void bhvModels009TestAdditionalPropertiesAreTypedAsTheValueType() {
+        Metadata metadata = Metadata.builder().putAdditionalProperty("key", "value").build();
+
+        java.util.Map<String, String> additionalProps = metadata.getAdditionalProperties();
+        assertThat(additionalProps).containsEntry("key", "value");
+    }
+
+    @Test
+    void bhvModels005TestEqualsAndHashCodeIncludeAdditionalProperties() {
+        Metadata first = Metadata.builder().putAdditionalProperty("customField", "hello").build();
+        Metadata same = Metadata.builder().putAdditionalProperty("customField", "hello").build();
+        Metadata differentValue =
+                Metadata.builder().putAdditionalProperty("customField", "world").build();
+        Metadata differentKey =
+                Metadata.builder().putAdditionalProperty("otherField", "hello").build();
+
+        assertThat(first).isEqualTo(same).hasSameHashCodeAs(same);
+        assertThat(first).isNotEqualTo(differentValue).isNotEqualTo(differentKey);
+        assertThat(first).isNotEqualTo(new Metadata());
+    }
+
+    @Test
+    void bhvEquality001TestEqualValuesAreEqualAndAnyChangeMakesThemUnequal() {
+        java.time.OffsetDateTime created = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z");
+        Metadata first =
+                Metadata.builder()
+                        .createdAt(created)
+                        .putAdditionalProperty("customField", "hello")
+                        .build();
+        Metadata same =
+                Metadata.builder()
+                        .createdAt(created)
+                        .putAdditionalProperty("customField", "hello")
+                        .build();
+        Metadata changedNested =
+                Metadata.builder()
+                        .createdAt(created)
+                        .putAdditionalProperty("customField", "world")
+                        .build();
+        Metadata changedCreatedAt =
+                Metadata.builder()
+                        .createdAt(java.time.OffsetDateTime.parse("2025-01-01T00:00:00Z"))
+                        .putAdditionalProperty("customField", "hello")
+                        .build();
+
+        assertThat(first).isEqualTo(same).hasSameHashCodeAs(same);
+        assertThat(first).isNotEqualTo(changedNested);
+        assertThat(first).isNotEqualTo(changedCreatedAt);
+        assertThat(first).isNotEqualTo("Metadata");
+        assertThat(first).isNotEqualTo(null);
+    }
+
+    @Test
+    void bhvModels010TestDeclaredPropertyWinsOverCollidingAdditionalProperty() {
+        Metadata metadata =
+                Metadata.builder()
+                        .createdAt(java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z"))
+                        .putAdditionalProperty("createdAt", "x")
+                        .build();
+
+        String json = Objects.requireNonNull(serializer.serialize(metadata));
+
+        assertThat(json).isEqualTo("{\"createdAt\":\"2024-01-01T00:00:00.000+00:00\"}");
+    }
+
+    @Test
+    void bhvModels012ToStringDumpsTheAdditionalProperties() {
+        Metadata metadata = Metadata.builder().putAdditionalProperty("customField", "hello").build();
+
+        assertThat(metadata.toString())
+                .isEqualTo("Metadata{createdAt=null, additionalProperties={customField=hello}}");
+    }
+
+    @Test
+    void bhvModels014ModelFieldsAreFinal() throws NoSuchFieldException {
+        assertThat(java.lang.reflect.Modifier.isFinal(Metadata.class.getField("createdAt").getModifiers()))
+                .isTrue();
+    }
+
+    @Test
+    void bhvLangjava030TestToBuilderCopiesWithOnePropertyChanged() {
+        java.time.OffsetDateTime first = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z");
+        java.time.OffsetDateTime second = java.time.OffsetDateTime.parse("2025-02-03T04:05:06Z");
+        Metadata original =
+                Metadata.builder()
+                        .createdAt(first)
+                        .putAdditionalProperty("customField", "hello")
+                        .build();
+
+        Metadata copy = original.toBuilder().createdAt(second).build();
+
+        assertThat(original.createdAt).isEqualTo(first);
+        assertThat(copy.createdAt).isEqualTo(second);
+        assertThat(copy.getAdditionalProperties()).containsEntry("customField", "hello");
+        assertThat(original.toBuilder().build()).isEqualTo(original);
+    }
+
+    @Test
+    void bhvLangjava031TestBuilderDoesNotShareStateWithTheInstanceItBuilt() {
+        Metadata.Builder builder = Metadata.builder().putAdditionalProperty("a", "1");
+        Metadata built = builder.build();
+
+        builder.putAdditionalProperty("b", "2");
+
+        assertThat(built.getAdditionalProperties()).containsOnlyKeys("a");
+    }
+
+    @Test
+    void bhvLangjava032TestCollectionPropertyIsCopiedAndUnmodifiable() {
+        java.util.Set<String> urls = new java.util.LinkedHashSet<>(java.util.Set.of("u"));
+        Pet pet = new Pet("Rex", urls);
+
+        urls.add("later");
+
+        assertThat(pet.photoUrls).containsExactly("u");
+        assertThatThrownBy(() -> pet.photoUrls.add("x"))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void bhvLangjava033TestBuilderRejectsAMissingRequiredProperty() {
+        assertThatThrownBy(() -> Pet.builder().build())
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("name is required");
+    }
+
+    @Test
+    void bhvLangjava034TestToBuilderChangesOnePropertyAndKeepsTheOthers() {
+        Pet original = Pet.builder().name("Rex").photoUrls(java.util.Set.of("u")).id(7L).build();
+
+        Pet renamed = original.toBuilder().name("Max").build();
+
+        assertThat(renamed.name).isEqualTo("Max");
+        assertThat(renamed.id).isEqualTo(7L);
+        assertThat(renamed.photoUrls).containsExactly("u");
+        assertThat(original.name).isEqualTo("Rex");
+    }
+
+    @Test
+    void bhvLangjava035TestDefaultedPropertyKeepsItsDefaultUntilSet() {
+        assertThat(Order.builder().build().status).isEqualTo(Order.StatusEnum.PLACED);
+    }
+
+    @Test
+    void bhvModels006FileHeaderPrintsTheDescriptionWithoutEscapedQuotes() throws IOException {
+        java.util.List<Path> sources;
+        try (java.util.stream.Stream<Path> walk = Files.walk(Path.of("src"))) {
+            sources = walk.filter(Files::isRegularFile)
+                    .filter(f -> f.toString().endsWith(".java"))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        java.util.List<java.util.List<String>> headers = new java.util.ArrayList<>();
+        for (Path source : sources) {
+            try (java.util.stream.Stream<String> lines = Files.lines(source)) {
+                java.util.List<String> head = lines.limit(3).collect(java.util.stream.Collectors.toList());
+                if (!head.isEmpty() && head.get(0).startsWith("// ")) {
+                    headers.add(head);
+                }
+            }
+        }
+        assertThat(headers).as("generated sources must start with the header comment").isNotEmpty();
+        for (java.util.List<String> header : headers) {
+            for (String line : header) {
+                assertThat(line).as("header line must not contain a backslash-escaped quote")
+                        .doesNotContain("\\\"");
+            }
+        }
+    }
+
+    @Test
+    void bhvSerializationObject227ModelExternalDocsDescriptionIsWrittenVerbatim() throws IOException {
+        java.util.List<Path> found;
+        try (java.util.stream.Stream<Path> walk = Files.walk(Path.of("src/main"))) {
+            found = walk.filter(f -> f.getFileName().toString().equals("Account.java"))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        assertThat(found).hasSize(1);
+        String source = Files.readString(found.get(0));
+        assertThat(source).contains("\"notes\" it's here");
+        assertThat(source).doesNotContainPattern("&(lt|gt|quot|#)");
+    }
+
+    @Test
+    void bhvModels002TestPomManifestDeclaresNonEmptyDescription() throws IOException {
+        {{! manifest-description-missing: the published Maven POM must carry a }}
+        {{! non-empty <description> (wired from the spec's appDescription, with }}
+        {{! a generated fallback). Surefire runs tests with the project root as }}
+        {{! the working directory. }}
+        Path pom = Path.of("pom.xml");
+        assertThat(Files.exists(pom)).as("pom.xml must exist at the project root").isTrue();
+        String contents = Files.readString(pom);
+        Matcher matcher = Pattern.compile("<description>(.*?)</description>").matcher(contents);
+        assertThat(matcher.find()).as("pom.xml must declare a <description>").isTrue();
+        assertThat(matcher.group(1).trim()).as("description must not be empty").isNotEmpty();
+    }
+
+    @Test
+    void bhvLangjava036TestPomLicenseNameAndUrlComeFromTheSameLicense() throws IOException {
+        {{! A literal MIT URL beside a configurable licenseId once mislabelled an }}
+        {{! Apache-2.0 client; the name and the link are derived together. }}
+        String contents = Files.readString(Path.of("pom.xml"));
+        Matcher matcher =
+                Pattern.compile("<license>\\s*<name>(.*?)</name>\\s*<url>(.*?)</url>")
+                        .matcher(contents);
+        assertThat(matcher.find()).as("pom.xml must declare a license name and url").isTrue();
+        assertThat(matcher.group(1)).isEqualTo("{{licenseId}}");
+        assertThat(matcher.group(2)).isEqualTo("{{licenseUrl}}");
+    }
+
+    @Test
+    void bhvLangjava037TestDeclaredDevDependenciesAreInTheProjectManifest() throws IOException {
+        {{! dev-dependency-drift: a generated test may import a package that only }}
+        {{! the generator knows about, and every real client keep-lists its own }}
+        {{! pom.xml, so the two silently drift apart and the suite dies at compile }}
+        {{! time with an unresolved import. The generator-owned manifest lists what }}
+        {{! the generated tests need; this fails first, naming the file. }}
+        Path declared = Path.of(".openapi-generator", "DEV-DEPENDENCIES");
+        assertThat(Files.exists(declared))
+                .as(".openapi-generator/DEV-DEPENDENCIES must exist at the project root")
+                .isTrue();
+        String pomContents = Files.readString(Path.of("pom.xml"));
+        for (String line : Files.readAllLines(declared)) {
+            String entry = line.strip();
+            if (entry.isEmpty()) {
+                continue;
+            }
+            int space = entry.indexOf(' ');
+            String coordinate = space < 0 ? entry : entry.substring(0, space);
+            String artifactId = coordinate.substring(coordinate.indexOf(':') + 1);
+            assertThat(pomContents)
+                    .as(
+                            "pom.xml does not declare %s, which"
+                                    + " .openapi-generator/DEV-DEPENDENCIES lists as required by"
+                                    + " the generated tests. Add it with <scope>test</scope>; the"
+                                    + " generator cannot edit a keep-listed manifest.",
+                            coordinate)
+                    .contains("<artifactId>" + artifactId + "</artifactId>");
+        }
+    }
+
+    @Test
+    void bhvModels007TestModelDoesNotDocumentNullExample() throws IOException {
+        {{! example-null-doc-pollution: when a property declares no example, the }}
+        {{! codegen leaves CodegenProperty.example as the literal string "null", }}
+        {{! which is truthy in Mustache. The model template guards the example }}
+        {{! Javadoc with a section, so a real example still renders, but the bogus }}
+        {{! "null" must never reach the generated source as a doc comment. Tag's }}
+        {{! id and name properties carry no example, so Tag.java is the canary. }}
+        {{! Surefire runs tests with the project root as the working directory. }}
+        Path model =
+                Path.of("src", "main", "java")
+                        .resolve(Path.of("{{modelPackage}}".replace('.', '/')))
+                        .resolve("Tag.java");
+        assertThat(Files.exists(model))
+                .as("the Tag model must be generated at %s", model)
+                .isTrue();
+        String source = Files.readString(model);
+        assertThat(source)
+                .as("a no-example property must not document a literal null example")
+                .doesNotContain("Example: {@code null}")
+                .doesNotContain("Example: null");
+    }
+
+    @Test
+    void bhvModels013NewModelHasAnEmptyAdditionalPropertiesCollection() {
+        assertTrue({{modelPackage}}.Metadata.builder().build().getAdditionalProperties().isEmpty());
+    }
+
+    @Test
+    void bhvModels015ChangedCopyKeepsTheAdditionalPropertiesOfTheOriginal() {
+        {{modelPackage}}.Metadata original = {{modelPackage}}.Metadata.builder().putAdditionalProperty("k", "v").build();
+        {{modelPackage}}.Metadata changed = original.toBuilder()
+                .createdAt(java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z")).build();
+        assertEquals("v", changed.getAdditionalProperties().get("k"));
+    }
+
+    @Test
+    void bhvModels016CopyClearsAnOptionalFieldOnlyWhenNullIsPassed() {
+        java.time.OffsetDateTime when = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z");
+        {{modelPackage}}.Metadata set = {{modelPackage}}.Metadata.builder().createdAt(when).build();
+        assertEquals(when, set.toBuilder().build().createdAt);
+        assertNull(set.toBuilder().createdAt(null).build().createdAt);
+    }
+
+    @Test
+    void bhvModels017CopyCanSetAFieldAndTheOriginalKeepsItsValue() {
+        {{modelPackage}}.Category original = {{modelPackage}}.Category.builder().name("x").build();
+        {{modelPackage}}.Category changed = original.toBuilder().name("y").build();
+        assertEquals("y", changed.name);
+        assertEquals("x", original.name);
+    }
+
+    @Test
+    void bhvModels020EqualModelsCompareEqualAndHashAlike() {
+        {{modelPackage}}.Category first = {{modelPackage}}.Category.builder().id(1L).build();
+        {{modelPackage}}.Category second = {{modelPackage}}.Category.builder().id(1L).build();
+        assertEquals(first, second);
+        assertEquals(first.hashCode(), second.hashCode());
+    }
+
+    @Test
+    void bhvModels021IntegerEnumMemberCarriesItsDeclaredNumber() {
+        assertEquals(3, {{modelPackage}}.Priority.NUMBER_3.getValue());
+    }
+
+    @Test
+    void bhvModels022ModelThatAllowsUndeclaredPropertiesReportsIt() {
+        assertNotNull({{modelPackage}}.Metadata.builder().build().getAdditionalProperties());
+    }
+
+
+    @Test
+    void bhvMisc092PropertyIsReadByItsWireName() {
+        Metadata metadata = serializer.deserialize("{\"createdAt\":\"2024-01-15T10:00:00Z\"}", METADATA_TYPE);
+        assertEquals(java.time.OffsetDateTime.parse("2024-01-15T10:00:00Z"), metadata.createdAt);
+    }
+
+    @Test
+    void bhvMisc093AdditionalPropertiesWithNumericNamesAreWrittenBesideNamedFields() {
+        Metadata metadata = serializer.deserialize(
+                "{\"createdAt\":\"2024-01-15T10:00:00Z\",\"404\":\"missing\",\"500\":\"failed\"}", METADATA_TYPE);
+        String json = serializer.serialize(metadata);
+        assertTrue(json.contains("\"createdAt\":\"2024-01-15T10:00:00"), json);
+        assertTrue(json.contains("\"404\":\"missing\""), json);
+        assertTrue(json.contains("\"500\":\"failed\""), json);
+    }
+}

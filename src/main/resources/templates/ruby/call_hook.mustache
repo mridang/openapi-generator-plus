@@ -1,0 +1,71 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # The one small hook around every call. Any object that responds to
+  # +start(info, headers)+ is a call hook; there is nothing to include or
+  # inherit. Set it with {Configuration::Builder#call_hook} or the +call_hook+
+  # keyword of the client, and a call without one does nothing extra.
+  #
+  # +start+ runs once per operation call, however many times the transport
+  # sends the request, right after the trace context is added to the headers,
+  # so +headers+ is the final header set: the defaults, the headers of the
+  # operation and of the call, the authentication, the cookies and the trace
+  # context. It is a mutable Hash of String to String; a header the hook adds,
+  # replaces or deletes is on every send of the call, and the fresh credentials
+  # of the one replay after a 401 still replace a header of the same name. Reuse
+  # the spelling of an existing name to replace it.
+  #
+  # +start+ gets a {CallInfo} and returns an observer, an object that responds
+  # to +finish(outcome)+, or +nil+ when it has nothing to observe. +finish+
+  # runs exactly once on every way the call can end after +start+ returned
+  # (a result, an {Errors::ApiError}, a network error, a timeout, an
+  # interruption, a body that cannot be encoded or a response that cannot be
+  # decoded) and gets a {CallOutcome}. An error raised by +start+ reaches the
+  # caller unchanged, nothing is sent and +finish+ is not called. An error
+  # raised by +finish+ is swallowed, so the call still returns its result or
+  # its own error. A hook never changes the result or the error of the call.
+  #
+  # +start+ and +finish+ run inline on the calling thread: they must not block.
+  #
+  # @example A hook that adds a header and times the call
+  #   class TimingHook
+  #     def start(info, headers)
+  #       headers['X-Client'] = 'billing'
+  #       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  #       observer = Object.new
+  #       observer.define_singleton_method(:finish) do |outcome|
+  #         seconds = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+  #         puts "#{info.operation_id} #{outcome.status_code} #{seconds}"
+  #       end
+  #       observer
+  #     end
+  #   end
+  module CallHook
+    # A hook that starts +hooks+ in the order given and finishes their
+    # observers in the reverse order. A hook that returns +nil+ from +start+
+    # is skipped when finishing; an error raised by the +finish+ of one
+    # observer is swallowed and the others still finish.
+    #
+    # @param hooks [Array<#start>] the hooks to run, in order
+    # @return [#start] one hook that runs them all
+    def self.chain(*hooks)
+      chained = Object.new
+      chained.define_singleton_method(:start) do |info, headers|
+        observers = hooks.filter_map { |hook| hook.start(info, headers) }
+        reversed = observers.reverse
+        observer = Object.new
+        observer.define_singleton_method(:finish) do |outcome|
+          reversed.each do |each|
+            each.finish(outcome)
+          rescue StandardError
+            nil
+          end
+        end
+        observer
+      end
+      chained
+    end
+  end
+end

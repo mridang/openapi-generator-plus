@@ -1,0 +1,42 @@
+{{>api_info}}
+import Foundation
+
+{{#operations}}
+/// The contract of ``{{classname}}``: every operation of the {{baseName}} API group and its
+/// `WithHTTPInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+/// your own tests. A fake implements the full form of each operation; the forms that leave out
+/// the optional parameters are provided by the extension below.
+public protocol {{classname}}Protocol: Sendable {
+{{#operation}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}>
+{{/operation}}
+}
+
+extension {{classname}}Protocol {
+{{#operation}}
+
+    /// The `{{operationId}}` operation with every optional parameter left out.
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{operationId}}({{#vendorExtensions.op.signatureArgsRequired}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{/vendorExtensions.op.signatureArgsRequired}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+        try await {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#nullable}}nil{{/nullable}}{{^nullable}}{{paramName}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: nil{{/-first}}{{/-last}}{{/consumes}})
+    }
+
+    /// The `{{operationId}}WithHTTPInfo` operation with every optional parameter left out.
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgsRequired}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{/vendorExtensions.op.signatureArgsRequired}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+        try await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#nullable}}nil{{/nullable}}{{^nullable}}{{paramName}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: nil{{/-first}}{{/-last}}{{/consumes}})
+    }
+{{/operation}}
+}
+{{/operations}}

@@ -1,0 +1,13 @@
+{{>api_info}}
+
+namespace {{apiPackage}};
+
+/**
+ * Allowed values of the {{name}} server variable of {{serverTypeName}}.
+ */
+enum {{serverTypeName}}{{enumTypeName}}: string
+{
+{{#enumValues}}
+    case {{name}} = {{{literal}}};
+{{/enumValues}}
+}

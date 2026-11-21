@@ -1,0 +1,160 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>
+/// Interface for API HTTP transport.
+///
+/// Implementations handle the actual HTTP request/response cycle. The
+/// default implementation uses <see cref="System.Net.Http.HttpClient"/>.
+/// </summary>
+public interface IApiClient : IDisposable
+{
+    /// <summary>
+    /// Send an HTTP request and return the response.
+    /// </summary>
+    /// <param name="method">HTTP method (GET, POST, PUT, DELETE, etc.)</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (JSON string, byte[], Stream, Dictionary for multipart, or null)</param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body
+    );
+
+    /// <summary>
+    /// Send an HTTP request, optionally refusing to follow redirects.
+    ///
+    /// When <paramref name="noRedirect"/> is <c>true</c>, any 3xx response
+    /// (including 307/308) is returned to the caller as-is rather than being
+    /// replayed to the <c>Location</c> target. OAuth2 token/revoke/authorize
+    /// endpoint POSTs use this guard so a malicious or misconfigured server
+    /// cannot replay the credentialed body to an attacker-controlled URL
+    /// (Gap 3.2).
+    ///
+    /// A no-redirect request is sent to the authorization server, so the
+    /// default transport also leaves the caller's default headers off it.
+    ///
+    /// The default implementation delegates to the four-argument overload;
+    /// transport implementations that own the redirect loop should implement
+    /// this method and honour the flag.
+    /// </summary>
+    /// <param name="method">HTTP method</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (may be null)</param>
+    /// <param name="noRedirect">When <c>true</c>, do not follow 3xx responses.</param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect
+    ) => SendRequestAsync(method, url, headers, body);
+
+    /// <summary>
+    /// Send an HTTP request that the caller can cancel.
+    ///
+    /// Cancelling <paramref name="cancellationToken"/> aborts the in-flight
+    /// request and surfaces as <see cref="OperationCanceledException"/>, which is
+    /// distinct from the SDK's timeout error. The default implementation
+    /// refuses to start an already-cancelled request and then delegates to the
+    /// five-argument overload; transports that can abort an in-flight request
+    /// should implement this method and honour the token.
+    /// </summary>
+    /// <param name="method">HTTP method</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (may be null)</param>
+    /// <param name="noRedirect">When <c>true</c>, do not follow 3xx responses.</param>
+    /// <param name="cancellationToken">Token that cancels the request.</param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        /* Delegating to the overload without a token is the point of this
+           default: a transport that predates the token overload cannot honour
+           it, so the token is only checked before the send. */
+#pragma warning disable CA2016
+        return SendRequestAsync(method, url, headers, body, noRedirect);
+#pragma warning restore CA2016
+    }
+
+    /// <summary>
+    /// Send an HTTP request that may be retried. When the transport retries a
+    /// failed attempt it calls <paramref name="refreshHeaders"/> first and sends
+    /// the headers it returns, so every retry is a fresh request that carries
+    /// current authentication headers. The default implementation ignores the
+    /// callback and delegates to the six-argument overload.
+    /// </summary>
+    /// <param name="method">HTTP method</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (may be null)</param>
+    /// <param name="noRedirect">When <c>true</c>, do not follow 3xx responses.</param>
+    /// <param name="refreshHeaders">Rebuilds the request headers for a retry, or null to reuse them.</param>
+    /// <param name="cancellationToken">Token that cancels the request.</param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        CancellationToken cancellationToken
+    ) => SendRequestAsync(method, url, headers, body, noRedirect, cancellationToken);
+
+    /// <summary>
+    /// Send an HTTP request with per-call overrides of the transport's timeout
+    /// and retry limit. A null override keeps the transport's own setting. The
+    /// default implementation ignores both overrides and delegates to the
+    /// seven-argument overload; a transport that owns the timeout and the retry
+    /// loop should implement this method and honour them.
+    /// </summary>
+    /// <param name="method">HTTP method</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (may be null)</param>
+    /// <param name="noRedirect">When <c>true</c>, do not follow 3xx responses.</param>
+    /// <param name="refreshHeaders">Rebuilds the request headers for a retry, or null to reuse them.</param>
+    /// <param name="timeout">End-to-end timeout in milliseconds for this call, or null for the transport's.</param>
+    /// <param name="maxRetries">Maximum number of retries for this call, or null for the transport's.</param>
+    /// <param name="cancellationToken">Token that cancels the request.</param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect,
+        Func<Task<Dictionary<string, string>>>? refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        CancellationToken cancellationToken
+    ) => SendRequestAsync(method, url, headers, body, noRedirect, refreshHeaders, cancellationToken);
+
+    /// <summary>
+    /// Releases any resources held by this client (connection pool, sockets).
+    /// The default implementation is a no-op; implementations that own a
+    /// pooled HTTP client should dispose of it.
+    /// </summary>
+    void IDisposable.Dispose()
+    {
+        /* No-op by default. Implementations override to release resources.
+           SuppressFinalize is still called so a derived type that adds a
+           finalizer does not have to re-implement IDisposable to do it. */
+        GC.SuppressFinalize(this);
+    }
+}

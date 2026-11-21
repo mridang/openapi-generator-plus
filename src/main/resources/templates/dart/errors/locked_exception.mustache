@@ -1,0 +1,15 @@
+{{>api_info}}
+import 'client_exception.dart';
+
+/// Exception for HTTP 423 Locked.
+class LockedException extends ClientException {
+  const LockedException({
+    super.message = '',
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  }) : super(statusCode: 423);
+}

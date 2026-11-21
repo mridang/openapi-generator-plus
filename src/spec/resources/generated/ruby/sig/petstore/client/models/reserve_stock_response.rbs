@@ -1,0 +1,13 @@
+module Petstore::Client::Models
+  module ReserveStockResponse
+    def self.openapi_one_of: () -> Array[Symbol]
+    def self.serialize_oneof: (untyped) -> untyped
+    def self.as_reservation: (untyped) -> Reservation?
+    def self.reservation_variant?: (untyped) -> bool
+    def self.from_reservation: (Reservation) -> Reservation
+    def self.as_reservation_receipt: (untyped) -> ReservationReceipt?
+    def self.reservation_receipt_variant?: (untyped) -> bool
+    def self.from_reservation_receipt: (ReservationReceipt) -> ReservationReceipt
+    def self.build: (untyped) -> untyped
+  end
+end

@@ -1,0 +1,126 @@
+{{>api_info}}
+
+using {{packageName}}.Auth;
+using Xunit;
+
+namespace Test;
+
+public class BasicAuthenticatorTest
+{
+    [Fact]
+    public void BhvAuthbasic011ValidCredentialsProduceBasicHeader()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        var headers = auth.GetAuthHeaders();
+        Assert.Equal("Basic YWxpY2U6czNjcmV0", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void BhvAuthbasic003MissingOrEmptyCredentialsFailAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "", "s3cret"));
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice", ""));
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", null!, "s3cret"));
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice", null!));
+    }
+
+    [Fact]
+    public void BhvAuthbasic009RejectsUsernameWithCrlfAtConstruction()
+    {
+        // auth-validation-timing: credentials are validated eagerly at
+        // construction (matching the 10-SDK majority), so a malformed username
+        // throws when the authenticator is created, not at first use.
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret"));
+    }
+
+    [Fact]
+    public void BhvAuthbasic007RejectsPasswordWithNulAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"));
+    }
+
+    [Fact]
+    public void BhvAuthbasic008RejectsUsernameWithColonAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+    }
+
+    [Fact]
+    public void BhvAuthbasic005PasswordIsNotLeakedInDefaultToString()
+    {
+        // authenticator-secret-in-default-string-repr: the default ToString()
+        // must never expose the stored password.
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        Assert.DoesNotContain("s3cret", auth.ToString(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// ToString() must redact the password: the raw secret must be absent and
+    /// the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public void BhvAuthbasic006RedactsSecret()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        string repr = auth.ToString();
+        Assert.DoesNotContain("s3cret", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthbasic010ReprShowsTheHostAndTheUsername()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+
+        Assert.Equal(
+            "BasicAuthenticator(Host=https://api.example.com, Username=alice, Password=***)",
+            auth.ToString());
+    }
+
+    [Fact]
+    public void BhvAuthbasic004NonAsciiCredentialsAreEncodedAsUtf8()
+    {
+        var auth = new BasicAuthenticator(
+            "https://api.example.com", "\u00fcn\u00efc\u00f8d\u00e9", "p\u00e4ssw\u00f6rd");
+
+        Assert.Equal(
+            "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==",
+            auth.GetAuthHeaders()["Authorization"]);
+    }
+
+    [Fact]
+    public void BhvAuthbasic020MasksThePasswordInDebugOutput()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        string repr = auth.ToString();
+        Assert.DoesNotContain("s3cret", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvAuthbasic018PasswordMayContainAColon()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "p:ss");
+
+        Assert.Equal("Basic YWxpY2U6cDpzcw==", auth.GetAuthHeaders()["Authorization"]);
+    }
+
+    [Fact]
+    public void BhvErrors081RefusalNamesTheUsernameOrThePasswordAtFault()
+    {
+        var user = Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "bad:user", "s3cret"));
+        Assert.Contains("username", user.Message, StringComparison.Ordinal);
+
+        var pass = Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "alice", "bad\npass"));
+        Assert.Contains("password", pass.Message, StringComparison.Ordinal);
+    }
+}

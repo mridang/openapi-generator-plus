@@ -1,0 +1,471 @@
+# {{appNameBase}} SDK
+
+Auto-generated Dart SDK client for the {{appName}} API.
+{{#homepageUrl}}
+
+- Homepage: <{{{.}}}>
+{{/homepageUrl}}
+{{#repositoryUrl}}
+{{^homepageUrl}}
+
+{{/homepageUrl}}
+- Repository: <{{{.}}}>
+{{/repositoryUrl}}
+{{#documentationUrl}}
+- Documentation: <{{{.}}}>
+{{/documentationUrl}}
+{{#issueTrackerUrl}}
+- Issues: <{{{.}}}>
+{{/issueTrackerUrl}}
+{{#authors}}
+
+Authors: {{{.}}}
+{{/authors}}
+
+## Requirements
+
+- **Dart SDK:** `>=3.11.0 <4.0.0`
+
+### Tooling
+
+The Dart toolchain bundles the formatter, linter, static analyser, and
+upgrade tool. No additional tools need to be installed.
+
+| Tool        | Command                | Notes                                                |
+|-------------|------------------------|------------------------------------------------------|
+| Formatter   | `dart format .`        | Built into the Dart SDK                              |
+| Linter      | `dart analyze`         | Uses `package:lints/recommended.yaml`                |
+| Analyser    | `dart analyze`         | Strict casts, inference and raw types (`analysis_options.yaml`) |
+| Auto-fix    | `dart fix --apply`     | Applies analyser-suggested fixes (Rector-equivalent) |
+
+## Installation
+
+Add the dependency to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  {{packageName}}: ^{{packageVersion}}
+```
+
+Then run `dart pub get`.
+
+## Usage
+
+```dart statements
+import 'dart:io';
+
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+{{>usage_statements}}
+```
+
+Close the client with `client.close()` to release its connections. Errors derive
+from `{{errorPrefix}}Exception`; `NetworkException` and `NetworkTimeoutException` mean no
+HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See
+`SKILLS.md` for authentication, servers and error handling.
+
+### Raw responses
+
+Every operation has a `...WithHttpInfo` variant returning an `ApiResult<T>`
+with `statusCode`, `data`, `rawBody` and the lower-cased `headers`. It is the
+way to read a response header.
+
+### Timeouts
+
+`TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
+milliseconds for the whole call, redirects included; the default is 10 seconds
+and `null` waits indefinitely. A call that exceeds it fails with
+`NetworkTimeoutException`.
+
+### Automatic retries
+
+`TransportOptions.builder().maxRetries(n)` sets how many times a failed call is
+sent again; the default is 2 and `0` turns retries off. A call is retried after
+a network error that happened before a response arrived (only for GET, HEAD, OPTIONS, TRACE, PUT, DELETE and QUERY; TLS and certificate failures are never retried), and after a response
+with status 408, 409, 429 or 500-599 (not 501). The wait starts at 0.5 seconds,
+doubles up to 8 seconds and carries up to 25% jitter; a `Retry-After` header
+(seconds or an HTTP date, at most 60 seconds) replaces it. Retries never extend
+the request timeout: a wait that would outlast it is not taken and the last
+error is reported. A call with a multipart body is never retried. Every retry
+is a new request and asks the authenticator for its headers again.
+
+```dart file
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+TransportOptions newTransport() {
+  return TransportOptions.builder().maxRetries(0).build();
+}
+```
+
+### Expired tokens
+
+When an OAuth2 or OpenID Connect call answers 401, the SDK drops the cached
+access token (the refresh token is kept), obtains a new one and sends the
+request once more. A second 401 is reported as `UnauthorizedException`. API-key,
+basic and bearer authenticators are never replayed, and neither is a multipart
+body. `invalidateAccessToken()` on the OAuth2 and OpenID Connect authenticators
+does the same on demand.
+
+The authorization-code flow (also through OpenID Connect) is protected with
+PKCE `S256`: `buildAuthorizationUrl` adds `code_challenge` and
+`code_challenge_method=S256`, keeps the matching verifier in the authenticator,
+and `exchangeCode` sends it as `code_verifier`.
+
+### Request id
+
+Set `TransportOptions.builder().injectRequestId(true)` and the SDK adds a unique
+`X-Request-ID` header to every request unless you set your own (header names are
+matched case-insensitively). Quote it when you report a problem with a call.
+
+### Cancellation
+
+The SDK has no cancellation API of its own. To bound how long a call can
+take, set the request timeout on `TransportOptions`; a call that exceeds it
+fails with `NetworkTimeoutException`.
+
+### Custom HTTP client
+
+`TransportOptions.builder().httpClient(client)` makes the SDK send every
+request through your own `package:http` `Client`. The SDK keeps its request
+timeout, redirect handling, user agent and default headers on top, and never
+closes the client: you own its lifecycle. Because the client carries its own
+proxy and TLS settings, combining it with `proxy`, `caCertPath` or
+`verifySsl(false)` is rejected when the options are built.
+
+### Testing your code
+
+Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```dart file
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+// Code under test takes the group interface, never the generated class.
+void use({{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} api) {}
+
+// A fake implements the interface; noSuchMethod keeps the operations you do not fake out of the way.
+class Fake implements {{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+void main() {
+  use(Fake());
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; forward `noSuchMethod` as above so only the operation you fake is written.
+
+### Per-call options
+
+Every operation takes an options object as its trailing argument (`null` when
+you set nothing), also an operation with no parameters of its own. It carries
+three fields for that call only: `timeout` (end-to-end, in milliseconds,
+replacing the transport's), `headers` (a header already set, in any case, is
+replaced) and `maxRetries` (replacing the transport's; `0` turns retries off).
+A negative `timeout` or `maxRetries` is refused with an `ArgumentError`.
+
+{{>per_call_options_fence}}
+
+### Errors
+
+`ApiException` and every subclass carry `requestMethod` and `requestPath` (the
+path only, never the query string), and the message names them:
+`GET /items/7 returned status code 404`. `NetworkException` and
+`NetworkTimeoutException` carry them too.
+
+### Credentials
+
+Each credential comes from, in order: the argument you pass or a callback (a
+bearer token or API key can come from a callback that is called on every
+request, which suits a rotating or short-lived credential; passing both is
+refused), then an environment variable read once when the authenticator is
+built (an empty value counts as unset). A credential found nowhere
+fails when the authenticator (and so the client) is built.
+{{#hasCredentialEnvVars}}
+The authenticator of each security scheme reads its own variables:
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+{{#credentialEnvVars}}
+| `{{schemeId}}` | `{{field}}` | `{{envName}}` |
+{{/credentialEnvVars}}
+
+{{/hasCredentialEnvVars}}
+`{{envVarPrefix}}_TOKEN`, `{{envVarPrefix}}_API_KEY`, `{{envVarPrefix}}_USERNAME` and
+`{{envVarPrefix}}_PASSWORD` are the variables of the base authenticators, which
+`{{clientClassName}}.withToken` uses. Set the `envVarPrefix` option to change the prefix.
+The browser has no environment: pass `environment:` a map.
+
+```dart file
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+{{clientClassName}} clientWithRotatingToken(Future<String> Function() readToken) {
+  return {{clientClassName}}.withToken(
+    host: 'https://api.example.com',
+    tokenProvider: () async => await readToken(),
+  );
+}
+```
+
+### Credentials per security scheme
+
+{{clientClassName}} takes one optional credential for each security scheme of the API, named after the scheme{{#clientSchemes}}{{#-first}}: `{{/-first}}{{paramName}}{{^-last}}`, `{{/-last}}{{#-last}}`{{/-last}}{{/clientSchemes}}. Each operation uses the credential of the scheme its spec names; there is no per-call override. An optional `authenticator` serves any operation no scheme credential matches. The client is refused when it gets no credential at all.
+
+### Copying models
+
+Models are immutable: every field is `final`. `copyWith` returns a changed copy
+and leaves the original alone; a field you leave out keeps its value, and a
+nullable field is cleared by passing `null`. The collections inside a model are
+shared with the copy, not duplicated.
+
+### Several success responses
+
+An operation whose 2xx responses have different schemas returns a union, and
+the body is decoded as the schema of the status code the server answered with.
+The union has one named constructor, `isX` and `asX` accessor per model variant
+as well as `actualInstance`.
+
+### Response compression
+
+The SDK sends `Accept-Encoding: gzip, deflate` and decodes either; `br` and
+`zstd` are not offered. In the browser `fetch` negotiates and decodes the
+encoding itself.
+
+### Logging
+
+The SDK writes no logs. To see requests, give it your own `package:http`
+`Client` (see above) that logs, or wrap calls in your own code; a failed call
+carries its method, path, status and headers on the `ApiException`, with
+credential headers redacted in `toString()`. Set
+`TransportOptions.builder().injectRequestId(true)` to correlate with server logs.
+
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call: it can edit the request headers before the request is sent and observe the status or the error afterwards, and it does nothing when no hook is set. Set it once on the client or on the `Configuration`, and combine several with `chainCallHooks`, which starts them in the order given and finishes their observers in the reverse order.
+
+```dart file
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+class SourceHook implements CallHook {
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    headers['X-Source'] = 'nightly-job';
+    return null;
+  }
+}
+
+final client = {{clientClassName}}.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+  callHook: SourceHook(),
+);
+```
+
+`start` runs once per call, however many sends the call takes, right after the trace context is injected, so `headers` is the final header set: authentication and default headers included, and any of them can be replaced. A header you set is on every send of the call, retries and the replay after a 401 included; the fresh authentication headers of a replay still replace a header of the same name. `start` returns a `CallObserver`, or `null` when it has nothing to observe, and `CallObserver.finish` is called exactly once when the call has ended, with a `CallOutcome`: the `statusCode` (0 when no response arrived), the lower-cased response `headers` (`null` when no response arrived) and the `error`, the very error the caller receives. `CallInfo` carries the `operationId` as written in the spec, the upper-case `method`, the `urlTemplate`, the `url` without its query string and the `serverAddress`. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook runs above the transport, so it also fires with a `package:http` `Client` you supplied.
+
+To record one span, one request count and one duration per call, give the SDK a hook built on the OpenTelemetry API. The SDK itself has no OpenTelemetry dependency and Dart cannot detect an optional package, so this is a recipe you copy into your project rather than a class the SDK ships. It names the span after the operation id with kind client, sets `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code for a status of 400 or more, else `timeout`, `network_error`, `serialization_error` or `_OTHER`), and writes the `traceparent` of the client span into the request itself. The `opentelemetry` package offers no histogram and its SDK counter records nothing, so the count and the duration go to the functions you pass as `onRequest` and `onDuration`; forward them to your metrics library.
+
+The function at the end of the recipe passes it as the `callHook`, with your tracer provider and propagator.
+
+```dart file
+{{>call_hook_recipe}}
+
+{{clientClassName}} tracedClient() => {{clientClassName}}.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+  callHook: OpenTelemetryCallHook(
+    tracerProvider: otel.globalTracerProvider,
+    propagator: otel.W3CTraceContextPropagator(),
+  ),
+);
+```
+
+### Versioning
+
+The package version is `{{packageVersion}}` and follows semantic versioning: a
+breaking change to the public API raises the major version. Pin a range such as
+`^{{packageVersion}}` in `pubspec.yaml`. The Dart SDK floor is part of the
+contract and only rises in a major version.
+
+## Platform support
+
+The HTTP transport ships in two variants selected automatically at compile time
+by a conditional export (`default_api_client.dart`); both share a single
+`AbstractApiClient` built on `package:http`, so redirect handling, multipart
+encoding, decompression, charset decoding, and header injection are identical
+everywhere:
+
+- **Native** (Dart VM, Flutter mobile/desktop, server) uses a `dart:io`
+  `HttpClient` via `IOClient`, with full support for proxy routing, custom CA
+  certificates, and TLS-verification toggling.
+- **Flutter Web** (and any `dart2js`/`wasm` target) uses `package:http`'s
+  `BrowserClient`, importing no `dart:io`, so the package compiles and runs in
+  the browser. Proxy / custom-CA / TLS-off are not expressible through the
+  browser's `fetch`, so requesting one throws an `ArgumentError` at construction
+  rather than being silently ignored; everything else works unchanged. The
+  gzip-lie response hardening is a native-only extra (the browser already
+  decodes `Content-Encoding`).
+
+## Build
+
+```bash
+dart pub get
+```
+
+## Format
+
+```bash
+dart format .
+```
+
+## Analyse
+
+```bash
+dart analyze
+```
+
+## Auto-fix
+
+```bash
+dart fix --apply
+```
+
+## Test
+
+```bash
+dart test
+```
+
+## Package
+
+- Name: `{{packageName}}`
+- Version: `{{packageVersion}}`
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+Dart's `jsonDecode` returns a `num` (the union of `int` and `double`).
+On the Dart VM (Flutter mobile and desktop, servers) an integer literal
+that fits in 64 bits stays an exact `int`, so `format: int64` values such
+as Twitter / X, Snowflake and Discord IDs are preserved. Compiled to
+JavaScript (Flutter web) `int` is a double, so integers above 2^53
+(9 007 199 254 740 991) lose precision there.
+
+`format: decimal` / `format: number` values are likewise stored as
+`double`, so monetary values lose exact decimal representation.
+`0.1 + 0.2` is `0.30000000000000004`. Do not do arithmetic on
+prices, balances, or other money-typed fields; use the `decimal`
+package or pass values as strings.
+
+Fixing this end-to-end would require switching generated model
+fields to `BigInt` and a custom JSON parser, which breaks the
+arithmetic operators on every existing consumer. Documented as a
+known limitation.
+
+### `ClientException` shares its name with `package:http`
+
+The SDK's `ClientException` (every 4xx response) has the same name as
+`package:http`'s `ClientException`. A file that imports both must import
+`package:http` with a prefix, for example
+`import 'package:http/http.dart' as http;`, and refer to its type as
+`http.ClientException`. The SDK itself imports `package:http` that way.
+
+### Optional and nullable are one type
+
+A property that is optional, a property that is nullable and one that is both
+are all `T?`, so a missing key and an explicit `null` read the same after
+decoding. A required property that is nullable keeps its key mandatory on
+decode, and encoding always writes it (`null` when unset). A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
+
+### Unknown enum values and discriminators
+
+An enum value the spec does not list decodes to the enum's catch-all member (`unknownDefaultOpenApi`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationException`. A discriminator value that maps to no variant still fails
+loudly with `SerializationException`.
+
+### Response headers
+
+`headers` on a response is a lower-cased map with one string per name; a header
+sent on several lines is joined with `, ` in the order received.
+
+### Streaming is not supported
+
+Request and response bodies are buffered in memory. To stream, supply your own
+`package:http` `Client` through `TransportOptions.builder().httpClient(...)`.
+
+### `Configuration` and `TransportOptions` are separate
+
+`Configuration` holds what belongs to the API (base URL, default headers).
+`TransportOptions` holds how the bytes travel (proxy, TLS, timeouts, retries,
+the HTTP client). They are built and passed separately on purpose.
+
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server. The
+generated models do not check them: Dart has no validation in its model layer
+(the models are plain immutable classes), so a value outside a constraint is
+sent as given and rejected by the server. The only client-side checks are the
+type checks the models make while decoding and the presence of required
+properties. If you want fast-fail validation before the network round trip,
+plug in a JSON Schema validator library.
+
+`uniqueItems` arrays are held in a `Set` and sent in the `Set`'s own iteration
+order (insertion order for the default `LinkedHashSet`). The order is not
+sorted and is not specified, so do not rely on it.
+
+## Not supported
+
+### Webhooks and callbacks
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Request and response bodies in `application/xml` and the XML `nodeType`
+keyword are not generated (#70, #88). An operation that only declares XML has
+no usable body in this SDK.
+
+### Link Objects
+
+OpenAPI Link Objects are ignored (#78).
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes produce no authenticator (#90). Configure a client
+certificate on your own `package:http` `Client` and pass it with
+`TransportOptions.builder().httpClient(client)`.
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
+
+### SOCKS proxies
+
+`TransportOptionsBuilder.proxy()` accepts only `http://` and `https://` URLs.
+Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
+at construction time with a clear error. SOCKS support would
+require enabling extra dependencies / feature flags on the underlying
+HTTP library in every one of the 12 SDKs we generate, with non-trivial
+API divergence; we explicitly chose not to. If you need SOCKS, route
+through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares {{licenseId}}, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.

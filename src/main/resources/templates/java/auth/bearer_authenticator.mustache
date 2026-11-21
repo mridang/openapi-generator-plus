@@ -1,0 +1,144 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth;
+
+import java.util.Collections;
+import java.util.Map;
+import java.util.function.Supplier;
+import javax.annotation.Nullable;
+
+/**
+ * Authenticator for HTTP Bearer token authentication.
+ *
+ * <p>The token is either fixed or handed out by a callback that runs before every request, so a
+ * rotating or short-lived token never needs a new client.
+ */
+public final class BearerAuthenticator extends BaseAuthenticator {
+
+    private final String host;
+    @Nullable private final String token;
+    @Nullable private final Supplier<String> tokenProvider;
+
+    /**
+     * Creates an HTTP Bearer token authenticator.
+     *
+     * @param host the base URL of the API
+     * @param token the bearer token
+     * @throws IllegalArgumentException if the token is empty or holds a character that is not
+     *     printable ASCII
+     */
+    public BearerAuthenticator(String host, String token) {
+        this(host, token, null);
+    }
+
+    /**
+     * Creates an HTTP Bearer token authenticator whose token comes from a callback.
+     *
+     * <p>The callback runs before every request and returns the current token; each token it
+     * returns is validated like a fixed one when the request is made.
+     *
+     * @param host the base URL of the API
+     * @param tokenProvider returns the current bearer token
+     */
+    public BearerAuthenticator(String host, Supplier<String> tokenProvider) {
+        this(host, null, tokenProvider);
+    }
+
+    /**
+     * Creates an HTTP Bearer token authenticator from a fixed token or a token callback.
+     *
+     * <p>Pass exactly one of {@code token} and {@code tokenProvider}. The callback runs before
+     * every request and returns the current token; each token it returns is validated like a
+     * fixed one when the request is made.
+     *
+     * @param host the base URL of the API
+     * @param token the bearer token, or {@code null} when {@code tokenProvider} is given
+     * @param tokenProvider returns the current bearer token, or {@code null} when {@code token}
+     *     is given
+     * @throws IllegalArgumentException if both or neither is given, or if the fixed token is
+     *     empty or holds a character that is not printable ASCII
+     */
+    public BearerAuthenticator(
+            String host, @Nullable String token, @Nullable Supplier<String> tokenProvider) {
+        if (token != null && tokenProvider != null) {
+            throw new IllegalArgumentException("Pass either token or tokenProvider, not both");
+        }
+        {{! RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. }}
+        {{! Reject anything outside printable ASCII + TAB so callers see a }}
+        {{! clear error rather than (a) HTTP header injection from a CR/LF }}
+        {{! (common when reading tokens from .env / files with trailing }}
+        {{! newlines), or (b) silently-mangled non-ASCII bytes that }}
+        {{! different HTTP libs encode differently per language. Also }}
+        {{! reject empty/whitespace tokens: an empty token would otherwise }}
+        {{! emit the literal "Authorization: Bearer " header, sending the }}
+        {{! request effectively unauthenticated. Validated eagerly at }}
+        {{! construction; the class is final so this does not trip SpotBugs }}
+        {{! CT_CONSTRUCTOR_THROW. }}
+        if (tokenProvider == null) {
+            validate(token);
+        }
+        this.host = host;
+        this.token = token;
+        this.tokenProvider = tokenProvider;
+    }
+
+    private static void validate(@Nullable String token) {
+        if (token == null || isAsciiBlank(token)) {
+            throw new IllegalArgumentException("Bearer token must not be empty");
+        }
+        for (int i = 0; i < token.length(); i++) {
+            char c = token.charAt(i);
+            if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
+                throw new IllegalArgumentException(
+                        "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
+            }
+        }
+    }
+
+    /* Blank means empty or only ASCII whitespace (SP, HT, LF, VT, FF, CR). */
+    private static boolean isAsciiBlank(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c != ' ' && (c < '\t' || c > '\r')) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        String current = token;
+        if (tokenProvider != null) {
+            current = tokenProvider.get();
+            validate(current);
+        }
+        /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+         * from env files are commonly stored already-prefixed; emitting
+         * "Bearer Bearer xyz" would otherwise silently break auth. */
+        String value = java.util.Objects.requireNonNull(current);
+        if (value.length() >= 7) {
+            String head = value.substring(0, 7);
+            if ("bearer ".equalsIgnoreCase(head)) {
+                value = value.substring(7);
+            }
+        }
+        return Collections.singletonMap("Authorization", "Bearer " + value);
+    }
+
+    /**
+     * Returns a string representation that redacts the token so credentials
+     * never leak into logs or stack traces (matching the other SDKs).
+     *
+     * @return a redacted string representation
+     */
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(host=" + host + ", token=***)";
+    }
+}

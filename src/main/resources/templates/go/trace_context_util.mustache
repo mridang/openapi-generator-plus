@@ -1,0 +1,71 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"context"
+	"sync/atomic"
+)
+
+// InjectTraceContext injects the current OpenTelemetry trace context into the
+// given headers map, adding W3C Trace Context headers (traceparent, tracestate)
+// to outgoing API requests when OpenTelemetry is available.
+//
+// Go cannot discover an optional package at runtime, so the propagator is
+// registered by the application instead. If no propagator has been registered
+// with SetTraceContextPropagator, this function silently no-ops.
+//
+// The ctx argument is the call context of the operation. It is handed to the
+// propagator, so a span carried by it reaches the traceparent and tracestate
+// headers. A nil ctx is treated as context.Background().
+//
+// The headers argument is the mutable map of request headers.
+//
+// The propagator injects into a scratch map, and only its non-empty entries
+// reach headers. The W3C propagator always writes tracestate, empty or not,
+// and an empty tracestate header is not what the other SDKs send.
+func InjectTraceContext(ctx context.Context, headers map[string]string) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	propagate := traceContextPropagator.Load()
+	if propagate == nil {
+		return
+	}
+	injected := make(map[string]string)
+	(*propagate)(ctx, injected)
+	for key, value := range injected {
+		if value != "" {
+			headers[key] = value
+		}
+	}
+}
+
+// TraceContextPropagatorFunc is a function that injects trace context into a
+// mutable map of request headers.
+type TraceContextPropagatorFunc func(ctx context.Context, headers map[string]string)
+
+// traceContextPropagator holds the current propagator function. It is nil by
+// default (no-op) and is read and written atomically, so a propagator can be
+// registered while requests are in flight.
+var traceContextPropagator atomic.Pointer[TraceContextPropagatorFunc]
+
+// SetTraceContextPropagator sets the function used to inject trace context
+// headers. Pass nil to disable trace context injection.
+//
+// The ctx handed to the propagator is the call context of the operation, so it
+// carries the caller's span:
+//
+//	import (
+//		"go.opentelemetry.io/otel/propagation"
+//	)
+//
+//	{{packageName}}.SetTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
+//		propagation.TraceContext{}.Inject(ctx, propagation.MapCarrier(headers))
+//	})
+func SetTraceContextPropagator(fn TraceContextPropagatorFunc) {
+	if fn == nil {
+		traceContextPropagator.Store(nil)
+		return
+	}
+	traceContextPropagator.Store(&fn)
+}

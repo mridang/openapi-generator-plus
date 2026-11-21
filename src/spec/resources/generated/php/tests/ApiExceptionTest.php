@@ -1,0 +1,893 @@
+<?php
+
+declare(strict_types=1);
+
+use PetstoreClient\Errors\ApiException;
+use PetstoreClient\Errors\SerializationException;
+use PetstoreClient\Errors\OpenAPIException;
+use PetstoreClient\Models\Category;
+
+test('bhv misc 015 a typed view of a non object error body is a serialization error', function (): void {
+    $err = new \PetstoreClient\Errors\BadRequestException(message: 'boom', responseHeaders: [], responseBody: '[1,2]');
+
+    expect(fn (): mixed => $err->getTypedErrorBody(Category::class))->toThrow(SerializationException::class);
+});
+
+test('bhv misc 016 the rendered body is capped and states the bytes omitted', function (): void {
+    $err = new ApiException(502, 'bad gateway', null, str_repeat('a', 3000));
+
+    expect((string) $err)->toContain('more bytes');
+    expect(strlen((string) $err))->toBeLessThan(1500);
+});
+
+test('bhv misc 018 a token error with a non json body exposes status, no code and the raw text', function (): void {
+    $err = new \PetstoreClient\Errors\OAuth2ServerException(500, null, null, null, 'upstream exploded');
+
+    expect($err->statusCode)->toBe(500);
+    expect($err->errorCode)->toBeNull();
+    expect($err->rawBody)->toBe('upstream exploded');
+});
+
+test('bhv misc 020 the request line needs both the method and the path', function (): void {
+    $err = ApiException::fromResponse(500, [], 'x', null, '/items');
+
+    expect((string) $err)->not->toContain('Request:');
+});
+
+test('bhv misc 022 a server error is an instance of the sdk root error type', function (): void {
+    $err = ApiException::fromResponse(503, [], '{}');
+
+    expect($err)->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    expect($err)->toBeInstanceOf(OpenAPIException::class);
+});
+
+test('bhv misc 023 an unmapped 5xx is the generic server error and another unmapped status the base error', function (): void {
+    expect(ApiException::fromResponse(520, [], null))->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    expect(ApiException::fromResponse(399, [], null)::class)->toBe(ApiException::class);
+});
+
+test('bhv errors 004 exposes status code, message, body, headers and error body', function (): void {
+    $ex = new ApiException(
+        404,
+        'not found',
+        ['content-type' => 'application/json'],
+        '{"id":7,"name":"missing"}',
+    );
+
+    expect($ex->getStatusCode())->toBe(404);
+    expect($ex->getMessage())->toBe('not found');
+    expect($ex->getResponseBody())->toBe('{"id":7,"name":"missing"}');
+    expect($ex->getResponseHeaders())->toBe(['content-type' => 'application/json']);
+    expect($ex->getErrorBody())->toBeNull();
+});
+
+test('bhv errors 021 null headers and body mark transport-no-response', function (): void {
+    // apierror-responsebody-headers-nullable-split: null is distinct from an
+    // empty header map / empty body so a pre-response transport failure can
+    // be encoded.
+    $ex = new ApiException(
+        0,
+        'connection reset',
+    );
+
+    expect($ex->getResponseHeaders())->toBeNull();
+    expect($ex->getResponseBody())->toBeNull();
+});
+
+test('bhv errors 019 is an Exception subclass with status in its string form', function (): void {
+    // getMessage() stays the detail message the exception was constructed
+    // with; the response context is rendered by the string conversion, one
+    // labelled field per line.
+    $ex = new ApiException(500, 'boom', ['x-request-id' => 'abc'], 'the body');
+
+    expect($ex)->toBeInstanceOf(Exception::class);
+    expect($ex->getMessage())->toBe('boom');
+    expect((string) $ex)->toBe(
+        "boom\nHTTP status code: 500"
+        . "\nResponse headers: {\"x-request-id\":\"abc\"}"
+        . "\nResponse body: the body"
+    );
+});
+
+test('bhv errors 001 the string form caps the body, escapes control characters and redacts secret headers', function (): void {
+    $ex = new ApiException(
+        502,
+        'bad gateway',
+        ['x-request-id' => 'abc', 'set-cookie' => 'session=1', 'X-Api-Key' => 'k', 'authorization' => 'Bearer t'],
+        str_repeat('a', 1024) . "tail\nforged: line"
+    );
+
+    $text = (string) $ex;
+
+    expect($text)->toContain('"x-request-id":"abc"');
+    expect($text)->toContain('"set-cookie":"***"');
+    expect($text)->toContain('"X-Api-Key":"***"');
+    expect($text)->toContain('"authorization":"***"');
+    expect($text)->not->toContain('Bearer t');
+    expect($text)->toContain(str_repeat('a', 1024) . '... (17 more bytes)');
+    expect($text)->not->toContain('forged');
+    expect($ex->getResponseBody())->toContain("tail\nforged: line");
+});
+
+test('bhv errors 047 an ApiException is a PHP Throwable and the branded SDK root', function (): void {
+    $ex = new ApiException(500, 'boom');
+
+    expect($ex)->toBeInstanceOf(\Throwable::class);
+    expect($ex)->toBeInstanceOf(OpenAPIException::class);
+});
+
+test('bhv errors 085 a newline in the body is shown escaped, never as a line break', function (): void {
+    $ex = new ApiException(500, 'boom', null, "one\r\ntwo");
+
+    expect((string) $ex)->toContain('Response body: one\x0D\x0Atwo');
+});
+
+test('bhv errors 018 ApiException extends the SDK root OpenAPIException', function (): void {
+    /* One SDK root: ApiException extends OpenAPIException, so a single
+     * catch on OpenAPIException covers every API/HTTP error. */
+    $ex = new ApiException(500, 'boom');
+
+    expect($ex)->toBeInstanceOf(OpenAPIException::class);
+    expect($ex)->toBeInstanceOf(Exception::class);
+});
+
+test('bhv langphp 053 a thrown typed error is caught by a OpenAPIException catch', function (): void {
+    /* Full chain: UnauthorizedException → ClientException → ApiException
+     * → OpenAPIException → \Exception. Catching the root must catch the
+     * 401 typed error. */
+    $caught = null;
+    try {
+        throw new \PetstoreClient\Errors\UnauthorizedException('unauthorized');
+    } catch (OpenAPIException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(\PetstoreClient\Errors\UnauthorizedException::class);
+    expect($caught)->toBeInstanceOf(ApiException::class);
+    expect($caught)->toBeInstanceOf(OpenAPIException::class);
+    assert($caught instanceof ApiException);
+    expect($caught->getStatusCode())->toBe(401);
+});
+
+test('bhv errors 025 SerializationException reaches the SDK root OpenAPIException', function (): void {
+    /* Unified hierarchy: serialization failures must also be catchable via
+     * the single OpenAPIException root, not just the native \RuntimeException. */
+    $ex = new SerializationException('serialize failed');
+
+    expect($ex)->toBeInstanceOf(OpenAPIException::class);
+    expect($ex)->toBeInstanceOf(Exception::class);
+});
+
+test('bhv errors 020 NetworkException and NetworkTimeoutException extend ApiException with status 0', function (): void {
+    /* No HTTP response arrived, so the status is 0 and the transport failure
+     * is kept as the previous exception. Both sit under ApiException so an
+     * existing catch on ApiException keeps catching them. */
+    $cause = new \RuntimeException('connection refused');
+    $network = new \PetstoreClient\Errors\NetworkException('connection refused', $cause);
+    $timeout = new \PetstoreClient\Errors\NetworkTimeoutException('timed out', $cause);
+
+    expect($network)->toBeInstanceOf(ApiException::class);
+    expect($network->getStatusCode())->toBe(0);
+    expect($network->getPrevious())->toBe($cause);
+    expect($timeout)->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
+    expect($timeout)->toBeInstanceOf(ApiException::class);
+    expect($timeout->getStatusCode())->toBe(0);
+    expect($timeout->getPrevious())->toBe($cause);
+});
+
+test('bhv errors 003 every status-specific error keeps an optional cause', function (string $class): void {
+    $cause = new \RuntimeException('root cause');
+
+    $withCause = new $class('failed', null, null, null, $cause);
+    $without = new $class('failed');
+    assert($withCause instanceof \Throwable);
+    assert($without instanceof \Throwable);
+
+    expect($withCause->getPrevious())->toBe($cause);
+    expect($without->getPrevious())->toBeNull();
+})->with([
+    \PetstoreClient\Errors\BadRequestException::class,
+    \PetstoreClient\Errors\UnauthorizedException::class,
+    \PetstoreClient\Errors\ForbiddenException::class,
+    \PetstoreClient\Errors\NotFoundException::class,
+    \PetstoreClient\Errors\ConflictException::class,
+    \PetstoreClient\Errors\UnprocessableEntityException::class,
+    \PetstoreClient\Errors\TooManyRequestsException::class,
+    \PetstoreClient\Errors\PaymentRequiredException::class,
+    \PetstoreClient\Errors\MethodNotAllowedException::class,
+    \PetstoreClient\Errors\RequestTimeoutException::class,
+    \PetstoreClient\Errors\GoneException::class,
+    \PetstoreClient\Errors\PayloadTooLargeException::class,
+    \PetstoreClient\Errors\UnsupportedMediaTypeException::class,
+    \PetstoreClient\Errors\LockedException::class,
+    \PetstoreClient\Errors\NotImplementedException::class,
+    \PetstoreClient\Errors\BadGatewayException::class,
+    \PetstoreClient\Errors\ServiceUnavailableException::class,
+    \PetstoreClient\Errors\GatewayTimeoutException::class,
+    \PetstoreClient\Errors\InternalServerErrorException::class,
+]);
+
+test('bhv errors 080 every typed API error extends the base ApiException', function (): void {
+    /* #5: a caller catching the base ApiException must catch every typed
+     * error the SDK throws. ClientException/ServerException extend
+     * ApiException directly; the status-specific errors extend those. A
+     * catch on ApiException therefore covers them all. */
+    $typed = [
+        new \PetstoreClient\Errors\BadRequestException('bad request'),
+        new \PetstoreClient\Errors\UnauthorizedException('unauthorized'),
+        new \PetstoreClient\Errors\ForbiddenException('forbidden'),
+        new \PetstoreClient\Errors\NotFoundException('not found'),
+        new \PetstoreClient\Errors\ConflictException('conflict'),
+        new \PetstoreClient\Errors\UnprocessableEntityException('unprocessable'),
+        new \PetstoreClient\Errors\TooManyRequestsException('slow down'),
+        new \PetstoreClient\Errors\PaymentRequiredException('slow down'),
+        new \PetstoreClient\Errors\MethodNotAllowedException('slow down'),
+        new \PetstoreClient\Errors\RequestTimeoutException('slow down'),
+        new \PetstoreClient\Errors\GoneException('slow down'),
+        new \PetstoreClient\Errors\PayloadTooLargeException('slow down'),
+        new \PetstoreClient\Errors\UnsupportedMediaTypeException('slow down'),
+        new \PetstoreClient\Errors\LockedException('slow down'),
+        new \PetstoreClient\Errors\NotImplementedException('slow down'),
+        new \PetstoreClient\Errors\BadGatewayException('slow down'),
+        new \PetstoreClient\Errors\ServiceUnavailableException('slow down'),
+        new \PetstoreClient\Errors\GatewayTimeoutException('slow down'),
+        new \PetstoreClient\Errors\ClientException(418, 'client error'),
+        new \PetstoreClient\Errors\InternalServerErrorException('server error'),
+        new \PetstoreClient\Errors\ServerException(503, 'server error'),
+    ];
+
+    foreach ($typed as $ex) {
+        expect($ex)->toBeInstanceOf(ApiException::class);
+    }
+});
+
+test('bhv errors 052 a typed error is caught by a base ApiException catch', function (): void {
+    $caught = null;
+    try {
+        throw new \PetstoreClient\Errors\BadRequestException('bad request');
+    } catch (ApiException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(\PetstoreClient\Errors\BadRequestException::class);
+    expect($caught->getStatusCode())->toBe(400);
+});
+
+test('bhv errors 013 getTypedErrorBody deserializes the body into the given class', function (): void {
+    // Built through fromResponse, the way a real response reaches a caller:
+    // the typed body must come out of the raw body, not out of whatever the
+    // generic parse happened to leave behind.
+    $ex = ApiException::fromResponse(400, [], '{"id":42,"name":"Dogs"}');
+
+    $typed = $ex->getTypedErrorBody(Category::class);
+    expect($typed)->toBeInstanceOf(Category::class);
+    assert($typed instanceof Category);
+    expect($typed->id)->toBe(42);
+    expect($typed->name)->toBe('Dogs');
+});
+
+test('bhv errors 015 getTypedErrorBody returns null when there is no response body', function (): void {
+    $ex = ApiException::fromResponse(500, [], null);
+
+    expect($ex->getTypedErrorBody(Category::class))->toBeNull();
+});
+
+test('bhv errors 014 getTypedErrorBody ignores extraneous fields not on the model', function (): void {
+    $ex = ApiException::fromResponse(422, [], '{"id":1,"name":"Cat","extra":"drop-me"}');
+
+    $typed = $ex->getTypedErrorBody(Category::class);
+    expect($typed)->toBeInstanceOf(Category::class);
+    assert($typed instanceof Category);
+    expect($typed->id)->toBe(1);
+    expect($typed->name)->toBe('Cat');
+});
+
+test('bhv errors 006 fromResponse maps every status to its exception', function (int $status, string $expected): void {
+    $ex = ApiException::fromResponse($status, ['x-request-id' => 'abc'], '{"code":"denied"}');
+
+    expect($ex::class)->toBe($expected);
+    expect($ex->getStatusCode())->toBe($status);
+    expect($ex->getResponseHeaders())->toBe(['x-request-id' => 'abc']);
+    expect($ex->getResponseBody())->toBe('{"code":"denied"}');
+    expect($ex->getErrorBody())->toBe(['code' => 'denied']);
+})->with([
+    [400, \PetstoreClient\Errors\BadRequestException::class],
+    [401, \PetstoreClient\Errors\UnauthorizedException::class],
+    [403, \PetstoreClient\Errors\ForbiddenException::class],
+    [404, \PetstoreClient\Errors\NotFoundException::class],
+    [409, \PetstoreClient\Errors\ConflictException::class],
+    [422, \PetstoreClient\Errors\UnprocessableEntityException::class],
+    [429, \PetstoreClient\Errors\TooManyRequestsException::class],
+    [402, \PetstoreClient\Errors\PaymentRequiredException::class],
+    [405, \PetstoreClient\Errors\MethodNotAllowedException::class],
+    [408, \PetstoreClient\Errors\RequestTimeoutException::class],
+    [410, \PetstoreClient\Errors\GoneException::class],
+    [413, \PetstoreClient\Errors\PayloadTooLargeException::class],
+    [415, \PetstoreClient\Errors\UnsupportedMediaTypeException::class],
+    [423, \PetstoreClient\Errors\LockedException::class],
+    [501, \PetstoreClient\Errors\NotImplementedException::class],
+    [502, \PetstoreClient\Errors\BadGatewayException::class],
+    [503, \PetstoreClient\Errors\ServiceUnavailableException::class],
+    [504, \PetstoreClient\Errors\GatewayTimeoutException::class],
+    [418, \PetstoreClient\Errors\ClientException::class],
+    [500, \PetstoreClient\Errors\InternalServerErrorException::class],
+    [599, \PetstoreClient\Errors\ServerException::class],
+    // 302 is below the client range and 600 above the server range: neither
+    // is a ClientException or a ServerException, both are the base type.
+    [302, ApiException::class],
+    [600, ApiException::class],
+]);
+
+test('bhv errors 201 an error is retryable exactly for the statuses the client retries', function (int $status, bool $retryable): void {
+    expect(ApiException::fromResponse($status, [], null)->isRetryable())->toBe($retryable);
+})->with([
+    [408, true],
+    [409, true],
+    [429, true],
+    [500, true],
+    [502, true],
+    [503, true],
+    [504, true],
+    [599, true],
+    [400, false],
+    [401, false],
+    [403, false],
+    [404, false],
+    [422, false],
+    [501, false],
+    [302, false],
+]);
+
+test('bhv errors 202 an error exposes the x-request-id response header as its request id', /** @param array<string, string>|null $headers */ function (?array $headers, ?string $expected): void {
+    expect(ApiException::fromResponse(500, $headers, null)->getRequestId())->toBe($expected);
+})->with([
+    [['X-Request-ID' => 'abc'], 'abc'],
+    [['x-request-id' => 'abc'], 'abc'],
+    [['other' => 'abc'], null],
+    [[], null],
+    [null, null],
+]);
+
+test('bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default, and a status without a factory keeps the status exception', function (): void {
+    $factory = static fn (string $name): \Closure =>
+        /** @param array<string, string>|null $h */
+        static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, $name, $h, $b);
+    $factories = ['404' => $factory('exact'), '4XX' => $factory('range'), 'default' => $factory('default')];
+
+    foreach ([[404, 'exact'], [418, 'range'], [502, 'default']] as [$status, $expected]) {
+        expect(ApiException::fromResponse($status, [], '{}', 'GET', '/x', $factories)->getMessage())->toBe($expected);
+    }
+
+    /** @param array<string, string>|null $h */
+    $other = static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, 'other', $h, $b);
+
+    expect(ApiException::fromResponse(502, [], '{}', 'GET', '/x', ['404' => $other])::class)
+        ->toBe(\PetstoreClient\Errors\BadGatewayException::class);
+    expect(ApiException::fromResponse(404, [], '{}', 'GET', '/x', [])::class)
+        ->toBe(\PetstoreClient\Errors\NotFoundException::class);
+});
+
+test('bhv errors 204 a body that does not match its declared error schema leaves the status error with the raw body and a cause', function (): void {
+    $ex = \PetstoreClient\Errors\UnexpectedFailureException::fromErrorResponse(400, [], '[1, 2', 'GET', '/x');
+
+    expect($ex::class)->toBe(ApiException::fromResponse(400, [], '[1, 2', 'GET', '/x')::class);
+    expect($ex->getResponseBody())->toBe('[1, 2');
+    expect($ex->getStatusCode())->toBe(400);
+    expect($ex->getPrevious())->toBeInstanceOf(SerializationException::class);
+});
+
+test('bhv errors 007 fromResponse carries the request method and the path without its query string', function (int $status, string $expected): void {
+    $ex = ApiException::fromResponse($status, [], '{}', 'get', 'https://api.example.com/v2/items/7?token=secret#top');
+
+    expect($ex::class)->toBe($expected);
+    expect($ex->getRequestMethod())->toBe('GET');
+    expect($ex->getRequestPath())->toBe('/v2/items/7');
+})->with([
+    [400, \PetstoreClient\Errors\BadRequestException::class],
+    [401, \PetstoreClient\Errors\UnauthorizedException::class],
+    [403, \PetstoreClient\Errors\ForbiddenException::class],
+    [404, \PetstoreClient\Errors\NotFoundException::class],
+    [409, \PetstoreClient\Errors\ConflictException::class],
+    [418, \PetstoreClient\Errors\ClientException::class],
+    [422, \PetstoreClient\Errors\UnprocessableEntityException::class],
+    [429, \PetstoreClient\Errors\TooManyRequestsException::class],
+    [402, \PetstoreClient\Errors\PaymentRequiredException::class],
+    [405, \PetstoreClient\Errors\MethodNotAllowedException::class],
+    [408, \PetstoreClient\Errors\RequestTimeoutException::class],
+    [410, \PetstoreClient\Errors\GoneException::class],
+    [413, \PetstoreClient\Errors\PayloadTooLargeException::class],
+    [415, \PetstoreClient\Errors\UnsupportedMediaTypeException::class],
+    [423, \PetstoreClient\Errors\LockedException::class],
+    [501, \PetstoreClient\Errors\NotImplementedException::class],
+    [502, \PetstoreClient\Errors\BadGatewayException::class],
+    [503, \PetstoreClient\Errors\ServiceUnavailableException::class],
+    [504, \PetstoreClient\Errors\GatewayTimeoutException::class],
+    [500, \PetstoreClient\Errors\InternalServerErrorException::class],
+    [599, \PetstoreClient\Errors\ServerException::class],
+    [302, ApiException::class],
+]);
+
+test('bhv errors 026 the request method and path are rendered on their own line and never carry the query string', function (): void {
+    $ex = ApiException::fromResponse(404, [], null, 'DELETE', '/items/7?api_key=secret');
+
+    expect((string) $ex)->toBe("API returned status code 404\nHTTP status code: 404\nRequest: DELETE /items/7");
+    expect((string) $ex)->not->toContain('secret');
+});
+
+test('bhv errors 050 response headers render in the error text as compact JSON with sorted keys and unescaped slashes', function (): void {
+    $ex = new ApiException(302, 'moved', [
+        'x-b' => '2',
+        'location' => 'https://example.com/a',
+        'x-a' => '1',
+    ]);
+
+    expect((string) $ex)->toContain('Response headers: {"location":"https://example.com/a","x-a":"1","x-b":"2"}');
+});
+
+test('bhv errors 051 an empty error message falls back to the generic error line', function (): void {
+    expect((string) new ApiException(502, ''))
+        ->toBe("Error message: the server returns an error\nHTTP status code: 502");
+});
+
+test('bhv errors 053 each named error pins its own status code', function (string $class, int $status): void {
+    $error = new $class('x');
+    \assert($error instanceof \PetstoreClient\Errors\ApiException);
+    expect($error->getStatusCode())->toBe($status);
+})->with([
+    [\PetstoreClient\Errors\BadRequestException::class, 400],
+    [\PetstoreClient\Errors\UnauthorizedException::class, 401],
+    [\PetstoreClient\Errors\ForbiddenException::class, 403],
+    [\PetstoreClient\Errors\NotFoundException::class, 404],
+    [\PetstoreClient\Errors\ConflictException::class, 409],
+    [\PetstoreClient\Errors\UnprocessableEntityException::class, 422],
+    [\PetstoreClient\Errors\TooManyRequestsException::class, 429],
+    [\PetstoreClient\Errors\InternalServerErrorException::class, 500],
+]);
+
+test('bhv errors 055 status error constructors default the response context to null', function (): void {
+    $ex = new \PetstoreClient\Errors\BadRequestException();
+
+    expect($ex->getStatusCode())->toBe(400);
+    expect($ex->getResponseHeaders())->toBeNull();
+    expect($ex->getResponseBody())->toBeNull();
+    expect($ex->getErrorBody())->toBeNull();
+    expect($ex->getRequestMethod())->toBeNull();
+    expect($ex->getRequestPath())->toBeNull();
+});
+
+test('bhv errors 056 a status at or above 600 yields the base error and not a server error', function (): void {
+    $ex = ApiException::fromResponse(600, ['x-request-id' => 'abc'], null);
+
+    expect($ex::class)->toBe(ApiException::class);
+    expect($ex)->not->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    expect($ex->getStatusCode())->toBe(600);
+});
+
+test('bhv errors 012 an error built without a request has no request context', function (): void {
+    $ex = new ApiException(500, 'boom');
+
+    expect($ex->getRequestMethod())->toBeNull();
+    expect($ex->getRequestPath())->toBeNull();
+    expect((string) $ex)->not->toContain('Request:');
+});
+
+test('bhv langphp 054 a bare path or a query only target reduces to a path', function (string $target, string $expected): void {
+    expect(ApiException::fromResponse(500, [], null, 'GET', $target)->getRequestPath())->toBe($expected);
+})->with([
+    'absolute path' => ['/items/7?x=1', '/items/7'],
+    'full url' => ['https://h:8443/a/b?x=1', '/a/b'],
+    'host only' => ['https://h?x=1', '/'],
+    'fragment' => ['/a#frag', '/a'],
+]);
+
+test('bhv errors 005 fromResponse leaves the error body null when the body is not JSON', function (): void {
+    $ex = ApiException::fromResponse(599, [], '<html>bad gateway</html>');
+
+    expect($ex::class)->toBe(\PetstoreClient\Errors\ServerException::class);
+    expect($ex->getResponseBody())->toBe('<html>bad gateway</html>');
+    expect($ex->getErrorBody())->toBeNull();
+});
+
+test('bhv errors 008 fromResponse strips a leading byte order mark before decoding the error body', function (): void {
+    $e = \PetstoreClient\Errors\ApiException::fromResponse(400, [], "\xEF\xBB\xBF{\"code\":7}");
+
+    expect($e->getErrorBody())->toBe(['code' => 7]);
+});
+
+test('bhv errors 009 fromResponse decodes an error body nested exactly at the depth cap and drops one past it', function (): void {
+    $cap = \PetstoreClient\ObjectSerializer::MAX_JSON_DEPTH;
+    $atCap = str_repeat('[', $cap) . str_repeat(']', $cap);
+    $pastCap = str_repeat('[', $cap + 1) . str_repeat(']', $cap + 1);
+
+    expect(ApiException::fromResponse(400, [], $atCap)->getErrorBody())->toBeArray();
+    expect(ApiException::fromResponse(400, [], $pastCap)->getErrorBody())->toBeNull();
+});
+
+test('bhv errors 044 every error type lives in the Errors namespace under the root', function (string $error): void {
+    $namespace = substr($error, 0, (int) strrpos($error, '\\'));
+
+    expect($namespace)->toBe('PetstoreClient\\Errors');
+    expect(is_a($error, OpenAPIException::class, true))->toBeTrue();
+})->with([
+    OpenAPIException::class,
+    ApiException::class,
+    \PetstoreClient\Errors\ClientException::class,
+    \PetstoreClient\Errors\ServerException::class,
+    \PetstoreClient\Errors\BadRequestException::class,
+    \PetstoreClient\Errors\UnauthorizedException::class,
+    \PetstoreClient\Errors\ForbiddenException::class,
+    \PetstoreClient\Errors\NotFoundException::class,
+    \PetstoreClient\Errors\ConflictException::class,
+    \PetstoreClient\Errors\UnprocessableEntityException::class,
+    \PetstoreClient\Errors\TooManyRequestsException::class,
+    \PetstoreClient\Errors\PaymentRequiredException::class,
+    \PetstoreClient\Errors\MethodNotAllowedException::class,
+    \PetstoreClient\Errors\RequestTimeoutException::class,
+    \PetstoreClient\Errors\GoneException::class,
+    \PetstoreClient\Errors\PayloadTooLargeException::class,
+    \PetstoreClient\Errors\UnsupportedMediaTypeException::class,
+    \PetstoreClient\Errors\LockedException::class,
+    \PetstoreClient\Errors\NotImplementedException::class,
+    \PetstoreClient\Errors\BadGatewayException::class,
+    \PetstoreClient\Errors\ServiceUnavailableException::class,
+    \PetstoreClient\Errors\GatewayTimeoutException::class,
+    \PetstoreClient\Errors\InternalServerErrorException::class,
+    \PetstoreClient\Errors\NetworkException::class,
+    \PetstoreClient\Errors\NetworkTimeoutException::class,
+    SerializationException::class,
+    \PetstoreClient\Errors\OAuth2ServerException::class,
+    \PetstoreClient\Errors\OAuth2TokenException::class,
+]);
+
+test('bhv errors 010 fromResponse keeps a scalar json body as the error body', function (string $body, string|int $expected): void {
+    $ex = ApiException::fromResponse(500, [], $body);
+
+    expect($ex->getResponseBody())->toBe($body);
+    expect($ex->getErrorBody())->toBe($expected);
+})->with([
+    'json string' => ['"upstream timeout"', 'upstream timeout'],
+    'json number' => ['42', 42],
+]);
+
+test('bhv errors 017 getTypedErrorBody raises SerializationException when the body is not the requested type', function (): void {
+    $ex = ApiException::fromResponse(502, [], '<html>bad gateway</html>');
+
+    expect(fn () => $ex->getTypedErrorBody(Category::class))
+        ->toThrow(SerializationException::class);
+});
+
+test('bhv errors 024 renders the message, status, headers and body', function (): void {
+    $ex = new ApiException(404, 'not found', ['x-request-id' => 'abc'], '{"code":7}');
+    expect((string) $ex)->toBe("not found\nHTTP status code: 404\nResponse headers: {\"x-request-id\":\"abc\"}\nResponse body: {\"code\":7}");
+});
+
+test('bhv errors 022 omits empty headers and an empty body', function (): void {
+    $ex = new ApiException(502, 'bad gateway', [], '');
+    expect((string) $ex)->toBe("bad gateway\nHTTP status code: 502");
+});
+
+test('bhv errors 023 rendered form masks credential headers', function (): void {
+    $ex = new ApiException(401, 'denied', [
+        'Authorization' => 'Bearer top-secret-token',
+        'X-Api-Key' => 'key-secret',
+        'Set-Cookie' => 'session=cookie-secret',
+        'Content-Type' => 'application/json',
+    ]);
+    $rendered = (string) $ex;
+    expect($rendered)->not->toContain('top-secret-token');
+    expect($rendered)->not->toContain('key-secret');
+    expect($rendered)->not->toContain('cookie-secret');
+    expect($rendered)->toContain('application/json');
+    expect($rendered)->toContain('***');
+});
+
+test('bhv errors 002 every status exception carries the request context', function (int $status): void {
+    $ex = ApiException::fromResponse($status, [], '{}', 'get', '/items/7?token=secret');
+    expect($ex)->toBeInstanceOf(ApiException::class);
+    expect($ex->getRequestMethod())->toBe('GET');
+    expect($ex->getRequestPath())->toBe('/items/7');
+})->with([
+    '400' => [400],
+    '401' => [401],
+    '404' => [404],
+    '500' => [500],
+    '503' => [503],
+]);
+
+test('bhv errors 048 a 418 response maps to the client exception', function (): void {
+    $ex = ApiException::fromResponse(418, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ClientException::class);
+});
+
+test('bhv errors 011 fromResponse names the request in the message and the fields', function (): void {
+    $ex = ApiException::fromResponse(404, null, null, 'get', '/items?x=1');
+    expect($ex->getRequestMethod())->toBe('GET');
+    expect($ex->getRequestPath())->toBe('/items');
+    expect((string) $ex)->toContain("\nRequest: GET /items");
+});
+
+test('bhv errors 016 getTypedErrorBody returns null for an empty response body', function (): void {
+    $ex = new ApiException(404, 'not found', null, '');
+    expect($ex->getTypedErrorBody(Category::class))->toBeNull();
+});
+
+test('bhv errors 036 the error carries the method and the path without the query string', function (): void {
+    $ex = new ApiException(500, 'boom', null, null, null, null, 'post', '/items?token=abc');
+    expect($ex->getRequestMethod())->toBe('POST');
+    expect($ex->getRequestPath())->toBe('/items');
+});
+
+test('bhv errors 049 an oauth2 server error message names the status and the error code', function (): void {
+    $error = new \PetstoreClient\Errors\OAuth2ServerException(400, 'invalid_grant', null, null, '{}');
+
+    expect($error->getMessage())->toBe('Token request failed with status 400: invalid_grant');
+});
+
+test('bhv errors 045 the OAuth2 errors are rooted at the branded base, not at ApiError', function (): void {
+    $error = new \PetstoreClient\Errors\OAuth2ServerException(400, 'invalid_grant', null, null, '{}');
+
+    expect($error)->toBeInstanceOf(OpenAPIException::class);
+    expect($error)->not->toBeInstanceOf(ApiException::class);
+});
+
+test('bhv errors 046 the OAuth2 message has three forms: a raw body, a code, and a code with a description', function (?string $code, ?string $description, string $rawBody, string $expected): void {
+    $error = new \PetstoreClient\Errors\OAuth2ServerException(400, $code, $description, null, $rawBody);
+
+    expect($error->getMessage())->toBe($expected);
+})->with([
+    'raw body' => [null, null, 'server exploded', 'Token request failed with status 400: server exploded'],
+    'code' => ['invalid_grant', null, '{}', 'Token request failed with status 400: invalid_grant'],
+    'code with description' => ['invalid_grant', 'expired', '{}', 'Token request failed with status 400: invalid_grant -- expired'],
+]);
+
+test('bhv errors 058 a 400 response maps to the bad request error', function (): void {
+    $ex = ApiException::fromResponse(400, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\BadRequestException::class);
+    expect($ex->getStatusCode())->toBe(400);
+});
+
+test('bhv errors 059 a 403 response maps to the forbidden error', function (): void {
+    $ex = ApiException::fromResponse(403, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ForbiddenException::class);
+    expect($ex->getStatusCode())->toBe(403);
+});
+
+test('bhv errors 060 a 404 response maps to the not found error', function (): void {
+    $ex = ApiException::fromResponse(404, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\NotFoundException::class);
+    expect($ex->getStatusCode())->toBe(404);
+});
+
+test('bhv errors 061 a bad request error is a client error, an api error and the sdk root error', function (): void {
+    $ex = new \PetstoreClient\Errors\BadRequestException('bad input');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ClientException::class);
+    expect($ex)->toBeInstanceOf(ApiException::class);
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
+});
+
+test('bhv errors 064 an empty message renders the default text, like a missing one', function (): void {
+    $default = 'Error message: the server returns an error';
+
+    expect((string) new ApiException(0, ''))->toBe($default);
+    expect((string) new ApiException())->toBe($default);
+    expect((string) new ApiException(500, ''))->toBe($default . "\nHTTP status code: 500");
+});
+
+test('bhv errors 065 the error text cuts a long response body at 1 KiB and counts the bytes left out', function (): void {
+    $ex = new ApiException(502, 'bad gateway', null, str_repeat('a', 3000));
+
+    expect((string) $ex)->toBe(
+        "bad gateway\nHTTP status code: 502\nResponse body: " . str_repeat('a', 1024) . '... (1976 more bytes)'
+    );
+    expect($ex->getResponseBody())->toBe(str_repeat('a', 3000));
+});
+
+test('bhv errors 066 a 429 response maps to the too many requests error that is a client error', function (): void {
+    $ex = ApiException::fromResponse(429, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\TooManyRequestsException::class);
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ClientException::class);
+    expect($ex->getStatusCode())->toBe(429);
+});
+
+test('bhv errors 067 a 409 response maps to the conflict error', function (): void {
+    $ex = ApiException::fromResponse(409, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ConflictException::class);
+    expect($ex->getStatusCode())->toBe(409);
+});
+
+test('bhv errors 068 a 422 response maps to the unprocessable entity error', function (): void {
+    $ex = ApiException::fromResponse(422, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\UnprocessableEntityException::class);
+    expect($ex->getStatusCode())->toBe(422);
+});
+
+test('bhv errors 069 a 500 response maps to the internal server error', function (): void {
+    $ex = ApiException::fromResponse(500, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\InternalServerErrorException::class);
+    expect($ex->getStatusCode())->toBe(500);
+});
+
+test('bhv errors 070 a 502 response maps to the server error', function (): void {
+    $ex = ApiException::fromResponse(502, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    expect($ex->getStatusCode())->toBe(502);
+});
+
+test('bhv errors 072 an error body that starts with a byte order mark decodes as the same body without it', function (): void {
+    $withMark = ApiException::fromResponse(400, null, "\xEF\xBB\xBF" . '{"code":"bad"}');
+    $withoutMark = ApiException::fromResponse(400, null, '{"code":"bad"}');
+
+    expect($withMark->getErrorBody())->toBe(['code' => 'bad']);
+    expect($withMark->getErrorBody())->toBe($withoutMark->getErrorBody());
+});
+
+test('bhv errors 073 an error body nested beyond common parser defaults is parsed and kept as structured data', function (): void {
+    $depth = 600;
+    $error = ApiException::fromResponse(400, null, str_repeat('[', $depth) . str_repeat(']', $depth));
+
+    expect($error->getErrorBody())->toBeArray();
+});
+
+test('bhv errors 074 an error that never received a response renders its text as the message alone', function (): void {
+    $error = new ApiException(0, 'connection dropped');
+
+    expect((string) $error)->toBe('connection dropped');
+});
+
+test('bhv errors 075 a rendered error body cut at its size limit never splits a multi-byte character', function (): void {
+    $body = str_repeat('a', 1023) . str_repeat('é', 4);
+    $rendered = (string) new ApiException(500, 'boom', null, $body);
+
+    expect(mb_check_encoding($rendered, 'UTF-8'))->toBeTrue();
+    expect($rendered)->toContain('... (' . (strlen($body) - 1023) . ' more bytes)');
+});
+
+test('bhv errors 076 an error the sdk did not raise is not classified as one of its own errors, even when wrapped', function (): void {
+    $wrapped = new \RuntimeException('outer', 0, new \RuntimeException('inner'));
+
+    expect($wrapped)->not->toBeInstanceOf(ApiException::class);
+    expect($wrapped)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
+});
+
+test('bhv errors 077 a url in diagnostics drops its query string, userinfo and fragment', function (): void {
+    $error = new ApiException(500, 'boom', null, null, null, null, 'get', 'https://user:pass@api.example.com:8443/v1/items?token=secret#frag');
+
+    expect($error->getRequestPath())->toBe('/v1/items');
+    expect((string) $error)->not->toContain('token=secret');
+    expect((string) $error)->not->toContain('pass');
+    expect((string) $error)->not->toContain('#frag');
+});
+
+test('bhv errors 084 an error built without a response reports a status code of zero by default', function (): void {
+    expect((new ApiException())->getStatusCode())->toBe(0);
+});
+
+test('bhv errors 086 a body of exactly 1 KiB renders whole and a larger body is truncated', function (): void {
+    $exact = new ApiException(500, 'boom', null, str_repeat('a', 1024));
+    $over = new ApiException(500, 'boom', null, str_repeat('a', 1025));
+
+    expect((string) $exact)->toEndWith(str_repeat('a', 1024));
+    expect((string) $exact)->not->toContain('more bytes');
+    expect((string) $over)->toContain('... (1 more bytes)');
+    expect($over->getResponseBody())->toBe(str_repeat('a', 1025));
+});
+
+test('bhv errors 087 credential and challenge headers are masked in the rendered message', function (): void {
+    $ex = new ApiException(401, 'denied', [
+        'Authorization' => 'Bearer abc',
+        'Cookie' => 'sid=1',
+        'WWW-Authenticate' => 'Basic realm=x',
+        'Proxy-Authenticate' => 'Basic realm=y',
+    ]);
+
+    expect((string) $ex)->toContain('***');
+    expect((string) $ex)->not->toContain('Bearer abc');
+    expect((string) $ex)->not->toContain('sid=1');
+    expect((string) $ex)->not->toContain('realm=x');
+    expect((string) $ex)->not->toContain('realm=y');
+});
+
+test('bhv errors 088 absent sections are left out of the message and present ones are kept', function (): void {
+    $ex = new ApiException(500, 'down', [], '');
+
+    expect((string) $ex)->toBe("down\nHTTP status code: 500");
+});
+
+test('bhv errors 089 an error with an empty message renders the default message text', function (): void {
+    /* A PHP string message cannot be null, so an absent message is the empty string. */
+    $ex = new ApiException(0, '');
+
+    expect((string) $ex)->toStartWith('Error message: the server returns an error');
+});
+
+test('bhv errors 090 an error with no response keeps its body and headers as null', function (): void {
+    $ex = ApiException::fromResponse(0, null, null);
+
+    expect($ex->getResponseHeaders())->toBeNull();
+    expect($ex->getResponseBody())->toBeNull();
+});
+
+test('bhv errors 091 the rendered message names the method and path of the failed request', function (): void {
+    $withResponse = ApiException::fromResponse(404, [], 'missing', 'GET', '/items/7');
+    $withoutResponse = new ApiException(0, 'connection reset', null, null, null, null, 'get', '/items/7?x=1');
+
+    expect((string) $withResponse)->toContain("Request: GET /items/7");
+    expect((string) $withoutResponse)->toContain("Request: GET /items/7");
+    expect((string) $withoutResponse)->not->toContain('x=1');
+});
+
+test('bhv errors 092 a network timeout carries the method and path of its request and stays a timeout', function (): void {
+    $timeout = new \PetstoreClient\Errors\NetworkTimeoutException('timed out', null, 'post', '/items/7?x=1');
+
+    expect($timeout)->toBeInstanceOf(\PetstoreClient\Errors\NetworkTimeoutException::class);
+    expect($timeout->getRequestMethod())->toBe('POST');
+    expect($timeout->getRequestPath())->toBe('/items/7');
+});
+
+test('bhv errors 093 an error exposes the decoded error body alongside the raw response body', function (): void {
+    $raw = "\xEF\xBB\xBF" . '{"code":"bad"}';
+    $ex = ApiException::fromResponse(400, null, $raw);
+
+    expect($ex->getErrorBody())->toBe(['code' => 'bad']);
+    expect($ex->getResponseBody())->toBe($raw);
+});
+
+test('bhv errors 094 every error the sdk raises is the root sdk exception', function (): void {
+    $errors = [
+        new ApiException(500, 'boom'),
+        new \PetstoreClient\Errors\NetworkException('down'),
+        new SerializationException('bad'),
+        ApiException::fromResponse(404, null, null),
+    ];
+
+    foreach ($errors as $error) {
+        expect($error)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
+    }
+});
+
+test('bhv errors 095 a typed 4xx or 5xx error is found by its status family', function (): void {
+    expect(ApiException::fromResponse(404, null, null))->toBeInstanceOf(\PetstoreClient\Errors\ClientException::class);
+    expect(ApiException::fromResponse(503, null, null))->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+});
+
+test('bhv errors 096 a status outside every class range falls back to the base error', function (): void {
+    foreach ([399, 600] as $status) {
+        $ex = ApiException::fromResponse($status, null, null);
+
+        expect($ex::class)->toBe(ApiException::class);
+        expect($ex)->not->toBeInstanceOf(\PetstoreClient\Errors\ClientException::class);
+        expect($ex)->not->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    }
+});
+
+test('bhv errors 097 an unrecognised 4xx status raises the generic client error', function (): void {
+    $ex = ApiException::fromResponse(499, null, null);
+
+    expect($ex::class)->toBe(\PetstoreClient\Errors\ClientException::class);
+});
+
+test('bhv misc 284 a status with a typed error raises that typed error', function (): void {
+    $cases = [
+        400 => \PetstoreClient\Errors\BadRequestException::class,
+        403 => \PetstoreClient\Errors\ForbiddenException::class,
+        404 => \PetstoreClient\Errors\NotFoundException::class,
+        409 => \PetstoreClient\Errors\ConflictException::class,
+        422 => \PetstoreClient\Errors\UnprocessableEntityException::class,
+        429 => \PetstoreClient\Errors\TooManyRequestsException::class,
+        500 => \PetstoreClient\Errors\InternalServerErrorException::class,
+        502 => \PetstoreClient\Errors\BadGatewayException::class,
+    ];
+    foreach ($cases as $status => $class) {
+        expect(ApiException::fromResponse($status, [], ''))->toBeInstanceOf($class);
+    }
+});

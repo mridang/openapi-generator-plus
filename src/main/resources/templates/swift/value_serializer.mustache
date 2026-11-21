@@ -1,0 +1,542 @@
+{{>api_info}}
+import Foundation
+
+/// Serializes parameter values for HTTP requests based on their location and format.
+///
+/// Converts values into their string representations suitable for HTTP request
+/// paths, query strings, and headers. Handles nil values, collections with various
+/// collection formats, and URL encoding.
+internal enum ValueSerializer {
+
+    /// A `format: date` parameter is typed String in Swift, so a date-time string can reach it.
+    /// The wire form is the calendar date only: the time and offset are dropped, as written.
+    /// Any other value (a date, free text, a non-date parameter) is returned unchanged.
+    static func calendarDateValue(_ value: Any?, schemaType: String) -> Any? {
+        guard schemaType == "date", let text = value as? String else {
+            return value
+        }
+        guard text.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:", options: .regularExpression) != nil else {
+            return value
+        }
+        return String(text.prefix(10))
+    }
+
+    /// Serialize a value for use in an HTTP request parameter.
+    ///
+    /// The serialization strategy depends on the `location`:
+    /// - path: scalar values are stringified and URL-encoded
+    /// - query: nils are omitted (returns `nil`); collections are formatted
+    ///   according to `collectionFormat`
+    /// - header: collections are joined with commas; nils become empty strings
+    /// - any other location: nils become empty strings, scalars are stringified
+    ///
+    /// - Parameters:
+    ///   - value: The value to serialize (may be nil).
+    ///   - location: Where the parameter appears: "path", "query", "header", or "cookie".
+    ///   - schemaType: The OpenAPI schema type. `date` makes a date-time value
+    ///     write its calendar date only.
+    ///   - collectionFormat: The collection format: "multi", "csv", "ssv", "tsv",
+    ///     or "pipes" (only relevant for query parameters).
+    /// - Returns: The serialized value: a `String`, a `[String]` (for "multi"
+    ///   query collections), or `nil` to omit the parameter.
+    static func serializeValue(_ value: Any?, location: String, schemaType: String, collectionFormat: String) -> Any? {
+        let value = calendarDateValue(value, schemaType: schemaType)
+        guard let value = value else {
+            return serializeNil(location: location)
+        }
+
+        if let items = toStringArray(value) {
+            return serializeArray(items, location: location, collectionFormat: collectionFormat)
+        }
+
+        let strVal = ObjectSerializer.stringify(value)
+        if location == "path" {
+            return ValueSerializer.encodeStyledPathValue(strVal)
+        }
+        return strVal
+    }
+
+    /// Percent-encodes a value for use as a URL path segment.
+    ///
+    /// Only RFC 3986 unreserved characters (ALPHA, DIGIT, `-`, `.`, `_`, `~`) stay
+    /// literal; every other character is percent-encoded as UTF-8.
+    static func encodePathSegment(_ value: String) -> String {
+        return percentEncode(value, keeping: "")
+    }
+
+    /// Percent-encodes a styled path value (simple, matrix or label style).
+    ///
+    /// Besides the unreserved characters, the RFC 3986 sub-delimiters
+    /// `; = , : @ ! $ & ' ( ) * +` stay literal, because the OAS 3.0 matrix, label
+    /// and simple styles use them as structural separators in the styled value.
+    static func encodeStyledPathValue(_ value: String) -> String {
+        return percentEncode(value, keeping: ";=,:@!$&'()*+")
+    }
+
+    /// Percent-encodes `value` byte by byte; ASCII unreserved characters and the
+    /// bytes listed in `extra` stay literal, every other byte becomes `%XX`.
+    private static func percentEncode(_ value: String, keeping extra: String) -> String {
+        let hex = Array("0123456789ABCDEF")
+        let keep = Array(extra.utf8)
+        var out = ""
+        for byte in value.utf8 {
+            let unreserved =
+                (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x5A)
+                || (byte >= 0x61 && byte <= 0x7A) || byte == 0x2D
+                || byte == 0x2E || byte == 0x5F || byte == 0x7E
+            if unreserved || keep.contains(byte) {
+                out.unicodeScalars.append(Unicode.Scalar(byte))
+            } else {
+                out.append("%")
+                out.append(hex[Int(byte >> 4)])
+                out.append(hex[Int(byte & 0x0F)])
+            }
+        }
+        return out
+    }
+
+    /// Percent-encodes a value for use as a cookie value.
+    ///
+    /// Only the letters, digits, hyphen, underscore and tilde stay literal, so the
+    /// quotes, commas, colons, dots, semicolons and spaces of a JSON text never reach
+    /// the `Cookie` header, where RFC 6265 forbids them.
+    static func encodeCookieValue(_ value: String) -> String {
+        /* Byte-wise so only ASCII A-Z a-z 0-9 - _ ~ stay literal (a dot is encoded too); the
+         * Unicode letters CharacterSet.alphanumerics admits are encoded as
+         * UTF-8 like every other character. */
+        let hex = Array("0123456789ABCDEF")
+        var out = ""
+        for byte in value.utf8 {
+            let literal =
+                (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x5A)
+                || (byte >= 0x61 && byte <= 0x7A) || byte == 0x2D
+                || byte == 0x5F || byte == 0x7E
+            if literal {
+                out.unicodeScalars.append(Unicode.Scalar(byte))
+            } else {
+                out.append("%")
+                out.append(hex[Int(byte >> 4)])
+                out.append(hex[Int(byte & 0x0F)])
+            }
+        }
+        return out
+    }
+
+    /// Wraps a query value so the query-string builder preserves RFC 3986
+    /// reserved characters (OAS `allowReserved: true`) instead of
+    /// percent-encoding them. Produced by ``maybeAllowReserved(_:allowReserved:)``
+    /// and unwrapped when the query string is assembled.
+    ///
+    /// The wrapped value is a `String`, or a `[String]` for exploded parameters.
+    ///
+    /// The encoder output is the contract: the RFC 3986 query-legal reserved
+    /// characters stay literal in the query string this SDK builds, and `#`,
+    /// `[` and `]` are percent-encoded there, because Foundation's `URL` rewrites
+    /// `[` and `]` itself (and `URLComponents.percentEncodedQuery` traps on
+    /// them). The bytes the encoder produces are therefore the bytes sent.
+    struct AllowReservedValue {
+        let value: Any
+    }
+
+    /// Wraps `value` in an ``AllowReservedValue`` when the parameter declares
+    /// `allowReserved: true`; otherwise returns it unchanged.
+    ///
+    /// - Parameters:
+    ///   - value: The serialized query value.
+    ///   - allowReserved: Whether the parameter preserves reserved characters.
+    /// - Returns: The value, wrapped iff `allowReserved` is true.
+    static func maybeAllowReserved(_ value: Any?, allowReserved: Bool) -> Any? {
+        guard let value = value, allowReserved else {
+            return value
+        }
+        return AllowReservedValue(value: value)
+    }
+
+    /// Wraps a query value of an `allowEmptyValue` parameter so the query-string
+    /// builder sends an empty string as `key=` instead of leaving the key out.
+    struct AllowEmptyValue {
+        let value: Any
+    }
+
+    /// Wraps `value` in an ``AllowEmptyValue``; a nil value stays nil.
+    ///
+    /// - Parameter value: The serialized query value, possibly already wrapped.
+    /// - Returns: The value wrapped for the query builder, or nil.
+    static func allowEmptyQuery(_ value: Any?) -> Any? {
+        guard let value = value else {
+            return nil
+        }
+        return AllowEmptyValue(value: value)
+    }
+
+    /// Rejects an empty path parameter.
+    ///
+    /// Path parameters are required components of the URL — accepting an
+    /// empty string would silently produce a malformed URL like
+    /// `/resource//details`, which most servers route to 404 instead of
+    /// surfacing the bug at the call site.
+    ///
+    /// A simple-style value of exactly `.` or `..` is rejected as well: RFC 3986
+    /// section 5.2.4 treats those segments as path navigation, so the request
+    /// would be routed to a different resource (matrix and label styles prefix
+    /// their value, so they can never form a dot segment).
+    ///
+    /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when `value` is empty,
+    ///   or is `.` or `..` in the simple style.
+    static func requirePathParam(
+        _ paramName: String, _ value: String, style: String = "simple", operation: String
+    ) throws {
+        if value.isEmpty {
+            throw ConfigurationError.invalidArgument(
+                "Missing the required parameter '\(paramName)' when calling \(operation)"
+            )
+        }
+        if (style.isEmpty || style == "simple") && (value == "." || value == "..") {
+            throw ConfigurationError.invalidArgument("Path parameter '\(paramName)' must not be '.' or '..'")
+        }
+    }
+
+    /// A `format: uuid` path parameter is a `UUID`, which is never empty, so
+    /// there is nothing to reject; the overload keeps the call sites uniform.
+    static func requirePathParam(
+        _ paramName: String, _ value: UUID, style: String = "simple", operation: String
+    ) throws {}
+
+    /// Serialize a value with OAS 3.0 parameter style formatting.
+    ///
+    /// Handles matrix, label, simple, form, spaceDelimited, and pipeDelimited
+    /// styles. deepObject is handled separately by ``serializeDeepObject(_:value:)``.
+    ///
+    /// - Parameters:
+    ///   - paramName: The parameter name.
+    ///   - value: The value to serialize (may be nil).
+    ///   - location: Where the parameter appears: "path", "query", "header", or "cookie".
+    ///   - schemaType: The OpenAPI schema type.
+    ///   - collectionFormat: The collection format (may be empty).
+    ///   - style: The OAS 3.0 parameter style (may be empty).
+    ///   - explode: Whether to explode arrays.
+    /// - Returns: The serialized value, or `nil` to omit the parameter.
+    static func serializeStyled(
+        _ paramName: String,
+        value: Any?,
+        location: String,
+        schemaType: String,
+        collectionFormat: String,
+        style: String,
+        explode: Bool
+    ) -> Any? {
+        let value = calendarDateValue(value, schemaType: schemaType)
+        if style.isEmpty {
+            return serializeValue(value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
+        }
+
+        let items = toStringArray(value)
+
+        let encodeIfPath: (String) -> String = { location == "path" ? ValueSerializer.encodeStyledPathValue($0) : $0 }
+
+        switch style {
+        case "matrix":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if items == nil, let object = objectFields(value) {
+                return styledObjectValue(object, style: "matrix", paramName: paramName, explode: explode, encode: encodeIfPath)
+            }
+            if let items = items {
+                if explode {
+                    return items.map { ";\(paramName)=\(encodeIfPath($0))" }.joined()
+                }
+                return ";\(paramName)=\(items.map(encodeIfPath).joined(separator: ","))"
+            }
+            return ";\(paramName)=\(encodeIfPath(ObjectSerializer.stringify(value)))"
+
+        case "label":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if items == nil, let object = objectFields(value) {
+                return styledObjectValue(object, style: "label", paramName: paramName, explode: explode, encode: encodeIfPath)
+            }
+            if let items = items {
+                if explode {
+                    return "." + items.map(encodeIfPath).joined(separator: ".")
+                }
+                return "." + items.map(encodeIfPath).joined(separator: ",")
+            }
+            return "." + encodeIfPath(ObjectSerializer.stringify(value))
+
+        case "spaceDelimited":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if items == nil, let object = objectFields(value) {
+                return styledObjectValue(object, style: "spaceDelimited", paramName: paramName, explode: explode, encode: encodeIfPath)
+            }
+            if let items = items {
+                if explode {
+                    return items
+                }
+                return items.map(encodeIfPath).joined(separator: " ")
+            }
+            return encodeIfPath(ObjectSerializer.stringify(value))
+
+        case "pipeDelimited":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if items == nil, let object = objectFields(value) {
+                return styledObjectValue(object, style: "pipeDelimited", paramName: paramName, explode: explode, encode: encodeIfPath)
+            }
+            if let items = items {
+                if explode {
+                    return items
+                }
+                return items.map(encodeIfPath).joined(separator: "|")
+            }
+            return encodeIfPath(ObjectSerializer.stringify(value))
+
+        case "form":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if let items = items {
+                if explode {
+                    return items
+                }
+                return items.joined(separator: ",")
+            }
+            if let object = objectFields(value) {
+                return objectValue(
+                    object, style: "form", location: location, explode: explode, encode: { $0 })
+            }
+            return ObjectSerializer.stringify(value)
+
+        case "simple":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if let items = items {
+                return items.map(encodeIfPath).joined(separator: ",")
+            }
+            if let object = objectFields(value) {
+                return objectValue(
+                    object, style: "simple", location: location, explode: explode,
+                    encode: encodeIfPath)
+            }
+            return encodeIfPath(ObjectSerializer.stringify(value))
+
+        default:
+            return serializeValue(value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
+        }
+    }
+
+    /// An object-valued parameter (a model or a map) held until the request is
+    /// built. A query parameter that is form style and exploded expands into one
+    /// `name=value` pair per field, so ``serializeStyled(_:value:location:schemaType:collectionFormat:style:explode:)``
+    /// cannot return a single string for it. `failure` is set when a field is
+    /// itself an object or an array, which no query or header can carry.
+    struct ObjectParameter {
+        let fields: [(name: String, value: String)]
+        let failure: SerializationError?
+    }
+
+    /// The wire-keyed leaf fields of an object-valued parameter, sorted by
+    /// name, with null fields dropped. Returns `nil` when `value` is not an
+    /// object (a scalar, a byte string, a date, an enum), and a failure when a
+    /// field is nested. The names are the wire names, because the model is
+    /// encoded first.
+    static func objectFields(_ value: Any) -> Result<[(name: String, value: String)], SerializationError>? {
+        switch value {
+        case is String, is Bool, is Int, is Int32, is Int64, is Double, is Float, is Data, is Date, is UUID:
+            return nil
+        case is any RawRepresentable:
+            return nil
+        default:
+            break
+        }
+        guard let encodable = value as? Encodable,
+            let json = try? ObjectSerializer.serialize(encodable),
+            let fields = try? JSONDecoder().decode([String: AnyCodable].self, from: Data(json.utf8))
+        else {
+            return nil
+        }
+        var pairs: [(name: String, value: String)] = []
+        /* A model's fields keep the order it declares them in; the keys of a map have no position and are sorted. */
+        let written = ObjectSerializer.topLevelKeyOrder(json)
+        for name in written.filter({ fields[$0] != nil }) {
+            guard let leaf = fields[name]?.value else { continue }
+            switch leaf {
+            case is NSNull:
+                continue
+            case is [Any], is [String: Any]:
+                return .failure(
+                    SerializationError(
+                        message: "Object-valued parameter has a nested value for '\(name)'; "
+                            + "only a flat object can be sent in a query or a header"))
+            default:
+                pairs.append((name, ObjectSerializer.stringify(leaf)))
+            }
+        }
+        return .success(pairs)
+    }
+
+    /// Renders an object-valued parameter in the matrix, label, spaceDelimited or
+    /// pipeDelimited style (OAS 3.0 section 4.8.12.4). Unexploded, the fields are
+    /// alternating names and values joined by the style's separator, and exploded
+    /// each field is its own `name=value` pair, with the matrix and label prefixes.
+    private static func styledObjectValue(
+        _ object: Result<[(name: String, value: String)], SerializationError>,
+        style: String,
+        paramName: String,
+        explode: Bool,
+        encode: (String) -> String
+    ) -> Any? {
+        switch object {
+        case .failure(let error):
+            return ObjectParameter(fields: [], failure: error)
+        case .success(let fields):
+            let flat = fields.flatMap { [encode($0.name), encode($0.value)] }
+            let pairs = fields.map { "\(encode($0.name))=\(encode($0.value))" }
+            switch style {
+            case "matrix":
+                if explode {
+                    return fields.map { ";\(encode($0.name))=\(encode($0.value))" }.joined()
+                }
+                return ";\(paramName)=" + flat.joined(separator: ",")
+            case "label":
+                return "." + (explode ? pairs.joined(separator: ".") : flat.joined(separator: ","))
+            case "pipeDelimited":
+                return explode ? pairs.joined(separator: "|") : flat.joined(separator: "|")
+            default:
+                return explode ? pairs.joined(separator: " ") : flat.joined(separator: " ")
+            }
+        }
+    }
+
+    /// Renders an object-valued parameter for `style` (OAS 3.0 section 4.8.12.4):
+    /// form and exploded in a query is one pair per field (an ``ObjectParameter``),
+    /// anything else is one string, `name,value,name,value` when not exploded and
+    /// `name=value,name=value` when exploded.
+    private static func objectValue(
+        _ object: Result<[(name: String, value: String)], SerializationError>,
+        style: String,
+        location: String,
+        explode: Bool,
+        encode: (String) -> String
+    ) -> Any? {
+        switch object {
+        case .failure(let error):
+            return ObjectParameter(fields: [], failure: error)
+        case .success(let fields):
+            if style == "form" && explode && location == "query" {
+                return ObjectParameter(fields: fields, failure: nil)
+            }
+            if explode {
+                return fields.map { "\(encode($0.name))=\(encode($0.value))" }.joined(separator: ",")
+            }
+            return fields.flatMap { [encode($0.name), encode($0.value)] }.joined(separator: ",")
+        }
+    }
+
+    /// The text of a header parameter: its serialized value, or the failure of
+    /// an object-valued one that holds a nested field.
+    static func headerValue(_ value: Any?) throws -> String {
+        if let object = value as? ObjectParameter {
+            if let failure = object.failure {
+                throw failure
+            }
+            return ""
+        }
+        return "\(value ?? "")"
+    }
+
+    /// The `name[field]` pairs of a deepObject query parameter whose value is a
+    /// map or a model, sorted by field name. A nested field throws.
+    static func serializeDeepObjectValue(
+        _ paramName: String, value: Any
+    ) throws -> [(key: String, value: String)] {
+        if let dict = value as? [String: Any] {
+            return dict.keys.sorted().map {
+                (key: "\(paramName)[\($0)]", value: ObjectSerializer.stringify(dict[$0]))
+            }
+        }
+        guard let object = objectFields(value) else { return [] }
+        switch object {
+        case .failure(let error):
+            throw error
+        case .success(let fields):
+            return fields.map { (key: "\(paramName)[\($0.name)]", value: $0.value) }
+        }
+    }
+
+    /// Serialize a deepObject-style query parameter.
+    ///
+    /// Produces a dictionary of flattened keys in the form `paramName[key]` to
+    /// stringified values, suitable for inclusion in a query string. The values
+    /// are not percent-encoded here; the query-string builder encodes them.
+    ///
+    /// - Parameters:
+    ///   - paramName: The parameter name (e.g. "filter").
+    ///   - value: The dictionary value to serialize.
+    /// - Returns: A dictionary of expanded keys to serialized values, or an
+    ///   empty dictionary if value is nil.
+    static func serializeDeepObject(_ paramName: String, value: [String: Any]?) -> [String: String] {
+        guard let value = value else { return [:] }
+
+        var result: [String: String] = [:]
+        for (key, val) in value {
+            result["\(paramName)[\(key)]"] = ObjectSerializer.stringify(val)
+        }
+        return result
+    }
+
+    private static func serializeNil(location: String) -> Any? {
+        if location == "query" { return nil }
+        return "" as Any
+    }
+
+    private static func serializeArray(_ items: [String], location: String, collectionFormat: String) -> Any? {
+        if location == "query" {
+            return serializeQueryArray(items, collectionFormat: collectionFormat)
+        }
+        return items.joined(separator: ",")
+    }
+
+    private static func serializeQueryArray(_ items: [String], collectionFormat: String) -> Any {
+        switch collectionFormat {
+        case "multi":
+            return items
+        case "ssv":
+            return items.joined(separator: " ")
+        case "tsv":
+            return items.joined(separator: "\t")
+        case "pipes":
+            return items.joined(separator: "|")
+        default:
+            return items.joined(separator: ",")
+        }
+    }
+
+    /// Attempts to convert a value to a [String] array.
+    ///
+    /// Preserves nil slots in styled csv/ssv/tsv/pipes arrays by emitting an
+    /// empty string for each nil element (OAS csv semantics for `1,,3`).
+    private static func toStringArray(_ value: Any?) -> [String]? {
+        if let set = value as? Set<AnyHashable> {
+            return toStringArray(Array(set))
+        }
+        if let items = value as? [String] {
+            return items
+        }
+        if let items = value as? [String?] {
+            return items.map { $0 ?? "" }
+        }
+        if let items = value as? [Any?] {
+            return items.map { $0.map { ObjectSerializer.stringify($0) } ?? "" }
+        }
+        if let items = value as? [Any] {
+            return items.map { ObjectSerializer.stringify($0) }
+        }
+        return nil
+    }
+}

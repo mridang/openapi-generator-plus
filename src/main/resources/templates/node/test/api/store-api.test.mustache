@@ -1,0 +1,775 @@
+{{>api_info}}
+
+import * as http from 'node:http';
+import { StoreApi } from '../../src/api/store-api{{importFileExtension}}';
+import { Configuration } from '../../src/configuration{{importFileExtension}}';
+import { DefaultApiClient } from '../../src/default-api-client{{importFileExtension}}';
+import { TransportOptions } from '../../src/transport-options{{importFileExtension}}';
+import { Account, Availability, Defaults, DefaultsModeEnum, Order, OrderStatusEnum, Category, PhotoMetadata, PhotoMetadataLocation, Priority, Reservation, ReservationReceipt, Swatch, TreeNode } from '../../src/models/index{{importFileExtension}}';
+import { BadGatewayError, BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NotFoundError, SerializationError, UnauthorizedError, UnprocessableEntityError } from '../../src/errors/index{{importFileExtension}}';
+
+import { uuid, type UUID } from '../../src/brand{{importFileExtension}}';
+import { Temporal } from 'temporal-polyfill';
+import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
+
+const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
+const config = Configuration.builder()
+  .baseUrl(baseUrl)
+  .defaultHeader('Authorization', 'Bearer test-token')
+  .build();
+const api = new StoreApi(undefined, config);
+
+describe('StoreApi', () => {
+  beforeAll(async () => {
+    for (let i = 0; i < 5; i++) {
+      try {
+        await fetch(baseUrl, { method: 'GET' });
+        return;
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  });
+
+  test('bhv operations 102 getInventory', async () => {
+    const result = await api.getInventory();
+
+    expect(result).toBeDefined();
+    expect(typeof result).toBe('object');
+  });
+
+  test('bhv operations 117 placeOrder', async () => {
+    const order = new Order({
+      id: 1,
+      petId: 12345,
+      quantity: 1,
+      shipDate: new Date(),
+      status: OrderStatusEnum.Placed,
+      complete: false,
+    });
+
+    const result = await api.placeOrder(order);
+
+    expect(result).toBeDefined();
+    expect(result.id).toBeDefined();
+  });
+
+  test('bhv operations 126 placeOrder without an argument sends no body', async () => {
+    let sentBody: unknown = 'unset';
+    const client = {
+      sendRequest: async (...args: unknown[]) => {
+        sentBody = args[3];
+        return { statusCode: 200, body: '{"id":1}', headers: { 'content-type': 'application/json' } };
+      },
+    } as unknown as ApiClient;
+
+    await new StoreApi(client, config).placeOrder();
+
+    expect(sentBody ?? null).toBeNull();
+  });
+
+  test('bhv operations 103 getInventoryWithHttpInfo', async () => {
+    const result = await api.getInventoryWithHttpInfo();
+
+    expect(result).toBeDefined();
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
+  test('bhv operations 119 placeOrderWithHttpInfo', async () => {
+    const order = new Order({
+      id: 1,
+      petId: 12345,
+      quantity: 1,
+      shipDate: new Date(),
+      status: OrderStatusEnum.Placed,
+      complete: false,
+    });
+
+    const result = await api.placeOrderWithHttpInfo(order);
+
+    expect(result).toBeDefined();
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
+  test('bhv operations 104 getOrderById', async () => {
+    const result = await api.getOrderById(1);
+
+    expect(result).toBeDefined();
+    expect(result.id).toBeDefined();
+  });
+
+  test('bhv operations 105 getOrderByIdWithHttpInfo', async () => {
+    const result = await api.getOrderByIdWithHttpInfo(1);
+
+    expect(result).toBeDefined();
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
+  test('bhv operations 099 deleteOrder', async () => {
+    await api.deleteOrder(1);
+  });
+});
+
+function createMockServer(status: number, requestContentType: string, body: string): Promise<{ api: StoreApi; server: http.Server; close: () => void }> {
+  return new Promise((resolve) => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(status, { 'Content-Type': requestContentType });
+      res.end(body);
+    });
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address() as { port: number };
+      const mockConfig = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .build();
+      const mockApi = new StoreApi(new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()), mockConfig);
+      resolve({ api: mockApi, server, close: () => server.close() });
+    });
+  });
+}
+
+describe('StoreApi nested container deserialization', () => {
+  test('bhv operations 101 getGroupedCategories decodes array-of-map leaves into typed Category instances', async () => {
+    // nested-container-deserialise: the operation returns Array<Record<string,
+    // Category>>. Each map leaf on the wire must be decoded into a typed
+    // Category instance, not left as a raw map, so field access and the
+    // instanceof check both hold.
+    const body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getGroupedCategories();
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(2);
+      expect(result[0]!['a']).toBeInstanceOf(Category);
+      expect(result[0]!['a']!.id).toBe(1);
+      expect(result[0]!['a']!.name).toBe('Dogs');
+      expect(result[1]!['b']).toBeInstanceOf(Category);
+      expect(result[1]!['b']!.name).toBe('Cats');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 109 getMatrix decodes an array of integer arrays', async () => {
+    // nested-container-deserialise: Array<Array<number>> — the leaves are not
+    // maps, so the descent must not assume a map at any level.
+    const body = '[[1,2],[3,4]]';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getMatrix();
+      expect(result).toEqual([[1, 2], [3, 4]]);
+      expect(typeof result[0]![0]).toBe('number');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv langnode 017 getMatrix rejects a fractional number element', async () => {
+    for (const [, body] of [
+    ['a quoted number', '[[1,"2"]]'],
+    ['a fractional number', '[[1,2.5]]'],
+    ['a null', '[[1,null]]'],
+  ] as const) {
+      const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+      try {
+        await expect(mockApi.getMatrix()).rejects.toBeInstanceOf(SerializationError);
+      } finally {
+        close();
+      }
+    }
+  });
+
+  test('bhv langnode 018 getInventory rejects a fractional number element', async () => {
+    for (const [, body] of [
+    ['a quoted number', '{"available":"5"}'],
+    ['a fractional number', '{"available":5.5}'],
+    ['a null', '{"available":null}'],
+  ] as const) {
+      const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+      try {
+        await expect(mockApi.getInventory()).rejects.toBeInstanceOf(SerializationError);
+      } finally {
+        close();
+      }
+    }
+  });
+
+  test('bhv operations 114 getSwatchGroups decodes enum leaves into Swatch values', async () => {
+    // nested-container-deserialise: Array<Record<string, Swatch>> — an enum
+    // leaf must be carried through as its enum value, not run through a model
+    // class constructor.
+    const body = '[{"a":"red"},{"b":"blue"}]';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getSwatchGroups();
+      expect(result).toHaveLength(2);
+      expect(result[0]!['a']).toBe(Swatch.Red);
+      expect(result[1]!['b']).toBe(Swatch.Blue);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 115 getTimestampGroups decodes date-time leaves into Date', async () => {
+    // nested-container-deserialise: Array<Record<string, Date>> — a date-time
+    // leaf must be parsed into a Date, not left as a raw string.
+    const body = '[{"t":"2020-01-02T03:04:05Z"}]';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getTimestampGroups();
+      expect(result).toHaveLength(1);
+      const ts = result[0]!['t'];
+      expect(ts).toBeInstanceOf(Date);
+      expect(ts!.getUTCFullYear()).toBe(2020);
+    } finally {
+      close();
+    }
+  });
+});
+
+describe('StoreApi response shapes', () => {
+  test('bhv operations 113 getSwatch decodes a bare enum into its member', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '"green"');
+    try {
+      expect(await mockApi.getSwatch()).toBe(Swatch.Green);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 108 getDepartment follows the mutual Department and Employee reference', async () => {
+    const body = '{"name":"eng","lead":{"name":"ann","department":{"name":"ops"}}}';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getDepartment();
+      expect(result.name).toBe('eng');
+      expect(result.lead!.name).toBe('ann');
+      expect(result.lead!.department!.name).toBe('ops');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 116 getTree decodes a self-recursive model into typed nodes', async () => {
+    const body = '{"value":"a","child":{"value":"b","child":{"value":"c"}}}';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getTree();
+      expect(result).toBeInstanceOf(TreeNode);
+      expect(result.child).toBeInstanceOf(TreeNode);
+      expect(result.child!.child!.value).toBe('c');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 112 getStockItem decodes the integer enum, the string enum and the nested arrays', async () => {
+    const body = '{"priority":2,"availability":"on-hold","matrix":[[1,2],[3]]}';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getStockItem();
+      expect(result.priority).toBe(Priority.Number2);
+      expect(result.availability).toBe(Availability.OnHold);
+      expect(result.matrix).toEqual([[1, 2], [3]]);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 129 a 200 response from reserveStock decodes as the existing reservation', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"reservationId":31,"quantity":4}');
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(31);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv misc 048 an undeclared success status decodes as the union return type', async () => {
+    const { api: mockApi, close } = await createMockServer(202, 'application/json', '{"reservationId":7,"quantity":2}');
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(7);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 154 a 201 body that only fits the 200 schema is refused', async () => {
+    const { api: mockApi, close } = await createMockServer(201, 'application/json', '{"reservationId":31,"quantity":4}');
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv unions 036 the status code selects the declared variant, so a 200 body of the 201 shape is refused', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}');
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv misc 079 each success status decodes as the body type the status declares', async () => {
+    const { api: okApi, close: closeOk } = await createMockServer(
+      200,
+      'application/json',
+      '{"reservationId":31,"quantity":4}',
+    );
+    try {
+      const result = await okApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(31);
+    } finally {
+      closeOk();
+    }
+    const { api: createdApi, close: closeCreated } = await createMockServer(
+      201,
+      'application/json',
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      const result = await createdApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+      expect((result as ReservationReceipt).receiptCode).toBe('R-1');
+    } finally {
+      closeCreated();
+    }
+  });
+
+  test('bhv misc 080 a 200 body that only fits the 201 schema is refused', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      'application/json',
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 120 reserveStock decodes a 201 body as the new receipt', async () => {
+    const { api: mockApi, close } = await createMockServer(201, 'application/json', '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}');
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+      expect((result as ReservationReceipt).receiptCode).toBe('R-1');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 123 getDefaults fills the schema defaults for absent fields and keeps an explicit null', async () => {
+    const body = '{"label":null,"retries":7}';
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+    try {
+      const result = await mockApi.getDefaults();
+      expect(result).toBeInstanceOf(Defaults);
+      expect(result.retries).toBe(7);
+      expect(result.label).toBeNull();
+      expect(result.mode).toBe(DefaultsModeEnum.Medium);
+      expect(result.ceiling).toBe(9000000000);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv misc 215 getDefaults fills every default when the body is an empty object', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{}');
+    try {
+      const result = await mockApi.getDefaults();
+      expect(result.retries).toBe(3);
+      expect(result.label).toBe('untitled');
+      expect(result.scale).toBe(0.25);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 098 createAccount sends the writeOnly password and decodes the readOnly id', async () => {
+    let sentBody = '';
+    const server = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        sentBody = Buffer.concat(chunks).toString('utf-8');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"id":7,"username":"u","password":"p"}');
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const accountApi = new StoreApi(
+        undefined,
+        Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build(),
+      );
+
+      const result = await accountApi.createAccount(new Account({ username: 'u', password: 'p' }));
+
+      expect(JSON.parse(sentBody)).toEqual({ username: 'u', password: 'p' });
+      expect(result).toBeInstanceOf(Account);
+      expect(result.id).toBe(7);
+      expect(result.password).toBe('p');
+    } finally {
+      server.close();
+    }
+  });
+});
+
+describe('StoreApi content-encoded query parameters', () => {
+  async function captureSearch(q: PhotoMetadata): Promise<string> {
+    let capturedUrl = '';
+    const server = http.createServer((req, res) => {
+      capturedUrl = req.url ?? '';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('[]');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const searchApi = new StoreApi(
+        undefined,
+        Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build(),
+      );
+      await searchApi.searchStore({ q });
+      return capturedUrl;
+    } finally {
+      server.close();
+    }
+  }
+
+  test('bhv misc 211 a date-time inside the JSON q parameter keeps its wire date-time form', async () => {
+    const url = await captureSearch(new PhotoMetadata({ takenAt: new Date('2024-01-02T03:04:05Z') }));
+
+    expect(decodeURIComponent(url)).toContain('"takenAt":"2024-01-02T03:04:05.000+00:00"');
+  });
+
+  test('bhv operations 097 searchStore sends q as the ObjectSerializer JSON, unescaped and percent-encoded', async () => {
+    const url = await captureSearch(new PhotoMetadata({ caption: 'a/b<\u00e9' }));
+
+    expect(url).toContain('q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22');
+  });
+
+  test('bhv serialization 008 a content-typed query parameter is JSON-encoded once, not twice', async () => {
+    const url = await captureSearch(new PhotoMetadata({ caption: 'a%b' }));
+
+    expect(url).toContain('a%25b');
+    expect(url).not.toContain('%2525');
+  });
+
+  let hits = 0;
+
+  async function captureRequest(call: (storeApi: StoreApi) => Promise<unknown>): Promise<string> {
+    let capturedUrl = '';
+    const server = http.createServer((req, res) => {
+      hits++;
+      capturedUrl = req.url ?? '';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(capturedUrl.startsWith('/store/search') ? '[]' : '{"id":1}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      await call(
+        new StoreApi(undefined, Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build()),
+      );
+      return capturedUrl;
+    } finally {
+      server.close();
+    }
+  }
+
+  test('bhv operations 155 searchStore sends its query parameters in the declared order', async () => {
+    const url = await captureRequest((s) =>
+      s.searchStore({
+        q: new PhotoMetadata({ location: new PhotoMetadataLocation({ lat: 1 }) }),
+        labels: new Set(['red']),
+        at: Temporal.PlainTime.from('10:30:00'),
+      }),
+    );
+    expect([...new URL(url, 'http://127.0.0.1').searchParams.keys()]).toEqual(['q', 'labels', 'at']);
+  });
+
+  test('bhv langnode 016 searchStore expands a Set parameter like an array', async () => {
+    const url = await captureRequest((s) => s.searchStore({ labels: new Set(['red', 'blue']) }));
+
+    expect(new URL(url, 'http://localhost').searchParams.getAll('labels').sort()).toEqual(['blue', 'red']);
+  });
+
+  test('bhv misc 241 searchStore sends every listed time percent-encoded', async () => {
+    for (const [time, expected] of [
+    ['10:30:00.123456789', 'at=10%3A30%3A00.123'],
+    ['10:30:00', 'at=10%3A30%3A00'],
+  ] as const) {
+      const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from(time) }));
+
+      expect(url).toContain(expected);
+      expect(url).not.toContain(`${expected}0`);
+    }
+  });
+
+  test('bhv operations 139 searchStore keeps the fractional seconds of a time parameter when non-zero', async () => {
+    const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from('10:30:00.25') }));
+
+    expect(url).toContain('at=10%3A30%3A00.250');
+  });
+
+  test('bhv misc 214 an unserializable query content value raises SerializationError before any request is sent', async () => {
+    hits = 0;
+    const call = captureRequest((s) =>
+      s.searchStore({ q: new PhotoMetadata({ location: new PhotoMetadataLocation({ lng: Number.POSITIVE_INFINITY }) }) }),
+    );
+
+    await expect(call).rejects.toBeInstanceOf(SerializationError);
+    expect(hits).toBe(0);
+  });
+
+  test('bhv operations 128 searchStore with an unserializable content query raises SerializationError and sends no request', async () => {
+    hits = 0;
+    const call = captureRequest((s) =>
+      s.searchStore({ q: new PhotoMetadata({ location: new PhotoMetadataLocation({ lat: Number.NaN }) }) }),
+    );
+
+    await expect(call).rejects.toBeInstanceOf(SerializationError);
+    expect(hits).toBe(0);
+  });
+
+  test('bhv operations 124 getOrderByTrackingId puts the lowercase uuid in the path', async () => {
+    const url = await captureRequest((s) => s.getOrderByTrackingId(uuid('E621E1F8-C36C-495A-93FC-0C247A3E6E5F')));
+
+    expect(url).toBe('/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f');
+  });
+
+  test('bhv operations 111 getOrderByTrackingId rejects a malformed uuid before sending a request', async () => {
+    hits = 0;
+    const call = captureRequest((s) => s.getOrderByTrackingId('not-a-uuid' as UUID));
+
+    await expect(call).rejects.toThrow(
+      new TypeError(`Parameter 'trackingId' is not a canonical UUID: "not-a-uuid"`),
+    );
+    expect(hits).toBe(0);
+  });
+
+  test('bhv operations 121 searchStore sends the content header X-Filter as the ObjectSerializer JSON', async () => {
+    let capturedHeader: string | string[] | undefined;
+    const server = http.createServer((req, res) => {
+      capturedHeader = req.headers['x-filter'];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('[]');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      await new StoreApi(
+        undefined,
+        Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build(),
+      ).searchStore({ xFilter: { colour: 'red', size: 'a b' } });
+    } finally {
+      server.close();
+    }
+
+    expect(capturedHeader).toBe('{"colour":"red","size":"a b"}');
+  });
+
+  test('bhv serialization 093 searchStore sends a date-time inside q in the canonical +00:00 form', async () => {
+    const url = await captureSearch(new PhotoMetadata({ takenAt: new Date('2024-01-02T03:04:05Z') }));
+
+    expect(JSON.parse(new URL(url, 'http://localhost').searchParams.get('q')!)).toEqual({
+      takenAt: '2024-01-02T03:04:05.000+00:00',
+    });
+  });
+});
+
+describe('StoreApi named-enum parameters', () => {
+  test('bhv operations 122 getBySwatch sends the enum wire values in the path, query and header', async () => {
+    // getBySwatch takes a $ref enum as a required path parameter, an optional
+    // query parameter and an optional header; each must reach the wire as the
+    // enum's value ('red'), never the language's enum member name.
+    let capturedUrl: string | undefined;
+    let capturedHeader: string | string[] | undefined;
+    const server = http.createServer((req, res) => {
+      capturedUrl = req.url;
+      capturedHeader = req.headers['preferred-swatch'];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"id":1,"name":"swatch-category"}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const swatchApi = new StoreApi(
+        undefined,
+        Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build(),
+      );
+
+      const result = await swatchApi.getBySwatch(Swatch.Red, {
+        querySwatch: Swatch.Green,
+        preferredSwatch: Swatch.Blue,
+      });
+
+      expect(result).toBeInstanceOf(Category);
+      const url = new URL(capturedUrl!, 'http://localhost');
+      expect(url.pathname).toBe('/store/by-swatch/red');
+      expect(url.searchParams.get('querySwatch')).toBe('green');
+      expect(capturedHeader).toBe('blue');
+    } finally {
+      server.close();
+    }
+  });
+
+  test('bhv operations 107 getBySwatch omits the optional query parameter and header when they are not set', async () => {
+    let capturedUrl: string | undefined;
+    let capturedHeader: string | string[] | undefined;
+    const server = http.createServer((req, res) => {
+      capturedUrl = req.url;
+      capturedHeader = req.headers['preferred-swatch'];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"id":1,"name":"swatch-category"}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const swatchApi = new StoreApi(
+        undefined,
+        Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build(),
+      );
+
+      await swatchApi.getBySwatch(Swatch.Blue);
+
+      expect(capturedUrl).toBe('/store/by-swatch/blue');
+      expect(capturedHeader).toBeUndefined();
+    } finally {
+      server.close();
+    }
+  });
+});
+
+describe('StoreApi error dispatch through the typed status routes', () => {
+  test('bhv operations 110 getOrderById picks the status-specific error for every listed status', async () => {
+    for (const [status, expected] of [
+    [400, BadRequestError],
+    [401, UnauthorizedError],
+    [403, ForbiddenError],
+    [404, NotFoundError],
+    [409, ConflictError],
+    [418, ClientError],
+    [422, UnprocessableEntityError],
+    [500, InternalServerError],
+    [502, BadGatewayError],
+  ] as const) {
+      const statusApi = new StoreApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
+      );
+
+      const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(expected);
+      expect((error as ClientError).statusCode).toBe(status);
+    }
+  });
+
+});
+
+describe('StoreApi', () => {
+  test('bhv operations 106 get order not found', async () => {
+    const { api: mockApi, close } = await createMockServer(404, 'application/json', '{"message":"Order not found"}');
+    try {
+      await expect(mockApi.getOrderById(99999)).rejects.toBeInstanceOf(NotFoundError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 118 place order server error', async () => {
+    const { api: mockApi, close } = await createMockServer(500, 'application/json', '{"message":"Internal server error"}');
+    try {
+      const order = new Order({
+        id: 1,
+        petId: 12345,
+        quantity: 1,
+        shipDate: new Date(),
+        status: OrderStatusEnum.Placed,
+        complete: false,
+      });
+      await expect(mockApi.placeOrder(order)).rejects.toBeInstanceOf(InternalServerError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 100 delete order not found', async () => {
+    const { api: mockApi, close } = await createMockServer(404, 'application/json', '{"message":"Order not found"}');
+    try {
+      await expect(mockApi.deleteOrder(99999)).rejects.toBeInstanceOf(NotFoundError);
+    } finally {
+      close();
+    }
+  });
+});
+
+describe('StoreApi operation without parameters or security', () => {
+  test('bhv operations 096 an operation without parameters or security takes per call headers', async () => {
+    const seen: Array<string | undefined> = [];
+    const server = http.createServer((req, res) => {
+      seen.push(req.headers['x-call'] as string | undefined);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end('{"message":"Internal server error"}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    try {
+      const addr = server.address() as { port: number };
+      const mockApi = new StoreApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build(),
+      );
+
+      await expect(mockApi.getInventory({ headers: { 'X-Call': '1' }, maxRetries: 0 })).rejects.toBeInstanceOf(
+        InternalServerError,
+      );
+      expect(seen).toEqual(['1']);
+    } finally {
+      server.close();
+    }
+  });
+});
+
+describe('StoreApi misc behaviours', () => {
+  test('bhv misc 011 an operation with no parameters accepts the call settings', async () => {
+    const result = await api.getInventory({ timeout: 5000, maxRetries: 0, headers: { 'X-A': '1' } });
+    expect(result).toBeDefined();
+  });
+
+  test('bhv misc 013 an operation with no parameters can be called with no argument and returns its result', async () => {
+    const result = await api.getInventory();
+    expect(result).toBeDefined();
+  });
+
+
+  test('bhv misc 114 a success response is decoded by the decoder for the status code actually received', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      201,
+      'application/json',
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+    } finally {
+      close();
+    }
+  });
+});

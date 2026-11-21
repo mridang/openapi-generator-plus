@@ -1,0 +1,5 @@
+client, err := {{packageName}}.New{{clientClassName}}WithToken(os.Getenv("{{envVarPrefix}}_BASE_URL"), os.Getenv("{{envVarPrefix}}_TOKEN"), nil)
+if err != nil {
+	return err
+}
+defer func() { _ = client.Close() }()

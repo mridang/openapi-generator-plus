@@ -1,0 +1,17 @@
+{{>api_info}}
+
+{{#imports}}
+import { {{{className}}} } from '{{{path}}}{{importFileExtension}}';
+{{/imports}}
+{{#typeImports}}
+import type { {{{className}}} } from '{{{path}}}{{importFileExtension}}';
+{{/typeImports}}
+
+/**
+ * Scheme-specific authenticator for the {{schemeName}} security scheme.
+ */
+export class {{className}} extends {{baseClass}} {
+  constructor({{#constructorParams}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
+    super({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}});
+  }
+}

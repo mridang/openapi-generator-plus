@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for HTTP 410 Gone.
+/// </summary>
+public class GoneException : ClientException
+{
+    public GoneException()
+        : this("Gone") { }
+
+    public GoneException(string message)
+        : this(message, null, null, null) { }
+
+    public GoneException(string message, Exception innerException)
+        : base(410, message, innerException) { }
+
+    public GoneException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(410, message, responseHeaders, responseBody, errorBody) { }
+}

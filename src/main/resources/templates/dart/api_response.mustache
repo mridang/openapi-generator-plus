@@ -1,0 +1,19 @@
+{{>api_info}}
+/// Represents an HTTP API response.
+class ApiHttpResponse {
+  /// The HTTP status code of the response.
+  final int statusCode;
+
+  /// The raw response body string.
+  final String body;
+
+  /// The response headers (an unmodifiable copy).
+  final Map<String, String> headers;
+
+  /// Creates an HTTP API response.
+  ApiHttpResponse({
+    required this.statusCode,
+    required this.body,
+    required Map<String, String> headers,
+  }) : headers = Map.unmodifiable(headers);
+}

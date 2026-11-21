@@ -1,0 +1,318 @@
+{{>api_info}}
+
+import type { Authenticator } from './auth/authenticator{{importFileExtension}}';
+import { isHttpAwareAuthenticator } from './auth/http-aware-authenticator{{importFileExtension}}';
+import { BearerAuthenticator } from './auth/bearer-authenticator{{importFileExtension}}';
+import type { CallHook } from './call-hook{{importFileExtension}}';
+import type { CredentialProvider } from './auth/credentials{{importFileExtension}}';
+import { Configuration } from './configuration{{importFileExtension}}';
+import { DefaultApiClient } from '#transport';
+import { TransportOptions } from './transport-options{{importFileExtension}}';
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import { {{classname}} } from './api/{{classFilename}}{{importFileExtension}}';
+import type { {{classname}}Interface } from './api/{{classFilename}}{{importFileExtension}}';
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+/**
+ * Client-level options for {{clientClassName}}.
+ *
+ * - `signal` -- cancels every call made through the client when it fires. It
+ *   is merged with the per-call `signal` of each operation (either one
+ *   cancels the call) and raises the signal's reason (an `AbortError` by
+ *   default), never a timeout error.
+ * - `callHook` -- a hook that runs around every operation call: it can edit
+ *   the request headers before the send and observe the status or the error
+ *   afterwards. Use `chain` to combine several hooks.
+ */
+export interface {{clientClassName}}Options {
+  readonly signal?: AbortSignal;
+  readonly callHook?: CallHook;
+}
+
+/**
+ * The credentials of a {{clientClassName}}: one optional credential for each
+ * security scheme of the API, named after the scheme, and an optional default
+ * `authenticator`.
+ *
+ * An operation uses the credential of the first scheme in its own security
+ * requirement that the client holds, so it always uses the scheme its spec
+ * names and a call cannot pick another one. When the client holds a credential
+ * for none of an operation's schemes, the operation uses `authenticator` if
+ * one is given and is otherwise sent without a credential. At least one
+ * credential is required, and the base URL comes from the first one given,
+ * `authenticator` first.
+ */
+export interface {{clientClassName}}Credentials {
+  /** Default credential, used by an operation that no scheme credential matches. */
+  readonly authenticator?: Authenticator;
+{{#clientSchemes}}
+  /** Credential for the `{{{schemeId}}}` security scheme, for example a `{{className}}`. */
+  readonly {{paramName}}?: Authenticator;
+{{/clientSchemes}}
+}
+
+/**
+ * The security schemes of the API in the order the spec declares them: the
+ * credential's name on {@link {{clientClassName}}Credentials}, then the scheme's name in the spec.
+ */
+const SCHEMES: ReadonlyArray<readonly [Exclude<keyof {{clientClassName}}Credentials, 'authenticator'>, string]> = [
+{{#clientSchemes}}
+  ['{{{paramName}}}', '{{{schemeId}}}'],
+{{/clientSchemes}}
+];
+
+/** Whether the first constructor argument is a single authenticator. */
+function isAuthenticator(value: Authenticator | {{clientClassName}}Credentials): value is Authenticator {
+  return typeof (value as Partial<Authenticator>).getHost === 'function';
+}
+
+/**
+ * The contract of {@link {{clientClassName}}}: every API group typed as its group interface, plus
+ * `close()`. Depend on it instead of the class to substitute a hand-written fake client in your
+ * own tests; a fake client built from fake groups opens no connection, and closing it does
+ * nothing.
+ */
+export interface {{clientClassName}}Interface {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+  /** API operations for the {{classname}} group. */
+  readonly {{clientPropertyName}}: {{classname}}Interface;
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  /** Closes the client; a fake client has nothing to release. */
+  close(): Promise<void>;
+}
+
+/**
+ * Unified entry point for all API services.
+ *
+ * Takes an {@link Authenticator} (or one optional credential per security
+ * scheme, see {@link {{clientClassName}}Credentials}) and optionally
+ * {@link TransportOptions}, then exposes each API group as a typed property.
+ * If a credential implements `HttpAwareAuthenticator`, the shared `ApiClient`
+ * is injected so that authentication HTTP calls (token exchange, discovery)
+ * use the same transport configuration as regular API calls.
+ *
+ * Usage:
+ *
+ * ```typescript
+ * // One authenticator for every operation
+ * const client = new {{clientClassName}}(authenticator);
+ *
+ * // One credential per security scheme, named after the scheme
+ * const bySchemes = new {{clientClassName}}({ {{#clientSchemes}}{{#-first}}{{{paramName}}}: schemeAuthenticator{{/-first}}{{/clientSchemes}}{{^hasClientSchemes}}authenticator{{/hasClientSchemes}} });
+ *
+ * // Custom transport (proxy, timeouts, etc.)
+ * const transport = TransportOptions.builder()
+ *   .proxy('http://proxy:3128')
+ *   .timeout(5000)
+ *   .build();
+ * const client = new {{clientClassName}}(authenticator, transport);
+ *
+ * // Custom fetch (the caller owns it; the SDK never closes it)
+ * const injected = TransportOptions.builder().fetch(myFetch).build();
+ *
+ * // Client-level cancellation
+ * const controller = new AbortController();
+ * const cancellable = new {{clientClassName}}(authenticator, undefined, { signal: controller.signal });
+ * ```
+ */
+export class {{clientClassName}} implements {{clientClassName}}Interface {
+  private readonly ownedClient: DefaultApiClient;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+  /** API operations for the {{classname}} group. */
+  public readonly {{clientPropertyName}}: {{classname}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+  /**
+   * Creates a new client with the given authenticator and default transport settings.
+   *
+   * @param authenticator provides host URL and auth headers
+   */
+  constructor(authenticator: Authenticator);
+
+  /**
+   * Creates a new client with the given credentials and default transport settings.
+   *
+   * @param credentials one optional credential per security scheme, and an optional default authenticator
+   */
+  constructor(credentials: {{clientClassName}}Credentials);
+
+  /**
+   * Creates a new client with the given authenticator and transport options.
+   *
+   * If the authenticator implements `HttpAwareAuthenticator`, the
+   * shared `ApiClient` is injected so that token exchange and
+   * discovery requests use the same proxy, TLS, and timeout settings.
+   *
+   * @param authenticator provides host URL and auth headers
+   * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   */
+  constructor(authenticator: Authenticator, transportOptions: TransportOptions);
+
+  /**
+   * Creates a new client from its credentials and transport options.
+   *
+   * Each security scheme of the API has one optional credential, named after
+   * the scheme. An operation uses the credential of the first scheme in its
+   * own security requirement that is given here, and there is no per-call
+   * override. When none of an operation's schemes has a credential, it uses
+   * `authenticator` if one is given and is otherwise sent without one. At
+   * least one credential is required, and the base URL comes from the first
+   * one given, `authenticator` first.
+   *
+   * If a credential implements `HttpAwareAuthenticator`, the shared
+   * `ApiClient` is injected so that token exchange and discovery requests use
+   * the same proxy, TLS, and timeout settings.
+   *
+   * @param credentials one optional credential per security scheme, and an optional default authenticator
+   * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   */
+  constructor(credentials: {{clientClassName}}Credentials, transportOptions: TransportOptions);
+
+  /**
+   * Creates a new client with the given credentials, transport options and
+   * client-level options such as a cancellation signal.
+   *
+   * @param credentials an authenticator, or one optional credential per security scheme
+   * @param transportOptions HTTP transport configuration, or `undefined` for the defaults
+   * @param clientOptions client-level options (e.g. a `signal` that cancels every call)
+   */
+  constructor(
+    credentials: Authenticator | {{clientClassName}}Credentials,
+    transportOptions: TransportOptions | undefined,
+    clientOptions: {{clientClassName}}Options
+  );
+
+  constructor(
+    credentials: Authenticator | {{clientClassName}}Credentials,
+    transportOptions?: TransportOptions,
+    clientOptions?: {{clientClassName}}Options
+  ) {
+    const authenticator = isAuthenticator(credentials) ? credentials : credentials.authenticator;
+    const schemes: Record<string, Authenticator> = {};
+    if (!isAuthenticator(credentials)) {
+      const declared = new Set<string>(['authenticator', ...SCHEMES.map(([name]) => name)]);
+      for (const key of Object.keys(credentials)) {
+        if (!declared.has(key)) {
+          throw new TypeError(`Unknown credential '${key}': the API declares no security scheme with that name`);
+        }
+      }
+      for (const [name, scheme] of SCHEMES) {
+        const credential = credentials[name];
+        if (credential != null) {
+          schemes[scheme] = credential;
+        }
+      }
+    }
+    const held = [...(authenticator != null ? [authenticator] : []), ...Object.values(schemes)];
+    const host = held[0];
+    if (host === undefined) {
+      throw new TypeError('At least one credential is required');
+    }
+    if (host.getHost().trim() === '') {
+      throw new TypeError('A base URL is required: pass the host the client sends requests to');
+    }
+
+    const transport = transportOptions ?? TransportOptions.builder().build();
+    const apiClient: DefaultApiClient = new DefaultApiClient(transport);
+    this.ownedClient = apiClient;
+
+    for (const credential of held) {
+      if (isHttpAwareAuthenticator(credential)) {
+        credential.setApiClient(apiClient);
+      }
+    }
+
+    const config = Configuration.builder()
+      .baseUrl(host.getHost())
+      .signal(clientOptions?.signal)
+      .callHook(clientOptions?.callHook)
+      .build();
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    this.{{clientPropertyName}} = new {{classname}}(apiClient, config, authenticator, schemes);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  }
+
+  /**
+   * Closes the client, gracefully and idempotently. The client is marked
+   * closed at once: a request issued after this call is rejected with the
+   * closed-client error. A request already running finishes, and the HTTP
+   * stack the SDK built itself (the connection pool of the default transport)
+   * is released when the last of them completes, or here when none is running.
+   * A caller-supplied `fetch` is never touched. Calling it again is a no-op.
+   */
+  async close(): Promise<void> {
+    await this.ownedClient.close();
+  }
+
+  /** Supports `await using client = ...`; same as {@link close}. */
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
+  }
+
+  /**
+   * Creates a client authenticated with a Bearer token.
+   *
+   * The token is the argument, or else the `{{envVarPrefix}}_TOKEN` environment
+   * variable (an empty variable counts as unset), read once here. A provider
+   * function in its place is called for every request, so a token that
+   * rotates is always current. A missing token throws here, when the client is
+   * built.
+   *
+   * @param host API base URL
+   * @param accessToken Bearer token, a provider called for every request, or omitted to read the environment variable
+   * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   * @param clientOptions optional client-level options (e.g. a cancellation `signal`)
+   * @returns configured client instance
+   */
+  static withToken(
+    host: string,
+    accessToken?: string | CredentialProvider,
+    transportOptions?: TransportOptions,
+    clientOptions?: {{clientClassName}}Options,
+  ): {{clientClassName}} {
+    return new {{clientClassName}}(
+      new BearerAuthenticator(host, accessToken),
+      transportOptions,
+      clientOptions ?? {},
+    );
+  }
+
+  /**
+   * Creates a client from a ready-made {@link Authenticator} and optional transport.
+   *
+   * This is the generic entry point for bespoke authentication strategies such as
+   * OAuth2 client credentials, JWT private-key (service account), or a personal access
+   * token (PAT). Supply any {@link Authenticator} implementation; if it also implements
+   * `HttpAwareAuthenticator`, the shared `ApiClient` is injected so its HTTP calls
+   * reuse the same transport configuration.
+   *
+   * @param authenticator provides host URL and auth headers
+   * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   * @param clientOptions optional client-level options (e.g. a cancellation `signal`)
+   * @returns configured client instance
+   */
+  static withAuthenticator(
+    authenticator: Authenticator,
+    transportOptions?: TransportOptions,
+    clientOptions?: {{clientClassName}}Options,
+  ): {{clientClassName}} {
+    return new {{clientClassName}}(authenticator, transportOptions, clientOptions ?? {});
+  }
+}

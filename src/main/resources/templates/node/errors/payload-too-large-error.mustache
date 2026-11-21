@@ -1,0 +1,27 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
+import { ClientError } from './client-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 413 Payload Too Large.
+ */
+export class PayloadTooLargeError<T = unknown> extends ClientError<T> {
+  constructor(
+    message: string = '',
+    responseHeaders: Record<string, string> | null = null,
+    responseBody: string | null = null,
+    errorBody: T | null = null,
+    options?: ApiErrorOptions
+  ) {
+    super(413, message, responseHeaders, responseBody, errorBody, options);
+    this.name = 'PayloadTooLargeError';
+  }
+}
+
+ApiError.registerStatusError(
+  413,
+  (_statusCode, message, headers, body, errorBody, options) =>
+    new PayloadTooLargeError(message, headers, body, errorBody, options)
+);

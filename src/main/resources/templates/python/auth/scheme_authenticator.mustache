@@ -1,0 +1,58 @@
+{{>api_info}}
+
+from typing import {{#isBearer}}Callable, {{/isBearer}}Optional
+
+{{#imports}}
+from {{module}} import {{classNames}}
+{{/imports}}
+from {{packageName}}.auth._credentials import resolve_credential
+
+
+class {{className}}({{baseClass}}):
+    """Scheme-specific authenticator for the {{schemeName}} security scheme.
+
+    Each credential is the argument you pass, or else its environment variable,
+    read once when the authenticator is built (an empty variable counts as
+    unset). A credential found in neither place raises ``ValueError`` here, not
+    on the first request.
+{{#constructorParams}}
+{{#hasEnv}}
+
+    ``{{name}}``: ``{{envName}}``
+{{/hasEnv}}
+{{/constructorParams}}
+{{#isBearer}}
+
+    Instead of a static ``token`` you can pass ``token_provider``, a callable
+    that returns the current token and runs for every request; it replaces the
+    environment variable, and giving both raises ``ValueError``.
+{{/isBearer}}
+    """
+
+    def __init__(
+        self,
+{{#constructorParams}}
+{{#hasEnv}}
+        {{name}}: Optional[{{type}}] = None,
+{{/hasEnv}}
+{{^hasEnv}}
+        {{name}}: {{type}},
+{{/hasEnv}}
+{{/constructorParams}}
+{{#isBearer}}
+        token_provider: Optional[Callable[[], str]] = None,
+{{/isBearer}}
+    ) -> None:
+{{#isBearer}}
+        if token_provider is not None:
+            if token is not None:
+                raise ValueError('Give a bearer token or a token provider, not both')
+            super().__init__(host, token_provider=token_provider)
+            return
+{{/isBearer}}
+{{#constructorParams}}
+{{#hasEnv}}
+        {{name}} = resolve_credential({{name}}, '{{envName}}', '{{name}}')
+{{/hasEnv}}
+{{/constructorParams}}
+        super().__init__({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})

@@ -1,0 +1,411 @@
+# {{appNameBase}} SDK - AI Agent Reference
+
+## Installation
+
+Add the gem to your `Gemfile` and install it with Bundler:
+
+```bash
+bundle add {{gemName}}
+```
+
+## Quick Start
+
+```ruby statements
+require '{{gemName}}'
+
+{{>usage_statements}}
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
+
+### Bearer Token
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'your-token')
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{#hasClientSchemes}}
+### Credentials per security scheme
+
+`{{clientClassName}}.new` takes one optional credential for each security scheme of the API, named after the scheme: {{#clientSchemes}}`{{argName}}:`{{^-last}}, {{/-last}}{{/clientSchemes}}. Each operation uses the credential of the first scheme in its own security requirement that you configured; there is no per-call override. An optional `authenticator` (the first argument) serves any operation no scheme credential matches, and an operation that declares no security sends no credential of its own. The client is refused, with an `ArgumentError`, when it gets no credential at all.
+
+```ruby file
+require '{{gemName}}'
+
+# credential is the Auth::Authenticator you built for that scheme
+def client_with_scheme_credential(credential)
+  {{moduleName}}::{{clientClassName}}.new(nil, nil, {{#clientSchemes}}{{#-first}}{{argName}}: credential{{/-first}}{{/clientSchemes}})
+end
+```
+
+{{/hasClientSchemes}}
+### Credentials from the environment
+
+A credential you leave out is read, once, when the authenticator is built, from the environment variable of its security scheme; an empty variable counts as unset. The value you pass wins, and a Bearer token falls back to `token_provider:` (called for every request) when neither is set. A credential still missing raises `ArgumentError` before the client is built.
+{{#hasSecuritySchemeEnvVars}}
+
+| Security scheme | Credential | Environment variable |
+|---|---|---|
+{{#securitySchemeEnvVars}}
+| `{{schemeId}}` | `{{fieldSnake}}` | `{{envName}}` |
+{{/securitySchemeEnvVars}}
+{{/hasSecuritySchemeEnvVars}}
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com')
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{#hasBasicAuth}}
+### Basic Auth
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::BasicAuthenticator.new('https://api.example.com', 'username', 'password')
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::ApiKeyAuthenticator.new(
+  'https://api.example.com', 'key-name', 'key-value', {{moduleName}}::Auth::ApiKeyLocation::HEADER)
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read'])
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2AuthorizationCode}}
+### OAuth2 Authorization Code
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/authorize', 'https://auth.example.com/token',
+  'https://app.example.com/callback', ['read'])
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+`build_authorization_url` adds a PKCE `S256` challenge (RFC 7636); the authenticator keeps its 43-character verifier and `exchange_code` sends it as `code_verifier`.
+
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Password}}
+### OAuth2 Password
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/token', 'username', 'password', ['read'])
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasOAuth2Password}}
+{{#hasOAuth2Implicit}}
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
+  'https://api.example.com', 'client-id', 'https://auth.example.com/authorize', ['read']
+)
+authenticator.access_token = 'your-access-token'
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+### OpenID Connect
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+  'https://api.example.com', 'https://auth.example.com/.well-known/openid-configuration',
+  'client-id', 'client-secret', 'https://app.example.com/callback', ['openid'])
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasOpenIdConnect}}
+{{#hasAnyOAuth2}}
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Expired or revoked tokens
+
+When an API call answers `401` the cached access token is dropped (`invalidate_access_token`; the refresh token is kept), a new one is obtained and the request is sent once more. A second `401` raises `UnauthorizedError`. A multipart or stream body is not sent again, and API key, basic and bearer authenticators never replay.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod::BODY` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod::BASIC` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```ruby statements
+require '{{gemName}}'
+
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read'],
+  client_auth_method: {{moduleName}}::Auth::OAuth::ClientAuthMethod::BASIC)
+```
+
+{{/hasAnyOAuth2}}
+{{#hasServers}}
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `{{moduleName}}::Servers` module exposes each as a `ServerConfiguration` constant (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` array. Pass the desired server's URL to the client:
+
+```ruby statements
+require '{{gemName}}'
+
+client = {{moduleName}}::{{clientClassName}}.with_token({{moduleName}}::Servers::SERVER_0.url, 'your-token')
+```
+
+{{/hasServers}}
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```ruby statements
+require '{{gemName}}'
+
+fake_authenticator = Class.new do
+  def host = 'https://api.example.com'
+  def auth_headers = { 'Authorization' => 'Bearer test-token' }
+  def query_params = {}
+  def cookie_params = {}
+end.new
+
+client = {{moduleName}}::{{clientClassName}}.new(fake_authenticator)
+```
+
+## Error Handling
+
+Every error the SDK raises derives from `{{apiErrorParent}}`, so one `rescue {{apiErrorParent}}` catches them all. An HTTP failure is an `ApiError`; a body that cannot be encoded or decoded is a `SerializationError`; an OAuth2 token request that failed or answered unusably is an `OAuth2ServerError` or `OAuth2TokenError`. The error hierarchy is:
+
+- `{{apiErrorParent}}` (root)
+  - `ApiError` (an HTTP response or a transport failure)
+    - `ClientError` (4xx)
+      - `BadRequestError` (400)
+      - `UnauthorizedError` (401)
+      - `ForbiddenError` (403)
+      - `NotFoundError` (404)
+      - `ConflictError` (409)
+      - `UnprocessableEntityError` (422)
+      - `TooManyRequestsError` (429)
+      - `PaymentRequiredError` (402)
+      - `MethodNotAllowedError` (405)
+      - `RequestTimeoutError` (408)
+      - `GoneError` (410)
+      - `PayloadTooLargeError` (413)
+      - `UnsupportedMediaTypeError` (415)
+      - `LockedError` (423)
+    - `ServerError` (5xx)
+      - `InternalServerError` (500)
+      - `NotImplementedError` (501)
+      - `BadGatewayError` (502)
+      - `ServiceUnavailableError` (503)
+      - `GatewayTimeoutError` (504)
+    - `NetworkError` (no HTTP response, status 0)
+      - `NetworkTimeoutError` (the request timed out, status 0)
+  - `SerializationError` (a request or response body could not be encoded or decoded)
+  - `OAuth2ServerError` (the token endpoint answered with an error status)
+  - `OAuth2TokenError` (the token response was unusable)
+
+```ruby file
+require '{{gemName}}'
+
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}def {{operationId}}_or_report(client{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}})
+  client.{{clientPropertyName}}.{{operationId}}({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+rescue {{moduleName}}::Errors::NotFoundError => e
+  puts "Not found: #{e.message}"
+rescue {{moduleName}}::Errors::ClientError => e
+  puts "Client error #{e.status_code}: #{e.message}"
+rescue {{moduleName}}::Errors::ServerError => e
+  puts "Server error: #{e.message}"
+rescue {{moduleName}}::Errors::ApiError => e
+  puts "API error: #{e.message}"
+rescue {{moduleName}}::Errors::SerializationError => e
+  puts "Serialization error: #{e.message}"
+rescue {{apiErrorParent}} => e
+  puts "SDK error: #{e.message}"
+end
+```
+
+## Configuration
+
+### Custom Transport Options
+
+```ruby file
+require '{{gemName}}'
+
+def client_with_transport(authenticator)
+  transport = {{moduleName}}::TransportOptions.builder
+    .proxy('http://proxy:3128')
+    .timeout(5000)
+    .build
+
+  {{moduleName}}::{{clientClassName}}.new(authenticator, transport)
+end
+```
+
+### Custom HTTP client
+
+Supply your own `Faraday::Connection` to control the adapter or middleware. The SDK still applies its timeouts, user agent, redirect policy and query encoding on top, and never closes a connection you supplied. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(false)` raises `ArgumentError`; configure those on the connection instead.
+
+```ruby file
+require '{{gemName}}'
+
+def client_with_connection(authenticator)
+  connection = Faraday.new { |f| f.adapter :net_http }
+  transport = {{moduleName}}::TransportOptions.builder.connection(connection).build
+
+  {{moduleName}}::{{clientClassName}}.new(authenticator, transport)
+end
+```
+
+### Retries
+
+`max_retries` (default `2`; `0` disables) sets how many times a failed request is sent again: after a network error before any response, and after a `408`, `409`, `429` or `5xx` (not `501`) status. The wait is 0.5 seconds doubling to 8 with up to 25% jitter, or the `Retry-After` header (at most 60 seconds). Retries never extend the `timeout` budget, a TLS failure is not retried, and a multipart or stream body is never sent twice.
+
+```ruby statements
+require '{{gemName}}'
+
+transport = {{moduleName}}::TransportOptions.builder.max_retries(0).build
+```
+
+### Per-call options
+
+Every operation takes an optional Options object whose `timeout` (milliseconds), `headers` and `max_retries` apply to that call alone; a member left `nil` keeps the client's value. An operation with no query, header, form or cookie parameter and no security still has one, carrying only these three members.
+
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```ruby file
+require '{{gemName}}'
+
+def {{operationId}}_within_two_seconds(client)
+  options = {{moduleName}}::Api::Options::{{vendorExtensions.op.optionsClassName}}.new(timeout: 2_000, max_retries: 0)
+  client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}(options)
+end
+```
+{{/exampleOperation}}
+{{/hasExampleOperation}}
+
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the request is sent and observe the status or the error afterwards, and without a hook set the call does nothing extra.
+
+A hook is any object that responds to `start(info, headers)` and returns an observer that responds to `finish(outcome)`, or `nil`. `info` is a `CallInfo` (`operation_id`, `http_method`, `url_template`, `url`, `server_address`), `headers` is the final mutable request header Hash and `outcome` is a `CallOutcome` (`status_code`, `headers`, `error`). `start` runs once per call, `finish` exactly once on every way the call can end, an error raised by `start` reaches the caller and an error raised by `finish` is swallowed. `CallHook.chain(first, second)` runs several hooks in order.
+
+```ruby statements
+require '{{gemName}}'
+
+tenant_hook = Class.new do
+  def start(_info, headers)
+    headers['X-Tenant'] = 'a'
+    nil
+  end
+end.new
+
+client = {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'token', call_hook: tenant_hook)
+```
+
+For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCallHook` recipe that records one span, one request count and one duration per call.
+
+### Closing the client
+
+`client.close` is graceful and idempotent. The client is marked closed at once and a request started afterwards raises a `RuntimeError`; a request already in flight finishes, and the connection the SDK built is released when the last one completes. A second `close` does nothing, and a `Faraday::Connection` you supplied is never closed.
+
+### Cookie parameters
+
+A cookie parameter is sent as it is, without percent-encoding, when every character of its value is a legal RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash). Any other value raises an `ArgumentError` before the request is sent, so encode the value yourself first if it holds one of those characters.
+
+### Cancellation
+
+The SDK has no cancellation API of its own. Ruby's native mechanisms (`Timeout`, killing the thread) apply; the request timeout is the only bound the SDK enforces.
+
+### Timeouts
+
+`timeout` is in milliseconds and is one end-to-end budget for the whole call, redirects and retries included. A non-positive value raises `ArgumentError`; an exceeded budget raises `NetworkTimeoutError`.
+
+### Request id
+
+With `inject_request_id` on (the default) every request carries an `X-Request-ID` header unless you set one yourself.
+
+## API Methods
+
+Each API group is exposed as a typed attribute on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models. Every operation also has a `<operation>_with_http_info` variant that returns an `ApiResult` carrying `status_code`, `headers` (frozen, lower-cased names) and the typed `data`.
+
+## Models
+
+Models are generated as Ruby classes under the `{{moduleName}}::Models` namespace.
+
+```ruby statements
+require '{{gemName}}'
+
+{{#models}}{{#model}}{{#-first}}model = {{moduleName}}::Models::{{classname}}.new({{#requiredVars}}{{name}}: {{#isString}}'example'{{/isString}}{{#isInteger}}1{{/isInteger}}{{#isLong}}1{{/isLong}}{{#isNumber}}1.5{{/isNumber}}{{#isBoolean}}true{{/isBoolean}}{{#isArray}}[]{{/isArray}}{{#isMap}}{}{{/isMap}}{{^-last}}, {{/-last}}{{/requiredVars}})
+{{#requiredVars}}{{#-first}}model.{{name}}{{/-first}}{{/requiredVars}}{{/-first}}{{/model}}{{/models}}
+```
+
+Required attributes must be passed to `new`; a missing one raises `Dry::Struct::Error`.
+
+## Binary / File Uploads
+
+File upload parameters are typed as `IO`. A `format: binary` response is returned as a `StringIO` over the response bytes.
+
+## Comment Style
+
+Never place a comment on the same line as code. Use `#` comments.
+
+```good
+# This explains the logic
+x = 1
+```
+
+```bad
+x = 1  # This explains the logic
+```

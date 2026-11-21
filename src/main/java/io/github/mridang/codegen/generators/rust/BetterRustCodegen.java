@@ -1,0 +1,2081 @@
+package io.github.mridang.codegen.generators.rust;
+
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
+import com.samskivert.mustache.Mustache;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.github.mridang.codegen.generators.BarrelFileEmitter;
+import io.github.mridang.codegen.generators.EnvVarNames;
+import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.servers.Server;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenDiscriminator;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenResponse;
+import org.openapitools.codegen.GeneratorLanguage;
+import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
+import org.openapitools.codegen.utils.ModelUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Generates a Rust API client that uses reqwest for transport
+ * and serde for JSON serialization. All type names use PascalCase,
+ * function and variable names use snake_case per Rust convention.
+ * Filenames are snake_case. The formatter pass invokes cargo fmt
+ * inside Docker to enforce canonical Rust formatting.
+ */
+@SuppressWarnings("unused")
+public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
+
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BetterRustCodegen.class);
+
+    private static final String OPTION_REPOSITORY_URL = "repositoryUrl";
+    private static final String OPTION_HOMEPAGE_URL = "homepageUrl";
+    private static final String OPTION_AUTHORS = "authors";
+    private static final String OPTION_DOCUMENTATION_URL = "documentationUrl";
+    private static final String OPTION_ISSUE_TRACKER_URL = "issueTrackerUrl";
+
+    /**
+     * A model-file import that names another generated model, as opposed to a
+     * collection or library type the templates already write out in full.
+     */
+    private static final java.util.regex.Pattern MODEL_IMPORT =
+            java.util.regex.Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+
+    /**
+     * Rust keywords that cannot be used as raw identifiers ({@code r#crate} etc.
+     * are rejected by the compiler), so they keep the leading-underscore escape.
+     */
+    private static final Set<String> NON_RAW_IDENTIFIER_KEYWORDS =
+            Set.of("crate", "self", "super", "Self");
+
+    /** Prelude types a generated model name must not shadow. */
+    private static final Set<String> RUST_PRELUDE_TYPES =
+            Set.of("Result", "Option", "Vec", "Box", "Some", "None", "Ok", "Err");
+
+    protected String packageName = "openapi_client";
+    protected String packageVersion = "1.0.0";
+
+    /**
+     * Initializes type mappings, template paths, and reserved
+     * words for the Rust language. Type mappings convert OpenAPI
+     * types to their Rust equivalents (e.g. integer to i32,
+     * string to String). Reserved words are loaded from a
+     * bundled word-list to avoid generating identifiers that
+     * clash with Rust keywords.
+     */
+    public BetterRustCodegen() {
+        outputFolder = Path.of("generated-code", "rust").toString();
+        embeddedTemplateDir = templateDir = "templates/rust";
+
+        modelTemplateFiles.put("models/model.mustache", ".rs");
+        apiTemplateFiles.put("api/api.mustache", ".rs");
+
+        modelPackage = "models";
+        apiPackage = "api";
+
+        typeMapping.put("string", "String");
+        typeMapping.put("boolean", "bool");
+        typeMapping.put("int", "i32");
+        typeMapping.put("integer", "i32");
+        typeMapping.put("long", "i64");
+        typeMapping.put("short", "i16");
+        typeMapping.put("float", "f32");
+        typeMapping.put("double", "f64");
+        typeMapping.put("number", "f64");
+        typeMapping.put("decimal", "f64");
+        // Use chrono for proper date / date-time semantics in
+        // generated structs. The previous String mapping forced
+        // callers to parse manually and lost serde validation on
+        // wire payloads.
+        typeMapping.put("date", "chrono::NaiveDate");
+        // `format: date-time` maps to the SDK-owned `DateTime` newtype
+        // (src/date_time.rs) over `chrono::DateTime<chrono::FixedOffset>`.
+        // chrono's own serde impl emits a UTC value with the `Z` designator
+        // and a variable-width fraction, which is not the canonical wire form
+        // (`YYYY-MM-DDTHH:MM:SS.mmm+00:00`: numeric offset, fixed 3-digit
+        // milliseconds). The newtype owns its `Serialize`/`Deserialize`, so
+        // the canonical form is emitted in every position (fields, Option,
+        // Vec, HashSet, map values, oneOf/anyOf variants and top-level bodies)
+        // with no per-field `serde(with = ...)` attribute.
+        typeMapping.put("DateTime", "crate::date_time::DateTime");
+        // Gap 4.8: `format: time` maps to `chrono::NaiveTime`, which serde-
+        // serialises as an RFC-3339 partial-time string ("HH:MM:SS[.fff]")
+        // out of the box (via the `serde` feature already enabled on
+        // chrono). `format: duration` maps to `chrono::Duration`; chrono's
+        // built-in serde impl writes Durations as integer milliseconds —
+        // not the protobuf-JSON duration shape — so the generated model
+        // template applies `#[serde(with = "crate::proto_duration")]` to
+        // fields whose {{isDuration}} is truthy, routing them through the
+        // hand-rolled helper in src/proto_duration.rs that emits the
+        // google.protobuf.Duration form ("<seconds>s", e.g. "3600s")
+        // Zitadel's API requires.
+        typeMapping.put("time", "chrono::NaiveTime");
+        typeMapping.put("duration", "chrono::TimeDelta");
+        typeMapping.put("ipv4", "std::net::Ipv4Addr");
+        typeMapping.put("ipv6", "std::net::Ipv6Addr");
+        typeMapping.put("array", "Vec");
+        typeMapping.put("List", "Vec");
+        typeMapping.put("set", "std::collections::HashSet");
+        typeMapping.put("map", "std::collections::HashMap");
+        // Free-form ("any") JSON values map to the SDK-owned `JsonValue`
+        // wrapper rather than `serde_json::Value`, so no serde_json type leaks
+        // into a public model field or signature.
+        typeMapping.put("object", "crate::json_value::JsonValue");
+        typeMapping.put("AnyType", "crate::json_value::JsonValue");
+        typeMapping.put("file", "Vec<u8>");
+        typeMapping.put("binary", "Vec<u8>");
+        typeMapping.put("ByteArray", "Vec<u8>");
+        // `format: uuid` maps to the `uuid` crate's strongly-typed `Uuid`
+        // type rather than a raw `String`. The `serde` feature on the
+        // `uuid` crate (declared in cargo_toml.mustache) provides
+        // transparent (de)serialization to/from the RFC-4122 string form,
+        // so derived `Serialize`/`Deserialize` impls "just work".
+        typeMapping.put("UUID", "uuid::Uuid");
+        typeMapping.put("URI", "String");
+
+        languageSpecificPrimitives =
+                new HashSet<>(
+                        Arrays.asList(
+                                "String",
+                                "bool",
+                                "i8",
+                                "i16",
+                                "i32",
+                                "i64",
+                                "u8",
+                                "u16",
+                                "u32",
+                                "u64",
+                                "f32",
+                                "f64",
+                                "char",
+                                "Vec",
+                                "HashMap",
+                                "uuid::Uuid"));
+
+        reservedWords = loadReservedWords("/reserved-words/rust.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_NAME,
+                CodegenConstants.PACKAGE_NAME_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated Rust crate (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString(OPTION_REPOSITORY_URL,
+                "Source repository URL, written to the manifest and README."));
+        cliOptions.add(CliOption.newString(OPTION_HOMEPAGE_URL,
+                "Project homepage URL, written to the manifest and README."));
+        cliOptions.add(CliOption.newString(OPTION_AUTHORS,
+                "Comma-separated author names, written to the manifest."));
+        cliOptions.add(CliOption.newString(OPTION_DOCUMENTATION_URL,
+                "Documentation URL, written to the manifest and README (optional)."));
+        cliOptions.add(CliOption.newString(OPTION_ISSUE_TRACKER_URL,
+                "Issue tracker URL, written to the manifest and README (optional)."));
+    }
+
+    /** One entry per per-scheme authenticator, for the generated environment-variable tests. */
+    private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
+    /* Base classes whose catalogue-id test has been emitted once (see the per-scheme entries). */
+    private final java.util.Set<String> bhvIdsClaimed = new java.util.HashSet<>();
+    /* Catalogue id of the empty-variable test, keyed by the scheme module it belongs to. */
+    private static final Map<String, String> EMPTY_VARIABLE_BHV_IDS =
+            Map.ofEntries(
+                    Map.entry("admin_basic_authenticator", "authscheme_004"),
+                    Map.entry("api_key_header_authenticator", "authscheme_005"),
+                    Map.entry("api_key_query_authenticator", "authscheme_006"),
+                    Map.entry("session_cookie_authenticator", "authscheme_007"),
+                    Map.entry("sso_auth_authenticator", "authscheme_008"),
+                    Map.entry("service_token_authenticator", "authscheme_011"),
+                    Map.entry("internal_api_key_authenticator", "authscheme_012"),
+                    Map.entry("machine_auth_client_credentials_authenticator", "authscheme_013"),
+                    Map.entry("legacy_auth_password_authenticator", "authscheme_014"),
+                    Map.entry("user_auth_authorization_code_authenticator", "authscheme_015"),
+                    Map.entry("browser_auth_implicit_authenticator", "authscheme_016"));
+
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
+    @Override
+    public String getName() {
+        return "rust-plus";
+    }
+
+    /** Returns a short description shown in the help output. */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal Rust client with reqwest and serde.";
+    }
+
+    /**
+     * Declares Rust as the target language so that the framework
+     * can apply language-specific post-processing steps.
+     */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.RUST;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTestFixturesDir() {
+        return "tests/fixtures";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSpecDir() {
+        return "tests/spec";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.PASCAL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getFilenameCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "rust:1.96@sha256:fb328f0f58becb23ba1719940a2c94ece8b0b48afa837d05b79ef64bc1e18f6e";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {"rustup component add rustfmt", "cargo fmt"};
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getNumericDataTypes() {
+        return Set.of("i32", "i64", "f32", "f64");
+    }
+
+    /**
+     * Rust value types have a fixed, statically-known size, so a struct that
+     * contains a field whose type can transitively reach the struct again — a
+     * direct self-reference (a tree node whose {@code child} is a node) or
+     * mutual recursion (Department -> Employee -> Department) — would have
+     * infinite size and fail to compile (E0072). Opt in to the shared
+     * cycle-detection pass in {@code postProcessAllModels}, which boxes the
+     * recursive members. A {@code Vec} or {@code HashMap} of the type is already
+     * heap-indirected and is not boxed.
+     */
+    @Override
+    protected boolean indirectsRecursiveProperties() {
+        return true;
+    }
+
+    /**
+     * Boxes a recursive model property so the struct has a known, finite size.
+     * {@code Box<T>} is transparent to serde, so (de)serialization is
+     * unaffected. Idempotent: a property already boxed (it appears in several
+     * var lists) is left untouched. Containers ({@code Vec}, {@code HashMap})
+     * are already heap-indirected and are never passed here.
+     */
+    @Override
+    protected void markRecursiveProperty(org.openapitools.codegen.CodegenProperty property) {
+        if (property.dataType != null && !property.dataType.startsWith("Box<")) {
+            property.dataType = "Box<" + property.dataType + ">";
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "std::collections::HashSet<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^Vec<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "Vec<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "std::collections::HashMap<%2$s, %3$s>";
+    }
+
+    /**
+     * Returns {@code String} as the map key type because Rust
+     * HashMaps use String keys for JSON-derived schemas.
+     */
+    @Override
+    protected String getMapKeyType() {
+        return "String";
+    }
+
+    /**
+     * Returns the SDK-owned {@code JsonValue} wrapper as the default map value
+     * type for free-form JSON, so {@code serde_json} never leaks into a public
+     * map-valued model field.
+     */
+    @Override
+    protected String getMapDefaultValueType() {
+        return "crate::json_value::JsonValue";
+    }
+
+    /**
+     * Resolves user-supplied options and registers all
+     * supporting files for the Rust crate structure.
+     * Sets up the source layout including models, API
+     * classes, errors, auth, configuration, and serializers
+     * in the src/ directory.
+     */
+    @Override
+    public void processOpts() {
+        super.processOpts();
+        additionalProperties.put("perSchemeAuthEntries", perSchemeAuthEntries);
+
+        /* The environment-variable prefix of the credentials the client reads once at
+         * construction ({PREFIX}_ACCESS_TOKEN, {PREFIX}_BASE_URL). */
+        additionalProperties.put(
+                "envPrefix",
+                NamingConvention.SNAKE_CASE
+                        .apply(getPropertyOrDefault("packageName", packageName))
+                        .toUpperCase(Locale.ROOT));
+
+        /* Package metadata options: the manifest and the README show only the ones given. */
+        final List<Map<String, String>> authorsList = new ArrayList<>();
+        final Object authorsOption = additionalProperties.get(OPTION_AUTHORS);
+        if (authorsOption != null) {
+            for (final String author : Splitter.on(',').split(String.valueOf(authorsOption))) {
+                if (!author.trim().isEmpty()) {
+                    authorsList.add(
+                            Map.of(
+                                    "name",
+                                    author.trim().replace("\\", "\\\\").replace("\"", "\\\"")));
+                }
+            }
+        }
+        additionalProperties.put("authorsList", authorsList);
+        additionalProperties.put("hasAuthors", !authorsList.isEmpty());
+        boolean hasProjectUrls = false;
+        for (final String urlOption :
+                new String[] {
+                    OPTION_REPOSITORY_URL,
+                    OPTION_HOMEPAGE_URL,
+                    OPTION_DOCUMENTATION_URL,
+                    OPTION_ISSUE_TRACKER_URL
+                }) {
+            final Object value = additionalProperties.get(urlOption);
+            if (value != null && !String.valueOf(value).trim().isEmpty()) {
+                hasProjectUrls = true;
+            } else {
+                additionalProperties.remove(urlOption);
+            }
+        }
+        additionalProperties.put("hasProjectUrls", hasProjectUrls);
+
+        packageName = getPropertyOrDefault("packageName", packageName);
+        packageVersion = getPropertyOrDefault("packageVersion", packageVersion);
+        additionalProperties.put("packageName", packageName);
+        additionalProperties.put("userAgentDefault", packageName + "/" + packageVersion + " (rust)");
+
+        additionalProperties.put(
+                "rustVariantName",
+                (Mustache.Lambda)
+                        (fragment, writer) -> {
+                            String type = fragment.execute().trim();
+                            StringBuilder name = new StringBuilder();
+                            boolean capitalize = true;
+                            for (int i = 0; i < type.length(); i++) {
+                                char c = type.charAt(i);
+                                if (Character.isLetterOrDigit(c)) {
+                                    name.append(capitalize
+                                            ? Character.toUpperCase(c) : c);
+                                    capitalize = false;
+                                } else {
+                                    capitalize = true;
+                                }
+                            }
+                            writer.write(name.toString());
+                        });
+
+        final String clientClassName =
+                Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
+        final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
+        additionalProperties.put("clientClassFile", clientClassFile);
+        supportingFiles.add(
+                new SupportingFile("client.mustache", "src", clientClassFile + ".rs"));
+
+        if (generateExamples) {
+            /* Cargo builds every examples/*.rs as an example target with no manifest
+             * entry, and clippy --all-targets lints it with the crate's own [lints]. */
+            supportingFiles.add(
+                    new SupportingFile("examples/quickstart.mustache", "examples", "quickstart.rs"));
+        }
+
+        if (emitUnitTests()) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_unit_test.mustache",
+                            "tests",
+                            "default_api_client_unit_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport_options_test.mustache",
+                            "tests",
+                            "transport_options_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header_selector_test.mustache",
+                            "tests",
+                            "header_selector_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/value_serializer_test.mustache",
+                            "tests",
+                            "value_serializer_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "tests",
+                            "configuration_test.rs"));
+        }
+
+        if (generateTests) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/testcontainers_helper.mustache",
+                            "tests",
+                            "testcontainers_helper.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/testcontainers_helper_test.mustache",
+                            "tests",
+                            "testcontainers_helper_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/pet_api_test.mustache", "tests", "pet_api_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/store_api_test.mustache", "tests", "store_api_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_test.mustache",
+                            "tests",
+                            "default_api_client_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/object_serializer_test.mustache",
+                            "tests",
+                            "object_serializer_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/base_api_test.mustache", "tests", "base_api_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/metadata_test.mustache", "tests", "metadata_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/composed_schema_test.mustache",
+                            "tests",
+                            "composed_schema_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client_test.mustache",
+                            "tests",
+                            "client_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_error_test.mustache",
+                            "tests",
+                            "api_error_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_configuration_test.mustache",
+                            "tests",
+                            "server_configuration_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/server_variable_test.mustache",
+                            "tests",
+                            "server_variable_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api_result_test.mustache",
+                            "tests",
+                            "api_result_test.rs"));
+        }
+    }
+
+    /**
+     * Rust ships an adapter on the OpenTelemetry API, behind the existing {@code opentelemetry}
+     * feature, so the core takes no OpenTelemetry dependency.
+     */
+    @Override
+    protected boolean hasOpenTelemetryAdapter() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String authDir = Path.of("src", "auth").toString();
+        final String nextestDir = Path.of(".config", "nextest").toString();
+        return List.of(
+                new SupportingFileSpec("readme.mustache", "", "README.md"),
+                new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+                new SupportingFileSpec("configuration.mustache", "src", "configuration.rs"),
+                new SupportingFileSpec(
+                        "errors/configuration_error.mustache",
+                        "src/errors",
+                        "configuration_error.rs"),
+                new SupportingFileSpec(
+                        "transport_options.mustache", "src", "transport_options.rs"),
+                new SupportingFileSpec(
+                        "server_configuration.mustache", "src", "server_configuration.rs"),
+                new SupportingFileSpec("servers.mustache", "src", "servers.rs"),
+                new SupportingFileSpec("errors/api_error.mustache", "src/errors", "api_error.rs"),
+                new SupportingFileSpec(
+                        "errors/serialization_error.mustache",
+                        "src/errors",
+                        "serialization_error.rs"),
+                new SupportingFileSpec(
+                        "errors/oauth2_server_error.mustache",
+                        "src/errors",
+                        "oauth2_server_error.rs"),
+                new SupportingFileSpec(
+                        "errors/oauth2_token_error.mustache",
+                        "src/errors",
+                        "oauth2_token_error.rs"),
+                new SupportingFileSpec(
+                        "errors/oauth2_authorization_code_error.mustache",
+                        "src/errors",
+                        "oauth2_authorization_code_error.rs"),
+                new SupportingFileSpec(
+                        "errors/root_error.mustache", "src/errors", errorPrefixSnake() + "_error.rs"),
+                new SupportingFileSpec(
+                        "errors/client_error.mustache", "src/errors", "client_error.rs"),
+                new SupportingFileSpec(
+                        "errors/server_error.mustache", "src/errors", "server_error.rs"),
+                new SupportingFileSpec(
+                        "errors/bad_request_error.mustache",
+                        "src/errors",
+                        "bad_request_error.rs"),
+                new SupportingFileSpec(
+                        "errors/unauthorized_error.mustache",
+                        "src/errors",
+                        "unauthorized_error.rs"),
+                new SupportingFileSpec(
+                        "errors/forbidden_error.mustache", "src/errors", "forbidden_error.rs"),
+                new SupportingFileSpec(
+                        "errors/not_found_error.mustache", "src/errors", "not_found_error.rs"),
+                new SupportingFileSpec(
+                        "errors/conflict_error.mustache", "src/errors", "conflict_error.rs"),
+                new SupportingFileSpec(
+                        "errors/payment_required_error.mustache", "src/errors", "payment_required_error.rs"),
+                new SupportingFileSpec(
+                        "errors/method_not_allowed_error.mustache", "src/errors", "method_not_allowed_error.rs"),
+                new SupportingFileSpec(
+                        "errors/request_timeout_error.mustache", "src/errors", "request_timeout_error.rs"),
+                new SupportingFileSpec(
+                        "errors/gone_error.mustache", "src/errors", "gone_error.rs"),
+                new SupportingFileSpec(
+                        "errors/payload_too_large_error.mustache", "src/errors", "payload_too_large_error.rs"),
+                new SupportingFileSpec(
+                        "errors/unsupported_media_type_error.mustache", "src/errors", "unsupported_media_type_error.rs"),
+                new SupportingFileSpec(
+                        "errors/locked_error.mustache", "src/errors", "locked_error.rs"),
+                new SupportingFileSpec(
+                        "errors/not_implemented_error.mustache", "src/errors", "not_implemented_error.rs"),
+                new SupportingFileSpec(
+                        "errors/bad_gateway_error.mustache", "src/errors", "bad_gateway_error.rs"),
+                new SupportingFileSpec(
+                        "errors/service_unavailable_error.mustache", "src/errors", "service_unavailable_error.rs"),
+                new SupportingFileSpec(
+                        "errors/gateway_timeout_error.mustache", "src/errors", "gateway_timeout_error.rs"),
+                new SupportingFileSpec(
+                        "errors/unprocessable_entity_error.mustache",
+                        "src/errors",
+                        "unprocessable_entity_error.rs"),
+                new SupportingFileSpec(
+                        "errors/too_many_requests_error.mustache",
+                        "src/errors",
+                        "too_many_requests_error.rs"),
+                new SupportingFileSpec(
+                        "errors/internal_server_error.mustache",
+                        "src/errors",
+                        "internal_server_error.rs"),
+                new SupportingFileSpec(
+                        "errors/network_error.mustache", "src/errors", "network_error.rs"),
+                new SupportingFileSpec(
+                        "errors/network_timeout_error.mustache",
+                        "src/errors",
+                        "network_timeout_error.rs"),
+                new SupportingFileSpec("errors/mod.mustache", "src/errors", "mod.rs"),
+                new SupportingFileSpec(
+                        "models/base64_serde.mustache", "src/models", "base64_serde.rs"),
+                new SupportingFileSpec(
+                        "proto_duration.mustache", "src", "proto_duration.rs"),
+                new SupportingFileSpec("date_time.mustache", "src", "date_time.rs"),
+                new SupportingFileSpec("json_value.mustache", "src", "json_value.rs"),
+                new SupportingFileSpec("header_selector.mustache", "src", "header_selector.rs"),
+                new SupportingFileSpec(
+                        "object_serializer.mustache", "src", "object_serializer.rs"),
+                new SupportingFileSpec("value_serializer.mustache", "src", "value_serializer.rs"),
+                new SupportingFileSpec("utils/mod.mustache", "src/utils", "mod.rs"),
+                new SupportingFileSpec(
+                        "utils/form_url_encode.mustache",
+                        "src/utils",
+                        "form_url_encode.rs"),
+                new SupportingFileSpec(
+                        "trace_context_util.mustache", "src", "trace_context_util.rs"),
+                new SupportingFileSpec("call_hook.mustache", "src", "call_hook.rs"),
+                new SupportingFileSpec(
+                        "open_telemetry_call_hook.mustache",
+                        "src",
+                        "open_telemetry_call_hook.rs"),
+                new SupportingFileSpec("api_response.mustache", "src", "api_http_response.rs"),
+                new SupportingFileSpec("api_result.mustache", "src", "api_result.rs"),
+                new SupportingFileSpec("api_client.mustache", "src", "api_client.rs"),
+                new SupportingFileSpec(
+                        "default_api_client.mustache", "src", "default_api_client.rs"),
+                new SupportingFileSpec("base_api.mustache", "src/api", "base_api.rs"),
+                new SupportingFileSpec("authenticator.mustache", authDir, "authenticator.rs"),
+                new SupportingFileSpec("lib.mustache", "src", "lib.rs"),
+                new SupportingFileSpec("cargo_toml.mustache", "", "Cargo.toml"),
+                new SupportingFileSpec("rustfmt_toml.mustache", "", "rustfmt.toml"),
+                new SupportingFileSpec("clippy_toml.mustache", "", "clippy.toml"),
+                new SupportingFileSpec("deny_toml.mustache", "", "deny.toml"),
+                new SupportingFileSpec("nextest_toml.mustache", nextestDir, "default.toml"),
+                new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+                new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+                new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+                new SupportingFileSpec(
+                        "dev_dependencies.mustache",
+                        ".openapi-generator",
+                        "DEV-DEPENDENCIES"));
+    }
+
+    /**
+     * Returns the output directory for model source files.
+     * Rust models go in the {@code src/models/} subdirectory.
+     */
+    @Override
+    public String modelFileFolder() {
+        return Path.of(outputFolder, "src", "models").toString();
+    }
+
+    /**
+     * Returns the output directory for API source files.
+     * Rust APIs go in the {@code src/api/} subdirectory.
+     */
+    @Override
+    public String apiFileFolder() {
+        return Path.of(outputFolder, "src", "api").toString();
+    }
+
+    /**
+     * Returns null for default values because Rust does not use
+     * inline default values in struct field declarations. The
+     * Default trait implementation handles defaults instead.
+     */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String toDefaultValue(Schema schema) {
+        final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        final Object effectiveDefault = resolved.getDefault();
+        if (effectiveDefault != null) {
+            if (schema.get$ref() != null
+                    && resolved.getEnum() != null
+                    && !resolved.getEnum().isEmpty()
+                    && ModelUtils.isStringSchema(resolved)) {
+                // A default on a referenced string enum names the declared variant. A default
+                // written next to the $ref comes through the shared siblingDefault data
+                // (seedSiblingDefault), not through here.
+                return toModelName(ModelUtils.getSimpleRef(schema.get$ref()))
+                        + "::"
+                        + enumMemberName(resolved, String.valueOf(effectiveDefault), "String");
+            }
+            if (ModelUtils.isNumberSchema(resolved)) {
+                // A floating-point literal needs a decimal point: `Some(2)` is
+                // an integer and does not coerce to f32/f64.
+                final String literal = effectiveDefault.toString();
+                return literal.matches("-?\\d+") ? literal + ".0" : literal;
+            }
+            if (ModelUtils.isStringSchema(resolved)) {
+                return "String::from(" + toRustStringLiteral(String.valueOf(effectiveDefault)) + ")";
+            } else if (ModelUtils.isBooleanSchema(resolved)) {
+                return effectiveDefault.toString();
+            } else if (ModelUtils.isIntegerSchema(resolved)
+                    || ModelUtils.isNumberSchema(resolved)) {
+                return effectiveDefault.toString();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Surfaces {@code format: duration} to the model template under a vendor
+     * extension (OpenAPI Generator 7.12 has no native {@code isDuration} flag on
+     * {@code CodegenProperty}). The template applies
+     * {@code #[serde(with = "crate::proto_duration")]} (or the {@code ::option}
+     * submodule for optional fields) to route the {@code chrono::Duration}
+     * property through the hand-rolled protobuf-JSON helper in
+     * {@code src/proto_duration.rs}; {@code chrono::Duration} has no usable serde
+     * impl of the {@code "3600s"} shape, so without this the derived
+     * {@code Serialize}/{@code Deserialize} would not compile. Mirrors the Kotlin
+     * generator.
+     */
+    @Override
+    public void postProcessModelProperty(
+            org.openapitools.codegen.CodegenModel model,
+            org.openapitools.codegen.CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        /* The name the `with_` copy method of the property carries: the field name without
+         * the raw-identifier prefix (`r#type` gives `with_type`). */
+        property.vendorExtensions.put(
+                "withName", property.name.startsWith("r#") ? property.name.substring(2) : property.name);
+        /* format: time routes through the object_serializer::naive_time adapter
+         * so a body writes HH:mm:ss(.SSS), the same text as a parameter. */
+        property.vendorExtensions.put("isTime", "time".equals(property.dataFormat));
+        /* format: uri stays a String but is decoded through
+         * object_serializer::absolute_uri, which rejects relative references. */
+        property.vendorExtensions.put("isUri", "uri".equals(property.dataFormat));
+        /* A required AND nullable property is an Option whose key must be
+         * present on decode (null is legal) and is always written on encode.
+         * serde treats a missing Option field as None, so a plain Option needs
+         * a deserialize_with helper to reject a missing key. A field that
+         * already carries a custom with/deserialize_with adapter rejects a
+         * missing key on its own (those adapters are used without `default`),
+         * so the helper is only needed for the remaining plain fields. */
+        final boolean itemsAreBytes = property.items != null && property.items.isByteArray;
+        final String format = property.dataFormat;
+        final boolean customAdapter =
+                property.isByteArray
+                        || (property.isArray && itemsAreBytes)
+                        || (property.isMap && itemsAreBytes)
+                        || (!property.isArray
+                                && ("duration".equals(format)
+                                        || "time".equals(format)
+                                        || "uri".equals(format)));
+        property.vendorExtensions.put(
+                "requiredNullablePlain",
+                property.required && property.isNullable && !customAdapter);
+        // A property referencing a model renamed by toModelName (prelude clash)
+        // still carries the raw schema name; point it at the renamed type.
+        final String complex = property.complexType;
+        if (complex != null && RUST_PRELUDE_TYPES.contains(complex)) {
+            final String renamed = "Model" + complex;
+            final String word = "\\b" + complex + "\\b";
+            if (property.dataType != null) {
+                property.dataType = property.dataType.replaceAll(word, renamed);
+            }
+            if (property.datatypeWithEnum != null) {
+                property.datatypeWithEnum = property.datatypeWithEnum.replaceAll(word, renamed);
+            }
+            property.complexType = renamed;
+        }
+    }
+
+    /**
+     * Seeds a sibling {@code default} (see {@link #seedSiblingDefault}) while the property is
+     * built, so the copies in {@code requiredVars} and {@code optionalVars}, which the
+     * {@code new()} constructor reads, carry it as well as {@code vars}.
+     */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public org.openapitools.codegen.CodegenProperty fromProperty(
+            String name, Schema p, boolean required, boolean schemaIsFromAdditionalProperties) {
+        final org.openapitools.codegen.CodegenProperty property =
+                super.fromProperty(name, p, required, schemaIsFromAdditionalProperties);
+        if (property != null) {
+            seedSiblingDefault(property);
+        }
+        return property;
+    }
+
+    /**
+     * Seeds the default of a property that is a {@code $ref} carrying a sibling {@code default}
+     * (D60, F866) from the shared {@code siblingDefault} data, so {@code new()}, {@code Default}
+     * and a decode that leaves the property out all start from it. A referenced string enum names
+     * its declared variant; any other referenced schema takes the literal of its own type.
+     */
+    void seedSiblingDefault(org.openapitools.codegen.CodegenProperty property) {
+        final Object wire = property.vendorExtensions.get("siblingDefault");
+        if (wire == null) {
+            return;
+        }
+        if (Boolean.TRUE.equals(property.vendorExtensions.get("siblingDefaultIsEnum"))) {
+            property.defaultValue =
+                    property.vendorExtensions.get("siblingDefaultEnumType")
+                            + "::"
+                            + property.vendorExtensions.get("siblingDefaultEnumVar");
+        } else if (property.isString) {
+            property.defaultValue = "String::from(" + toRustStringLiteral(String.valueOf(wire)) + ")";
+        } else if (property.isBoolean || property.isInteger || property.isLong) {
+            property.defaultValue = String.valueOf(wire);
+        } else if (property.isNumber || property.isFloat || property.isDouble) {
+            final String literal = String.valueOf(wire);
+            property.defaultValue = literal.matches("-?\\d+") ? literal + ".0" : literal;
+        }
+    }
+
+    /**
+     * Escapes a reserved word using Rust's raw-identifier form ({@code r#type})
+     * rather than the default leading-underscore ({@code _type}). A leading
+     * underscore idiomatically signals "intentionally unused", which is
+     * misleading for a public, serialized field; {@code r#<name>} is the
+     * idiomatic way to use a keyword as an identifier. The serde {@code rename}
+     * on the field still carries the wire key, so only the Rust-side identifier
+     * changes.
+     *
+     * <p>The four keywords {@code crate}, {@code self}, {@code super} and
+     * {@code Self} cannot be raw identifiers, so they keep the leading-underscore
+     * escape.
+     */
+    @Override
+    public String escapeReservedWord(String name) {
+        // A raw identifier still has to start like an identifier, so a
+        // digit-leading name (`2fa`) takes the underscore escape as well.
+        if (NON_RAW_IDENTIFIER_KEYWORDS.contains(name) || name.matches("^\\d.*")) {
+            return "_" + name;
+        }
+        return "r#" + name;
+    }
+
+    /**
+     * Returns {@code value} as a double-quoted Rust string literal that
+     * evaluates to exactly {@code value}: the backslash, the double quote,
+     * CR, LF and TAB are escaped, and every other C0 control becomes
+     * a braced Unicode escape. Rust has no interpolation sigils in string literals.
+     */
+    String toRustStringLiteral(String value) {
+        final String escaped = escapeEnumStringValue(value == null ? "" : value);
+        final StringBuilder out = new StringBuilder(escaped.length());
+        for (int i = 0; i < escaped.length(); i++) {
+            final char c = escaped.charAt(i);
+            if (c < 0x20 || c == 0x7f) {
+                out.append(String.format("\\u{%x}", (int) c));
+            } else {
+                out.append(c);
+            }
+        }
+        return quoteEnumValue(out.toString());
+    }
+
+    /**
+     * Reverses {@link #toRustStringLiteral} on the text between the quotes,
+     * so an enum variant is derived from the real wire value.
+     */
+    private static String unescapeRustStringLiteral(String literal) {
+        final StringBuilder out = new StringBuilder(literal.length());
+        int i = 0;
+        while (i < literal.length()) {
+            final char c = literal.charAt(i);
+            if (c != '\\' || i + 1 >= literal.length()) {
+                out.append(c);
+                i++;
+                continue;
+            }
+            final char n = literal.charAt(i + 1);
+            if (n == 'n') {
+                out.append('\n');
+            } else if (n == 'r') {
+                out.append('\r');
+            } else if (n == 't') {
+                out.append('\t');
+            } else if (n == 'u' && i + 2 < literal.length() && literal.charAt(i + 2) == '{') {
+                final int close = literal.indexOf('}', i + 3);
+                if (close > 0) {
+                    out.appendCodePoint(Integer.parseInt(literal.substring(i + 3, close), 16));
+                    i = close + 1;
+                    continue;
+                }
+                out.append(n);
+            } else {
+                out.append(n);
+            }
+            i += 2;
+        }
+        return out.toString();
+    }
+
+    /**
+     * Rewrites an optional enum field's {@code defaultValue} to the
+     * fully-qualified DECLARED variant (e.g. {@code DefaultsModeEnum::Medium})
+     * rather than the wire string. The schema {@code default} can be any
+     * variant — not necessarily the first — so the model template must not
+     * fall back to {@code <Enum>::default()} (which always resolves to the
+     * {@code #[default]} first variant). Emitting the declared variant here
+     * lets both the {@code default_<name>()} serde hook and the {@code new()}
+     * constructor seed the correct value.
+     */
+    @Override
+    protected void fixEnumDefaultValue(
+            org.openapitools.codegen.CodegenProperty prop,
+            org.openapitools.codegen.CodegenModel model) {
+        // toDefaultValue wraps a string-enum's wire default as
+        // String::from("medium") (a string schema). Unwrap that carrier and
+        // re-emit the declared variant (e.g. DefaultsModeEnum::Medium) so the
+        // value lands in the enum-typed field/hook rather than producing an
+        // Option<String> (E0308). Idempotent: after the rewrite the value no
+        // longer matches the String::from(...) form, so the four call sites
+        // (vars/allVars/optionalVars/requiredVars) converge.
+        final String prefix = "String::from(\"";
+        final String suffix = "\")";
+        if (prop.defaultValue != null
+                && prop.isEnum
+                && prop.defaultValue.startsWith(prefix)
+                && prop.defaultValue.endsWith(suffix)) {
+            final String rawValue = unescapeRustStringLiteral(prop.defaultValue.substring(
+                    prefix.length(), prop.defaultValue.length() - suffix.length()));
+            // Derive the variant from the ORIGINAL wire value, not a lowercased
+            // copy. The declared variants are named via toEnumVarName(value)
+            // (PascalCase, no lowercasing), so lowercasing here would reference a
+            // non-existent variant (e.g. `AVAILABLE` declared but `Available`
+            // referenced -> rustc E0599) for any all-caps/mixed-case default.
+            final String variant = enumMemberNameForWire(prop, rawValue, prop.dataType);
+            prop.defaultValue = model.classname + prop.enumName + "::" + variant;
+        }
+    }
+
+    /**
+     * Returns {@code true} when {@code model} carries a schema default on an
+     * optional field or a discriminator field, either of which the derived
+     * {@code Default} would leave empty.
+     */
+    private static boolean hasDefaultedOptionalVars(org.openapitools.codegen.CodegenModel model) {
+        return (model.optionalVars != null
+                        && model.optionalVars.stream()
+                                .anyMatch(p -> p.defaultValue != null || p.isDiscriminator))
+                || (model.requiredVars != null
+                        && model.requiredVars.stream().anyMatch(p -> p.isDiscriminator));
+    }
+
+    /**
+     * A classic allOf base is realised as a discriminated union of its
+     * subtypes, as a oneOf with a discriminator is: Rust structs cannot be
+     * subclassed, and a flat base struct could not hold the subtype a
+     * discriminator names. Once the shared pass has marked the base, its mapped
+     * subtypes become its {@code oneOf} set, so the union template emits the
+     * enum, the payload per subtype and the hand-written dispatch that rejects
+     * an unknown or missing discriminator (S4, issue #104). Each subtype struct
+     * keeps every field, including the discriminator, which its own constructor
+     * sets to the mapping value, so a subtype serializes its discriminator.
+     */
+    private static void makeClassicBaseUnion(final org.openapitools.codegen.CodegenModel model) {
+        if (!Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
+            return;
+        }
+        final Set<String> variants = new LinkedHashSet<>();
+        for (final CodegenDiscriminator.MappedModel mapped :
+                model.discriminator.getMappedModels()) {
+            variants.add(mapped.getModelName());
+        }
+        model.oneOf = variants;
+    }
+
+    /**
+     * Recomputes {@code hasDefaultedOptionalVars} once the discriminator
+     * defaults have been injected. {@link #postProcessModels} runs per model,
+     * before the base class's {@code postProcessAllModels} marks the
+     * discriminator property of each oneOf child, so the first pass cannot see
+     * it and would leave the derived {@code Default} (an empty discriminator).
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                makeClassicBaseUnion(modelMap.getModel());
+                modelMap.put(
+                        "hasDefaultedOptionalVars", hasDefaultedOptionalVars(modelMap.getModel()));
+            }
+            /* The classic base's union members are set just above, so the glob
+             * decision is taken again here, once they are known. */
+            modelsMap.put("hasModelImports", hasSiblingModelReference(modelsMap));
+        }
+        return result;
+    }
+
+    /**
+     * Flags every model whose generated {@code Default} impl must be
+     * hand-written rather than {@code #[derive(Default)]}d, so the model
+     * template can drop the derive and emit a {@code Default} that mirrors
+     * {@code new()}.
+     *
+     * <p>The derived {@code Default} sets every {@code Option} field to
+     * {@code None}. But {@code new()} seeds optional fields that carry a schema
+     * {@code default} with that declared default (and the discriminator field
+     * with its mapping value). For such structs the two constructors would
+     * disagree: {@code default()} would omit the schema default on the wire
+     * while {@code new()} emits it. Setting {@code hasDefaultedOptionalVars}
+     * lets the template suppress the derive and generate a matching
+     * {@code Default} impl, so {@code ..Default::default()} struct-update syntax
+     * observes the same schema defaults {@code new()} promises.
+     *
+     * <p>The discriminator field is the same hazard on the REQUIRED side. A
+     * discriminated-oneOf child (e.g. {@code DryFood}) carries its discriminator
+     * ({@code foodType}) as a required, non-{@code Option} {@code String} that
+     * {@code new()} seeds with the oneOf mapping value ({@code "dry"}). Whether
+     * the discriminator lands in {@code optionalVars} (when demoted) or stays in
+     * {@code requiredVars} (when not), the derived {@code Default} sets it to the
+     * type default — an EMPTY {@code String} ({@code ""}) — diverging from
+     * {@code new()} and breaking parent round-trip: the parent's untagged enum
+     * can no longer dispatch on the blank discriminator. So a discriminator in
+     * {@code requiredVars} must also force the hand-written {@code Default} impl.
+     */
+    @Override
+    public org.openapitools.codegen.model.ModelsMap postProcessModels(
+            org.openapitools.codegen.model.ModelsMap objs) {
+        final org.openapitools.codegen.model.ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
+            /* The property lists are separate copies, so a sibling default seeded on one
+             * (postProcessModelProperty) is carried to all of them here. */
+            for (final List<org.openapitools.codegen.CodegenProperty> properties :
+                    List.of(
+                            model.vars,
+                            model.allVars,
+                            model.optionalVars,
+                            model.requiredVars,
+                            model.readOnlyVars,
+                            model.readWriteVars)) {
+                for (final org.openapitools.codegen.CodegenProperty property : properties) {
+                    seedSiblingDefault(property);
+                }
+            }
+            modelMap.put("hasDefaultedOptionalVars", hasDefaultedOptionalVars(model));
+            /* A `format: password` property is masked in `Debug` (F867), which
+             * needs a hand-written impl instead of the derive. */
+            modelMap.put(
+                    "hasPasswordVars",
+                    !model.isEnum
+                            && model.vars != null
+                            && model.vars.stream().anyMatch(v -> v.isPassword));
+        }
+        result.put("hasModelImports", hasSiblingModelReference(result));
+        return result;
+    }
+
+    /**
+     * Decides whether a model file needs {@code use super::*;}, which brings the sibling
+     * models it names into scope.
+     *
+     * <p>A union names its members, so a union with a generated model as a member needs
+     * the glob. The generator also imports an allOf parent into each subtype, but the
+     * subtype file never writes the parent's name, so the parent counts only when a
+     * property of the file also names it. The import list carries collection and library
+     * types ({@code Vec<u8>}, {@code std::collections::HashMap}), which the templates
+     * write out in full, so only a bare identifier counts.
+     */
+    private boolean hasSiblingModelReference(final org.openapitools.codegen.model.ModelsMap result) {
+        final Set<String> parents = new HashSet<>();
+        final Set<String> identifiersInProperties = new HashSet<>();
+        for (final ModelMap modelMap : result.getModels()) {
+            final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
+            if (model.parent != null) {
+                parents.add(model.parent);
+            }
+            if (namesAModelMember(model)) {
+                return true;
+            }
+            for (final org.openapitools.codegen.CodegenProperty property : model.allVars) {
+                final java.util.regex.Matcher matcher =
+                        MODEL_IMPORT.matcher(String.valueOf(property.dataType));
+                while (matcher.find()) {
+                    identifiersInProperties.add(matcher.group());
+                }
+            }
+        }
+        return result.getImports().stream()
+                .map(entry -> entry.get("import"))
+                .filter(Objects::nonNull)
+                .map(
+                        name ->
+                                name.startsWith("models.")
+                                        ? name.substring("models.".length())
+                                        : name)
+                .filter(MODEL_IMPORT.asMatchPredicate())
+                .anyMatch(name -> !parents.contains(name) || identifiersInProperties.contains(name));
+    }
+
+    /**
+     * True when a union's enum names one of its members as a generated model. A oneOf
+     * or anyOf of primitives ({@code Vec<u8>}) names no model and needs no glob, so only
+     * members flagged {@code isModel} count. A classic allOf base names its mapped
+     * subtypes, which {@link #makeClassicBaseUnion} sets before this check runs.
+     */
+    private static boolean namesAModelMember(final org.openapitools.codegen.CodegenModel model) {
+        if (model.getComposedSchemas() != null) {
+            final List<org.openapitools.codegen.CodegenProperty> members = new ArrayList<>();
+            if (model.getComposedSchemas().getOneOf() != null) {
+                members.addAll(model.getComposedSchemas().getOneOf());
+            }
+            if (model.getComposedSchemas().getAnyOf() != null) {
+                members.addAll(model.getComposedSchemas().getAnyOf());
+            }
+            if (members.stream().anyMatch(member -> member.isModel)) {
+                return true;
+            }
+        }
+        return Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))
+                && model.discriminator != null
+                && !model.discriminator.getMappedModels().isEmpty();
+    }
+
+    /**
+     * Flags operations whose multipart request body is required, so the API
+     * template can reject a {@code None} {@code options} up front instead of
+     * silently issuing a body-less request.
+     *
+     * <p>A multipart operation populates its body from the {@code options}
+     * struct ({@code if let Some(opts) = options { ... }}). When the requestBody
+     * is {@code required: true} and the caller passes {@code options: None}, the
+     * multipart map stays empty and {@code invoke_api} sends a POST with no body
+     * — a malformed request silently, rather than the required-parameter
+     * validation the SDK performs for path/query/header params. The flag lets
+     * the template emit the same {@code ok_or_else} guard for the body.
+     *
+     * <p>Detection: the operation is multipart and carries at least one required
+     * form part (the OAS {@code required} list on the multipart schema surfaces
+     * as required {@code formParams}).
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    final boolean requiredMultipartBody =
+                            op.isMultipart
+                                    && op.formParams != null
+                                    && op.formParams.stream().anyMatch(p -> p.required);
+                    if (op.vendorExtensions == null) {
+                        op.vendorExtensions = new HashMap<>();
+                    }
+                    final Object existing = op.vendorExtensions.get("op");
+                    final Map<String, Object> opDecorators =
+                            existing instanceof Map
+                                    ? (Map<String, Object>) existing
+                                    : new HashMap<>();
+                    opDecorators.put("requiredMultipartBody", requiredMultipartBody);
+                    // The missing-body error names the first required form part, the
+                    // canonical wording every other SDK uses, not the Options struct.
+                    opDecorators.put(
+                            "firstRequiredFormParam",
+                            op.formParams == null
+                                    ? ""
+                                    : op.formParams.stream()
+                                            .filter(p -> p.required)
+                                            .map(p -> p.baseName)
+                                            .findFirst()
+                                            .orElse(""));
+                    op.vendorExtensions.put("op", opDecorators);
+                    reorderAuthMethodsToSpecOrder(op);
+                }
+            }
+            sanitizeServerEnumNames(operations.get("serverTypeDefs"));
+        }
+        return result;
+    }
+
+    /**
+     * Core lists {@code authMethods} in the order the components declare them. The first scheme
+     * an operation names that the client holds supplies its credential (F857), so the list is
+     * put in the operation's own security order, which the shared generator records in
+     * {@code securitySchemeOrder}. Schemes that are not in that order keep their place at the
+     * end.
+     */
+    @SuppressWarnings("unchecked")
+    private static void reorderAuthMethodsToSpecOrder(final CodegenOperation op) {
+        if (op.authMethods == null || op.vendorExtensions == null) {
+            return;
+        }
+        final Object decorator = op.vendorExtensions.get("op");
+        if (!(decorator instanceof Map)) {
+            return;
+        }
+        final Object order = ((Map<String, Object>) decorator).get("securitySchemeOrder");
+        if (!(order instanceof List)) {
+            return;
+        }
+        final List<String> names = new ArrayList<>();
+        for (final Object entry : (List<Object>) order) {
+            names.add(String.valueOf(((Map<String, Object>) entry).get("schemeId")));
+        }
+        final int unlisted = names.size();
+        op.authMethods =
+                op.authMethods.stream()
+                        .sorted(
+                                Comparator.comparingInt(
+                                        am ->
+                                                names.contains(am.name)
+                                                        ? names.indexOf(am.name)
+                                                        : unlisted))
+                        .collect(Collectors.toList());
+    }
+
+    /**
+     * Rewrites the shared upper-snake server-variable enum constant names
+     * ({@code A_B}) into Rust enum variant names by dropping the underscores,
+     * which would trip {@code non_camel_case_types}. Names, values and types
+     * are otherwise the shared ones (one enum per variable per variant).
+     *
+     * @param serverTypeDefs the {@code serverTypeDefs} list built by the base class
+     */
+    @SuppressWarnings("unchecked")
+    private static void sanitizeServerEnumNames(@Nullable Object serverTypeDefs) {
+        if (!(serverTypeDefs instanceof List)) {
+            return;
+        }
+        for (final Object typeDef : (List<Object>) serverTypeDefs) {
+            final Object variants =
+                    typeDef instanceof Map ? ((Map<String, Object>) typeDef).get("variants") : null;
+            if (!(variants instanceof List)) {
+                continue;
+            }
+            for (final Object variant : (List<Object>) variants) {
+                final Object vars =
+                        variant instanceof Map
+                                ? ((Map<String, Object>) variant).get("serverVariables")
+                                : null;
+                if (!(vars instanceof List)) {
+                    continue;
+                }
+                for (final Object serverVar : (List<Object>) vars) {
+                    final Object values =
+                            serverVar instanceof Map
+                                    ? ((Map<String, Object>) serverVar).get("enumValues")
+                                    : null;
+                    if (!(values instanceof List)) {
+                        continue;
+                    }
+                    for (final Map<String, String> ev : (List<Map<String, String>>) values) {
+                        ev.put("name", String.valueOf(ev.get("name")).replace("_", ""));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * A schema named after a prelude type ({@code Result}, {@code Option}, ...)
+     * would shadow it in every module that glob-imports the models, so every
+     * {@code Result<T, E>} in that module stops compiling. Such names take the
+     * {@code Model} prefix; the wire name is unchanged.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        return RUST_PRELUDE_TYPES.contains(modelName) ? "Model" + modelName : modelName;
+    }
+
+    /**
+     * A value made only of characters that sanitise away (a space, {@code @@})
+     * would otherwise yield an empty variant name, which does not compile; it
+     * takes the empty-value name instead and the usual collision suffixing
+     * keeps the variants distinct.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        if (isNumericEnumDatatype(datatype) && name.startsWith("NUMBER_")) {
+            /* An integer member takes the casing of every other Rust variant: the shared
+             * NUMBER_1 spelling becomes Number1, and NUMBER_MINUS_1 becomes NumberMinus1. */
+            final StringBuilder camel = new StringBuilder();
+            for (final String part : Splitter.on('_').omitEmptyStrings().split(name)) {
+                camel.append(part.substring(0, 1).toUpperCase(Locale.ROOT))
+                        .append(part.substring(1).toLowerCase(Locale.ROOT));
+            }
+            return camel.toString();
+        }
+        return name.isEmpty() ? "Empty" : name;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String formatEnumStringLiteral(String value) {
+        return "String::from(\"" + value + "\")";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "None";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "src";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean emitsBaseAuthenticator() {
+        return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getAuthDir() {
+        return "src/auth";
+    }
+
+    /**
+     * Adds the {@code rustdoc} lambda. Spec descriptions are prose, but rustdoc
+     * reads a doc comment as Markdown: {@code <admin>} becomes an unclosed HTML
+     * tag and {@code [items]} an unresolved intra-doc link, both warnings that
+     * {@code RUSTDOCFLAGS="-D warnings" cargo doc} turns into errors. Escaping
+     * the brackets keeps the text exactly as written.
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "rustdoc",
+                        (fragment, writer) -> writer.write(escapeRustdoc(fragment.execute())))
+                .put(
+                        "blockComment",
+                        (fragment, writer) -> writer.write(escapeBlockComment(fragment.execute())))
+                .put(
+                        "docLines",
+                        (fragment, writer) ->
+                                writer.write(
+                                        fragment.execute()
+                                                .strip()
+                                                .replaceAll("\\r?\\n", "\n/// ")))
+                .put(
+                        "rustString",
+                        (fragment, writer) ->
+                                writer.write(
+                                        fragment.execute()
+                                                .replace("\\", "\\\\")
+                                                .replace("\"", "\\\"")
+                                                .replace("\r", "\\r")
+                                                .replace("\n", "\\n")));
+    }
+
+    /**
+     * Escapes the characters rustdoc reads as markup in spec prose: angle
+     * brackets (HTML tags) and square brackets (intra-doc links).
+     *
+     * @param text the doc comment text
+     * @return the text with those characters backslash-escaped
+     */
+    static String escapeRustdoc(String text) {
+        return text.replace("<", "\\<")
+                .replace(">", "\\>")
+                .replace("[", "\\[")
+                .replace("]", "\\]");
+    }
+
+    /**
+     * Makes text safe inside a rust block comment. Rust block comments nest, so
+     * a comment opener (as in a wildcard media type) or closer in spec text would unbalance
+     * the comment; a backslash between the two characters neutralises each.
+     * Line breaks continue the comment with the usual leading {@code " * "}.
+     *
+     * @param text the comment text
+     * @return the text with comment delimiters neutralised
+     */
+    static String escapeBlockComment(String text) {
+        return text.strip()
+                .replace("*/", "*\\/")
+                .replace("/*", "/\\*")
+                .replaceAll("[ \\t]*\\r?\\n", "\n * ")
+                .replace("\n * \n", "\n *\n");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOAuthDir() {
+        return "src/auth/oauth";
+    }
+
+    private boolean hasSecuritySchemeEnvVars() {
+        return Boolean.TRUE.equals(additionalProperties.get("hasSecuritySchemeEnvVars"));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return stem + ".rs";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void registerAuthSupportingFiles() {
+        super.registerAuthSupportingFiles();
+        // Rust needs explicit mod.rs files for each auth directory.
+        supportingFiles.add(new SupportingFile("auth/mod.mustache", getAuthDir(), "mod.rs"));
+        if (hasSecuritySchemeEnvVars()) {
+            supportingFiles.add(new SupportingFile("credentials.mustache", "src", "credentials.rs"));
+        }
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(
+                    new SupportingFile("auth/oauth/mod.mustache", getOAuthDir(), "mod.rs"));
+        }
+        // The Basic, Bearer and API-key authenticator tests are registered
+        // here, not in processOpts: the security-scheme flags are only set once
+        // the spec has been read, so a check in processOpts always saw them
+        // false and the tests were never generated.
+        if (generateTests) {
+            if (hasSecuritySchemeEnvVars()) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/scheme_authenticator_test.mustache",
+                                "tests",
+                                "scheme_authenticator_test.rs"));
+            }
+            if (hasBasicAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/basic_authenticator_test.mustache",
+                                "tests",
+                                "basic_authenticator_test.rs"));
+            }
+            if (hasBearerAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/bearer_authenticator_test.mustache",
+                                "tests",
+                                "bearer_authenticator_test.rs"));
+            }
+            if (hasApiKeyAuth) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/api_key_authenticator_test.mustache",
+                                "tests",
+                                "api_key_authenticator_test.rs"));
+            }
+        }
+    }
+
+    /**
+     * The OAuth2 and OpenID Connect tests, each gated on the scheme it
+     * exercises. Like the Basic, Bearer and API-key tests they are registered
+     * once the spec has been read, never from processOpts.
+     */
+    @Override
+    protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
+        return List.of(
+                new OAuthTestFileSpec(
+                        "test/oauth2_token_manager_test.mustache",
+                        "tests",
+                        "oauth2_token_manager_test.rs",
+                        OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec(
+                        "test/oauth2_auth_code_authenticator_test.mustache",
+                        "tests",
+                        "oauth2_authorization_code_authenticator_test.rs",
+                        OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec(
+                        "test/oauth2_implicit_authenticator_test.mustache",
+                        "tests",
+                        "oauth2_implicit_authenticator_test.rs",
+                        OAuthTestCondition.IMPLICIT),
+                new OAuthTestFileSpec(
+                        "test/oauth2_client_credentials_authenticator_test.mustache",
+                        "tests",
+                        "oauth2_client_credentials_authenticator_test.rs",
+                        OAuthTestCondition.CLIENT_CREDENTIALS),
+                new OAuthTestFileSpec(
+                        "test/oauth2_password_authenticator_test.mustache",
+                        "tests",
+                        "oauth2_password_authenticator_test.rs",
+                        OAuthTestCondition.PASSWORD),
+                new OAuthTestFileSpec(
+                        "test/openid_connect_authenticator_test.mustache",
+                        "tests",
+                        "openid_connect_authenticator_test.rs",
+                        OAuthTestCondition.OIDC));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only scheme values")
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final List<Map<String, String>> constructorParams;
+        final List<String> superArgs;
+
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            constructorParams = List.of(p("host", "&str"), p("username", "&str"), p("password", "&str"));
+            superArgs = List.of("host", "username", "password");
+        } else if ("BearerAuthenticator".equals(spec.baseClass())) {
+            constructorParams = List.of(p("host", "&str"), p("token", "&str"));
+            superArgs = List.of("host", "token");
+        } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            final String loc = "ApiKeyLocation::" + NamingConvention.PASCAL_CASE.apply(
+                    spec.keyIn() != null
+                            ? spec.keyIn().toLowerCase(Locale.ROOT)
+                            : "header");
+            constructorParams = List.of(p("host", "&str"), p("api_key", "&str"));
+            superArgs = List.of("host", toRustStringLiteral(java.util.Objects.toString(spec.keyParamName(), "")), "api_key", loc);
+        } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            constructorParams =
+                    List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"));
+            superArgs =
+                    List.of("host", "client_id", "client_secret",
+                            toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")), formatRustScopes(spec.scopes()));
+        } else if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            // refresh_url is &str — empty string means "fall back to token_url"
+            final String refreshArg =
+                    spec.refreshUrl() != null ? toRustStringLiteral(spec.refreshUrl()) : "\"\"";
+            constructorParams =
+                    List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
+                            p("username", "&str"), p("password", "&str"));
+            // Signature: (host, client_id, client_secret, token_url, username, password, scopes, refresh_url)
+            superArgs =
+                    List.of("host", "client_id", "client_secret",
+                            toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
+                            "username", "password", formatRustScopes(spec.scopes()), refreshArg);
+        } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            // refresh_url is &str — empty string means "fall back to token_url"
+            final String refreshArg =
+                    spec.refreshUrl() != null ? toRustStringLiteral(spec.refreshUrl()) : "\"\"";
+            constructorParams =
+                    List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
+                            p("redirect_uri", "&str"));
+            // Signature: (host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes, refresh_url)
+            superArgs =
+                    List.of("host", "client_id", "client_secret",
+                            toRustStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")), toRustStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")),
+                            "redirect_uri", formatRustScopes(spec.scopes()), refreshArg);
+        } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            constructorParams = List.of(p("host", "&str"), p("client_id", "&str"));
+            superArgs =
+                    List.of("host", "client_id", toRustStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")),
+                            formatRustScopes(spec.scopes()));
+        } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            constructorParams =
+                    List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
+                            p("redirect_uri", "&str"));
+            superArgs =
+                    List.of("host", toRustStringLiteral(java.util.Objects.toString(spec.openIdConnectUrl(), "")),
+                            "client_id", "client_secret", "redirect_uri", "vec![]");
+        } else {
+            LOGGER.warn("Unsupported scheme base class: {}", spec.baseClass());
+            return "";
+        }
+
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        /* Each credential field that has a shared environment variable becomes an optional
+         * argument: the argument wins, then the variable, and a missing one is a
+         * ConfigurationError (F862). Fields without a variable stay required. */
+        final List<Map<String, String>> credentialParams = new ArrayList<>();
+        final List<Map<String, String>> envParams = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> schemeVars =
+                (List<Map<String, Object>>) Objects.requireNonNull(ctx.get("envVars"));
+        for (final Map<String, String> param : constructorParams) {
+            final Map<String, String> copy = new HashMap<>(param);
+            final String paramName = Objects.requireNonNull(param.get("name"));
+            for (final Map<String, Object> var : schemeVars) {
+                if (EnvVarNames.upperSnake(paramName).equals(var.get("fieldSnake"))) {
+                    copy.put("isCredential", "true");
+                    copy.put("envName", String.valueOf(var.get("envName")));
+                    final Map<String, String> envParam = new HashMap<>();
+                    envParam.put("name", param.get("name"));
+                    envParam.put("envName", String.valueOf(var.get("envName")));
+                    envParams.add(envParam);
+                    break;
+                }
+            }
+            credentialParams.add(copy);
+        }
+        ctx.put("constructorParams", credentialParams);
+        ctx.put("envParams", envParams);
+        final boolean bearer = "BearerAuthenticator".equals(spec.baseClass());
+        ctx.put("isBearer", bearer);
+        final String stem =
+                NamingConvention.SNAKE_CASE.apply(
+                        spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", ctx.get("className"));
+        entry.put("schemeId", spec.schemeName());
+        entry.put("fieldName", NamingConvention.SNAKE_CASE.apply(spec.schemeName()));
+        entry.put("module", stem);
+        entry.put("path", spec.isOAuth() ? "auth::oauth" : "auth");
+        entry.put("envParams", envParams);
+        entry.put("firstEnvName", envParams.isEmpty() ? "" : envParams.get(0).get("envName"));
+        entry.put("isBearer", bearer);
+        /* The id-tagged explicit-wins and env-read-once tests carry a catalogue id, which must
+         * appear exactly once per language, so only the first scheme of each base class gets them. */
+        final String baseClassName = spec.baseClass();
+        entry.put("isBasic", "BasicAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("basic"));
+        entry.put("isApiKey", "ApiKeyAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("apikey"));
+        entry.put("bearerIdOnce", bearer && bhvIdsClaimed.add("bearer"));
+        /* The scheme-independent env tests (catalogue authbasic001, authbasic003, authscheme001 and
+         * authscheme002) are rendered by every scheme, so only the first scheme carries their ids. */
+        entry.put("commonBhvOnce", bhvIdsClaimed.add("common_env"));
+        /* The explicit-wins test (authscheme 009) carries its catalogue id in one module only. */
+        final boolean explicitWins = bhvIdsClaimed.add("explicit_wins");
+        entry.put("explicitWinsOnce", explicitWins);
+        /* The explicit-over-environment test without the explicit-wins id (catalogue auth041) is
+         * rendered by every other scheme, so only the first of them carries the id. */
+        entry.put("explicitNotOverriddenOnce", !explicitWins && bhvIdsClaimed.add("explicit_not_overridden"));
+        final String emptyVariableBhv = EMPTY_VARIABLE_BHV_IDS.get(stem);
+        entry.put("emptyVariableBhv", emptyVariableBhv != null);
+        entry.put("emptyVariableToken", emptyVariableBhv == null ? "" : emptyVariableBhv);
+        entry.put("firstParam", envParams.isEmpty() ? "" : envParams.get(0).get("name"));
+        final List<String> explicitArgs = new ArrayList<>();
+        final List<String> bareArgs = new ArrayList<>();
+        for (final Map<String, String> param : credentialParams) {
+            final String name = param.get("name");
+            if ("true".equals(param.get("isCredential"))) {
+                explicitArgs.add("Some(\"explicit-" + name + "\")");
+                bareArgs.add("None");
+            } else if ("host".equals(name)) {
+                explicitArgs.add("\"https://api.example.com\"");
+                bareArgs.add("\"https://api.example.com\"");
+            } else {
+                explicitArgs.add("\"https://app.example.com/callback\"");
+                bareArgs.add("\"https://app.example.com/callback\"");
+            }
+        }
+        entry.put("explicitArgs", String.join(", ", explicitArgs));
+        entry.put("bareArgs", String.join(", ", bareArgs));
+        /* A scheme with two or more credential fields also gets a mixed call (catalogue auth024):
+         * the first field is passed, the others come from their own variables. */
+        final boolean mixedOnce = envParams.size() >= 2 && bhvIdsClaimed.add("mixed_fields");
+        entry.put("mixedOnce", mixedOnce);
+        if (mixedOnce) {
+            final List<String> mixedArgs = new ArrayList<>();
+            boolean firstDone = false;
+            for (final Map<String, String> param : credentialParams) {
+                final String name = param.get("name");
+                if ("true".equals(param.get("isCredential"))) {
+                    mixedArgs.add(firstDone ? "None" : "Some(\"explicit-" + name + "\")");
+                    firstDone = true;
+                } else if ("host".equals(name)) {
+                    mixedArgs.add("\"https://api.example.com\"");
+                } else {
+                    mixedArgs.add("\"https://app.example.com/callback\"");
+                }
+            }
+            entry.put("mixedArgs", String.join(", ", mixedArgs));
+            entry.put("restEnvParams", new ArrayList<>(envParams.subList(1, envParams.size())));
+            entry.put("secondEnvName", envParams.get(1).get("envName"));
+        }
+        perSchemeAuthEntries.add(entry);
+        ctx.put("superArgs", superArgs);
+        // API-key schemes name an ApiKeyLocation variant in their superArgs, so
+        // the wrapper module must import that enum; other base classes do not
+        // (an unconditional import would be dead under -D warnings).
+        ctx.put("needsApiKeyLocation", "ApiKeyAuthenticator".equals(spec.baseClass()));
+        // The wrapper always returns Result: a missing credential is a ConfigurationError.
+        // Basic, Bearer and API-key bases are themselves fallible; the OAuth bases are not.
+        ctx.put("fallible", java.util.Set.of(
+                "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
+                .contains(spec.baseClass()));
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /**
+     * Renders the scopes a scheme declares as a Rust {@code Vec<String>}
+     * expression, so the per-scheme wrapper requests the spec's scopes.
+     */
+    private static String formatRustScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "vec![]";
+        }
+        final List<String> items = new ArrayList<>();
+        for (final String scope : scopes.keySet()) {
+            items.add("\"" + scope.replace("\\", "\\\\").replace("\"", "\\\"") + "\".to_string()");
+        }
+        return "vec![" + String.join(", ", items) + "]";
+    }
+
+    private static Map<String, String> p(String name, String type) {
+        final Map<String, String> param = new HashMap<>();
+        param.put("name", name);
+        param.put("type", type);
+        return param;
+    }
+
+    /*
+     * Keeps the discriminator property on variant structs so
+     * direct construction works (`DryFood::new(...)` auto-emits
+     * `food_type: "dry"`). The parent enum uses
+     * `#[serde(untagged)]` rather than `#[serde(tag = "...")]`,
+     * so there is no longer a duplicate-tag-field conflict — the
+     * child struct's serde-rename'd field IS the discriminator on
+     * the wire. Matches the pattern used by 10 other languages.
+     */
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean removesDiscriminatorPropertyFromChildren() {
+        return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("name", NamingConvention.SNAKE_CASE.apply(p.paramName));
+            param.put("dataType", p.dataType);
+            param.put("required", p.required);
+            param.put("requiredNullable", isRequiredNullableQuery(p));
+            // Propagate the spec-level deprecation flag so the options template
+            // can emit `#[deprecated]` on the corresponding field/accessor,
+            // mirroring how model properties and operations already mark
+            // deprecated members. Only the marker is added; the parameter type
+            // is left untouched (e.g. an allowEmptyValue string stays a string).
+            param.put("deprecated", p.isDeprecated);
+            if (p.description != null && !p.description.isEmpty()) {
+                // The options template renders without HTML escaping, so the
+                // raw spec prose only needs the rustdoc markdown escape.
+                final String prose =
+                        p.unescapedDescription != null ? p.unescapedDescription : p.description;
+                param.put("description", escapeRustdoc(prose));
+            }
+            params.add(param);
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("packageName", packageName);
+        context.put("operationId", op.operationId);
+        context.put("params", params);
+        // When the options struct carries any required (non-Option) field, the
+        // template drops the `Default` derive and the no-arg `new()` in favour
+        // of a `new(<required fields>)` constructor, so a required parameter
+        // cannot be silently defaulted to an empty/zero value.
+        context.put(
+                "hasRequiredParams", optionsParams.stream().anyMatch(p -> p.required));
+        // Whether the struct carries any optional (Option-typed) field. Drives
+        // the new() doc comment: the "optional fields ... chained setters
+        // below" sentence is only true when at least one optional param emits a
+        // setter.
+        context.put(
+                "hasOptionalParams", optionsParams.stream().anyMatch(p -> !p.required));
+        // `use crate::models::*;` is only emitted when a parameter is actually
+        // model-typed; an options struct made of primitives would otherwise
+        // carry a glob import that nothing resolves through.
+        context.put(
+                "hasModelParams", optionsParams.stream().anyMatch(BetterRustCodegen::referencesModel));
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * Returns whether {@code parameter} is typed by a generated model or
+     * top-level enum, i.e. whether the options struct that carries it needs
+     * {@code use crate::models::*;}.
+     */
+    private static boolean referencesModel(CodegenParameter parameter) {
+        if (parameter.isModel || parameter.isEnumRef) {
+            return true;
+        }
+        return parameter.items != null
+                && (parameter.items.isModel
+                        || parameter.items.isEnumRef
+                        || (parameter.items.complexType != null
+                                && !parameter.items.complexType.isEmpty()
+                                && !parameter.items.isDate
+                                && !parameter.items.isDateTime));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(getOutputDir(), "src", "errors", NamingConvention.SNAKE_CASE.apply(className) + ".rs")
+                .toString();
+    }
+
+    /**
+     * Gives every distinct error schema the file stem of its error type ({@code snakeName}), for
+     * the {@code mod} declarations of the errors module.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final Object schemas = objs.get("errorSchemas");
+        if (schemas instanceof List) {
+            for (final Object schema : (List<Object>) schemas) {
+                if (schema instanceof Map) {
+                    final Map<String, Object> row = (Map<String, Object>) schema;
+                    row.put(
+                            "snakeName",
+                            NamingConvention.SNAKE_CASE.apply(Objects.requireNonNull((String) row.get("className"))));
+                }
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
+    }
+
+    /**
+     * A response that names a model renamed by {@link #toModelName} (a schema called
+     * {@code Result}) still carries the raw schema name as its data type; every place that spells
+     * the return type or a declared error body then names the prelude item instead of the model.
+     */
+    @Override
+    public CodegenOperation fromOperation(
+            String path, String httpMethod, Operation operation, List<Server> servers) {
+        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        op.returnType = renamePreludeModels(op.returnType);
+        op.returnBaseType = renamePreludeModels(op.returnBaseType);
+        if (op.responses != null) {
+            for (final CodegenResponse response : op.responses) {
+                response.dataType = renamePreludeModels(response.dataType);
+                response.baseType = renamePreludeModels(response.baseType);
+            }
+        }
+        return op;
+    }
+
+    /**
+     * Points every whole-word mention of a renamed prelude model in a type at the renamed model.
+     *
+     * @param type a Rust type such as {@code Result} or {@code Vec<Result>}, or null
+     * @return the type with each renamed model spelled as the generator names it
+     */
+    @Nullable
+    static String renamePreludeModels(@Nullable String type) {
+        if (type == null) {
+            return null;
+        }
+        String renamed = type;
+        for (final String prelude : RUST_PRELUDE_TYPES) {
+            renamed = renamed.replaceAll("(?<![\\w:])" + prelude + "(?![\\w<])", "Model" + prelude);
+        }
+        return renamed;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
+        return Path.of(getOutputDir(), "src", "api", "options", fileName + ".rs").toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean mintsOptionsForEveryOperation() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
+        if (optionsFiles.isEmpty()) {
+            return;
+        }
+        final List<Map<String, String>> exports = new ArrayList<>();
+        for (final Map<String, String> meta : optionsFiles) {
+            final String className = Objects.requireNonNull(meta.get("optionsClassName"));
+            final Map<String, String> e = new HashMap<>();
+            e.put("modName", NamingConvention.SNAKE_CASE.apply(className));
+            exports.add(e);
+        }
+        final Map<String, Object> ctx = new HashMap<>();
+        ctx.put("exports", exports);
+        final String content = renderOptionsTemplate("api/options_mod.mustache", ctx);
+        final String modPath =
+                Path.of(getOutputDir(), "src", "api", "options", "mod.rs").toString();
+        writeFile(modPath, content);
+    }
+
+    /**
+     * Scans the models and API directories after generation to
+     * write Rust module declaration files ({@code mod.rs}), then
+     * delegates to the parent for Options barrel files and Docker
+     * formatting.
+     */
+    @Override
+    public void postProcess() {
+        writeModFile(Path.of(getOutputDir(), "src", "models"));
+        writeModFile(Path.of(getOutputDir(), "src", "api"));
+        super.postProcess();
+    }
+
+    /**
+     * Scans a directory for {@code .rs} files (excluding
+     * {@code mod.rs}) and writes a {@code mod.rs} that declares
+     * and re-exports all discovered modules. For the API
+     * directory, also includes the options module.
+     */
+    private void writeModFile(Path dir) {
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+        try (Stream<Path> entries = Files.list(dir)) {
+            final List<Map<String, Object>> modules =
+                    entries.filter(p -> p.toString().endsWith(".rs"))
+                            .map(Path::getFileName)
+                            .filter(Objects::nonNull)
+                            .map(Path::toString)
+                            .filter(name -> !name.equals("mod.rs"))
+                            .map(name -> name.replace(".rs", ""))
+                            .sorted()
+                            /* A module with nothing public (base_api is
+                             * crate-internal) is declared but not re-exported:
+                             * a glob that re-exports nothing is a rustc
+                             * warning, not a no-op. */
+                            .map(name -> Map.<String, Object>of(
+                                    "name", name,
+                                    "reexport", exportsPublicItems(dir.resolve(name + ".rs"))))
+                            .collect(Collectors.toList());
+
+            final Map<String, Object> ctx = new HashMap<>();
+            ctx.put("modules", modules);
+            ctx.put("hasOptions",
+                    dir.endsWith("api") && Files.isDirectory(dir.resolve("options")));
+
+            writeFile(dir.resolve("mod.rs").toString(),
+                    renderOptionsTemplate("module_index.mustache", ctx));
+        } catch (IOException e) {
+            LOGGER.warn("Failed to write mod.rs in {}: {}", dir, e.getMessage());
+        }
+    }
+
+    /**
+     * The names an operation signature or body already uses: the injected arguments ({@code
+     * options}, {@code server}, {@code request_content_type}) and the locals of the operation
+     * body. A parameter named like one is renamed so it cannot be shadowed or collide (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of(
+                "options",
+                "server",
+                "request_content_type",
+                "timeout",
+                "max_retries",
+                "header",
+                "call_options",
+                "path",
+                "query_params",
+                "header_params",
+                "cookie_parts",
+                "form_pairs",
+                "headers",
+                "auth",
+                "params",
+                "result",
+                "status_code",
+                "raw_body",
+                "server_url",
+                "opts",
+                "items",
+                "multipart",
+                "request_body",
+                "object_pairs");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getInjectedArgumentSuffix() {
+        return "_param";
+    }
+
+    /**
+     * Returns whether {@code file} declares at least one {@code pub} item, and
+     * so has anything for the module index to re-export.
+     */
+    private static boolean exportsPublicItems(Path file) {
+        try {
+            /* Only a top-level `pub` item is re-exportable through a glob:
+             * `pub(crate)` is "not public enough" for rustc, and an indented
+             * `pub` is a struct field, not an item. */
+            return Files.readAllLines(file).stream().anyMatch(line -> line.startsWith("pub "));
+        } catch (IOException e) {
+            LOGGER.warn("Failed to read {}: {}", file, e.getMessage());
+            return true;
+        }
+    }
+
+    /**
+     * Enables Gap K so polymorphic subtypes auto-emit their
+     * discriminator field on serialization. The Rust model template
+     * only honours {@code defaultValue} on {@code optionalVars}, so
+     * the discriminator property is demoted from required to
+     * optional with a default; serde then writes the field as
+     * {@code Some("foodType")} unconditionally from the constructor.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /**
+     * Required because the Rust struct/constructor templates only
+     * apply {@code defaultValue} inside the {@code optionalVars}
+     * iteration. Without demotion the discriminator would remain a
+     * required constructor parameter the caller had to pass.
+     */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
+    }
+}

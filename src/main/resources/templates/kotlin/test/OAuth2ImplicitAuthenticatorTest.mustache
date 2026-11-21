@@ -1,0 +1,232 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth.oauth
+
+import {{invokerPackage}}.auth.CredentialEnvironment
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class OAuth2ImplicitAuthenticatorTest {
+
+    @Test
+    @DisplayName("bhvMisc001 replacing the token while other callers read the headers never yields a token that was not set")
+    fun bhvMisc001ReplacingTheTokenIsRaceFree() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("tok-0")
+        val seen =
+            runBlocking {
+                kotlinx.coroutines.coroutineScope {
+                    (0 until 50).map { i ->
+                        async(kotlinx.coroutines.Dispatchers.Default) {
+                            auth.setAccessToken("tok-$i")
+                            auth.getAuthHeaders()["Authorization"]
+                        }
+                    }.awaitAll()
+                }
+            }
+        val allowed = (0 until 50).map { "Bearer tok-$it" }.toSet()
+        assertTrue(seen.all { it in allowed }, seen.toString())
+    }
+
+    private fun createAuthenticator(): OAuth2ImplicitAuthenticator {
+        return OAuth2ImplicitAuthenticator(
+            host = "https://api.example.com",
+            clientId = "my-client-id",
+            authorizationUrl = "https://auth.example.com/authorize",
+            scopes = listOf("read", "write")
+        )
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit003BuildsAuthorizationUrlWithResponseTypeToken() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("response_type=token"))
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"))
+    }
+
+    @Test
+    @DisplayName("bhvAuth049 the implicit flow builds the exact authorize URL with response_type token and scopes as percent 20")
+    fun bhvAuth049ImplicitAuthorizeUrlIsExact() {
+        val auth = createAuthenticator()
+
+        assertEquals(
+            "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write",
+            auth.buildAuthorizationUrl(),
+        )
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit002BuildsAuthorizationUrlWithClientId() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("client_id=my-client-id"))
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit004BuildsAuthorizationUrlWithScopes() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl()
+
+        assertTrue(url.contains("scope=read%20write"), url)
+        assertFalse(url.contains("scope=read+write"), url)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit005BuildsAuthorizationUrlWithState() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl("my-state")
+
+        assertTrue(url.contains("state=my-state"))
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit009EmptyStateIsOmittedFromTheAuthorizationUrl() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl("")
+
+        assertFalse(url.contains("state"), url)
+        assertEquals(auth.buildAuthorizationUrl(null), url)
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoimplicit013 an empty access token is treated as unset and throws")
+    fun emptyAccessTokenIsTreatedAsUnset() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("")
+
+        val ex = assertThrowsExactly(IllegalStateException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+        assertEquals("Must set the access token before making API requests", ex.message)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit007GetAuthHeadersReturnsBearerAfterSetAccessToken() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("implicit-tok")
+
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("Bearer implicit-tok", headers["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit012ThrowsWhenAccessTokenNotSet() {
+        val auth = createAuthenticator()
+
+        val ex = assertThrowsExactly(IllegalStateException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+        assertTrue(ex.message!!.contains("Must set the access token before making API requests"))
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit008GetHostReturnsConfiguredHost() {
+        val auth = createAuthenticator()
+
+        assertEquals("https://api.example.com", auth.getHost())
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit010RedactsSecret() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("implicit-tok")
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("implicit-tok"))
+        assertTrue(rendered.contains("***"))
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit011RedactedReprShowsExactlyTheNonSecretFields() {
+        val auth = createAuthenticator()
+        assertEquals(
+            "OAuth2ImplicitAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
+                "authorizationUrl=https://auth.example.com/authorize, scopes=[read, write], accessToken=null)",
+            auth.toString(),
+        )
+        auth.setAccessToken("implicit-tok")
+        assertEquals(
+            "OAuth2ImplicitAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
+                "authorizationUrl=https://auth.example.com/authorize, scopes=[read, write], accessToken=***)",
+            auth.toString(),
+        )
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit014SetAccessTokenRejectsControlAndNonAsciiCharacters() {
+        // The token comes from a redirect fragment: CR/LF, other control
+        // characters and non-ASCII are refused so they cannot reach the
+        // Authorization header, and nothing is stored.
+        for (bad in listOf("tok\r\nX-Injected: 1", "tok\nx", "tok\u0000x", "tok\u007Fx", "tök")) {
+            val auth = createAuthenticator()
+            val ex = assertThrowsExactly(IllegalArgumentException::class.java) { auth.setAccessToken(bad) }
+            assertEquals(
+                "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                ex.message,
+            )
+            assertThrowsExactly(IllegalStateException::class.java) {
+                runBlocking { auth.getAuthHeaders() }
+            }
+        }
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit001AuthorizationUrlKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+        val auth = OAuth2ImplicitAuthenticator(
+            host = "https://api.example.com",
+            clientId = "id-._~*!'()",
+            authorizationUrl = "https://auth.example.com/authorize",
+            scopes = listOf("read")
+        )
+
+        val url = auth.buildAuthorizationUrl("st~*!'() x")
+
+        assertTrue(url.contains("client_id=id-._~%2A%21%27%28%29&"), url)
+        assertTrue(url.contains("state=st~%2A%21%27%28%29%20x"), url)
+    }
+
+    @Test
+    fun bhvAuthoauthtwoimplicit006GeneratedSchemeWrapperUsesItsSpecUrlAndScopes() {
+        val auth = BrowserAuthImplicitAuthenticator("https://api.example.com", "cid")
+
+        assertEquals(
+            "https://auth.example.com/authorize?response_type=token&client_id=cid&scope=read",
+            auth.buildAuthorizationUrl(),
+        )
+    }
+
+    @Test
+    @DisplayName("bhvAuthscheme016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable")
+    fun bhvAuthscheme016EmptyImplicitSchemeVariableIsUnsetAndNamed() {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> if (name == "{{envVarPrefix}}_BROWSER_AUTH_CLIENT_ID") "" else null }
+        try {
+            val ex = assertThrows(IllegalArgumentException::class.java) {
+                BrowserAuthImplicitAuthenticator("https://api.example.com")
+            }
+            assertTrue(ex.message!!.contains("{{envVarPrefix}}_BROWSER_AUTH_CLIENT_ID"), ex.message)
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthoauthtwoimplicit016 an implicit access token may contain a tab")
+    fun aTabIsAllowedInsideAnAccessToken() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("a\tb")
+        assertEquals("Bearer a\tb", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
+}

@@ -1,0 +1,859 @@
+{{>api_info}}
+
+package {{invokerPackage}}.models
+
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+class ComposedSchemaTest {
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = false
+        isLenient = true
+        coerceInputValues = true
+    }
+
+    @Nested
+    @DisplayName("oneOf with discriminator - DryFood")
+    inner class DryFoodTests {
+
+        @Test
+        @DisplayName("bhvUnions012 deserializes DryFood from JSON")
+        fun testDeserializeDryFood() {
+            val jsonString = """{"foodType":"dry","weightKg":2.5}"""
+
+            val result = json.decodeFromString<DryFood>(jsonString)
+
+            assertNotNull(result)
+            assertEquals("dry", result.foodType)
+            assertEquals(2.5, result.weightKg)
+        }
+
+        @Test
+        @DisplayName("bhvUnions013 deserializes WetFood from JSON")
+        fun testDeserializeWetFood() {
+            val jsonString = """{"foodType":"wet","volumeMl":400}"""
+
+            val result = json.decodeFromString<WetFood>(jsonString)
+
+            assertNotNull(result)
+            assertEquals("wet", result.foodType)
+            assertEquals(400, result.volumeMl)
+        }
+
+        @Test
+        @DisplayName("bhvUnions016 returns null for unknown discriminator value")
+        fun testUnknownDiscriminator() {
+            val jsonString = """{"foodType":"raw","calories":300}"""
+
+            val result = runCatching { json.decodeFromString<PetFood>(jsonString) }.getOrNull()
+            assertNull(result)
+        }
+
+        @Test
+        @DisplayName("bhvUnions015 fails to deserialize when discriminator field is missing")
+        fun testMissingDiscriminator() {
+            val jsonString = """{"weightKg":2.5}"""
+
+            val result = runCatching { json.decodeFromString<PetFood>(jsonString) }.getOrNull()
+            assertNull(result)
+        }
+
+        @Test
+        @DisplayName("bhvUnions024 fails to deserialize when discriminator value is empty")
+        fun testEmptyDiscriminator() {
+            // An empty discriminator value matches no listed subtype and must
+            // not be silently routed; kotlinx fails the decode (null here).
+            val jsonString = """{"foodType":"","weightKg":2.5}"""
+
+            val result = runCatching { json.decodeFromString<PetFood>(jsonString) }.getOrNull()
+            assertNull(result)
+        }
+
+        @Test
+        @DisplayName("bhvUnions026 unknown discriminator error names the offending value")
+        fun testUnknownDiscriminatorErrorNamesValue() {
+            // The hand-written discriminator serializer surfaces the offending
+            // value in its message, unlike kotlinx's built-in polymorphic decode.
+            val jsonString = """{"foodType":"raw","calories":300}"""
+            val ex = assertThrows(Exception::class.java) {
+                json.decodeFromString<PetFood>(jsonString)
+            }
+            assertTrue(ex.message!!.contains("raw"))
+        }
+
+        @Test
+        @DisplayName("bhvUnions033 the SDK serializer reports an unknown, missing or empty discriminator as SerializationException")
+        fun testBadDiscriminatorsSurfaceAsSdkSerializationException() {
+            val serializer = {{invokerPackage}}.ObjectSerializer()
+            for (payload in listOf(
+                """{"foodType":"raw","calories":300}""",
+                """{"weightKg":2.5}""",
+                """{"foodType":"","weightKg":2.5}""",
+            )) {
+                val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                    serializer.deserialize<PetFood>(payload)
+                }
+                assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
+                assertNotNull(ex.cause, "the library failure is kept as the cause: $payload")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvUnions030 a subtype whose discriminator key is absent is filled with the mapping default")
+        fun testAbsentDiscriminatorIsFilledWithItsDefault() {
+            val result = json.decodeFromString<DryFood>("""{"weightKg":2.5}""")
+
+            assertEquals("dry", result.foodType)
+        }
+
+        @Test
+        @DisplayName("bhvUnions032 a oneOf wrapper built from a variant holds that variant and serializes it with its discriminator")
+        fun testBuiltFromVariantSerializesWithItsDiscriminator() {
+            val food = PetFood.fromDryFood(DryFood(weightKg = 2.5))
+
+            assertTrue(food.isDryFood)
+            assertEquals(2.5, food.asDryFood()?.weightKg)
+            val encodingJson = Json { encodeDefaults = true }
+            assertEquals("""{"foodType":"dry","weightKg":2.5}""", encodingJson.encodeToString(food))
+        }
+
+        @Test
+        @DisplayName("bhvUnions035 a discriminator value not listed in the mapping fails to deserialize")
+        fun testUnlistedDiscriminatorFailsToDeserialize() {
+            val jsonString = """{"foodType":"freeze-dried","weightKg":1.5}"""
+
+            assertThrowsExactly(kotlinx.serialization.SerializationException::class.java) {
+                json.decodeFromString<PetFood>(jsonString)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvUnions038 a union body whose discriminator is not a string or differs in case raises the SDK serialization error")
+        fun undecodableUnionBodyRaisesTheSdkSerializationError() {
+            val serializer = {{invokerPackage}}.ObjectSerializer()
+            for (payload in listOf(
+                """{"foodType":1,"weightKg":2.5}""",
+                """{"foodType":["dry"],"weightKg":2.5}""",
+                """{"FoodType":"dry","weightKg":2.5}""",
+            )) {
+                val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                    serializer.deserialize<PetFood>(payload)
+                }
+                assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc045 a payload that does not satisfy a variant's schema is not accepted as that variant")
+        fun bhvMisc045VariantSchemaViolationIsNotAcceptedAsThatVariant() {
+            val serializer = {{invokerPackage}}.ObjectSerializer()
+            for (payload in listOf(
+                """{"foodType":3,"weightKg":2.5}""",
+                """{"foodType":"fish","weightKg":2.5}""",
+                """{"foodType":"dry"}""",
+            )) {
+                val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                    serializer.deserialize<PetFood>(payload)
+                }
+                assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc047 serializing a union holding a value that is not one of its variants fails with an error that names the union")
+        fun bhvMisc047SerializingANonVariantFailsNamingTheUnion() {
+            val ex = assertThrowsExactly(kotlinx.serialization.SerializationException::class.java) {
+                json.encodeToString(PetFood(actualInstance = "raw"))
+            }
+            assertTrue(ex.message!!.contains("PetFood"), ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvUnions043 a discriminator value already set on a subtype is written as given, not replaced by its default")
+        fun presetDiscriminatorIsWrittenAsGiven() {
+            val jsonString = json.encodeToString(DryFood(foodType = "custom", weightKg = 1.0))
+            assertTrue(jsonString.contains("\"foodType\":\"custom\""), jsonString)
+            assertFalse(jsonString.contains("\"foodType\":\"dry\""), jsonString)
+        }
+
+        @Test
+        @DisplayName("bhvUnions020 serializes DryFood back to JSON")
+        fun testSerializeDryFood() {
+            val encodingJson = Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+                isLenient = true
+                coerceInputValues = true
+            }
+            val dryFood = DryFood(weightKg = 2.5)
+
+            val jsonString = encodingJson.encodeToString(dryFood)
+
+            assertNotNull(jsonString)
+            assertTrue(jsonString.contains("\"foodType\":\"dry\""))
+            assertTrue(jsonString.contains("2.5"))
+        }
+    }
+
+    @Nested
+    @DisplayName("anyOf - PetTreatment")
+    inner class PetTreatmentTests {
+
+        @Test
+        @DisplayName("bhvUnions003 deserializes a matching variant into actualInstance")
+        fun testDeserialize() {
+            // The wrapper now resolves the bare payload against each declared
+            // variant and stores the concrete match in actualInstance, instead
+            // of silently decoding to an empty wrapper (the previous defect).
+            val jsonString = """{"drugName":"Amoxicillin","dosage":"500mg"}"""
+
+            val result = json.decodeFromString<PetTreatment>(jsonString)
+
+            assertNotNull(result)
+            assertTrue(result.actualInstance is Medication)
+            assertEquals("Amoxicillin", (result.actualInstance as Medication).drugName)
+        }
+
+        @Test
+        @DisplayName("bhvMisc291 a payload matching several variants decodes to the first declared one")
+        fun bhvMisc291SeveralMatchesResolveToTheFirstDeclared() {
+            val both = """{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}"""
+            assertTrue(json.decodeFromString<PetTreatment>(both).actualInstance is Medication)
+        }
+
+        @Test
+        @DisplayName("bhvMisc293 an anyOf value keeps every matching variant and skips the ones that do not match")
+        fun bhvMisc293AnyOfKeepsEveryMatchAndSkipsTheRest() {
+            val both = """{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}"""
+            val matched = json.decodeFromString<PetTreatment>(both).matchedInstances
+            assertEquals(2, matched.size)
+            assertTrue(matched[0] is Medication)
+            assertTrue(matched[1] is Surgery)
+            val only = json.decodeFromString<PetTreatment>("""{"procedureName":"Spay","durationMinutes":45}""")
+            assertEquals(1, only.matchedInstances.size)
+            assertTrue(only.matchedInstances[0] is Surgery)
+        }
+
+        @Test
+        @DisplayName("bhvMisc295 a byte-string oneOf round-trips through base64 and rejects a non-list for the array variant")
+        fun bhvMisc295ByteOneOfRoundTripsAndRejectsAnObject() {
+            val decoded = json.decodeFromString<SetPetAvatarThumbnailRequest>("\"aGk=\"")
+            assertTrue(decoded.actualInstance is ByteArray)
+            assertEquals("\"aGk=\"", json.encodeToString(decoded))
+            assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                json.decodeFromString<SetPetAvatarThumbnailRequest>("""{"a":1}""")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvUnions011 anyOf wrappers have value equality and a matching hash")
+        fun testAnyOfValueEquality() {
+            val payload = """{"drugName":"Amoxicillin","dosage":"500mg"}"""
+            val first = json.decodeFromString<PetTreatment>(payload)
+            val second = json.decodeFromString<PetTreatment>(payload)
+            val other =
+                json.decodeFromString<PetTreatment>("""{"procedureName":"Spay","durationMinutes":45}""")
+
+            assertEquals(first, second)
+            assertEquals(first.hashCode(), second.hashCode())
+            assertNotEquals(first, other)
+        }
+
+        @Test
+        @DisplayName("bhvMisc046 two unions holding equal content compare equal and hash equally, and different content compares unequal")
+        fun bhvMisc046EqualUnionsCompareEqualAndDifferentOnesDoNot() {
+            val payload = """{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"""
+            val first = json.decodeFromString<PetTreatment>(payload)
+            val second = json.decodeFromString<PetTreatment>(payload)
+            assertEquals(first, second)
+            assertEquals(first.hashCode(), second.hashCode())
+            assertNotEquals(first, json.decodeFromString<PetTreatment>("""{"drugName":"Amoxicillin"}"""))
+        }
+
+        @Test
+        @DisplayName("bhvUnions006 deserializes the surgery variant into actualInstance")
+        fun testDeserializeSurgery() {
+            val jsonString = """{"procedureName":"Spay","durationMinutes":45}"""
+
+            val result = json.decodeFromString<PetTreatment>(jsonString)
+
+            assertNotNull(result)
+            assertTrue(result.actualInstance is Surgery)
+            assertEquals("Spay", (result.actualInstance as Surgery).procedureName)
+        }
+
+        @Test
+        @DisplayName("bhvLangkotlin017 round-trips a wrapped variant back to the bare payload")
+        fun bhvLangkotlin017TestWrapperSerializeRoundTrip() {
+            val original = PetTreatment(
+                actualInstance = Medication(drugName = "Amoxicillin", dosage = "500mg"))
+
+            val encoded = json.encodeToString(original)
+            // The wrapper emits the bare variant object, not an envelope.
+            assertFalse(encoded.contains("actualInstance"))
+            assertTrue(encoded.contains("Amoxicillin"))
+
+            val restored = json.decodeFromString<PetTreatment>(encoded)
+            assertTrue(restored.actualInstance is Medication)
+            assertEquals("Amoxicillin", (restored.actualInstance as Medication).drugName)
+        }
+
+        @Test
+        @DisplayName("bhvUnions014 constructs PetTreatment with medication instance")
+        fun testConstructWithMedication() {
+            val medication = Medication(drugName = "Amoxicillin", dosage = "500mg")
+            val treatment = PetTreatment(actualInstance = medication)
+
+            assertNotNull(treatment.actualInstance)
+            assertTrue(treatment.actualInstance is Medication)
+        }
+
+        @Test
+        @DisplayName("bhvUnions037 constructs PetTreatment with surgery instance")
+        fun testConstructWithSurgery() {
+            val surgery = Surgery(procedureName = "Spay", durationMinutes = 45)
+            val treatment = PetTreatment(actualInstance = surgery)
+
+            assertNotNull(treatment.actualInstance)
+            assertTrue(treatment.actualInstance is Surgery)
+        }
+
+        @Test
+        @DisplayName("bhvUnions008 serializes round-trip for anyOf")
+        fun testSerializeRoundTrip() {
+            // Round-trip the matched anyOf member: encode a Medication and
+            // decode it back, asserting the payload survives intact.
+            val original = Medication(drugName = "Amoxicillin", dosage = "500mg")
+            val encoded = json.encodeToString(original)
+            val restored = json.decodeFromString<Medication>(encoded)
+
+            assertEquals(original.drugName, restored.drugName)
+            assertEquals(original.dosage, restored.dosage)
+        }
+
+        @Test
+        @DisplayName("bhvUnions007 anyOf with no matching variant throws")
+        fun testNoMatchThrows() {
+            // Neither Medication (requires drugName) nor Surgery (requires
+            // procedureName) can decode this payload, so the wrapper fails loud
+            // rather than yielding an empty actualInstance.
+            val jsonString = """{"unrelatedKey":"value","anotherUnknown":123}"""
+            assertThrows(Exception::class.java) {
+                json.decodeFromString<PetTreatment>(jsonString)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvUnions009 anyOf retains all matching variants (medication and surgery) losslessly")
+        fun testAnyOfRetainsAllMatchingVariantsLosslessly() {
+            // PetTreatment is a non-discriminated anyOf documented as matching a
+            // medication, a surgery, OR BOTH. A payload that satisfies BOTH
+            // variants at once must retain BOTH — keeping only the first match
+            // (the previous defect) would silently drop the surgery fields and
+            // lose them on re-encode.
+            val both =
+                """{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"""
+
+            val result = json.decodeFromString<PetTreatment>(both)
+
+            // BOTH variants are retained and accessible — not just the first.
+            val medication = result.matchedInstances.filterIsInstance<Medication>().single()
+            val surgery = result.matchedInstances.filterIsInstance<Surgery>().single()
+            assertEquals("Amoxicillin", medication.drugName)
+            assertEquals("250mg", medication.dosage)
+            assertEquals("Spay", surgery.procedureName)
+            assertEquals(45, surgery.durationMinutes)
+            assertEquals(
+                listOf(Medication::class, Surgery::class),
+                result.matchedInstances.map { it!!::class },
+            )
+
+            // Re-serialize: the union of all retained variants' fields must
+            // survive, so the co-satisfied payload round-trips with no drop.
+            val encoded = json.encodeToString(result)
+            assertTrue(encoded.contains("\"drugName\":\"Amoxicillin\""))
+            assertTrue(encoded.contains("\"dosage\":\"250mg\""))
+            assertTrue(encoded.contains("\"procedureName\":\"Spay\""))
+            assertTrue(encoded.contains("\"durationMinutes\":45"))
+
+            // Single-variant behaviour still works: a medication-only payload
+            // retains only Medication, and a surgery-only payload only Surgery.
+            val medOnly = json.decodeFromString<PetTreatment>(
+                """{"drugName":"Amoxicillin","dosage":"500mg"}""")
+            assertEquals(1, medOnly.matchedInstances.size)
+            assertTrue(medOnly.actualInstance is Medication)
+            assertEquals("Amoxicillin", (medOnly.actualInstance as Medication).drugName)
+
+            val surgeryOnly = json.decodeFromString<PetTreatment>(
+                """{"procedureName":"Spay","durationMinutes":45}""")
+            assertEquals(1, surgeryOnly.matchedInstances.size)
+            assertTrue(surgeryOnly.actualInstance is Surgery)
+            assertEquals("Spay", (surgeryOnly.actualInstance as Surgery).procedureName)
+        }
+
+        @Test
+        @DisplayName("bhvUnions010 shared-property collision keeps the last variant's value, emitted once")
+        fun testSharedPropertyCollisionLastWins() {
+            // anyOf-collision-last-wins: both Medication and Surgery declare
+            // `notes`. When a PetTreatment retains both members with DIFFERENT
+            // `notes` values, the merged encoding keeps the LAST-declared
+            // member's value (Surgery) and emits `notes` exactly once — never a
+            // duplicate JSON key.
+            val treatment = PetTreatment(
+                matchedInstances = listOf(
+                    Medication(drugName = "Amoxicillin", notes = "from-medication"),
+                    Surgery(procedureName = "Spay", notes = "from-surgery"),
+                ),
+            )
+
+            val encoded = json.encodeToString(treatment)
+
+            // Surgery is the later-declared member, so its `notes` wins.
+            assertTrue(encoded.contains("from-surgery"))
+            assertFalse(encoded.contains("from-medication"))
+            // `notes` appears exactly once — no duplicate key.
+            assertEquals(2, encoded.split("\"notes\"").size)
+        }
+    }
+
+    @Nested
+    @DisplayName("anyOf - TreatmentRecord (variants declared Surgery then Medication)")
+    inner class TreatmentRecordTests {
+
+        @Test
+        @DisplayName("bhvUnions005 retains the matching variants in declaration order, not alphabetical order")
+        fun testVariantsAreRetainedInDeclarationOrder() {
+            val result = json.decodeFromString<TreatmentRecord>(
+                """{"drugName":"Amoxicillin","procedureName":"Spay"}""")
+
+            assertEquals(
+                listOf(Surgery::class, Medication::class),
+                result.matchedInstances.map { it!!::class },
+            )
+            assertTrue(result.actualInstance is Surgery)
+        }
+
+        @Test
+        @DisplayName("bhvUnions002 a shared property keeps the later-declared variant's value, emitted once")
+        fun testSharedPropertyKeepsTheLaterDeclaredVariant() {
+            val result = json.decodeFromString<TreatmentRecord>(
+                """{"drugName":"Amoxicillin","procedureName":"Spay","notes":"shared"}""")
+            val treatment = TreatmentRecord(
+                matchedInstances = listOf(
+                    Surgery(procedureName = "Spay", notes = "from-surgery"),
+                    Medication(drugName = "Amoxicillin", notes = "from-medication"),
+                ),
+            )
+
+            val encoded = json.encodeToString(treatment)
+
+            assertEquals(2, result.matchedInstances.size)
+            assertTrue(encoded.contains("from-medication"))
+            assertFalse(encoded.contains("from-surgery"))
+            assertEquals(2, encoded.split("\"notes\"").size)
+        }
+    }
+
+    @Nested
+    @DisplayName("allOf - PetWithOwner")
+    inner class PetWithOwnerTests {
+
+        @Test
+        @DisplayName("bhvUnions004 deserializes all properties from allOf composition")
+        fun testDeserialize() {
+            val jsonString =
+                """{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],""" +
+                    """"ownerName":"John","ownerEmail":"john@example.com"}"""
+
+            val result = json.decodeFromString<PetWithOwner>(jsonString)
+
+            assertNotNull(result)
+            assertEquals("doggie", result.name)
+            assertEquals("John", result.ownerName)
+            assertEquals("john@example.com", result.ownerEmail)
+        }
+
+        @Test
+        @DisplayName("bhvUnions021 serializes PetWithOwner to JSON")
+        fun testSerialize() {
+            val petWithOwner = PetWithOwner(
+                name = "doggie",
+                photoUrls = setOf("http://example.com/photo.jpg"),
+                ownerName = "John",
+                ownerEmail = "john@example.com"
+            )
+
+            val jsonString = json.encodeToString(petWithOwner)
+
+            assertNotNull(jsonString)
+            assertTrue(jsonString.contains("doggie"))
+            assertTrue(jsonString.contains("John"))
+            assertTrue(jsonString.contains("john@example.com"))
+        }
+
+        @Test
+        @DisplayName("bhvLangkotlin018 missing required photoUrls array is rejected, not defaulted to empty")
+        fun bhvLangkotlin018MissingRequiredPhotoUrlsThrows() {
+            val jsonString =
+                """{"name":"doggie","ownerName":"John","ownerEmail":"john@example.com"}"""
+
+            val ex = assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                json.decodeFromString<PetWithOwner>(jsonString)
+            }
+            assertTrue(ex.message!!.contains("photoUrls"), "message was: ${ex.message}")
+        }
+
+        @Test
+        @DisplayName("bhvUnions017 round-trip preserves all fields")
+        fun testRoundTrip() {
+            val original = PetWithOwner(
+                name = "doggie",
+                photoUrls = setOf("http://example.com/photo.jpg"),
+                ownerName = "John",
+                ownerEmail = "john@example.com"
+            )
+
+            val jsonString = json.encodeToString(original)
+            val deserialized = json.decodeFromString<PetWithOwner>(jsonString)
+
+            assertEquals(original.name, deserialized.name)
+            assertEquals(original.ownerName, deserialized.ownerName)
+            assertEquals(original.ownerEmail, deserialized.ownerEmail)
+        }
+    }
+
+    @Nested
+    @DisplayName("allOf with discriminator - Vehicle and Shape")
+    inner class AllOfDiscriminatorTests {
+
+        @Test
+        @DisplayName("bhvUnions301 an allOf base decodes to the subtype its explicit mapping names")
+        fun testExplicitMappingDecodesTheSubtype() {
+            val result = json.decodeFromString<Vehicle>(
+                """{"vehicleType":"car","plate":"AB-12","doorCount":4}""")
+
+            assertTrue(result is Car)
+            assertEquals("AB-12", result.plate)
+            assertEquals(4, (result as Car).doorCount)
+            val truck = json.decodeFromString<Vehicle>("""{"vehicleType":"truck","plate":"T-1"}""")
+            assertTrue(truck is Truck)
+        }
+
+        @Test
+        @DisplayName("bhvUnions302 an allOf base decodes to the subtype its implicit schema name names")
+        fun testImplicitMappingDecodesTheSubtype() {
+            val result = json.decodeFromString<Shape>("""{"shapeType":"Circle","radius":1.5}""")
+
+            assertTrue(result is Circle)
+            assertEquals(1.5, (result as Circle).radius)
+        }
+
+        @Test
+        @DisplayName("bhvUnions303 an unknown allOf discriminator value fails and the error names it")
+        fun testUnknownDiscriminatorNamesTheValue() {
+            val serializer = {{invokerPackage}}.ObjectSerializer()
+
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                serializer.deserialize<Vehicle>("""{"vehicleType":"boat","plate":"B-1"}""")
+            }
+
+            val root = generateSequence<Throwable>(ex) { it.cause }.last()
+            assertTrue(root.message!!.contains("boat"), root.message)
+        }
+
+        @Test
+        @DisplayName("bhvUnions304 an allOf base payload without its discriminator fails")
+        fun testMissingDiscriminatorFails() {
+            val serializer = {{invokerPackage}}.ObjectSerializer()
+
+            assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+                serializer.deserialize<Vehicle>("""{"plate":"AB-12"}""")
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("oneOf with format:byte variants - SetPetAvatarThumbnailRequest")
+    inner class SetPetAvatarThumbnailRequestTests {
+
+        // SetPetAvatarThumbnailRequest is a oneOf of [ a scalar format:byte value,
+        // an array of format:byte values ]. format:byte means the value travels on
+        // the wire as a base64 STRING. A reified serializer<ByteArray>() resolves
+        // kotlinx's built-in ByteArraySerializer (a JSON int-array), so the wrapper
+        // must route the byte variants through Base64ByteArraySerializer explicitly
+        // on BOTH encode and decode -- this test pins that wire form.
+
+        @Test
+        @DisplayName("bhvUnions041 an empty JSON array is the list variant and a base64 string is the byte variant")
+        fun eachVariantDecodesItsOwnShape() {
+            val list = json.decodeFromString<SetPetAvatarThumbnailRequest>("[]")
+            assertTrue(list.actualInstance is List<*>, list.actualInstance.toString())
+            val bytes = json.decodeFromString<SetPetAvatarThumbnailRequest>("\"AQID\"")
+            assertTrue(bytes.actualInstance is ByteArray, bytes.actualInstance.toString())
+        }
+
+        @Test
+        @DisplayName("bhvUnions019 setPetAvatarThumbnail byte oneOf round-trips through base64")
+        fun testScalarByteVariantRoundTripsThroughBase64() {
+            val raw = byteArrayOf(0x01, 0x02, 0x03, 0x04)
+            val request = SetPetAvatarThumbnailRequest(actualInstance = raw)
+
+            val encoded = json.encodeToString(request)
+            // The scalar byte variant must serialize to the base64 STRING
+            // "AQIDBA==" -- NOT a JSON int-array [1,2,3,4], NOT raw/unencoded
+            // bytes, NOT a [B@hash toString of the array.
+            assertEquals("\"AQIDBA==\"", encoded)
+            assertFalse(encoded.contains("[1,2,3,4]"))
+            assertFalse(encoded.contains("[1, 2, 3, 4]"))
+
+            // Round-trip: the base64 string must decode back to the SCALAR variant
+            // holding exactly the original 4 bytes -- never element-by-element into
+            // a List<ByteArray>.
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>(encoded)
+            assertTrue(restored.actualInstance is ByteArray)
+            assertArrayEquals(raw, restored.actualInstance as ByteArray)
+        }
+
+        @Test
+        @DisplayName("bhvMisc049 a choice between one binary value and a list of binary values writes the list as base64 text items")
+        fun bhvMisc049ListOfBinaryValuesIsWrittenAsBase64Items() {
+            val raw = byteArrayOf(0x01, 0x02, 0x03, 0x04)
+            val encoded = json.encodeToString(SetPetAvatarThumbnailRequest(actualInstance = listOf(raw)))
+            assertEquals("[\"AQIDBA==\"]", encoded)
+        }
+
+        @Test
+        @DisplayName("bhvUnions022 setPetAvatarThumbnail array byte oneOf round-trips through base64")
+        fun testArrayByteVariantRoundTripsThroughBase64() {
+            val first = byteArrayOf(0x01)
+            val second = byteArrayOf(0x02)
+            val request = SetPetAvatarThumbnailRequest(actualInstance = listOf(first, second))
+
+            val encoded = json.encodeToString(request)
+            // The array variant must serialize to a JSON array of base64 STRINGS.
+            assertEquals("[\"AQ==\",\"Ag==\"]", encoded)
+
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>(encoded)
+            @Suppress("UNCHECKED_CAST")
+            val payloads = restored.actualInstance as List<ByteArray>
+            assertEquals(2, payloads.size)
+            assertArrayEquals(first, payloads[0])
+            assertArrayEquals(second, payloads[1])
+        }
+
+        @Test
+        @DisplayName("bhvUnions023 setPetAvatarThumbnail byte oneOf round-trips through base64")
+        fun testScalarByteVariantDecodesAndReencodesTheSameBase64() {
+            val wire = "\"AQIDBA==\""
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>(wire)
+            assertTrue(restored.actualInstance is ByteArray)
+            assertArrayEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), restored.actualInstance as ByteArray)
+            assertEquals(wire, json.encodeToString(restored))
+        }
+
+        @Test
+        @DisplayName("bhvUnions018 a base64 scalar string deserializes to the scalar variant, not a list")
+        fun testScalarStringIsNotMisParsedAsList() {
+            // Ordering guard: a lone base64 string must resolve to the scalar
+            // ByteArray variant (one value), NOT be coerced element-by-element
+            // into a List<ByteArray>.
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>("\"AQIDBA==\"")
+
+            assertTrue(restored.actualInstance is ByteArray)
+            assertFalse(restored.actualInstance is List<*>)
+            assertArrayEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), restored.actualInstance as ByteArray)
+        }
+
+        @Test
+        @DisplayName("bhvUnions025 an empty array is the list variant, since a byte variant is only ever a base64 string")
+        fun testVariantsAreTriedInDeclarationOrder() {
+            val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>("[]")
+
+            assertTrue(restored.actualInstance is List<*>)
+        }
+
+        @Test
+        @DisplayName("bhvUnions029 oneOf wrappers have value equality, comparing byte arrays by content")
+        fun testOneOfValueEquality() {
+            val first = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x01, 0x02))
+            val second = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x01, 0x02))
+            val other = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x03))
+            val lists =
+                SetPetAvatarThumbnailRequest(actualInstance = listOf(byteArrayOf(0x01)))
+            val sameLists =
+                SetPetAvatarThumbnailRequest(actualInstance = listOf(byteArrayOf(0x01)))
+
+            assertEquals(first, second)
+            assertEquals(first.hashCode(), second.hashCode())
+            assertNotEquals(first, other)
+            assertEquals(lists, sameLists)
+            assertEquals(lists.hashCode(), sameLists.hashCode())
+            assertNotEquals(first, lists)
+        }
+    }
+
+    @Nested
+    @DisplayName("oneOf typed factories and accessors - ReserveStockResponse")
+    inner class ReserveStockResponseAccessorTests {
+
+        @Test
+        @DisplayName("bhvUnions001 a factory wraps its variant and only its is accessor answers true")
+        fun testFactoryWrapsItsVariant() {
+            val reservation = Reservation(reservationId = 31L, quantity = 4)
+            val union = ReserveStockResponse.fromReservation(reservation)
+
+            assertSame(reservation, union.actualInstance)
+            assertTrue(union.isReservation)
+            assertFalse(union.isReservationReceipt)
+        }
+
+        @Test
+        @DisplayName("bhvUnions034 an as accessor returns the variant, or null for the other one")
+        fun testAsAccessorsReturnTheVariantOrNull() {
+            val receipt =
+                ReservationReceipt(receiptCode = "rcpt-77", expiresAt = java.time.OffsetDateTime.parse("2030-01-01T00:00:00Z"))
+            val union = ReserveStockResponse.fromReservationReceipt(receipt)
+
+            assertSame(receipt, union.asReservationReceipt())
+            assertNull(union.asReservation())
+        }
+
+        @Test
+        @DisplayName("bhvUnions044 a union built by a factory equals one built from the same variant by the constructor")
+        fun bhvUnions044TestFactoryAndConstructorAgree() {
+            val reservation = Reservation(reservationId = 31L, quantity = 4)
+
+            assertEquals(ReserveStockResponse(reservation), ReserveStockResponse.fromReservation(reservation))
+        }
+
+        @Test
+        @DisplayName("bhvUnions042 a union with no variant answers false and null to every accessor")
+        fun testEmptyUnionAnswersNothing() {
+            val union = ReserveStockResponse()
+
+            assertFalse(union.isReservation)
+            assertNull(union.asReservation())
+            assertFalse(union.isReservationReceipt)
+            assertNull(union.asReservationReceipt())
+        }
+    }
+
+    @Nested
+    @DisplayName("anyOf typed factories and accessors - PetTreatment")
+    inner class PetTreatmentAccessorTests {
+
+        @Test
+        @DisplayName("bhvLangkotlin019 a factory wraps its variant and only its is accessor answers true")
+        fun bhvLangkotlin019TestFactoryWrapsItsVariant() {
+            val medication = Medication(drugName = "Amoxicillin", dosage = "500mg")
+            val union = PetTreatment.fromMedication(medication)
+
+            assertSame(medication, union.actualInstance)
+            assertTrue(union.isMedication)
+            assertFalse(union.isSurgery)
+            assertSame(medication, union.asMedication())
+            assertNull(union.asSurgery())
+        }
+
+        @Test
+        @DisplayName("bhvUnions046 a payload that satisfies both variants answers true to both accessors")
+        fun bhvUnions046TestBothRetainedVariantsAreReachable() {
+            val union =
+                json.decodeFromString<PetTreatment>(
+                    """{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}""",
+                )
+
+            assertTrue(union.isMedication)
+            assertTrue(union.isSurgery)
+            assertEquals("Amoxicillin", union.asMedication()!!.drugName)
+            assertEquals("Spay", union.asSurgery()!!.procedureName)
+        }
+
+        @Test
+        @DisplayName("bhvLangkotlin020 a union with no variant answers false and null to every accessor")
+        fun bhvLangkotlin020TestEmptyUnionAnswersNothing() {
+            val union = PetTreatment()
+
+            assertFalse(union.isMedication)
+            assertNull(union.asMedication())
+            assertFalse(union.isSurgery)
+            assertNull(union.asSurgery())
+        }
+    }
+
+    @Nested
+    @DisplayName("union wrapper contract behaviours")
+    inner class UnionWrapperContractBehaviours {
+
+        @Test
+        @DisplayName("bhvUnions039 building a union wrapper from a value never validates it or throws")
+        fun wrapperBuildsFromAnyValueWithoutThrowing() {
+            assertNotNull(PetTreatment(actualInstance = null))
+            assertNotNull(PetTreatment(actualInstance = "not a treatment"))
+        }
+
+        @Test
+        @DisplayName("bhvUnions040 a typed accessor returns the variant it holds and nothing for the other variants")
+        fun typedAccessorReturnsOnlyTheHeldVariant() {
+            val reservation = Reservation(reservationId = 31L, quantity = 4)
+            val union = ReserveStockResponse.fromReservation(reservation)
+
+            assertSame(reservation, union.asReservation())
+            assertNull(union.asReservationReceipt())
+        }
+    }
+
+
+    @Test
+    fun bhvMisc292OneOfWrapperWritesTheBarePayloadAndReadsItBack() = runBlocking<Unit> {
+        val food = PetFood.fromDryFood(DryFood(weightKg = 2.5))
+        val wire = Json { encodeDefaults = true }.encodeToString(food)
+        assertEquals("""{"foodType":"dry","weightKg":2.5}""", wire)
+        assertEquals(2.5, json.decodeFromString<PetFood>(wire).asDryFood()?.weightKg)
+    }
+
+    @Test
+    fun bhvMisc294SubtypeWithoutItsDiscriminatorDecodesAsTheMappedVariant() = runBlocking<Unit> {
+        val result = json.decodeFromString<DryFood>("""{"weightKg":2.5}""")
+        assertEquals("dry", result.foodType)
+    }
+
+
+    @Test
+    fun bhvSerialization076UnionValueMatchingNoCandidateRaisesAnError() = runBlocking<Unit> {
+        assertThrows(kotlinx.serialization.SerializationException::class.java) {
+            json.decodeFromString<PetFood>("""{"foodType":"fish"}""")
+        }
+    }
+
+
+    @Test
+    fun bhvSerialization082MissingDiscriminatorFailsNamingTheKey() = runBlocking<Unit> {
+        val ex = assertThrows(kotlinx.serialization.SerializationException::class.java) {
+            json.decodeFromString<PetFood>("""{"weightKg":2.5}""")
+        }
+        assertTrue(ex.message!!.contains("foodType"), ex.message)
+    }
+
+
+    @Test
+    fun bhvUnions045EqualDataBuildsEqualUnionValues() = runBlocking<Unit> {
+        assertEquals(json.decodeFromString<DryFood>("""{"foodType":"dry","weightKg":2.5}"""), json.decodeFromString<DryFood>("""{"foodType":"dry","weightKg":2.5}"""))
+        assertEquals(PetFood.fromDryFood(DryFood(weightKg = 2.5)), PetFood.fromDryFood(DryFood(weightKg = 2.5)))
+    }
+
+    @Test
+    fun bhvUnions047AnUnlistedDiscriminatorRaisesAClearError() = runBlocking<Unit> {
+        val ex = assertThrows(kotlinx.serialization.SerializationException::class.java) {
+            json.decodeFromString<PetFood>("""{"foodType":"fish"}""")
+        }
+        assertTrue(ex.message!!.contains("fish"), ex.message)
+    }
+}

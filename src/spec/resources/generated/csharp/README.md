@@ -1,0 +1,479 @@
+# Swagger Petstore - OpenAPI 3.0 SDK
+
+Auto-generated C# SDK client for the Swagger Petstore - OpenAPI 3.0 API.
+
+## Requirements
+
+- **.NET 10** (Long Term Support, supported until November 2028) runtime / SDK or newer
+- **C# 14** language version (`LangVersion=14`)
+- **dotnet CLI 10.x** or newer — install from <https://dotnet.microsoft.com/download/dotnet/10.0>
+
+Tooling baked into the project:
+
+- **Formatter:** `dotnet format` (built into the SDK) and `dotnet csharpier`
+- **Linter / style:** `dotnet csharpier check` and `dotnet format --verify-no-changes`, with `EnforceCodeStyleInBuild=true` applying the `.editorconfig` code-style rules during the build
+- **Static analysis:** [`Microsoft.CodeAnalysis.NetAnalyzers`](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview) (Roslyn analyzers), with `EnableNETAnalyzers=true` and `AnalysisLevel=latest-all`
+
+## Installation
+
+```bash
+dotnet add package PetstoreClient
+```
+
+## Usage
+
+```csharp statements
+using PetstoreClient;
+
+var host =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_HOST")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_HOST is not set");
+var token =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set");
+using var client = Client.WithToken(host, token);
+var result = await client.Store.GetDefaultsAsync();
+Console.WriteLine(result);
+```
+
+The client is `IDisposable`: dispose it to release its connections. A disposed
+client throws `InvalidOperationException`. Errors derive from
+`OpenAPIException`; `ApiException` carries an HTTP response or a transport
+failure, `NetworkException` and `NetworkTimeoutException` mean no HTTP response
+arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md)
+for authentication, servers and error handling.
+
+### Raw responses
+
+Every operation has a `...WithHttpInfoAsync` variant returning an `ApiResult<T>`
+with `StatusCode`, `Data`, `RawBody` and the lower-cased `Headers`. It is the way
+to read a response header.
+
+### Timeouts
+
+`TransportOptionsBuilder.Timeout(5000)` sets one end-to-end budget in milliseconds
+(a positive integer) for the whole call, redirects and retries included; the
+default is 10000. A call that exceeds it fails with `NetworkTimeoutException`.
+
+### Automatic retries
+
+A failed request is retried automatically, twice by default:
+`TransportOptionsBuilder.MaxRetries(n)` sets the number of retries and `0`
+turns them off. A retry is made after a network error that happened before a
+response arrived and after the statuses 408, 409, 429 and 500-599 (not 501).
+The wait is 0.5 s doubling to 8 s with up to 25% jitter, or the `Retry-After`
+the server sent (seconds or an HTTP date, at most 60 s). Retries never extend
+the request timeout, cancelling stops them, every retry rebuilds the headers
+(so it carries current authentication), and a stream or multipart body is
+never retried.
+
+### Per-call options
+
+Every operation takes an optional options object (named after the operation, as in
+`<Operation>Options`) that accepts three per-call settings next to its parameters: `Timeout` (milliseconds,
+greater than zero) replaces the transport timeout for that call, `MaxRetries` replaces
+the retry limit (`0` turns retries off) and `Headers` adds request headers, sent after
+the default and authentication headers and replacing a header of the same name.
+Anything left null keeps the transport's setting. An operation with no parameters and
+no security requirement has an options object too, with only these three settings.
+
+### Hooks and telemetry
+
+One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfoAsync` variant alike, and also when you supply your own transport.
+
+```csharp file
+using System.Diagnostics;
+using PetstoreClient;
+
+public static class TimingExample
+{
+    public static Client Create() =>
+        Client.WithToken("https://api.example.com", "your-token", callHook: new TimingHook());
+}
+
+internal sealed class TimingObserver(CallInfo info, long started) : ICallObserver
+{
+    public void Finish(CallOutcome outcome) =>
+        Console.WriteLine(
+            $"{info.OperationId} {outcome.StatusCode} {Stopwatch.GetElapsedTime(started).TotalMilliseconds} ms");
+}
+
+internal sealed class TimingHook : ICallHook
+{
+    public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers)
+    {
+        headers["X-Caller"] = "billing";
+        return new TimingObserver(info, Stopwatch.GetTimestamp());
+    }
+}
+```
+
+`Start(info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `OperationId` (as written in the spec), `Method`, `UrlTemplate`, `Url` (without query string and fragment) and `ServerAddress`. It returns the observer to call when the call ends, or `null`. `Finish(outcome)` runs exactly once on every way the call can end, with `StatusCode` (`0` when no response arrived), the lower-cased response `Headers` (`null` when no response arrived) and the `Error` the caller receives (`null` on success). An error thrown by `Start` reaches the caller unchanged, nothing is sent and `Finish` is not called; an error thrown by `Finish` is swallowed. The hook never changes the result or the error of the call. Combine several hooks with `ICallHook.Chain(first, second)`: they start in the order given and finish in the reverse order. `Start` and `Finish` run inline and must not block.
+
+`OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. It is built on the `ActivitySource` and `Meter` types of the base class library, so there is nothing to install: pass `new OpenTelemetryCallHook()`, and add the source and the meter named `PetstoreClient` to your OpenTelemetry setup (`AddSource` and `AddMeter`).
+
+```csharp statements
+using PetstoreClient;
+
+using var client = Client.WithToken(
+    "https://api.example.com", "your-token", callHook: new OpenTelemetryCallHook());
+```
+
+The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.
+
+### Error details
+
+An `ApiException` and every subclass carry `RequestMethod` and `RequestPath` (the path
+without its query string) next to `StatusCode` and `ResponseBody`, and the message names
+them: `API returned status code 404 for GET /items/7`. The query string is left out so a
+key or token sent in it never reaches a log.
+
+### Immutable models
+
+Model properties are `init`-only and each model is a C# `record`, so a model is never
+changed after it is built: copy it with a `with` expression, `var next = item with { Name = "x" };`.
+The copy is shallow, so a list or dictionary property still refers to the same collection.
+A union (`oneOf`) wrapper is immutable too and is built with a typed factory, `Wrapper.FromVariant(value)`,
+and read back with `IsVariant()` and `AsVariant()`.
+
+### Several success responses
+
+An operation that declares more than one 2xx response with different schemas returns
+a union, and the body is decoded as the schema of the status that arrived: `200` as the
+first, `201` as the second. Ask the union which one it holds with its `Is...()` and
+`As...()` members.
+
+### Credentials from the environment
+
+`Client.FromEnvironment()` reads the host from `SWAGGER_PETSTORE_OPEN_API_3_0_HOST` and the bearer
+token from `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`, once, when the client is built; an empty value counts as unset.
+The `host`, `token` and `tokenProvider` arguments win over the environment, and a
+`tokenProvider` callback is called before every request, so a token refreshed elsewhere is
+picked up. A missing host or credential fails the call that builds the client.
+
+Each per-scheme authenticator reads its own credentials the same way. Every credential argument is
+optional: an argument you pass wins, else the variable is read once, in the constructor, and an
+empty value counts as unset. A credential that is neither passed nor set fails the constructor with
+`InvalidOperationException` that names the variable. The bearer authenticators also take a
+`tokenProvider` callback in place of a token, and it wins over the environment.
+
+| Variable | Scheme | Credential |
+|---|---|---|
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` | `adminBasic` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD` | `adminBasic` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY` | `apiKeyHeader` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY` | `apiKeyQuery` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID` | `browserAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY` | `internalApiKey` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID` | `legacyAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET` | `legacyAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME` | `legacyAuth` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD` | `legacyAuth` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID` | `machineAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET` | `machineAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME` | `petStoreBasic` | `username` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD` | `petStoreBasic` | `password` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN` | `petStoreBearer` | `token` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN` | `serviceToken` | `token` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY` | `sessionCookie` | `apiKey` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID` | `ssoAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET` | `ssoAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI` | `ssoAuth` | `redirectUri` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID` | `userAuth` | `clientId` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` | `userAuth` | `clientSecret` |
+| `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` | `userAuth` | `redirectUri` |
+
+### Response compression
+
+The client asks for `gzip, deflate, br` and decodes the response itself, so the body you read
+is always the decoded one. A `Content-Encoding` it cannot decode fails with an `ApiException`
+that carries the real status.
+
+### Logging
+
+The SDK writes no logs. To see requests and responses, wrap the transport: pass a
+`DelegatingHandler` through `TransportOptionsBuilder.HttpMessageHandler(...)`, or implement
+`IApiClient`.
+
+### Optional versus nullable
+
+A property that is optional is `T?` and null means it was absent. A property that is optional
+and also `nullable: true` collapses into the same `T?`: an absent key and an explicit `null`
+read the same, and neither is written back. A required nullable property keeps its key and is
+written as `null`. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
+
+### Unknown enum values and discriminators
+
+An enum value the spec does not list decodes to the enum's catch-all member (`UnknownDefaultOpenApi`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationException`. A discriminator value that maps to no variant still fails
+loudly with `SerializationException`.
+
+### Response headers
+
+`ApiResult.Headers` and `ApiException.ResponseHeaders` are a plain map with lower-cased names.
+A header the server repeats (`Link`, `Set-Cookie`) is joined into one value with `, ` in the
+order it arrived, so a `Set-Cookie` value is not parsed for you.
+
+### Streaming
+
+Request and response bodies are read and sent whole; there is no streaming of a response body.
+Implement `IApiClient` and inject it when you need to stream.
+
+### Configuration and transport options
+
+`Configuration` holds what belongs to the API (the base URL and default headers) and
+`TransportOptions` holds how bytes travel (proxy, TLS, timeouts, retries). They stay separate:
+the transport is shared by every API group, the configuration is per group.
+
+### Expired tokens
+
+When an OAuth2 or OpenID Connect call is answered with 401, the cached access
+token is dropped (the refresh token is kept) and the request is sent once more
+with fresh headers. A second 401 is raised as `UnauthorizedException`. A stream or
+multipart body is not replayed, and API key, basic and bearer authenticators never
+replay.
+
+### Request id
+
+`TransportOptionsBuilder.InjectRequestId(true)` adds a unique `X-Request-ID`
+header to every request unless you set your own (header names are matched
+case-insensitively). Quote it when you report a problem with a call.
+
+### Cancellation
+
+Every operation takes a trailing `CancellationToken cancellationToken = default`.
+Cancelling it aborts the in-flight request and raises
+`OperationCanceledException`, which is distinct from the
+`NetworkTimeoutException` raised when the request timeout elapses.
+`TransportOptionsBuilder.CancellationToken(...)` sets a client-level token that
+is linked with every call's token, so either one cancels the request. Pass
+the built options as the second constructor argument:
+`new Client(authenticator, transport)`.
+
+```csharp file
+using PetstoreClient;
+
+public static class Cancellation
+{
+    public static async Task GetDefaultsWithinTwoSecondsAsync(Client client)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await client.Store.GetDefaultsAsync(cancellationToken: cts.Token);
+    }
+}
+```
+
+### Custom HTTP transport
+
+`TransportOptionsBuilder.HttpClient(...)` carries requests on your own
+`HttpClient`, and `TransportOptionsBuilder.HttpMessageHandler(...)` wraps your
+own handler in the SDK's client. The SDK keeps its timeout, `User-Agent`,
+default headers and redirect policy on top and never disposes what you
+supplied: you own its lifecycle. The supplied client or handler owns its proxy,
+TLS and connection pool, so combining it with `Proxy`, `CaCertPath` or
+`VerifySsl(false)` fails in `Build()` with an `ArgumentException`, and so does
+a stock handler with `AllowAutoRedirect` turned on.
+
+### Testing your code
+
+Every API group has an interface (`IPetApi`) and the client has one (`IClient`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
+
+```csharp file
+using System.Reflection;
+using PetstoreClient;
+using PetstoreClient.Api;
+
+public class Fake : DispatchProxy
+{
+    public List<string> Calls { get; } = new();
+
+    // A fake is any implementation of the interface; this one records every call it receives.
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+    {
+        Calls.Add(targetMethod!.Name);
+        return null;
+    }
+}
+
+public static class FakeExample
+{
+    // Code under test takes the group interface, never the generated class.
+    public static void Use(IPetApi api) { }
+
+    public static void Main()
+    {
+        var group = DispatchProxy.Create<IPetApi, Fake>();
+        Use(group);
+    }
+}
+```
+
+A new operation in the API adds a method to the interface, so a fake that implements the whole interface stops compiling after you regenerate; use a proxy like this one, or delegate to a base fake, so only the operation you fake is written.
+
+## Build
+
+```bash
+dotnet build
+```
+
+## Test
+
+```bash
+dotnet test
+```
+
+## Format / Lint / Analyze
+
+```bash
+# Apply formatting (CSharpier + dotnet format)
+make format
+# or directly:
+dotnet csharpier format .
+dotnet format --severity warn
+
+# Verify formatting without writing changes
+make lint
+# or directly:
+dotnet csharpier check .
+dotnet format --verify-no-changes --severity warn
+
+# Run the Roslyn analyzers with warnings as errors
+make analyze
+# or directly:
+dotnet build --no-restore /warnaserror
+```
+
+## Dependency audit
+
+```bash
+make audit
+```
+
+Fails when a direct or transitive NuGet package has a known vulnerability (`dotnet list package --vulnerable --include-transitive`).
+
+## Package
+
+- Name: `PetstoreClient`
+- Version: `1.0.0`
+- License: MIT
+
+The package follows semantic versioning: a patch release only fixes bugs, a minor
+release only adds members, and a major release may change the public API. The
+package targets .NET 10 or newer, and a runtime that reaches its end of support is
+dropped from the supported set in a major release. The XML documentation file and
+symbol package (`.snupkg`) ship with it, so IntelliSense and the debugger show the
+summaries and the sources.
+
+## Caveats
+
+### Decimal / `format: number` precision
+
+`format: number` and `format: decimal` fields map to .NET's `decimal`,
+a base-10 type that represents monetary values exactly — `0.1m + 0.2m`
+is `0.3m`, with no binary rounding error. Arithmetic on prices,
+balances, and other money-typed fields is safe.
+
+`format: float` and `format: double` are different: they map to the
+binary floating-point types `float` and `double`, so values like
+`0.1 + 0.2` evaluate to `0.30000000000000004`. Do not use those
+formats for money. If a numeric field carries currency, model it as
+`format: number` (decimal) in the spec, or parse the raw response body
+yourself and convert to `decimal`.
+
+`format: int64` is unaffected — .NET's `long` natively represents the
+full 64-bit range without precision loss.
+
+### Trimming and Blazor WebAssembly
+
+This SDK works in applications published with **`PublishTrimmed`**
+(Release Blazor WebAssembly, single-file deployments, etc.). The SDK
+serializes through `System.Text.Json`'s reflection-based resolver, which
+trimming would normally break, so two things keep it safe: the models
+are preserved by an embedded `ILLink.Descriptors.xml` keep-list, and the
+serializer pins a `DefaultJsonTypeInfoResolver` so reflection stays
+enabled under trimming. The generated models deserialize through a
+parameterless constructor and `required` init accessors (with a
+backward-compatible convenience constructor), so the trimmer has no
+constructor parameter names to strip. A trimmed consumer will emit
+`IL2026`/`IL2075` trim-analysis warnings pointing at the SDK — these are
+expected for any reflection-based serializer and are non-fatal; the
+keep-list guarantees the required types survive.
+
+**Native AOT is not supported.** Full ahead-of-time compilation
+(`PublishAot` / `RunAOTCompilation`) removes reflection entirely, which
+the custom converters and reflection-based serialization rely on.
+Supporting AOT would require regenerating the serialization layer with
+the System.Text.Json source generator. Use the (default, interpreted or
+trimmed) JIT/IL runtime instead.
+
+### Enum string forms
+
+A generated enum is a native C# `enum`, so `ToString()` and string interpolation give
+the member name (`Color.Red` prints `Red`), not the value on the wire (`red`). The
+wire value is written and read only by the enum's JSON converter; do not build
+URLs or log lines from `ToString()` when you need the wire value.
+
+### Schema constraints
+
+The constraints `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`,
+`multipleOf`, `minItems` and `maxItems` are validated by the server, and by
+the generated models only where the C# model layer does it natively:
+System.Text.Json enforces required members, integer ranges and wire types,
+and nothing else. The SDK does not check the remaining keywords before the
+request is sent. `uniqueItems` arrays are modelled as `HashSet<T>` and sent in
+the set's natural enumeration order, not sorted.
+
+## Not supported
+
+### Webhooks and callbacks
+
+This SDK is **client → server** only. Spec entries describing
+server-initiated calls — OAS 3.1 top-level `webhooks` and OAS 3.0
+per-operation `callbacks` — are intentionally skipped during code
+generation. If you need to receive webhook deliveries, write the
+handler yourself and use this SDK only to deserialize the incoming
+payload (e.g. by reusing the relevant request-body model).
+
+### XML bodies and `nodeType`
+
+Request and response bodies in `application/xml` and the XML `nodeType`
+keyword are not generated (#70, #88). An operation that only declares XML has
+no usable body in this SDK.
+
+### Link Objects
+
+OpenAPI Link Objects are ignored (#78).
+
+### Mutual TLS security schemes
+
+`mutualTLS` security schemes produce no authenticator (#90). Configure a client
+certificate on your own `HttpClientHandler` and pass it with
+`TransportOptionsBuilder.HttpMessageHandler(...)`.
+
+### Conditional-required validation (`dependentRequired` / `dependentSchemas`)
+
+JSON Schema 2019-09 keywords for "if field X is present, field Y is
+also required" are **not enforced** by this SDK. No mainstream
+OpenAPI client codegen implements them. The server is the authoritative
+validator; if you want client-side checking, plug in a JSON Schema
+validator library for your language.
+
+### SOCKS proxies
+
+`TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.
+Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
+with an `ArgumentException` when `Build()` is called. SOCKS support would
+require enabling extra dependencies / feature flags on the underlying
+HTTP library in every one of the 12 SDKs we generate, with non-trivial
+API divergence; we explicitly chose not to. If you need SOCKS, route
+through a local HTTP-CONNECT bridge or configure it at the OS level.
+
+### `LICENSE` file is not auto-emitted
+
+The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
+is generated alongside the sources. Drop the appropriate license text
+into the generated tree as part of your release pipeline before
+publishing to a registry — most registries warn or block on a missing
+file, and the GitHub license auto-detect cannot pick up a manifest-only
+declaration.

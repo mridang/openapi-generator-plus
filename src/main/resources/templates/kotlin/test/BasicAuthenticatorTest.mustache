@@ -1,0 +1,254 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth
+
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class BasicAuthenticatorTest {
+
+    @Test
+    fun bhvAuthbasic011ValidCredentialsProduceBasicHeader() = runBlocking {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Basic YWxpY2U6czNjcmV0", headers["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthbasic009RejectsUsernameWithCrlfAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
+        }
+    }
+
+    @Test
+    fun bhvAuthbasic007RejectsPasswordWithNulAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BasicAuthenticator("https://api.example.com", "alice", "s3c\u0000ret")
+        }
+    }
+
+    @Test
+    fun bhvAuthbasic008RejectsUsernameWithColonAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+        }
+    }
+
+    // authenticator-secret-in-default-string-repr: the default toString()
+    // must never expose the stored password.
+    @Test
+    fun bhvAuthbasic005PasswordIsNotLeakedInDefaultToString() {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        assertFalse(auth.toString().contains("s3cret"))
+    }
+
+    @Test
+    fun bhvAuthbasic006RedactsSecret() {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("s3cret"))
+        assertTrue(rendered.contains("***"))
+    }
+
+    @Test
+    fun bhvAuthbasic004NonAsciiCredentialsAreEncodedAsUtf8() = runBlocking {
+        val auth = BasicAuthenticator("https://api.example.com", "ünïcødé", "pässwörd")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==", headers["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthbasic010RedactedReprShowsExactlyTheNonSecretFields() {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        assertEquals("BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", auth.toString())
+    }
+
+    @Test
+    fun bhvAuthbasic002GeneratedSchemeWrapperEmitsABasicHeaderAndMasksThePassword() {
+        runBlocking {
+            val auth = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+            assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
+            assertEquals("AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)", auth.toString())
+            assertThrows(IllegalArgumentException::class.java) {
+                AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+            }
+        }
+    }
+
+    @Test
+    fun bhvAuthbasic018PasswordMayContainAColon() = runBlocking {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "p:ss:w0rd")
+        assertEquals("Basic YWxpY2U6cDpzczp3MHJk", auth.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    fun bhvAuthbasic019GeneratedBasicWrapperEmitsTheSameBasicHeaderAsTheBaseAuthenticator() = runBlocking {
+        val base = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val wrapper = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        assertEquals(base.getAuthHeaders(), wrapper.getAuthHeaders())
+        assertTrue(wrapper.toString().startsWith("AdminBasicAuthenticator("))
+    }
+
+    @Test
+    fun bhvAuthbasic020BasicAuthenticatorMasksThePasswordInItsDebugOutput() {
+        val auth = PetStoreBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val rendered = "$auth"
+        assertTrue(rendered.startsWith("PetStoreBasicAuthenticator("))
+        assertTrue(rendered.contains("password=***"))
+        assertFalse(rendered.contains("s3cret"))
+    }
+
+    @Test
+    fun bhvAuthscheme003PetStoreBasicAuthenticatorTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val env = mapOf(
+            "{{envVarPrefix}}_PET_STORE_BASIC_USERNAME" to "alice",
+            "{{envVarPrefix}}_PET_STORE_BASIC_PASSWORD" to "",
+        )
+        val ex = withEnvironment(env) {
+            assertThrows(IllegalArgumentException::class.java) { PetStoreBasicAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_PET_STORE_BASIC_PASSWORD"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth007 a credential is read only from the variable it names, and nothing else is looked up")
+    fun bhvAuth007ReadsOnlyTheVariableItNames() {
+        val read = mutableListOf<String>()
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name ->
+            read.add(name)
+            null
+        }
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                BasicAuthenticator("https://api.example.com")
+            }
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+        assertEquals(listOf("{{envVarPrefix}}_USERNAME"), read)
+    }
+
+    @Test
+    @DisplayName("bhvAuth024 each credential takes its passed value or its own variable, independently of the other")
+    fun bhvAuth024EachCredentialFallsBackIndependently() = runBlocking {
+        val auth = withEnvironment(mapOf("{{envVarPrefix}}_PASSWORD" to "pw")) {
+            BasicAuthenticator("https://api.example.com", "alice")
+        }
+        assertEquals("Basic YWxpY2U6cHc=", auth.getAuthHeaders()["Authorization"])
+    }
+
+    private fun <T> withEnvironment(values: Map<String, String>, body: () -> T): T {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> values[name] }
+        try {
+            return body()
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthbasic001 F862: credentials not passed come from the environment")
+    fun credentialsComeFromTheEnvironment() = runBlocking {
+        val env =
+            mapOf(
+                "{{envVarPrefix}}_USERNAME" to "alice",
+                "{{envVarPrefix}}_PASSWORD" to "s3" + "cret",
+            )
+        val auth = withEnvironment(env) { BasicAuthenticator("https://api.example.com") }
+        assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
+        val mixed =
+            withEnvironment(env) { BasicAuthenticator("https://api.example.com", "bob") }
+        assertTrue(mixed.getAuthHeaders()["Authorization"]!!.startsWith("Basic "))
+    }
+
+    @Test
+    @DisplayName("bhvAuthbasic003 F862: a missing credential fails at construction and names its environment variable")
+    fun missingCredentialFailsAtConstruction() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_USERNAME" to "alice", "{{envVarPrefix}}_PASSWORD" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { BasicAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_PASSWORD"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthbasic013 F862: an explicit credential wins over the environment, one credential at a time")
+    fun explicitCredentialWinsOverTheEnvironment() = runBlocking {
+        val env = mapOf(
+            "{{envVarPrefix}}_USERNAME" to "from-env",
+            "{{envVarPrefix}}_PASSWORD" to "pw" + "-env",
+        )
+        val auth =
+            withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice") }
+        assertEquals("Basic YWxpY2U6cHctZW52", auth.getAuthHeaders()["Authorization"])
+        val both =
+            withEnvironment(env) { BasicAuthenticator("https://api.example.com", "alice", "s3" + "cret") }
+        assertEquals("Basic YWxpY2U6czNjcmV0", both.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthbasic012 an empty variable counts as unset and fails naming the variable")
+    fun emptyUsernameVariableFails() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_USERNAME" to "", "{{envVarPrefix}}_PASSWORD" to "x")) {
+            assertThrows(IllegalArgumentException::class.java) { BasicAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_USERNAME"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin007 F862: a security scheme's authenticator reads the variables of its own scheme")
+    fun bhvLangkotlin007SchemeWrapperReadsItsOwnVariables() = runBlocking {
+        val env = mapOf(
+            "{{envVarPrefix}}_ADMIN_BASIC_USERNAME" to "alice",
+            "{{envVarPrefix}}_ADMIN_BASIC_PASSWORD" to "s3" + "cret",
+        )
+        val auth = withEnvironment(env) { AdminBasicAuthenticator("https://api.example.com") }
+        assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
+        val explicit =
+            withEnvironment(env) { AdminBasicAuthenticator("https://api.example.com", "bob", "pw") }
+        assertEquals("Basic Ym9iOnB3", explicit.getAuthHeaders()["Authorization"])
+        val other = withEnvironment(env) {
+            assertThrows(IllegalArgumentException::class.java) { PetStoreBasicAuthenticator("https://api.example.com") }
+        }
+        assertTrue(other.message!!.contains("{{envVarPrefix}}_PET_STORE_BASIC_USERNAME"), other.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthscheme004 AdminBasic treats an empty variable as unset and names it when missing")
+    fun bhvAuthscheme004AdminBasicTreatsAnEmptyVariableAsUnsetAndNamesIt() {
+        val env = mapOf(
+            "{{envVarPrefix}}_ADMIN_BASIC_USERNAME" to "alice",
+            "{{envVarPrefix}}_ADMIN_BASIC_PASSWORD" to "",
+        )
+        val ex = withEnvironment(env) {
+            assertThrows(IllegalArgumentException::class.java) { AdminBasicAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_ADMIN_BASIC_PASSWORD"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvErrors081 a credential refused at construction names whether the username or the password is at fault")
+    fun refusedCredentialNamesTheFaultyField() {
+        val user = assertThrows(IllegalArgumentException::class.java) {
+            BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+        }
+        assertTrue(user.message!!.contains("username"), user.message)
+        val pass = assertThrows(IllegalArgumentException::class.java) {
+            BasicAuthenticator("https://api.example.com", "alice", "s3\r\ncret")
+        }
+        assertTrue(pass.message!!.contains("password"), pass.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth036 a Basic username containing a colon is rejected with an error")
+    fun bhvAuth036UsernameWithColonIsRejected() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            BasicAuthenticator("https://api.example.com", "al:ice", "s3cret")
+        }
+        assertTrue(ex.message!!.contains("':'"), ex.message)
+    }
+}

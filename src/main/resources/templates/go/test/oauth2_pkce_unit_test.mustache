@@ -1,0 +1,14 @@
+{{>api_info}}
+package oauth
+
+import "testing"
+
+// The S256 PKCE challenge for the RFC 7636 appendix B verifier equals the published challenge value, base64url encoded with no padding.
+func TestBhvAuth008_Pkce_ChallengeOfTheRfc7636VectorEqualsThePublishedValue(t *testing.T) {
+	t.Parallel()
+	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	const want = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+	if got := pkceChallenge(verifier); got != want {
+		t.Errorf("expected the published challenge %q, got %q", want, got)
+	}
+}

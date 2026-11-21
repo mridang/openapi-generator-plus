@@ -1,0 +1,8 @@
+/* Builds a client from the environment, calls one operation and closes the client. */
+use {{packageName}}::{{clientClassName}};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+{{>usage_statements}}
+    Ok(())
+}

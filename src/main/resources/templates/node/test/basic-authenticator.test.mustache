@@ -1,0 +1,145 @@
+{{>api_info}}
+
+import * as util from 'node:util';
+import { BasicAuthenticator } from '../src/auth/basic-authenticator{{importFileExtension}}';
+
+describe('BasicAuthenticator', () => {
+  it('bhv authbasic 011 valid credentials produce basic header', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    const headers = auth.getAuthHeaders();
+    expect(headers['Authorization']).toBe('Basic YWxpY2U6czNjcmV0');
+  });
+
+  it('bhv authbasic 004 non-ASCII credentials are sent as UTF-8', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'ünïcødé', 'pässwörd');
+    expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==' });
+  });
+
+  it('bhv auth 036 a username containing a colon is rejected with an error', () => {
+    expect(() => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret')).toThrow(
+      "Basic auth username must not contain ':' (RFC 7617 §2)"
+    );
+  });
+
+  it('bhv authbasic 018 a password may contain a colon', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 'p:ss');
+    expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Basic YWxpY2U6cDpzcw==' });
+  });
+
+  it('bhv authbasic 020 a scheme-specific subclass masks the password in its debug output', () => {
+    class PetStoreBasicAuthenticator extends BasicAuthenticator {}
+    const auth = new PetStoreBasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect(util.inspect(auth)).toBe(
+      'PetStoreBasicAuthenticator(host=https://api.example.com, username=alice, password=***)'
+    );
+  });
+
+  it('bhv errors 081 a refused username names the username and a refused password names the password', () => {
+    expect(() => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret')).toThrow(/username/);
+    expect(() => new BasicAuthenticator('https://api.example.com', 'alice', 's3c\0ret')).toThrow(/password/);
+  });
+
+  it('bhv authbasic 009 rejects username with crlf at construction', () => {
+    expect(
+      () => new BasicAuthenticator('https://api.example.com', 'alice\r\n', 's3cret')
+    ).toThrow(TypeError);
+  });
+
+  it('bhv authbasic 007 rejects password with nul at construction', () => {
+    expect(
+      () => new BasicAuthenticator('https://api.example.com', 'alice', 's3c\0ret')
+    ).toThrow(TypeError);
+  });
+
+  it('bhv authbasic 008 rejects username with colon at construction', () => {
+    expect(
+      () => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret')
+    ).toThrow(TypeError);
+  });
+
+  it('bhv authbasic 006 redacts secret', () => {
+    // authenticator-secret-in-default-string-repr: the default inspect/JSON
+    // representation must never expose the stored password.
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect(util.inspect(auth)).not.toContain('s3cret');
+    expect(JSON.stringify(auth)).not.toContain('s3cret');
+    expect(util.inspect(auth)).toContain('***');
+  });
+
+  it('bhv authbasic 010 the redacted representation shows exactly the host and username', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect(util.inspect(auth)).toBe('BasicAuthenticator(host=https://api.example.com, username=alice, password=***)');
+    expect(JSON.parse(JSON.stringify(auth))).toEqual({
+      host: 'https://api.example.com',
+      username: 'alice',
+      password: '***'
+    });
+  });
+
+  it('bhv authbasic 005 the password is not leaked in the default string, inspect or JSON output', () => {
+    const auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect(String(auth)).not.toContain('s3cret');
+    expect(util.inspect(auth)).not.toContain('s3cret');
+    expect(JSON.stringify(auth)).not.toContain('s3cret');
+    expect(util.inspect(auth)).toContain('***');
+    expect(JSON.stringify(auth)).toContain('***');
+  });
+
+  describe('credential resolution', () => {
+    const userVariable = '{{envVarPrefix}}_USERNAME';
+    const secretVariable = '{{envVarPrefix}}_PASSWORD';
+    const savedUser = process.env[userVariable];
+    const savedSecret = process.env[secretVariable];
+    const restore = (name: string, value: string | undefined): void => {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    };
+    afterEach(() => {
+      restore(userVariable, savedUser);
+      restore(secretVariable, savedSecret);
+    });
+
+    it('bhv authbasic 001 reads both values from the environment when none is passed', () => {
+      process.env[userVariable] = 'alice';
+      process.env[secretVariable] = ['pw', 'value'].join('-');
+      const auth = new BasicAuthenticator('https://api.example.com', undefined, undefined);
+      expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Basic ' + Buffer.from('alice:pw-value').toString('base64') });
+    });
+
+    it('bhv authbasic 013 each explicit value wins over its own variable', () => {
+      process.env[userVariable] = 'from-env';
+      process.env[secretVariable] = 'from-env';
+      const auth = new BasicAuthenticator('https://api.example.com', 'alice', undefined);
+      expect(auth.getAuthHeaders()).toEqual({ Authorization: 'Basic ' + Buffer.from('alice:from-env').toString('base64') });
+    });
+
+    it('bhv authbasic 003 fails when it is built and a value is missing', () => {
+      delete process.env[userVariable];
+      process.env[secretVariable] = 'x';
+      expect(() => new BasicAuthenticator('https://api.example.com', undefined, undefined)).toThrow(
+        new TypeError(`Basic auth username is required: pass it explicitly or set ${userVariable}`)
+      );
+      process.env[userVariable] = 'alice';
+      delete process.env[secretVariable];
+      expect(() => new BasicAuthenticator('https://api.example.com', undefined, undefined)).toThrow(
+        new TypeError(`Basic auth password is required: pass it explicitly or set ${secretVariable}`)
+      );
+    });
+
+    it('bhv misc 068 an empty user or password variable counts as unset', () => {
+      for (const empty of [userVariable, secretVariable]) {
+        process.env[userVariable] = 'alice';
+        process.env[secretVariable] = 'x';
+        process.env[empty] = '';
+        expect(() => new BasicAuthenticator('https://api.example.com', undefined, undefined)).toThrow(
+          new TypeError(
+            `${empty === userVariable ? 'Basic auth username' : 'Basic auth password'} is required: pass it explicitly or set ${empty}`
+          )
+        );
+      }
+    });
+  });
+});

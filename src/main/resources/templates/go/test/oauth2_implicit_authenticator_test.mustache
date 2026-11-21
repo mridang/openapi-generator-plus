@@ -1,0 +1,300 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"testing"
+
+	"{{packageName}}/pkg/auth/oauth"
+)
+
+func createImplicitAuthenticator() *oauth.OAuth2ImplicitAuthenticator {
+	return oauth.NewOAuth2ImplicitAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"https://auth.example.com/authorize",
+		[]string{"read", "write"},
+	)
+}
+
+func TestBhvAuthoauthtwoimplicit003_OAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithResponseTypeToken(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "response_type=token") {
+		t.Errorf("expected URL to contain response_type=token, got %q", url)
+	}
+	if !strings.HasPrefix(url, "https://auth.example.com/authorize?") {
+		t.Errorf("expected URL to start with authorization endpoint, got %q", url)
+	}
+}
+
+func TestBhvAuthoauthtwoimplicit002_OAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithClientId(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "client_id=my-client-id") {
+		t.Errorf("expected URL to contain client_id=my-client-id, got %q", url)
+	}
+}
+
+func TestBhvAuthoauthtwoimplicit004_OAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithScopes(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=read") {
+		t.Errorf("expected URL to contain scope with read, got %q", url)
+	}
+}
+
+// SetAccessToken runs on a callback goroutine while requests read the token on
+// others. Run under the race detector (make test), this fails when the token is
+// an unguarded field.
+func TestBhvMisc001_OAuth2ImplicitAuthenticator_SetAccessTokenIsSafeAgainstConcurrentRequests(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			if err := auth.SetAccessToken("token"); err != nil {
+				t.Errorf("SetAccessToken failed: %v", err)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			_, _ = auth.AuthHeadersOrError()
+			_ = auth.String()
+		}()
+	}
+	wg.Wait()
+
+	if got := auth.AuthHeaders()["Authorization"]; got != "Bearer token" {
+		t.Errorf("expected the stored token to be used, got %q", got)
+	}
+}
+
+// The per-scheme wrapper requests the scopes its security scheme declares.
+func TestBhvAuthoauthtwoimplicit006_OAuth2ImplicitAuthenticator_BrowserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
+	t.Parallel()
+	auth, err := oauth.NewBrowserAuthImplicitAuthenticator("https://api.example.com", "my-client-id")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=read&") && !strings.HasSuffix(url, "scope=read") {
+		t.Errorf("expected URL to carry the declared scope, got %q", url)
+	}
+}
+
+func TestBhvAuthoauthtwoimplicit005_OAuth2ImplicitAuthenticator_BuildsAuthorizationUrlWithState(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+
+	url := auth.BuildAuthorizationURL("my-state")
+
+	if !strings.Contains(url, "state=my-state") {
+		t.Errorf("expected URL to contain state=my-state, got %q", url)
+	}
+}
+
+func TestBhvAuthoauthtwoimplicit007_OAuth2ImplicitAuthenticator_GetAuthHeadersReturnsBearerAfterSetAccessToken(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	if err := auth.SetAccessToken("implicit-tok"); err != nil {
+		t.Fatalf("unexpected error from SetAccessToken: %v", err)
+	}
+
+	headers := auth.AuthHeaders()
+
+	if headers["Authorization"] != "Bearer implicit-tok" {
+		t.Errorf("expected Authorization 'Bearer implicit-tok', got %q", headers["Authorization"])
+	}
+}
+
+// A request made before SetAccessToken is a wrong call order: the sentinel is
+// returned, never a panic, and AuthHeaders degrades to an empty map.
+func TestBhvAuthoauthtwoimplicit012_OAuth2ImplicitAuthenticator_ThrowsWhenAccessTokenNotSet(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+
+	headers, err := auth.AuthHeadersOrError()
+	if !errors.Is(err, oauth.ErrAccessTokenNotSet) {
+		t.Fatalf("expected ErrAccessTokenNotSet, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "oauth2 implicit: must set the access token before making API requests") {
+		t.Errorf("expected harmonized not-set message, got %v", err)
+	}
+	if headers != nil {
+		t.Errorf("expected no headers, got %v", headers)
+	}
+	if got := auth.AuthHeaders(); len(got) != 0 {
+		t.Errorf("expected AuthHeaders to be empty before SetAccessToken, got %v", got)
+	}
+}
+
+// A non-ASCII access token is refused with the RFC 7230 message.
+// An access token may contain a horizontal tab (RFC 7230 §3.2.6 allows it in a
+// field value), and the Bearer header carries it unchanged.
+func TestBhvAuthoauthtwoimplicit016_OAuth2ImplicitAuthenticator_SetAccessTokenAcceptsATab(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	if err := auth.SetAccessToken("tok\tvalue"); err != nil {
+		t.Fatalf("expected a token with a tab to be accepted, got %v", err)
+	}
+	if got, want := auth.AuthHeaders()["Authorization"], "Bearer tok\tvalue"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBhvAuthoauthtwoimplicit014_OAuth2ImplicitAuthenticator_SetAccessTokenRejectsNonAsciiWithTheRfc7230Message(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	if err := auth.SetAccessToken("caf\u00e9"); !errors.Is(err, oauth.ErrInvalidAccessToken) {
+		t.Fatalf("expected ErrInvalidAccessToken, got %v", err)
+	} else if want := "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"; err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
+	}
+}
+
+// F-A5-04: a token that would inject a header is rejected with
+// ErrInvalidAccessToken, never a panic, and the previous token is kept.
+func TestBhvAuthoauthtwoimplicit013_OAuth2ImplicitAuthenticator_SetAccessTokenRejectsInvalidToken(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	for _, bad := range []string{"tok\r\nInjected: yes", "ñoño", "tok\x00"} {
+		if err := auth.SetAccessToken(bad); !errors.Is(err, oauth.ErrInvalidAccessToken) {
+			t.Errorf("expected ErrInvalidAccessToken for %q, got %v", bad, err)
+		} else if want := "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"; err.Error() != want {
+			t.Errorf("expected message %q for %q, got %q", want, bad, err.Error())
+		}
+	}
+	if _, err := auth.AuthHeadersOrError(); !errors.Is(err, oauth.ErrAccessTokenNotSet) {
+		t.Errorf("an invalid token must not be stored, got %v", err)
+	}
+}
+
+func TestBhvAuthoauthtwoimplicit010_OAuth2ImplicitAuthenticator_RedactsSecret(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+	if err := auth.SetAccessToken("implicit-tok"); err != nil {
+		t.Fatalf("unexpected error from SetAccessToken: %v", err)
+	}
+	for _, s := range []string{auth.String(), fmt.Sprintf("%v", auth), fmt.Sprintf("%+v", auth), fmt.Sprintf("%#v", auth)} {
+		if strings.Contains(s, "implicit-tok") {
+			t.Errorf("expected access token to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}
+
+func TestBhvAuthoauthtwoimplicit008_OAuth2ImplicitAuthenticator_GetHostReturnsConfiguredHost(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+
+	if auth.Host() != "https://api.example.com" {
+		t.Errorf("expected host 'https://api.example.com', got %q", auth.Host())
+	}
+}
+
+// The authorize URL is a URL, not a form body: a space between scopes is %20,
+// never a plus, which a strict server reads as a literal plus.
+func TestBhvLanggo061_OAuth2ImplicitAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
+	t.Parallel()
+	url := createImplicitAuthenticator().BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=read%20write") {
+		t.Errorf("expected URL to contain scope=read%%20write, got %q", url)
+	}
+	if strings.Contains(url, "+") {
+		t.Errorf("expected no plus sign in the authorize URL, got %q", url)
+	}
+}
+
+// Exactly `-._~` stays literal in the authorize URL's client_id, scope and
+// state, and `*`, `!`, `'`, `(` and `)` are percent-encoded.
+func TestBhvAuthoauthtwoimplicit001_OAuth2ImplicitAuthenticator_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing.T) {
+	t.Parallel()
+	authObj := oauth.NewOAuth2ImplicitAuthenticator(
+		"https://api.example.com",
+		"id~-._*!'()",
+		"https://auth.example.com/authorize",
+		[]string{"s~*!'()"},
+	)
+
+	url := authObj.BuildAuthorizationURL("st~*!'()")
+
+	for _, want := range []string{
+		"client_id=id~-._%2A%21%27%28%29",
+		"scope=s~%2A%21%27%28%29",
+		"state=st~%2A%21%27%28%29",
+	} {
+		if !strings.Contains(url, want) {
+			t.Errorf("expected URL to contain %q, got %q", want, url)
+		}
+	}
+}
+
+// An empty state is left out of the authorization URL.
+func TestBhvAuthoauthtwoimplicit009_OAuth2ImplicitAuthenticator_OmitsAnEmptyStateFromTheAuthorizationUrl(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+
+	if got := auth.BuildAuthorizationURL(""); strings.Contains(got, "state=") {
+		t.Errorf("expected no state parameter for an empty state, got %q", got)
+	}
+}
+
+// The printed form names the non-secret fields.
+func TestBhvAuthoauthtwoimplicit011_OAuth2ImplicitAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	repr := createImplicitAuthenticator().String()
+	for _, want := range []string{
+		`host: "https://api.example.com"`,
+		`clientID: "my-client-id"`,
+		`authorizationURL: "https://auth.example.com/authorize"`,
+		`scopes: ["read" "write"]`,
+	} {
+		if !strings.Contains(repr, want) {
+			t.Errorf("expected %q to contain %q", repr, want)
+		}
+	}
+}
+
+// The authorize URL carries its parameters in the one order every SDK shares.
+func TestBhvAuth019_OAuth2ImplicitAuthenticator_AuthorizeUrlUsesTheSharedParameterOrder(t *testing.T) {
+	t.Parallel()
+	url := createImplicitAuthenticator().BuildAuthorizationURL("s")
+
+	want := "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=s"
+	if url != want {
+		t.Errorf("expected %q, got %q", want, url)
+	}
+}
+
+// The implicit flow builds an exact authorize URL with response_type token and the scopes percent-encoded as %20.
+func TestBhvAuth049_OAuth2ImplicitAuthenticator_BuildsTheExactAuthorizeUrl(t *testing.T) {
+	t.Parallel()
+	a := createImplicitAuthenticator()
+
+	got := a.BuildAuthorizationURL("xyz")
+	want := "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=xyz"
+	if got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}

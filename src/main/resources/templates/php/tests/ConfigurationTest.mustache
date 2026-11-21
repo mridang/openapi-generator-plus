@@ -1,0 +1,597 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\CallHook;
+use {{invokerPackage}}\Configuration;
+use {{invokerPackage}}\ConfigurationBuilder;
+use {{invokerPackage}}\ServerConfiguration;
+use {{invokerPackage}}\ServerVariable;
+use {{invokerPackage}}\Test\RecordingCallHook;
+
+test('bhv config 018 default constructor uses spec base url', function (): void {
+    $config = new Configuration();
+
+    expect($config->baseUrl)->toBe('{{{basePath}}}');
+    expect($config->defaultHeaders)->toBe([]);
+});
+
+test('bhv config 005 the builder produces the default values when nothing is set', function (): void {
+    $config = Configuration::builder()->build();
+
+    expect($config->baseUrl)->toBe('{{{basePath}}}');
+    expect($config->defaultHeaders)->toBe([]);
+});
+
+test('bhv config 007 builder returns configuration builder instance', function (): void {
+    $builder = Configuration::builder();
+
+    expect($builder)->toBeInstanceOf(ConfigurationBuilder::class);
+});
+
+test('bhv config 011 builder sets base url', function (): void {
+    $config = Configuration::builder()
+        ->baseUrl('https://custom.example.com')
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://custom.example.com');
+});
+
+test('bhv config 020 a builder chain sets the base url and default headers in one configuration', function (): void {
+    $config = Configuration::builder()
+        ->baseUrl('https://custom.example.com')
+        ->defaultHeader('Authorization', 'Bearer token123')
+        ->defaultHeader('X-Custom', 'value')
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://custom.example.com');
+    expect($config->defaultHeaders)->toBe([
+        'Authorization' => 'Bearer token123',
+        'X-Custom' => 'value',
+    ]);
+});
+
+test('bhv config 021 a server url template resolves its variables to their defaults', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+            'version' => new ServerVariable(
+                defaultValue: 'v3',
+                enumValues: ['v2', 'v3'],
+            ),
+        ],
+    );
+
+    $config = Configuration::builder()
+        ->server($server)
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.com/api/v3');
+});
+
+test('bhv config 013 builder sets single default header', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('Authorization', 'Bearer token123')
+        ->build();
+
+    expect($config->defaultHeaders)->toBe(['Authorization' => 'Bearer token123']);
+});
+
+test('bhv config 012 builder sets multiple default headers', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeaders([
+            'Authorization' => 'Bearer token123',
+            'X-Custom' => 'value',
+        ])
+        ->build();
+
+    expect($config->defaultHeaders)->toBe([
+        'Authorization' => 'Bearer token123',
+        'X-Custom' => 'value',
+    ]);
+});
+
+test('bhv config 002 the builder accumulates headers across calls', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('X-First', 'one')
+        ->defaultHeader('X-Second', 'two')
+        ->defaultHeaders(['X-Third' => 'three'])
+        ->build();
+
+    expect($config->defaultHeaders)->toHaveCount(3);
+    expect($config->defaultHeaders['X-First'])->toBe('one');
+    expect($config->defaultHeaders['X-Second'])->toBe('two');
+    expect($config->defaultHeaders['X-Third'])->toBe('three');
+});
+
+test('bhv config 010 builder sets all fields', function (): void {
+    $config = Configuration::builder()
+        ->baseUrl('https://api.example.com')
+        ->defaultHeader('Authorization', 'Bearer token')
+        ->defaultHeaders(['X-Custom' => 'value'])
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.com');
+    expect($config->defaultHeaders)->toBe([
+        'Authorization' => 'Bearer token',
+        'X-Custom' => 'value',
+    ]);
+});
+
+test('bhv config 008 builder server resolves url', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+            'version' => new ServerVariable(
+                defaultValue: 'v3',
+                enumValues: ['v2', 'v3'],
+            ),
+        ],
+    );
+
+    $config = Configuration::builder()
+        ->server($server)
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.com/api/v3');
+});
+
+test('bhv config 009 builder server with variable overrides', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+            'version' => new ServerVariable(
+                defaultValue: 'v3',
+                enumValues: ['v2', 'v3'],
+            ),
+        ],
+    );
+
+    $config = Configuration::builder()
+        ->server($server, ['env' => 'staging', 'version' => 'v2'])
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://staging.example.com/api/v2');
+});
+
+test('bhv config 016 invalid server variable enum value throws', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+        ],
+    );
+
+    expect(fn () => Configuration::builder()
+        ->server($server, ['env' => 'invalid'])
+        ->build())
+        ->toThrow(InvalidArgumentException::class);
+});
+
+test('bhv config 006 builder produces independent instances', function (): void {
+    $builder = Configuration::builder()->baseUrl('https://example.com');
+    $first = $builder->build();
+    $second = $builder->build();
+
+    expect($first)->not->toBe($second);
+    expect($first->baseUrl)->toBe($second->baseUrl);
+});
+
+test('bhv config 001 builder base url overrides server', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://api.example.com',
+    );
+
+    $config = Configuration::builder()
+        ->server($server)
+        ->baseUrl('https://override.example.com')
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://override.example.com');
+});
+
+test('bhv config 019 default configuration uses spec base url', function (): void {
+    $config = Configuration::defaultConfiguration();
+
+    expect($config)->toBeInstanceOf(Configuration::class);
+    expect($config->baseUrl)->toBe('{{{basePath}}}');
+    expect($config->defaultHeaders)->toBe([]);
+});
+
+test('bhv config 014 default configuration is stateless', function (): void {
+    // There is no settable process-wide default: every call hands back a
+    // fresh instance, so one caller cannot change what another gets.
+    $first = Configuration::defaultConfiguration();
+    $second = Configuration::defaultConfiguration();
+
+    expect($second)->not->toBe($first);
+    expect($second->baseUrl)->toBe($first->baseUrl);
+});
+
+test('bhv config 023 repeated default configuration calls return an equal configuration with the same base url', function (): void {
+    $first = Configuration::defaultConfiguration();
+    $second = Configuration::defaultConfiguration();
+
+    expect($second)->toEqual($first);
+    expect($second->baseUrl)->toBe($first->baseUrl);
+});
+
+test('bhv config 022 mutating the returned default headers does not change the configuration', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('X-Key', 'value')
+        ->build();
+
+    $headers = $config->defaultHeaders;
+    $headers['X-Other'] = 'changed';
+
+    expect($headers)->toHaveKey('X-Other');
+    expect($config->defaultHeaders)->toBe(['X-Key' => 'value']);
+});
+
+test('bhv config 017 a built configuration cannot be changed', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('X-Key', 'value')
+        ->build();
+
+    // readonly properties cannot be modified after construction;
+    // verify the values are frozen
+    expect($config->defaultHeaders['X-Key'])->toBe('value');
+    expect(fn () => (new \ReflectionProperty(Configuration::class, 'baseUrl'))
+        ->setValue($config, 'https://other.example.com'))->toThrow(\Error::class);
+    expect(fn () => (new \ReflectionProperty(Configuration::class, 'defaultHeaders'))
+        ->setValue($config, ['X-Other' => 'value']))->toThrow(\Error::class);
+});
+
+test('bhv options 044 the README names the builder setter that rejects a SOCKS proxy', function (): void {
+    $readme = (string) file_get_contents(dirname(__DIR__) . '/README.md');
+    $section = strpos($readme, '### SOCKS proxies');
+
+    expect($section)->not->toBeFalse();
+    expect(substr($readme, (int) $section, 400))->toContain('`TransportOptions::builder()->proxy()`');
+});
+
+test('bhv mocking 009 the README has a Testing your code section naming both interfaces and showing a fake', function (): void {
+    $readme = (string) file_get_contents(dirname(__DIR__) . '/README.md');
+    $section = strpos($readme, '### Testing your code');
+
+    expect($section)->not->toBeFalse();
+    $text = substr($readme, (int) $section, 3000);
+    expect($text)->toContain('{{clientClassName}}Interface');
+    expect($text)->toContain('Interface');
+    expect($text)->toContain('function fake(');
+});
+
+test('bhv config 015 debug output masks credential default headers', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('Authorization', 'Bearer s3cr3t')
+        ->defaultHeader('Proxy-Authorization', 'Basic s3cr3t')
+        ->defaultHeader('Cookie', 'session=s3cr3t')
+        ->defaultHeader('X-Api-Key', 's3cr3t')
+        ->defaultHeader('X-Auth-Token', 's3cr3t')
+        ->defaultHeader('X-Client-Secret', 's3cr3t')
+        ->defaultHeader('X-Trace', 'visible')
+        ->build();
+
+    $dump = print_r($config, true);
+
+    expect($dump)->not->toContain('s3cr3t');
+    expect($dump)->toContain('visible');
+    expect($config->defaultHeaders['Authorization'])->toBe('Bearer s3cr3t');
+});
+
+test('bhv config 003 every builder setter returns the same builder', function (): void {
+    $builder = Configuration::builder();
+
+    expect($builder->baseUrl('https://example.com'))->toBe($builder);
+    expect($builder->defaultHeader('X-Key', 'value'))->toBe($builder);
+    expect($builder->defaultHeaders(['X-Other' => 'val']))->toBe($builder);
+
+    $server = new ServerConfiguration(urlTemplate: 'https://example.com');
+    expect($builder->server($server))->toBe($builder);
+});
+
+test('bhv langphp 041 every SDK class autoloads cold from its own file', function (): void {
+    /* PSR-4 loads a class only from a file named after it. A class declared
+     * in another class's file (an inline enum next to its model, a server
+     * variant next to its API group) works only once that other file happens
+     * to have been loaded, so each class is referenced FIRST, in a fresh
+     * process, through the composer autoloader. */
+    $root = dirname(__DIR__);
+    /** @var array{autoload: array{psr-4: array<string, string>}} $composer */
+    $composer = json_decode((string) file_get_contents($root . '/composer.json'), true);
+    $autoload = var_export($root . '/vendor/autoload.php', true);
+    $checked = 0;
+    foreach ($composer['autoload']['psr-4'] as $prefix => $dir) {
+        $base = (string) realpath($root . '/' . $dir);
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($files as $file) {
+            if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
+                continue;
+            }
+            $relative = substr($file->getPathname(), strlen($base) + 1, -4);
+            $class = var_export($prefix . str_replace('/', '\\', $relative), true);
+            $code = "require $autoload; exit(class_exists($class) || interface_exists($class)"
+                . " || enum_exists($class) || trait_exists($class) ? 0 : 1);";
+            $output = [];
+            exec(escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($code) . ' 2>&1', $output, $status);
+            expect($status)->toBe(0, "$class did not autoload cold: " . implode("\n", $output));
+            $checked++;
+        }
+    }
+    expect($checked)->toBeGreaterThan(0);
+});
+
+test('bhv langphp 042 the README names the composer package and the real proxy setter', function (): void {
+    $root = dirname(__DIR__);
+    /** @var array{name: string} $composer */
+    $composer = json_decode((string) file_get_contents($root . '/composer.json'), true);
+    $readme = (string) file_get_contents($root . '/README.md');
+
+    expect($readme)->toContain('- Name: `' . $composer['name'] . '`');
+    expect($readme)->toContain('- Namespace: `' . substr(Configuration::class, 0, -strlen('\\Configuration')) . '`');
+    expect($readme)->toContain('`TransportOptions::builder()->proxy()` accepts only');
+    expect($readme)->not->toContain('dead code');
+});
+
+test('bhv langphp 043 SKILLS types file upload parameters as the SplFileObject the options require', function (): void {
+    $skills = (string) file_get_contents(dirname(__DIR__) . '/SKILLS.md');
+
+    expect($skills)->toContain('A multipart file field is a `\SplFileObject`');
+    expect($skills)->not->toContain('SplFileInfo');
+});
+
+test('bhv langphp 044 phpunit.xml runs the hand written spec directory as well as tests', function (): void {
+    $root = dirname(__DIR__);
+    if (!is_file($root . '/phpunit.xml') || !is_dir($root . '/spec')) {
+        test()->markTestSkipped('No phpunit.xml or no spec directory in this project');
+    }
+    $xml = simplexml_load_file($root . '/phpunit.xml');
+    assert($xml instanceof \SimpleXMLElement);
+    $directories = array_map('strval', $xml->xpath('//testsuite/directory') ?: []);
+
+    expect($directories)->toContain('tests');
+    expect($directories)->toContain('spec');
+});
+
+test('bhv skills 001 SKILLS names the root exception and the error types that are siblings of ApiException', function (): void {
+    $skills = (string) file_get_contents(dirname(__DIR__) . '/SKILLS.md');
+
+    expect(preg_match('/- `[A-Za-z0-9]+Exception` \(root\)/', $skills))->toBe(1);
+    foreach (['SerializationException', 'OAuth2ServerException', 'OAuth2TokenException'] as $name) {
+        expect($skills)->toContain('  - `' . $name . '`');
+    }
+    expect($skills)->toContain('  - `ApiException`');
+    expect($skills)->toContain('Every failure the SDK raises derives from');
+});
+
+test('bhv skills 002 SKILLS documents the retries in the configuration section', function (): void {
+    $skills = (string) file_get_contents(dirname(__DIR__) . '/SKILLS.md');
+    $start = strpos($skills, "\n## Configuration\n");
+    $end = strpos($skills, "\n## API Methods\n");
+    expect($start)->toBeInt();
+    expect($end)->toBeInt();
+    assert(is_int($start) && is_int($end));
+    $section = substr($skills, $start, $end - $start);
+
+    expect($section)->toContain("\n### Retries\n");
+    expect($section)->toContain('`Retry-After`');
+});
+
+test('bhv config 004 builder merges single and bulk default headers', function (): void {
+    $config = Configuration::builder()
+        ->defaultHeader('X-First', 'one')
+        ->defaultHeaders(['X-Second' => 'two'])
+        ->defaultHeader('X-Third', 'three')
+        ->build();
+    expect($config->defaultHeaders)->toBe(['X-First' => 'one', 'X-Second' => 'two', 'X-Third' => 'three']);
+});
+
+test('bhv langphp 045 a call hook set on the builder is returned by the configuration', function (): void {
+    $hook = new RecordingCallHook();
+
+    $config = Configuration::builder()->callHook($hook)->build();
+
+    expect($config->getCallHook())->toBe($hook);
+    expect($config->callHook)->toBeInstanceOf(CallHook::class);
+});
+
+test('bhv langphp 046 a configuration has no call hook unless one is set', function (): void {
+    expect(Configuration::builder()->build()->getCallHook())->toBeNull();
+    expect((new Configuration())->getCallHook())->toBeNull();
+    expect(Configuration::builder()->callHook(new RecordingCallHook())->callHook(null)->build()->getCallHook())->toBeNull();
+});
+
+test('bhv langphp 047 the debug output of a configuration does not show the call hook', function (): void {
+    $config = Configuration::builder()->callHook(new RecordingCallHook())->build();
+
+    expect(print_r($config, true))->not->toContain('RecordingCallHook');
+});
+
+test('bhv config 026 a configuration built through the builder entry point returns the base url set on it', function (): void {
+    $config = Configuration::builder()->baseUrl('https://api.example.test')->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.test');
+});
+
+test('bhv misc 276 the default configuration and the default builder both use the spec base url', function (): void {
+    expect((new Configuration())->baseUrl)->toBe('{{{basePath}}}');
+    expect(Configuration::builder()->build()->baseUrl)->toBe('{{{basePath}}}');
+});
+
+test('bhv misc 277 each call to the default configuration returns a distinct configuration object', function (): void {
+    expect(new Configuration())->not->toBe(new Configuration());
+});
+
+test('bhv misc 278 a server url with templated variables resolves to its default values when no overrides are given', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+            'version' => new ServerVariable(
+                defaultValue: 'v3',
+                enumValues: ['v2', 'v3'],
+            ),
+        ],
+    );
+
+    $config = Configuration::builder()
+        ->server($server)
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.com/api/v3');
+});
+
+test('bhv misc 279 changing the headers returned from a configuration does not change the headers it holds', function (): void {
+    $config = Configuration::builder()->defaultHeader('X-Custom', 'value')->build();
+
+    $headers = $config->defaultHeaders;
+    $headers['X-Custom'] = 'changed';
+
+    expect($config->defaultHeaders)->toBe(['X-Custom' => 'value']);
+});
+
+test('bhv misc 136 the debug output shows the base url and the non sensitive default headers', function (): void {
+    $config = Configuration::builder()
+        ->baseUrl('https://api.example.com/v2')
+        ->defaultHeader('X-Trace', 'visible')
+        ->build();
+
+    $dump = print_r($config, true);
+
+    expect($dump)->toContain('https://api.example.com/v2');
+    expect($dump)->toContain('X-Trace');
+    expect($dump)->toContain('visible');
+});
+
+test('bhv config 024 there is no process-wide default to set and the default lookup returns a fresh configuration', function (): void {
+    expect(Configuration::defaultConfiguration())->not->toBe(Configuration::defaultConfiguration());
+    $reflection = new \ReflectionClass(Configuration::class);
+    expect($reflection->hasMethod('setDefaultConfiguration'))->toBeFalse();
+    expect($reflection->hasMethod('setDefault'))->toBeFalse();
+});
+{{#generateExamples}}
+
+/**
+ * The info string and the body of every fence tagged php, in file order.
+ *
+ * @return list<array{0: string, 1: string}>
+ */
+function examplesPhpFences(string $text): array
+{
+    preg_match_all('/^```(php[^\n]*)\n(.*?)^```$/ms', $text, $matches, PREG_SET_ORDER);
+    $fences = [];
+    foreach ($matches as $match) {
+        $fences[] = [$match[1], $match[2]];
+    }
+
+    return $fences;
+}
+
+function examplesRootFile(string $name): string
+{
+    return (string) file_get_contents(dirname(__DIR__) . '/' . $name);
+}
+
+test('bhv langphp 071 the quickstart builds a client, calls an operation and closes it', function (): void {
+    $quickstart = examplesRootFile('examples/quickstart.php');
+
+    expect($quickstart)->toContain("require __DIR__ . '/../vendor/autoload.php';");
+    expect($quickstart)->toContain('$client = {{clientClassName}}::withToken($host, $token);');
+{{#hasExampleOperation}}
+    expect($quickstart)->toContain('$client->{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}->{{#exampleOperation}}{{operationId}}{{/exampleOperation}}();');
+{{/hasExampleOperation}}
+    expect($quickstart)->toContain('$client->close();');
+});
+
+test('bhv langphp 072 the quickstart reads the host and the token from the environment the README names', function (): void {
+    $quickstart = examplesRootFile('examples/quickstart.php');
+    $readme = examplesRootFile('README.md');
+
+    foreach (['{{envVarPrefix}}_BASE_URL', '{{envVarPrefix}}_TOKEN'] as $name) {
+        expect($quickstart)->toContain("getenv('" . $name . "')");
+        expect($readme)->toContain($name);
+    }
+    expect($quickstart)->not->toContain('your-token');
+});
+
+test('bhv langphp 073 the README usage fence and the quickstart hold the same statements', function (): void {
+    $readme = examplesRootFile('README.md');
+    $start = strpos($readme, "\n## Usage\n");
+    expect($start)->toBeInt();
+    assert(is_int($start));
+    $end = strpos($readme, "\n## ", $start + 1);
+    $usage = $end === false ? substr($readme, $start) : substr($readme, $start, $end - $start);
+    $fences = examplesPhpFences($usage);
+    expect($fences)->not->toBeEmpty();
+    $quickstart = (string) preg_replace('/\s+/', '', examplesRootFile('examples/quickstart.php'));
+
+    $position = 0;
+    foreach (explode("\n", $fences[0][1]) as $line) {
+        $statement = (string) preg_replace('/\s+/', '', $line);
+        if ($statement === '' || str_starts_with($line, 'use ')) {
+            continue;
+        }
+        $found = strpos($quickstart, $statement, $position);
+        expect($found)->toBeInt('expected the quickstart to hold, in order: ' . $line);
+        assert(is_int($found));
+        $position = $found + strlen($statement);
+    }
+});
+
+test('bhv langphp 074 every php fence of the README and SKILLS declares its kind', function (): void {
+    foreach (['README.md', 'SKILLS.md'] as $name) {
+        $fences = examplesPhpFences(examplesRootFile($name));
+        expect($fences)->not->toBeEmpty();
+        foreach ($fences as [$info]) {
+            expect(in_array($info, ['php file', 'php statements'], true))->toBeTrue($name . ': ' . $info);
+        }
+    }
+});
+
+test('bhv langphp 075 no php fence holds a placeholder or an undeclared value', function (): void {
+    foreach (['README.md', 'SKILLS.md'] as $name) {
+        foreach (examplesPhpFences(examplesRootFile($name)) as [, $body]) {
+            foreach (explode("\n", $body) as $line) {
+                $stripped = trim($line);
+                expect($stripped === '...' || str_contains($line, '(...)'))->toBeFalse($name . ': ' . $line);
+                expect(str_starts_with($stripped, '<') && str_ends_with($stripped, '>'))->toBeFalse($name . ': ' . $line);
+                expect($line)->not->toContain('$api->');
+                expect($line)->not->toContain('$body');
+                expect($line)->not->toContain('OperationOptions(');
+            }
+        }
+    }
+});
+
+test('bhv langphp 076 the Makefile has an examples target that checks the examples directory', function (): void {
+    $makefile = examplesRootFile('Makefile');
+
+    expect($makefile)->toContain("\nexamples: install\n");
+    expect($makefile)->toContain("\nexamples-run: examples\n");
+    expect($makefile)->toContain("find examples -name '*.php'");
+    expect($makefile)->toContain('vendor/bin/phpstan analyse --no-progress --memory-limit=-1 examples');
+});
+{{/generateExamples}}

@@ -1,0 +1,492 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth
+
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class BearerAuthenticatorTest {
+
+    @Test
+    @DisplayName("bhvMisc017 a rejected credential is never named in the construction error")
+    fun bhvMisc017RejectedCredentialIsNeverNamedInTheConstructionError() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+        }
+
+        assertFalse(ex.message.orEmpty().contains("Injected"))
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer026 a token and a token provider passed together are refused")
+    fun tokenAndTokenProviderTogetherAreRefused() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "xyz", { "other" })
+        }
+        assertEquals("Pass either token or tokenProvider, not both", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth038 a token provider that is passed is used even when the environment holds a token")
+    fun bhvAuth038ProviderWinsOverEnvironment() {
+        val env = mapOf("{{envVarPrefix}}_TOKEN" to "from-env")
+        val auth = withEnvironment(env) { BearerAuthenticator("https://api.example.com", tokenProvider = { "from-provider" }) }
+        assertEquals("Bearer from-provider", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer028 a bearer token containing CRLF is rejected at construction")
+    fun bhvAuthbearer028ABearerTokenContainingCrlfIsRejectedAtConstruction() = runBlocking<Unit> {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer009 raw token is prefixed with Bearer")
+    fun rawTokenIsPrefixedWithBearer() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "xyz")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Bearer xyz", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer003 already-prefixed token is not doubled")
+    fun alreadyPrefixedTokenIsNotDoubled() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "Bearer xyz")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Bearer xyz", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer007 lowercase bearer prefix is stripped")
+    fun lowercaseBearerPrefixIsStripped() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "bearer xyz")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Bearer xyz", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer008 mixed-case bearer prefix is stripped")
+    fun mixedCaseBearerPrefixIsStripped() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "BeArEr xyz")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Bearer xyz", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer015 a token that merely begins with the word bearer is kept whole")
+    fun lookalikeTokenIsKeptWhole() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "bearerxyz")
+        assertEquals("Bearer bearerxyz", auth.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer004 a doubled Bearer prefix is stripped only once")
+    fun doubledPrefixIsStrippedOnce() = runBlocking {
+        val auth = BearerAuthenticator("https://api.example.com", "Bearer Bearer xyz")
+        assertEquals("Bearer Bearer xyz", auth.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer016 a Unicode space is not blank, so the printable ASCII check rejects it")
+    fun unicodeSpaceIsNotBlank() {
+        for (space in listOf("\u00A0", "\u2003")) {
+            val ex = assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", space)
+            }
+            assertEquals(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                ex.message
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer005 empty token is rejected at construction")
+    fun emptyTokenIsRejectedAtConstruction() {
+        // An empty or whitespace-only token would emit a credential-less
+        // "Authorization: Bearer " header (fail-open); reject it up front.
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "")
+        }
+        assertTrue(ex.message!!.contains("Bearer token must not be empty"))
+    }
+
+    // No null-token test: the token parameter is non-nullable, so the Kotlin
+    // compiler rejects passing a literal null at compile time. The empty +
+    // whitespace cases here exercise the runtime guard.
+
+    @Test
+    @DisplayName("bhvAuthbearer017 whitespace-only token is rejected at construction")
+    fun whitespaceOnlyTokenIsRejectedAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "   ")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "\t")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin008 form feed and vertical tab only tokens are rejected as empty")
+    fun bhvLangkotlin008FormFeedOnlyTokenIsRejectedAsEmpty() {
+        for (blank in listOf("\u000C", "\u000B", " \t\r\n")) {
+            val ex = assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", blank)
+            }
+            assertTrue(ex.message!!.contains("Bearer token must not be empty"))
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer012 Bearer rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    fun bearerRejectsCrlfAndNonAscii() {
+        // RFC 7230 §3.2.6 — reject CR/LF (header injection from tokens read
+        // from .env / files with trailing newlines) and non-ASCII bytes that
+        // different HTTP libs encode differently per language.
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "ñoño")
+        }
+    }
+
+    /**
+     * The default toString() must mask the stored token: the secret value
+     * must be absent and a *** redaction marker present.
+     */
+    @Test
+    @DisplayName("bhvAuthbearer011 toString() redacts the token and shows ***")
+    fun redactsSecret() {
+        val auth = BearerAuthenticator("https://api.example.com", "xyz")
+        val repr = auth.toString()
+        assertFalse(repr.contains("token=xyz"))
+        assertTrue(repr.contains("***"))
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer001 the scheme wrapper prints its own class name with the token masked")
+    fun schemeWrapperPrintsItsOwnNameWithTheTokenMasked() {
+        val auth = PetStoreBearerAuthenticator("https://api.example.com", "xyz")
+        assertEquals("PetStoreBearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
+    }
+
+    @Test
+    fun bhvAuthbearer013RedactedReprShowsExactlyTheNonSecretFields() {
+        val auth = BearerAuthenticator("https://api.example.com", "xyz")
+        assertEquals("BearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
+    }
+
+    @Test
+    fun bhvAuthbearer006GeneratedSchemeWrapperEmitsABearerHeaderAndMasksTheToken() = runBlocking {
+        val auth = PetStoreBearerAuthenticator("https://api.example.com", "xyz")
+        assertEquals("Bearer xyz", auth.getAuthHeaders()["Authorization"])
+        assertEquals("PetStoreBearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
+    }
+
+    @Test
+    fun bhvAuthbearer022RejectsANonAsciiTokenAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tökén")
+        }
+    }
+
+    @Test
+    fun bhvAuthbearer023GeneratedBearerWrapperEmitsABearerHeaderAndKeepsItsOwnName() = runBlocking {
+        val wrapper = ServiceTokenAuthenticator("https://api.example.com", "abc123")
+        assertEquals("Bearer abc123", wrapper.getAuthHeaders()["Authorization"])
+        assertTrue(wrapper.toString().startsWith("ServiceTokenAuthenticator("))
+    }
+
+    @Test
+    fun bhvAuthbearer025EnvironmentVariableIsReadOnceAtConstruction() {
+        val env = mutableMapOf("{{envVarPrefix}}_TOKEN" to "first")
+        val auth = withEnvironment(env) { BearerAuthenticator("https://api.example.com") }
+        env["{{envVarPrefix}}_TOKEN"] = "second"
+        val headers = withEnvironment(env) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Bearer first", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthscheme011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable")
+    fun bhvAuthscheme011EmptyBearerVariableIsUnsetAndNamed() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { BearerAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_TOKEN"), ex.message)
+    }
+
+    @Test
+    fun bhvAuthbearer027RejectsAWhitespaceOnlyTokenAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", " \t \r\n")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth003 an empty token environment variable counts as no value, so construction fails naming it")
+    fun bhvAuth003AnEmptyTokenVariableCountsAsUnset() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "")) {
+                BearerAuthenticator("https://api.example.com")
+            }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth018 a refused token never appears in the exception text or the stack trace")
+    fun bhvAuth018ARefusedTokenNeverAppearsInTheException() {
+        val secret = "s3cr3t-token-value"
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "$secret\u0001")
+        }
+        assertFalse(ex.stackTraceToString().contains(secret), ex.stackTraceToString())
+        assertFalse(ex.toString().contains(secret), ex.toString())
+    }
+
+    @Test
+    fun bhvMisc066ATokenProviderValueIsSentAsTheBearerCredential() = runBlocking<Unit> {
+        val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { "provided-token" })
+        assertEquals("Bearer provided-token", auth.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    fun bhvMisc067AFailingTokenProviderFailsTheRequestWithThatSameError() {
+        val failure = IllegalStateException("provider unavailable")
+        val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { throw failure })
+        val ex = assertThrows(IllegalStateException::class.java) { runBlocking { auth.getAuthHeaders() } }
+        assertSame(failure, ex)
+    }
+
+    @Test
+    fun bhvMisc068AnEmptyTokenArgumentCountsAsNotPassedAndReadsTheEnvironment() {
+        val env = mapOf("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN" to "from-env")
+        val auth = withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "") }
+        val headers = withEnvironment(env) { runBlocking { auth.getAuthHeaders() } }
+        assertEquals("Bearer from-env", headers["Authorization"])
+    }
+
+    private fun <T> withEnvironment(values: Map<String, String>, body: () -> T): T {
+        val saved = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { name -> values[name] }
+        try {
+            return body()
+        } finally {
+            CredentialEnvironment.lookup = saved
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer010 F862: with no token passed, {{envVarPrefix}}_TOKEN is read once at construction")
+    fun tokenComesFromTheEnvironment() {
+        val auth = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "from-env")) {
+            BearerAuthenticator("https://api.example.com")
+        }
+        // The environment is read once: it is gone now, the token is not.
+        assertEquals("Bearer from-env", runBlocking { auth.getAuthHeaders()["Authorization"] })
+    }
+
+    @Test
+    @DisplayName("bhvLifecycle025 reads the environment once, when the authenticator is built")
+    fun environmentIsReadOnceWhenTheAuthenticatorIsBuilt() {
+        val env = mutableMapOf("{{envVarPrefix}}_TOKEN" to "first")
+        withEnvironment(env) {
+            val auth = BearerAuthenticator("https://api.example.com")
+            env["{{envVarPrefix}}_TOKEN"] = "second"
+            assertEquals("Bearer first", runBlocking { auth.getAuthHeaders()["Authorization"] })
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer018 F862: an explicit token wins over the environment")
+    fun explicitTokenWinsOverTheEnvironment() {
+        val auth = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "from-env")) {
+            BearerAuthenticator("https://api.example.com", "explicit")
+        }
+        assertEquals("Bearer explicit", runBlocking { auth.getAuthHeaders()["Authorization"] })
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer019 an empty environment value counts as unset and a missing token fails at construction")
+    fun bhvAuthbearer019MissingTokenFailsAtConstruction() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { BearerAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer014 F862: a token provider is called on every request when no token and no variable is set")
+    fun tokenProviderIsCalledOnEveryRequest() = runBlocking {
+        var calls = 0
+        val auth = withEnvironment(emptyMap()) {
+            BearerAuthenticator("https://api.example.com", tokenProvider = { "rotating-" + (++calls) })
+        }
+        assertEquals("Bearer rotating-1", auth.getAuthHeaders()["Authorization"])
+        assertEquals("Bearer rotating-2", auth.getAuthHeaders()["Authorization"])
+        assertEquals(2, calls)
+    }
+
+    @Test
+    @DisplayName("bhvAuthbearer002 F862: a token the provider returns is validated like a static one")
+    fun providerTokenIsValidated() {
+        val auth =
+            BearerAuthenticator("https://api.example.com", tokenProvider = { "bad\r\ntoken" })
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { auth.getAuthHeaders() } }
+    }
+
+    @Test
+    @DisplayName("bhvLangkotlin009 F862: a security scheme's authenticator reads the variable of its own scheme")
+    fun bhvLangkotlin009SchemeWrapperReadsItsOwnVariable() = runBlocking {
+        val env = mapOf("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN" to "from-env")
+        val auth =
+            withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com") }
+        assertEquals("Bearer from-env", auth.getAuthHeaders()["Authorization"])
+        val other = withEnvironment(env) {
+            assertThrows(IllegalArgumentException::class.java) { ServiceTokenAuthenticator("https://api.example.com") }
+        }
+        assertTrue(other.message!!.contains("{{envVarPrefix}}_SERVICE_TOKEN_TOKEN"), other.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth022 F862: a scheme's authenticator takes the argument first, then the provider, then the variable")
+    fun schemeWrapperPrecedence() = runBlocking {
+        val provider: suspend () -> String = { "from-provider" }
+        val env = mapOf("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN" to "from-env")
+        val explicit =
+            withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "explicit") }
+        assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
+        val fromProvider =
+            withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider) }
+        assertEquals("Bearer from-provider", fromProvider.getAuthHeaders()["Authorization"])
+        val fromEnv = withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com") }
+        assertEquals("Bearer from-env", fromEnv.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvAuthscheme010 an empty environment variable for the bearer scheme credential is treated as unset and fails naming the variable")
+    fun schemeWrapperMissingTokenFails() {
+        val ex = withEnvironment(mapOf("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { PetStoreBearerAuthenticator("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth004 an authenticator with no argument, no environment value and no provider is refused at construction")
+    fun authenticatorWithNoCredentialIsRefusedAtConstruction() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com")
+        }
+        assertTrue(ex.message!!.startsWith("A bearer token is required"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth023 an explicitly passed empty token is refused and not replaced by another source")
+    fun explicitlyEmptyTokenIsRefused() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "")
+        }
+        assertEquals("Bearer token must not be empty", ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth009 a token returned by a provider that is blank or holds a line break or NUL is refused")
+    fun providedTokenThatIsBlankOrUnsafeIsRefused() = runBlocking {
+        for (bad in listOf("   ", "tok\nInjected: yes", "tok\u0000")) {
+            val auth = BearerAuthenticator("https://api.example.com", null, { bad })
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { auth.getAuthHeaders() }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMisc194 a token returned by a token provider is sent under the same Bearer prefix rule as a static token")
+    fun bhvMisc194ProviderTokenIsSentUnderTheBearerPrefix() = runBlocking<Unit> {
+        val auth = BearerAuthenticator("https://api.example.com", null, { "tok-123" })
+        assertEquals("Bearer tok-123", auth.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvMisc195 a whitespace-only token returned by a token provider is rejected when the request is made")
+    fun bhvMisc195WhitespaceOnlyProviderTokenIsRejectedWhenRequested() = runBlocking<Unit> {
+        val auth = BearerAuthenticator("https://api.example.com", null, { "   " })
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { auth.getAuthHeaders() } }
+    }
+
+    @Test
+    @DisplayName("bhvMisc196 a scheme wrapper with no token from its argument or environment fails with an error")
+    fun bhvMisc196SchemeWrapperWithNoTokenFailsWithAnError() {
+        withEnvironment(mapOf("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { PetStoreBearerAuthenticator("https://api.example.com") }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth012 each refused token raises a message that states why it was refused")
+    fun refusedTokenMessageStatesTheReason() {
+        val blank = assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "  ")
+        }
+        assertEquals("Bearer token must not be empty", blank.message)
+        val unsafe = assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok\r\nX: y")
+        }
+        assertTrue(unsafe.message!!.contains("printable ASCII"), unsafe.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth016 the string form of the authenticator masks the token and names its own type")
+    fun stringFormMasksTheToken() {
+        val text = BearerAuthenticator("https://api.example.com", "secret-value").toString()
+        assertFalse(text.contains("secret-value"), text)
+        assertTrue(text.contains("***"), text)
+        assertTrue(text.startsWith("BearerAuthenticator("), text)
+    }
+
+    @Test
+    @DisplayName("bhvAuth039 passing both a token and a token provider is rejected with an error")
+    fun bhvAuth039TokenAndProviderTogetherAreRejected() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok", tokenProvider = { "tok2" })
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth042 an explicitly passed empty token is refused by its own validation, not replaced by the environment")
+    fun bhvAuth042ExplicitEmptyTokenIsRefusedNotReplaced() {
+        val previous = CredentialEnvironment.lookup
+        CredentialEnvironment.lookup = { "tok-env" }
+        try {
+            val ex = assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", token = "")
+            }
+            assertEquals("Bearer token must not be empty", ex.message)
+        } finally {
+            CredentialEnvironment.lookup = previous
+        }
+    }
+    @Test
+    @DisplayName("bhvMisc190 the printed output of the authenticator hides the secret")
+    fun bhvMisc190PrintedBearerAuthenticatorHidesTheToken() {
+        val text = BearerAuthenticator("https://api.example.com", "super-secret-token").toString()
+        assertFalse(text.contains("super-secret-token"), text)
+    }
+
+    @Test
+    @DisplayName("bhvMisc193 the Basic and Bearer authenticators send their base header and refuse invalid input like their base")
+    fun bhvMisc193BasicAndBearerSendBaseHeaderAndRefuseInvalidTokenLikeBase() = runBlocking<Unit> {
+        assertEquals("Basic dXNlcjpwYXNz", BasicAuthenticator("https://api.example.com", "user", "pass").getAuthHeaders()["Authorization"])
+        assertEquals("Bearer tok-123", BearerAuthenticator("https://api.example.com", "tok-123").getAuthHeaders()["Authorization"])
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+        }
+    }
+
+}

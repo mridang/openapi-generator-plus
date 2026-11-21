@@ -1,0 +1,100 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+class BasicAuthenticatorTest {
+
+    @Test
+    void bhvAuthBasic018PasswordMayContainAColon() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "p:ss");
+        assertEquals("Basic YWxpY2U6cDpzcw==", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvAuthBasic011ValidCredentialsProduceBasicHeader() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        Map<String, String> headers = auth.getAuthHeaders();
+        assertEquals("Basic YWxpY2U6czNjcmV0", headers.get("Authorization"));
+    }
+
+    @Test
+    void bhvAuthBasic004NonAsciiCredentialsAreEncodedAsUtf8() {
+        BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com",
+                "ünïcødé", "pässwörd");
+        assertEquals("Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==",
+                auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvAuthBasic009RejectsUsernameWithCrlfAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret"));
+    }
+
+    @Test
+    void bhvAuthBasic007RejectsPasswordWithNulAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"));
+    }
+
+    @Test
+    void bhvAuthBasic008RejectsUsernameWithColonAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+    }
+
+    @Test
+    void bhvAuthBasic005PasswordIsNotLeakedInDefaultToString() {
+        // authenticator-secret-in-default-string-repr: the default toString()
+        // must never expose the stored password.
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        assertFalse(auth.toString().contains("s3cret"));
+    }
+
+    /**
+     * The default {@code toString()} must mask the stored password: the secret
+     * value must be absent and a redaction marker present.
+     */
+    @Test
+    @DisplayName("bhvAuthBasic006 toString() redacts the password")
+    void bhvAuthBasic006RedactsSecret() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        String repr = auth.toString();
+        assertFalse(repr.contains("s3cret"));
+        assertTrue(repr.contains("***"));
+        assertEquals(
+                "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+                repr);
+    }
+
+    @Test
+    void bhvAuthBasic010ReprShowsHostAndUsernameAndMasksThePassword() {
+        String repr = new BasicAuthenticator("https://api.example.com", "alice", "s3cret").toString();
+        assertEquals(
+                "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+                repr);
+    }
+
+    @Test
+    void bhvErrors081RefusedCredentialNamesWhetherTheUsernameOrThePasswordIsAtFault() {
+        IllegalArgumentException badUser = assertThrows(IllegalArgumentException.class,
+                () -> new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+        assertTrue(java.util.Objects.requireNonNull(badUser.getMessage()).contains("username"));
+        IllegalArgumentException badPassword = assertThrows(IllegalArgumentException.class,
+                () -> new BasicAuthenticator("https://api.example.com", "alice", "s3\u0000cret"));
+        assertTrue(java.util.Objects.requireNonNull(badPassword.getMessage()).contains("password"));
+    }
+}

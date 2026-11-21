@@ -1,0 +1,579 @@
+{{>api_info}}
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
+use {{invokerPackage}}\Auth\ApiKeyLocation;
+{{#apiKeyScheme}}
+use {{invokerPackage}}\Auth\{{className}};
+{{/apiKeyScheme}}
+
+test('bhv authapikey 014 valid header key passes', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+    $headers = $auth->getAuthHeaders();
+    expect($headers['X-API-Key'])->toBe('abc123');
+});
+
+test('bhv authapikey 016 valid query key passes', function (): void {
+    // Non-header locations accept arbitrary chars.
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'abc123']);
+});
+
+test('bhv authapikey 009 api key query allows non ascii', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'kéy', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'kéy']);
+});
+
+test('bhv authapikey 005 empty key header throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', '', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv authapikey 006 empty key query throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'api_key', '', ApiKeyLocation::QUERY))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv authapikey 004 empty key cookie throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'session', '', ApiKeyLocation::COOKIE))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv authapikey 017 whitespace only key throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', '   ', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv authapikey 011 ascii whitespace only key is blank in every location', function (string $key): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'api_key', $key, ApiKeyLocation::QUERY))
+        ->toThrow(\InvalidArgumentException::class, 'must not be empty');
+})->with([
+    'space' => [' '],
+    'tab' => ["\t"],
+    'line feed' => ["\n"],
+    'carriage return' => ["\r"],
+    'form feed' => ["\f"],
+    'vertical tab' => ["\v"],
+    'mixed' => [" \t\f\v "],
+]);
+
+test('bhv authapikey 001 unicode space key is a valid non header key', function (string $key): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', $key, ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => $key]);
+})->with([
+    'no break space' => ["\u{00A0}"],
+    'em space' => ["\u{2003}"],
+]);
+
+test('bhv authapikey 003 crlf in query key throws at construction', function (): void {
+    // CR/LF/NUL are forbidden control characters in ALL locations.
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'api_key', "abc\r\n", ApiKeyLocation::QUERY))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv authapikey 002 crlf in cookie key throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'session', "abc\n", ApiKeyLocation::COOKIE))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv authapikey 018 api key header rejects crlf at construction', function (): void {
+    // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', "abc\r\nInjected: yes", ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv authapikey 008 api key header rejects non ascii at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'kéy', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv authapikey 013 valid cookie key is emitted through cookie params only', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'session', 'abc123', ApiKeyLocation::COOKIE);
+
+    expect($auth->getCookieParams())->toBe(['session' => 'abc123']);
+    expect($auth->getAuthHeaders())->toBe([]);
+    expect($auth->getQueryParams())->toBe([]);
+});
+
+test('bhv authapikey 012 debug output keeps the non secret fields and masks only the key', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+
+    $printR = print_r($auth, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[keyParamName] => X-API-Key');
+    expect($printR)->toContain('[apiKey] => ***');
+    expect($printR)->toContain('[location] => HEADER');
+});
+
+test('bhv authapikey 007 every generated api key wrapper emits its key at exactly one location and masks it', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        $auth = $reflection->newInstance('https://api.example.com', 'wrapper-key-1');
+        $emitted = array_filter([
+            'header' => $auth->getAuthHeaders(),
+            'query' => $auth->getQueryParams(),
+            'cookie' => $auth->getCookieParams(),
+        ]);
+        expect($emitted)->toHaveCount(1, "$class must emit its key at exactly one location");
+        $pair = array_shift($emitted);
+        assert(is_array($pair));
+        expect(array_values($pair))->toBe(['wrapper-key-1']);
+        expect(array_keys($pair)[0])->not->toBe('');
+        expect(print_r($auth, true))->not->toContain('wrapper-key-1');
+        expect(fn () => $reflection->newInstance('https://api.example.com', ''))
+            ->toThrow(\InvalidArgumentException::class);
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authapikey 019 wrappers reject an empty key at construction', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        expect(fn () => $reflection->newInstance('https://api.example.com', ''))
+            ->toThrow(\InvalidArgumentException::class, 'must not be empty');
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authapikey 020 every api key wrapper validates eagerly and redacts the key', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        expect(fn () => $reflection->newInstance('https://api.example.com', "wrapper\r\nkey"))
+            ->toThrow(\InvalidArgumentException::class);
+
+        $auth = $reflection->newInstance('https://api.example.com', 'wrapper-key-2');
+        ob_start();
+        var_dump($auth);
+        $dump = (string) ob_get_clean();
+        expect($dump)->not->toContain('wrapper-key-2');
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+{{#apiKeyScheme}}
+/**
+ * Runs $body with the API key environment variable of {{className}} set to $value (null unsets it), then restores it.
+ */
+function withApiKeyEnvironment(?string $value, callable $body): void
+{
+    $name = '{{apiKeyEnv}}';
+    $previous = getenv($name);
+    putenv($value === null ? $name : $name . '=' . $value);
+    try {
+        $body();
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+}
+
+/**
+ * The key an authenticator sends, wherever its scheme puts it (header, query or cookie).
+ *
+ * @return list<string>
+ */
+function sentApiKeys(\{{invokerPackage}}\Auth\Authenticator $auth): array
+{
+    return array_values(array_merge($auth->getAuthHeaders(), $auth->getQueryParams(), $auth->getCookieParams()));
+}
+
+test('bhv authscheme 009 an explicit api key wins over the environment', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        $auth = new {{className}}('https://api.example.com', 'explicit');
+        expect(sentApiKeys($auth))->toBe(['explicit']);
+    });
+});
+
+test('bhv serializationobject 187 an explicit api key wins over the environment', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        $auth = new {{className}}('https://api.example.com', 'explicit');
+        expect(sentApiKeys($auth))->toBe(['explicit']);
+    });
+});
+
+test('bhv authscheme 001 the api key is read from the environment when none is passed', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        $auth = new {{className}}('https://api.example.com');
+        expect(sentApiKeys($auth))->toBe(['from-environment']);
+    });
+});
+
+test('bhv lifecycle 025 reads the environment once, when the authenticator is built', function (): void {
+    withApiKeyEnvironment('first', function (): void {
+        $auth = new {{className}}('https://api.example.com');
+        putenv('{{apiKeyEnv}}=second');
+        expect(sentApiKeys($auth))->toBe(['first']);
+    });
+{{#bearerScheme}}
+    $bearerName = '{{tokenEnv}}';
+    $bearerPrevious = getenv($bearerName);
+    putenv($bearerName . '=first');
+    try {
+        $bearerAuth = new \{{invokerPackage}}\Auth\{{className}}('https://api.example.com');
+        putenv($bearerName . '=second');
+        expect($bearerAuth->getAuthHeaders()['Authorization'])->toBe('Bearer first');
+    } finally {
+        putenv($bearerPrevious === false ? $bearerName : $bearerName . '=' . $bearerPrevious);
+    }
+{{/bearerScheme}}
+});
+
+test('bhv authscheme 012 an empty or unset environment api key is treated as unset and fails naming the variable', function (?string $value): void {
+    withApiKeyEnvironment($value, function (): void {
+        expect(fn () => new {{className}}('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, '{{apiKeyEnv}}');
+    });
+})->with([
+    'unset' => [null],
+    'empty' => [''],
+]);
+
+test('bhv auth 003 an empty or unset environment api key counts as no value and construction names the variable', function (): void {
+    withApiKeyEnvironment('', function (): void {
+        expect(fn () => new {{className}}('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, '{{apiKeyEnv}}');
+    });
+    withApiKeyEnvironment(null, function (): void {
+        expect(fn () => new {{className}}('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, '{{apiKeyEnv}}');
+    });
+});
+
+test('bhv langphp 049 an explicit api key is used before the environment variable, and a provider is used when nothing else is set', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        expect(sentApiKeys(new {{className}}('https://api.example.com', 'explicit')))->toBe(['explicit']);
+        expect(sentApiKeys(new {{className}}('https://api.example.com')))->toBe(['from-environment']);
+    });
+    $auth = new ApiKeyAuthenticator(
+        'https://api.example.com',
+        'api_key',
+        null,
+        ApiKeyLocation::QUERY,
+        fn (): string => 'from-provider'
+    );
+    expect(sentApiKeys($auth))->toBe(['from-provider']);
+});
+
+test('bhv authscheme 002 explicit arguments need no environment', function (): void {
+    withApiKeyEnvironment(null, function (): void {
+        $auth = new {{className}}('https://api.example.com', 'explicit');
+        expect(sentApiKeys($auth))->toBe(['explicit']);
+    });
+});
+
+test('bhv auth 007 the base class reads no environment variable', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        $message = '';
+        try {
+            new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER);
+        } catch (\InvalidArgumentException $e) {
+            $message = $e->getMessage();
+        }
+        expect($message)->toBe("API key for 'X-API-Key' is required: pass a key or a key provider");
+    });
+});
+
+test('bhv auth 040 an environment variable set to an empty string is treated as unset', function (): void {
+    withApiKeyEnvironment('', function (): void {
+        expect(fn () => new {{className}}('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, '{{apiKeyEnv}}');
+        expect(sentApiKeys(new {{className}}('https://api.example.com', 'explicit')))->toBe(['explicit']);
+    });
+});
+
+test('bhv auth 041 a value passed to the constructor takes precedence over the same environment variable', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        expect(sentApiKeys(new {{className}}('https://api.example.com', 'explicit')))->toBe(['explicit']);
+    });
+});
+
+test('bhv auth 042 an explicit empty value is kept and refused by its own check, not replaced by the environment', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        expect(fn () => new {{className}}('https://api.example.com', ''))
+            ->toThrow(\InvalidArgumentException::class, 'must not be empty');
+    });
+});
+
+{{/apiKeyScheme}}
+test('bhv auth 005 an api key provider is asked for the key on every request', function (): void {
+    $calls = 0;
+    $auth = new ApiKeyAuthenticator(
+        'https://api.example.com',
+        'api_key',
+        null,
+        ApiKeyLocation::QUERY,
+        function () use (&$calls): string {
+            $calls++;
+
+            return 'rotated-' . $calls;
+        }
+    );
+
+    expect($auth->getQueryParams())->toBe(['api_key' => 'rotated-1']);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'rotated-2']);
+});
+
+test('bhv misc 060 an api key and a key provider cannot both be passed', function (): void {
+    expect(fn () => new ApiKeyAuthenticator(
+        'https://api.example.com',
+        'X-API-Key',
+        'a',
+        ApiKeyLocation::HEADER,
+        fn (): string => 'b'
+    ))->toThrow(\InvalidArgumentException::class, 'not both');
+});
+
+test('bhv authapikey 010 redacts the api key in toString', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'key-secret-xyz', ApiKeyLocation::HEADER);
+    expect(json_encode($auth))->not->toContain('key-secret-xyz');
+    expect(print_r($auth, true))->not->toContain('key-secret-xyz');
+});
+
+test('bhv authapikey 015 valid query key is exposed in query params', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'abc123']);
+});
+
+/**
+ * Runs $body with each variable of $values set (null unsets it), then restores the previous values.
+ *
+ * @param array<string, ?string> $values
+ */
+function withApiKeyEnvValues(array $values, callable $body): void
+{
+    $previous = [];
+    foreach ($values as $name => $value) {
+        $previous[$name] = getenv($name);
+        putenv($value === null ? $name : $name . '=' . $value);
+    }
+    try {
+        $body();
+    } finally {
+        foreach ($previous as $name => $value) {
+            putenv($value === false ? $name : $name . '=' . $value);
+        }
+    }
+}
+
+/**
+ * Every key an authenticator sends, at whichever location its scheme puts it.
+ *
+ * @return list<string>
+ */
+function apiKeysSentBy(ApiKeyAuthenticator $auth): array
+{
+    return array_values(array_merge($auth->getAuthHeaders(), $auth->getQueryParams(), $auth->getCookieParams()));
+}
+
+/**
+ * Checks every generated api key wrapper that emits its key at $where (header, query or cookie): with its
+ * environment variable empty, construction fails and the message names that variable.
+ */
+function assertApiKeyWrappersRefuseEmptyVariable(string $where): void
+{
+    $matched = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $probe = newApiKeyWrapper($class, 'https://api.example.com', 'probe-key');
+        $emitted = match ($where) {
+            'header' => $probe->getAuthHeaders(),
+            'query' => $probe->getQueryParams(),
+            default => $probe->getCookieParams(),
+        };
+        if ($emitted === []) {
+            continue;
+        }
+        $matched++;
+        $variable = apiKeyWrapperEnvVariable($class);
+        withApiKeyEnvValues([$variable => ''], function () use ($class, $variable): void {
+            expect(fn () => newApiKeyWrapper($class, 'https://api.example.com'))
+                ->toThrow(\InvalidArgumentException::class, $variable);
+        });
+    }
+    expect($matched)->toBeGreaterThan(0);
+}
+
+test('bhv authapikey 021 an api key is read from the environment when none is passed and a passed key wins', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $variable = apiKeyWrapperEnvVariable($class);
+        withApiKeyEnvValues([$variable => 'from-environment'], function () use ($class): void {
+            expect(apiKeysSentBy(newApiKeyWrapper($class, 'https://api.example.com')))->toBe(['from-environment']);
+            expect(apiKeysSentBy(newApiKeyWrapper($class, 'https://api.example.com', 'explicit')))->toBe(['explicit']);
+        });
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authapikey 022 an api key is emitted only at its own location and not at the other two', function (ApiKeyLocation $location): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', $location);
+
+    expect($auth->getAuthHeaders() !== [])->toBe($location === ApiKeyLocation::HEADER);
+    expect($auth->getQueryParams() !== [])->toBe($location === ApiKeyLocation::QUERY);
+    expect($auth->getCookieParams() !== [])->toBe($location === ApiKeyLocation::COOKIE);
+})->with([
+    'header' => [ApiKeyLocation::HEADER],
+    'query' => [ApiKeyLocation::QUERY],
+    'cookie' => [ApiKeyLocation::COOKIE],
+]);
+
+test('bhv authapikey 023 a cookie key accepts a non ascii value and is emitted only as a cookie', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'session', 'kéy', ApiKeyLocation::COOKIE);
+
+    expect($auth->getCookieParams())->toBe(['session' => 'kéy']);
+    expect($auth->getAuthHeaders())->toBe([]);
+    expect($auth->getQueryParams())->toBe([]);
+});
+
+test('bhv authapikey 025 generated api key scheme wrappers mask the key in their debug output', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $auth = newApiKeyWrapper($class, 'https://api.example.com', 'wrapper-key-3');
+
+        expect(print_r($auth, true))->toContain('***');
+        expect(print_r($auth, true))->not->toContain('wrapper-key-3');
+        expect(json_encode($auth))->not->toContain('wrapper-key-3');
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});
+
+test('bhv authscheme 005 an api key header scheme authenticator treats an empty environment variable as unset and names it', function (): void {
+    assertApiKeyWrappersRefuseEmptyVariable('header');
+});
+
+test('bhv authscheme 006 an api key query scheme authenticator treats an empty environment variable as unset and names it', function (): void {
+    assertApiKeyWrappersRefuseEmptyVariable('query');
+});
+
+test('bhv authscheme 007 a session cookie scheme authenticator treats an empty environment variable as unset and names it', function (): void {
+    assertApiKeyWrappersRefuseEmptyVariable('cookie');
+});
+
+test('bhv auth 006 an api key sent in a header is keyed by the declared header name', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Custom-Key', 'abc123', ApiKeyLocation::HEADER);
+    expect($auth->getAuthHeaders())->toBe(['X-Custom-Key' => 'abc123']);
+});
+
+test('bhv auth 004 an api key authenticator built with no key and no provider is refused at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER, null))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv auth 016 the printable form of an api key authenticator names its type and never shows the key', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'key-secret-789', ApiKeyLocation::HEADER);
+
+    ob_start();
+    var_dump($auth);
+    $varDump = (string) ob_get_clean();
+
+    expect($varDump)->toContain('ApiKeyAuthenticator');
+    expect($varDump)->not->toContain('key-secret-789');
+    expect(print_r($auth, true))->toContain('ApiKeyAuthenticator');
+});
+
+/**
+ * Builds a generated api key wrapper by its class name. The wrappers take their arguments
+ * from the base constructor only, so the call is typed here instead of at each site.
+ */
+function newApiKeyWrapper(string $class, string ...$args): ApiKeyAuthenticator
+{
+    $wrapper = new $class(...$args);
+    \assert($wrapper instanceof ApiKeyAuthenticator);
+
+    return $wrapper;
+}
+
+/**
+ * The environment variable a generated api key wrapper reads its key from.
+ *
+ * @param class-string $class
+ */
+function apiKeyWrapperEnvVariable(string $class): string
+{
+    $constants = (new \ReflectionClass($class))->getConstant('ENV_VARS');
+    \assert(is_array($constants));
+    $first = array_values($constants)[0];
+    \assert(is_string($first));
+
+    return $first;
+}
+
+test('bhv auth 031 an api key is sent in the declared header with its exact name and value', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+
+    expect($auth->getAuthHeaders())->toBe(['X-API-Key' => 'abc123']);
+});
+
+test('bhv auth 032 a session cookie key is sent as the SESSION_ID cookie with its exact name and value', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'SESSION_ID', 'abc123', ApiKeyLocation::COOKIE);
+
+    expect($auth->getCookieParams())->toBe(['SESSION_ID' => 'abc123']);
+});
+
+test('bhv auth 034 an api key that is empty or blank is refused when the authenticator is constructed', function (string $key): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', $key, ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+})->with([
+    'empty' => [''],
+    'blank' => ['   '],
+]);
+
+test('bhv auth 035 an api key with a nul, a carriage return, a line feed or a non ascii character is refused', function (string $key): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', $key, ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+})->with([
+    'nul' => ["abc\0def"],
+    'carriage return' => ["abc\rdef"],
+    'line feed' => ["abc\ndef"],
+    'non ascii' => ['kéy'],
+]);
+
+test('bhv misc 057 an api key configured for one location is never sent at another location', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'abc123', ApiKeyLocation::HEADER);
+
+    expect($auth->getAuthHeaders())->toBe(['X-Api-Key' => 'abc123']);
+    expect($auth->getQueryParams())->toBe([]);
+    expect($auth->getCookieParams())->toBe([]);
+});
+
+test('bhv misc 189 the api key query wrapper sends its key as the api_key query parameter', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'abc123']);
+});

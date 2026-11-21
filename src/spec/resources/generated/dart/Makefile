@@ -1,0 +1,43 @@
+.PHONY: all get test lint analyze format docs clean examples examples-run
+
+all: get
+
+get:
+	dart pub get
+
+test:
+	mkdir -p .out/reports
+	dart test --coverage=.out/coverage --reporter json | dart run junitreport:tojunit --output .out/reports/junit.xml
+	dart run coverage:format_coverage --lcov --in=.out/coverage --out=.out/coverage.xml --report-on=lib
+
+analyze:
+	dart analyze --fatal-warnings --fatal-infos
+
+lint: analyze
+	dart format --output=none --set-exit-if-changed .
+
+format:
+	dart format .
+
+docs:
+	@set -e; \
+	out=$$(dart doc --output .out/docs --validate-links 2>&1); \
+	status=$$?; \
+	printf '%s\n' "$$out"; \
+	if [ $$status -ne 0 ]; then exit $$status; fi; \
+	if printf '%s\n' "$$out" | grep -i 'warning:' | grep -vi 'deprecated' | grep -q .; then \
+		echo 'docs: dartdoc emitted warnings (see above)'; \
+		exit 1; \
+	fi
+
+clean:
+	rm -rf .dart_tool/
+	rm -rf build/
+	rm -rf doc/
+
+# Analyses every file under examples with the package's analyzer rules.
+examples: get
+	dart analyze --fatal-warnings --fatal-infos examples
+
+examples-run: examples
+	SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL="$(API_BASE_URL)" SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN=placeholder dart run examples/quickstart.dart

@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// GatewayTimeoutError is the error for HTTP 504 Gateway Timeout.
+type GatewayTimeoutError struct {
+	ServerError
+}

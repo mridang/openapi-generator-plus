@@ -1,0 +1,60 @@
+#nullable enable
+using PetstoreClient.Models;
+
+namespace PetstoreClient.Api.Options;
+
+/// <summary>
+/// Options for the GetPetTag operation.
+/// </summary>
+public sealed class GetPetTagOptions
+{
+    public List<string>? Colors { get; init; }
+
+    public List<string>? Sizes { get; init; }
+
+    public string? Filter { get; init; }
+
+    /// <summary>Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.</summary>
+    public string? Revision { get; init; }
+
+    /// <summary>Object-valued query parameter, form style exploded (the OAS default for query)</summary>
+    public PetCriteria? Criteria { get; init; }
+
+    public PetCriteria? CriteriaCsv { get; init; }
+
+    public PetCriteria? CriteriaDeep { get; init; }
+
+    /// <summary>Opaque bytes, base64 on the wire (OAS format byte)</summary>
+    public byte[]? Fingerprint { get; init; }
+
+    public PetCriteria? XCriteria { get; init; }
+
+    public byte[]? XFingerprint { get; init; }
+
+    /// <summary>
+    /// End-to-end timeout in milliseconds for this call only: it replaces
+    /// <see cref="TransportOptions.Timeout"/> and must be greater than zero.
+    /// When null the transport's timeout applies.
+    /// </summary>
+    public int? Timeout { get; init; }
+
+    /// <summary>
+    /// Extra request headers for this call only. They are sent after the
+    /// default and authentication headers and replace a header of the same
+    /// name, whatever its casing.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Headers
+    {
+        get => _headers;
+        init => _headers = value is null ? null : new Dictionary<string, string>(value);
+    }
+
+    private readonly IReadOnlyDictionary<string, string>? _headers;
+
+    /// <summary>
+    /// Maximum number of retries for this call only: it replaces
+    /// <see cref="TransportOptions.MaxRetries"/>, and 0 turns retries off.
+    /// When null the transport's setting applies.
+    /// </summary>
+    public int? MaxRetries { get; init; }
+}

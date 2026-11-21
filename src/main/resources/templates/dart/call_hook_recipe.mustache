@@ -1,0 +1,115 @@
+import 'package:opentelemetry/api.dart' as otel;
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+/// Records one span for every call, and hands its count and its duration to
+/// the functions you give it.
+class OpenTelemetryCallHook implements CallHook {
+  OpenTelemetryCallHook({
+    this.tracerProvider,
+    this.propagator,
+    this.currentContext,
+    this.onRequest,
+    this.onDuration,
+  });
+
+  /// The provider the spans come from; the global provider when null.
+  final otel.TracerProvider? tracerProvider;
+
+  /// Writes the trace context into the request; the global one when null.
+  final otel.TextMapPropagator<dynamic>? propagator;
+
+  /// The context the span is a child of; the active context when null.
+  final otel.Context Function()? currentContext;
+
+  /// Called once per call with the attributes of its span.
+  final void Function(List<otel.Attribute> attributes)? onRequest;
+
+  /// Called once per call with its duration in seconds and the attributes of
+  /// its span.
+  final void Function(double seconds, List<otel.Attribute> attributes)?
+      onDuration;
+
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    final tracer = (tracerProvider ?? otel.globalTracerProvider)
+        .getTracer('{{packageName}}', version: '{{packageVersion}}');
+    final parent = (currentContext ?? () => otel.Context.current)();
+    final attributes = [
+      otel.Attribute.fromString('http.request.method', info.method),
+      otel.Attribute.fromString('url.template', info.urlTemplate),
+      otel.Attribute.fromString('server.address', info.serverAddress),
+    ];
+    final span = tracer.startSpan(
+      info.operationId,
+      context: parent,
+      kind: otel.SpanKind.client,
+      attributes: attributes,
+    );
+    final carrier = <String, String>{};
+    (propagator ?? otel.globalTextMapPropagator).inject(
+      otel.contextWithSpan(parent, span),
+      carrier,
+      _HeaderSetter(),
+    );
+    carrier.forEach((name, value) {
+      if (value.isNotEmpty) {
+        headers[name] = value;
+      }
+    });
+    return _SpanObserver(this, span, attributes, Stopwatch()..start());
+  }
+}
+
+class _SpanObserver implements CallObserver {
+  _SpanObserver(this._hook, this._span, this._attributes, this._clock);
+
+  final OpenTelemetryCallHook _hook;
+  final otel.Span _span;
+  final List<otel.Attribute> _attributes;
+  final Stopwatch _clock;
+
+  @override
+  void finish(CallOutcome outcome) {
+    final attributes = [..._attributes];
+    if (outcome.statusCode > 0) {
+      attributes.add(otel.Attribute.fromInt(
+          'http.response.status_code', outcome.statusCode));
+    }
+    final errorType = _errorType(outcome);
+    if (errorType != null) {
+      attributes.add(otel.Attribute.fromString('error.type', errorType));
+      _span.setStatus(otel.StatusCode.error);
+    }
+    _span.setAttributes(attributes);
+    _span.end();
+    _hook.onRequest?.call(attributes);
+    _hook.onDuration?.call(_clock.elapsedMicroseconds / 1e6, attributes);
+  }
+
+  static String? _errorType(CallOutcome outcome) {
+    if (outcome.statusCode >= 400) {
+      return '${outcome.statusCode}';
+    }
+    final error = outcome.error;
+    if (error == null) {
+      return null;
+    }
+    if (error is NetworkTimeoutException) {
+      return 'timeout';
+    }
+    if (error is NetworkException) {
+      return 'network_error';
+    }
+    if (error is SerializationException) {
+      return 'serialization_error';
+    }
+    return '_OTHER';
+  }
+}
+
+class _HeaderSetter implements otel.TextMapSetter<Map<String, String>> {
+  @override
+  void set(Map<String, String> carrier, String key, String value) {
+    carrier[key] = value;
+  }
+}

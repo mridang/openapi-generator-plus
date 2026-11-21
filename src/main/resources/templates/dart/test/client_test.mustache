@@ -1,0 +1,711 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+class _CloseTrackingClient extends http.BaseClient {
+  _CloseTrackingClient(this._inner);
+
+  final http.Client _inner;
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request);
+
+  @override
+  void close() {
+    closed = true;
+    _inner.close();
+  }
+}
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+class _Fake{{classname}} implements {{classname}}Interface {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+class _FakeClient implements {{clientClassName}}Interface {
+  int closed = 0;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+  @override
+  final {{classname}}Interface {{clientPropertyName}} = _Fake{{classname}}();
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  @override
+  void close() {
+    closed++;
+  }
+}
+
+void main() {
+  group('{{clientClassName}}', () {
+    test('bhv lifecycle 017 withToken takes a token provider instead of a token', () {
+      final client = {{clientClassName}}.withToken(
+        host: '{{{basePath}}}',
+        tokenProvider: () => 'rotating-token',
+      );
+
+      expect(client, isNotNull);
+    });
+
+    test('bhv lifecycle 016 withToken fails to build when no token is given or in the environment', () {
+      if (Platform.environment[BearerAuthenticator.defaultEnvironmentVariable] != null) {
+        return;
+      }
+
+      expect(
+        () => {{clientClassName}}.withToken(host: '{{{basePath}}}'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('bhv misc 068 an empty token counts as not passed, so the value is read from the environment', () {
+      const host = '{{{basePath}}}';
+      if (Platform.environment[BearerAuthenticator.defaultEnvironmentVariable] != null) {
+        expect(() => {{clientClassName}}.withToken(host: host, accessToken: ''), returnsNormally);
+        return;
+      }
+
+      expect(
+        () => {{clientClassName}}.withToken(host: host, accessToken: ''),
+        throwsA(isA<ArgumentError>().having((e) => '${e.message}', 'message',
+            contains(BearerAuthenticator.defaultEnvironmentVariable))),
+      );
+    });
+
+    test('bhv misc 204 Constructing a client without a required host or token fails immediately with a missing-credential error.', () {
+      if (Platform.environment[BearerAuthenticator.defaultEnvironmentVariable] != null) {
+        return;
+      }
+
+      expect(
+        () => {{clientClassName}}.withToken(host: '{{{basePath}}}'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('bhv lifecycle 012 construct with authenticator only', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+      final client = {{clientClassName}}(authenticator: authenticator);
+
+      expect(client, isNotNull);
+    });
+
+    test('bhv lifecycle 010 construct with authenticator and null transport options', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+      final client = {{clientClassName}}(authenticator: authenticator, transportOptions: null);
+
+      expect(client, isNotNull);
+    });
+
+    test('bhv lifecycle 011 construct with authenticator and transport options', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+      final transport = TransportOptionsBuilder().build();
+
+      final client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport);
+
+      expect(client, isNotNull);
+    });
+
+    test('bhv lifecycle 007 construct with a caller-supplied http client in the transport options', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+      final transport = TransportOptionsBuilder()
+          .httpClient(MockClient((_) async => http.Response('', 200)))
+          .build();
+
+      final client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport);
+
+      expect(client, isNotNull);
+    });
+
+    test('bhv lifecycle 009 close never closes a caller-supplied http client', () {
+      final supplied = _CloseTrackingClient(
+        MockClient((_) async => http.Response('', 200)),
+      );
+      final client = {{clientClassName}}(
+        authenticator: BearerAuthenticator(host: 'http://localhost:1', token: 'test-token'),
+        transportOptions: TransportOptionsBuilder().httpClient(supplied).build(),
+      );
+
+      client.close();
+      client.close();
+
+      expect(supplied.closed, isFalse);
+    });
+
+    test('bhv misc 183 closing a client whose credentials hold nothing that needs releasing succeeds', () {
+      final client = {{clientClassName}}(
+        authenticator: BearerAuthenticator(host: 'http://localhost:1', token: 'test-token'),
+      );
+
+      expect(client.close, returnsNormally);
+    });
+
+    test('bhv misc 187 a credential not passed explicitly is taken from the environment', () {
+      final fromEnvironment =
+          Platform.environment[BearerAuthenticator.defaultEnvironmentVariable];
+      if (fromEnvironment == null) {
+        expect(
+          () => {{clientClassName}}.withToken(host: '{{{basePath}}}'),
+          throwsA(isA<ArgumentError>()),
+        );
+        return;
+      }
+
+      expect({{clientClassName}}.withToken(host: '{{{basePath}}}'), isNotNull);
+    });
+
+    test('bhv lifecycle 013 close on a client that built its own transport is idempotent', () {
+      final client = {{clientClassName}}(
+        authenticator: BearerAuthenticator(host: 'http://localhost:1', token: 'test-token'),
+      );
+
+      client.close();
+
+      expect(client.close, returnsNormally);
+    });
+
+    test('bhv misc 203 Calling close on a client that is already closed does nothing and raises no error.', () {
+      final client = {{clientClassName}}(
+        authenticator: BearerAuthenticator(host: 'http://localhost:1', token: 'test-token'),
+      );
+
+      client.close();
+
+      expect(client.close, returnsNormally);
+    });
+
+    test('bhv lifecycle 006 BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'ñoño'),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv lifecycle 005 BearerAuthenticator rejects an empty or whitespace token', () {
+      // bearer-no-empty-token-guard: an empty / whitespace-only token would
+      // emit a bare "Authorization: Bearer " header and send the request
+      // unauthenticated, so the constructor must reject it.
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: ''),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: '   '),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv lifecycle 004 ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      // HEADER location must reject anything outside printable ASCII +
+      // TAB to prevent header injection (\r\n) and silent UTF-8
+      // mangling that varies per HTTP lib.
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc\r\nInjected: yes',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'kéy',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+
+      // Non-header locations accept arbitrary chars.
+      final queryAuth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'kéy',
+        location: ApiKeyLocation.query,
+      );
+      expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
+    });
+
+    test('bhv lifecycle 002 API key header rejects a line feed and non-ASCII', () {
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc\ndef',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'naïve',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv lifecycle 003 API key query accepts non-ASCII', () {
+      final queryAuth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'naïve',
+        location: ApiKeyLocation.query,
+      );
+
+      expect(queryAuth.queryParams(), equals({'api_key': 'naïve'}));
+    });
+
+    test('bhv lifecycle 014 reads the token from the environment when none is passed', () {
+      final fromEnvironment =
+          Platform.environment[BearerAuthenticator.defaultEnvironmentVariable];
+      if (fromEnvironment == null) {
+        expect(
+          () => {{clientClassName}}.withToken(host: '{{{basePath}}}'),
+          throwsA(isA<ArgumentError>()),
+        );
+        return;
+      }
+
+      expect({{clientClassName}}.withToken(host: '{{{basePath}}}'), isNotNull);
+    });
+
+{{#clientSchemes}}{{#-first}}
+    test('bhv lifecycle 030 the base URL comes from the default authenticator first, then from the first scheme credential', () {
+      final scheme = BearerAuthenticator(host: 'https://scheme.example.com', token: 'tok');
+      final fallback = BearerAuthenticator(host: 'https://default.example.com', token: 'tok');
+
+      final withDefault = {{clientClassName}}(authenticator: fallback, {{paramName}}: scheme);
+      final schemeOnly = {{clientClassName}}({{paramName}}: scheme);
+
+{{#apiInfo}}{{#apis}}{{#operations}}{{#-first}}
+      expect(withDefault.{{clientPropertyName}}.config.baseUrl, equals('https://default.example.com'));
+      expect(schemeOnly.{{clientPropertyName}}.config.baseUrl, equals('https://scheme.example.com'));
+{{/-first}}{{/operations}}{{/apis}}{{/apiInfo}}
+    });
+
+    test('bhv misc 206 A client built with only a default authenticator is constructed successfully and takes its host from that authenticator.', () {
+      final scheme = BearerAuthenticator(host: 'https://scheme.example.com', token: 'tok');
+      final fallback = BearerAuthenticator(host: 'https://default.example.com', token: 'tok');
+
+      final withDefault = {{clientClassName}}(authenticator: fallback, {{paramName}}: scheme);
+      final schemeOnly = {{clientClassName}}({{paramName}}: scheme);
+
+{{#apiInfo}}{{#apis}}{{#operations}}{{#-first}}
+      expect(withDefault.{{clientPropertyName}}.config.baseUrl, equals('https://default.example.com'));
+      expect(schemeOnly.{{clientPropertyName}}.config.baseUrl, equals('https://scheme.example.com'));
+{{/-first}}{{/operations}}{{/apis}}{{/apiInfo}}
+    });
+{{/-first}}{{/clientSchemes}}
+
+    test('bhv lifecycle 015 takes one optional keyword credential per security scheme, named after it', () {
+      expect(() => {{clientClassName}}(), throwsArgumentError);
+{{#clientSchemes}}
+      expect(() => {{clientClassName}}({{paramName}}: null), throwsArgumentError);
+{{/clientSchemes}}
+    });
+
+    test('bhv misc 071 a client-level credential that needs HTTP receives the client transport', () {
+      final credential = _TransportRecordingBearer(
+        host: 'https://api.example.com',
+        token: 'tok',
+      );
+
+      Client(authenticator: credential);
+
+      expect(credential.injected, isNotNull);
+    });
+
+    test('bhv misc 073 the client provides a generated wrapper class for every security scheme the spec declares', () {
+{{#credentialSchemes}}
+      expect({{className}}, isNotNull);
+{{/credentialSchemes}}
+    });
+
+    test('bhv lifecycle 001 API groups are accessible', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+      final client = {{clientClassName}}(authenticator: authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      expect(client.{{clientPropertyName}}, isNotNull);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    });
+
+    test('bhv lifecycle 041 a supplied httpClient combined with a proxy is refused at build', () {
+      expect(
+        () => TransportOptionsBuilder()
+            .httpClient(MockClient((_) async => http.Response('', 200)))
+            .proxy('http://proxy.example.com:3128')
+            .build(),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv lifecycle 042 a client built on a caller-supplied transport sends its requests through that transport', () async {
+      final requests = <Uri>[];
+      final custom = MockClient((request) async {
+        requests.add(request.url);
+        return http.Response(
+          '{"id":1,"name":"Fido","photoUrls":[]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final client = Client.withToken(
+        host: 'https://api.example.com',
+        accessToken: 'tok',
+        transportOptions: TransportOptionsBuilder().httpClient(custom).build(),
+      );
+
+      await client.pet.getPetTag(1, 'favorite', null);
+
+      expect(requests, hasLength(1));
+      expect(requests.single.host, equals('api.example.com'));
+    });
+
+    test('bhv lifecycle 043 a request after close throws a StateError and never reaches the network', () async {
+      final requests = <Uri>[];
+      final client = Client.withToken(
+        host: 'https://api.example.com',
+        accessToken: 'tok',
+        transportOptions: TransportOptionsBuilder().httpClient(MockClient((request) async {
+          requests.add(request.url);
+          return http.Response('{}', 200);
+        })).build(),
+      );
+
+      client.close();
+
+      await expectLater(
+        client.pet.getPetTag(1, 'favorite', null),
+        throwsA(isA<StateError>()),
+      );
+      expect(requests, isEmpty);
+    });
+
+    test('bhv misc 184 close does not cancel a request that is still running, and it completes successfully', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final client = Client.withToken(
+          host: 'http://localhost:${server.port}',
+          accessToken: 'tok',
+        );
+        final pending = client.pet.getPetTag(1, 'favorite', null);
+        client.close();
+
+        final pet = await pending;
+        expect(pet.name, equals('Fido'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv lifecycle 044 a request in flight when the client is closed still completes successfully', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final client = Client.withToken(
+          host: 'http://localhost:${server.port}',
+          accessToken: 'tok',
+        );
+        final pending = client.pet.getPetTag(1, 'favorite', null);
+        client.close();
+
+        final pet = await pending;
+        expect(pet.name, equals('Fido'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv lifecycle 045 closing the client leaves a caller-supplied http client open for the caller to keep using', () async {
+      final supplied = _CloseTrackingClient(
+        MockClient((_) async => http.Response('ok', 200)),
+      );
+      final client = Client.withToken(
+        host: 'https://api.example.com',
+        accessToken: 'tok',
+        transportOptions: TransportOptionsBuilder().httpClient(supplied).build(),
+      );
+
+      client.close();
+
+      final response = await supplied.get(Uri.parse('https://api.example.com/ping'));
+      expect(response.statusCode, equals(200));
+      expect(supplied.closed, isFalse);
+    });
+
+    test('bhv lifecycle 036 closing a client a second time raises no error and releases nothing further', () {
+      final client = Client.withToken(
+        host: 'https://api.example.com',
+        accessToken: 'tok',
+      );
+
+      client.close();
+      expect(() => client.close(), returnsNormally);
+    });
+
+    test('bhv lifecycle 040 the standard disposal hook closes the client', () async {
+      final client = Client.withToken(
+        host: 'https://api.example.com',
+        accessToken: 'tok',
+      );
+
+      client.close();
+
+      await expectLater(client.pet.getPetById(1, null, null), throwsA(isA<StateError>()));
+    });
+
+    test('bhv lifecycle 037 closing a client while a request is in flight lets that request finish', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final client = Client.withToken(
+          host: 'http://localhost:${server.port}',
+          accessToken: 'tok',
+        );
+        final pending = client.pet.getPetTag(1, 'favorite', null);
+        client.close();
+
+        final pet = await pending;
+        expect(pet.name, equals('Fido'));
+        expect(() => client.close(), returnsNormally);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv lifecycle 038 a caller-supplied transport is valid and closing the client repeatedly succeeds', () {
+      final custom = MockClient((_) async => http.Response('', 200));
+      final client = Client.withToken(
+        host: 'https://api.example.com',
+        accessToken: 'tok',
+        transportOptions: TransportOptionsBuilder().httpClient(custom).build(),
+      );
+
+      client.close();
+      expect(() => client.close(), returnsNormally);
+    });
+
+    test('bhv lifecycle 039 building a client with an empty token is refused at construction and a valid token builds one', () {
+      expect(
+        () => Client.withToken(host: 'https://api.example.com', accessToken: ''),
+        throwsArgumentError,
+      );
+      expect(
+        Client.withToken(host: 'https://api.example.com', accessToken: 'tok'),
+        isA<Client>(),
+      );
+    });
+  });
+
+  group('mockable {{clientClassName}}', () {
+    final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+    test('bhv mocking 001 every group has an interface the class implements', () {
+      final client = {{clientClassName}}(authenticator: authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      final {{clientPropertyName}}Group = client.{{clientPropertyName}} as {{classname}}Interface;
+      expect({{clientPropertyName}}Group, isA<{{classname}}>());
+      final {{clientPropertyName}}Source = File('lib/src/api/{{classFilename}}.dart').readAsStringSync();
+      final {{clientPropertyName}}Interface = {{clientPropertyName}}Source.substring(
+          {{clientPropertyName}}Source.indexOf('abstract interface class {{classname}}Interface {'),
+          {{clientPropertyName}}Source.indexOf('class {{classname}} extends BaseApi'));
+{{#operation}}
+      expect({{clientPropertyName}}Interface, contains(' {{operationId}}('));
+      expect({{clientPropertyName}}Interface, contains(' {{operationId}}WithHttpInfo('));
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    });
+
+    test('bhv mocking 002 the group interface lists exactly the public operations of the class', () {
+      final method = RegExp(r'^  Future<.*> ([a-zA-Z0-9]+)\(', multiLine: true);
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      final {{clientPropertyName}}Source = File('lib/src/api/{{classFilename}}.dart').readAsStringSync();
+      final {{clientPropertyName}}Split = {{clientPropertyName}}Source.indexOf('class {{classname}} extends BaseApi');
+      final {{clientPropertyName}}Listed = method
+          .allMatches({{clientPropertyName}}Source.substring(0, {{clientPropertyName}}Split))
+          .map((m) => m.group(1)!)
+          .toSet();
+      final {{clientPropertyName}}Declared = method
+          .allMatches({{clientPropertyName}}Source.substring({{clientPropertyName}}Split))
+          .map((m) => m.group(1)!)
+          .toSet();
+      expect({{clientPropertyName}}Declared, {{clientPropertyName}}Listed);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    });
+
+    test('bhv mocking 007 the client interface exposes every group typed as its interface and close', () {
+      final client = {{clientClassName}}(authenticator: authenticator);
+      final viaInterface = client as {{clientClassName}}Interface;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      final {{clientPropertyName}}Group = viaInterface.{{clientPropertyName}};
+      expect({{clientPropertyName}}Group, same(client.{{clientPropertyName}}));
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+      expect(() {
+        viaInterface.close();
+        viaInterface.close();
+      }, returnsNormally);
+    });
+
+    test('bhv mocking 008 a client built from fakes never connects and closes without error', () {
+      final fake = _FakeClient();
+      final viaInterface = fake as {{clientClassName}}Interface;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      expect(viaInterface.{{clientPropertyName}}, isNotNull);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+      viaInterface.close();
+      viaInterface.close();
+
+      expect(fake.closed, 2);
+    });
+
+    test('bhv hooks 010 a hook given to the client fires for an operation when the caller supplied the transport', () async {
+      final hook = _CountingHook();
+      final client = {{clientClassName}}(
+        authenticator: BearerAuthenticator(host: 'https://api.example.com', token: 'test-token'),
+        transportOptions: TransportOptionsBuilder()
+            .httpClient(MockClient((_) async => http.Response('{"name":"a","photoUrls":[]}', 200, headers: {'content-type': 'application/json'})))
+            .build(),
+        callHook: hook,
+      );
+
+      await client.pet.getPetById(1, null, null);
+
+      expect(hook.starts, equals(1));
+      expect(hook.finishes, equals(1));
+    });
+
+    test('bhv langdart 028 the client hands the call hook to every API group', () async {
+      final hook = _CountingHook();
+      final client = {{clientClassName}}.withToken(
+        host: 'https://api.example.com',
+        accessToken: 'test-token',
+        transportOptions: TransportOptionsBuilder()
+            .httpClient(MockClient((_) async => http.Response('{}', 404)))
+            .build(),
+        callHook: hook,
+      );
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      expect(client.{{clientPropertyName}}.config.callHook, same(hook));
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    });
+  });
+}
+
+class _TransportRecordingBearer extends BearerAuthenticator
+    implements HttpAwareAuthenticator {
+  _TransportRecordingBearer({required super.host, required super.token});
+
+  ApiClient? injected;
+
+  @override
+  void setApiClient(ApiClient client) {
+    injected = client;
+  }
+}
+
+class _CountingHook implements CallHook {
+  int starts = 0;
+  int finishes = 0;
+
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    starts++;
+    return _CountingObserver(this);
+  }
+}
+
+class _CountingObserver implements CallObserver {
+  _CountingObserver(this._hook);
+
+  final _CountingHook _hook;
+
+  @override
+  void finish(CallOutcome outcome) {
+    _hook.finishes++;
+  }
+}
+{{/generateTests}}

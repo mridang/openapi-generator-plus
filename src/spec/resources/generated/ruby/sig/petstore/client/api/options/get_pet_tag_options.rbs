@@ -1,0 +1,23 @@
+module Petstore::Client
+  module Api
+    module Options
+      # Required parameters have non-optional keyword arguments;
+      # optional parameters default to nil.  The attr_reader types
+      # are nullable only for optional parameters.  Instances are
+      # frozen after construction, so only readers are exposed.
+      class GetPetTagOptions
+        attr_reader colors: Array[String]?
+        attr_reader sizes: Array[String]?
+        attr_reader filter: String?
+        attr_reader revision: String?
+        attr_reader criteria: Models::PetCriteria?
+        attr_reader criteria_csv: Models::PetCriteria?
+        attr_reader criteria_deep: Models::PetCriteria?
+        attr_reader fingerprint: String?
+        attr_reader x_criteria: Models::PetCriteria?
+        attr_reader x_fingerprint: String?
+        def initialize: (?colors: Array[String]?, ?sizes: Array[String]?, ?filter: String?, ?revision: String?, ?criteria: Models::PetCriteria?, ?criteria_csv: Models::PetCriteria?, ?criteria_deep: Models::PetCriteria?, ?fingerprint: String?, ?x_criteria: Models::PetCriteria?, ?x_fingerprint: String?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
+      end
+    end
+  end
+end

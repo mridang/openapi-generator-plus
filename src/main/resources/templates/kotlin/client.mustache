@@ -1,0 +1,220 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import {{apiPackage}}.{{classname}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+import {{invokerPackage}}.auth.Authenticator
+import {{invokerPackage}}.auth.BearerAuthenticator
+import {{invokerPackage}}.auth.HttpAwareAuthenticator
+
+/**
+ * Unified entry point for all API services.
+ *
+ * Takes an [Authenticator] (or one optional credential per security scheme, named after the
+ * scheme) and optionally [TransportOptions], then exposes each API group as a typed property.
+ * If a credential implements [HttpAwareAuthenticator], the shared [ApiClient] is injected so
+ * that authentication HTTP calls (token exchange, discovery) use the same transport
+ * configuration as regular API calls.
+ *
+ * Usage:
+ * ```kotlin
+ * // One credential for every operation
+ * val client = {{clientClassName}}(authenticator)
+ *
+{{#clientSchemes}}
+{{#-first}}
+ * // One credential per security scheme
+ * val client = {{clientClassName}}("https://api.example.com", {{argName}} = credential)
+{{/-first}}
+{{/clientSchemes}}
+ *
+ * // Custom transport (proxy, timeouts, etc.)
+ * val transport = TransportOptions.builder()
+ *     .proxy("http://proxy:3128")
+ *     .timeout(5000L)
+ *     .build()
+ * val client = {{clientClassName}}(authenticator, transport)
+ * ```
+ */
+class {{clientClassName}} : {{clientClassName}}Interface {
+
+    private val apiClient: ApiClient
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /** API operations for the {{classname}} group. */
+    override val {{clientPropertyName}}: {{classname}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    /**
+     * Creates a new client with the given authenticator and default transport settings.
+     *
+     * @param authenticator provides host URL and auth headers
+     * @throws IllegalArgumentException if the transport cannot be configured (never
+     *   thrown for default transport, which configures no custom CA certificate)
+     */
+    constructor(authenticator: Authenticator) : this(authenticator, TransportOptions.builder().build())
+
+    /**
+     * Creates a new client with the given authenticator and transport options.
+     *
+     * The authenticator is the credential for every operation. If it implements
+     * [HttpAwareAuthenticator], the shared [ApiClient] is injected so that token
+     * exchange and discovery requests use the same proxy, TLS, and timeout settings.
+     *
+     * @param authenticator provides host URL and auth headers
+     * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @param callHook the hook that runs around every operation call, or null for none
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+     */
+    constructor(authenticator: Authenticator, transportOptions: TransportOptions, callHook: CallHook? = null) :
+        this(emptyMap(), authenticator, authenticator.getHost(), transportOptions, callHook)
+
+    /**
+     * Creates a new client that holds one optional credential per security scheme the spec
+     * declares, each named after its scheme. An operation uses the credential of the first
+     * scheme its spec lists that you passed here; a call cannot pick another scheme. An
+     * operation none of whose schemes you passed a credential for is sent without one.
+     *
+     * @param host API base URL
+{{#clientSchemes}}
+     * @param {{{argName}}} credential for the `{{schemeId}}` security scheme, or null for none
+{{/clientSchemes}}
+     * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @param callHook the hook that runs around every operation call, or null for none
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+     */
+    constructor(
+        host: String,
+{{#clientSchemes}}
+        {{{argName}}}: {{{authPackage}}}.{{className}}? = null,
+{{/clientSchemes}}
+        transportOptions: TransportOptions? = null,
+        callHook: CallHook? = null,
+    ) : this(
+        mapOfNotNull(
+{{#clientSchemes}}
+            "{{#lambda.kotlinString}}{{{schemeId}}}{{/lambda.kotlinString}}" to {{{argName}}},
+{{/clientSchemes}}
+        ),
+        null,
+        host,
+        transportOptions ?: TransportOptions.builder().build(),
+        callHook,
+    )
+
+    private constructor(
+        schemeAuthenticators: Map<String, Authenticator>,
+        authenticator: Authenticator?,
+        host: String,
+        transportOptions: TransportOptions,
+        callHook: CallHook?,
+    ) {
+        val apiClient: ApiClient = DefaultApiClient(transportOptions)
+        this.apiClient = apiClient
+
+        if (authenticator is HttpAwareAuthenticator) {
+            authenticator.setApiClient(apiClient)
+        }
+        for (scheme in schemeAuthenticators.values) {
+            if (scheme is HttpAwareAuthenticator) {
+                scheme.setApiClient(apiClient)
+            }
+        }
+
+        val config = Configuration.builder()
+            .baseUrl(host)
+            .callHook(callHook)
+            .build()
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        this.{{clientPropertyName}} = {{classname}}(apiClient, config, authenticator, schemeAuthenticators)
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    /**
+     * Releases the HTTP stack this client built (connection pool and engine threads).
+     *
+     * A Ktor client supplied through [TransportOptions.httpClient] is never closed.
+     * After calling this method every request fails with [IllegalStateException].
+     * Use with Kotlin's `use { }`.
+     */
+    override fun close() {
+        apiClient.close()
+    }
+
+    companion object {
+        /** The credentials that were passed, keyed by scheme; a scheme given `null` is left out. */
+        private fun mapOfNotNull(vararg entries: Pair<String, Authenticator?>): Map<String, Authenticator> {
+            val held = LinkedHashMap<String, Authenticator>()
+            for ((scheme, credential) in entries) {
+                if (credential != null) {
+                    held[scheme] = credential
+                }
+            }
+            return held
+        }
+
+        /**
+         * Creates a client authenticated with a static Bearer token.
+         *
+         * @param host API base URL
+         * @param accessToken Bearer token; when null the environment variable
+         *   `{{envVarPrefix}}_TOKEN` is used, and a missing token fails here
+         * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+         * @param callHook the hook that runs around every operation call, or null for none
+         * @return configured client instance
+         * @throws IllegalArgumentException if no token is given or set, or a configured custom CA certificate cannot be read or parsed
+         */
+        fun withToken(
+            host: String,
+            accessToken: String? = null,
+            transportOptions: TransportOptions? = null,
+            callHook: CallHook? = null,
+        ): {{clientClassName}} =
+            {{clientClassName}}(
+                BearerAuthenticator(host, accessToken),
+                transportOptions ?: TransportOptions.builder().build(),
+                callHook,
+            )
+
+        /**
+         * Creates a client from any [Authenticator] implementation.
+         *
+         * This is the generic entry point for bespoke authentication strategies such as
+         * OAuth2 client credentials, JWT private-key (service account), or a personal access
+         * token (PAT). Supply any [Authenticator] implementation; if it also implements
+         * [HttpAwareAuthenticator], the shared [ApiClient] is injected so its HTTP
+         * calls reuse the same transport configuration.
+         *
+         * @param authenticator provides host URL and auth headers
+         * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+         * @param callHook the hook that runs around every operation call, or null for none
+         * @return configured client instance
+         * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
+         */
+        fun withAuthenticator(
+            authenticator: Authenticator,
+            transportOptions: TransportOptions? = null,
+            callHook: CallHook? = null,
+        ): {{clientClassName}} =
+            {{clientClassName}}(
+                authenticator,
+                transportOptions ?: TransportOptions.builder().build(),
+                callHook,
+            )
+    }
+}

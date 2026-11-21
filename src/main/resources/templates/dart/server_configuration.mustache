@@ -1,0 +1,119 @@
+{{>api_info}}
+/// Represents a server variable from the OpenAPI specification.
+///
+/// Server variables define substitution parameters in server URL templates.
+/// Each variable has a default value and may optionally restrict values to
+/// an enumerated set.
+///
+/// This class is immutable.
+class ServerVariable {
+  /// The default value used when no override is provided.
+  final String defaultValue;
+
+  /// Human-readable description of the variable, or an empty string if not
+  /// specified.
+  final String description;
+
+  /// Allowed values for this variable, frozen so a caller cannot change them.
+  ///
+  /// An empty list means any value is accepted.
+  List<String> get enumValues => List.unmodifiable(_enumValues);
+
+  final List<String> _enumValues;
+
+  /// Create a new server variable.
+  const ServerVariable({
+    required this.defaultValue,
+    this.description = '',
+    List<String> enumValues = const [],
+  }) : _enumValues = enumValues;
+
+  /// Two variables are equal when their default, description and allowed
+  /// values are equal, in order.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ServerVariable) return false;
+    if (defaultValue != other.defaultValue ||
+        description != other.description ||
+        _enumValues.length != other._enumValues.length) {
+      return false;
+    }
+    for (var i = 0; i < _enumValues.length; i++) {
+      if (_enumValues[i] != other._enumValues[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(defaultValue, description, Object.hashAll(_enumValues));
+}
+
+/// Represents a single server entry from the OpenAPI specification.
+///
+/// A server URL may contain template variables (e.g.
+/// `https://{env}.api.example.com/v{version}`). Use [url] to resolve the URL
+/// with default variable values, or pass overrides to substitute specific
+/// variables.
+///
+/// This class is immutable.
+class ServerConfiguration {
+  /// The raw URL template before variable substitution.
+  final String urlTemplate;
+
+  /// Human-readable description of this server, or an empty string if not
+  /// specified.
+  final String description;
+
+  /// The server variables and their definitions.
+  ///
+  /// Maps variable names to their [ServerVariable] definitions.
+  final Map<String, ServerVariable> variables;
+
+  /// Create a new server configuration.
+  const ServerConfiguration({
+    required this.urlTemplate,
+    this.description = '',
+    this.variables = const {},
+  });
+
+  /// Resolve the URL template, substituting variable values.
+  ///
+  /// Variables not present in [overrides] use their default values. If a
+  /// variable has an enum constraint, the override value is validated against
+  /// the allowed values.
+  ///
+  /// Returns the fully resolved URL. Throws [ArgumentError] if an override
+  /// value is not in the variable's enumValues.
+  String url([Map<String, String>? overrides]) {
+    final values = <String, String>{};
+    for (final entry in variables.entries) {
+      final varName = entry.key;
+      final variable = entry.value;
+      var value = variable.defaultValue;
+
+      if (overrides != null && overrides.containsKey(varName)) {
+        value = overrides[varName]!;
+      }
+
+      if (variable.enumValues.isNotEmpty) {
+        if (!variable.enumValues.contains(value)) {
+          throw ArgumentError(
+            "Invalid value '$value' for server variable '$varName'. "
+            "Allowed values: ${variable.enumValues}",
+          );
+        }
+      }
+
+      values[varName] = value;
+    }
+    /* One pass over the template: a placeholder that a substituted value
+     * introduces is never expanded again, whatever order the variables are
+     * declared in. */
+    return urlTemplate.replaceAllMapped(
+      RegExp(r'\{([^{}]*)\}'),
+      (match) => values[match[1]] ?? match[0]!,
+    );
+  }
+}

@@ -1,0 +1,1173 @@
+{{>api_info}}
+import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+import Testing
+@testable import {{packageName}}
+
+@Suite final class ApiErrorTests {
+
+    @Test func testBhvErrors004ExposesStatusMessageBodyHeadersErrorBody() {
+        let err = ApiError(
+            statusCode: 404,
+            message: "not found",
+            responseBody: #"{"id":7,"name":"missing"}"#,
+            responseHeaders: ["content-type": "application/json"],
+            errorBody: nil
+        )
+
+        #expect(err.statusCode == 404)
+        #expect(err.message == "not found")
+        #expect(err.responseBody == #"{"id":7,"name":"missing"}"#)
+        #expect(err.responseHeaders?["content-type"] == "application/json")
+        #expect(err.errorBody == nil)
+    }
+
+    @Test func testBhvErrors021NilHeadersAndBodyMarkTransportNoResponse() {
+        // apierror-responsebody-headers-nullable-split: nil is distinct from an
+        // empty header map / empty body so a pre-response transport failure can
+        // be encoded.
+        let err = ApiError(
+            statusCode: 0,
+            message: "connection reset",
+            responseBody: nil,
+            responseHeaders: nil
+        )
+
+        #expect(err.responseHeaders == nil)
+        #expect(err.responseBody == nil)
+    }
+
+    @Test func testBhvLangswift001ConformsToErrorAndHasDescription() {
+        let err = ApiError(statusCode: 500, message: "boom")
+
+        let _: any Error = err
+        #expect(err.errorDescription?.isEmpty == false)
+    }
+
+    /* A body that starts with a byte-order mark still populates errorBody,
+     * as it does on the success path. */
+    @Test func testBhvErrors008BomPrefixedErrorBodyPopulatesErrorBody() {
+        let err = ApiError.fromResponse(
+            statusCode: 404, headers: [:], body: "\u{FEFF}{\"code\":1}")
+        #expect((err.errorBody as? [String: Any])?["code"] as? Int == 1)
+    }
+
+    /* A top-level scalar error body (JSON fragment) populates errorBody like
+     * the other SDKs; a bare null stays absent. */
+    @Test func testBhvErrors010FromResponseParsesScalarJsonBody() {
+        let text = ApiError.fromResponse(statusCode: 404, headers: [:], body: "\"Not found\"")
+        #expect(text.errorBody as? String == "Not found")
+        let number = ApiError.fromResponse(statusCode: 404, headers: [:], body: "123")
+        #expect((number.errorBody as? NSNumber)?.intValue == 123)
+        let flag = ApiError.fromResponse(statusCode: 500, headers: [:], body: "true")
+        #expect((flag.errorBody as? NSNumber)?.boolValue == true)
+        let null = ApiError.fromResponse(statusCode: 500, headers: [:], body: "null")
+        #expect(null.errorBody == nil)
+    }
+
+    /* OAuth2TokenError renders its message through localizedDescription
+     * instead of Foundation's generic "operation couldn't be completed". */
+    @Test func testBhvLangswift002OAuth2TokenErrorLocalizedDescriptionIsTheMessage() {
+        let missing: any Error = OAuth2TokenError.missingAccessToken("empty access_token")
+        #expect(missing.localizedDescription == "empty access_token")
+        let invalid: any Error = OAuth2TokenError.invalidResponse("not a token object")
+        #expect(invalid.localizedDescription == "not a token object")
+    }
+
+    /* A typed view of an error body that starts with a byte order mark decodes the same as the body without it. */
+    @Test func testBhvErrors072GetTypedErrorBodyDecodesTheSameWithAByteOrderMark() throws {
+        let json = #"{"id":42,"name":"Dogs"}"#
+        let withMark = ApiError(statusCode: 400, message: "bad request", responseBody: "\u{FEFF}" + json)
+        let plain = ApiError(statusCode: 400, message: "bad request", responseBody: json)
+
+        let marked = try #require(try withMark.getTypedErrorBody({{packageName}}.Category.self))
+        let expected = try #require(try plain.getTypedErrorBody({{packageName}}.Category.self))
+        #expect(marked.id == expected.id)
+        #expect(marked.name == expected.name)
+    }
+
+    @Test func testBhvErrors013GetTypedErrorBodyDeserializesBody() throws {
+        let err = ApiError(
+            statusCode: 400,
+            message: "bad request",
+            responseBody: #"{"id":42,"name":"Dogs"}"#
+        )
+
+        let typed = try err.getTypedErrorBody({{packageName}}.Category.self)
+        #expect(typed != nil)
+        #expect(typed?.id == 42)
+        #expect(typed?.name == "Dogs")
+    }
+
+    @Test func testBhvErrors015GetTypedErrorBodyReturnsNilWhenNoBody() throws {
+        let err = ApiError(statusCode: 500, message: "oops", responseBody: nil)
+
+        let typed = try err.getTypedErrorBody({{packageName}}.Category.self)
+        #expect(typed == nil)
+    }
+
+    @Test func testBhvErrors016GetTypedErrorBodyReturnsNilWhenBodyIsEmptyString() throws {
+        let err = ApiError(statusCode: 500, message: "oops", responseBody: "")
+
+        #expect(try err.getTypedErrorBody([String: Int].self) == nil)
+    }
+
+    /* A body that does not decode into the requested type is the SDK's
+     * SerializationError, not a Foundation decoding error. */
+    @Test func testBhvErrors017GetTypedErrorBodyThrowsSerializationErrorWhenBodyDoesNotDecode() {
+        let err = ApiError(statusCode: 500, message: "oops", responseBody: "not json at all")
+
+        let error = #expect(throws: SerializationError.self) {
+            _ = try err.getTypedErrorBody([String: Int].self)
+        }
+        #expect(error?.message == "Failed to deserialize JSON")
+    }
+
+    /* The rendered message lists the status, the headers and the body, each
+     * only when it carries something. */
+    @Test func testBhvErrors022ErrorDescriptionRendersEachPartOnlyWhenPresent() {
+        let full = ApiError(
+            statusCode: 404, message: "not found", responseBody: "{}",
+            responseHeaders: ["a": "b"])
+        #expect(
+            full.errorDescription
+                == "not found\nHTTP status code: 404\nResponse headers: {\"a\":\"b\"}\nResponse body: {}"
+        )
+
+        let several = ApiError(
+            statusCode: 302, message: "moved",
+            responseHeaders: ["location": "https://a.example/x", "b": "2", "a": "1"])
+        #expect(
+            several.errorDescription
+                == "moved\nHTTP status code: 302\nResponse headers: "
+                + "{\"a\":\"1\",\"b\":\"2\",\"location\":\"https://a.example/x\"}")
+
+        let emptyParts = ApiError(
+            statusCode: 500, message: "boom", responseBody: "", responseHeaders: [:])
+        #expect(emptyParts.errorDescription == "boom\nHTTP status code: 500")
+
+        let transport = ApiError(statusCode: 0, message: "connection reset")
+        #expect(transport.errorDescription == "connection reset")
+
+        #expect(ApiError().errorDescription == "Error message: the server returns an error")
+    }
+
+    /* Response headers render as compact JSON with the keys sorted and slashes unescaped. */
+    @Test func testBhvErrors050ResponseHeadersRenderAsCompactSortedJsonWithUnescapedSlashes() {
+        let err = ApiError(
+            statusCode: 500, message: "boom",
+            responseHeaders: ["z-link": "https://a.example/x", "a": "1"])
+        #expect(
+            err.errorDescription
+                == "boom\nHTTP status code: 500\nResponse headers: "
+                + "{\"a\":\"1\",\"z-link\":\"https://a.example/x\"}")
+    }
+
+    /* An empty message falls back to the generic error line, then the status line. */
+    @Test func testBhvErrors051AnEmptyMessageFallsBackToTheGenericErrorLine() {
+        let err = ApiError(statusCode: 500, message: "")
+        #expect(
+            err.errorDescription
+                == "Error message: the server returns an error\nHTTP status code: 500")
+    }
+
+    /* The rendered form caps the body, escapes control characters and masks
+     * credential headers; the full body stays on responseBody. */
+    @Test func testBhvErrors001ErrorDescriptionCapsTheBodyEscapesControlsAndMasksSecretHeaders() {
+        let body = String(repeating: "a", count: 1024) + "tail\nforged: line"
+        let err = ApiError(
+            statusCode: 502, message: "bad gateway", responseBody: body,
+            responseHeaders: [
+                "x-request-id": "abc", "set-cookie": "session=1", "X-Api-Key": "k",
+                "authorization": "Bearer t",
+            ])
+
+        let text = err.errorDescription ?? ""
+
+        #expect(text.contains("\"x-request-id\":\"abc\""))
+        #expect(text.contains("\"set-cookie\":\"***\""))
+        #expect(text.contains("\"X-Api-Key\":\"***\""))
+        #expect(text.contains("\"authorization\":\"***\""))
+        #expect(!text.contains("Bearer t"))
+        #expect(text.contains(String(repeating: "a", count: 1024) + "... (17 more bytes)"))
+        #expect(!text.contains("forged"))
+        #expect(err.responseBody == body)
+    }
+
+    /* An empty message renders the same default text as a missing one. */
+    @Test func testBhvErrors064AnEmptyMessageRendersTheDefaultTextLikeAMissingOne() {
+        let empty = ApiError(statusCode: 500, message: "")
+        let missing = ApiError(statusCode: 500)
+        #expect(empty.errorDescription == missing.errorDescription)
+        #expect(empty.errorDescription?.hasPrefix("Error message: the server returns an error") == true)
+    }
+
+    /* The rendered body keeps 1 KiB and says how many bytes it left out. */
+    @Test func testBhvErrors065TheErrorTextCutsALongBodyAtOneKibAndCountsTheBytesLeftOut() {
+        let body = String(repeating: "a", count: 1500)
+        let err = ApiError(statusCode: 500, message: "boom", responseBody: body)
+        #expect(ApiError.renderedBody(body) == String(repeating: "a", count: 1024) + "... (476 more bytes)")
+        #expect(err.responseBody == body)
+    }
+
+    @Test func testBhvErrors085ANewlineInTheBodyIsShownEscaped() {
+        let err = ApiError(statusCode: 500, message: "boom", responseBody: "one\r\ntwo")
+        #expect(err.errorDescription == "boom\nHTTP status code: 500\nResponse body: one\\x0D\\x0Atwo")
+    }
+
+    /* A response body nested deeper than the serializer's cap is kept as the
+     * raw body but is never handed to the JSON parser. */
+    @Test func testBhvErrors009FromResponseDoesNotParseADeeplyNestedBody() {
+        func nested(_ depth: Int) -> String {
+            String(repeating: "[", count: depth) + String(repeating: "]", count: depth)
+        }
+        let within = ApiError.fromResponse(statusCode: 500, headers: [:], body: nested(100))
+        #expect(within.errorBody != nil)
+
+        let body = nested(1500)
+        let tooDeep = ApiError.fromResponse(statusCode: 500, headers: [:], body: body)
+        #expect(tooDeep is InternalServerError)
+        #expect(tooDeep.errorBody == nil)
+        #expect(tooDeep.responseBody == body)
+    }
+
+    @Test func testBhvErrors047ApiErrorConformsTo{{errorPrefix}}Error() {
+        // Branded root: every SDK-thrown error reaches {{errorPrefix}}Error, so a
+        // caller can catch the whole hierarchy with one `as? {{errorPrefix}}Error`.
+        let err: any Error = ApiError(statusCode: 500, message: "boom")
+
+        #expect(err is {{errorPrefix}}Error)
+        #expect(err as? {{errorPrefix}}Error != nil)
+    }
+
+    /* A 404 is a NotFoundError and a 500 an InternalServerError; each is an
+     * ApiError of the right family and part of the {{errorPrefix}}Error hierarchy. */
+    /* Every error type lives in the Errors folder, and the module exports each one under its own name. */
+    @Test func testBhvErrors044EveryErrorTypeLivesInTheErrorsFolderAndTheModuleExportsIt() {
+        let names = [
+            "{{errorPrefix}}Error", "ApiError", "ClientError", "ServerError", "BadRequestError",
+            "UnauthorizedError", "ForbiddenError", "NotFoundError", "ConflictError",
+            "UnprocessableEntityError", "TooManyRequestsError", "InternalServerError", "NetworkError",
+            "NetworkTimeoutError", "SerializationError", "ConfigurationError", "OAuth2ServerError",
+            "OAuth2TokenError", "OAuth2AuthorizationCodeError",
+        ]
+        let exported: [Any.Type] = [
+            {{errorPrefix}}Error.self, ApiError.self, ClientError.self, ServerError.self, BadRequestError.self,
+            UnauthorizedError.self, ForbiddenError.self, NotFoundError.self, ConflictError.self,
+            UnprocessableEntityError.self, TooManyRequestsError.self, InternalServerError.self, NetworkError.self,
+            NetworkTimeoutError.self, SerializationError.self, ConfigurationError.self, OAuth2ServerError.self,
+            OAuth2TokenError.self, OAuth2AuthorizationCodeError.self,
+        ]
+        #expect(exported.count == names.count)
+        let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        for name in names {
+            let file = root.appendingPathComponent("Sources/{{packageName}}/Errors/\(name).swift")
+            #expect(FileManager.default.fileExists(atPath: file.path), "\(name) must live in the Errors folder")
+        }
+    }
+
+    @Test func testBhvErrors006StatusCodesMapToTypedErrorsAndDispatchEveryStatus() async throws {
+        do {
+            do {
+                do {
+                    do {
+                        do {
+                            do {
+                                do {
+                                    do {
+                                        let notFound: any Error = ApiError.fromResponse(
+                                            statusCode: 404, headers: [:], body: "")
+                                        #expect(notFound is NotFoundError)
+                                        #expect(notFound is ClientError)
+                                        #expect(!(notFound is ServerError))
+                                        #expect(!(notFound is NetworkError))
+                                        #expect(notFound is {{errorPrefix}}Error)
+                                        #expect((notFound as? ApiError)?.statusCode == 404)
+
+                                        let serverError: any Error = ApiError.fromResponse(
+                                            statusCode: 500, headers: [:], body: "")
+                                        #expect(serverError is InternalServerError)
+                                        #expect(serverError is ServerError)
+                                        #expect(!(serverError is ClientError))
+                                        #expect(serverError is {{errorPrefix}}Error)
+                                        #expect((serverError as? ApiError)?.statusCode == 500)
+
+                                        /* A status outside 400-599 is neither a ClientError nor a ServerError:
+                                         * the 5xx arm stops at 599, so 600 is a plain ApiError. */
+                                        let outOfRange: any Error = ApiError.fromResponse(
+                                            statusCode: 600, headers: [:], body: "")
+                                        #expect(!(outOfRange is ServerError))
+                                        #expect(!(outOfRange is ClientError))
+                                        #expect(outOfRange is ApiError)
+                                        #expect((outOfRange as? ApiError)?.statusCode == 600)
+                                    }
+                                    do {
+                                        let mockClient = MockApiClient()
+                                        mockClient.responseStatusCode = 400
+                                        mockClient.responseBody = "{\"error\":\"bad request\"}"
+
+                                        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                                        let api = PetApi(apiClient: mockClient, config: config)
+
+                                        do {
+                                            _ = try await api.getPetById(petId: 1)
+                                            Issue.record("Expected error for status 400")
+                                        } catch let error as BadRequestError {
+                                            #expect(error.statusCode == 400)
+                                        }
+                                    }
+                                }
+                                do {
+                                    let mockClient = MockApiClient()
+                                    mockClient.responseStatusCode = 403
+
+                                    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                                    let api = PetApi(apiClient: mockClient, config: config)
+
+                                    do {
+                                        _ = try await api.getPetById(petId: 1)
+                                        Issue.record("Expected error for status 403")
+                                    } catch is ForbiddenError {
+                                        // Expected
+                                    }
+                                }
+                            }
+                            do {
+                                let mockClient = MockApiClient()
+                                mockClient.responseStatusCode = 404
+
+                                let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                                let api = PetApi(apiClient: mockClient, config: config)
+
+                                do {
+                                    _ = try await api.getPetById(petId: 1)
+                                    Issue.record("Expected error for status 404")
+                                } catch is NotFoundError {
+                                    // Expected
+                                }
+                            }
+                        }
+                        do {
+                            let mockClient = MockApiClient()
+                            mockClient.responseStatusCode = 409
+
+                            let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                            let api = PetApi(apiClient: mockClient, config: config)
+
+                            do {
+                                _ = try await api.getPetById(petId: 1)
+                                Issue.record("Expected error for status 409")
+                            } catch is ConflictError {
+                                // Expected
+                            }
+                        }
+                    }
+                    do {
+                        let mockClient = MockApiClient()
+                        mockClient.responseStatusCode = 422
+
+                        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                        let api = PetApi(apiClient: mockClient, config: config)
+
+                        do {
+                            _ = try await api.getPetById(petId: 1)
+                            Issue.record("Expected error for status 422")
+                        } catch is UnprocessableEntityError {
+                            // Expected
+                        }
+                    }
+                }
+                do {
+                    let mockClient = MockApiClient()
+                    mockClient.responseStatusCode = 429
+
+                    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                    let api = PetApi(apiClient: mockClient, config: config)
+
+                    do {
+                        _ = try await api.getPetById(petId: 1)
+                        Issue.record("Expected error for status 429")
+                    } catch let error as TooManyRequestsError {
+                        #expect(error is ClientError)
+                        #expect(error.statusCode == 429)
+                    }
+                }
+            }
+            do {
+                let mockClient = MockApiClient()
+                mockClient.responseStatusCode = 500
+
+                let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                let api = PetApi(apiClient: mockClient, config: config)
+
+                do {
+                    _ = try await api.getPetById(petId: 1)
+                    Issue.record("Expected error for status 500")
+                } catch is InternalServerError {
+                    // Expected
+                }
+            }
+        }
+        do {
+            let mockClient = MockApiClient()
+            mockClient.responseStatusCode = 502
+
+            let config = ConfigurationBuilder().baseURL("https://example.com").build()
+            let api = PetApi(apiClient: mockClient, config: config)
+
+            do {
+                _ = try await api.getPetById(petId: 1)
+                Issue.record("Expected error for status 502")
+            } catch is ServerError {
+                // Expected
+            }
+        }
+    }
+
+    /* A named error always reports its own status, whatever it is built
+     * from, so the type and the status can never disagree. */
+    @Test func testBhvErrors053EachNamedErrorPinsItsOwnHTTPStatusCode() {
+        #expect(BadRequestError(message: "x").statusCode == 400)
+        #expect(UnauthorizedError(message: "x").statusCode == 401)
+        #expect(ForbiddenError(message: "x").statusCode == 403)
+        #expect(NotFoundError(message: "x").statusCode == 404)
+        #expect(ConflictError(message: "x").statusCode == 409)
+        #expect(UnprocessableEntityError(message: "x").statusCode == 422)
+        #expect(TooManyRequestsError(message: "x").statusCode == 429)
+        #expect(PaymentRequiredError(message: "x").statusCode == 402)
+        #expect(MethodNotAllowedError(message: "x").statusCode == 405)
+        #expect(RequestTimeoutError(message: "x").statusCode == 408)
+        #expect(GoneError(message: "x").statusCode == 410)
+        #expect(PayloadTooLargeError(message: "x").statusCode == 413)
+        #expect(UnsupportedMediaTypeError(message: "x").statusCode == 415)
+        #expect(LockedError(message: "x").statusCode == 423)
+        #expect(NotImplementedError(message: "x").statusCode == 501)
+        #expect(BadGatewayError(message: "x").statusCode == 502)
+        #expect(ServiceUnavailableError(message: "x").statusCode == 503)
+        #expect(GatewayTimeoutError(message: "x").statusCode == 504)
+        #expect(InternalServerError(message: "x").statusCode == 500)
+        #expect(NotFoundError().statusCode == 404)
+        let err = NotFoundError(message: "gone", responseBody: "{}", responseHeaders: ["a": "b"])
+        #expect(err.message == "gone")
+        #expect(err.responseBody == "{}")
+        #expect(err.responseHeaders == ["a": "b"])
+    }
+
+    @Test func testBhvErrors058A400ResponseMapsToTheBadRequestError() {
+        let err = ApiError.fromResponse(statusCode: 400, headers: [:], body: "")
+        #expect(err is BadRequestError)
+        #expect(err.statusCode == 400)
+    }
+
+    @Test func testBhvErrors059A403ResponseMapsToTheForbiddenError() {
+        let err = ApiError.fromResponse(statusCode: 403, headers: [:], body: "")
+        #expect(err is ForbiddenError)
+        #expect(err.statusCode == 403)
+    }
+
+    @Test func testBhvErrors060A404ResponseMapsToTheNotFoundError() {
+        let err = ApiError.fromResponse(statusCode: 404, headers: [:], body: "")
+        #expect(err is NotFoundError)
+        #expect(err.statusCode == 404)
+    }
+
+    @Test func testBhvErrors061ABadRequestErrorIsAClientErrorAndAnApiError() {
+        let err: any Error = BadRequestError(message: "bad")
+        #expect(err is ClientError)
+        #expect(err is ApiError)
+        #expect(err is {{errorPrefix}}Error)
+    }
+
+    @Test func testBhvErrors066A429ResponseMapsToTheTooManyRequestsErrorAClientError() {
+        let err = ApiError.fromResponse(statusCode: 429, headers: [:], body: "")
+        #expect(err is TooManyRequestsError)
+        #expect(err is ClientError)
+        #expect(err.statusCode == 429)
+    }
+
+    @Test func testBhvErrors067A409ResponseMapsToTheConflictError() {
+        let err = ApiError.fromResponse(statusCode: 409, headers: [:], body: "")
+        #expect(err is ConflictError)
+        #expect(err.statusCode == 409)
+    }
+
+    @Test func testBhvErrors068A422ResponseMapsToTheUnprocessableEntityError() {
+        let err = ApiError.fromResponse(statusCode: 422, headers: [:], body: "")
+        #expect(err is UnprocessableEntityError)
+        #expect(err.statusCode == 422)
+    }
+
+    @Test func testBhvErrors069A500ResponseMapsToTheInternalServerError() {
+        let err = ApiError.fromResponse(statusCode: 500, headers: [:], body: "")
+        #expect(err is InternalServerError)
+        #expect(err.statusCode == 500)
+    }
+
+    @Test func testBhvErrors070A502ResponseMapsToTheServerErrorNotTheInternalOne() {
+        let err = ApiError.fromResponse(statusCode: 502, headers: [:], body: "")
+        #expect(err is ServerError)
+        #expect(!(err is InternalServerError))
+        #expect(err.statusCode == 502)
+    }
+
+    /* A typed client error thrown as itself is caught by the base API error catch and
+     * reaches the {{errorPrefix}}Error root. */
+    @Test func testBhvErrors052ATypedClientErrorIsCaughtByTheBaseApiErrorCatch() {
+        var caught: ApiError?
+        do {
+            throw NotFoundError(message: "gone")
+        } catch let error as ApiError {
+            caught = error
+        } catch {
+            Issue.record("a typed client error must be caught by the ApiError catch: \(error)")
+        }
+        #expect(caught is NotFoundError)
+        #expect(caught?.statusCode == 404)
+        #expect(caught as? {{errorPrefix}}Error != nil)
+    }
+
+    /* The status error constructors leave the response context unset unless it is passed. */
+    @Test func testBhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNil() {
+        let badRequest = BadRequestError(message: "x")
+        #expect(badRequest.responseBody == nil)
+        #expect(badRequest.responseHeaders == nil)
+        #expect(badRequest.errorBody == nil)
+        #expect(badRequest.requestMethod == nil)
+        #expect(badRequest.requestPath == nil)
+
+        let internalError = InternalServerError(message: "x")
+        #expect(internalError.responseBody == nil)
+        #expect(internalError.responseHeaders == nil)
+        #expect(internalError.requestMethod == nil)
+    }
+
+    @Test func testBhvErrors018TypedErrorConformsToApiErrorAnd{{errorPrefix}}Error() {
+        // A typed HTTP error subclasses ApiError and therefore conforms to
+        // {{errorPrefix}}Error transitively.
+        let err: any Error = BadRequestError(message: "bad")
+
+        #expect(err is ApiError)
+        #expect(err is {{errorPrefix}}Error)
+        #expect(err as? {{errorPrefix}}Error != nil)
+    }
+
+    /* Only a status above 599 is outside the 5xx arm, so it stays the base error. */
+    @Test func testBhvErrors056AStatusOf600OrMoreYieldsTheBaseErrorNotAServerError() {
+        let err: any Error = ApiError.fromResponse(statusCode: 600, headers: [:], body: "")
+        #expect(type(of: err) == ApiError.self)
+        #expect(!(err is ServerError))
+        #expect(!(err is ClientError))
+        #expect((err as? ApiError)?.statusCode == 600)
+    }
+
+    @Test func testBhvErrors025SerializationErrorConformsTo{{errorPrefix}}Error() {
+        // The serialization failure value type is branded too, so a single
+        // {{errorPrefix}}Error catch covers transport, HTTP, and (de)serialization.
+        let err: any Error = SerializationError(message: "decode failed")
+
+        #expect(err is {{errorPrefix}}Error)
+        #expect(err as? {{errorPrefix}}Error != nil)
+    }
+
+    /* The OAuth2 errors sit under the branded root, not under ApiError: they are
+     * not HTTP errors of the API, so an ApiError catch never sees them. */
+    @Test func testBhvErrors049OAuth2ServerErrorMessageNamesTheStatusAndTheErrorCode() {
+        let error = OAuth2ServerError(
+            statusCode: 400, code: "invalid_grant", description: nil, uri: nil, rawBody: "{}")
+
+        #expect(error.localizedDescription == "Token request failed with status 400: invalid_grant")
+    }
+
+    @Test func testBhvErrors045OAuth2ErrorsDeriveFromTheBrandedRoot() {
+        let tokenError: any Error = OAuth2TokenError.missingAccessToken("missing access_token")
+        let serverError: any Error = OAuth2ServerError(
+            statusCode: 400, code: "invalid_grant", description: nil, uri: nil, rawBody: "{}")
+
+        #expect(tokenError is {{errorPrefix}}Error)
+        #expect(serverError is {{errorPrefix}}Error)
+        #expect(!(tokenError is ApiError))
+        #expect(!(serverError is ApiError))
+    }
+
+    @Test func testBhvErrors014GetTypedErrorBodyIgnoresExtraneousFields() throws {
+        let err = ApiError(
+            statusCode: 422,
+            message: "unprocessable",
+            responseBody: #"{"id":1,"name":"Cat","extra":"drop-me"}"#
+        )
+
+        let typed = try err.getTypedErrorBody({{packageName}}.Category.self)
+        #expect(typed != nil)
+        #expect(typed?.id == 1)
+        #expect(typed?.name == "Cat")
+    }
+
+    @Test func testBhvErrors094AuthAndSerializationErrorsConformTo{{errorPrefix}}Error() {
+        // INVARIANT: every SDK-thrown error type — including the auth and
+        // serialization value types that do not subclass ApiError — is branded
+        // with {{errorPrefix}}Error, so a single `as? {{errorPrefix}}Error` catch covers the
+        // entire surface the SDK can throw.
+        let errors: [any Error] = [
+            SerializationError(message: "not a duration"),
+            NetworkError(statusCode: 0, message: "connection refused"),
+            NetworkTimeoutError(statusCode: 0, message: "timed out"),
+            OAuth2TokenError.missingAccessToken("empty access_token"),
+            OAuth2ServerError(
+                statusCode: 400,
+                code: "invalid_grant",
+                description: "expired",
+                uri: nil,
+                rawBody: #"{"error":"invalid_grant"}"#
+            ),
+        ]
+
+        for err in errors {
+            #expect(err is {{errorPrefix}}Error)
+            #expect(err as? {{errorPrefix}}Error != nil)
+        }
+    }
+
+    @Test func testBhvMisc026ConfigurationErrorIsNotAn{{errorPrefix}}Error() {
+        // A configuration mistake or a wrong call order is a programming error,
+        // not an API failure, so ConfigurationError and
+        // OAuth2AuthorizationCodeError conform to plain Error only.
+        let errors: [any Error] = [
+            ConfigurationError.invalidProxy("Invalid proxy URL: ://bad"),
+            ConfigurationError.invalidServerVariable(variable: "region", value: "mars", allowed: ["us", "eu"]),
+            ConfigurationError.invalidCACertificate("missing"),
+            ConfigurationError.invalidTimeout(0),
+            ConfigurationError.invalidArgument("bad"),
+            ConfigurationError.invalidState("closed"),
+            OAuth2AuthorizationCodeError.codeNotExchanged,
+            OAuth2AuthorizationCodeError.emptyCode,
+        ]
+        for err in errors {
+            #expect(!(err is {{errorPrefix}}Error))
+            #expect(!(err is ApiError))
+        }
+    }
+
+    @Test func testBhvMisc027TransportFailuresAreClassified() {
+        // URLError(.timedOut) is a NetworkTimeoutError; any other failure with
+        // no HTTP response is a NetworkError. Both keep the URLError.
+        let timeout = DefaultApiClient.transportError(URLError(.timedOut))
+        #expect(timeout is NetworkTimeoutError)
+        #expect(((timeout as? ApiError)?.underlyingError as? URLError)?.code == .timedOut)
+        for code in [
+            URLError.Code.cannotConnectToHost, .cannotFindHost, .secureConnectionFailed,
+            .networkConnectionLost, .dnsLookupFailed, .notConnectedToInternet,
+        ] {
+            let error = DefaultApiClient.transportError(URLError(code))
+            #expect(error is NetworkError)
+            #expect(!(error is NetworkTimeoutError))
+            #expect((error as? ApiError)?.statusCode == 0)
+            #expect(((error as? ApiError)?.underlyingError as? URLError)?.code == code)
+        }
+        // A cancelled URLSession task outside a cancelled Swift Task (e.g. the
+        // session was invalidated) is still a transport failure.
+        #expect(DefaultApiClient.transportError(URLError(.cancelled)) is NetworkError)
+    }
+
+    /* The one `timeout` option arms BOTH of URLSession's deadlines — the
+       per-request idle timer and the total resource budget — and an expired
+       deadline must be a NetworkTimeoutError whichever of the two fired.
+       Both expire as URLError.timedOut, so the assertion covers both paths:
+       the session is proved to carry both deadlines, and the classifier is
+       proved to map that code to the timeout type. */
+    @Test func testBhvTransport071EveryConfiguredDeadlineClassifiesAsTimeout() throws {
+        let opts = try TransportOptionsBuilder().timeout(1500).build()
+        let (session, _) = try DefaultApiClient.buildSession(opts)
+
+        #expect(session.configuration.timeoutIntervalForRequest == 1.5)
+        #expect(session.configuration.timeoutIntervalForResource == 1.5)
+
+        let expired = DefaultApiClient.transportError(URLError(.timedOut))
+        #expect(expired is NetworkTimeoutError)
+        #expect(expired is NetworkError)
+        #expect((expired as? ApiError)?.statusCode == 0)
+    }
+
+    @Test func testBhvTransport068CancelledTaskSurfacesCancellationError() async throws {
+        // The SDK does not wrap the platform's cancellation: a request made
+        // from a Swift Task that is already cancelled throws CancellationError
+        // and is never started, instead of an ApiError with status 0.
+        let client = DefaultApiClient()
+        let task = Task { () -> ApiHttpResponse in
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await client.sendRequest(
+                method: "GET", url: "http://127.0.0.1:9/cancelled", headers: [:], body: nil)
+        }
+        do {
+            _ = try await task.value
+            Issue.record("expected CancellationError")
+        } catch is CancellationError {
+            // expected
+        } catch {
+            Issue.record("expected CancellationError, got \(error)")
+        }
+    }
+
+    @Test func testBhvLangswift003ConnectionRefusedIsNetworkError() async throws {
+        // Port 9 (discard) on loopback is not listening, so the connection is
+        // refused and no HTTP response exists.
+        let client = try DefaultApiClient(
+            transportOptions: try TransportOptionsBuilder().maxRetries(0).build())
+        do {
+            _ = try await client.sendRequest(
+                method: "GET", url: "http://127.0.0.1:9/refused", headers: [:], body: nil)
+            Issue.record("expected NetworkError")
+        } catch let error as NetworkError {
+            #expect(error.statusCode == 0)
+            #expect(error.underlyingError is URLError)
+        } catch {
+            Issue.record("expected NetworkError, got \(error)")
+        }
+    }
+
+    @Test func testBhvErrors020NetworkErrorsAreApiErrorsWithStatusZero() {
+        let cause = URLError(.cannotConnectToHost)
+        let network: ApiError = NetworkError(statusCode: 0, message: "refused", underlyingError: cause)
+        let timeout: ApiError = NetworkTimeoutError(statusCode: 0, message: "timed out")
+        #expect(network.statusCode == 0)
+        #expect(timeout.statusCode == 0)
+        #expect(timeout is NetworkError)
+        #expect(!(network is NetworkTimeoutError))
+        #expect((network.underlyingError as? URLError)?.code == .cannotConnectToHost)
+    }
+
+    // MARK: - Request context
+
+    /* An error for a response names the request it answered, without the query string. */
+    @Test func testBhvErrors011FromResponseNamesTheRequestAndCutsTheQuery() {
+        let err = ApiError.fromResponse(
+            statusCode: 404, headers: [:], body: "", requestMethod: "GET",
+            requestPath: "/v1/items/7?key=secret#top")
+        #expect(err is NotFoundError)
+        #expect(err.requestMethod == "GET")
+        #expect(err.requestPath == "/v1/items/7")
+        #expect(err.message == "API returned status code 404 for GET /v1/items/7")
+        #expect(err.errorDescription?.hasPrefix("API returned status code 404 for GET /v1/items/7") == true)
+        #expect(err.errorDescription?.contains("secret") == false)
+    }
+
+    @Test func testBhvErrors012FromResponseWithoutARequestKeepsTheMessage() {
+        let err = ApiError.fromResponse(statusCode: 404, headers: [:], body: "")
+        #expect(err.requestMethod == nil)
+        #expect(err.requestPath == nil)
+        #expect(err.message == "API returned status code 404")
+    }
+
+    /* A method with no path (or the reverse) names nothing, so a half request is never shown. */
+    @Test func testBhvErrors007AMethodWithoutAPathIsNotRecorded() {
+        let err = ApiError.fromResponse(statusCode: 500, headers: [:], body: "", requestMethod: "GET")
+        #expect(err.requestMethod == nil)
+        #expect(err.message == "API returned status code 500")
+    }
+
+    @Test(arguments: [302, 400, 401, 403, 404, 409, 418, 422, 429, 500, 503])
+    func testBhvErrors002EveryStatusErrorCarriesTheRequest(status: Int) {
+        let err = ApiError.fromResponse(
+            statusCode: status, headers: [:], body: "", requestMethod: "POST", requestPath: "/orders")
+        #expect(err.statusCode == status)
+        #expect(err.requestMethod == "POST")
+        #expect(err.requestPath == "/orders")
+        #expect(err.message == "API returned status code \(status) for POST /orders")
+    }
+
+    /* Every status-specific error takes an optional underlying error and keeps it. */
+    @Test func testBhvErrors003StatusSpecificErrorsAcceptAnOptionalCause() {
+        let cause = URLError(.timedOut)
+        let errors: [ApiError] = [
+            BadRequestError(underlyingError: cause),
+            UnauthorizedError(underlyingError: cause),
+            ForbiddenError(underlyingError: cause),
+            NotFoundError(underlyingError: cause),
+            ConflictError(underlyingError: cause),
+            UnprocessableEntityError(underlyingError: cause),
+            TooManyRequestsError(underlyingError: cause),
+            PaymentRequiredError(underlyingError: cause),
+            MethodNotAllowedError(underlyingError: cause),
+            RequestTimeoutError(underlyingError: cause),
+            GoneError(underlyingError: cause),
+            PayloadTooLargeError(underlyingError: cause),
+            UnsupportedMediaTypeError(underlyingError: cause),
+            LockedError(underlyingError: cause),
+            NotImplementedError(underlyingError: cause),
+            BadGatewayError(underlyingError: cause),
+            ServiceUnavailableError(underlyingError: cause),
+            GatewayTimeoutError(underlyingError: cause),
+            InternalServerError(underlyingError: cause),
+        ]
+        for error in errors {
+            #expect((error.underlyingError as? URLError)?.code == .timedOut)
+        }
+        #expect(BadRequestError().underlyingError == nil)
+    }
+
+    // MARK: - Declared error schemas
+
+    /* The retry decision looks at the status only: the statuses the client retries. */
+    @Test func testBhvErrors201AnErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+        for status in [408, 409, 429, 500, 502, 503, 504, 599] {
+            let err = ApiError.fromResponse(statusCode: status, headers: [:], body: "")
+            #expect(err.isRetryable, "status \(status)")
+        }
+        for status in [302, 400, 401, 403, 404, 422, 501] {
+            let err = ApiError.fromResponse(statusCode: status, headers: [:], body: "")
+            #expect(!err.isRetryable, "status \(status)")
+        }
+        #expect(!NetworkError(statusCode: 0, message: "refused").isRetryable)
+    }
+
+    @Test func testBhvErrors202AnErrorExposesTheRequestIdHeaderAsItsRequestId() {
+        let upper = ApiError.fromResponse(statusCode: 500, headers: ["X-Request-ID": "abc"], body: "")
+        let lower = ApiError.fromResponse(statusCode: 500, headers: ["x-request-id": "abc"], body: "")
+        let other = ApiError.fromResponse(statusCode: 500, headers: ["other": "abc"], body: "")
+        #expect(upper.requestId == "abc")
+        #expect(lower.requestId == "abc")
+        #expect(other.requestId == nil)
+        #expect(ApiError(statusCode: 0, message: "no response").requestId == nil)
+    }
+
+    /* An operation hands its own map to the factory: the exact status wins over its range, and
+     * the range over the default; without a match the plain status error comes back. */
+    @Test func testBhvErrors203TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
+        func labelled(_ label: String) -> ErrorFactory {
+            return { status, headers, body, _, _ in
+                ApiError(statusCode: status, message: label, responseBody: body, responseHeaders: headers)
+            }
+        }
+        let factories: [String: ErrorFactory] = [
+            "404": labelled("exact"), "4XX": labelled("range"), "5XX": labelled("server range"),
+            "default": labelled("default"),
+        ]
+        func message(_ status: Int, _ schemas: [String: ErrorFactory]?) -> String {
+            return ApiError.fromResponse(
+                statusCode: status, headers: [:], body: "{}", requestMethod: "GET", requestPath: "/x",
+                errorSchemas: schemas
+            ).message
+        }
+        #expect(message(404, factories) == "exact")
+        #expect(message(418, factories) == "range")
+        #expect(message(503, factories) == "server range")
+        #expect(message(302, factories) == "default")
+        #expect(message(404, ["default": labelled("default")]) == "default")
+        let unmatched = ApiError.fromResponse(
+            statusCode: 502, headers: [:], body: "{}", requestMethod: "GET", requestPath: "/x",
+            errorSchemas: [:])
+        #expect(unmatched is BadGatewayError)
+        let without = ApiError.fromResponse(
+            statusCode: 404, headers: [:], body: "{}", requestMethod: "GET", requestPath: "/x",
+            errorSchemas: nil)
+        #expect(without is NotFoundError)
+    }
+{{#hasErrorSchemas}}
+{{#errorSchemas}}
+{{#-first}}
+
+    /* A body that does not match the declared schema never hides the real error. */
+    @Test func testBhvErrors204ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
+        let err = {{{className}}}.fromErrorResponse(
+            statusCode: {{sampleStatus}}, headers: [:], body: "[1, 2", requestMethod: "GET", requestPath: "/x")
+        let status = ApiError.fromResponse(
+            statusCode: {{sampleStatus}}, headers: [:], body: "[1, 2", requestMethod: "GET", requestPath: "/x")
+
+        #expect(type(of: err) == type(of: status))
+        #expect(err.responseBody == "[1, 2")
+        #expect(err.statusCode == {{sampleStatus}})
+        #expect(err.underlyingError != nil)
+    }
+
+    @Test func testBhvLangswift004ASchemaErrorIsAStatusErrorWhoseTypedBodyIsNilUntilOneIsDecoded() {
+        let err = {{{className}}}({{#parentIsFamily}}statusCode: {{sampleStatus}}, {{/parentIsFamily}}message: "declared")
+
+        #expect(err.statusCode == {{sampleStatus}})
+        #expect(err.message == "declared")
+        #expect(err.typedErrorBody == nil)
+        #expect(err.errorBody == nil)
+    }
+{{/-first}}
+{{/errorSchemas}}
+{{/hasErrorSchemas}}
+
+    @Test func testBhvErrors019SubclassConstructorsAcceptTheRequest() {
+        let err = NotFoundError(message: "missing", requestMethod: "DELETE", requestPath: "/items/7?x=1")
+        #expect(err.statusCode == 404)
+        #expect(err.requestMethod == "DELETE")
+        #expect(err.requestPath == "/items/7")
+    }
+
+    @Test func testBhvLangswift005AttachRequestNamesTheRequestOnce() {
+        let err = NetworkError(statusCode: 0, message: "connection reset")
+        err.attachRequest(method: "GET", path: "/items?key=secret")
+        #expect(err.message == "connection reset for GET /items")
+        #expect(err.requestMethod == "GET")
+        #expect(err.requestPath == "/items")
+        err.attachRequest(method: "POST", path: "/other")
+        #expect(err.message == "connection reset for GET /items")
+        #expect(err.requestMethod == "GET")
+    }
+
+    @Test(arguments: [
+        ("https://host.example/v1/items/7?key=x", "/v1/items/7"),
+        ("https://host.example/items#top", "/items"),
+        ("https://host.example", "/"),
+        ("https://host.example?x=1", "/"),
+        ("/already/a/path?q=1", "/already/a/path"),
+    ])
+    func testBhvErrors026PathOfRequestURLKeepsTheBasePathAndDropsHostAndQuery(url: String, path: String) {
+        #expect(ApiError.pathOfRequestURL(url) == path)
+    }
+
+    @Test func testBhvErrors005FromResponseLeavesErrorBodyNilWhenBodyIsNotJson() {
+        let error = ApiError.fromResponse(statusCode: 500, headers: nil, body: "not json")
+        #expect(error.errorBody == nil)
+    }
+
+    @Test func testBhvErrors024ErrorDescriptionRendersMessageStatusHeadersAndBody() {
+        let error = ApiError(statusCode: 418, message: "teapot", responseBody: "short-and-stout", responseHeaders: ["X-Brew": "tea"])
+        let description = error.errorDescription ?? ""
+        #expect(description.contains("teapot"))
+        #expect(description.contains("418"))
+        #expect(description.contains("X-Brew"))
+        #expect(description.contains("short-and-stout"))
+    }
+
+    @Test func testBhvErrors023RenderedFormMasksCredentialHeaders() {
+        let error = ApiError(statusCode: 401, message: "denied", responseHeaders: ["Authorization": "Bearer leaked-token-value"])
+        #expect(!(error.errorDescription ?? "").contains("leaked-token-value"))
+    }
+
+    @Test func testBhvErrors030GetTypedErrorBodyReturnsNilWhenThereIsNoResponseBody() throws {
+        struct Detail: Decodable { let code: String }
+        let error = ApiError(statusCode: 500, message: "no body")
+        let typed: Detail? = try error.getTypedErrorBody(Detail.self)
+        #expect(typed == nil)
+    }
+
+    // MARK: - Behaviour catalogue: diagnostics and error classification
+
+    /* An error with no HTTP response renders its message alone, with no status line. */
+    @Test func testBhvErrors074ErrorWithoutAResponseRendersTheMessageAlone() {
+        let error = ApiError(message: "connection reset")
+        #expect(error.errorDescription == "connection reset")
+    }
+
+    /* Without a response an error reports a status code of zero. */
+    @Test func testBhvErrors084ErrorWithoutAResponseReportsStatusZero() {
+        #expect(ApiError(message: "connection reset").statusCode == 0)
+    }
+
+    /* A rendered body cut at its size limit never ends inside a multi-byte character. */
+    @Test func testBhvErrors075RenderedBodyCutNeverSplitsACharacter() {
+        let body = String(repeating: "a", count: 1023) + "\u{00E9}" + String(repeating: "b", count: 10)
+        let rendered = ApiError.renderedBody(body)
+        #expect(!rendered.contains("\u{FFFD}"))
+        #expect(rendered.hasPrefix(String(repeating: "a", count: 1023)))
+        #expect(rendered.hasSuffix("... (12 more bytes)"))
+    }
+
+    /* An error the SDK did not raise is not one of its own errors, even when it wraps one. */
+    @Test func testBhvErrors076ForeignErrorIsNotClassifiedAsAnSdkError() {
+        struct ForeignError: Error {}
+        let foreign: Error = ForeignError()
+        #expect(!(foreign is ApiError))
+        #expect(!(foreign is NetworkError))
+        let wrapped = ApiError(statusCode: 0, message: "wrapped", underlyingError: foreign)
+        #expect(wrapped.underlyingError is ForeignError)
+        #expect(!(wrapped.underlyingError is ApiError))
+    }
+
+    /* A transport failure message never shows the query string of the request URL. */
+    @Test func testBhvErrors078TransportFailureMessageNeverShowsTheQueryString() {
+        let error = NetworkError(statusCode: 0, message: "connection reset")
+        error.attachRequest(method: "GET", path: "/items?key=secret#frag")
+        #expect(error.message == "connection reset for GET /items")
+        #expect(!(error.errorDescription ?? "").contains("secret"))
+    }
+
+    /* Attaching request details keeps the first complete request and ignores an incomplete one. */
+    @Test func testBhvErrors079AttachRequestKeepsTheFirstCompleteRequest() {
+        let error = NetworkError(statusCode: 0, message: "connection reset")
+        error.attachRequest(method: "", path: "/incomplete")
+        #expect(error.requestMethod == nil)
+        error.attachRequest(method: "GET", path: "/items/7")
+        error.attachRequest(method: "POST", path: "/other")
+        #expect(error.requestMethod == "GET")
+        #expect(error.requestPath == "/items/7")
+        #expect(error.message == "connection reset for GET /items/7")
+    }
+
+    /* A typed HTTP error is caught by a handler for the SDK root error type and keeps its status code. */
+    @Test func testBhvErrors080TypedHttpErrorIsCaughtByTheRootErrorTypeWithItsStatus() {
+        let error: any {{errorPrefix}}Error = ApiError.fromResponse(statusCode: 404, headers: nil, body: "")
+        #expect(error is NotFoundError)
+        #expect((error as? ApiError)?.statusCode == 404)
+    }
+
+    /* A nested error body within the depth limit, beyond common parser defaults, is kept as data. */
+    @Test func testBhvErrors073DeeplyNestedErrorBodyIsKeptAsStructuredData() {
+        let body = String(repeating: "[", count: 200) + "1" + String(repeating: "]", count: 200)
+        let error = ApiError.fromResponse(statusCode: 400, headers: nil, body: body)
+        #expect(error.errorBody != nil)
+    }
+
+
+    /* A body of exactly 1 KiB is shown whole and the full body stays on responseBody. */
+    @Test func testBhvErrors086ABodyOfExactlyOneKibIsShownWhole() {
+        let body = String(repeating: "a", count: 1024)
+        let err = ApiError(statusCode: 500, message: "boom", responseBody: body)
+        #expect(ApiError.renderedBody(body) == body)
+        #expect(err.responseBody == body)
+    }
+
+    /* Credential and challenge headers are masked in the rendered message. */
+    @Test func testBhvErrors087CredentialAndChallengeHeadersAreMaskedInTheMessage() {
+        let err = ApiError(
+            statusCode: 401, message: "denied", responseBody: "",
+            responseHeaders: [
+                "cookie": "session=1", "www-authenticate": "Basic realm=x",
+                "proxy-authenticate": "Basic realm=y",
+            ])
+        let text = err.errorDescription ?? ""
+        #expect(text.contains("\"cookie\":\"***\""))
+        #expect(text.contains("\"www-authenticate\":\"***\""))
+        #expect(text.contains("\"proxy-authenticate\":\"***\""))
+        #expect(!text.contains("session=1"))
+        #expect(!text.contains("realm=x"))
+        #expect(!text.contains("realm=y"))
+    }
+
+    /* Absent or empty sections are left out and the present ones are kept. */
+    @Test func testBhvErrors088AbsentSectionsAreLeftOutAndPresentOnesAreKept() {
+        let err = ApiError(
+            statusCode: 500, message: "down", responseBody: "", responseHeaders: [:])
+        #expect(err.errorDescription == "down\nHTTP status code: 500")
+    }
+
+    /* An empty message renders the default text. A nil message cannot be built: message is a non-optional String. */
+    @Test func testBhvErrors089AnErrorWithNoMessageRendersTheDefaultText() {
+        let err = ApiError(statusCode: 0, message: "")
+        #expect(err.errorDescription == "Error message: the server returns an error")
+    }
+
+    /* An error with no response keeps its response body and headers as nil. */
+    @Test func testBhvErrors090AnErrorWithNoResponseKeepsBodyAndHeadersNil() {
+        let err = ApiError(statusCode: 0, message: "connection reset")
+        #expect(err.responseHeaders == nil)
+        #expect(err.responseBody == nil)
+    }
+
+    /* A byte-order-mark prefixed error body fills errorBody and the raw body is kept. */
+    @Test func testBhvErrors093AnErrorBuiltFromAResponseExposesTheDecodedAndRawBody() {
+        let body = "\u{FEFF}{\"code\":1}"
+        let err = ApiError.fromResponse(statusCode: 404, headers: [:], body: body)
+        #expect((err.errorBody as? [String: Any])?["code"] as? Int == 1)
+        #expect(err.responseBody == body)
+    }
+
+    /* A typed 4xx or 5xx error is found by its status-class family. */
+    @Test func testBhvErrors095ATypedErrorIsFoundByItsStatusFamily() {
+        let client: any Error = NotFoundError(message: "gone")
+        let server: any Error = InternalServerError(message: "boom")
+        #expect(client is ClientError)
+        #expect(server is ServerError)
+    }
+
+    /* Statuses outside the 4xx and 5xx ranges fall back to the base error. */
+    @Test func testBhvErrors096AStatusOutsideEveryClassRangeFallsBackToTheBaseError() {
+        for status in [399, 600] {
+            let err: any Error = ApiError.fromResponse(statusCode: status, headers: [:], body: "")
+            #expect(type(of: err) == ApiError.self)
+            #expect(!(err is ClientError))
+            #expect(!(err is ServerError))
+        }
+    }
+
+    /* An unrecognised 4xx status raises the generic client error. */
+    @Test func testBhvErrors097AnUnrecognisedClientStatusRaisesTheGenericClientError() {
+        let err: any Error = ApiError.fromResponse(statusCode: 499, headers: [:], body: "")
+        #expect(type(of: err) == ClientError.self)
+    }
+
+
+    /* A body that is valid JSON but not an object is refused with the SDK's SerializationError. */
+    @Test func testBhvMisc015ANonObjectErrorBodyIsRefusedWithASerializationError() {
+        let err = ApiError(statusCode: 400, message: "bad", responseBody: "[1,2]")
+        #expect(throws: SerializationError.self) {
+            _ = try err.getTypedErrorBody([String: Int].self)
+        }
+    }
+
+    /* The rendered form of a long body shows at most a fixed number of characters and says how many bytes were left out. */
+    @Test func testBhvMisc016ALongBodyIsTruncatedWithTheOmittedCount() {
+        let body = String(repeating: "x", count: 5000)
+        let rendered = ApiError(statusCode: 500, message: "boom", responseBody: body).errorDescription ?? ""
+        #expect(rendered.count < 2000)
+        #expect(rendered.contains("more bytes"))
+    }
+
+    /* The request line is shown only when both the request method and the request path are known. */
+    @Test func testBhvMisc020TheRequestLineNeedsBothMethodAndPath() {
+        let methodOnly = ApiError.fromResponse(
+            statusCode: 404, headers: [:], body: "", requestMethod: "GET", requestPath: nil)
+        #expect(!methodOnly.message.contains("for GET"))
+        let both = ApiError.fromResponse(
+            statusCode: 404, headers: [:], body: "", requestMethod: "GET", requestPath: "/items/7")
+        #expect(both.message.hasSuffix("for GET /items/7"))
+    }
+
+    /* A server error is an instance of the SDK root error type and of the server class. */
+    @Test func testBhvMisc022AServerErrorIsTheRootAndTheServerClass() {
+        let err: any Error = ApiError.fromResponse(statusCode: 503, headers: [:], body: "{}")
+        #expect(err is ServerError)
+        #expect(err is {{errorPrefix}}Error)
+    }
+
+    /* A 5xx status with no specific class is the generic ServerError; any other unmapped status is the plain ApiError. */
+    @Test func testBhvMisc023AnUnmappedStatusFallsToItsGenericClass() {
+        let server: any Error = ApiError.fromResponse(statusCode: 599, headers: [:], body: "")
+        #expect(server is ServerError)
+        let other: any Error = ApiError.fromResponse(statusCode: 399, headers: [:], body: "")
+        #expect(other is ApiError)
+        #expect(!(other is ServerError))
+    }
+
+    /* When the rendered message truncates a response body, it states how many bytes were left out. */
+    @Test func testBhvMisc280ATruncatedBodyStatesHowManyBytesWereLeftOut() {
+        let body = String(repeating: "b", count: 1100)
+        #expect(ApiError.renderedBody(body) == String(repeating: "b", count: 1024) + "... (76 more bytes)")
+    }
+
+    /* An OAuth server error's message names both its HTTP status and its OAuth error code. */
+    @Test func testBhvMisc286AnOAuthServerErrorMessageNamesItsHttpStatusAndItsOAuthCode() {
+        let error = OAuth2ServerError(
+            statusCode: 401, code: "invalid_client", description: nil, uri: nil, rawBody: "{}")
+
+        #expect(error.localizedDescription.contains("401"))
+        #expect(error.localizedDescription.contains("invalid_client"))
+    }
+}
+
+private final class MockApiClient: ApiClient, @unchecked Sendable {
+    var responseStatusCode: Int = 200
+    var responseBody: String = "{}"
+    var responseHeaders: [String: String] = ["Content-Type": "application/json"]
+
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+        async throws -> ApiHttpResponse
+    {
+        try await sendRequest(
+            method: method, url: url, headers: headers, body: body, noRedirect: false)
+    }
+
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
+        return ApiHttpResponse(
+            statusCode: responseStatusCode,
+            body: responseBody,
+            headers: responseHeaders
+        )
+    }
+}

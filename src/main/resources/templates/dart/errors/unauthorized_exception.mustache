@@ -1,0 +1,15 @@
+{{>api_info}}
+import 'client_exception.dart';
+
+/// Exception for HTTP 401 Unauthorized.
+class UnauthorizedException extends ClientException {
+  const UnauthorizedException({
+    super.message = '',
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  }) : super(statusCode: 401);
+}

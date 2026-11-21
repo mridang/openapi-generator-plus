@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for HTTP 502 Bad Gateway.
+/// </summary>
+public class BadGatewayException : ServerException
+{
+    public BadGatewayException()
+        : this("Bad Gateway") { }
+
+    public BadGatewayException(string message)
+        : this(message, null, null, null) { }
+
+    public BadGatewayException(string message, Exception innerException)
+        : base(502, message, innerException) { }
+
+    public BadGatewayException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(502, message, responseHeaders, responseBody, errorBody) { }
+}

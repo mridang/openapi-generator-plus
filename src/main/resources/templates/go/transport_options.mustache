@@ -1,0 +1,464 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"crypto/x509"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+)
+
+// ErrInvalidProxyURL is returned by TransportOptionsBuilder.Build when the
+// proxy URL does not parse, uses a scheme other than http or https, or has no
+// host. Match it with errors.Is.
+var ErrInvalidProxyURL = errors.New("invalid proxy URL")
+
+// ErrInvalidTimeout is returned by Build when the timeout is not a positive
+// number of milliseconds. Match it with errors.Is.
+var ErrInvalidTimeout = errors.New("invalid timeout")
+
+// ErrInvalidMaxRetries is returned by Build when the retry limit is negative.
+// Match it with errors.Is.
+var ErrInvalidMaxRetries = errors.New("invalid max retries")
+
+// ErrInvalidMaxRedirects is returned by Build when the redirect limit is
+// negative. Match it with errors.Is.
+var ErrInvalidMaxRedirects = errors.New("invalid max redirects")
+
+// DefaultMaxRetries is the number of times a failed request is retried when
+// the builder does not set MaxRetries.
+const DefaultMaxRetries = 2
+
+// ErrInvalidCACertificate is returned by TransportOptionsBuilder.Build when the
+// CA certificate file cannot be read or contains no PEM certificate. Match it
+// with errors.Is.
+var ErrInvalidCACertificate = errors.New("invalid CA certificate")
+
+// caCertificateError carries the canonical CA message the other SDKs use while
+// still matching ErrInvalidCACertificate (and the underlying cause, when there
+// is one) through errors.Is and errors.As.
+type caCertificateError struct {
+	message string
+	cause   error
+}
+
+func (e *caCertificateError) Error() string { return e.message }
+
+func (e *caCertificateError) Unwrap() []error {
+	if e.cause == nil {
+		return []error{ErrInvalidCACertificate}
+	}
+	return []error{ErrInvalidCACertificate, e.cause}
+}
+
+// ErrTransportConflict is returned by TransportOptionsBuilder.Build when a
+// caller-supplied HttpClient or RoundTripper is combined with the SDK's own
+// proxy, TLS verification or CA bundle settings (the supplied transport owns
+// those), or when both an HttpClient and a RoundTripper are supplied. Match it
+// with errors.Is.
+var ErrTransportConflict = errors.New("conflicting transport options")
+
+// TransportOptions holds immutable HTTP transport configuration for DefaultApiClient.
+//
+// Controls low-level HTTP behavior such as TLS verification, proxy routing,
+// timeouts, redirect handling, and automatic header injection. These settings
+// are independent of API-level concerns (base URL, authentication headers)
+// which belong in Configuration.
+//
+// TransportOptions is immutable and safe for concurrent use. Use
+// NewTransportOptionsBuilder to create instances:
+//
+//	timeout := 5000
+//	userAgent := "MyApp/1.0"
+//	transport, err := {{packageName}}.NewTransportOptionsBuilder().
+//		VerifySsl(false).
+//		Proxy("http://proxy.example.com:8080").
+//		Timeout(&timeout).
+//		UserAgent(&userAgent).
+//		Build()
+//	if err != nil {
+//		// ErrInvalidProxyURL or ErrInvalidCACertificate
+//	}
+type TransportOptions struct {
+	verifySsl       bool
+	caCertPath      string
+	caCertPool      *x509.CertPool // certificates read from caCertPath by Build; nil when none
+	proxy           *url.URL
+	timeout         *int
+	followRedirects bool
+	maxRedirects    *int
+	userAgent       *string
+	defaultHeaders  map[string]string
+	injectRequestID bool
+	maxRetries      int
+	httpClient      HttpDoer
+	roundTripper    http.RoundTripper
+}
+
+// NewTransportOptionsBuilder creates a new builder for constructing TransportOptions
+// instances, with sensible defaults.
+//
+// All fields have sensible defaults:
+//   - verifySsl: true
+//   - followRedirects: true
+//   - injectRequestID: false
+//   - maxRetries: 2 (DefaultMaxRetries); call MaxRetries(0) to disable retries
+//   - timeout: 10000 (10 seconds); call Timeout with an explicit value to
+//     override it, or with nil for no timeout
+//   - userAgent: "{{userAgentDefault}}"; call UserAgent to override it or pass
+//     nil to omit it
+//   - all other fields: nil or empty
+func NewTransportOptionsBuilder() *TransportOptionsBuilder {
+	defaultTimeout := 10000
+	defaultUserAgent := "{{userAgentDefault}}"
+	return &TransportOptionsBuilder{
+		verifySsl:       true,
+		followRedirects: true,
+		userAgent:       &defaultUserAgent,
+		defaultHeaders:  make(map[string]string),
+		timeout:         &defaultTimeout,
+		maxRetries:      DefaultMaxRetries,
+	}
+}
+
+// VerifySsl returns whether TLS certificate verification is enabled.
+//
+// Returns true if the client verifies server certificates (default), false to
+// accept any certificate.
+func (t *TransportOptions) VerifySsl() bool { return t.verifySsl }
+
+// CACertPath returns the path to a custom CA certificate bundle for TLS verification.
+//
+// When set together with VerifySsl, the client trusts certificates signed by
+// this CA in addition to (or instead of) the system trust store. Returns an
+// empty string to use the system default.
+func (t *TransportOptions) CACertPath() string { return t.caCertPath }
+
+// Proxy returns the HTTP or HTTPS proxy URL for all outbound requests.
+//
+// Example: "http://proxy.corp.example.com:3128". Returns nil for direct
+// connections.
+func (t *TransportOptions) Proxy() *url.URL { return t.proxy }
+
+// Timeout returns the end-to-end request timeout in milliseconds.
+//
+// Covers the entire request lifecycle: connection, TLS handshake, sending the
+// request body, and reading the response. Defaults to 10000 ms (10 seconds)
+// when the builder does not set a value. Returns nil for no timeout (wait
+// indefinitely); a set value is always positive.
+func (t *TransportOptions) Timeout() *int { return t.timeout }
+
+// FollowRedirects returns whether the client follows HTTP 3xx redirects
+// automatically.
+//
+// Returns true to follow redirects (default), false to return the redirect
+// response as-is.
+func (t *TransportOptions) FollowRedirects() bool { return t.followRedirects }
+
+// MaxRedirects returns the maximum number of consecutive redirects to follow.
+//
+// Only meaningful when FollowRedirects is true. A nil value uses the HTTP
+// client's built-in default; a zero value means no redirects.
+func (t *TransportOptions) MaxRedirects() *int { return t.maxRedirects }
+
+// UserAgent returns the custom User-Agent header value.
+//
+// When set, this value is sent as the User-Agent header on every request unless
+// the caller explicitly provides one. Returns nil to omit the User-Agent header
+// entirely.
+func (t *TransportOptions) UserAgent() *string { return t.userAgent }
+
+// DefaultHeaders returns the transport-level default headers included in every request.
+//
+// These headers have the lowest priority: API-level headers from
+// Configuration.DefaultHeaders, operation-specific headers, and authentication
+// headers all take precedence. The returned map is a copy, so modifying it does
+// not affect the TransportOptions.
+func (t *TransportOptions) DefaultHeaders() map[string]string {
+	result := make(map[string]string, len(t.defaultHeaders))
+	for k, v := range t.defaultHeaders {
+		result[k] = v
+	}
+	return result
+}
+
+// InjectRequestID returns whether to auto-inject an X-Request-ID header with a
+// unique UUID on every request.
+//
+// Useful for distributed tracing and log correlation. The header is only
+// injected if the caller has not already set one.
+func (t *TransportOptions) InjectRequestID() bool { return t.injectRequestID }
+
+// MaxRetries returns how many times a failed request is retried.
+//
+// A request is retried after a network error that happened before a response
+// and after a 408, 409, 429 or 5xx (not 501) response. The wait starts at 0.5
+// seconds, doubles up to 8 seconds and loses up to 25% to jitter, a Retry-After
+// header (seconds or an HTTP date, capped at 60 seconds) replaces it, and the
+// retries never extend the end-to-end Timeout. Defaults to 2; 0 disables
+// retries.
+func (t *TransportOptions) MaxRetries() int { return t.maxRetries }
+
+// TransportOptionsBuilder builds immutable TransportOptions instances.
+type TransportOptionsBuilder struct {
+	verifySsl       bool
+	caCertPath      string
+	proxy           *url.URL
+	proxyErr        error
+	timeout         *int
+	followRedirects bool
+	maxRedirects    *int
+	userAgent       *string
+	defaultHeaders  map[string]string
+	injectRequestID bool
+	maxRetries      int
+	httpClient      HttpDoer
+	roundTripper    http.RoundTripper
+}
+
+// HttpClient routes every request through the caller's own HTTP client (any
+// type with a Do(*http.Request) method; *http.Client qualifies). The SDK keeps
+// its defaults on top: user agent, default headers, request id, timeout and,
+// for an *http.Client, the redirect policy applied around its Transport. The
+// caller owns the client's lifecycle: the SDK never closes it. It conflicts
+// with Proxy, CACertPath and VerifySsl(false), which belong to the supplied
+// client; Build then returns ErrTransportConflict.
+func (b *TransportOptionsBuilder) HttpClient(doer HttpDoer) *TransportOptionsBuilder {
+	b.httpClient = doer
+	return b
+}
+
+// RoundTripper wraps the caller's http.RoundTripper with the SDK's defaults and
+// redirect policy and sends every request through it. The caller owns its
+// lifecycle: the SDK never closes it. The same conflicts as HttpClient apply.
+func (b *TransportOptionsBuilder) RoundTripper(rt http.RoundTripper) *TransportOptionsBuilder {
+	b.roundTripper = rt
+	return b
+}
+
+// VerifySsl enables or disables TLS certificate verification.
+//
+// Pass true to verify (default), false to skip.
+func (b *TransportOptionsBuilder) VerifySsl(val bool) *TransportOptionsBuilder {
+	b.verifySsl = val
+	return b
+}
+
+// CACertPath sets the path to a custom CA certificate bundle.
+//
+// The val is the file path to a PEM-encoded CA certificate, or empty. An
+// unreadable file is reported by Build as ErrInvalidCACertificate.
+func (b *TransportOptionsBuilder) CACertPath(val string) *TransportOptionsBuilder {
+	b.caCertPath = val
+	return b
+}
+
+// Proxy sets the HTTP/HTTPS proxy URL.
+//
+// The val is the proxy URL (e.g. "http://proxy:3128"), or empty. A URL that does
+// not parse, that uses a scheme other than http or https, or that has no host is
+// reported by Build as ErrInvalidProxyURL.
+func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
+	b.proxy = nil
+	b.proxyErr = nil
+	if val == "" {
+		return b
+	}
+	parsed, err := url.Parse(val)
+	shown := redactProxyUserinfo(val)
+	switch {
+	case err != nil:
+		// A *url.Error repeats the raw URL, so only its cause is shown.
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			err = urlErr.Err
+		}
+		b.proxyErr = fmt.Errorf("%w %q: %v", ErrInvalidProxyURL, shown, err)
+	case parsed.Scheme != "http" && parsed.Scheme != "https":
+		b.proxyErr = fmt.Errorf("%w %q: must use http or https scheme", ErrInvalidProxyURL, shown)
+	case parsed.Host == "":
+		b.proxyErr = fmt.Errorf("%w %q: missing host", ErrInvalidProxyURL, shown)
+	default:
+		b.proxy = parsed
+	}
+	return b
+}
+
+// redactProxyUserinfo replaces the user:password part of a proxy URL with ***
+// so a rejected value that carries credentials (a socks5 URL, for instance)
+// never reaches an error message. It works on the raw text because the value
+// may not parse.
+func redactProxyUserinfo(raw string) string {
+	prefix, rest := "", raw
+	if i := strings.Index(raw, "://"); i >= 0 {
+		prefix, rest = raw[:i+3], raw[i+3:]
+	}
+	authority, tail := rest, ""
+	if i := strings.IndexAny(rest, "/?#"); i >= 0 {
+		authority, tail = rest[:i], rest[i:]
+	}
+	at := strings.LastIndex(authority, "@")
+	if at < 0 {
+		return raw
+	}
+	return prefix + "***" + authority[at:] + tail
+}
+
+// Timeout sets the end-to-end request timeout in milliseconds.
+//
+// Pass nil for no timeout. Build rejects zero and negative values with
+// ErrInvalidTimeout.
+func (b *TransportOptionsBuilder) Timeout(val *int) *TransportOptionsBuilder {
+	b.timeout = val
+	return b
+}
+
+// FollowRedirects enables or disables automatic redirect following.
+//
+// Pass true to follow (default), false to stop.
+func (b *TransportOptionsBuilder) FollowRedirects(val bool) *TransportOptionsBuilder {
+	b.followRedirects = val
+	return b
+}
+
+// MaxRedirects sets the maximum number of redirects to follow.
+//
+// Pass 0 to disallow all redirects; do not call this method to use the HTTP
+// client's built-in default.
+func (b *TransportOptionsBuilder) MaxRedirects(val int) *TransportOptionsBuilder {
+	b.maxRedirects = &val
+	return b
+}
+
+// UserAgent sets a custom User-Agent header value.
+//
+// Pass nil to omit the User-Agent header entirely.
+func (b *TransportOptionsBuilder) UserAgent(val *string) *TransportOptionsBuilder {
+	b.userAgent = val
+	return b
+}
+
+// DefaultHeader adds a single transport-level default header.
+func (b *TransportOptionsBuilder) DefaultHeader(name, value string) *TransportOptionsBuilder {
+	b.defaultHeaders[name] = value
+	return b
+}
+
+// DefaultHeaders adds multiple transport-level default headers.
+func (b *TransportOptionsBuilder) DefaultHeaders(headers map[string]string) *TransportOptionsBuilder {
+	for k, v := range headers {
+		b.defaultHeaders[k] = v
+	}
+	return b
+}
+
+// InjectRequestID enables or disables automatic X-Request-ID header injection.
+//
+// Pass true to inject, false to skip (default).
+func (b *TransportOptionsBuilder) InjectRequestID(val bool) *TransportOptionsBuilder {
+	b.injectRequestID = val
+	return b
+}
+
+// MaxRetries sets how many times a failed request is retried (see
+// TransportOptions.MaxRetries for what is retried and how long it waits).
+//
+// Pass 0 to disable retries. Build rejects a negative value with
+// ErrInvalidMaxRetries.
+func (b *TransportOptionsBuilder) MaxRetries(val int) *TransportOptionsBuilder {
+	b.maxRetries = val
+	return b
+}
+
+// Build builds and returns an immutable TransportOptions instance.
+//
+// It returns ErrInvalidProxyURL when the proxy URL is invalid, and
+// ErrInvalidCACertificate when the CA certificate file cannot be read or holds
+// no PEM certificate. Both are caller mistakes, reported here rather than on
+// the first request.
+func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
+	if b.proxyErr != nil {
+		return nil, b.proxyErr
+	}
+	if b.timeout != nil && *b.timeout <= 0 {
+		return nil, fmt.Errorf("%w: must be a positive number of milliseconds (got %d)", ErrInvalidTimeout, *b.timeout)
+	}
+	if b.maxRetries < 0 {
+		return nil, fmt.Errorf("%w: must not be negative (got %d)", ErrInvalidMaxRetries, b.maxRetries)
+	}
+	if b.maxRedirects != nil && *b.maxRedirects < 0 {
+		return nil, fmt.Errorf("%w: must not be negative (got %d)", ErrInvalidMaxRedirects, *b.maxRedirects)
+	}
+	if b.httpClient != nil || b.roundTripper != nil {
+		switch {
+		case b.httpClient != nil && b.roundTripper != nil:
+			return nil, fmt.Errorf("%w: supply either an HttpClient or a RoundTripper, not both", ErrTransportConflict)
+		case b.proxy != nil:
+			return nil, fmt.Errorf("%w: Proxy cannot be combined with a supplied transport; configure the proxy on it", ErrTransportConflict)
+		case b.caCertPath != "":
+			return nil, fmt.Errorf("%w: CACertPath cannot be combined with a supplied transport; configure TLS on it", ErrTransportConflict)
+		case !b.verifySsl:
+			return nil, fmt.Errorf("%w: VerifySsl(false) cannot be combined with a supplied transport; configure TLS on it", ErrTransportConflict)
+		}
+	}
+	var caCertPool *x509.CertPool
+	if b.caCertPath != "" {
+		caCert, err := os.ReadFile(b.caCertPath)
+		if err != nil {
+			return nil, &caCertificateError{
+				message: fmt.Sprintf("failed to read CA certificate from %q: %v", b.caCertPath, err),
+				cause:   err,
+			}
+		}
+		caCertPool = x509.NewCertPool()
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			return nil, &caCertificateError{
+				message: fmt.Sprintf("failed to parse CA certificate from %q: no PEM blocks found", b.caCertPath),
+			}
+		}
+	}
+	headers := make(map[string]string, len(b.defaultHeaders))
+	for k, v := range b.defaultHeaders {
+		headers[k] = v
+	}
+	return &TransportOptions{
+		verifySsl:       b.verifySsl,
+		caCertPath:      b.caCertPath,
+		caCertPool:      caCertPool,
+		proxy:           b.proxy,
+		timeout:         b.timeout,
+		followRedirects: b.followRedirects,
+		maxRedirects:    b.maxRedirects,
+		userAgent:       b.userAgent,
+		defaultHeaders:  headers,
+		injectRequestID: b.injectRequestID,
+		maxRetries:      b.maxRetries,
+		httpClient:      b.httpClient,
+		roundTripper:    b.roundTripper,
+	}, nil
+}
+
+// defaultTransportOptions returns the TransportOptions a nil argument stands
+// for. The defaults configure no proxy and no CA bundle, so they cannot fail.
+func defaultTransportOptions() *TransportOptions {
+	opts, _ := NewTransportOptionsBuilder().Build()
+	return opts
+}
+
+// String returns a representation that masks the proxy password and the
+// secrets held in the default headers, so credentials never leak into logs.
+func (t TransportOptions) String() string {
+	return fmt.Sprintf(
+		"TransportOptions{verifySsl: %t, caCertPath: %q, proxy: %s, followRedirects: %t, defaultHeaders: %s, injectRequestID: %t, maxRetries: %d}",
+		t.verifySsl, t.caCertPath, redactedProxy(t.proxy), t.followRedirects, redactedHeaders(t.defaultHeaders), t.injectRequestID, t.maxRetries,
+	)
+}
+
+// GoString redacts the same secrets for the %#v verb, which would otherwise
+// reflect over every unexported field.
+func (t TransportOptions) GoString() string {
+	return t.String()
+}

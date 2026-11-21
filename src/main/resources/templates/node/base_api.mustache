@@ -1,0 +1,885 @@
+{{>api_info}}
+
+import type { ApiClient, RequestOptions } from '../api-client{{importFileExtension}}';
+import type { ApiResult } from '../api-result{{importFileExtension}}';
+import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
+import type { CallHook, CallObserver } from '../call-hook{{importFileExtension}}';
+import { isNoAuth } from '../auth/authenticator{{importFileExtension}}';
+import { isHttpAwareAuthenticator } from '../auth/http-aware-authenticator{{importFileExtension}}';
+/* Imported through the errors barrel, which loads every status-specific
+ * error, so ApiError.fromResponse knows them all. */
+import { ApiError, SerializationError, {{errorPrefix}}Error } from '../errors/index{{importFileExtension}}';
+import type { ErrorSchemas } from '../errors/index{{importFileExtension}}';
+import { Configuration } from '../configuration{{importFileExtension}}';
+import { DefaultApiClient } from '#transport';
+import { HeaderSelector } from '../header-selector{{importFileExtension}}';
+import { ObjectSerializer, isTemporalValue } from '../object-serializer{{importFileExtension}}';
+import { AllowReservedValue, ExplodedObject, ValueSerializer } from '../value-serializer{{importFileExtension}}';
+import { injectTraceContext } from '../trace-context-util{{importFileExtension}}';
+
+/**
+ * Base class for all API classes. Provides the invokeApi method that
+ * handles URL construction, header selection, body serialization,
+ * request dispatch, and response deserialization.
+ */
+export abstract class BaseApi {
+  /** The HTTP transport client used for sending requests. */
+  protected readonly apiClient: ApiClient;
+
+  /** API-level configuration (base URL and default headers). */
+  protected readonly config: Configuration;
+
+  /** Content negotiation logic for Accept and Content-Type headers. */
+  protected readonly headerSelector: HeaderSelector;
+
+  /**
+   * The client-level authenticator: the credential of any operation that no
+   * scheme credential matches.
+   */
+  protected readonly authenticator: Authenticator | null;
+
+  /**
+   * The credential the client holds for each security scheme, by the scheme's
+   * name in the spec.
+   */
+  protected readonly schemeAuthenticators: Readonly<Record<string, Authenticator>>;
+
+  /**
+   * Create an API instance.
+   *
+   * @param apiClient the HTTP transport client.
+   *   When omitted a {@link DefaultApiClient} with default transport options is used.
+   * @param config API-level configuration (base URL and default headers).
+   *   When omitted the {@link Configuration.defaultConfiguration default configuration} is used.
+   * @param authenticator default authenticator for operations whose scheme has no credential.
+   * @param schemeAuthenticators the credential for each security scheme, keyed by the scheme's name in the spec.
+   */
+  protected constructor(
+    apiClient?: ApiClient,
+    config?: Configuration,
+    authenticator?: Authenticator | null,
+    schemeAuthenticators?: Readonly<Record<string, Authenticator>> | null
+  ) {
+    this.apiClient = apiClient ?? new DefaultApiClient();
+    this.config = config ?? Configuration.defaultConfiguration();
+    this.headerSelector = new HeaderSelector();
+    this.authenticator = authenticator ?? null;
+    this.schemeAuthenticators = schemeAuthenticators ?? {};
+  }
+
+  /**
+   * Returns the credential the client holds for the first of the given scheme
+   * names that has one, or `undefined` when it holds none (the operation then
+   * uses the client-level authenticator). An operation passes the schemes its
+   * spec requires, in the order its own security block lists them, so it
+   * always uses the scheme the spec names and a caller cannot pick another per
+   * call.
+   *
+   * @param schemes the names of the security schemes the operation accepts
+   * @returns the authenticator of the first scheme the client holds a credential for
+   */
+  protected resolveSchemeAuth(schemes: readonly string[]): Authenticator | undefined {
+    for (const scheme of schemes) {
+      if (Object.prototype.hasOwnProperty.call(this.schemeAuthenticators, scheme)) {
+        return this.schemeAuthenticators[scheme];
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Returns the credential for an operation whose security block lists alternative
+   * requirements. Each group is one requirement: a group that names several schemes needs
+   * the credentials of all of them and a request carries every one. The first group the
+   * client holds every credential of wins, else the first group it holds at least one
+   * credential of; `undefined` when it holds none (the operation then uses the
+   * client-level authenticator).
+   *
+   * @param groups the requirements, in the spec's order, each the scheme names it needs together
+   * @returns the authenticator to send, or `undefined`
+   */
+  protected resolveRequirementAuth(groups: ReadonlyArray<readonly string[]>): Authenticator | undefined {
+    let partial: Authenticator[] | undefined;
+    for (const group of groups) {
+      const held = group
+        .filter((scheme) => Object.prototype.hasOwnProperty.call(this.schemeAuthenticators, scheme))
+        .map((scheme) => this.schemeAuthenticators[scheme] as Authenticator);
+      if (held.length === 0) {
+        continue;
+      }
+      if (held.length === group.length) {
+        return held.length === 1 ? held[0] : allOfAuthenticator(held);
+      }
+      partial ??= held;
+    }
+    if (partial === undefined) {
+      return undefined;
+    }
+    return partial.length === 1 ? partial[0] : allOfAuthenticator(partial);
+  }
+
+  /**
+   * Invoke an API operation and return the full result including status code,
+   * headers, and raw body alongside the deserialized data.
+   *
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param path URL path (with path params already substituted)
+   * @param queryParams query parameters
+   * @param headerParams custom header parameters
+   * @param body request body (pre-serialized to plain JS object, or null)
+   * @param accepts acceptable response content types
+   * @param contentType request content type
+   * @param returnType deserialization function (or null for void)
+   * @param auth the authenticator the operation resolved for its security
+   *   scheme, `NO_AUTH` for an operation that sends no credential, or
+   *   undefined to use the client-level authenticator
+   * @param rawBody whether the body is `format: binary` bytes sent unchanged
+   * @param returnKind how a non-JSON success body is read: `string` for a plain
+   *   string return, `binary` for a `format: binary` return, `model` otherwise
+   * @param operationName the operation name, used in error messages
+   * @param requestOptions per-call options: its `signal` cancels this call and is
+   *   merged with the client-level signal of the {@link Configuration}; its
+   *   `timeout` and `maxRetries` replace the transport's for this call; its
+   *   `headers` are sent in addition to the operation's own headers
+   * @param errorSchemas the typed error schemas of the operation, by status
+   * @param operationId the operation id exactly as written in the spec, given
+   *   to the call hook
+   * @param urlTemplate the spec path template of the operation, given to the
+   *   call hook
+   * @returns ApiResult containing deserialized data, status code, raw body, and headers
+   */
+  protected async invokeApiForResult<T>(
+    method: string,
+    path: string,
+    queryParams: Record<string, unknown>,
+    headerParams: Record<string, string>,
+    body: unknown,
+    accepts: string[],
+    contentType: string,
+    returnType: ((json: unknown, statusCode: number) => T) | null,
+    auth?: Authenticator | null,
+    rawBody = false,
+    returnKind?: 'model' | 'string' | 'binary',
+    operationName = '',
+    requestOptions?: RequestOptions,
+    errorSchemas?: ErrorSchemas,
+    operationId = operationName,
+    urlTemplate = ''
+  ): Promise<ApiResult<T>> {
+    BaseApi.checkCallLimits(requestOptions);
+    const callTimeout = requestOptions?.timeout;
+    const callMaxRetries = requestOptions?.maxRetries;
+    let url: string;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      url = path;
+    } else {
+      /* Strip trailing slash from baseUrl when path starts with `/` so
+       * baseUrl='https://x/' + path='/y' produces 'https://x/y', not
+       * 'https://x//y' which most servers route to 404. Matches
+       * Java/C#/Go/Swift/Dart/Kotlin which collapse via URI parsers. */
+      const base = path.startsWith('/') ? this.config.baseUrl.replace(/\/+$/, '') : this.config.baseUrl;
+      url = base + path;
+    }
+
+    /* Three-state auth resolution (the no-auth sentinel is a distinct
+     * third state, so `null` is no longer overloaded):
+     *   - auth IS the NO_AUTH sentinel  -> apply NO credentials; the
+     *     operation is `security: []` and must never pick up the
+     *     client-level authenticator.
+     *   - auth is null/undefined        -> the client holds no credential for
+     *     the operation's schemes; fall back to the client-level
+     *     authenticator, if any.
+     *   - auth is a real authenticator  -> the credential of the scheme the
+     *     operation names; use it. */
+    const effectiveAuth = isNoAuth(auth) ? null : (auth ?? this.authenticator);
+    /* The client injects its transport into the credentials it was built
+     * with. A scheme credential handed straight to an API class was never
+     * given one, so hand it this API's own client before it fetches a token. */
+    if (auth != null && effectiveAuth === auth && isHttpAwareAuthenticator(auth)) {
+      auth.setApiClient(this.apiClient);
+    }
+    if (effectiveAuth) {
+      const authQueryParams = effectiveAuth.getQueryParams();
+      for (const [k, v] of Object.entries(authQueryParams)) {
+        queryParams[k] = v;
+      }
+    }
+
+    const filteredParams = Object.entries(queryParams)
+      .flatMap(([k, rawValue]) => {
+        /* OAS allowReserved: a wrapped value keeps RFC 3986 reserved
+         * characters literal instead of percent-encoding them. Unwrap the
+         * marker and pick the matching encoder; plain values are encoded
+         * exactly as before. */
+        let value: unknown = rawValue;
+        let allowReserved = false;
+        if (value instanceof AllowReservedValue) {
+          value = value.value;
+          allowReserved = true;
+        }
+        if (value == null) {
+          return [];
+        }
+        const encodeQueryValue = (v: string): string =>
+          allowReserved ? ValueSerializer.encodeQueryAllowingReserved(v) : ValueSerializer.encodeQueryComponent(v);
+        if (value instanceof ExplodedObject) {
+          /* An exploded object contributes one entry per property, under the
+           * property's own name. */
+          return value.entries.map(
+            ([name, entry]) => `${ValueSerializer.encodeQueryComponent(name)}=${encodeQueryValue(entry)}`
+          );
+        }
+        const encodedKey = ValueSerializer.encodeQueryComponent(k);
+        return Array.isArray(value)
+          ? value.map((item) => `${encodedKey}=${encodeQueryValue(String(item))}`)
+          : [`${encodedKey}=${encodeQueryValue(String(value))}`];
+      })
+      .join('&');
+    if (filteredParams) {
+      url += '?' + filteredParams;
+    }
+
+    const isMultipart = contentType === 'multipart/form-data';
+    const headers = this.headerSelector.selectHeaders(accepts, contentType, isMultipart);
+    /* Header names are case-insensitive: a later layer replaces an earlier
+     * one of the same name whatever its case, so one value is sent. */
+    const overlay = (layer: Record<string, string>): void => {
+      const names = new Set(Object.keys(layer).map((key) => key.toLowerCase()));
+      for (const key of Object.keys(headers)) {
+        if (names.has(key.toLowerCase())) delete headers[key];
+      }
+      Object.assign(headers, layer);
+    };
+    overlay(this.config.defaultHeaders);
+    overlay(headerParams);
+    /* Per-call headers replace a header of the same name set by the client
+     * defaults or the operation, but never the authentication headers below. */
+    const callHeaders = BaseApi.checkedCallHeaders(requestOptions?.headers);
+    overlay(callHeaders);
+    const credentialHeaderNames: string[] = [
+      ...Object.keys(this.config.defaultHeaders),
+      ...Object.keys(callHeaders)
+    ];
+    /* The client-level signal and the per-call signal are merged: either one
+     * cancels the request. */
+    const signals = [this.config.signal, requestOptions?.signal].filter(
+      (s): s is AbortSignal => s != null
+    );
+    const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
+    if (effectiveAuth) {
+      const authHeaders = await BaseApi.untilAborted(effectiveAuth.getAuthHeadersAsync(), signal);
+      credentialHeaderNames.push(...Object.keys(authHeaders));
+      overlay(authHeaders);
+      const cookies = effectiveAuth.getCookieParams();
+      const cookieEntries = Object.entries(cookies);
+      if (cookieEntries.length > 0) {
+        /* RFC 6265 — don't URL-encode cookie name/value; most cookie
+         * parsers don't URL-decode, so `=` (base64 padding) would
+         * arrive as literal `%3D` and break JWT/session cookies.
+         * Validate and pass through raw instead. */
+        const cookieStr = cookieEntries
+          .map(([k, v]) => {
+            if (!/^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$/.test(k)) {
+              throw new TypeError(`Cookie name '${k}' contains characters forbidden by RFC 6265`);
+            }
+            if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(v)) {
+              throw new TypeError(`Cookie value for '${k}' contains characters forbidden by RFC 6265`);
+            }
+            return `${k}=${v}`;
+          })
+          .join('; ');
+        const existing = headers['Cookie'];
+        headers['Cookie'] = existing ? `${existing}; ${cookieStr}` : cookieStr;
+      }
+    }
+    injectTraceContext(headers);
+
+    const callHook = this.config.callHook;
+    const observer =
+      callHook === undefined ? undefined : BaseApi.startCall(callHook, operationId, method, urlTemplate, url, headers);
+    /* What the observer is told: no response yet, no error yet. */
+    let statusCode = 0;
+    let responseHeaders: Record<string, string> | null = null;
+    let failure: unknown = null;
+    try {
+      const serializedBody = this.serializeBody(body, contentType, rawBody);
+      if (serializedBody === null) {
+        for (const key of Object.keys(headers)) {
+          if (key.toLowerCase() === 'content-type') delete headers[key];
+        }
+      }
+
+      /* The client-level signal and the per-call signal are merged: either one
+       * cancels the request. */
+      const signals = [this.config.signal, requestOptions?.signal].filter(
+        (s): s is AbortSignal => s != null
+      );
+      const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
+      const sendOptions = {
+        ...(signal ? { signal } : {}),
+        ...(callTimeout !== undefined ? { timeout: callTimeout } : {}),
+        ...(callMaxRetries !== undefined ? { maxRetries: callMaxRetries } : {}),
+        credentialHeaderNames,
+        ...(effectiveAuth ? { refreshAuthHeaders: () => effectiveAuth.getAuthHeadersAsync() } : {})
+      };
+      let response = await this.apiClient.sendRequest(method, url, headers, serializedBody, sendOptions);
+      statusCode = response.statusCode;
+      responseHeaders = response.headers;
+
+      /* A revoked or rotated token keeps failing while it is cached. An OAuth2
+       * or OpenID Connect authenticator drops it on a 401, obtains a new one (a
+       * refresh grant first) and the request is replayed once with fresh
+       * headers. A multipart body is not replayed, and a failed
+       * re-authentication leaves the 401 as it is. API key, basic and bearer
+       * authenticators have no token to drop and never replay. */
+      const renewable = effectiveAuth as (Authenticator & { invalidateAccessToken?: () => void }) | null;
+      if (
+        response.statusCode === 401 &&
+        effectiveAuth != null &&
+        typeof renewable?.invalidateAccessToken === 'function' &&
+        (serializedBody === null || typeof serializedBody === 'string' || Buffer.isBuffer(serializedBody))
+      ) {
+        renewable.invalidateAccessToken();
+        let freshAuthHeaders: Record<string, string> | null;
+        try {
+          freshAuthHeaders = await BaseApi.untilAborted(effectiveAuth.getAuthHeadersAsync(), signal);
+        } catch (error) {
+          if (!(error instanceof {{errorPrefix}}Error)) {
+            throw error;
+          }
+          freshAuthHeaders = null;
+        }
+        if (freshAuthHeaders !== null) {
+          const names = new Set(Object.keys(freshAuthHeaders).map((key) => key.toLowerCase()));
+          const replayHeaders: Record<string, string> = {};
+          for (const [key, value] of Object.entries(headers)) {
+            if (!names.has(key.toLowerCase())) replayHeaders[key] = value;
+          }
+          Object.assign(replayHeaders, freshAuthHeaders);
+          response = await this.apiClient.sendRequest(method, url, replayHeaders, serializedBody, sendOptions);
+          statusCode = response.statusCode;
+          responseHeaders = response.headers;
+        }
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        this.throwApiError(response, method, url, errorSchemas);
+      }
+
+      let data: T | undefined;
+      if (returnType != null && response.body) {
+        try {
+          data = this.decodeResponseBody(response.statusCode, response.headers, response.body, returnType, returnKind, operationName);
+        } catch (error) {
+          /* A body that cannot be decoded is raised with the response it came
+           * from: its status, headers and raw body, and the request. */
+          if (error instanceof SerializationError) {
+            throw error.withResponse({
+              statusCode: response.statusCode,
+              responseHeaders: response.headers,
+              responseBody: response.body,
+              requestMethod: method,
+              requestPath: BaseApi.pathOf(url)
+            });
+          }
+          throw error;
+        }
+      }
+
+      return {
+        statusCode: response.statusCode,
+        data,
+        rawBody: response.body,
+        /* A frozen copy: a caller that edits the transport's map afterwards
+         * cannot change a result it already holds (D27). */
+        headers: Object.freeze({ ...response.headers })
+      };
+    } catch (error) {
+      failure = error;
+      throw error;
+    } finally {
+      BaseApi.finishCall(observer, statusCode, responseHeaders, failure);
+    }
+  }
+
+  /**
+   * Invoke an API operation.
+   *
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param path URL path (with path params already substituted)
+   * @param queryParams query parameters
+   * @param headerParams custom header parameters
+   * @param body request body (pre-serialized to plain JS object, or null)
+   * @param accepts acceptable response content types
+   * @param contentType request content type
+   * @param returnType deserialization function (or null for void)
+   * @param auth the authenticator the operation resolved for its security
+   *   scheme, `NO_AUTH` for an operation that sends no credential, or
+   *   undefined to use the client-level authenticator
+   * @param rawBody whether the body is `format: binary` bytes sent unchanged
+   * @param returnKind how a non-JSON success body is read: `string` for a plain
+   *   string return, `binary` for a `format: binary` return, `model` otherwise
+   * @param operationName the operation name, used in error messages
+   * @param requestOptions per-call options: its `signal` cancels this call and is
+   *   merged with the client-level signal of the {@link Configuration}; its
+   *   `timeout` and `maxRetries` replace the transport's for this call; its
+   *   `headers` are sent in addition to the operation's own headers
+   * @param errorSchemas the typed error schemas of the operation, by status
+   * @param operationId the operation id exactly as written in the spec, given
+   *   to the call hook
+   * @param urlTemplate the spec path template of the operation, given to the
+   *   call hook
+   * @returns deserialized response or void
+   */
+  protected async invokeApi<T>(
+    method: string,
+    path: string,
+    queryParams: Record<string, unknown>,
+    headerParams: Record<string, string>,
+    body: unknown,
+    accepts: string[],
+    contentType: string,
+    returnType: ((json: unknown, statusCode: number) => T) | null,
+    auth?: Authenticator | null,
+    rawBody = false,
+    returnKind?: 'model' | 'string' | 'binary',
+    operationName = '',
+    requestOptions?: RequestOptions,
+    errorSchemas?: ErrorSchemas,
+    operationId = operationName,
+    urlTemplate = ''
+  ): Promise<T | void> {
+    const result = await this.invokeApiForResult(
+      method,
+      path,
+      queryParams,
+      headerParams,
+      body,
+      accepts,
+      contentType,
+      returnType,
+      auth,
+      rawBody,
+      returnKind,
+      operationName,
+      requestOptions,
+      errorSchemas,
+      operationId,
+      urlTemplate
+    );
+    return result.data;
+  }
+
+  /**
+   * Start the call hook for one call. An error the hook throws propagates
+   * unchanged: nothing has been sent yet.
+   *
+   * @param hook the call hook of the configuration
+   * @param operationId the operation id exactly as written in the spec
+   * @param method the upper-case HTTP method
+   * @param urlTemplate the spec path template of the operation
+   * @param url the request URL, query string included
+   * @param headers the final request headers, which the hook may edit
+   * @returns the observer the hook returned, if any
+   */
+  private static startCall(
+    hook: CallHook,
+    operationId: string,
+    method: string,
+    urlTemplate: string,
+    url: string,
+    headers: Record<string, string>
+  ): CallObserver | undefined {
+    const bare = url.split(/[?#]/)[0]!;
+    let serverAddress = '';
+    try {
+      /* The hostname of an IPv6 literal keeps its brackets. */
+      serverAddress = new URL(bare).hostname.toLowerCase().replace(/^\[(.*)\]$/, '$1');
+    } catch {
+      /* A relative base URL has no host. */
+    }
+    const observer = hook.start({ operationId, method: method.toUpperCase(), urlTemplate, url: bare, serverAddress }, headers);
+    return observer ?? undefined;
+  }
+
+  /**
+   * Tell the observer how the call ended. An error the observer throws is
+   * swallowed: it never changes the result or the error of the call.
+   *
+   * @param observer the observer the hook returned, if any
+   * @param statusCode the status of the response, or 0 when none arrived
+   * @param responseHeaders the response headers, or null when none arrived
+   * @param error the error the caller receives, or null
+   */
+  private static finishCall(
+    observer: CallObserver | undefined,
+    statusCode: number,
+    responseHeaders: Record<string, string> | null,
+    error: unknown
+  ): void {
+    if (observer === undefined) {
+      return;
+    }
+    const headers =
+      responseHeaders === null
+        ? null
+        : Object.freeze(Object.fromEntries(Object.entries(responseHeaders).map(([k, v]) => [k.toLowerCase(), v])));
+    try {
+      observer.finish({ statusCode, headers, error });
+    } catch {
+      /* A failing observer never changes the outcome of the call. */
+    }
+  }
+
+  /**
+   * Decode a non-empty success body into the operation's return value.
+   *
+   * @param statusCode the HTTP status code of the response
+   * @param headers the response headers
+   * @param body the raw response body
+   * @param returnType deserialization function for a JSON body
+   * @param returnKind how a non-JSON success body is read
+   * @param operationName the operation name, used in error messages
+   * @returns the decoded value
+   * @throws SerializationError if the body cannot be decoded
+   */
+  private decodeResponseBody<T>(
+    statusCode: number,
+    headers: Record<string, string>,
+    body: string,
+    returnType: (json: unknown, statusCode: number) => T,
+    returnKind: 'model' | 'string' | 'binary' | undefined,
+    operationName: string
+  ): T {
+    const respContentType =
+      Object.entries(headers)
+        .find(([k]) => k.toLowerCase() === 'content-type')?.[1]
+        ?.split(';')[0]
+        ?.trim() ?? '';
+    const isJson = respContentType === '' || this.headerSelector.isJsonMime(respContentType);
+    if (returnKind === 'string') {
+      /* A declared string return is the body text whatever its content type:
+       * a JSON document is not parsed into a value (it stays as written). Under
+       * a binary content type the transport carries the bytes as base64 text, an
+       * internal carrier that never reaches the caller: the string is the
+       * decoded body. */
+      const stringMediaType = respContentType.toLowerCase();
+      const carriesText =
+        isJson ||
+        stringMediaType.startsWith('text/') ||
+        stringMediaType === 'application/xml' ||
+        stringMediaType === 'application/javascript' ||
+        stringMediaType.endsWith('+xml');
+      return (carriesText ? body : Buffer.from(body, 'base64').toString('utf8')) as unknown as T;
+    } else if (returnKind === 'binary' && isJson) {
+      /* A binary return takes the body bytes even when the server answered
+       * with a JSON document (content negotiation): the transport keeps JSON
+       * text verbatim, so its UTF-8 bytes are the body, never a parsed value. */
+      return Buffer.from(body, 'utf8') as unknown as T;
+    } else if (!isJson) {
+      /* The transport stores text bodies verbatim but base64-encodes
+       * binary bodies (DefaultApiClient.isTextContentType decides which).
+       * A string return accepts a text payload (text/*, application/xml,
+       * application/javascript, *+xml) verbatim; a binary return
+       * base64-decodes the payload to a Buffer so the caller receives the
+       * actual bytes. Any other non-JSON body for a model return is a
+       * SerializationError, never a raw string typed as the model.
+       * JSON/+json content is already handled by the else branch.
+       * rawBody keeps the original (still-encoded) string. */
+      const mediaType = respContentType.split(';')[0].trim().toLowerCase();
+      const isText =
+        mediaType.startsWith('text/') ||
+        mediaType === 'application/xml' ||
+        mediaType === 'application/javascript' ||
+        mediaType.endsWith('+xml');
+      if (returnKind !== 'model' && returnKind !== 'binary' && isText) {
+        return body as unknown as T;
+      } else if (returnKind !== 'model') {
+        return Buffer.from(body, 'base64') as unknown as T;
+      } else {
+        throw new SerializationError(
+          `Unexpected response Content-Type '${mediaType}' for ${this.constructor.name}${operationName ? '.' + operationName : ''}: expected a JSON body`
+        );
+      }
+    } else {
+      /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+       * but Windows-generated payloads often include one and JSON.parse
+       * rejects it. Strip silently for parity with Java Jackson / C#
+       * System.Text.Json which strip transparently. */
+      const cleaned = body.charCodeAt(0) === 0xFEFF
+        ? body.slice(1)
+        : body;
+      /* F5: route through ObjectSerializer.parseJson so the
+       * MAX_JSON_DEPTH pre-flight guard rejects malicious
+       * 100k-deep payloads before V8 stack-overflows. */
+      const json = ObjectSerializer.parseJson(cleaned);
+      /* A bare JSON null is no data: the HTTP-info variant keeps the raw body
+       * and returns no value, and the convenience method raises the ApiError. */
+      if (json === null) {
+        return null as unknown as T;
+      }
+      return returnType(json, statusCode);
+    }
+  }
+
+  /**
+   * Throw the error {@link ApiError.fromResponse} maps the response to. The
+   * body is parsed as JSON where possible so that structured error data
+   * (e.g. from a `default` response schema) is available via
+   * {@link ApiError.errorBody}.
+   */
+  private throwApiError(
+    response: { statusCode: number; body: string | null; headers: Record<string, string> },
+    method: string,
+    url: string,
+    errorSchemas?: ErrorSchemas
+  ): never {
+    throw ApiError.fromResponse(
+      response.statusCode,
+      response.headers,
+      response.body,
+      { method, path: BaseApi.pathOf(url) },
+      errorSchemas
+    );
+  }
+
+  /**
+   * The path of a request URL without its query string or fragment: the
+   * part of an absolute URL after the host, or a relative URL up to the
+   * first `?` or `#`.
+   *
+   * @param url the URL the request was sent to
+   * @returns the path
+   */
+  private static pathOf(url: string): string {
+    try {
+      return new URL(url).pathname;
+    } catch {
+      return url.split(/[?#]/)[0]!;
+    }
+  }
+
+  /**
+   * Settle with the work unless the call is cancelled first. A cancelled call
+   * rejects with the signal's own reason at once, without waiting for the
+   * token endpoint.
+   *
+   * @param work the pending credential lookup
+   * @param signal the call's cancellation signal, if any
+   * @returns the work's result
+   */
+  private static untilAborted<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+    if (signal === undefined) {
+      return work;
+    }
+    if (signal.aborted) {
+      work.catch(() => undefined);
+      return Promise.reject(signal.reason);
+    }
+    return new Promise<T>((resolve, reject) => {
+      const onAbort = (): void => reject(signal.reason);
+      signal.addEventListener('abort', onAbort, { once: true });
+      work.then(
+        (value) => {
+          signal.removeEventListener('abort', onAbort);
+          resolve(value);
+        },
+        (error: unknown) => {
+          signal.removeEventListener('abort', onAbort);
+          reject(error);
+        }
+      );
+    });
+  }
+
+  /**
+   * Validate the per-call `timeout` and `maxRetries` with the rules the
+   * transport options apply to their own values.
+   *
+   * @param requestOptions the per-call options, if any
+   * @throws TypeError if the timeout is not a positive number (or null), or
+   *   the retry count is not a non-negative integer
+   */
+  private static checkCallLimits(requestOptions: RequestOptions | undefined): void {
+    const timeout = requestOptions?.timeout;
+    if (timeout !== undefined && timeout !== null && !(timeout >= 1)) {
+      throw new TypeError(`Invalid timeout: must be at least one millisecond (got ${timeout})`);
+    }
+    const maxRetries = requestOptions?.maxRetries;
+    if (maxRetries !== undefined && (!Number.isInteger(maxRetries) || maxRetries < 0)) {
+      throw new TypeError(`Invalid maxRetries: must be a non-negative integer (got ${maxRetries})`);
+    }
+  }
+
+  /**
+   * The per-call headers as a plain map, each name and value a string.
+   *
+   * @param headers the per-call headers, if any
+   * @returns the headers, or an empty map
+   * @throws TypeError if a header name is empty or a value is not a string
+   */
+  private static checkedCallHeaders(headers: Readonly<Record<string, string>> | undefined): Record<string, string> {
+    const checked: Record<string, string> = {};
+    for (const [name, value] of Object.entries(headers ?? {})) {
+      if (name === '' || typeof value !== 'string') {
+        throw new TypeError(`Invalid per-call header '${name}': the name must not be empty and the value must be a string`);
+      }
+      checked[name] = value;
+    }
+    return checked;
+  }
+
+  /**
+   * Serialize the request body based on content type.
+   *
+   * For multipart/form-data and binary content types (image/* or
+   * application/octet-stream), the body is passed through as-is.
+   * All other content types are JSON-serialized.
+   *
+   * @param body the request body object
+   * @param contentType the Content-Type header value
+   * @returns the serialized body
+   */
+  private serializeBody(
+    body: unknown,
+    contentType: string,
+    rawBody = false
+  ): string | Buffer | Record<string, unknown> | null {
+    if (body == null) {
+      return null;
+    }
+    /* A `format: binary` request body is the caller's bytes, sent unchanged
+     * under whichever declared Content-Type was selected (application/json
+     * included): it is never routed through the JSON serializer. */
+    if (rawBody && (Buffer.isBuffer(body) || body instanceof Uint8Array || body instanceof Blob)) {
+      return body as Buffer;
+    }
+    if (/^multipart\//i.test(contentType)) {
+      /* Any multipart subtype (form-data, mixed, related) is assembled by the
+       * transport from the form parts object; the subtype comes from the
+       * Content-Type header. */
+      return body as Record<string, unknown>;
+    }
+    if (contentType.startsWith('image/') || contentType === 'application/octet-stream') {
+      /* An operation that declares BOTH multipart/form-data and a raw binary
+       * content-type builds its body as a form-parts object for the multipart
+       * case. When the caller selects the raw binary type instead, the
+       * multipart envelope must be bypassed: send the single binary part's
+       * bytes directly. Without this the object falls through to the transport,
+       * which dispatches multipart on a plain-object body, so the octet-stream
+       * selection would silently still ship a multipart/form-data body. */
+      if (
+        body !== null &&
+        typeof body === 'object' &&
+        !Buffer.isBuffer(body) &&
+        !(body instanceof Blob) &&
+        !(body instanceof Uint8Array)
+      ) {
+        for (const value of Object.values(body as Record<string, unknown>)) {
+          if (Buffer.isBuffer(value) || value instanceof Blob || value instanceof Uint8Array) {
+            return value as Buffer;
+          }
+        }
+      }
+      return body as Buffer;
+    }
+    if (contentType === 'text/plain') {
+      return String(body);
+    }
+    if (contentType === 'application/x-www-form-urlencoded') {
+      /* Build the urlencoded body field-by-field so the wire bytes match
+       * the other 11 SDKs:
+       *   - array values emit a REPEATED key (tags=a&tags=b), never a
+       *     comma-joined `tags=a,b` (which is what passing an array straight
+       *     to the URLSearchParams constructor produces);
+       *   - null / undefined fields are OMITTED entirely, never serialized
+       *     as the literal string "null"/"undefined";
+       *   - URLSearchParams.append encodes a space as `+` (not %20), the
+       *     canonical application/x-www-form-urlencoded form;
+       *   - the unreserved set is `A-Za-z0-9-._~`: URLSearchParams keeps `*`
+       *     literal and escapes `~`, so both are flipped after serializing;
+       *   - a lone surrogate throws URIError, as the query encoder does,
+       *     instead of URLSearchParams silently replacing it with U+FFFD. */
+      const wellFormed = (text: string): string => {
+        if (!text.isWellFormed()) {
+          throw new URIError('URI malformed');
+        }
+        return text;
+      };
+      /* A model, map or array of objects has no defined form-urlencoded
+       * encoding (no OAS encoding style is emitted), so it is rejected
+       * instead of being sent as '[object Object]'. */
+      const isScalarObject = (value: object): boolean =>
+        value instanceof Date || value instanceof Uint8Array || isTemporalValue(value);
+      const scalar = (key: string, value: unknown): string => {
+        if (typeof value === 'object' && value !== null && !isScalarObject(value)) {
+          throw new SerializationError(
+            `form-urlencoded field ${key} must be a scalar or array of scalars`
+          );
+        }
+        return wellFormed(ObjectSerializer.stringify(value));
+      };
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
+        if (value == null) {
+          continue;
+        }
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            if (item == null) {
+              continue;
+            }
+            params.append(wellFormed(key), scalar(key, item));
+          }
+        } else {
+          params.append(wellFormed(key), scalar(key, value));
+        }
+      }
+      /* The serialized text only contains a percent sign as an escape, so
+       * %7E is always an encoded tilde and a bare asterisk is always literal. */
+      return params.toString().replace(/\*/g, '%2A').replace(/%7E/g, '~');
+    }
+    return ObjectSerializer.serialize(body);
+  }
+}
+
+/**
+ * The credentials of every scheme one security requirement names together: the headers, query
+ * parameters and cookies of all of them are sent. One holding a token authenticator also hands
+ * the transport to it and drops its cached token on a 401.
+ */
+function allOfAuthenticator(parts: readonly Authenticator[]): Authenticator {
+  const merge = (read: (part: Authenticator) => Record<string, string>): Record<string, string> =>
+    Object.assign({}, ...parts.map(read)) as Record<string, string>;
+  const composite: Authenticator & {
+    setApiClient?: (apiClient: ApiClient) => void;
+    invalidateAccessToken?: () => void;
+  } = {
+    getHost: () => (parts[0] as Authenticator).getHost(),
+    getAuthHeaders: () => merge((part) => part.getAuthHeaders()),
+    getAuthHeadersAsync: async () => {
+      const merged: Record<string, string> = {};
+      for (const part of parts) {
+        Object.assign(merged, await part.getAuthHeadersAsync());
+      }
+      return merged;
+    },
+    getQueryParams: () => merge((part) => part.getQueryParams()),
+    getCookieParams: () => merge((part) => part.getCookieParams()),
+  };
+  if (parts.some((part) => isHttpAwareAuthenticator(part))) {
+    composite.setApiClient = (apiClient: ApiClient): void => {
+      for (const part of parts) {
+        if (isHttpAwareAuthenticator(part)) {
+          part.setApiClient(apiClient);
+        }
+      }
+    };
+    composite.invalidateAccessToken = (): void => {
+      for (const part of parts) {
+        (part as Authenticator & { invalidateAccessToken?: () => void }).invalidateAccessToken?.();
+      }
+    };
+  }
+  return composite;
+}

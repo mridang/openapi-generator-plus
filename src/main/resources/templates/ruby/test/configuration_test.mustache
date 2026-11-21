@@ -1,0 +1,351 @@
+# frozen_string_literal: true
+
+require 'test_helper'
+
+describe {{moduleName}}::Configuration do
+  it 'bhv_config_005 the builder produces the default values when nothing is set' do
+    config = {{moduleName}}::Configuration.builder.build
+
+    _(config.base_url).must_equal('{{{basePath}}}')
+    _(config.default_headers).must_equal({})
+  end
+
+  it 'bhv_config_007 builder returns Builder instance' do
+    builder = {{moduleName}}::Configuration.builder
+
+    _(builder).must_be_instance_of({{moduleName}}::Configuration::Builder)
+  end
+
+  it 'bhv_config_026 a configuration built through the builder returns the base URL set on the builder' do
+    config = {{moduleName}}::Configuration.builder
+      .base_url('https://custom.example.com')
+      .build
+
+    _(config.base_url).must_equal('https://custom.example.com')
+  end
+
+  it 'bhv_config_011 the builder sets the base URL' do
+    config = {{moduleName}}::Configuration.builder
+      .base_url('https://custom.example.com')
+      .build
+
+    _(config.base_url).must_equal('https://custom.example.com')
+  end
+
+  it 'bhv_config_013 builder sets single default header' do
+    config = {{moduleName}}::Configuration.builder
+      .default_header('Authorization', 'Bearer token123')
+      .build
+
+    _(config.default_headers).must_equal({ 'Authorization' => 'Bearer token123' })
+  end
+
+  it 'bhv_config_012 builder sets multiple default headers' do
+    config = {{moduleName}}::Configuration.builder
+      .default_headers({
+        'Authorization' => 'Bearer token123',
+        'X-Custom' => 'value'
+      })
+      .build
+
+    _(config.default_headers).must_equal({
+      'Authorization' => 'Bearer token123',
+      'X-Custom' => 'value'
+    })
+  end
+
+  it 'bhv_config_002 the builder accumulates headers across calls' do
+    config = {{moduleName}}::Configuration.builder
+      .default_header('X-First', 'one')
+      .default_header('X-Second', 'two')
+      .default_headers({ 'X-Third' => 'three' })
+      .build
+
+    _(config.default_headers.size).must_equal(3)
+    _(config.default_headers['X-First']).must_equal('one')
+    _(config.default_headers['X-Second']).must_equal('two')
+    _(config.default_headers['X-Third']).must_equal('three')
+  end
+
+  it 'bhv_config_010 builder sets all fields' do
+    config = {{moduleName}}::Configuration.builder
+      .base_url('https://api.example.com')
+      .default_header('Authorization', 'Bearer token')
+      .default_headers({ 'X-Custom' => 'value' })
+      .build
+
+    _(config.base_url).must_equal('https://api.example.com')
+    _(config.default_headers).must_equal({
+      'Authorization' => 'Bearer token',
+      'X-Custom' => 'value'
+    })
+  end
+
+  it 'bhv_config_008 server resolves URL with default variables' do
+    server = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com/api/{version}',
+      description: 'Test server',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(
+          default_value: 'api',
+          enum_values: %w[api staging]
+        ),
+        'version' => {{moduleName}}::ServerVariable.new(
+          default_value: 'v3',
+          enum_values: %w[v2 v3]
+        )
+      }
+    )
+
+    config = {{moduleName}}::Configuration.builder
+      .server(server)
+      .build
+
+    _(config.base_url).must_equal('https://api.example.com/api/v3')
+  end
+
+  it 'bhv_config_009 server resolves URL with variable overrides' do
+    server = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com/api/{version}',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(
+          default_value: 'api',
+          enum_values: %w[api staging]
+        ),
+        'version' => {{moduleName}}::ServerVariable.new(
+          default_value: 'v3',
+          enum_values: %w[v2 v3]
+        )
+      }
+    )
+
+    config = {{moduleName}}::Configuration.builder
+      .server(server, { 'env' => 'staging', 'version' => 'v2' })
+      .build
+
+    _(config.base_url).must_equal('https://staging.example.com/api/v2')
+  end
+
+  it 'bhv_config_016 invalid enum value raises' do
+    server = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(
+          default_value: 'api',
+          enum_values: %w[api staging]
+        )
+      }
+    )
+
+    _(proc {
+      {{moduleName}}::Configuration.builder
+        .server(server, { 'env' => 'invalid' })
+        .build
+    }).must_raise(ArgumentError)
+  end
+
+  it 'bhv_config_001 a base URL overrides the server' do
+    server = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://api.example.com'
+    )
+
+    config = {{moduleName}}::Configuration.builder
+      .server(server)
+      .base_url('https://override.example.com')
+      .build
+
+    _(config.base_url).must_equal('https://override.example.com')
+  end
+
+  it 'bhv_config_014 default_configuration returns an instance' do
+    config = {{moduleName}}::Configuration.default_configuration
+
+    _(config).must_be_instance_of({{moduleName}}::Configuration)
+    _(config.base_url).must_equal('{{{basePath}}}')
+  end
+
+  it 'bhv_config_023 default_configuration returns a fresh instance' do
+    # There is no settable process-wide default: every call builds a new
+    # Configuration, so nothing one caller does can change what another gets.
+    first = {{moduleName}}::Configuration.default_configuration
+    second = {{moduleName}}::Configuration.default_configuration
+
+    _(first).wont_be_same_as(second)
+    _(first.base_url).must_equal(second.base_url)
+  end
+
+  it 'bhv_config_024 has no settable process-wide default' do
+    _({{moduleName}}::Configuration).wont_respond_to(:default)
+    _({{moduleName}}::Configuration).wont_respond_to(:default=)
+  end
+
+  it 'bhv_misc_276 the default configuration and the default builder both use the base URL from the spec' do
+    _({{moduleName}}::Configuration.default_configuration.base_url).must_equal('{{{basePath}}}')
+    _({{moduleName}}::Configuration.builder.build.base_url).must_equal('{{{basePath}}}')
+  end
+
+  it 'bhv_misc_277 each call to the default configuration returns a distinct configuration object' do
+    first = {{moduleName}}::Configuration.default_configuration
+    second = {{moduleName}}::Configuration.default_configuration
+
+    _(first).wont_be_same_as(second)
+  end
+
+  it 'bhv_misc_279 changing a copy of the returned headers does not change the configuration' do
+    config = {{moduleName}}::Configuration.builder.default_header('X-Trace', 'trace-1').build
+    copy = config.default_headers.dup
+    copy['X-New'] = 'x'
+
+    _(config.default_headers).must_equal({ 'X-Trace' => 'trace-1' })
+  end
+
+  it 'bhv_config_018 a default and a built configuration use the base URL from the spec' do
+    _({{moduleName}}::Configuration.default_configuration.base_url).must_equal('{{{basePath}}}')
+    _({{moduleName}}::Configuration.builder.build.base_url).must_equal('{{{basePath}}}')
+  end
+
+  it 'bhv_config_019 the default configuration factory returns the spec base URL and no default headers' do
+    config = {{moduleName}}::Configuration.default_configuration
+
+    _(config.base_url).must_equal('{{{basePath}}}')
+    _(config.default_headers).must_equal({})
+  end
+
+  it 'bhv_config_020 a builder chain sets the base URL and default headers in one configuration' do
+    config = {{moduleName}}::Configuration.builder
+      .base_url('https://example.com')
+      .default_header('X-Trace', 'trace-1')
+      .default_headers({ 'X-Region' => 'eu' })
+      .build
+
+    _(config.base_url).must_equal('https://example.com')
+    _(config.default_headers).must_equal({ 'X-Trace' => 'trace-1', 'X-Region' => 'eu' })
+  end
+
+  it 'bhv_config_021 a server URL template resolves its variables to their defaults' do
+    server = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com/api/{version}',
+      description: 'Test server',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(
+          default_value: 'api',
+          enum_values: %w[api staging]
+        ),
+        'version' => {{moduleName}}::ServerVariable.new(
+          default_value: 'v3',
+          enum_values: %w[v2 v3]
+        )
+      }
+    )
+
+    _(server.url({})).must_equal('https://api.example.com/api/v3')
+  end
+
+  it 'bhv_config_022 mutating the returned default headers does not change the configuration' do
+    config = {{moduleName}}::Configuration.builder
+      .default_header('X-Trace', 'trace-1')
+      .build
+    headers = config.default_headers
+
+    _(-> { headers['X-New'] = 'x' }).must_raise FrozenError
+    _(config.default_headers).must_equal({ 'X-Trace' => 'trace-1' })
+  end
+
+  it 'bhv_config_006 builder produces independent instances' do
+    builder = {{moduleName}}::Configuration.builder
+      .base_url('https://example.com')
+    first = builder.build
+    second = builder.build
+
+    _(first).wont_be_same_as(second)
+    _(first.base_url).must_equal(second.base_url)
+  end
+
+  it 'bhv_config_017 a built configuration cannot be changed' do
+    config = {{moduleName}}::Configuration.builder
+      .default_header('X-Key', 'value')
+      .build
+
+    _(config).must_be(:frozen?)
+    _(config.default_headers).must_be(:frozen?)
+  end
+
+  it 'bhv_config_003 every builder setter returns the same builder' do
+    builder = {{moduleName}}::Configuration.builder
+
+    _(builder.base_url('https://example.com')).must_be_same_as(builder)
+    _(builder.default_header('X-Key', 'value')).must_be_same_as(builder)
+    _(builder.default_headers({ 'X-Other' => 'val' })).must_be_same_as(builder)
+
+    server = {{moduleName}}::ServerConfiguration.new(url_template: 'https://example.com')
+    _(builder.server(server)).must_be_same_as(builder)
+  end
+
+  it 'bhv_config_015 inspect and to_s hide sensitive default header values' do
+    config = {{moduleName}}::Configuration.builder
+                                          .default_header('Authorization', 'Bearer abc')
+                                          .default_header('Cookie', 'sid=1')
+                                          .default_header('X-Api-Key', 'k1')
+                                          .default_header('X-Trace', 'visible')
+                                          .build
+    [config.inspect, config.to_s].each do |text|
+      %w[abc sid=1 k1].each { |secret| _(text).wont_include secret }
+      _(text).must_include 'visible'
+    end
+  end
+
+  it 'bhv_config_004 builder merges single and bulk headers' do
+    config = {{moduleName}}::Configuration.builder
+      .default_headers({ 'X-Bulk' => 'bulk' })
+      .default_header('X-Single', 'single')
+      .build
+
+    _(config.default_headers).must_equal({ 'X-Bulk' => 'bulk', 'X-Single' => 'single' })
+  end
+
+  it 'bhv_langruby_028 has no call hook by default' do
+    _({{moduleName}}::Configuration.builder.build.call_hook).must_be_nil
+    _({{moduleName}}::Configuration.default_configuration.call_hook).must_be_nil
+  end
+
+  it 'bhv_langruby_029 builder sets the call hook and is fluent' do
+    hook = RecordingCallHook.new
+    builder = {{moduleName}}::Configuration.builder
+
+    _(builder.call_hook(hook)).must_be_same_as(builder)
+    _(builder.build.call_hook).must_be_same_as(hook)
+  end
+
+  it 'bhv_langruby_030 builder removes the call hook with nil' do
+    config = {{moduleName}}::Configuration.builder.call_hook(RecordingCallHook.new).call_hook(nil).build
+
+    _(config.call_hook).must_be_nil
+  end
+
+  it 'bhv_langruby_031 builder rejects a call hook that cannot start a call' do
+    error = _ { {{moduleName}}::Configuration.builder.call_hook(Object.new) }.must_raise ArgumentError
+
+    _(error.message).must_equal 'call_hook must respond to start'
+  end
+
+  it 'bhv_langruby_032 inspect does not print the call hook' do
+    hook = RecordingCallHook.new('secret-hook-name')
+    config = {{moduleName}}::Configuration.builder.call_hook(hook).build
+
+    _(config.inspect).wont_include 'secret-hook-name'
+    _(config.inspect).wont_include 'RecordingCallHook'
+  end
+
+  it 'bhv_misc_136 the configuration text shows the base URL and the non-sensitive default headers only' do
+    config = {{moduleName}}::Configuration.builder
+      .base_url('http://api.example.com')
+      .default_header('X-Public', 'shown')
+      .default_header('Authorization', 'Bearer secret-token')
+      .build
+    text = config.inspect
+    _(text).must_include 'http://api.example.com'
+    _(text).must_include 'X-Public'
+    _(text).wont_include 'secret-token'
+  end
+
+end

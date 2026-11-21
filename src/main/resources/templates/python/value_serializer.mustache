@@ -1,0 +1,453 @@
+{{>api_info}}
+
+import datetime
+import re
+import uuid
+from typing import Any, Dict, List, Optional, Tuple, Union
+from urllib.parse import quote
+
+from pydantic import BaseModel
+
+from .errors.serialization_exception import SerializationException
+from .object_serializer import ObjectSerializer
+
+
+class AllowReservedValue:
+    """Wraps a query value so the query-string builder preserves RFC 3986
+    reserved characters (OAS ``allowReserved: true``) instead of
+    percent-encoding them. Produced by
+    :meth:`ValueSerializer.maybe_allow_reserved` and unwrapped when the query
+    string is assembled.
+
+    Holds the serialized query value (a ``str``, or a ``list`` of strings for
+    exploded parameters) untouched.
+    """
+
+    __slots__ = ('value',)
+
+    def __init__(self, value: Union[str, List[str]]) -> None:
+        self.value = value
+
+
+class ValueSerializer:
+    """Serializes parameter values for HTTP requests based on their location and format.
+
+    Converts values into their string representations suitable for HTTP request
+    paths, query strings, and headers. Handles null values, collections with various
+    collection formats, and URL encoding.
+    """
+
+    @staticmethod
+    def _narrow_to_date(value: Any, schema_type: str) -> Any:
+        """Keep a ``format: date`` parameter a calendar date.
+
+        A ``datetime`` is a ``date`` subclass, so a caller who passes one for a
+        ``format: date`` parameter would otherwise send a full date-time.
+        """
+        if schema_type != 'date':
+            return value
+        if isinstance(value, datetime.datetime):
+            return value.date()
+        if isinstance(value, list):
+            return [item.date() if isinstance(item, datetime.datetime) else item for item in value]
+        return value
+
+    @classmethod
+    def serialize(
+        cls,
+        value: Any,
+        location: str,
+        schema_type: str,
+        collection_format: Optional[str] = None,
+    ) -> Union[str, List[str], None]:
+        """Serialize a value for inclusion in an HTTP request.
+
+        Args:
+            value: The value to serialize.
+            location: Where the parameter appears ('path', 'query', 'header', 'form').
+            schema_type: The OpenAPI schema type of the parameter.
+            collection_format: For array parameters, how to format the collection
+                ('multi', 'csv', 'ssv', 'tsv', 'pipes'). Defaults to 'csv'.
+
+        Returns:
+            The serialized string, a list of strings (for 'multi' format), or None.
+        """
+        if isinstance(value, (set, frozenset, tuple)):
+            value = list(value)
+        if isinstance(value, AllowReservedValue) and isinstance(value.value, str):
+            return cls.encode_query_allowing_reserved(value.value)
+        value = cls._narrow_to_date(value, schema_type)
+
+        if value is None:
+            if location == 'query':
+                return None
+            return ''
+
+        if isinstance(value, list):
+            if location == 'path':
+                # Each item is encoded on its own, so a comma inside an item
+                # stays literal data while the list separator stays a comma.
+                return ','.join(quote(ObjectSerializer.stringify(v), safe='') for v in value)
+            if location == 'query':
+                if collection_format == 'multi':
+                    return [ObjectSerializer.stringify(v) for v in value]
+                elif collection_format == 'ssv':
+                    return ' '.join(ObjectSerializer.stringify(v) for v in value)
+                elif collection_format == 'tsv':
+                    return '\t'.join(ObjectSerializer.stringify(v) for v in value)
+                elif collection_format == 'pipes':
+                    return '|'.join(ObjectSerializer.stringify(v) for v in value)
+                else:
+                    return ','.join(ObjectSerializer.stringify(v) for v in value)
+            if location == 'header':
+                return ','.join(ObjectSerializer.stringify(v) for v in value)
+
+        str_val = ObjectSerializer.stringify(value)
+
+        if location == 'path':
+            return cls.encode_path_segment(str_val)
+
+        return str_val
+
+    @staticmethod
+    def encode_path_segment(value: str) -> str:
+        """Percent-encodes a value for use as a URL path segment.
+
+        Encodes characters that are not allowed in a URI path segment per RFC 3986,
+        but preserves the sub-delimiters that OAS 3.0 matrix/label/simple styles
+        use as structural separators: ; = , : @ ! $ & ' ( ) * +
+
+        Args:
+            value: The raw string to encode.
+
+        Returns:
+            The percent-encoded path segment string.
+        """
+        if not value:
+            return value
+        return quote(value, safe=";=,:@!$&'()*+")
+
+    @staticmethod
+    def encode_content(name: str, json_text: str, location: str) -> str:
+        """Encodes the JSON text of a ``content: application/json`` parameter.
+
+        The text comes from the SDK's own object serializer and is encoded
+        once, by the rule of its location: a path or cookie value is
+        percent-encoded in full, a header value is sent verbatim after a CR/LF
+        check, and a query value is returned untouched because the query
+        builder encodes it.
+
+        Args:
+            name: The parameter name, for the error message.
+            json_text: The serialized JSON text.
+            location: ``'path'``, ``'query'``, ``'header'`` or ``'cookie'``.
+
+        Returns:
+            The value to place in its location.
+
+        Raises:
+            ValueError: If a header value carries a CR or LF.
+        """
+        if location == 'path':
+            return quote(json_text, safe='')
+        if location == 'cookie':
+            # Only A-Za-z0-9 - _ ~ stay literal: quote() keeps the dot, so encode it too.
+            return quote(json_text, safe='').replace('.', '%2E')
+        if location == 'header' and ('\r' in json_text or '\n' in json_text):
+            raise ValueError(f"Header parameter '{name}' must not contain CR or LF")
+        return json_text
+
+    @staticmethod
+    def maybe_allow_reserved(
+        value: Union[str, List[str], Dict[str, str], None],
+        allow_reserved: bool,
+    ) -> Union[str, List[str], Dict[str, Any], "AllowReservedValue", None]:
+        """Wrap ``value`` in :class:`AllowReservedValue` when the parameter
+        declares ``allowReserved: true``; otherwise return it unchanged.
+
+        An exploded object (a dict of property entries) wraps each entry.
+
+        Args:
+            value: The serialized query value.
+            allow_reserved: Whether the parameter preserves reserved characters.
+
+        Returns:
+            The value, wrapped iff ``allow_reserved`` is true and the value is
+            not ``None``.
+        """
+        if value is None or not allow_reserved:
+            return value
+        if isinstance(value, dict):
+            return {key: AllowReservedValue(item) for key, item in value.items()}
+        return AllowReservedValue(value)
+
+    @staticmethod
+    def query_entries(
+        name: str,
+        value: Union[str, List[str], Dict[str, Any], "AllowReservedValue", None],
+    ) -> Dict[str, Any]:
+        """The query-string entries one parameter contributes: ``{name: value}``,
+        or one entry per property for an exploded object (form style).
+
+        Args:
+            name: The parameter name.
+            value: The result of :meth:`maybe_allow_reserved`.
+
+        Returns:
+            The entries to merge into the query parameters; empty for ``None``.
+        """
+        if value is None:
+            return {}
+        if isinstance(value, dict):
+            return dict(value)
+        return {name: value}
+
+    @staticmethod
+    def encode_query_allowing_reserved(value: str) -> str:
+        """Percent-encode a query value while leaving RFC 3986 reserved
+        characters literal (OAS ``allowReserved: true``).
+
+        Only the reserved characters RFC 3986 section 3.4 permits inside a
+        query component, ``: / ? @ ! $ & ' ( ) * + , ; =``, are left literal.
+        ``#`` is always encoded (``%23``): left literal it would start the URL
+        fragment and silently truncate the query. ``[`` and ``]`` are always
+        encoded (``%5B`` / ``%5D``): they are not query-legal, and urllib3
+        would rewrite them to those bytes anyway, so the encoder output is
+        exactly what reaches the wire. Spaces, control characters and
+        non-ASCII are percent-encoded too. A space becomes ``%20`` (never
+        ``+``), so this uses :func:`quote`, not :func:`quote_plus`.
+
+        Args:
+            value: The raw value to encode.
+
+        Returns:
+            The encoded value with reserved characters preserved.
+        """
+        return quote(value, safe="/?@!$&'()*+,;=:")
+
+    @classmethod
+    def serialize_styled(
+        cls,
+        param_name: str,
+        value: Any,
+        location: str,
+        schema_type: str,
+        collection_format: Optional[str] = None,
+        style: Optional[str] = None,
+        explode: bool = False,
+    ) -> Union[str, List[str], Dict[str, str], None]:
+        """Serialize a value applying OAS 3.0 parameter style formatting.
+
+        Args:
+            param_name: The parameter name.
+            value: The value to serialize.
+            location: Where the parameter appears ('path', 'query', 'header', 'cookie').
+            schema_type: The OpenAPI schema type of the parameter.
+            collection_format: Legacy collection format (csv/ssv/tsv/pipes/multi).
+            style: OAS 3.0 parameter style (simple, form, matrix, label,
+                spaceDelimited, pipeDelimited). If ``None``, delegates to
+                :meth:`serialize`.
+            explode: Whether to explode array/object values.
+
+        Returns:
+            The serialized string, a list of strings (for exploded form), or None.
+        """
+        # Path parameters are required components of the URL — accepting an
+        # empty string would silently produce a malformed URL like
+        # `/resource//details`, which most servers route to 404 instead of
+        # surfacing the bug at the call site. The required-non-null check
+        # lives in the operation method; here we catch the empty-string
+        # case that slips through it.
+        if location == 'path' and isinstance(value, str) and value == '':
+            raise ValueError(f"Path parameter '{param_name}' must not be empty")
+        # A '.' or '..' segment is path navigation (RFC 3986 section 5.2.4):
+        # urllib3 collapses it, silently re-routing the request to a different
+        # endpoint, so it is rejected before dispatch like the empty value.
+        if location == 'path' and isinstance(value, str) and value in ('.', '..'):
+            raise ValueError(f"Path parameter '{param_name}' must not be '.' or '..'")
+
+        # A parameter typed uuid.UUID refuses a plain string that is not in canonical
+        # form (8-4-4-4-12 hexadecimal digits) instead of sending it unchecked.
+        if schema_type == 'uuid.UUID' and isinstance(value, str):
+            if not re.fullmatch(r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', value):
+                raise ValueError(f"Parameter '{param_name}' is not a canonical UUID: {value!r}")
+            value = uuid.UUID(value)
+
+        if isinstance(value, (set, frozenset, tuple)):
+            value = list(value)
+        value = cls._narrow_to_date(value, schema_type)
+
+        if style is None or style == '':
+            return cls.serialize(value, location, schema_type, collection_format)
+
+        if value is None:
+            if location == 'query':
+                return None
+            return ''
+
+        if isinstance(value, (BaseModel, dict)):
+            return cls._serialize_object(param_name, value, location, style, explode)
+
+        # For path styles, percent-encode each individual item BEFORE applying
+        # the structural separators (";", "=", ".", ",") that the style defines.
+        # This ensures reserved characters inside the value are escaped while
+        # the style's structural punctuation remains literal.
+        items: List[str] = []
+        encoded_scalar = ''
+        if location == 'path':
+            if isinstance(value, list):
+                items = [cls.encode_path_segment(ObjectSerializer.stringify(v)) for v in value]
+            else:
+                encoded_scalar = cls.encode_path_segment(ObjectSerializer.stringify(value))
+        else:
+            if isinstance(value, list):
+                items = [ObjectSerializer.stringify(v) for v in value]
+
+        if style == 'matrix':
+            if isinstance(value, list):
+                if explode:
+                    return ''.join(f';{param_name}={item}' for item in items)
+                else:
+                    return f';{param_name}={",".join(items)}'
+            if location == 'path':
+                return f';{param_name}={encoded_scalar}'
+            return f';{param_name}={ObjectSerializer.stringify(value)}'
+
+        if style == 'label':
+            if isinstance(value, list):
+                if explode:
+                    return '.' + '.'.join(items)
+                else:
+                    return '.' + ','.join(items)
+            if location == 'path':
+                return f'.{encoded_scalar}'
+            return f'.{ObjectSerializer.stringify(value)}'
+
+        if style == 'spaceDelimited':
+            if isinstance(value, list):
+                if explode:
+                    return items
+                return ' '.join(items)
+            return ObjectSerializer.stringify(value)
+
+        if style == 'pipeDelimited':
+            if isinstance(value, list):
+                if explode:
+                    return items
+                return '|'.join(items)
+            return ObjectSerializer.stringify(value)
+
+        if style == 'form':
+            if isinstance(value, list):
+                if explode:
+                    return items
+                return ','.join(items)
+            return ObjectSerializer.stringify(value)
+
+        if style == 'simple':
+            if isinstance(value, list):
+                return ','.join(items)
+            if location == 'path':
+                return encoded_scalar
+            return ObjectSerializer.stringify(value)
+
+        return cls.serialize(value, location, schema_type, collection_format)
+
+    @classmethod
+    def _serialize_object(
+        cls,
+        param_name: str,
+        value: Union[Dict[str, Any], BaseModel],
+        location: str,
+        style: str,
+        explode: bool,
+    ) -> Union[str, Dict[str, str], None]:
+        """Serialize an object-valued parameter (a model or a mapping).
+
+        A model contributes its set fields under their wire (alias) names, in
+        declaration order. Form style exploded in a query becomes one
+        ``name=value`` entry per property (a dict); every other shape is a
+        single string.
+        """
+        fields = (
+            value.model_dump(by_alias=True, exclude_none=True)
+            if isinstance(value, BaseModel)
+            else {k: v for k, v in value.items() if v is not None}
+        )
+        pairs: List[Tuple[str, str]] = []
+        for key, item in fields.items():
+            cls._refuse_object_leaf(param_name, key, item)
+            text = ObjectSerializer.stringify(item)
+            if location == 'path':
+                pairs.append((cls.encode_path_segment(str(key)), cls.encode_path_segment(text)))
+            else:
+                pairs.append((str(key), text))
+        if not pairs:
+            return None if location == 'query' else ''
+        flat = [part for pair in pairs for part in pair]
+        assigned = [f'{key}={text}' for key, text in pairs]
+        csv = ','.join(flat)
+        if style == 'form':
+            if explode and location == 'query':
+                return dict(pairs)
+            if explode:
+                return '&'.join(assigned)
+            return csv
+        if style == 'matrix':
+            return ';' + ';'.join(assigned) if explode else f';{param_name}={csv}'
+        if style == 'label':
+            return '.' + ('.'.join(assigned) if explode else csv)
+        if style == 'spaceDelimited':
+            return ' '.join(flat)
+        if style == 'pipeDelimited':
+            return '|'.join(flat)
+        return ','.join(assigned) if explode else csv
+
+    @classmethod
+    def serialize_deep_object(
+        cls,
+        param_name: str,
+        value: Union[Dict[str, Any], BaseModel, None],
+    ) -> Dict[str, str]:
+        """Serialize a deepObject-style query parameter.
+
+        Produces a dict of flattened keys in the form ``param_name[key]`` to
+        stringified values, suitable for inclusion in a query string.
+
+        Args:
+            param_name: The parameter name (e.g. 'filter').
+            value: The dict or model value to serialize. A model contributes
+                its set fields under their wire (alias) names.
+
+        Returns:
+            A dict of expanded keys to serialized values.
+        """
+        result: Dict[str, str] = {}
+        if value is None:
+            return result
+        fields = (
+            value.model_dump(by_alias=True, exclude_none=True)
+            if isinstance(value, BaseModel)
+            else value
+        )
+        for key, val in sorted(fields.items(), key=lambda kv: str(kv[0])):
+            if val is None:
+                continue
+            ValueSerializer._refuse_object_leaf(param_name, key, val)
+            result[f'{param_name}[{key}]'] = ObjectSerializer.stringify(val)
+        return result
+
+    @staticmethod
+    def _refuse_object_leaf(param_name: str, key: Any, item: Any) -> None:
+        """Refuse a property whose value is itself an object.
+
+        A nested object has no styled wire form, so ``stringify`` would write
+        its Python repr. The other SDKs refuse it with a serialization error,
+        and so does this one.
+        """
+        if isinstance(item, (BaseModel, dict)):
+            raise SerializationException(
+                f"Parameter '{param_name}' property '{key}' is an object; "
+                'a nested object cannot be written as a styled parameter'
+            )
+

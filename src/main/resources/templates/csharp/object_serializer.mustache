@@ -1,0 +1,1604 @@
+{{>api_info}}
+
+using {{packageName}}.Errors;
+using System.Collections;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+
+namespace {{packageName}};
+
+/// <summary>
+/// Implemented by every generated oneOf wrapper so the serializer can unwrap
+/// it without reflection, which keeps the SDK trim-safe.
+/// </summary>
+internal interface IOneOfWrapper
+{
+    /// <summary>The wrapped variant.</summary>
+    object? ActualInstance { get; }
+
+    /// <summary>Whether the wrapped value is one of the union's declared variants.</summary>
+    bool HoldsVariant { get; }
+}
+
+/// <summary>
+/// Handles JSON serialization and deserialization for API requests and responses.
+/// All serde operations in the generated client route through this class.
+/// The parameter encoding methods provide consistent value conversion for
+/// URL path, query string, header, and form parameters.
+/// </summary>
+internal partial class ObjectSerializer
+{
+    /// <summary>
+    /// Maximum allowed JSON nesting depth. A malicious 100k-deep
+    /// <c>{"a":{"a":...}}</c> payload must be refused rather than recurse
+    /// through the call stack, so the cap is pinned here rather than left to
+    /// the parser's default. All twelve SDKs use the same cap.
+    /// </summary>
+    internal const int MaxJsonDepth = 1000;
+
+    private readonly JsonSerializerOptions _options;
+
+    public ObjectSerializer()
+    {
+        _options = CreateDefaultOptions();
+    }
+
+    /// <summary>
+    /// Serialize an object to a JSON string.
+    /// Unwraps a oneOf wrapper by serializing its single <c>ActualInstance</c>.
+    /// An anyOf wrapper (identified by a <c>MatchedInstances</c> property) is
+    /// serialized through its own converter instead, so the inclusive union of
+    /// every retained variant's fields is emitted and a co-satisfied payload
+    /// round-trips losslessly rather than collapsing to the first variant.
+    /// </summary>
+    /// <exception cref="SerializationException">
+    /// Thrown when the value cannot be serialized to JSON. The underlying
+    /// <see cref="JsonException"/> (or other native serializer failure) is
+    /// preserved as the inner exception so the SDK never leaks
+    /// <c>System.Text.Json</c> types out of its public surface.
+    /// </exception>
+    public string Serialize(object? value)
+    {
+        /* An anyOf wrapper carries a MatchedInstances list and is serialized
+         * through its own JsonConverter so the union of every retained
+         * variant's fields is emitted; only a oneOf wrapper is unwrapped to its
+         * single ActualInstance. */
+        if (value is IOneOfWrapper wrapper)
+        {
+            if (!wrapper.HoldsVariant)
+            {
+                throw new SerializationException(
+                    $"A value of type {wrapper.ActualInstance?.GetType().Name ?? "null"} is not a variant of the {value.GetType().Name} union");
+            }
+            value = wrapper.ActualInstance;
+        }
+        value = WithSortedKeys(value);
+        try
+        {
+            return JsonSerializer.Serialize(value, _options);
+        }
+        catch (JsonException e)
+        {
+            throw new SerializationException($"Failed to serialize object to JSON: {e.Message}", e);
+        }
+        catch (NotSupportedException e)
+        {
+            throw new SerializationException($"Failed to serialize object to JSON: {e.Message}", e);
+        }
+        catch (ArgumentException e)
+        {
+            /* A non-finite float (NaN, ±Infinity) makes Utf8JsonWriter throw an
+               ArgumentException — "values such as positive and negative infinity
+               cannot be written as valid JSON" (RFC 8259 §6). Wrap it so the SDK
+               never leaks a native serde exception and non-finite floats reject
+               with the SDK's SerializationException, matching the other SDKs. */
+            throw new SerializationException($"Failed to serialize object to JSON: {e.Message}", e);
+        }
+    }
+
+    /// <summary>
+    /// Deserialize a JSON string to an object of the specified type.
+    /// </summary>
+    /// <exception cref="SerializationException">
+    /// Thrown when the JSON is malformed or does not match the target type.
+    /// The underlying <see cref="JsonException"/> (or other native
+    /// serializer failure) is preserved as the inner exception so the SDK
+    /// never leaks <c>System.Text.Json</c> types out of its public surface.
+    /// </exception>
+    public T? Deserialize<T>(string? json)
+    {
+        if (string.IsNullOrEmpty(json))
+        {
+            return default;
+        }
+        /* utf8-bom-strip: System.Text.Json does not strip a leading UTF-8 BOM
+         * (U+FEFF) from string input, so a BOM-prefixed body would throw a
+         * JsonException on the very first token. Strip it before parsing to
+         * match the other language SDKs, which all tolerate a leading BOM. */
+        if (json[0] == '\uFEFF')
+        {
+            json = json[1..];
+        }
+        RejectExcessiveDepth(json);
+        T? result;
+        try
+        {
+            result = JsonSerializer.Deserialize<T>(json, _options);
+        }
+        catch (JsonException e)
+        {
+            throw new SerializationException(
+                $"Failed to deserialize JSON: {e.Message}",
+                e
+            );
+        }
+        catch (NotSupportedException e)
+        {
+            throw new SerializationException(
+                $"Failed to deserialize JSON: {e.Message}",
+                e
+            );
+        }
+        catch (Exception e) when (e is FormatException or OverflowException)
+        {
+            /* A converter that parses a scalar (date, number, duration) must
+               never leak the BCL parse failure: it is a wire-shape error. */
+            throw new SerializationException(
+                $"Failed to deserialize JSON: {e.Message}",
+                e
+            );
+        }
+        RejectNullModelElements(result, typeof(T));
+        return result;
+    }
+
+    /// <summary>
+    /// Refuses a document nested deeper than <see cref="MaxJsonDepth"/> before
+    /// any parsing, with the message every SDK shares. The scan skips string
+    /// contents, so brackets inside a string never count.
+    /// </summary>
+    private static void RejectExcessiveDepth(string json)
+    {
+        int depth = 0;
+        bool inString = false;
+        bool escaped = false;
+        foreach (char c in json)
+        {
+            if (inString)
+            {
+                if (escaped)
+                {
+                    escaped = false;
+                }
+                else if (c == '\\')
+                {
+                    escaped = true;
+                }
+                else if (c == '"')
+                {
+                    inString = false;
+                }
+                continue;
+            }
+            if (c == '"')
+            {
+                inString = true;
+            }
+            else if (c is '{' or '[')
+            {
+                depth++;
+                if (depth > MaxJsonDepth)
+                {
+                    throw new SerializationException(
+                        $"JSON nesting depth {depth} exceeds limit {MaxJsonDepth}");
+                }
+            }
+            else if (c is '}' or ']')
+            {
+                depth--;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A null element in an array or map of models is not an object, so it is
+    /// rejected rather than handed to the caller: the generated element type
+    /// cannot say whether the items schema is nullable, so null model
+    /// elements are always refused.
+    /// </summary>
+    private static void RejectNullModelElements(object? value, System.Type targetType)
+    {
+        System.Type? elementType = null;
+        if (targetType.IsGenericType)
+        {
+            System.Type[] arguments = targetType.GetGenericArguments();
+            elementType = arguments[^1];
+        }
+        else if (targetType.IsArray)
+        {
+            elementType = targetType.GetElementType();
+        }
+        if (elementType is null || !IsModelType(elementType))
+        {
+            return;
+        }
+        IEnumerable? elements = value switch
+        {
+            IDictionary dictionary => dictionary.Values,
+            IEnumerable enumerable => enumerable,
+            _ => null,
+        };
+        if (elements is null)
+        {
+            return;
+        }
+        foreach (object? element in elements)
+        {
+            if (element is null)
+            {
+                throw new SerializationException(
+                    $"Failed to deserialize JSON: null element in a collection of {elementType.Name}");
+            }
+        }
+    }
+
+    private static bool IsModelType(System.Type type)
+    {
+        return type.IsClass
+            && string.Equals(type.Namespace, "{{packageName}}.Models", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Convert a scalar value to its canonical string representation.
+    /// Booleans are lowercased, date/time values use ISO 8601 round-trip format,
+    /// <see cref="TimeOnly"/> uses HH:mm:ss, plus .fff only when the millisecond
+    /// part is non-zero (OAS <c>format:time</c>),
+    /// <see cref="TimeSpan"/> uses protobuf-JSON duration form (OAS <c>format:duration</c>),
+    /// and null values return an empty string.
+    /// </summary>
+    public static string Stringify(object? value)
+    {
+        return value switch
+        {
+            null => "",
+            bool b => b ? "true" : "false",
+            byte[] bytes => Convert.ToBase64String(bytes),
+            DateOnly d => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            TimeOnly t => FormatTime(t),
+            TimeSpan ts => ProtobufDurationConverter.Format(ts),
+            System.Net.IPAddress ip => IPAddressConverter.Format(ip),
+            DateTimeOffset dto => dto.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", System.Globalization.CultureInfo.InvariantCulture),
+            DateTime dt => new DateTimeOffset(dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", System.Globalization.CultureInfo.InvariantCulture),
+            Enum e => StringifyEnum(e),
+            double d => FormatRealNumber(d, ((IFormattable)d).ToString(null, System.Globalization.CultureInfo.InvariantCulture)),
+            float fl => FormatRealNumber(fl, ((IFormattable)fl).ToString(null, System.Globalization.CultureInfo.InvariantCulture)),
+            IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+            _ => value.ToString() ?? "",
+        };
+    }
+
+    /// <summary>
+    /// Formats a <see cref="TimeOnly"/> as the RFC 3339 partial-time
+    /// <c>HH:mm:ss</c>, with <c>.fff</c> appended only when the millisecond
+    /// part is non-zero. Sub-millisecond digits are truncated, never rounded.
+    /// </summary>
+    /// <param name="value">The time of day.</param>
+    /// <returns>The wire text.</returns>
+    internal static string FormatTime(TimeOnly value)
+    {
+        string text = value.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+        long milliseconds = value.Ticks / TimeSpan.TicksPerMillisecond % 1000;
+        return milliseconds == 0
+            ? text
+            : text + "." + milliseconds.ToString("D3", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Reports whether a value has a single canonical text form under
+    /// <see cref="Stringify"/>: strings, booleans, numbers, dates, times,
+    /// durations, uuids, enums and format:byte arrays. Models, maps and other
+    /// collections are not scalars.
+    /// </summary>
+    public static bool IsScalar(object? value)
+    {
+        return value is string or bool or char or byte[] or Uri or IFormattable;
+    }
+
+    /// <summary>
+    /// Keeps a ".0" on a whole-number float so it stringifies like the other
+    /// SDKs (Go's formatFloat, Java's String.valueOf, ...) rather than collapsing
+    /// to "1": C#'s default "G" format drops the fraction. Non-whole and
+    /// non-finite values keep their "G" rendering unchanged.
+    /// </summary>
+    private static string FormatRealNumber(double value, string formatted)
+    {
+        if (double.IsFinite(value)
+            && !formatted.Contains('.', StringComparison.Ordinal)
+            && !formatted.Contains('E', StringComparison.Ordinal)
+            && !formatted.Contains('e', StringComparison.Ordinal))
+        {
+            return formatted + ".0";
+        }
+        return formatted;
+    }
+
+    /// <summary>
+    /// Stringifies an enum to its OpenAPI wire value (not the C# member name)
+    /// for use in query, path, and header parameters. The generated
+    /// <c>[JsonConverter]</c> on each enum maps members to their wire strings,
+    /// so the value is serialized through it and the surrounding JSON quotes
+    /// are stripped. Enums without a string converter (e.g. integer enums)
+    /// serialize to their numeric form, which is itself the wire value.
+    /// </summary>
+    private static string StringifyEnum(Enum value)
+    {
+        string json = JsonSerializer.Serialize(value, value.GetType());
+        return json.Length >= 2 && json[0] == '"' && json[^1] == '"'
+            ? json[1..^1]
+            : json;
+    }
+
+    /// <summary>
+    /// Convert a value to a string suitable for use as a URL path parameter.
+    /// </summary>
+    public static string ToPathValue(object? value)
+    {
+        return Stringify(value);
+    }
+
+    /// <summary>
+    /// Convert a value to a representation suitable for use as a query parameter.
+    /// For collections, joins using the specified collection format delimiter.
+    /// </summary>
+    public static object? ToQueryValue(object? value, string? collectionFormat)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+        if (value is IList list)
+        {
+            List<string> items = [];
+            foreach (object? item in list)
+            {
+                items.Add(Stringify(item));
+            }
+            if (collectionFormat == "multi")
+            {
+                return items;
+            }
+            string sep = collectionFormat switch
+            {
+                "ssv" => " ",
+                "tsv" => "\t",
+                "pipes" => "|",
+                _ => ",",
+            };
+            return string.Join(sep, items);
+        }
+        return Stringify(value);
+    }
+
+    /// <summary>
+    /// Convert a value to a string suitable for use as an HTTP header value.
+    /// </summary>
+    public static string ToHeaderValue(object? value)
+    {
+        if (value == null)
+        {
+            return "";
+        }
+        if (value is IList list)
+        {
+            List<string> items = [];
+            foreach (object? item in list)
+            {
+                items.Add(Stringify(item));
+            }
+            return string.Join(",", items);
+        }
+        return Stringify(value);
+    }
+
+    /// <summary>
+    /// Convert a value to a string suitable for use as an HTTP cookie value.
+    /// Cookie values follow the same encoding rules as header values.
+    /// </summary>
+    public static string ToCookieValue(object? value)
+    {
+        return ToHeaderValue(value);
+    }
+
+    /// <summary>
+    /// Convert a value to a representation suitable for use as a form parameter.
+    /// </summary>
+    public static string ToFormValue(object? value)
+    {
+        return Stringify(value);
+    }
+
+    /// <summary>
+    /// Resolve a oneOf schema by trying each candidate deserializer in order.
+    /// Each candidate is a function that accepts a parsed <see cref="JsonElement"/>
+    /// and returns a deserialized value, or throws on failure.
+    /// Returns the first successful deserialization result, or throws a
+    /// <see cref="JsonException"/> when no candidate matches — a payload that
+    /// satisfies none of the declared variants is a contract violation and must
+    /// fail loudly rather than be silently dropped to null.
+    /// </summary>
+    internal static object ResolveOneOf(JsonElement json, params Func<JsonElement, object?>[] candidates)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        foreach (Func<JsonElement, object?> candidate in candidates)
+        {
+            try
+            {
+                object? result = candidate(json);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+            catch (JsonException)
+            {
+            }
+            catch (NotSupportedException)
+            {
+            }
+        }
+
+        throw new JsonException("No oneOf/anyOf variant matched the JSON");
+    }
+
+    /// <summary>
+    /// Resolve an anyOf schema by trying each candidate deserializer in order.
+    /// Delegates to <see cref="ResolveOneOf"/>.
+    /// Each candidate is a function that accepts a parsed <see cref="JsonElement"/>
+    /// and returns a deserialized value, or throws on failure.
+    /// Returns the first successful deserialization result, or throws a
+    /// <see cref="JsonException"/> when no candidate matches.
+    /// </summary>
+    internal static object ResolveAnyOf(JsonElement json, params Func<JsonElement, object?>[] candidates)
+    {
+        return ResolveOneOf(json, candidates);
+    }
+
+    private static JsonSerializerOptions CreateDefaultOptions()
+    {
+        JsonSerializerOptions options = new()
+        {
+            /* Refuse a deeply-nested payload before it can recurse through the
+             * call stack. */
+            MaxDepth = MaxJsonDepth,
+            PropertyNamingPolicy = null,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            WriteIndented = false,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            /* Pin the reflection-based metadata resolver. When a consuming app
+             * is published with PublishTrimmed (Release Blazor WebAssembly,
+             * single-file, ...), the trimmer disables reflection serialization
+             * by default, which would make every Serialize/Deserialize throw
+             * "reflection-based serialization has been disabled". The model
+             * members themselves are preserved by the embedded
+             * ILLink.Descriptors.xml keep-list, so reflection is safe here. */
+            TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
+            {
+                Modifiers = { TypedAdditionalProperties, DropExtensionDataCollisions },
+            },
+        };
+        /* No global JsonStringEnumConverter: every generated enum carries its
+         * own [JsonConverter(typeof(XxxConverter))] that maps to the exact
+         * OpenAPI wire value (e.g. "available"). System.Text.Json ranks an
+         * options-registered converter ABOVE a type-level [JsonConverter]
+         * attribute, so a global string-enum converter here would shadow those
+         * per-enum converters on the write path and emit the C# member name
+         * ("Available") instead of the wire value. The per-enum converters
+         * cover every enum, so no global fallback is needed. */
+        options.Converters.Add(new DateTimeOffsetJsonConverter());
+        options.Converters.Add(new TimeOnlyJsonConverter());
+        /* 4.8: TimeSpan's default System.Text.Json form is the .NET
+         * "[d.]hh:mm:ss[.fff]" string, which would not round-trip with
+         * any other language SDK. Register the protobuf-JSON duration
+         * converter so format:duration values are emitted as
+         * "3600s"-style strings matching protobuf's canonical JSON
+         * mapping (the wire format a gRPC-gateway expects). */
+        options.Converters.Add(new ProtobufDurationConverter());
+        /* format:byte decodes strict RFC 4648 base64 and format:uri requires
+         * an absolute URI; both replace the lenient System.Text.Json defaults. */
+        options.Converters.Add(new StrictBase64Converter());
+        options.Converters.Add(new AbsoluteUriConverter());
+        options.Converters.Add(new IPAddressConverter());
+        options.Converters.Add(new LiteralStringConverter());
+        options.Converters.Add(new FiniteDoubleConverter());
+        options.Converters.Add(new HashSetJsonConverterFactory());
+        return options;
+    }
+
+    /// <summary>
+    /// A model with a typed additionalProperties keeps its typed dictionary in a public
+    /// property ignored by System.Text.Json, because the library only fills an
+    /// extension-data dictionary of <see cref="JsonElement"/>. This modifier converts
+    /// that raw dictionary into the typed one after a payload is decoded, with the
+    /// converters of the options in use, and hands the writer the typed values in their
+    /// wire form. A wrong JSON type, or a null where the value schema is not nullable,
+    /// fails the decode with a <see cref="JsonException"/>.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075",
+        Justification = "The model members are preserved by the embedded ILLink.Descriptors.xml keep-list.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "The serializer is pinned to the reflection resolver, and the models are kept.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "The serializer is pinned to the reflection resolver.")]
+    private static void TypedAdditionalProperties(
+        System.Text.Json.Serialization.Metadata.JsonTypeInfo typeInfo)
+    {
+        if (typeInfo.Kind != System.Text.Json.Serialization.Metadata.JsonTypeInfoKind.Object)
+        {
+            return;
+        }
+        System.Reflection.PropertyInfo? bucket = typeInfo.Type.GetProperty(
+            "AdditionalProperties", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        if (bucket is null
+            || !System.Attribute.IsDefined(bucket, typeof(JsonIgnoreAttribute))
+            || !bucket.PropertyType.IsGenericType
+            || bucket.PropertyType.GetGenericArguments() is not [_, Type valueType])
+        {
+            return;
+        }
+        System.Text.Json.Serialization.Metadata.JsonPropertyInfo? extension = null;
+        foreach (System.Text.Json.Serialization.Metadata.JsonPropertyInfo property in typeInfo.Properties)
+        {
+            if (property.IsExtensionData)
+            {
+                extension = property;
+            }
+        }
+        if (extension?.Get is not Func<object, object?> rawGetter)
+        {
+            return;
+        }
+        bool nullable = new System.Reflection.NullabilityInfoContext()
+            .Create(bucket).GenericTypeArguments[1].ReadState == System.Reflection.NullabilityState.Nullable;
+        JsonSerializerOptions options = typeInfo.Options;
+        if (extension.Set is not Action<object, object?> rawSetter)
+        {
+            return;
+        }
+        /* Writing: the raw dictionary is replaced by a fresh one holding the typed values in
+         * their wire form, so a shared instance is never mutated while another thread
+         * writes it. */
+        Action<object>? existingSerializing = typeInfo.OnSerializing;
+        typeInfo.OnSerializing = owner =>
+        {
+            existingSerializing?.Invoke(owner);
+            Dictionary<string, JsonElement> wire = new(StringComparer.Ordinal);
+            foreach (DictionaryEntry entry in (IDictionary)bucket.GetValue(owner)!)
+            {
+                wire[(string)entry.Key] = JsonSerializer.SerializeToElement(entry.Value, valueType, options);
+            }
+            rawSetter(owner, wire);
+        };
+        Action<object>? existing = typeInfo.OnDeserialized;
+        typeInfo.OnDeserialized = owner =>
+        {
+            existing?.Invoke(owner);
+            if (rawGetter(owner) is not Dictionary<string, JsonElement> raw)
+            {
+                return;
+            }
+            IDictionary typed = (IDictionary)bucket.GetValue(owner)!;
+            foreach (KeyValuePair<string, JsonElement> entry in raw)
+            {
+                if (entry.Value.ValueKind == JsonValueKind.Null && !nullable)
+                {
+                    throw new JsonException(
+                        $"Additional property '{entry.Key}' is null but its value schema is not nullable");
+                }
+                typed[entry.Key] = entry.Value.Deserialize(valueType, options);
+            }
+            raw.Clear();
+        };
+    }
+
+    /// <summary>
+    /// A declared property is authoritative over an additionalProperties entry
+    /// with the same wire name: System.Text.Json writes [JsonExtensionData]
+    /// after the declared properties without de-duplicating, so the extension
+    /// data getter is wrapped to hand the writer a copy without the colliding
+    /// keys. No JSON object is ever written with a duplicate key. Decoding
+    /// never produces a collision, so the getter returns the caller's
+    /// dictionary unchanged whenever no key collides.
+    /// </summary>
+    private static void DropExtensionDataCollisions(
+        System.Text.Json.Serialization.Metadata.JsonTypeInfo typeInfo)
+    {
+        if (typeInfo.Kind != System.Text.Json.Serialization.Metadata.JsonTypeInfoKind.Object)
+        {
+            return;
+        }
+        System.Text.Json.Serialization.Metadata.JsonPropertyInfo? extensionData = null;
+        HashSet<string> declared = new(StringComparer.Ordinal);
+        foreach (System.Text.Json.Serialization.Metadata.JsonPropertyInfo property in typeInfo.Properties)
+        {
+            if (property.IsExtensionData)
+            {
+                extensionData = property;
+            }
+            else
+            {
+                _ = declared.Add(property.Name);
+            }
+        }
+        if (extensionData?.Get is not Func<object, object?> getter || declared.Count == 0)
+        {
+            return;
+        }
+        extensionData.Get = owner => getter(owner) switch
+        {
+            Dictionary<string, object> values => WithoutDeclaredKeys(values, declared),
+            Dictionary<string, JsonElement> elements => WithoutDeclaredKeys(elements, declared),
+            object other => other,
+            null => null,
+        };
+    }
+
+    /// <summary>
+    /// Returns a plain map (any non-JSON-tree <see cref="IDictionary"/>, at any
+    /// depth) as a <see cref="SortedDictionary{TKey,TValue}"/> keyed by ordinal
+    /// comparison, so its keys are written in ascending order. Models and other
+    /// values are returned unchanged and keep their declared property order.
+    /// </summary>
+    private static object? WithSortedKeys(object? value, int depth = 0)
+    {
+        /* A self-referencing dictionary would recurse forever: stop sorting past a sane depth and let
+           the JSON writer report the cycle through its own maximum depth. */
+        if (depth > 64 || value is not IDictionary dictionary || value is JsonNode)
+        {
+            return value;
+        }
+        SortedDictionary<string, object?> sorted = new(StringComparer.Ordinal);
+        foreach (DictionaryEntry entry in dictionary)
+        {
+            if (entry.Key is not string key)
+            {
+                return value;
+            }
+            sorted.Add(key, WithSortedKeys(entry.Value, depth + 1));
+        }
+        return sorted;
+    }
+
+    private static Dictionary<string, TValue> WithoutDeclaredKeys<TValue>(
+        Dictionary<string, TValue> source, HashSet<string> declared)
+    {
+        if (!source.Keys.Any(declared.Contains))
+        {
+            return source;
+        }
+        Dictionary<string, TValue> filtered = new(source.Count, source.Comparer);
+        foreach (KeyValuePair<string, TValue> entry in source)
+        {
+            if (!declared.Contains(entry.Key))
+            {
+                filtered[entry.Key] = entry.Value;
+            }
+        }
+        return filtered;
+    }
+
+    /// <summary>
+    /// Serializes DateTimeOffset values as ISO 8601 strings with millisecond
+    /// precision, matching the format used by all other language generators:
+    /// yyyy-MM-dd'T'HH:mm:ss.fffzzz. Millisecond (3-digit) sub-second precision
+    /// is emitted so the fraction the reader accepts is also written, keeping
+    /// the round-trip lossless instead of truncating to whole seconds.
+    /// </summary>
+    private sealed partial class DateTimeOffsetJsonConverter : System.Text.Json.Serialization.JsonConverter<DateTimeOffset>
+    {
+        private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fffzzz";
+
+        private static readonly string[] RoundTripFormats =
+        [
+            "yyyy-MM-dd'T'HH:mm:ssK",
+            "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
+        ];
+
+        /* [0-9], not \d: in .NET \d also matches non-ASCII digits. */
+        [System.Text.RegularExpressions.GeneratedRegex(
+            @"^(?<seconds>[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2})(?<fraction>\.[0-9]+)?(?<offset>[Zz]|[+-][0-9]{2}:[0-9]{2})$")]
+        private static partial System.Text.RegularExpressions.Regex Rfc3339DateTimePattern();
+
+        public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            /* A malformed date-time is a wire-shape failure: raise JsonException
+               (wrapped as SerializationException by Deserialize) rather than
+               letting DateTimeOffset.Parse leak a raw FormatException. */
+            if (reader.TokenType != JsonTokenType.String)
+            {
+                throw new JsonException($"Expected a JSON string for a date-time but got {reader.TokenType}.");
+            }
+            string text = reader.GetString()!;
+            return ParseRfc3339(text);
+        }
+
+        /// <summary>
+        /// Parses an RFC 3339 date-time: YYYY-MM-DDTHH:MM:SS, an optional
+        /// fraction of any length, then Z or a +-HH:MM offset. Offset-less,
+        /// date-only, free-text and epoch inputs are rejected, so the host
+        /// time zone and the current date are never consulted.
+        /// </summary>
+        internal static DateTimeOffset ParseRfc3339(string text)
+        {
+            System.Text.RegularExpressions.Match match = Rfc3339DateTimePattern().Match(text);
+            if (!match.Success)
+            {
+                throw new JsonException($"Invalid date-time: {text}");
+            }
+            /* .NET parses at most seven fraction digits (100 ns ticks), so a
+             * longer fraction is truncated to that precision before parsing. */
+            string fraction = match.Groups["fraction"].Value;
+            string normalized = match.Groups["seconds"].Value
+                + (fraction.Length > 8 ? fraction[..8] : fraction)
+                + match.Groups["offset"].Value;
+            if (!DateTimeOffset.TryParseExact(
+                    normalized.ToUpperInvariant(),
+                    RoundTripFormats,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out DateTimeOffset value))
+            {
+                throw new JsonException($"Invalid date-time: {text}");
+            }
+            return value;
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString(Format, System.Globalization.CultureInfo.InvariantCulture));
+        }
+    }
+
+    /// <summary>
+    /// Serializes <see cref="TimeOnly"/> values (OAS <c>format:time</c>) as
+    /// <c>HH:mm:ss</c>, plus <c>.fff</c> only when the millisecond part is
+    /// non-zero, the same text as a time parameter. A fraction of any length
+    /// is accepted on read; digits below the millisecond are dropped on write.
+    /// </summary>
+    private sealed class TimeOnlyJsonConverter : System.Text.Json.Serialization.JsonConverter<TimeOnly>
+    {
+        private static readonly string[] ReadFormats = ["HH:mm:ss", "HH:mm:ss.FFFFFFF"];
+
+        public override TimeOnly Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType != JsonTokenType.String)
+            {
+                throw new JsonException($"Expected a JSON string for a time but got {reader.TokenType}.");
+            }
+            string text = reader.GetString()!;
+            int dot = text.IndexOf('.', StringComparison.Ordinal);
+            string normalized = dot >= 0 && text.Length - dot - 1 > 7 ? text[..(dot + 8)] : text;
+            if (!TimeOnly.TryParseExact(
+                    normalized,
+                    ReadFormats,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out TimeOnly value))
+            {
+                throw new JsonException($"Invalid time: {text}");
+            }
+            return value;
+        }
+
+        public override void Write(Utf8JsonWriter writer, TimeOnly value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(FormatTime(value));
+        }
+    }
+
+    /// <summary>
+    /// Structural value-equality for model fields. Scalars and model instances
+    /// compare via <see cref="object.Equals(object?)"/>; collections compare
+    /// element-wise (recursively), and <c>byte[]</c> compares by content, so two
+    /// instances deserialized from identical JSON are equal even when a field is
+    /// a list, set, map, or byte array. Used by generated model
+    /// <c>Equals</c>/<c>GetHashCode</c> so models work as HashSet/Dictionary keys.
+    /// </summary>
+    public static bool StructuralEquals(object? left, object? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        if (left is byte[] leftBytes && right is byte[] rightBytes)
+        {
+            return leftBytes.AsSpan().SequenceEqual(rightBytes);
+        }
+
+        if (left is IDictionary leftDict && right is IDictionary rightDict)
+        {
+            if (leftDict.Count != rightDict.Count)
+            {
+                return false;
+            }
+
+            foreach (DictionaryEntry entry in leftDict)
+            {
+                if (!rightDict.Contains(entry.Key)
+                    || !StructuralEquals(entry.Value, rightDict[entry.Key]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /* Set-typed fields (e.g. HashSet<T>) have no defined enumeration
+           order, so element-wise comparison would report equal sets as unequal
+           when the same items were inserted in a different order. Compare them
+           by order-independent membership instead, mirroring the dictionary
+           path above. Both sides must be sets for set semantics to apply. */
+        if (IsSet(left) && IsSet(right))
+        {
+            return SetStructuralEquals((IEnumerable)left, (IEnumerable)right);
+        }
+
+        /* Strings are IEnumerable but must compare as scalars, so they fall
+           through to object.Equals below. */
+        if (left is IEnumerable leftSeq && right is IEnumerable rightSeq
+            && left is not string && right is not string)
+        {
+            IEnumerator leftEnum = leftSeq.GetEnumerator();
+            IEnumerator rightEnum = rightSeq.GetEnumerator();
+            try
+            {
+                while (true)
+                {
+                    bool leftHasNext = leftEnum.MoveNext();
+                    bool rightHasNext = rightEnum.MoveNext();
+                    if (leftHasNext != rightHasNext)
+                    {
+                        return false;
+                    }
+
+                    if (!leftHasNext)
+                    {
+                        return true;
+                    }
+
+                    if (!StructuralEquals(leftEnum.Current, rightEnum.Current))
+                    {
+                        return false;
+                    }
+                }
+            }
+            finally
+            {
+                (leftEnum as IDisposable)?.Dispose();
+                (rightEnum as IDisposable)?.Dispose();
+            }
+        }
+
+        return left.Equals(right);
+    }
+
+    /// <summary>
+    /// Debug text for a model field: collections and maps are rendered element by
+    /// element (<c>[a, b]</c>, <c>{k=v}</c>) and byte arrays as base64, never as a
+    /// collection type name.
+    /// </summary>
+    public static string Describe(object? value)
+    {
+        return value switch
+        {
+            null => "null",
+            string text => text,
+            byte[] bytes => Convert.ToBase64String(bytes),
+            IDictionary dict => DescribeDictionary(dict),
+            IEnumerable sequence => "[" + string.Join(", ", sequence.Cast<object?>().Select(Describe)) + "]",
+            _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "null",
+        };
+    }
+
+    private static string DescribeDictionary(IDictionary dict)
+    {
+        List<string> entries = new();
+        foreach (DictionaryEntry entry in dict)
+        {
+            entries.Add(Describe(entry.Key) + "=" + Describe(entry.Value));
+        }
+
+        return "{" + string.Join(", ", entries) + "}";
+    }
+
+    /// <summary>
+    /// Content-based hash code matching <see cref="StructuralEquals"/>: equal
+    /// values (including equal collections and byte arrays) hash identically.
+    /// </summary>
+    public static int StructuralHashCode(object? value)
+    {
+        if (value is null)
+        {
+            return 0;
+        }
+
+        if (value is byte[] bytes)
+        {
+            HashCode byteHash = default;
+            byteHash.AddBytes(bytes);
+            return byteHash.ToHashCode();
+        }
+
+        if (value is IDictionary dict)
+        {
+            /* Order-independent so two equal maps hash identically regardless of
+               enumeration order. */
+            int dictHash = 0;
+            foreach (DictionaryEntry entry in dict)
+            {
+                dictHash ^= HashCode.Combine(
+                    StructuralHashCode(entry.Key), StructuralHashCode(entry.Value));
+            }
+
+            return dictHash;
+        }
+
+        if (IsSet(value))
+        {
+            /* Order-independent so two equal sets hash identically regardless of
+               enumeration order (HashSet<T> has no defined order). */
+            int setHash = 0;
+            foreach (object? item in (IEnumerable)value)
+            {
+                setHash ^= StructuralHashCode(item);
+            }
+
+            return setHash;
+        }
+
+        if (value is IEnumerable seq && value is not string)
+        {
+            HashCode seqHash = default;
+            foreach (object? item in seq)
+            {
+                seqHash.Add(StructuralHashCode(item));
+            }
+
+            return seqHash.ToHashCode();
+        }
+
+        return value.GetHashCode();
+    }
+
+    /// <summary>
+    /// True when <paramref name="value"/>'s runtime type is a
+    /// <c>HashSet{T}</c>, the only set type the generator emits. Sets have no
+    /// defined enumeration order, so equality and hashing must be
+    /// order-independent.
+    /// </summary>
+    private static bool IsSet(object value)
+    {
+        Type type = value.GetType();
+        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>);
+    }
+
+    /// <summary>
+    /// Order-independent structural equality for two sets: equal iff they have
+    /// the same number of elements and every element of <paramref name="left"/>
+    /// has a structurally-equal match in <paramref name="right"/> (matches are
+    /// consumed so duplicates, were they possible, are handled correctly).
+    /// </summary>
+    private static bool SetStructuralEquals(IEnumerable left, IEnumerable right)
+    {
+        List<object?> remaining = new List<object?>();
+        foreach (object? item in right)
+        {
+            remaining.Add(item);
+        }
+
+        foreach (object? leftItem in left)
+        {
+            int matchIndex = -1;
+            for (int i = 0; i < remaining.Count; i++)
+            {
+                if (StructuralEquals(leftItem, remaining[i]))
+                {
+                    matchIndex = i;
+                    break;
+                }
+            }
+
+            /* No match means an element of left is absent from right, or left
+               has more elements than right (right already exhausted). */
+            if (matchIndex < 0)
+            {
+                return false;
+            }
+
+            remaining.RemoveAt(matchIndex);
+        }
+
+        /* Every left element consumed one right element; equal sizes iff no
+           right elements are left over. */
+        return remaining.Count == 0;
+    }
+
+}
+
+/// <summary>
+/// Serializes <see cref="TimeSpan"/> values as protobuf-JSON duration strings
+/// (the canonical JSON mapping of <c>google.protobuf.Duration</c>) so that
+/// <c>format:duration</c> schema values are accepted by protobuf/gRPC-gateway
+/// backends. The wire form is a decimal number of seconds
+/// suffixed with <c>s</c> — e.g. <c>"3600s"</c> or <c>"3600.000000001s"</c> —
+/// NOT the ISO-8601 <c>PT1H</c> form (which such servers reject with 400).
+///
+/// .NET's default <c>TimeSpan</c> JSON form is <c>[d.]hh:mm:ss[.fff]</c>, which
+/// is also rejected. Fractional seconds carry up to nanosecond precision;
+/// because <see cref="TimeSpan"/> ticks are 100-ns, the smallest representable
+/// fraction is <c>0.0000001s</c>. Negative durations carry a leading <c>-</c>.
+/// </summary>
+internal sealed partial class ProtobufDurationConverter : JsonConverter<TimeSpan>
+{
+    /* protobuf-JSON Duration: optional sign, integer seconds, optional
+     * fractional part of 1..9 digits, mandatory 's' suffix. Anything else
+     * (ISO-8601 "PT1H", a bare number, a trailing-dot form) is rejected.
+     * [0-9], not \d: in .NET \d also matches non-ASCII digits. */
+    [System.Text.RegularExpressions.GeneratedRegex(@"^-?[0-9]+(\.[0-9]{1,9})?s$")]
+    private static partial System.Text.RegularExpressions.Regex DurationPattern();
+
+    private const long TicksPerSecond = 10_000_000L;
+    private const long NanosPerTick = 100L;
+    /* protobuf bounds a Duration to +/-315576000000 seconds inclusive, even where TimeSpan could hold more. */
+    private const long MaxProtobufSeconds = 315_576_000_000L;
+
+    public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        string? s = reader.GetString();
+        if (string.IsNullOrEmpty(s))
+        {
+            throw new JsonException("protobuf duration string must not be empty");
+        }
+        return Parse(s);
+    }
+
+    public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        writer.WriteStringValue(Format(value));
+    }
+
+    /// <summary>
+    /// Formats a <see cref="TimeSpan"/> as a protobuf-JSON duration string.
+    /// Zero produces <c>0s</c>. A whole-second value produces <c>{secs}s</c>;
+    /// a sub-second value produces <c>{secs}.{frac}s</c> with the fractional
+    /// digits trimmed to 3, 6, or 9 places (the smallest grouping that keeps
+    /// every non-zero digit), matching protobuf's canonical output.
+    /// </summary>
+    public static string Format(TimeSpan value)
+    {
+        string sign = value.Ticks < 0 ? "-" : "";
+        long absTicks = Math.Abs(value.Ticks);
+        long secs = absTicks / TicksPerSecond;
+        long remainderTicks = absTicks % TicksPerSecond;
+        long nanos = remainderTicks * NanosPerTick;
+        if (nanos == 0L)
+        {
+            return $"{sign}{secs}s";
+        }
+
+        /* Zero-pad nanos to 9 digits, then trim to a 3/6/9-digit group so the
+         * shortest representation that preserves every significant digit is
+         * emitted (protobuf canonical form). */
+        string frac = nanos.ToString("D9", System.Globalization.CultureInfo.InvariantCulture);
+        int width = frac.EndsWith("000000", StringComparison.Ordinal)
+            ? 3
+            : frac.EndsWith("000", StringComparison.Ordinal) ? 6 : 9;
+        frac = frac[..width];
+        return $"{sign}{secs}.{frac}s";
+    }
+
+    /// <summary>
+    /// Parses a protobuf-JSON duration string into a <see cref="TimeSpan"/>.
+    /// Throws <see cref="JsonException"/> on anything not matching
+    /// <c>^-?[0-9]+(\.[0-9]{1,9})?s$</c> (e.g. ISO-8601 or unsuffixed numbers)
+    /// and on a value past the protobuf bound of +/-315576000000 seconds or too large for <see cref="TimeSpan"/>;
+    /// <see cref="ObjectSerializer"/> surfaces it as a
+    /// <see cref="SerializationException"/>.
+    /// </summary>
+    public static TimeSpan Parse(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (!DurationPattern().IsMatch(text))
+        {
+            throw new JsonException($"Invalid protobuf duration: {text}");
+        }
+
+        bool negative = text[0] == '-';
+        string body = text[..^1]; // strip trailing 's'
+        if (negative)
+        {
+            body = body[1..];
+        }
+
+        int dot = body.IndexOf('.', StringComparison.Ordinal);
+        string secsText = dot < 0 ? body : body[..dot];
+        try
+        {
+            long secs = long.Parse(secsText, System.Globalization.CultureInfo.InvariantCulture);
+
+            long nanos = 0L;
+            if (dot >= 0)
+            {
+                /* Right-pad the fractional part to 9 digits so each position keeps
+                 * its nanosecond weight (".5" → 500_000_000ns). */
+                string fracText = body[(dot + 1)..].PadRight(9, '0');
+                nanos = long.Parse(fracText, System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            if (secs > MaxProtobufSeconds || (secs == MaxProtobufSeconds && nanos > 0L))
+            {
+                throw new JsonException($"Invalid protobuf duration: {text}");
+            }
+
+            /* checked: a second count past TimeSpan's range must fail, not wrap. */
+            long ticks = checked((secs * TicksPerSecond) + (nanos / NanosPerTick));
+            return TimeSpan.FromTicks(negative ? -ticks : ticks);
+        }
+        catch (Exception e) when (e is FormatException or OverflowException)
+        {
+            throw new JsonException($"Invalid protobuf duration: {text}", e);
+        }
+    }
+}
+
+/// <summary>
+/// Decodes <c>format: byte</c> values as strict RFC 4648 section 4 base64:
+/// standard alphabet, length a multiple of four with <c>=</c> padding, and no
+/// whitespace, newline or URL-safe characters. System.Text.Json's default
+/// decoder tolerates embedded whitespace; this converter rejects it.
+/// </summary>
+internal sealed partial class StrictBase64Converter : JsonConverter<byte[]>
+{
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$")]
+    private static partial System.Text.RegularExpressions.Regex Base64Pattern();
+
+    public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected a base64 JSON string but got {reader.TokenType}.");
+        }
+        return Decode(reader.GetString()!);
+    }
+
+    public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        writer.WriteBase64StringValue(value);
+    }
+
+    /// <summary>
+    /// Decodes strict base64, throwing <see cref="JsonException"/> for any
+    /// input outside the standard padded alphabet.
+    /// </summary>
+    public static byte[] Decode(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (!Base64Pattern().IsMatch(text))
+        {
+            throw new JsonException("Invalid base64 value for a format:byte field");
+        }
+        return Convert.FromBase64String(text);
+    }
+}
+
+/// <summary>
+/// Decodes <c>format: uri</c> values only when they are absolute RFC 3986
+/// URIs: a scheme, a colon, then no whitespace or control characters (http,
+/// ftp, mailto and urn are all valid). Relative references, empty and
+/// whitespace-containing strings are rejected. Encoding re-emits the decoded
+/// text verbatim.
+/// </summary>
+internal sealed partial class AbsoluteUriConverter : JsonConverter<Uri>
+{
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[A-Za-z][A-Za-z0-9+.\-]*:[^\s\x00-\x1F\x7F]*$")]
+    private static partial System.Text.RegularExpressions.Regex AbsoluteUriPattern();
+
+    public override Uri Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected a URI JSON string but got {reader.TokenType}.");
+        }
+        string text = reader.GetString()!;
+        if (!AbsoluteUriPattern().IsMatch(text)
+            || !Uri.TryCreate(text, UriKind.Absolute, out Uri? uri))
+        {
+            throw new JsonException($"Invalid absolute URI: {text}");
+        }
+        return uri;
+    }
+
+    public override void Write(Utf8JsonWriter writer, Uri value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteStringValue(value.OriginalString);
+    }
+}
+
+/// <summary>
+/// Decodes <c>format: ipv4</c> and <c>format: ipv6</c> values into
+/// <see cref="System.Net.IPAddress"/> from the plain address text only: dotted
+/// decimal without leading zeros for IPv4, hexadecimal groups for IPv6. A prefix
+/// length, a zone id, brackets, whitespace or shorthand such as <c>1</c> is
+/// rejected, because <see cref="System.Net.IPAddress.TryParse(string, out System.Net.IPAddress)"/>
+/// alone accepts them. Encoding writes dotted decimal for IPv4 and the RFC 5952
+/// form (lowercase, the longest run of zero groups compressed) for IPv6.
+/// </summary>
+internal partial class IPAddressConverter : JsonConverter<System.Net.IPAddress>
+{
+    [System.Text.RegularExpressions.GeneratedRegex(@"\A(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(?:\.(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}\z")]
+    private static partial System.Text.RegularExpressions.Regex Ipv4Pattern();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\A[0-9A-Fa-f:.]+\z")]
+    private static partial System.Text.RegularExpressions.Regex Ipv6Pattern();
+
+    /// <summary>The address family this converter accepts, or none for either.</summary>
+    protected virtual System.Net.Sockets.AddressFamily? Family => null;
+
+    public override System.Net.IPAddress Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected an IP address JSON string but got {reader.TokenType}.");
+        }
+        string text = reader.GetString()!;
+        return Parse(text, Family);
+    }
+
+    public override void Write(Utf8JsonWriter writer, System.Net.IPAddress value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteStringValue(Format(value));
+    }
+
+    /// <summary>
+    /// Parses the plain text of an address of the given family (either, when null).
+    /// Throws <see cref="JsonException"/> on anything else.
+    /// </summary>
+    public static System.Net.IPAddress Parse(string text, System.Net.Sockets.AddressFamily? family)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        bool v4 = Ipv4Pattern().IsMatch(text);
+        bool v6 = !v4 && Ipv6Pattern().IsMatch(text);
+        if ((!v4 && !v6)
+            || (family == System.Net.Sockets.AddressFamily.InterNetwork && !v4)
+            || (family == System.Net.Sockets.AddressFamily.InterNetworkV6 && !v6)
+            || !System.Net.IPAddress.TryParse(text, out System.Net.IPAddress? address)
+            || address.AddressFamily != (v4 ? System.Net.Sockets.AddressFamily.InterNetwork : System.Net.Sockets.AddressFamily.InterNetworkV6))
+        {
+            throw new JsonException($"Invalid IP address: {text}");
+        }
+        return address;
+    }
+
+    /// <summary>Formats an address as dotted decimal (IPv4) or RFC 5952 text (IPv6).</summary>
+    public static string Format(System.Net.IPAddress value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        byte[] bytes = value.GetAddressBytes();
+        if (bytes.Length == 4)
+        {
+            return $"{bytes[0]}.{bytes[1]}.{bytes[2]}.{bytes[3]}";
+        }
+
+        int[] groups = new int[8];
+        for (int i = 0; i < 8; i++)
+        {
+            groups[i] = (bytes[2 * i] << 8) | bytes[(2 * i) + 1];
+        }
+
+        int bestStart = -1;
+        int bestLength = 0;
+        for (int i = 0; i < 8;)
+        {
+            if (groups[i] != 0)
+            {
+                i++;
+                continue;
+            }
+            int j = i;
+            while (j < 8 && groups[j] == 0)
+            {
+                j++;
+            }
+            if (j - i > bestLength)
+            {
+                bestStart = i;
+                bestLength = j - i;
+            }
+            i = j;
+        }
+        if (bestLength < 2)
+        {
+            bestStart = -1;
+        }
+
+        var text = new System.Text.StringBuilder();
+        for (int i = 0; i < 8; i++)
+        {
+            if (i == bestStart)
+            {
+                text.Append("::");
+                i += bestLength - 1;
+                continue;
+            }
+            if (text.Length > 0 && text[^1] != ':')
+            {
+                text.Append(':');
+            }
+            text.Append(groups[i].ToString("x", System.Globalization.CultureInfo.InvariantCulture));
+        }
+        return text.ToString();
+    }
+}
+
+/// <summary>An <c>ipv4</c> property: only an IPv4 address text is accepted.</summary>
+internal sealed class Ipv4AddressConverter : IPAddressConverter
+{
+    protected override System.Net.Sockets.AddressFamily? Family => System.Net.Sockets.AddressFamily.InterNetwork;
+}
+
+/// <summary>An <c>ipv6</c> property: only an IPv6 address text is accepted.</summary>
+internal sealed class Ipv6AddressConverter : IPAddressConverter
+{
+    protected override System.Net.Sockets.AddressFamily? Family => System.Net.Sockets.AddressFamily.InterNetworkV6;
+}
+
+/// <summary>
+/// Reads a <c>type: string</c> with <c>format: decimal</c> from a JSON string only and
+/// writes it back as a JSON string with the digits it was read with (<c>12.50</c> keeps
+/// its trailing zero). A bare JSON number is rejected.
+/// </summary>
+internal sealed class DecimalStringConverter : JsonConverter<decimal>
+{
+    public override decimal Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected a decimal JSON string but got {reader.TokenType}.");
+        }
+        string text = reader.GetString()!;
+        if (!decimal.TryParse(
+                text,
+                System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out decimal value))
+        {
+            throw new JsonException($"Invalid decimal: {text}");
+        }
+        return value;
+    }
+
+    public override void Write(Utf8JsonWriter writer, decimal value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        writer.WriteStringValue(value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+}
+
+/// <summary>
+/// Reads a JSON number as a double and refuses a literal that overflows to infinity (for example
+/// <c>1e400</c>), which System.Text.Json would otherwise return as infinity without any error.
+/// </summary>
+internal sealed class FiniteDoubleConverter : JsonConverter<double>
+{
+    public override double Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.Number)
+        {
+            throw new JsonException($"Expected a number but got {reader.TokenType}.");
+        }
+        double value = reader.GetDouble();
+        if (!double.IsFinite(value))
+        {
+            throw new JsonException("A number literal overflows a double.");
+        }
+        return value;
+    }
+
+    public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options)
+    {
+        writer.WriteNumberValue(value);
+    }
+}
+
+/// <summary>
+/// Writes a <c>HashSet{T}</c> as a JSON array in a defined sorted order: strings in
+/// code point order, numbers numerically, and any other element by its serialized
+/// text. A set has no enumeration order, so the wire form must not depend on the
+/// insertion order. Reading and the set's equality are unchanged.
+/// </summary>
+internal sealed class HashSetJsonConverterFactory : JsonConverterFactory
+{
+    public override bool CanConvert(Type typeToConvert)
+    {
+        return typeToConvert.IsGenericType
+            && typeToConvert.GetGenericTypeDefinition() == typeof(HashSet<>);
+    }
+
+    public override JsonConverter? CreateConverter(Type typeToConvert, JsonSerializerOptions options)
+    {
+        Type element = typeToConvert.GetGenericArguments()[0];
+        return (JsonConverter?)Activator.CreateInstance(
+            typeof(HashSetJsonConverter<>).MakeGenericType(element));
+    }
+}
+
+internal sealed class HashSetJsonConverter<T> : JsonConverter<HashSet<T>>
+{
+    public override HashSet<T>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        List<T>? items = JsonSerializer.Deserialize<List<T>>(ref reader, options);
+        return items is null ? null : new HashSet<T>(items);
+    }
+
+    public override void Write(Utf8JsonWriter writer, HashSet<T> value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        List<T> items = new(value);
+        if (typeof(T) == typeof(string))
+        {
+            items.Sort((a, b) => CompareCodePoints((string)(object)a!, (string)(object)b!));
+        }
+        else if (IsNumeric(typeof(T)))
+        {
+            items.Sort(Comparer<T>.Default);
+        }
+        else
+        {
+            List<(string Text, T Item)> keyed = new(items.Count);
+            foreach (T item in items)
+            {
+                keyed.Add((JsonSerializer.Serialize(item, options), item));
+            }
+            keyed.Sort((a, b) => CompareCodePoints(a.Text, b.Text));
+            items = keyed.ConvertAll(entry => entry.Item);
+        }
+        JsonSerializer.Serialize(writer, items, options);
+    }
+
+    private static bool IsNumeric(Type type)
+    {
+        return Type.GetTypeCode(type) switch
+        {
+            TypeCode.SByte or TypeCode.Byte or TypeCode.Int16 or TypeCode.UInt16
+                or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64
+                or TypeCode.Single or TypeCode.Double or TypeCode.Decimal => true,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Compares two strings by Unicode code point, so a supplementary character
+    /// sorts after U+FFFF, unlike a UTF-16 ordinal comparison.
+    /// </summary>
+    private static int CompareCodePoints(string left, string right)
+    {
+        System.Text.StringRuneEnumerator leftRunes = left.EnumerateRunes();
+        System.Text.StringRuneEnumerator rightRunes = right.EnumerateRunes();
+        while (true)
+        {
+            bool leftHasNext = leftRunes.MoveNext();
+            bool rightHasNext = rightRunes.MoveNext();
+            if (!leftHasNext)
+            {
+                return rightHasNext ? -1 : 0;
+            }
+
+            if (!rightHasNext)
+            {
+                return 1;
+            }
+
+            int comparison = leftRunes.Current.Value.CompareTo(rightRunes.Current.Value);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+        }
+    }
+}
+
+/// <summary>
+/// Writes every string value with the minimal JSON escaping: the quote, the
+/// backslash and the C0 controls only. Every other character, including
+/// U+007F, U+2028, U+2029, the slash, the angle brackets, the ampersand and
+/// the apostrophe, is written literally, the same bytes the other SDKs emit.
+/// A lone surrogate is written as an escape so the output stays valid UTF-8.
+/// System.Text.Json's own encoders always escape U+007F, U+2028 and U+2029.
+/// </summary>
+internal sealed class LiteralStringConverter : JsonConverter<string>
+{
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        return reader.GetString();
+    }
+
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        System.Text.StringBuilder builder = new(value.Length + 2);
+        builder.Append('"');
+        for (int i = 0; i < value.Length; i++)
+        {
+            char c = value[i];
+            switch (c)
+            {
+                case '"':
+                    builder.Append("\\\"");
+                    break;
+                case '\\':
+                    builder.Append("\\\\");
+                    break;
+                case '\b':
+                    builder.Append("\\b");
+                    break;
+                case '\f':
+                    builder.Append("\\f");
+                    break;
+                case '\n':
+                    builder.Append("\\n");
+                    break;
+                case '\r':
+                    builder.Append("\\r");
+                    break;
+                case '\t':
+                    builder.Append("\\t");
+                    break;
+                default:
+                    if (c < ' ')
+                    {
+                        builder.Append("\\u").Append(((int)c).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    else if (char.IsHighSurrogate(c) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+                    {
+                        builder.Append(c).Append(value[i + 1]);
+                        i++;
+                    }
+                    else if (char.IsSurrogate(c))
+                    {
+                        builder.Append("\\u").Append(((int)c).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        builder.Append(c);
+                    }
+                    break;
+            }
+        }
+        builder.Append('"');
+        writer.WriteRawValue(builder.ToString(), skipInputValidation: true);
+    }
+}

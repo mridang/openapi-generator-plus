@@ -1,0 +1,46 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/**
+ * Generated server configurations from the OpenAPI specification.
+ *
+ * Each constant corresponds to a server entry defined in the spec's
+ * `servers` array. Use these constants with
+ * [Configuration.Builder.baseUrl] to select a server:
+ * ```
+ * val config = Configuration.builder()
+ *     .baseUrl(Servers.SERVER_0.getUrl())
+ *     .build()
+ * ```
+ *
+ * For servers with variables, pass overrides:
+ * ```
+ * val url = Servers.SERVER_1.getUrl(mapOf("environment" to "staging"))
+ * ```
+ */
+object Servers {
+
+{{#serverConfigs}}
+    /**
+     * Server {{serverIndex}}: `{{#lambda.kdoc}}{{{serverUrl}}}{{/lambda.kdoc}}`{{#serverDescription}}
+     *
+     * {{#lambda.kdoc}}{{{serverDescription}}}{{/lambda.kdoc}}{{/serverDescription}}
+     */
+    val SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
+        "{{#lambda.kotlinString}}{{{serverUrl}}}{{/lambda.kotlinString}}",
+        {{#serverDescription}}"{{#lambda.kotlinString}}{{{serverDescription}}}{{/lambda.kotlinString}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+        {{#hasVariables}}mapOf(
+{{#serverVariables}}            "{{#lambda.kotlinString}}{{{varName}}}{{/lambda.kotlinString}}" to ServerVariable(
+                "{{#lambda.kotlinString}}{{{varDefault}}}{{/lambda.kotlinString}}",
+                {{#varDescription}}"{{#lambda.kotlinString}}{{{varDescription}}}{{/lambda.kotlinString}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                {{#hasEnumValues}}listOf({{#varEnumValues}}"{{#lambda.kotlinString}}{{{.}}}{{/lambda.kotlinString}}"{{^-last}}, {{/-last}}{{/varEnumValues}}){{/hasEnumValues}}{{^hasEnumValues}}emptyList(){{/hasEnumValues}}){{^-last}},{{/-last}}
+{{/serverVariables}}        ){{/hasVariables}}{{^hasVariables}}emptyMap(){{/hasVariables}}
+    )
+
+{{/serverConfigs}}
+    /** All server configurations in declaration order. */
+    val ALL: List<ServerConfiguration> = listOf(
+{{#serverConfigs}}        SERVER_{{serverIndex}}{{^-last}},{{/-last}}
+{{/serverConfigs}}    )
+}

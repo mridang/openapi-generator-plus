@@ -1,0 +1,27 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
+import { ServerError } from './server-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 504 Gateway Timeout.
+ */
+export class GatewayTimeoutError<T = unknown> extends ServerError<T> {
+  constructor(
+    message: string = '',
+    responseHeaders: Record<string, string> | null = null,
+    responseBody: string | null = null,
+    errorBody: T | null = null,
+    options?: ApiErrorOptions
+  ) {
+    super(504, message, responseHeaders, responseBody, errorBody, options);
+    this.name = 'GatewayTimeoutError';
+  }
+}
+
+ApiError.registerStatusError(
+  504,
+  (_statusCode, message, headers, body, errorBody, options) =>
+    new GatewayTimeoutError(message, headers, body, errorBody, options)
+);

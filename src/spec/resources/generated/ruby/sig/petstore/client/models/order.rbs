@@ -1,0 +1,29 @@
+module Petstore::Client::Models
+  class Order < Dry::Struct
+    class StatusEnum
+      PLACED: String
+      APPROVED: String
+      DELIVERED: String
+      UNKNOWN_DEFAULT_OPEN_API: String
+      VALUES: Array[String]
+      def self.all_vars: () -> Array[String]
+      def self.validate!: (String?) -> String?
+    end
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    def inspect: () -> String
+    def to_s: () -> String
+    def with: (**untyped) -> Order
+    attr_reader id: Integer?
+    attr_reader pet_id: Integer?
+    attr_reader quantity: Integer?
+    attr_reader tracking_id: String?
+    attr_reader ship_date: Time?
+    attr_reader status: String?
+    attr_reader complete: bool?
+  end
+end

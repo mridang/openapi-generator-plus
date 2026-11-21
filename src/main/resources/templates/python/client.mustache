@@ -1,0 +1,274 @@
+{{>api_info}}
+
+import os
+from typing import Any, Callable, Dict, Optional, Protocol
+
+from {{packageName}}.auth.authenticator import Authenticator
+from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
+from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
+from {{packageName}}.call_hook import CallHook
+from {{packageName}}.configuration import Configuration
+from {{packageName}}.default_api_client import DefaultApiClient
+from {{packageName}}.transport_options import TransportOptions
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+from {{apiPackage}}.{{classFilename}} import {{classname}}, {{classname}}Protocol
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+
+def _from_environment(field: str) -> Optional[str]:
+    """The value of ``{{envPrefix}}_<field>``, or ``None`` when it is unset or empty."""
+    return os.environ.get('{{envPrefix}}_' + field) or None
+
+
+class {{clientClassName}}Protocol(Protocol):
+    """The contract of :class:`{{clientClassName}}`: every API group typed as its group protocol,
+    plus ``close`` and the context-manager methods. Depend on it instead of the class to
+    substitute a hand-written fake client in your own tests; a fake client built from fake groups
+    opens no connection, and closing it does nothing.
+    """
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+
+    @property
+    def {{clientPropertyName}}(self) -> {{classname}}Protocol:
+        """API operations for the {{classname}} group."""
+        ...
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    def close(self) -> None:
+        """Close the client; a fake client has nothing to release."""
+        ...
+
+    def __enter__(self) -> '{{clientClassName}}Protocol':
+        ...
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        ...
+
+
+class {{clientClassName}}:
+    """Unified entry point for all API services.
+
+    Takes credentials and optionally :class:`TransportOptions`, then exposes
+    each API group as a typed property. Each security scheme of the API has one
+    optional credential, a keyword argument named after the scheme{{#clientSchemes}}{{#-first}} (``{{/-first}}{{paramName}}{{^-last}}``, ``{{/-last}}{{#-last}}``){{/-last}}{{/clientSchemes}}.
+    An operation uses the credential of the first scheme its spec lists that
+    you configured; there is no per-call override. A single ``authenticator``
+    is the default for an operation none of whose schemes you configured. If a
+    credential implements :class:`HttpAwareAuthenticator`, the shared
+    :class:`ApiClient` is injected so that authentication HTTP calls (token
+    exchange, discovery) use the same transport configuration as regular API
+    calls.
+
+    Usage::
+
+        # One default authenticator, default transport
+        client = {{clientClassName}}(authenticator)
+{{#clientSchemes}}
+{{#-first}}
+
+        # One credential per security scheme
+        client = {{clientClassName}}({{paramName}}={{className}}(...))
+{{/-first}}
+{{/clientSchemes}}
+
+        # Custom transport (proxy, timeouts, etc.)
+        transport = TransportOptions.builder() \\
+            .proxy('http://proxy:3128') \\
+            .timeout(5000) \\
+            .build()
+        client = {{clientClassName}}(authenticator, transport)
+
+        # Your own urllib3 pool manager (you keep ownership and close it)
+        client = {{clientClassName}}(authenticator, pool_manager=urllib3.PoolManager())
+    """
+
+    def __init__(
+        self,
+        authenticator: Optional[Authenticator] = None,
+        transport_options: Optional[TransportOptions] = None,
+        pool_manager: Optional[Any] = None,
+        call_hook: Optional[CallHook] = None,
+{{#hasClientSchemes}}
+        *,
+{{#clientSchemes}}
+        {{paramName}}: Optional[Authenticator] = None,
+{{/clientSchemes}}
+{{/hasClientSchemes}}
+    ) -> None:
+        """Creates a new client from its credentials and transport options.
+
+        Each security scheme of the API has one optional credential, named
+        after the scheme. An operation uses the credential of the first scheme
+        its spec lists that you configured, and there is no per-call override.
+        When none of its schemes is configured it uses ``authenticator`` if you
+        give one, and otherwise sends no credential. The base URL comes from the
+        first credential given, ``authenticator`` first.
+
+        If a credential implements :class:`HttpAwareAuthenticator`, the shared
+        :class:`ApiClient` is injected so that token exchange and discovery
+        requests use the same proxy, TLS, and timeout settings.
+
+        Args:
+            authenticator: The default credential, used by an operation that
+                no scheme credential matches.
+            transport_options: HTTP transport configuration (proxy, TLS,
+                timeouts, etc.).
+            pool_manager: A ``urllib3.PoolManager`` you own. The SDK defaults
+                (timeout, redirects, user agent, default headers) are applied
+                on top of it and the SDK never closes it. It cannot be
+                combined with a proxy or TLS setting in ``transport_options``;
+                a conflict raises :class:`ValueError`.
+            call_hook: A :class:`CallHook` that runs around every operation
+                call: it can edit the request headers and observe the outcome.
+{{#clientSchemes}}
+            {{paramName}}: The credential of the ``{{{schemeId}}}`` security scheme.
+{{/clientSchemes}}
+
+        Raises:
+            ValueError: If no credential is given at all.
+        """
+        schemes: Dict[str, Authenticator] = {}
+{{#clientSchemes}}
+        if {{paramName}} is not None:
+            schemes["{{{schemeLiteral}}}"] = {{paramName}}
+{{/clientSchemes}}
+        credentials = ([authenticator] if authenticator is not None else []) + list(schemes.values())
+        if not credentials:
+            raise ValueError('At least one credential is required')
+
+        if transport_options is None:
+            transport_options = TransportOptions.builder().build()
+
+        api_client = DefaultApiClient(transport_options, pool_manager)
+        self._api_client = api_client
+
+        for credential in credentials:
+            if isinstance(credential, HttpAwareAuthenticator):
+                credential.set_api_client(api_client)
+
+        config = (
+            Configuration.builder()
+            .base_url(credentials[0].get_host())
+            .call_hook(call_hook)
+            .build()
+        )
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        # API operations for the {{classname}} group.
+        self.{{clientPropertyName}}: {{classname}} = {{classname}}(
+            api_client, config, authenticator, schemes
+        )
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    @classmethod
+    def with_token(
+        cls,
+        host: Optional[str] = None,
+        access_token: Optional[str] = None,
+        transport_options: Optional[TransportOptions] = None,
+        pool_manager: Optional[Any] = None,
+        token_provider: Optional[Callable[[], str]] = None,
+        call_hook: Optional[CallHook] = None,
+    ) -> '{{clientClassName}}':
+        """Creates a client authenticated with a Bearer token.
+
+        Each credential is resolved once, here, in this order: the argument
+        you pass, then the environment variable (an empty value counts as
+        unset). ``host`` falls back to ``{{envPrefix}}_BASE_URL`` and
+        ``access_token`` to ``{{envPrefix}}_ACCESS_TOKEN``. Instead of a
+        static token you can pass ``token_provider``, a callable that returns
+        the current token and runs for every request.
+
+        Args:
+            host: API base URL.
+            access_token: Bearer token.
+            transport_options: Optional HTTP transport configuration (proxy,
+                TLS, timeouts, etc.).
+            pool_manager: Optional caller-owned ``urllib3.PoolManager``.
+            token_provider: Optional callable returning the current token.
+                It replaces ``access_token`` and the environment variable.
+            call_hook: Optional :class:`CallHook` around every operation call.
+
+        Returns:
+            Configured client instance.
+
+        Raises:
+            ValueError: If the host or the token cannot be resolved, or both
+                ``access_token`` and ``token_provider`` are given.
+        """
+        resolved_host = host if host is not None else _from_environment('BASE_URL')
+        if resolved_host is None:
+            raise ValueError(
+                'The API host is required: pass host or set {{envPrefix}}_BASE_URL'
+            )
+        if token_provider is not None:
+            if access_token is not None:
+                raise ValueError('Give an access token or a token provider, not both')
+            authenticator = BearerAuthenticator(resolved_host, token_provider=token_provider)
+        else:
+            resolved_token = (
+                access_token if access_token is not None else _from_environment('ACCESS_TOKEN')
+            )
+            if resolved_token is None:
+                raise ValueError(
+                    'The access token is required: pass access_token or token_provider, '
+                    'or set {{envPrefix}}_ACCESS_TOKEN'
+                )
+            authenticator = BearerAuthenticator(resolved_host, resolved_token)
+        return cls(authenticator, transport_options, pool_manager, call_hook)
+
+    @classmethod
+    def with_authenticator(
+        cls,
+        authenticator: Authenticator,
+        transport_options: Optional[TransportOptions] = None,
+        pool_manager: Optional[Any] = None,
+        call_hook: Optional[CallHook] = None,
+    ) -> '{{clientClassName}}':
+        """Creates a client from a ready-made authenticator.
+
+        This is the generic entry point for bespoke authentication strategies
+        such as OAuth2 client credentials, JWT private-key (service account),
+        or a personal access token (PAT). Supply any :class:`Authenticator`
+        implementation; if it also implements :class:`HttpAwareAuthenticator`,
+        the shared :class:`ApiClient` is injected so its HTTP calls reuse the
+        same transport configuration.
+
+        Args:
+            authenticator: Provides host URL and auth headers.
+            transport_options: Optional HTTP transport configuration (proxy,
+                TLS, timeouts, etc.).
+            pool_manager: Optional caller-owned ``urllib3.PoolManager``.
+            call_hook: Optional :class:`CallHook` around every operation call.
+
+        Returns:
+            Configured client instance.
+        """
+        return cls(authenticator, transport_options, pool_manager, call_hook)
+
+    def close(self) -> None:
+        """Closes the client gracefully; calling it again does nothing.
+
+        Requests already in flight finish, and the pool this client created is
+        released when the last of them completes. A request started afterwards
+        raises :class:`RuntimeError`. A ``pool_manager`` you supplied is never
+        closed. To abandon one request, cancel the asyncio task awaiting it.
+        """
+        self._api_client.close()
+
+    def __enter__(self) -> '{{clientClassName}}':
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close()

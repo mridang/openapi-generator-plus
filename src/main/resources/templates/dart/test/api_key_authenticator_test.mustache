@@ -1,0 +1,553 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('ApiKeyAuthenticator', () {
+    test('bhv misc 189 the API-key query wrapper sends its key as the api_key query parameter', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.query,
+      );
+
+      expect(auth.queryParams(), equals({'api_key': 'abc123'}));
+    });
+
+    test('bhv serializationobject 187 an explicit key wins over the environment', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'X-Api-Key',
+        apiKey: 'explicit',
+        location: ApiKeyLocation.header,
+        environment: {ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+      );
+
+      expect(auth.authHeaders(), equals({'X-Api-Key': 'explicit'}));
+    });
+
+    test('bhv authapikey 021 an API key is read from the environment when none is passed, and a passed key wins', () {
+      final environment = {ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv'};
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        location: ApiKeyLocation.query,
+        environment: environment,
+      );
+
+      environment[ApiKeyAuthenticator.defaultEnvironmentVariable] = 'changed';
+
+      expect(auth.queryParams(), equals({'api_key': 'fromenv'}));
+
+      final explicit = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'explicit',
+        location: ApiKeyLocation.query,
+        environment: {ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+      );
+
+      expect(explicit.queryParams(), equals({'api_key': 'explicit'}));
+    });
+
+    test('bhv auth 004 no key anywhere, or an empty variable, fails at construction', () {
+      for (final environment in <Map<String, String>>[
+        const {},
+        {ApiKeyAuthenticator.defaultEnvironmentVariable: ''},
+      ]) {
+        expect(
+          () => ApiKeyAuthenticator(
+            host: '{{{basePath}}}',
+            keyParamName: 'X-Api-Key',
+            location: ApiKeyLocation.header,
+            environment: environment,
+          ),
+          throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+              contains(ApiKeyAuthenticator.defaultEnvironmentVariable))),
+        );
+      }
+    });
+
+    test('bhv misc 057 an API key configured for one location is never sent at another location', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'X-Api-Key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.header,
+      );
+
+      expect(auth.authHeaders(), equals({'X-Api-Key': 'abc123'}));
+      expect(auth.queryParams(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('bhv misc 060 supplying both an API key and an API key provider is refused', () {
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'explicit',
+          apiKeyProvider: () => 'b',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv auth 005 the provider is asked on every request and a key with it is refused', () {
+      var calls = 0;
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'X-Api-Key',
+        apiKeyProvider: () => 'key${++calls}',
+        location: ApiKeyLocation.header,
+      );
+
+      expect(auth.authHeaders(), equals({'X-Api-Key': 'key1'}));
+      expect(auth.authHeaders(), equals({'X-Api-Key': 'key2'}));
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'a',
+          apiKeyProvider: () => 'b',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv auth 006 valid header key is exposed in auth headers', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'X-Api-Key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.header,
+      );
+      final headers = auth.authHeaders();
+      expect(headers['X-Api-Key'], equals('abc123'));
+    });
+
+    test('bhv authapikey 015 valid query key is exposed in query params', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.query,
+      );
+      expect(auth.queryParams(), equals({'api_key': 'abc123'}));
+    });
+
+    test('bhv langdart 009 HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      // HEADER location must reject anything outside printable ASCII +
+      // TAB to prevent header injection (\r\n) and silent UTF-8
+      // mangling that varies per HTTP lib.
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc\r\nInjected: yes',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'kéy',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv authapikey 018 rejects CR in a header key at construction', () {
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc\rdef',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv authapikey 009 the query location accepts a non-ASCII key', () {
+      final queryAuth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'kéy',
+        location: ApiKeyLocation.query,
+      );
+      expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
+    });
+
+    test('bhv authapikey 010 redacts the API key in toString', () {
+      // authenticator-secret-in-default-string-repr: the default toString()
+      // must never expose the stored API key.
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'X-Api-Key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.header,
+      );
+      expect(auth.toString(), isNot(contains('abc123')));
+      expect(auth.toString(), contains('***'));
+    });
+  });
+
+  group('ApiKeyAuthenticator validation', () {
+    ApiKeyAuthenticator build(String key, ApiKeyLocation location) =>
+        ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'k',
+          apiKey: key,
+          location: location,
+        );
+
+    test('bhv auth 034 every location rejects a blank key', () {
+      for (final location in ApiKeyLocation.values) {
+        for (final key in ['', '   ', ' \t\n\r\f\v ']) {
+          expect(
+            () => build(key, location),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                equals("API key value for 'k' must not be empty"),
+              ),
+            ),
+            reason: '${location.name} with a blank key of ${key.length} characters',
+          );
+        }
+      }
+    });
+
+    test('bhv authapikey 002 every location rejects CR, LF and NUL in the key', () {
+      for (final location in ApiKeyLocation.values) {
+        for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
+          expect(
+            () => build(key, location),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                equals(
+                  "API key value for 'k' contains forbidden control characters (CR/LF/NUL)",
+                ),
+              ),
+            ),
+            reason: '${location.name} with ${key.codeUnits}',
+          );
+        }
+      }
+    });
+
+    test('bhv authapikey 001 a Unicode space is not blank for the query and cookie locations', () {
+      for (final location in [ApiKeyLocation.query, ApiKeyLocation.cookie]) {
+        expect(() => build('\u00A0', location), returnsNormally);
+        expect(() => build('\u2003', location), returnsNormally);
+      }
+    });
+
+    test('bhv authapikey 008 a header key rejects non-ASCII with the RFC 7230 message', () {
+      expect(
+        () => build('kéy', ApiKeyLocation.header),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            equals(
+              "API key for header 'k' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('bhv auth 035 a header key with a control character other than tab is rejected', () {
+      expect(
+        () => build('a\x01b', ApiKeyLocation.header),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          contains('printable ASCII'),
+        )),
+      );
+    });
+
+    test('bhv auth 041 a key passed to the constructor takes precedence over the same environment variable', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'explicit',
+        location: ApiKeyLocation.query,
+        environment: {ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+      );
+
+      expect(auth.queryParams(), equals({'api_key': 'explicit'}));
+    });
+
+    test('bhv auth 042 an explicitly passed empty key is rejected by its own validation, not replaced by the environment', () {
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'api_key',
+          apiKey: '',
+          location: ApiKeyLocation.query,
+          environment: {ApiKeyAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+        ),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          equals("API key value for 'api_key' must not be empty"),
+        )),
+      );
+    });
+
+    test('bhv misc 123 a cookie value the caller already percent-encoded is sent unchanged', () {
+      final auth = build('a%20b', ApiKeyLocation.cookie);
+
+      expect(auth.cookieParams(), equals({'k': 'a%20b'}));
+    });
+
+    test('bhv authapikey 023 a cookie key accepts non-ASCII and is emitted only as a cookie', () {
+      final auth = build('kéy', ApiKeyLocation.cookie);
+
+      expect(auth.cookieParams(), equals({'k': 'kéy'}));
+      expect(auth.authHeaders(), isEmpty);
+      expect(auth.queryParams(), isEmpty);
+    });
+
+    test('bhv authapikey 022 an API key is emitted only at its own location and not at the other two', () {
+      for (final location in ApiKeyLocation.values) {
+        final auth = build('k1', location);
+        final placed = [
+          auth.authHeaders(),
+          auth.queryParams(),
+          auth.cookieParams(),
+        ].where((m) => m.isNotEmpty).length;
+
+        expect(placed, equals(1), reason: location.name);
+      }
+    });
+
+    test('bhv authapikey 003 a CR, LF or NUL in a query key throws at construction', () {
+      for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
+        expect(() => build(key, ApiKeyLocation.query), throwsA(isA<ArgumentError>()));
+      }
+    });
+
+    test('bhv authapikey 004 an empty cookie key throws at construction', () {
+      expect(() => build('', ApiKeyLocation.cookie), throwsA(isA<ArgumentError>()));
+    });
+
+    test('bhv authapikey 011 a key made only of ASCII whitespace such as a vertical tab is blank', () {
+      expect(() => build('\v', ApiKeyLocation.query), throwsA(isA<ArgumentError>()));
+      expect(() => build('\v', ApiKeyLocation.cookie), throwsA(isA<ArgumentError>()));
+    });
+
+    test('bhv authapikey 013 a valid cookie key passes and is emitted as a cookie', () {
+      expect(build('abc', ApiKeyLocation.cookie).cookieParams(), equals({'k': 'abc'}));
+    });
+
+    test('bhv authapikey 016 a valid query key passes and is emitted as a query parameter', () {
+      expect(build('abc', ApiKeyLocation.query).queryParams(), equals({'k': 'abc'}));
+    });
+
+    test('bhv authapikey 017 a whitespace-only key throws at construction', () {
+      expect(() => build('   ', ApiKeyLocation.header), throwsA(isA<ArgumentError>()));
+    });
+
+    test('bhv authapikey 014 a header key is emitted only as a header', () {
+      final auth = build('abc', ApiKeyLocation.header);
+
+      expect(auth.authHeaders(), equals({'k': 'abc'}));
+      expect(auth.queryParams(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('bhv authapikey 012 the redacted repr shows the non-secret fields and masks the key', () {
+      expect(
+        build('abc', ApiKeyLocation.cookie).toString(),
+        equals(
+          'ApiKeyAuthenticator(host: {{{basePath}}}, keyParamName: k, apiKey: ***, location: cookie)',
+        ),
+      );
+    });
+  });
+
+  group('ApiKeyAuthenticator scheme wrappers', () {
+    final builders = <String, ApiKeyAuthenticator Function(String)>{
+      'ApiKeyHeaderAuthenticator': (key) =>
+          ApiKeyHeaderAuthenticator(host: '{{{basePath}}}', apiKey: key),
+      'InternalApiKeyAuthenticator': (key) =>
+          InternalApiKeyAuthenticator(host: '{{{basePath}}}', apiKey: key),
+      'ApiKeyQueryAuthenticator': (key) =>
+          ApiKeyQueryAuthenticator(host: '{{{basePath}}}', apiKey: key),
+      'SessionCookieAuthenticator': (key) =>
+          SessionCookieAuthenticator(host: '{{{basePath}}}', apiKey: key),
+    };
+
+    test('bhv authapikey 007 every scheme wrapper emits its key at exactly one location', () {
+      for (final build in builders.values) {
+        final auth = build('k1');
+        final placed = [
+          auth.authHeaders(),
+          auth.queryParams(),
+          auth.cookieParams(),
+        ].where((m) => m.isNotEmpty).length;
+
+        expect(placed, equals(1));
+      }
+    });
+
+    test('bhv auth 031 ApiKeyHeaderAuthenticator sends X-API-Key as a header', () {
+      final auth = builders['ApiKeyHeaderAuthenticator']!('k1');
+
+      expect(auth.authHeaders(), equals({'X-API-Key': 'k1'}));
+      expect(auth.queryParams(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('bhv misc 221 InternalApiKeyAuthenticator sends X-Internal-Key as a header', () {
+      final auth = builders['InternalApiKeyAuthenticator']!('k1');
+
+      expect(auth.authHeaders(), equals({'X-Internal-Key': 'k1'}));
+      expect(auth.queryParams(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('bhv authapikey 006 ApiKeyQueryAuthenticator sends api_key as a query parameter', () {
+      final auth = builders['ApiKeyQueryAuthenticator']!('k1');
+
+      expect(auth.queryParams(), equals({'api_key': 'k1'}));
+      expect(auth.authHeaders(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('bhv auth 032 SessionCookieAuthenticator sends SESSION_ID as a cookie', () {
+      final auth = builders['SessionCookieAuthenticator']!('k1');
+
+      expect(auth.cookieParams(), equals({'SESSION_ID': 'k1'}));
+      expect(auth.authHeaders(), isEmpty);
+      expect(auth.queryParams(), isEmpty);
+    });
+
+    test('bhv authscheme 005 the ApiKeyHeader scheme authenticator treats an empty environment variable as unset and names it', () {
+      expect(
+        () => ApiKeyHeaderAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY'))),
+      );
+    });
+
+    test('bhv authscheme 006 the ApiKeyQuery scheme authenticator treats an empty environment variable as unset and names it', () {
+      expect(
+        () => ApiKeyQueryAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'))),
+      );
+    });
+
+    test('bhv authscheme 007 the SessionCookie scheme authenticator treats an empty environment variable as unset and names it', () {
+      expect(
+        () => SessionCookieAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY'))),
+      );
+    });
+
+    test('bhv authscheme 012 an empty environment variable for the api key scheme credential is treated as unset and fails naming the variable', () {
+      expect(
+        () => InternalApiKeyAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY'))),
+      );
+    });
+
+    test('bhv authapikey 019 wrappers reject an empty key at construction', () {
+      for (final build in builders.values) {
+        expect(() => build(''), throwsArgumentError);
+      }
+    });
+
+    test('bhv authapikey 020 every API-key wrapper validates eagerly and redacts the key', () {
+      for (final entry in builders.entries) {
+        expect(() => entry.value(''), throwsArgumentError, reason: entry.key);
+        expect(entry.value('abc123').toString(), isNot(contains('abc123')),
+            reason: entry.key);
+      }
+    });
+
+    test('bhv authapikey 005 every wrapper rejects an empty key at construction', () {
+      builders.forEach((name, build) {
+        expect(() => build(''), throwsArgumentError, reason: name);
+      });
+    });
+
+    test('bhv auth 033 every wrapper masks the key in toString', () {
+      builders.forEach((name, build) {
+        final repr = build('abc123').toString();
+
+        expect(repr, startsWith('$name(host: {{{basePath}}}, keyParamName: '), reason: name);
+        expect(repr, contains('apiKey: ***'), reason: name);
+        expect(repr, isNot(contains('abc123')), reason: name);
+      });
+    });
+
+    test('bhv authapikey 025 generated API key scheme wrappers mask the key in their debug output', () {
+      builders.forEach((name, build) {
+        final repr = build('abc123').toString();
+        expect(repr, startsWith('$name('));
+        expect(repr, isNot(contains('abc123')));
+      });
+    });
+
+    test('bhv authapikey 026 an API key authenticator does not leak its key in its default debug output', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'X-Api-Key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.header,
+      );
+
+      expect(auth.toString(), isNot(contains('abc123')));
+      expect('$auth', isNot(contains('abc123')));
+    });
+
+    test('bhv auth 018 a rejected secret never appears in the error message', () {
+      const secret = 'sk-live-abc\r\ninjected';
+
+      try {
+        ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          location: ApiKeyLocation.header,
+          apiKey: secret,
+        );
+        fail('expected the key to be refused');
+      } on ArgumentError catch (e) {
+        expect('${e.message}', isNot(contains('sk-live-abc')));
+        expect('$e', isNot(contains('sk-live-abc')));
+      }
+    });
+  });
+}
+{{/generateTests}}

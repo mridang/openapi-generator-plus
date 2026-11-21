@@ -1,0 +1,33 @@
+.PHONY: install build test lint format typecheck docs clean examples examples-run
+
+install:
+	bundle install --quiet
+
+build: install
+
+test: install
+	bundle exec rake test
+
+lint: install
+	bundle exec rubocop --format simple --fail-fast
+
+format: install
+	bundle exec rubocop -A
+
+typecheck: install
+	bundle exec steep check
+
+docs: install
+	bundle exec yard doc --output-dir .out/docs --fail-on-warning
+
+clean:
+	rm -rf .bundle vendor doc .out .yardoc
+
+# Checks the syntax of every file under examples and type-checks the directory with the
+# Steepfile's examples target.
+examples: install
+	find examples -name '*.rb' -print0 | xargs -0 -n1 ruby -wc
+	bundle exec steep check --group=examples
+
+examples-run: examples
+	{{envVarPrefix}}_BASE_URL="$(API_BASE_URL)" {{envVarPrefix}}_TOKEN=placeholder bundle exec ruby -Ilib examples/quickstart.rb

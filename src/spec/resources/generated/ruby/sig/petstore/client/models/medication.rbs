@@ -1,0 +1,16 @@
+module Petstore::Client::Models
+  class Medication < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    def inspect: () -> String
+    def to_s: () -> String
+    def with: (**untyped) -> Medication
+    attr_reader drug_name: String
+    attr_reader dosage: String?
+    attr_reader notes: String?
+  end
+end

@@ -1,0 +1,1049 @@
+{{>api_info}}
+package models
+
+import (
+	"encoding/json"
+{{#hasFmtImport}}
+	"fmt"
+{{/hasFmtImport}}
+{{#hasNetipImport}}
+	"net/netip"
+{{/hasNetipImport}}
+{{#hasUuidImport}}
+
+	"github.com/google/uuid"
+{{/hasUuidImport}}
+)
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+// {{classname}} {{#description}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/description}}{{^description}}is an enumeration of allowed values.{{/description}}
+type {{classname}} {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
+
+const (
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+	// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
+	/* {{classname}}{{name}} represents the value {{{value}}}. */
+{{/enumDescription}}
+	{{classname}}{{name}} {{classname}} = {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+	/* {{classname}}UnknownDefaultOpenApi is what a wire value this SDK does not list decodes to; it has no wire value and cannot be written. */
+	{{classname}}UnknownDefaultOpenApi {{classname}} = {{#isInteger}}-2147483648{{/isInteger}}{{#isLong}}-9223372036854775808{{/isLong}}{{^isInteger}}{{^isLong}}"__unknown_default_open_api__"{{/isLong}}{{/isInteger}}
+)
+
+// All{{classname}}Values returns all allowed values of {{classname}}.
+func All{{classname}}Values() []{{classname}} {
+	return []{{classname}}{
+{{#allowableValues}}
+{{#enumVars}}
+		{{classname}}{{name}},
+{{/enumVars}}
+{{/allowableValues}}
+	}
+}
+
+// IsValid reports whether the value is one of the allowed values of {{classname}}.
+func (v {{classname}}) IsValid() bool {
+	for _, allowed := range All{{classname}}Values() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
+}
+
+// String returns the declared wire value of the enum.
+//
+// A parameter passed as *{{classname}} (the shape optional query/header params
+// take) must reach the wire as its declared value, not the fmt-default "%v" of
+// the pointer. Implementing fmt.Stringer lets the shared stringify helper render
+// the value for both the value and pointer forms.
+func (v {{classname}}) String() string {
+{{#isInteger}}	return fmt.Sprintf("%d", int(v))
+{{/isInteger}}{{#isLong}}	return fmt.Sprintf("%d", int64(v))
+{{/isLong}}{{^isInteger}}{{^isLong}}	return string(v)
+{{/isLong}}{{/isInteger}}}
+
+// UnmarshalJSON decodes a declared enum member to itself and any other wire
+// value to the catch-all member, so a value the spec does not list yet never
+// fails the whole decode.
+func (v *{{classname}}) UnmarshalJSON(data []byte) error {
+	var raw {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	candidate := {{classname}}(raw)
+	for _, allowed := range All{{classname}}Values() {
+		if allowed == candidate {
+			*v = candidate
+			return nil
+		}
+	}
+	*v = {{classname}}UnknownDefaultOpenApi
+	return nil
+}
+
+// MarshalJSON enforces membership on the way out: the catch-all member and any
+// value outside the declared members are rejected instead of being sent.
+func (v {{classname}}) MarshalJSON() ([]byte, error) {
+	for _, allowed := range All{{classname}}Values() {
+		if allowed == v {
+			return marshalJSON({{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}(v))
+		}
+	}
+	return nil, fmt.Errorf("unexpected value %v for enum {{classname}}", {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}(v))
+}
+{{/isEnum}}
+{{^isEnum}}
+{{^oneOf}}
+{{^anyOf}}
+{{#description}}
+// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+// {{classname}} is a model class generated from the OpenAPI schema.
+{{/description}}
+{{#isDeprecated}}
+//
+// Deprecated: This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+// See {{url}} {{{description}}}
+{{/externalDocumentation}}
+{{#vars}}
+{{#isEnum}}
+// {{classname}}{{enumName}} is the typed enum for {{classname}}.{{name}}.
+type {{classname}}{{enumName}} {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
+
+const (
+{{#allowableValues}}
+{{#enumVars}}
+{{#enumDescription}}
+	// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+	{{classname}}{{enumName}}{{name}} {{classname}}{{enumName}} = {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+	/* {{classname}}{{enumName}}UnknownDefaultOpenApi is what a wire value this SDK does not list decodes to; it has no wire value and cannot be written. */
+	{{classname}}{{enumName}}UnknownDefaultOpenApi {{classname}}{{enumName}} = {{#isInteger}}-2147483648{{/isInteger}}{{#isLong}}-9223372036854775808{{/isLong}}{{^isInteger}}{{^isLong}}"__unknown_default_open_api__"{{/isLong}}{{/isInteger}}
+)
+
+// All{{classname}}{{enumName}}Values returns all allowed values.
+func All{{classname}}{{enumName}}Values() []{{classname}}{{enumName}} {
+	return []{{classname}}{{enumName}}{
+{{#allowableValues}}
+{{#enumVars}}
+		{{classname}}{{enumName}}{{name}},
+{{/enumVars}}
+{{/allowableValues}}
+	}
+}
+
+// IsValid reports whether the value is one of the allowed values.
+func (v {{classname}}{{enumName}}) IsValid() bool {
+	for _, allowed := range All{{classname}}{{enumName}}Values() {
+		if allowed == v {
+			return true
+		}
+	}
+	return false
+}
+
+// String returns the declared wire value of the enum, so the shared stringify
+// helper renders the value rather than the fmt-default "%v" of a pointer.
+func (v {{classname}}{{enumName}}) String() string {
+{{#isInteger}}	return fmt.Sprintf("%d", int(v))
+{{/isInteger}}{{#isLong}}	return fmt.Sprintf("%d", int64(v))
+{{/isLong}}{{^isInteger}}{{^isLong}}	return string(v)
+{{/isLong}}{{/isInteger}}}
+
+// UnmarshalJSON decodes a declared member to itself and any other wire value
+// to the catch-all member.
+func (v *{{classname}}{{enumName}}) UnmarshalJSON(data []byte) error {
+	var raw {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	candidate := {{classname}}{{enumName}}(raw)
+	for _, allowed := range All{{classname}}{{enumName}}Values() {
+		if allowed == candidate {
+			*v = candidate
+			return nil
+		}
+	}
+	*v = {{classname}}{{enumName}}UnknownDefaultOpenApi
+	return nil
+}
+
+// MarshalJSON enforces membership on the way out: the catch-all member and any
+// value outside the declared members are rejected instead of being sent.
+func (v {{classname}}{{enumName}}) MarshalJSON() ([]byte, error) {
+	for _, allowed := range All{{classname}}{{enumName}}Values() {
+		if allowed == v {
+			return marshalJSON({{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}(v))
+		}
+	}
+	return nil, fmt.Errorf("unexpected value %v for enum {{classname}}{{enumName}}", {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}(v))
+}
+
+{{/isEnum}}
+{{/vars}}
+type {{classname}} struct {
+{{#vars}}
+{{#description}}
+	/* {{name}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
+{{/description}}
+{{#example}}
+	// Example: {{{.}}}
+{{/example}}
+{{#vendorExtensions.pluralExamples}}
+	// {{{summary}}} — {{{value}}}
+{{/vendorExtensions.pluralExamples}}
+{{#deprecated}}
+	//
+	// Deprecated: {{#deprecationMessage}}{{{deprecationMessage}}}{{/deprecationMessage}}{{^deprecationMessage}}This property is deprecated.{{/deprecationMessage}}
+{{/deprecated}}
+{{#isReadOnly}}
+	// Read-only: the server sets this property. It is still sent and received
+	// like any other property.
+{{/isReadOnly}}
+{{#isWriteOnly}}
+	// Write-only: the server never returns this property. It is still sent
+	// and received like any other property.
+{{/isWriteOnly}}
+{{#required}}
+{{#isNullable}}
+	{{! Required AND nullable: the key must be present, null is a legal value and
+	    is written back as null. A pointer holds null; no omitempty keeps the key. }}
+	{{name}} *{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}}"`
+{{/isNullable}}
+{{^isNullable}}
+	{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}}"`
+{{/isNullable}}
+{{/required}}
+{{^required}}
+{{#isNullable}}
+	{{! An unset (nil) nullable optional must be OMITTED from the JSON body, not
+	    emitted as "field": null. The other SDKs omit the unset key; omitempty
+	    drops the nil pointer to match. }}
+	{{name}} *{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}},omitempty"`
+{{/isNullable}}
+{{^isNullable}}
+	{{name}} *{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}},omitempty"`
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+	/* AdditionalProperties holds any extra fields not defined in the schema. */
+	AdditionalProperties map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}} `json:"-"`
+{{/isAdditionalPropertiesTrue}}
+}
+
+// Equal reports whether this {{classname}} is value-equal to other.
+//
+// Models may carry map / slice fields (e.g. additionalProperties), so the
+// built-in `==` operator panics at runtime on such values. Comparing the
+// canonical JSON encodings gives a value-equality contract that works for every
+// field shape, matching the equality semantics of the other SDKs.
+func (o *{{classname}}) Equal(other *{{classname}}) bool {
+	if o == nil || other == nil {
+		return o == other
+	}
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
+}
+
+{{#hasPasswordProperty}}
+// String returns the model as JSON with every format: password property replaced
+// by "***", so a logged value never shows the secret. The copy is masked, never the
+// receiver, and MarshalJSON (the wire form) still sends the real value.
+func (o {{classname}}) String() string {
+	masked := o
+{{#vars}}
+{{#isPassword}}
+{{#required}}
+{{#isNullable}}
+	if masked.{{name}} != nil {
+		mask := "***"
+		masked.{{name}} = &mask
+	}
+{{/isNullable}}
+{{^isNullable}}
+	masked.{{name}} = "***"
+{{/isNullable}}
+{{/required}}
+{{^required}}
+	if masked.{{name}} != nil {
+		mask := "***"
+		masked.{{name}} = &mask
+	}
+{{/required}}
+{{/isPassword}}
+{{/vars}}
+	data, err := json.Marshal(masked)
+	if err != nil {
+		return "{{classname}}{<unprintable>}"
+	}
+	return string(data)
+}
+{{/hasPasswordProperty}}
+{{^hasPasswordProperty}}
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o {{classname}}) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "{{classname}}{<unprintable>}"
+	}
+	return string(data)
+}
+{{/hasPasswordProperty}}
+
+{{#vars}}
+// With{{name}} returns a copy of the model with {{name}} replaced; the receiver is unchanged.
+func (o {{classname}}) With{{name}}(value {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}) {{classname}} {
+{{#required}}
+{{#isNullable}}
+	o.{{name}} = &value
+{{/isNullable}}
+{{^isNullable}}
+	o.{{name}} = value
+{{/isNullable}}
+{{/required}}
+{{^required}}
+	o.{{name}} = &value
+{{/required}}
+	return o
+}
+{{#required}}
+{{#isNullable}}
+
+// Without{{name}} returns a copy of the model with {{name}} set to null; the receiver is unchanged.
+func (o {{classname}}) Without{{name}}() {{classname}} {
+	o.{{name}} = nil
+	return o
+}
+{{/isNullable}}
+{{/required}}
+{{^required}}
+
+// Without{{name}} returns a copy of the model with {{name}} left unset; the receiver is unchanged.
+func (o {{classname}}) Without{{name}}() {{classname}} {
+	o.{{name}} = nil
+	return o
+}
+{{/required}}
+
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+// WithAdditionalProperties returns a copy of the model that carries a copy of the given extra properties; the receiver is unchanged.
+func (o {{classname}}) WithAdditionalProperties(value map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}) {{classname}} {
+	if value == nil {
+		o.AdditionalProperties = nil
+		return o
+	}
+	o.AdditionalProperties = make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}, len(value))
+	for key, extra := range value {
+		o.AdditionalProperties[key] = extra
+	}
+	return o
+}
+
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o {{classname}}) GetAdditionalProperties() map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}} {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
+{{/isAdditionalPropertiesTrue}}
+{{#hasVars}}
+// New{{classname}} creates a new {{classname}} instance.
+func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{#isNullable}}*{{/isNullable}}{{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) *{{classname}} {
+{{#optionalVars}}
+{{#defaultValue}}
+	var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+{{/defaultValue}}
+{{/optionalVars}}
+	return &{{classname}}{
+{{#isAdditionalPropertiesTrue}}
+		AdditionalProperties: make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}),
+{{/isAdditionalPropertiesTrue}}
+{{#requiredVars}}
+		{{name}}: {{nameInCamelCase}},
+{{/requiredVars}}
+{{#optionalVars}}
+{{#defaultValue}}
+{{#required}}
+		{{name}}: default{{name}},
+{{/required}}
+{{^required}}
+		{{name}}: &default{{name}},
+{{/required}}
+{{/defaultValue}}
+{{/optionalVars}}
+	}
+}
+{{/hasVars}}
+
+{{#isAdditionalPropertiesTrue}}
+// MarshalJSON implements the json.Marshaler interface.
+func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	type Alias {{classname}}
+	b, err := marshalJSON((Alias)(o))
+	if err != nil {
+		return nil, err
+	}
+	extras := withoutDeclaredKeys(o.AdditionalProperties{{#vars}}, "{{baseName}}"{{/vars}})
+	if len(extras) == 0 {
+		return b, nil
+	}
+	extra, err := marshalJSON(extras)
+	if err != nil {
+		return nil, err
+	}
+	/* Merge the two JSON objects. When every struct field is omitted the
+	   base marshals to "{}" (len 2); replacing its closing brace with a
+	   comma would yield invalid JSON ("{,...}"), so return the extras
+	   object verbatim in that case. */
+	if len(b) == 2 {
+		return extra, nil
+	}
+	b[len(b)-1] = ','
+	return append(b, extra[1:]...), nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	type Alias {{classname}}
+	aux := &Alias{}
+{{#vars}}
+{{#isUri}}
+	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUri}}
+{{#vendorExtensions.isIpv4}}
+	if err := checkIPField(data, "{{baseName}}", false); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+	if err := checkIPField(data, "{{baseName}}", true); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv6}}
+{{#isUuid}}
+	if err := checkUuidField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUuid}}
+{{/vars}}
+{{#hasByteFields}}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
+{{/hasByteFields}}
+	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
+		return err
+	}
+	*o = {{classname}}(*aux)
+
+	/* Collect additional properties */
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	knownFields := map[string]bool{
+{{#vars}}
+		"{{baseName}}": true,
+{{/vars}}
+	}
+	for key, val := range raw {
+		if !knownFields[key] {
+			if o.AdditionalProperties == nil {
+				o.AdditionalProperties = make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}})
+			}
+{{#vendorExtensions.hasTypedAdditionalProperties}}
+{{^vendorExtensions.additionalPropertiesValue.isNullable}}
+			/* A typed extra decodes like an element of a map of the same type:
+			 * a null is rejected unless the value schema is nullable. */
+			if string(val) == "null" {
+				return fmt.Errorf("additional property '%s' must not be null in {{classname}}", key)
+			}
+{{/vendorExtensions.additionalPropertiesValue.isNullable}}
+{{/vendorExtensions.hasTypedAdditionalProperties}}
+			var v {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}
+			if err := json.Unmarshal(val, &v); err != nil {
+				return err
+			}
+			o.AdditionalProperties[key] = v
+		}
+	}
+	/* Gap AJ: encoding/json silently zero-inits required fields when the
+	 * value is null or missing. Reject both for required non-nullable
+	 * fields so the malformed server response surfaces at the deserialize
+	 * call instead of producing a confusing NPE later. */
+{{#vars}}
+{{#required}}
+{{^isNullable}}
+{{#defaultValue}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		/* A required property that carries a default (the synthetic discriminator
+		 * default, or a schema default) is satisfied by that default when absent. */
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		o.{{name}} = default{{name}}
+	} else if string(rawVal) == "null" {
+{{/defaultValue}}
+{{^defaultValue}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	} else if string(rawVal) == "null" {
+{{/defaultValue}}
+		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
+	}
+{{/isNullable}}
+{{#isNullable}}
+{{^defaultValue}}
+	/* Required AND nullable: the key must be present; an explicit null is a
+	 * legal value and decodes to a nil pointer. */
+	if _, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	}
+{{/defaultValue}}
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+	return nil
+}
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+// MarshalJSON implements the json.Marshaler interface.
+func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	type Alias {{classname}}
+	return marshalJSON((Alias)(o))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+// reject any JSON key not declared in the schema instead of silently dropping it.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	type Alias {{classname}}
+	aux := &Alias{}
+{{#vars}}
+{{#isUri}}
+	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUri}}
+{{#vendorExtensions.isIpv4}}
+	if err := checkIPField(data, "{{baseName}}", false); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+	if err := checkIPField(data, "{{baseName}}", true); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv6}}
+{{#isUuid}}
+	if err := checkUuidField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUuid}}
+{{/vars}}
+{{#hasByteFields}}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
+{{/hasByteFields}}
+	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	knownFields := map[string]bool{
+{{#vars}}
+		"{{baseName}}": true,
+{{/vars}}
+	}
+	for key := range raw {
+		if !knownFields[key] {
+			return fmt.Errorf("unknown property '%s' on {{classname}} (unevaluatedProperties:false)", key)
+		}
+	}
+	// Gap AJ: encoding/json silently zero-inits required fields when the
+	// value is null or missing. Reject both for required non-nullable fields
+	// so a malformed server response surfaces at the deserialize call,
+	// consistent with the other model branches and the other SDKs.
+{{#vars}}
+{{#required}}
+{{^isNullable}}
+{{#defaultValue}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		/* A required property that carries a default (the synthetic discriminator
+		 * default, or a schema default) is satisfied by that default when absent. */
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		aux.{{name}} = default{{name}}
+	} else if string(rawVal) == "null" {
+{{/defaultValue}}
+{{^defaultValue}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	} else if string(rawVal) == "null" {
+{{/defaultValue}}
+		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
+	}
+{{/isNullable}}
+{{#isNullable}}
+{{^defaultValue}}
+	/* Required AND nullable: the key must be present; an explicit null is a
+	 * legal value and decodes to a nil pointer. */
+	if _, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	}
+{{/defaultValue}}
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+	*o = {{classname}}(*aux)
+	return nil
+}
+{{/isUnevaluatedPropertiesFalse}}
+{{^isUnevaluatedPropertiesFalse}}
+{{^isAdditionalPropertiesTrue}}
+// MarshalJSON implements the json.Marshaler interface.
+func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	type Alias {{classname}}
+	return marshalJSON((Alias)(o))
+}
+
+{{#hasRequired}}
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// Gap AJ: encoding/json silently zero-inits required fields when the
+// value is null or missing. This wrapper rejects both for required
+// non-nullable fields so malformed server responses surface at the
+// deserialize call instead of producing a confusing zero-value later.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	type Alias {{classname}}
+	aux := &Alias{}
+{{#vars}}
+{{#isUri}}
+	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUri}}
+{{#vendorExtensions.isIpv4}}
+	if err := checkIPField(data, "{{baseName}}", false); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+	if err := checkIPField(data, "{{baseName}}", true); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv6}}
+{{#isUuid}}
+	if err := checkUuidField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUuid}}
+{{/vars}}
+{{#hasByteFields}}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
+{{/hasByteFields}}
+	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+{{#vars}}
+{{#required}}
+{{^isNullable}}
+{{#defaultValue}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		/* A required property that carries a default (the synthetic discriminator
+		 * default, or a schema default) is satisfied by that default when absent. */
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		aux.{{name}} = default{{name}}
+	} else if string(rawVal) == "null" {
+{{/defaultValue}}
+{{^defaultValue}}
+	if rawVal, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	} else if string(rawVal) == "null" {
+{{/defaultValue}}
+		return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
+	}
+{{/isNullable}}
+{{#isNullable}}
+{{^defaultValue}}
+	/* Required AND nullable: the key must be present; an explicit null is a
+	 * legal value and decodes to a nil pointer. */
+	if _, ok := raw["{{baseName}}"]; !ok {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	}
+{{/defaultValue}}
+{{/isNullable}}
+{{/required}}
+{{/vars}}
+	/* An absent field carrying a schema default is populated with that default
+	 * so the deserialized model matches the spec, consistent with the other
+	 * SDKs. */
+{{#vars}}
+{{^required}}
+{{#defaultValue}}
+	if _, ok := raw["{{baseName}}"]; !ok {
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		aux.{{name}} = &default{{name}}
+	}
+{{/defaultValue}}
+{{/required}}
+{{/vars}}
+	*o = {{classname}}(*aux)
+	return nil
+}
+{{/hasRequired}}
+{{^hasRequired}}
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	type Alias {{classname}}
+	aux := &Alias{}
+{{#hasOptionalDefault}}
+	/* json.Unmarshal leaves a struct field untouched when its key is absent
+	 * from the payload, so we pre-seed optional fields that declare a schema
+	 * default before decoding: a present value overwrites the default while an
+	 * absent one keeps it, matching the default-application of the other SDKs. */
+{{#vars}}
+{{^required}}
+{{#defaultValue}}
+	var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+	aux.{{name}} = &default{{name}}
+{{/defaultValue}}
+{{/required}}
+{{/vars}}
+{{/hasOptionalDefault}}
+{{#vars}}
+{{#isUri}}
+	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUri}}
+{{#vendorExtensions.isIpv4}}
+	if err := checkIPField(data, "{{baseName}}", false); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+	if err := checkIPField(data, "{{baseName}}", true); err != nil {
+		return err
+	}
+{{/vendorExtensions.isIpv6}}
+{{#isUuid}}
+	if err := checkUuidField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUuid}}
+{{/vars}}
+{{#hasByteFields}}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
+{{/hasByteFields}}
+	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
+		return err
+	}
+	*o = {{classname}}(*aux)
+	return nil
+}
+{{/hasRequired}}
+{{/isAdditionalPropertiesTrue}}
+{{/isUnevaluatedPropertiesFalse}}
+{{/anyOf}}
+{{/oneOf}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+// {{classname}} is a union type (oneOf).
+{{/description}}
+{{#isDeprecated}}
+//
+// Deprecated: This schema is deprecated.
+{{/isDeprecated}}
+type {{classname}} struct {
+	value any
+}
+
+// New{{classname}} wraps an already-decoded variant so a request body can be built without decoding JSON text.
+func New{{classname}}(actualInstance any) {{classname}} {
+	/* Decoding stores a variant by value, so a pointer to a variant is stored by value
+	 * too: a type switch on ActualInstance then sees the same type however the union
+	 * was built. */
+	switch v := actualInstance.(type) {
+{{#oneOf}}
+	case *{{{.}}}:
+		if v != nil {
+			actualInstance = *v
+		}
+{{/oneOf}}
+	}
+	return {{classname}}{value: actualInstance}
+}
+
+{{#oneOf}}
+// New{{#goVariantName}}{{{.}}}{{/goVariantName}}{{classname}} builds the union from a {{{.}}} variant.
+func New{{#goVariantName}}{{{.}}}{{/goVariantName}}{{classname}}(value {{{.}}}) {{classname}} {
+	return {{classname}}{value: value}
+}
+
+// As{{#goVariantName}}{{{.}}}{{/goVariantName}} returns the {{{.}}} variant, and false when the union holds another one.
+func (o {{classname}}) As{{#goVariantName}}{{{.}}}{{/goVariantName}}() ({{{.}}}, bool) {
+	value, ok := o.value.({{{.}}})
+	return value, ok
+}
+
+// Is{{#goVariantName}}{{{.}}}{{/goVariantName}} reports whether the union holds a {{{.}}} variant.
+func (o {{classname}}) Is{{#goVariantName}}{{{.}}}{{/goVariantName}}() bool {
+	_, ok := o.value.({{{.}}})
+	return ok
+}
+
+{{/oneOf}}
+// MarshalJSON implements the json.Marshaler interface. A value that is not one
+// of the declared variants is rejected rather than sent.
+func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	switch o.value.(type) {
+	case {{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}:
+		return marshalJSON(o.value)
+	}
+	return nil, fmt.Errorf("%T is not a variant of {{classname}}", o.value)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+{{#discriminator}}
+	/* Use discriminator to determine type */
+	var disc struct {
+		{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} string `json:"{{propertyBaseName}}"`
+	}
+	if err := json.Unmarshal(dropMiscasedKeys(data, "{{propertyBaseName}}"), &disc); err != nil {
+		return err
+	}
+	switch disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} {
+{{#mappedModels}}
+	case "{{{mappingName}}}":
+		var v {{{modelName}}}
+		if err := json.Unmarshal(data, &v); err != nil {
+			return err
+		}
+		o.value = v
+		return nil
+{{/mappedModels}}
+	}
+	if disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} == "" {
+		return fmt.Errorf("missing discriminator property %q for {{classname}}", "{{propertyBaseName}}")
+	}
+	// Gap AU — unknown discriminator value. Other 11 SDKs throw; Go
+	// previously returned nil silently, leaving the union uninitialized
+	// and producing a hard-to-debug `nil` downstream. Align by surfacing
+	// the error so callers see the malformed server response.
+	return fmt.Errorf("unknown discriminator value %q for {{classname}}", disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}})
+{{/discriminator}}
+{{^discriminator}}
+	/* Try each oneOf type in schema declaration order: composedSchemas.oneOf keeps it,
+	 * whereas the bare oneOf set is alphabetical. */
+{{#composedSchemas.oneOf}}
+	var {{#goVarName}}{{{dataType}}}{{/goVarName}} {{{dataType}}}
+	if err := json.Unmarshal(data, &{{#goVarName}}{{{dataType}}}{{/goVarName}}); err == nil {
+		o.value = {{#goVarName}}{{{dataType}}}{{/goVarName}}
+		return nil
+	}
+{{/composedSchemas.oneOf}}
+	return fmt.Errorf("data does not match any oneOf schemas for {{classname}}")
+{{/discriminator}}
+}
+
+// ActualInstance returns the matched variant of the union type.
+func (o {{classname}}) ActualInstance() any {
+	return o.value
+}
+
+// Equal reports whether this {{classname}} is value-equal to other, comparing
+// the canonical JSON encodings so a union holding a slice variant compares
+// without the panic the built-in `==` raises on such values.
+func (o *{{classname}}) Equal(other *{{classname}}) bool {
+	if o == nil || other == nil {
+		return o == other
+	}
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
+}
+{{/-first}}
+{{/oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+// {{classname}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/description}}
+{{^description}}
+// {{classname}} is a union type (anyOf).
+{{/description}}
+{{#isDeprecated}}
+//
+// Deprecated: This schema is deprecated.
+{{/isDeprecated}}
+//
+// A non-discriminated anyOf is documented as matching ANY
+// subset of its variants, including SEVERAL at once. A first-match union
+// would keep only the first variant that decoded and silently drop the fields
+// of every other co-satisfied variant on re-encode, losing data. To make the
+// round-trip lossless this wrapper RETAINS every variant that successfully
+// decodes, in declaration order, and, on encode, emits the UNION of all
+// retained variants' fields by merging their JSON objects.
+type {{classname}} struct {
+	matchedInstances []any
+}
+
+// New{{classname}} wraps already-decoded variants so a request body can be built without decoding JSON text.
+func New{{classname}}(matchedInstances ...any) {{classname}} {
+	return {{classname}}{matchedInstances: append([]any(nil), matchedInstances...)}
+}
+
+{{#anyOf}}
+// New{{#goVariantName}}{{{.}}}{{/goVariantName}}{{classname}} builds the union from a {{{.}}} variant.
+func New{{#goVariantName}}{{{.}}}{{/goVariantName}}{{classname}}(value {{{.}}}) {{classname}} {
+	return {{classname}}{matchedInstances: []any{value}}
+}
+
+// As{{#goVariantName}}{{{.}}}{{/goVariantName}} returns the first retained {{{.}}} variant, and false when the union holds none.
+func (o {{classname}}) As{{#goVariantName}}{{{.}}}{{/goVariantName}}() ({{{.}}}, bool) {
+	for _, instance := range o.matchedInstances {
+		if value, ok := instance.({{{.}}}); ok {
+			return value, true
+		}
+	}
+	var none {{{.}}}
+	return none, false
+}
+
+// Is{{#goVariantName}}{{{.}}}{{/goVariantName}} reports whether the union holds a {{{.}}} variant.
+func (o {{classname}}) Is{{#goVariantName}}{{{.}}}{{/goVariantName}}() bool {
+	_, ok := o.As{{#goVariantName}}{{{.}}}{{/goVariantName}}()
+	return ok
+}
+
+{{/anyOf}}
+// MarshalJSON implements the json.Marshaler interface. A single retained
+// variant is marshalled directly; several are merged into one JSON object so
+// that co-satisfied data round-trips losslessly. Earlier variants are merged
+// first; a key present in a later variant overrides the same key from an
+// earlier one. A value that is not one of the declared variants is rejected
+// rather than sent.
+func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	for _, instance := range o.matchedInstances {
+		switch instance.(type) {
+		case {{#anyOf}}{{{.}}}{{^-last}}, {{/-last}}{{/anyOf}}:
+		default:
+			return nil, fmt.Errorf("%T is not a variant of {{classname}}", instance)
+		}
+	}
+	if len(o.matchedInstances) == 1 {
+		return marshalJSON(o.matchedInstances[0])
+	}
+	merged := map[string]json.RawMessage{}
+	for _, instance := range o.matchedInstances {
+		part, err := marshalJSON(instance)
+		if err != nil {
+			return nil, err
+		}
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(part, &fields); err != nil {
+			return nil, err
+		}
+		for k, v := range fields {
+			merged[k] = v
+		}
+	}
+	return marshalJSON(merged)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface. It retains EVERY
+// variant that decodes successfully rather than stopping at the first match,
+// so a payload satisfying several variants keeps all of their fields.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	var matched []any
+{{#composedSchemas.anyOf}}
+	var {{#goVarName}}{{{dataType}}}{{/goVarName}} {{{dataType}}}
+	if err := json.Unmarshal(data, &{{#goVarName}}{{{dataType}}}{{/goVarName}}); err == nil {
+		matched = append(matched, {{#goVarName}}{{{dataType}}}{{/goVarName}})
+	}
+{{/composedSchemas.anyOf}}
+	if len(matched) == 0 {
+		return fmt.Errorf("data does not match any anyOf schemas for {{classname}}")
+	}
+	o.matchedInstances = matched
+	return nil
+}
+
+// MatchedInstances returns a copy of every variant the payload matched, in
+// schema declaration order.
+func (o {{classname}}) MatchedInstances() []any {
+	return append([]any(nil), o.matchedInstances...)
+}
+
+// ActualInstance returns the first matched variant of the union type, or nil
+// when none matched.
+func (o {{classname}}) ActualInstance() any {
+	if len(o.matchedInstances) == 0 {
+		return nil
+	}
+	return o.matchedInstances[0]
+}
+
+// Equal reports whether this {{classname}} is value-equal to other, comparing
+// the canonical JSON encodings so a union holding a slice variant compares
+// without the panic the built-in `==` raises on such values.
+func (o *{{classname}}) Equal(other *{{classname}}) bool {
+	if o == nil || other == nil {
+		return o == other
+	}
+	a, errA := json.Marshal(o)
+	b, errB := json.Marshal(other)
+	if errA != nil || errB != nil {
+		return false
+	}
+	return string(a) == string(b)
+}
+{{/-first}}
+{{/anyOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

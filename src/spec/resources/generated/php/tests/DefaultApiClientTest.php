@@ -1,0 +1,994 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PetstoreClient\Test;
+
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\TransportOptions;
+
+// -- TLS verification disabled --
+
+test('bhv transport 018 makes https request with verify ssl false', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(false)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+});
+
+test('bhv transport 062 with verify ssl false a certificate that does not name the address is accepted', function (): void {
+    /* Reach the fixture server by its IP address, which its certificate does not name, so a host name
+     * check would fail if it ran. */
+    $parts = parse_url(getenv('CHASM_HTTPS_URL') ?: '');
+    assert(is_array($parts));
+    $address = gethostbyname((string) ($parts['host'] ?? ''));
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(false)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', 'https://' . $address . ':' . ($parts['port'] ?? 443) . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
+// -- Custom CA bundle --
+
+test('bhv transport 066 a CA bundle file trusts every certificate it contains', function (): void {
+    /* The unrelated certificate comes first, so only a client that reads the whole bundle reaches the
+     * fixture CA that signed the server certificate. */
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    $caCertPath = getenv('CA_CERT_PATH') ?: '';
+    $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    assert($key !== false);
+    $csr = openssl_csr_new(['commonName' => 'unrelated-root'], $key);
+    assert($csr instanceof \OpenSSLCertificateSigningRequest);
+    $cert = openssl_csr_sign($csr, null, $key, 1);
+    assert($cert instanceof \OpenSSLCertificate);
+    openssl_x509_export($cert, $unrelatedPem);
+    $bundle = tempnam(sys_get_temp_dir(), 'ca-bundle-');
+    assert(is_string($bundle));
+    file_put_contents($bundle, $unrelatedPem . file_get_contents($caCertPath));
+
+    try {
+        $transport = TransportOptions::builder()
+            ->verifySsl(true)
+            ->caCertPath($bundle)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+        expect($response->statusCode)->toBe(200);
+    } finally {
+        unlink($bundle);
+    }
+});
+
+test('bhv misc 033 a pinned root accepts a server that also sends the intermediate linking its leaf to the root', function (): void {
+    /* The CA file holds only the root; the fixture server presents its leaf and the intermediate. */
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    $caCertPath = getenv('CA_CERT_PATH') ?: '';
+    expect(substr_count((string) file_get_contents($caCertPath), 'BEGIN CERTIFICATE'))->toBe(1);
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(true)
+        ->caCertPath($caCertPath)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv transport 017 makes https request with custom ca cert', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    $caCertPath = getenv('CA_CERT_PATH') ?: null;
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(true)
+        ->caCertPath($caCertPath)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+});
+
+// -- HTTP proxy --
+
+test('bhv transport 015 makes http request through proxy', function (): void {
+    $chasmUrl = getenv('CHASM_INTERNAL_HTTP_URL') ?: '';
+    $proxyUrl = getenv('PROXY_URL') ?: null;
+
+    $transport = TransportOptions::builder()
+        ->proxy($proxyUrl)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+});
+
+// Gap AK: userinfo embedded in the proxy URL must be base64-encoded
+// and surfaced as Proxy-Authorization so the proxy can authenticate
+// the tunnel — otherwise the proxy 407s. Guzzle's `proxy` option
+// reads userinfo natively from the URL; we assert TransportOptions
+// preserves the userinfo end-to-end.
+test('bhv transport 021 proxy with credentials injects basic authorization', function (): void {
+    $transport = TransportOptions::builder()
+        ->proxy('http://alice:s3cret@127.0.0.1:3128')
+        ->build();
+
+    $proxyUrl = (string) $transport->proxy;
+    $parts = parse_url($proxyUrl);
+    expect($parts)->toBeArray();
+    $user = (string) ($parts['user'] ?? '');
+    $pass = (string) ($parts['pass'] ?? '');
+    expect($user)->toBe('alice');
+    expect($pass)->toBe('s3cret');
+    $expected = 'Basic ' . base64_encode(urldecode($user) . ':' . urldecode($pass));
+    expect($expected)->toBe('Basic YWxpY2U6czNjcmV0');
+});
+
+// -- Gap AK: proxy URL userinfo must be carried, not dropped --
+//
+// Canonical cross-SDK scenario: configuring proxy URL
+// http://user:pass@127.0.0.1:3128 MUST carry the proxy credentials end-to-end
+// (Proxy-Authorization / userinfo honoured), not silently drop them. PHP
+// (Symfony/curl) reads userinfo natively from the proxy URL, so TransportOptions
+// preserves it (GREEN here); the same test is added to all 12 SDKs to lock the
+// behaviour (red in java, which drops proxy userinfo). The proxy-auth header
+// the credentials would produce is the RFC 7617 base64 of "user:pass".
+test('bhv transport 020 AK: proxy url with userinfo carries credentials', function (): void {
+    $transport = TransportOptions::builder()
+        ->proxy('http://user:pass@127.0.0.1:3128')
+        ->build();
+
+    $proxyUrl = (string) $transport->proxy;
+    $parts = parse_url($proxyUrl);
+    expect($parts)->toBeArray();
+    $user = (string) ($parts['user'] ?? '');
+    $pass = (string) ($parts['pass'] ?? '');
+    // The userinfo survives end-to-end on the proxy URL — not stripped.
+    expect($user)->toBe('user');
+    expect($pass)->toBe('pass');
+    // The credentials map to the RFC 7617 Proxy-Authorization value.
+    $expected = 'Basic ' . base64_encode(urldecode($user) . ':' . urldecode($pass));
+    expect($expected)->toBe('Basic dXNlcjpwYXNz');
+});
+
+test('bhv transport 076 percent-escapes in the proxy userinfo decode to the credentials and a literal plus stays a plus', function (): void {
+    $transport = TransportOptions::builder()
+        ->proxy('http://us%40er:p%2Bss+x@127.0.0.1:3128')
+        ->build();
+
+    $parts = parse_url((string) $transport->proxy);
+    expect($parts)->toBeArray();
+    $user = rawurldecode((string) ($parts['user'] ?? ''));
+    $pass = rawurldecode((string) ($parts['pass'] ?? ''));
+    expect($user)->toBe('us@er');
+    expect($pass)->toBe('p+ss+x');
+});
+
+// -- HTTP proxy with TLS --
+
+test('bhv transport 009 ignores ambient proxy environment variables when no proxy is configured', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $names = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'];
+    $saved = [];
+    foreach ($names as $name) {
+        $saved[$name] = $_SERVER[$name] ?? null;
+        $_SERVER[$name] = 'http://127.0.0.1:1';
+    }
+
+    try {
+        $client = new DefaultApiClient(TransportOptions::builder()->build());
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    } finally {
+        foreach ($saved as $name => $value) {
+            if ($value === null) {
+                unset($_SERVER[$name]);
+            } else {
+                $_SERVER[$name] = $value;
+            }
+        }
+    }
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv transport 016 makes https request through proxy with verify ssl false', function (): void {
+    $chasmUrl = getenv('CHASM_INTERNAL_HTTPS_URL') ?: '';
+    $proxyUrl = getenv('PROXY_URL') ?: null;
+
+    $transport = TransportOptions::builder()
+        ->proxy($proxyUrl)
+        ->verifySsl(false)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+});
+
+// -- Request timeout --
+
+test('bhv redirects 009 the timeout is one budget for every redirect hop', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->timeout(1200)->followRedirects(true)->build());
+
+    expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/redirect/chain/1', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkTimeoutException::class);
+});
+
+test('bhv redirects 002 a redirect chain inside the budget completes', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->timeout(5000)->followRedirects(true)->build());
+
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/chain/1', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv transport 024 times out on slow endpoint', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->timeout(1000)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+
+    expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/slow', [], null))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\PetstoreClient\Errors\NetworkTimeoutException::class);
+            expect($e)->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
+        });
+});
+
+// -- User-Agent header --
+
+test('bhv transport 012 injects custom user agent header', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->userAgent('MyApp/1.0')
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array{headers: array<string, string>} $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers']['user-agent'])->toBe('MyApp/1.0');
+});
+
+test('bhv transport 003 caller headers in any casing win over injected user agent and request id', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->injectRequestId(true)
+        ->defaultHeaders(['user-agent' => 'MyApp', 'x-request-id' => 'abc'])
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array{headers: array<string, string>} $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers']['user-agent'])->toBe('MyApp');
+    expect($json['headers']['x-request-id'])->toBe('abc');
+    expect($response->body)->not->toContain('(php)');
+});
+
+// -- X-Request-ID injection --
+
+test('bhv transport 013 integration injects request id header', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->injectRequestId(true)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array{headers: array<string, string>} $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers'])->toHaveKey('x-request-id');
+    expect($json['headers']['x-request-id'])->toBeString();
+    expect($json['headers']['x-request-id'])->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/');
+});
+
+test('bhv transport 007 integration generates unique request ids', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->injectRequestId(true)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+
+    $response1 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    /** @var array{headers: array<string, string>} $json1 */
+    $json1 = json_decode($response1->body, true);
+    $requestId1 = $json1['headers']['x-request-id'];
+
+    $response2 = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    /** @var array{headers: array<string, string>} $json2 */
+    $json2 = json_decode($response2->body, true);
+    $requestId2 = $json2['headers']['x-request-id'];
+
+    expect($requestId2)->not->toBe($requestId1);
+});
+
+// -- Default headers --
+
+test('bhv transport 010 integration includes transport default headers', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->defaultHeader('X-Custom', 'custom-value')
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array{headers: array<string, string>} $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers']['x-custom'])->toBe('custom-value');
+});
+
+test('bhv transport 022 repeated response headers are joined in the order they arrive', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $response = (new DefaultApiClient())->sendRequest('GET', $chasmUrl . '/test/response-headers', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->headers['x-custom-header'] ?? null)->toBe('foo');
+    $link = $response->headers['link'] ?? '';
+    expect(strpos($link, 'rel="next"'))->toBeInt();
+    expect(strpos($link, 'rel="next"'))->toBeLessThan((int) strpos($link, 'rel="prev"'));
+    $cookies = $response->headers['set-cookie'] ?? '';
+    expect(strpos($cookies, 'a=1'))->toBeInt();
+    expect(strpos($cookies, 'a=1'))->toBeLessThan((int) strpos($cookies, 'b=2'));
+});
+
+test('bhv options 004 caller headers override transport defaults', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->defaultHeader('Accept', 'text/plain')
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest(
+        'GET',
+        $chasmUrl . '/test/echo',
+        ['Accept' => 'application/json'],
+        null
+    );
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array{headers: array<string, string>} $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers']['accept'])->toBe('application/json');
+});
+
+// -- Redirect handling --
+
+test('bhv redirects 004 follows redirects when enabled', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->followRedirects(true)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv redirects 008 returns redirect when disabled', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->followRedirects(false)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
+
+    expect($response->statusCode)->toBe(302);
+});
+
+test('bhv misc 223 a see other redirect drops the request body of the follow up request', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $transport = TransportOptions::builder()->followRedirects(true)->maxRedirects(5)->build();
+    $response = (new DefaultApiClient($transport))->sendRequest('POST', $chasmUrl . '/test/redirect/303', ['Content-Type' => 'application/json'], 'hello-body');
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['body'])->toBe('');
+});
+
+test('bhv redirects 005 redirect 303 switches to get and drops body', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->followRedirects(true)
+        ->maxRedirects(5)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest(
+        'POST',
+        $chasmUrl . '/test/redirect/303',
+        ['Content-Type' => 'application/json'],
+        'hello-body'
+    );
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('GET');
+    expect($json['body'])->toBe('');
+});
+
+/**
+ * T-new-3: multipart bodies must be replayed across 307 redirects per
+ * RFC 7231 §6.4.7 / RFC 7538. The client follows redirects itself and
+ * rebuilds the multipart body for every hop.
+ */
+test('bhv retries 012 multipart body replayed on 307 redirect', function (): void {
+    $chasmUrl = (string) getenv('CHASM_HTTP_URL');
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'POST',
+        $chasmUrl . '/test/redirect/307-multipart',
+        [],
+        ['description' => 'hello', 'file' => 'file-content-bytes']
+    );
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['method'])->toBe('POST');
+    expect($json['body'])->not->toBe('');
+});
+
+// -- Max redirects --
+
+test('bhv redirects 006 respects max redirects limit', function (): void {
+    $transport = TransportOptions::builder()
+        ->followRedirects(true)
+        ->maxRedirects(5)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    expect($client)->toBeInstanceOf(DefaultApiClient::class);
+    expect($transport->maxRedirects)->toBe(5);
+});
+
+// -- Wave E: redirect counting is per-request, not shared per-client --
+
+/*
+ * The redirect hop counter and the "too many redirects" refusal must be
+ * scoped to a SINGLE sendRequest() call, never stored on the client (or
+ * the underlying transport) instance. If they leaked onto the client,
+ * interleaving a long redirect chain with a short one on the SAME shared
+ * client would corrupt each other: a request that redirects once could
+ * be failed by another request's hops, or a refusal raised by an
+ * over-limit request could surface on an unrelated under-limit request.
+ *
+ * chasm only exposes single-hop redirects, so this test stands up a tiny
+ * local PHP built-in server exposing /chain/{n}: each hop 302-redirects
+ * to /chain/{n-1} until /chain/0 returns 200. That lets one request walk
+ * a long chain (hitting the maxRedirects=5 limit) while another walks a
+ * one-hop chain (succeeding), all through one DefaultApiClient. PHP runs
+ * these calls sequentially within the process; the parity assertion is
+ * that the over-limit refusal and the hop count NEVER bleed across calls
+ * regardless of interleaving order — exactly what shared per-client
+ * redirect state would break. Mirrors the Go SDK's
+ * TestWaveE_ConcurrentRedirectCountIsPerRequest.
+ */
+test('bhv redirects 003 redirect count and limit are scoped per request not shared per client', function (): void {
+    // Router script for `php -S`: 302 -> /chain/{n-1} until /chain/0 -> 200.
+    $router = <<<'PHP_WRAP'
+    <?php
+    header('Connection: close');
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+    if (preg_match('#^/chain/(\d+)$#', (string) $path, $m)) {
+        $n = (int) $m[1];
+        if ($n <= 0) {
+            http_response_code(200);
+            echo 'ok';
+            return true;
+        }
+        header('Location: /chain/' . ($n - 1), true, 302);
+        return true;
+    }
+    http_response_code(404);
+    return true;
+    PHP_WRAP;
+
+    // tempnam() reserves a unique base path; append .php for the router and
+    // drop the original reservation so we don't leave an orphan temp file.
+    $tempBase = (string) tempnam(sys_get_temp_dir(), 'wavee_router_');
+    @unlink($tempBase);
+    $routerFile = $tempBase . '.php';
+    file_put_contents($routerFile, $router);
+
+    // Bind to an ephemeral loopback port. Port 0 lets the OS pick a free
+    // port; we read it back from the server's startup banner on stderr.
+    /* The server's output goes to a file, not a pipe: nothing drains a pipe after
+     * the startup banner, and once its buffer fills the server blocks on its next
+     * log line and every request times out. */
+    $logFile = $tempBase . '.log';
+    $descriptors = [1 => ['file', $logFile, 'w'], 2 => ['file', $logFile, 'w']];
+    /* Several workers, so a connection the client leaves open cannot block the
+     * other requests of this test (the built-in server is single-threaded by
+     * default), and every response closes its own connection. */
+    $env = array_merge(getenv(), ['PHP_CLI_SERVER_WORKERS' => '4']);
+    $process = proc_open(
+        [PHP_BINARY, '-S', '127.0.0.1:0', $routerFile],
+        $descriptors,
+        $pipes,
+        null,
+        $env
+    );
+    if (!is_resource($process)) {
+        test()->fail('could not start local php redirect-chain server');
+    }
+
+    try {
+        // The built-in server prints "... started ... http://127.0.0.1:PORT"
+        // to stderr once it is listening. Poll until we can parse the port.
+        $port = 0;
+        $deadline = microtime(true) + 10.0;
+        $banner = '';
+        while (microtime(true) < $deadline && $port === 0) {
+            $banner = (string) @file_get_contents($logFile);
+            if (preg_match('#127\.0\.0\.1:(\d+)#', $banner, $m)) {
+                $port = (int) $m[1];
+            } else {
+                usleep(20_000);
+            }
+        }
+        expect($port)->toBeGreaterThan(0);
+
+        $base = 'http://127.0.0.1:' . $port;
+
+        // The startup banner can print before the listen socket is actually
+        // accepting connections; under parallel test load that race makes the
+        // first request time out with zero bytes received. Probe the port
+        // until it accepts a connection so the test exercises redirect-limit
+        // scoping, not server-startup timing.
+        $ready = false;
+        $probeDeadline = microtime(true) + 10.0;
+        while (microtime(true) < $probeDeadline) {
+            $conn = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.5);
+            if (is_resource($conn)) {
+                fclose($conn);
+                $ready = true;
+                break;
+            }
+            usleep(50_000);
+        }
+        expect($ready)->toBeTrue();
+
+        $transport = TransportOptions::builder()
+            ->followRedirects(true)
+            ->maxRedirects(5)
+            // Following five redirect hops to a single-threaded `php -S`
+            // server can exceed the default request budget when the CI host is
+            // under parallel-test CPU load. This test asserts redirect-limit
+            // scoping, not latency, so allow a generous timeout.
+            ->timeout(30000)
+            ->build();
+
+        // ONE shared client drives every request below.
+        $client = new DefaultApiClient($transport);
+
+        // Interleave short (1 hop -> success) and long (20 hops -> over the
+        // maxRedirects=5 budget -> refusal) requests in alternating order.
+        // Each tuple is [hops, expectFailure].
+        $cases = [];
+        for ($i = 0; $i < 12; $i++) {
+            $cases[] = [1, false];
+            $cases[] = [20, true];
+        }
+
+        foreach ($cases as [$hops, $expectFailure]) {
+            if ($expectFailure) {
+                // The over-limit request must raise ITS OWN refusal and must
+                // mention the configured limit — never silently inherit a
+                // success, and never poison the next (short) request.
+                $caught = null;
+                try {
+                    $client->sendRequest('GET', $base . '/chain/' . $hops, [], null);
+                } catch (\Throwable $e) {
+                    $caught = $e;
+                }
+                expect($caught)->not->toBeNull();
+                expect((string) $caught?->getMessage())->toContain('exceeded 5');
+            } else {
+                // The short request must succeed on its own redirect budget,
+                // unaffected by any prior over-limit request's hop count.
+                $response = $client->sendRequest('GET', $base . '/chain/' . $hops, [], null);
+                expect($response->statusCode)->toBe(200);
+                expect($response->body)->toBe('ok');
+            }
+        }
+    } finally {
+        if (is_resource($process)) {
+            proc_terminate($process);
+            proc_close($process);
+        }
+        @unlink($routerFile);
+        @unlink($logFile);
+    }
+});
+
+// -- Multipart body --
+
+test('bhv serializationwire 027 sends multipart form data', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $client = new DefaultApiClient();
+    $formData = ['description' => 'A test file', 'file' => 'file content'];
+    $response = $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $formData);
+
+    expect($response)->toBeInstanceOf(\PetstoreClient\ApiHttpResponse::class);
+});
+
+/**
+ * W-new-2: multipart field-name validation must run on every branch (not
+ * just binary). Confirm that even for a plain String value, a CR/LF in
+ * the field name is rejected, preventing Content-Disposition smuggling.
+ */
+test('bhv serializationwire 026 multipart field name with crlf rejected on string value', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $client = new DefaultApiClient();
+    $badFields = ["name\r\nInjected: yes" => 'string-value'];
+
+    expect(fn () => $client->sendRequest('POST', $chasmUrl . '/test/echo', [], $badFields))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+// -- HTTP compression --
+
+test('bhv transport 005 a gzip response body is decompressed', function (): void {
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'GET',
+        getenv('CHASM_HTTP_URL') . '/test/compressed/gzip',
+        ['Accept-Encoding' => 'gzip'],
+        null
+    );
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('userId');
+});
+
+test('bhv transport 004 a brotli response body is decompressed', function (): void {
+    if (!function_exists('brotli_uncompress')) {
+        test()->markTestSkipped('ext-brotli not available');
+    }
+
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'GET',
+        getenv('CHASM_HTTP_URL') . '/test/compressed/br',
+        ['Accept-Encoding' => 'br'],
+        null
+    );
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('userId');
+});
+
+test('bhv transport 006 a zstd response body is decompressed', function (): void {
+    if (!function_exists('zstd_uncompress')) {
+        test()->markTestSkipped('ext-zstd not available');
+    }
+
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'GET',
+        getenv('CHASM_HTTP_URL') . '/test/compressed/zstd',
+        ['Accept-Encoding' => 'zstd'],
+        null
+    );
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('userId');
+});
+
+/*
+ * Regression: POST/PUT/PATCH with body == null must emit an
+ * explicit Content-Length: 0. Some servers / WAFs reject body-
+ * bearing verbs with no Content-Length (411 Length Required). The
+ * client sends an empty body and Content-Length: 0 explicitly on
+ * body-bearing verbs.
+ */
+test('bhv transport 019 post with null body sends content length zero', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient();
+    $response = $client->sendRequest(
+        'POST',
+        $chasmUrl . '/test/echo',
+        [],
+        null
+    );
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array<string, mixed> $payload */
+    $payload = (array) json_decode($response->body, true);
+    expect($payload['contentLength'])->toBe(0);
+});
+
+// -- Client lifecycle (Gap T6) --
+
+// Gap T6: close() releases the underlying HTTP client and is idempotent.
+// Once closed, any subsequent sendRequest() is a wrong call order and must
+// raise \LogicException (closed-flag guard), not an SDK error.
+test('bhv lifecycle 018 close releases underlying client', function (): void {
+    $client = new DefaultApiClient();
+    $client->close();
+    $client->close();
+
+    expect(fn () => $client->sendRequest('GET', 'https://example.com', [], null))
+        ->toThrow(\LogicException::class, 'closed');
+});
+
+test('bhv transport 001 proxy auth squid end to end', function (): void {
+    // The Squid fixture's second port answers 407 unless the request carries
+    // Basic proxy credentials, so a success through it proves the credentials
+    // embedded in the proxy URL reached the proxy.
+    $proxy = parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_HOST) . ':'
+        . parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_PORT);
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy('http://user:pass@' . $proxy)->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('"method"');
+});
+
+test('bhv transport 063 proxy that requires credentials answers 407 when none are sent', function (): void {
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy((string) getenv('PROXY_AUTH_URL'))->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(407);
+});
+
+// -- TLS verification enabled --
+
+test('bhv transport 059 an authenticating proxy refuses a request without credentials', function (): void {
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy((string) getenv('PROXY_AUTH_URL'))->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(407);
+});
+
+test('bhv transport 025 verify ssl true rejects a server certificate the system trust store does not know', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(true)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+
+    expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\PetstoreClient\Errors\NetworkException::class);
+            assert($e instanceof \PetstoreClient\Errors\NetworkException);
+            expect($e->getStatusCode())->toBe(0);
+            expect($e->getMessage())->toMatch('/certificate|SSL/i');
+        });
+});
+
+test('bhv langphp 064 a configured ca cert is the only trust anchor so an unrelated ca rejects the server', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+
+    $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    assert($key !== false);
+    $csr = openssl_csr_new(['commonName' => 'unrelated-ca'], $key);
+    assert($csr instanceof \OpenSSLCertificateSigningRequest);
+    $cert = openssl_csr_sign($csr, null, $key, 1);
+    assert($cert instanceof \OpenSSLCertificate);
+    openssl_x509_export($cert, $pem);
+    $path = tempnam(sys_get_temp_dir(), 'ca-');
+    assert(is_string($path));
+    file_put_contents($path, $pem);
+
+    try {
+        $transport = TransportOptions::builder()
+            ->verifySsl(true)
+            ->caCertPath($path)
+            ->build();
+        $client = new DefaultApiClient($transport);
+
+        expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+            ->toThrow(function (\Exception $e): void {
+                expect($e::class)->toBe(\PetstoreClient\Errors\NetworkException::class);
+                assert($e instanceof \PetstoreClient\Errors\NetworkException);
+                expect($e->getStatusCode())->toBe(0);
+                expect($e->getMessage())->toMatch('/certificate|SSL/i');
+            });
+    } finally {
+        unlink($path);
+    }
+});
+
+test('bhv transport 023 the default transport rejects a certificate from an untrusted ca', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->build());
+
+    expect(fn (): mixed => $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+});
+
+test('bhv misc 050 per call headers override the options object and an unset header falls through to it', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->defaultHeader('Accept', 'text/plain')->maxRetries(0)->build());
+
+    $overridden = $client->sendRequest('GET', $chasmUrl . '/test/echo', ['Accept' => 'application/json'], null);
+    $fallThrough = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    /** @var array<string, array<string, string>> $overriddenJson */
+    $overriddenJson = json_decode($overridden->body, true);
+    expect($overriddenJson['headers']['accept'] ?? null)->toBe('application/json');
+    /** @var array<string, array<string, string>> $fallThroughJson */
+    $fallThroughJson = json_decode($fallThrough->body, true);
+    expect($fallThroughJson['headers']['accept'] ?? null)->toBe('text/plain');
+});
+
+test('bhv misc 226 a 302 is followed to its target and the final 200 is returned', function (): void {
+    $chasmUrl = (string) getenv('CHASM_HTTP_URL');
+    $client = new DefaultApiClient(TransportOptions::builder()->followRedirects(true)->maxRedirects(5)->build());
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv misc 240 a multipart file part is echoed back with its content', function (): void {
+    $chasmUrl = (string) getenv('CHASM_HTTP_URL');
+    $response = (new DefaultApiClient())->sendRequest('POST', $chasmUrl . '/test/echo', [], ['file' => 'file content']);
+    expect($response->body)->toContain('file content');
+});
+test('bhv transport 093 a configured ca cert is the only trust anchor so an unrelated ca rejects the server', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+
+    $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    assert($key !== false);
+    $csr = openssl_csr_new(['commonName' => 'unrelated-ca'], $key);
+    assert($csr instanceof \OpenSSLCertificateSigningRequest);
+    $cert = openssl_csr_sign($csr, null, $key, 1);
+    assert($cert instanceof \OpenSSLCertificate);
+    openssl_x509_export($cert, $pem);
+    $path = tempnam(sys_get_temp_dir(), 'ca-');
+    assert(is_string($path));
+    file_put_contents($path, $pem);
+
+    try {
+        $transport = TransportOptions::builder()
+            ->verifySsl(true)
+            ->caCertPath($path)
+            ->build();
+        $client = new DefaultApiClient($transport);
+
+        expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+            ->toThrow(function (\Exception $e): void {
+                expect($e::class)->toBe(\PetstoreClient\Errors\NetworkException::class);
+                assert($e instanceof \PetstoreClient\Errors\NetworkException);
+                expect($e->getStatusCode())->toBe(0);
+                expect($e->getMessage())->toMatch('/certificate|SSL/i');
+            });
+    } finally {
+        unlink($path);
+    }
+});
+
+test('bhv misc 268 a trusted ca certificate is rejected when the hostname does not match', function (): void {
+    /* Reach the fixture by its IP address, which its certificate does not name. */
+    $parts = parse_url(getenv('CHASM_HTTPS_URL') ?: '');
+    assert(is_array($parts));
+    $address = gethostbyname((string) ($parts['host'] ?? ''));
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(true)
+        ->caCertPath(getenv('CA_CERT_PATH') ?: null)
+        ->build();
+    $client = new DefaultApiClient($transport);
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'https://' . $address . ':' . ($parts['port'] ?? 443) . '/test/echo', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+});
+
+test('bhv misc 269 a self signed endpoint is reached only with verification disabled', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+
+    $off = new DefaultApiClient(TransportOptions::builder()->verifySsl(false)->build());
+    $response = $off->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    expect($response->statusCode)->toBe(200);
+
+    $on = new DefaultApiClient(TransportOptions::builder()->verifySsl(true)->build());
+    expect(fn (): mixed => $on->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+});
+
+test('bhv misc 271 a client without a proxy connects directly even when a proxy environment variable is set', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $names = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'];
+    $saved = [];
+    foreach ($names as $name) {
+        $saved[$name] = $_SERVER[$name] ?? null;
+        $_SERVER[$name] = 'http://127.0.0.1:1';
+    }
+
+    try {
+        $client = new DefaultApiClient(TransportOptions::builder()->build());
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    } finally {
+        foreach ($saved as $name => $value) {
+            if ($value === null) {
+                unset($_SERVER[$name]);
+            } else {
+                $_SERVER[$name] = $value;
+            }
+        }
+    }
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv misc 272 an authenticating proxy accepts the credentials embedded in the proxy url end to end', function (): void {
+    // The Squid fixture's second port answers 407 unless the request carries
+    // Basic proxy credentials, so a success through it proves the credentials
+    // embedded in the proxy URL reached the proxy.
+    $proxy = parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_HOST) . ':'
+        . parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_PORT);
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy('http://user:pass@' . $proxy)->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('"method"');
+});

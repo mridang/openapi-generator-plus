@@ -1,0 +1,18 @@
+val host = System.getenv("{{envVarPrefix}}_BASE_URL")
+val token = System.getenv("{{envVarPrefix}}_TOKEN")
+{{#hasExampleOperation}}
+{{clientClassName}}.withToken(host, token).use { client ->
+{{#exampleOperation}}
+{{#returnType}}
+    val result = runBlocking { client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}() }
+    println(result)
+{{/returnType}}
+{{^returnType}}
+    runBlocking { client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}() }
+{{/returnType}}
+{{/exampleOperation}}
+}
+{{/hasExampleOperation}}
+{{^hasExampleOperation}}
+{{clientClassName}}.withToken(host, token).close()
+{{/hasExampleOperation}}

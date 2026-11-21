@@ -1,0 +1,18 @@
+module Petstore::Client::Models
+  class Shape < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    OPENAPI_DISCRIMINATOR_NAME: String
+    OPENAPI_DISCRIMINATOR_MAPPING: Hash[String, String]
+    def self.build_subtype: (untyped) -> untyped
+    def inspect: () -> String
+    def to_s: () -> String
+    def with: (**untyped) -> Shape
+    attr_reader shape_type: String
+    attr_reader label: String?
+  end
+end

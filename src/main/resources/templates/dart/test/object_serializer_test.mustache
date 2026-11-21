@@ -1,0 +1,3061 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+import 'package:{{packageName}}/src/object_serializer.dart';
+
+void main() {
+  group('ObjectSerializer', () {
+    test('bhv misc 094 a free-form JSON object is written with its members and values unchanged', () {
+      final data = {'b': [1, 'x'], 'a': {'c': true}};
+      expect(jsonDecode(serialize(data)), equals(data));
+    });
+
+    test('bhv misc 102 a binary field keeps exactly the bytes it was given through copying', () {
+      final bytes = Uint8List.fromList([0, 255, 16]);
+      final copy = BinaryVault(seal: bytes).copyWith();
+      expect(copy.seal, equals([0, 255, 16]));
+    });
+
+    test('bhv misc 103 rejecting undeclared keys on one strict model leaves a plain model accepting them', () {
+      expect(() => deserialize<StrictTag>('{"rogue":"x"}', StrictTag.fromJson), throwsA(isA<SerializationException>()));
+      expect(deserialize<Metadata>('{"rogue":"x"}', Metadata.fromJson)?.additionalProperties, equals({'rogue': 'x'}));
+    });
+
+    test('bhv misc 105 copying a model never validates the values it is given', () {
+      expect(Order().copyWith(quantity: 500).quantity, equals(500));
+    });
+
+    test('bhv misc 106 a null element in an array body keeps its position when serialized', () {
+      expect(serialize([1, null, 2]), equals('[1,null,2]'));
+    });
+
+    test('bhv misc 108 a model built with an integer enum member keeps that member wire value', () {
+      expect(jsonDecode(serialize(const Subscription(rank: Rank.low))), containsPair('rank', 1));
+    });
+
+    test('bhv misc 109 a nested object is validated with the outer rules at decode', () {
+      expect(
+        () => deserialize<EdgeCases>('{"lastError":{"code":"three"}}', EdgeCases.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv misc 110 a list of dates with a non-date element is refused', () {
+      expect(
+        () => deserializeArray<DateTime>(
+          jsonDecode('["2024-01-01T00:00:00Z","not-a-date"]'),
+          (e) => parseDateTime(e as String),
+        ),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv misc 047 serializing a union holding a value that is not one of its variants fails naming the union', () {
+      const wrapped = PetFood('kibble');
+      expect(
+        () => wrapped.toJson(),
+        throwsA(isA<SerializationException>()
+            .having((e) => e.message, 'message', contains('PetFood'))),
+      );
+    });
+
+    test('bhv misc 214 an unserializable query content value raises a serialization error', () {
+      expect(
+        () => serialize(PhotoMetadata(location: PhotoMetadataLocation(lat: double.nan))),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv misc 104 a string field declared with the email format decodes to a plain string without validation', () {
+      final decoded = PetWithOwner.fromJson({
+        'name': 'n',
+        'photoUrls': ['u'],
+        'ownerName': 'o',
+        'ownerEmail': 'not-an-email',
+      });
+      expect(decoded.ownerEmail, equals('not-an-email'));
+    });
+
+    test('bhv misc 112 a repeated element of a unique array keeps one copy of each', () {
+      final decoded = Pet.fromJson({
+        'name': 'n',
+        'photoUrls': ['u', 'u', 'v'],
+      });
+      expect(decoded.photoUrls.toList(), equals(['u', 'v']));
+    });
+
+    test('bhv misc 111 a set of unique strings is written in code point order', () {
+      final wire = wireList<String>(
+        {'pear', 'Apple', 'apple'},
+        {'pear', 'Apple', 'apple'},
+      );
+      expect(wire, ['Apple', 'apple', 'pear']);
+    });
+
+    test('bhv misc 113 a string form shows the contents of list, map and byte fields', () {
+      final text = BinaryVault(
+        seal: Uint8List.fromList([1, 2, 3]),
+        shards: [Uint8List.fromList([4, 5]), Uint8List.fromList([6])],
+        labels: {'first': Uint8List.fromList([7, 8])},
+      ).toString();
+      expect(text, allOf(contains('[1, 2, 3]'), contains('[4, 5]'), contains('first: [7, 8]')));
+    });
+
+    test('bhv misc 115 a bare string value serializes as a quoted JSON string', () {
+      expect(serialize('hello'), equals('"hello"'));
+    });
+
+    test('bhv misc 117 an absent value serializes as the JSON null literal', () {
+      expect(serialize(null), equals('null'));
+    });
+
+    test('bhv misc 118 when a payload carries a name and a differently cased duplicate, the exact-case value is decoded', () {
+      final decoded = deserialize<Category>('{"NAME":"Other","name":"Exact"}', Category.fromJson);
+      expect(decoded?.name, equals('Exact'));
+    });
+
+    test('bhv misc 119 two object keys that differ only by an escape sequence are one key and the last value wins', () {
+      final decoded = deserialize<Category>(r'{"name":"First","name":"Last"}', Category.fromJson);
+      expect(decoded?.name, equals('Last'));
+    });
+
+    test('bhv misc 121 an object with no declared schema is written as a JSON object of its properties', () {
+      expect(jsonDecode(serialize({'a': 1, 'b': 'x'})), equals({'a': 1, 'b': 'x'}));
+    });
+
+    test('bhv misc 122 a string default from the schema is applied as the exact literal', () {
+      final filled = Defaults.fromJson({});
+      expect(
+        filled.greeting,
+        equals('it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b'),
+      );
+    });
+
+    test('bhv misc 089 a date-time in a container is written in canonical form', () {
+      final at = DateTime.utc(2026, 1, 2, 3, 4, 5);
+      expect(jsonDecode(serialize([at])), equals(['2026-01-02T03:04:05.000+00:00']));
+    });
+
+    test('bhv misc 090 a duration field writes its fractional seconds in the wire form', () {
+      final model = EdgeCases(retryAfter: const Duration(seconds: 3600, microseconds: 1));
+      expect(serialize(model), contains('"3600.000001s"'));
+    });
+
+    test('bhv misc 092 a property is matched only by its wire name', () {
+      final decoded = deserialize<EdgeCases>('{"retry_after":"3600s"}', EdgeCases.fromJson);
+      expect(decoded?.retryAfter, isNull);
+    });
+
+    test('bhv misc 093 numeric additional property names are written as object members', () {
+      final metadata = deserialize<Metadata>('{"404":"missing","7":"seven"}', Metadata.fromJson);
+      final wire = jsonDecode(serialize(metadata)) as Map<String, dynamic>;
+      expect(wire['404'], equals('missing'));
+      expect(wire['7'], equals('seven'));
+    });
+
+    test('bhv serializationobject 200 a serialize failure carries the canonical prefix and names the detail', () {
+      const prefix = 'Failed to serialize object to JSON: ';
+      expect(
+        () => serialize(Object()),
+        throwsA(isA<SerializationException>()
+            .having((e) => e.message, 'message', startsWith(prefix))
+            .having((e) => e.message.length, 'length', greaterThan(prefix.length))),
+      );
+    });
+
+    test('bhv misc 230 a model with no extra properties writes exactly its declared keys', () {
+      final order = Order.fromJson({'id': 1, 'quantity': 2});
+      expect(jsonDecode(serialize(order)), equals({'id': 1, 'quantity': 2, 'status': 'placed'}));
+    });
+
+    test('bhv misc 234 a model with additional properties keeps them through serialize and deserialize', () {
+      final freeform = deserialize<Freeform>('{"label":"x","rogue":{"inner":"x"}}', Freeform.fromJson)!;
+      expect(jsonDecode(serialize(freeform)), equals({'label': 'x', 'rogue': {'inner': 'x'}}));
+    });
+
+    test('bhv misc 235 a duration with fractional seconds keeps its fraction when serialized', () {
+      expect(formatProtobufDuration(const Duration(milliseconds: 1500)), equals('1.500s'));
+    });
+
+    test('bhv misc 243 an absent optional array field decodes to null, not to an empty list', () {
+      final pet = deserialize<Pet>('{"name":"x","photoUrls":[]}', Pet.fromJson)!;
+      expect(pet.tags, isNull);
+    });
+
+    test('bhv misc 244 a body with a leading byte-order mark decodes into the model', () {
+      final order = deserialize<Order>('﻿{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}', Order.fromJson)!;
+      expect(order.trackingId, isNotNull);
+    });
+
+    test('bhv misc 245 a time of day in a plain object is serialized as a JSON string', () {
+      expect(jsonDecode(serialize({'openAt': '08:00:00'})), equals({'openAt': '08:00:00'}));
+    });
+
+    test('bhv misc 246 a negative whole-second protobuf duration string parses to a negative duration', () {
+      expect(parseProtobufDuration('-90s'), equals(const Duration(seconds: -90)));
+    });
+
+    test('bhv misc 247 a UUID string with the wrong segment lengths is rejected', () {
+      expect(
+        () => UuidValue.fromString('550e8400-e29b-41d4-a716-44665544000'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('bhv misc 248 a duration with days is formatted as a duration string', () {
+      expect(formatProtobufDuration(const Duration(days: 3)), equals('259200s'));
+    });
+
+    test('bhv misc 249 a free-form object field keeps its object and integer entries through a JSON round trip', () {
+      final json = serialize({
+        'props': {'count': 3, 'tag': 'x'},
+      });
+      expect(jsonDecode(json), equals({
+        'props': {'count': 3, 'tag': 'x'},
+      }));
+    });
+
+    test('bhv misc 251 a duration string with a day designator is rejected', () {
+      expect(
+        () => parseProtobufDuration('1d'),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv misc 252 an enum wire value containing separators round-trips unchanged', () {
+      expect(parseJson(serialize('a,b;c d/e:f')), equals('a,b;c d/e:f'));
+    });
+
+    test('bhv serializationobject 147 serialize map to JSON', () {
+      final input = {'name': 'Fido', 'age': 3};
+
+      final jsonString = serialize(input);
+      expect(jsonString, isNotEmpty);
+
+      final parsed = jsonDecode(jsonString) as Map<String, dynamic>;
+      expect(parsed['name'], equals('Fido'));
+    });
+
+    test('bhv serializationobject 188 an empty object serializes to an empty JSON object', () {
+      expect(serialize(const Category()), equals('{}'));
+      expect(serialize(<String, dynamic>{}), equals('{}'));
+    });
+
+    test('bhv serializationobject 189 mutually recursive models decode from nested JSON', () {
+      final department = deserialize<Department>(
+        '{"name":"d","lead":{"name":"e","department":{"name":"d2"}}}',
+        Department.fromJson,
+      );
+      expect(department?.name, equals('d'));
+      expect(department?.lead?.name, equals('e'));
+      expect(department?.lead?.department?.name, equals('d2'));
+    });
+
+    test('bhv serializationobject 125 a required nullable property keeps an explicit null and always writes the key', () {
+      final decoded = deserialize<RequiredNullable>('{"note":null}', RequiredNullable.fromJson);
+      expect(decoded!.note, isNull);
+      expect(serialize(decoded), equals('{"note":null}'));
+      expect(serialize(const RequiredNullable(note: 'hi')), equals('{"note":"hi"}'));
+    });
+
+    test('bhv serializationobject 218 a required nullable property that has a value is written as given', () {
+      final decoded = deserialize<RequiredNullable>('{"note":"hi"}', RequiredNullable.fromJson);
+      expect(decoded!.note, equals('hi'));
+      expect(jsonDecode(serialize(decoded)), equals(<String, dynamic>{'note': 'hi'}));
+    });
+
+    test('bhv serializationobject 126 a required nullable property rejects an absent key', () {
+      expect(
+        () => deserialize<RequiredNullable>('{}', RequiredNullable.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 032 a nickname outside its pattern is not enforced and round-trips unchanged', () {
+      final pet = deserialize<Pet>(
+          '{"name":"x","photoUrls":[],"nickname":"ZZZZZZZZZZ"}', Pet.fromJson);
+
+      expect(pet!.nickname, equals('ZZZZZZZZZZ'));
+      expect(serialize(pet), contains('"nickname":"ZZZZZZZZZZ"'));
+    });
+
+    test('bhv serializationobject 057 a double beyond the range of a double is refused, not decoded as infinity', () {
+      for (final literal in ['1e400', '-1e400']) {
+        expect(
+          () => deserialize<Pet>(
+              '{"name":"a","photoUrls":[],"weightKg":$literal}', Pet.fromJson),
+          throwsA(isA<SerializationException>()),
+          reason: literal,
+        );
+      }
+    });
+
+    test('bhv langdart 064 a finite double still decodes', () {
+      final pet = deserialize<Pet>(
+          '{"name":"a","photoUrls":[],"weightKg":1.5e300}', Pet.fromJson);
+
+      expect(pet!.weightKg, equals(1.5e300));
+    });
+
+    test('bhv serializationobject 209 copyWith replaces only the given fields and leaves the original unchanged', () {
+      const original = Pet(name: 'Fido', photoUrls: {'a'}, id: 7);
+
+      final copy = original.copyWith(name: 'Rex');
+
+      expect(copy.name, equals('Rex'));
+      expect(copy.id, equals(7));
+      expect(copy.photoUrls, equals({'a'}));
+      expect(original.name, equals('Fido'));
+    });
+
+    test('bhv misc 146 copyWith without arguments is equal to the original', () {
+      const original = Pet(name: 'Fido', photoUrls: {'a'}, id: 7);
+
+      expect(original.copyWith(), equals(original));
+    });
+
+    test('bhv models 016 copyWith sets a nullable field to null only when null is passed', () {
+      const original = Pet(name: 'Fido', photoUrls: {'a'}, id: 7);
+
+      expect(original.copyWith(nickname: 'Fi').nickname, equals('Fi'));
+      expect(original.copyWith(id: null).id, isNull);
+      expect(original.copyWith(name: 'Rex').id, equals(7));
+    });
+
+    test('bhv serializationobject 049 copyWith on a required nullable field keeps it required in the type', () {
+      const original = RequiredNullable(note: 'hi');
+
+      expect(original.copyWith(note: null).note, isNull);
+      expect(original.copyWith().note, equals('hi'));
+    });
+
+    test('bhv langdart 065 deserializeRaw JSON to map', () {
+      final input = '{"name":"Fido","age":3}';
+
+      final result = deserializeRaw(input) as Map<String, dynamic>;
+      expect(result['name'], equals('Fido'));
+    });
+
+    test('bhv serializationobject 130 returns empty string for nil', () {
+      final result = deserializeRaw('');
+      expect(result, isNull);
+    });
+
+    test('bhv serializationobject 066 invalid JSON is refused when deserializing raw', () {
+      expect(
+        () => deserializeRaw('not json'),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    // -- Gap P2 (canonical): BOM-prefixed JSON deserializes cleanly --
+    //
+    // RFC 8259 §8.1 forbids a leading UTF-8 BOM (U+FEFF), but Windows-
+    // generated payloads often emit one and jsonDecode rejects it. The SDK
+    // strips it transparently (parity with Java Jackson / C# System.Text.Json)
+    // so a BOM-prefixed body still deserializes into the model. GREEN here.
+    test('bhv serializationobject 060 deserialize strips a leading UTF-8 BOM before parsing into a model', () {
+      const bomJson = '﻿{"id":1,"name":"Dogs"}';
+      final category = deserialize<Category>(bomJson, Category.fromJson);
+      expect(category, isNotNull);
+      expect(category!.id, equals(1));
+      expect(category.name, equals('Dogs'));
+    });
+
+    // -- default-on-deserialize --
+    //
+    // The Order.status field declares a schema `default: placed`. When a JSON
+    // response OMITS "status", the SDK must populate it with the default
+    // ("placed") rather than leaving it null. This exercises the same
+    // `deserialize<T>(json, T.fromJson)` entry point the other model
+    // deserialize tests use.
+    test('bhv serializationobject 053 deserialize applies schema default for absent field', () {
+      const json = '{"id":10,"petId":198772}';
+      final order = deserialize<Order>(json, Order.fromJson);
+      expect(order, isNotNull);
+      expect(order!.status, equals(OrderStatusEnum.placed));
+    });
+
+    // -- default-applies-only-when-absent --
+    //
+    // The Defaults model declares `retries` (int, default 3), `mode` (enum,
+    // default `medium` — NOT the first variant), and `label` (nullable string,
+    // default "untitled"). A schema `default` fills in ONLY when the key is
+    // OMITTED from the payload. An explicit JSON `null` is a provided value and
+    // must be PRESERVED as null, not replaced by the default (JSON-Schema
+    // contract; parity with go/rust/python).
+    test('bhv serializationobject 025 deserialize applies defaults only for absent keys', () {
+      final fromEmpty = deserialize<Defaults>('{}', Defaults.fromJson);
+      expect(fromEmpty, isNotNull);
+      expect(fromEmpty!.retries, equals(3));
+      expect(fromEmpty.mode, equals(DefaultsModeEnum.medium));
+      expect(fromEmpty.label, equals('untitled'));
+      expect(
+        fromEmpty.greeting,
+        equals('it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b'),
+      );
+
+      final withNull = deserialize<Defaults>(
+        '{"label":null,"retries":7}',
+        Defaults.fromJson,
+      );
+      expect(withNull, isNotNull);
+      expect(withNull!.label, isNull);
+      expect(withNull.retries, equals(7));
+    });
+
+    // A `default` written next to a `$ref` (an OAS 3.1 sibling keyword, D60,
+    // F866): StockItem.availability references the Availability enum with the
+    // sibling default `on-hold`. Construction, decode of an absent key and
+    // encode all see it; an explicit JSON null is still a provided value.
+    test('bhv serializationobject 001 a sibling default next to a reference initialises, decodes and encodes', () {
+      const built = StockItem(priority: Priority.number1);
+      expect(built.availability, equals(Availability.onHold));
+      expect(built.toJson()['availability'], equals('on-hold'));
+
+      final absent =
+          deserialize<StockItem>('{"priority":1}', StockItem.fromJson);
+      expect(absent!.availability, equals(Availability.onHold));
+
+      final given = deserialize<StockItem>(
+          '{"priority":1,"availability":"Sold"}', StockItem.fromJson);
+      expect(given!.availability, equals(Availability.sold));
+
+      final explicitNull = deserialize<StockItem>(
+          '{"priority":1,"availability":null}', StockItem.fromJson);
+      expect(explicitNull!.availability, isNull);
+    });
+
+    // F316: a constructor never validates. Values the schema would refuse
+    // (a pattern, a bound, an empty required string) build fine; the unknown
+    // enum string fails loudly, and only when it is decoded.
+    test('bhv serializationobject 029 constructors do not validate and decode gives the catch-all for an unknown enum', () {
+      expect(() => const StockItem(priority: Priority.number1), returnsNormally);
+      expect(() => Pet(name: '', photoUrls: <String>{}, nickname: 'ZZZZZZZZZZ'),
+          returnsNormally);
+      expect(Availability.fromJson('no-such-member'),
+          equals(Availability.unknownDefaultOpenApi));
+      expect(
+          deserialize<StockItem>(
+                  '{"priority":1,"availability":"no-such-member"}', StockItem.fromJson)!
+              .availability,
+          equals(Availability.unknownDefaultOpenApi));
+    });
+
+    test('bhv langdart 066 deserialize reports a JSON nesting depth over the limit', () {
+      final deep = '[' * 1001 + ']' * 1001;
+      expect(
+        () => deserialize<Category>(deep, Category.fromJson),
+        throwsA(isA<SerializationException>().having((e) => e.message,
+            'message', 'JSON nesting depth 1001 exceeds limit 1000')),
+      );
+    });
+
+    test('bhv serializationobject 004 deserialize prefixes a parse failure with Failed to deserialize JSON',
+        () {
+      expect(
+        () => deserialize<Category>('{', Category.fromJson),
+        throwsA(isA<SerializationException>().having((e) => e.message,
+            'message', startsWith('Failed to deserialize JSON: '))),
+      );
+    });
+
+    // -- recursive-self-referential-model-deserialize --
+    //
+    // TreeNode is self-referential ({ value, child: TreeNode? }). Deserializing
+    // a nested literal must decode the `child` into a real TreeNode instance
+    // (not a raw map), and the leaf node's absent `child` must read as null.
+    test('bhv serializationobject 068 deserialize decodes a self-referential TreeNode nesting', () {
+      const json = '{"value":"root","child":{"value":"leaf"}}';
+      final top = deserialize<TreeNode>(json, TreeNode.fromJson);
+      expect(top, isNotNull);
+      expect(top!.value, equals('root'));
+      expect(top.child, isA<TreeNode>());
+      expect(top.child!.value, equals('leaf'));
+      expect(top.child!.child, isNull);
+    });
+
+    test('bhv serializationobject 141 returns the string for a string value', () {
+      expect(toPathValue('hello'), equals('hello'));
+    });
+
+    test('bhv serializationobject 036 an integer in a path is written as its digits', () {
+      expect(toPathValue(42), equals('42'));
+    });
+
+    test('bhv serializationobject 166 toPathValue bool', () {
+      expect(toPathValue(true), equals('true'));
+      expect(toPathValue(false), equals('false'));
+    });
+
+    test('bhv serializationobject 131 toPathValue null returns empty string', () {
+      expect(toPathValue(null), equals(''));
+    });
+
+    test('bhv serializationobject 167 toQueryValue string', () {
+      expect(toQueryValue('hello', ''), equals('hello'));
+    });
+
+    test('bhv serializationobject 168 toQueryValue string slice CSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'csv'), equals('a,b,c'));
+    });
+
+    test('bhv serializationobject 169 toQueryValue string slice SSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'ssv'), equals('a b c'));
+    });
+
+    test('bhv serializationobject 101 toQueryValue string slice TSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'tsv'), equals('a\tb\tc'));
+    });
+
+    test('bhv serializationobject 099 toQueryValue string slice pipes', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'pipes'), equals('a|b|c'));
+    });
+
+    test('bhv serializationobject 135 toQueryValue string slice multi', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'multi'), equals(['a', 'b', 'c']));
+    });
+
+    test('bhv serializationobject 097 toQueryValue joins with comma when the format is not recognised', () {
+      expect(toQueryValue(['a', 'b', 'c'], ''), equals('a,b,c'));
+    });
+
+    test('bhv serializationobject 037 an integer in a query is written as its digits', () {
+      expect(toQueryValue(42, ''), equals('42'));
+    });
+
+    test('bhv serializationobject 028 the boolean true is written as the text true', () {
+      expect(toQueryValue(true, ''), equals('true'));
+    });
+
+    test('bhv serializationobject 027 the boolean false is written as the text false', () {
+      expect(toQueryValue(false, ''), equals('false'));
+    });
+
+    test('bhv serializationobject 137 toQueryValue null', () {
+      expect(toQueryValue(null, ''), isNull);
+    });
+
+    test('bhv serializationobject 142 returns the string for a string value', () {
+      expect(toHeaderValue('hello'), equals('hello'));
+    });
+
+    test('bhv serializationobject 210 toHeaderValue string slice joins with commas', () {
+      expect(toHeaderValue(['a', 'b', 'c']), equals('a,b,c'));
+    });
+
+    test('bhv serializationobject 038 an integer in a header is written as its digits', () {
+      expect(toHeaderValue(42), equals('42'));
+    });
+
+    test('bhv serializationobject 034 false in a header is written as the text false', () {
+      expect(toHeaderValue(false), equals('false'));
+    });
+
+    test('bhv serializationobject 043 true in a header is written as the text true', () {
+      expect(toHeaderValue(true), equals('true'));
+    });
+
+    test('bhv serializationobject 132 toHeaderValue null returns empty string', () {
+      expect(toHeaderValue(null), equals(''));
+    });
+
+    test('bhv serializationobject 140 returns the string for a string value', () {
+      expect(toFormValue('hello'), equals('hello'));
+    });
+
+    test('bhv langdart 067 a form value of an integer is written as its digits', () {
+      expect(toFormValue(123), equals('123'));
+    });
+
+    test('bhv serializationobject 165 toFormValue null', () {
+      expect(toFormValue(null), equals(''));
+    });
+
+    test('bhv serializationobject 042 true in a form is written as the text true', () {
+      expect(toFormValue(true), equals('true'));
+    });
+
+    test('bhv serializationobject 035 false in a form is written as the text false', () {
+      expect(toFormValue(false), equals('false'));
+    });
+
+    test('bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, including its colons and dots', () {
+      expect(encodeContentCookie('{"a":1.5}'), equals('%7B%22a%22%3A1%2E5%7D'));
+    });
+
+    test('bhv serializationparam 118 a content cookie value is encoded to the shared percent encoded bytes', () {
+      expect(
+        encodeContentCookie('{"k":"a b~*\u00e9"}'),
+        equals('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D'),
+      );
+    });
+
+    test('bhv serializationparam 104 encodeContentCookie keeps only the unreserved set literal, and a duration parameter is written in the protobuf form', () {
+      expect(
+        encodeContentCookie('{"k":"a b~*\u00e9"}'),
+        equals('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D'),
+      );
+      expect(encodeContentCookie("AZaz09-_~"), equals('AZaz09-_~'));
+      expect(encodeContentCookie("."), equals('%2E'));
+      expect(encodeContentCookie("!'()*,"), equals('%21%27%28%29%2A%2C'));
+      expect(stringify(const Duration(hours: 1)), equals('3600s'));
+    });
+
+    test('bhv serializationobject 224 a content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal', () {
+      final wire = serialize(<String, String>{'k': 'a b~*é'});
+      expect(encodeContentCookie(wire), equals('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D'));
+    });
+
+    test('bhv serializationobject 143 returns the string for a string value', () {
+      expect(toCookieValue('hello'), equals('hello'));
+    });
+
+    test('bhv serializationobject 033 false in a cookie is written as the text false', () {
+      expect(toCookieValue(false), equals('false'));
+    });
+
+    test('bhv serializationobject 041 true in a cookie is written as the text true', () {
+      expect(toCookieValue(true), equals('true'));
+    });
+
+    test('bhv serializationobject 133 toCookieValue null returns empty string', () {
+      expect(toCookieValue(null), equals(''));
+    });
+
+    test('bhv serializationobject 040 an integer in a cookie is written as its digits', () {
+      expect(toCookieValue(42), equals('42'));
+    });
+
+    test('bhv serializationobject 159 stringify string', () {
+      expect(stringify('hello'), equals('hello'));
+    });
+
+    test('bhv serializationobject 039 an integer is stringified as its digits', () {
+      expect(stringify(42), equals('42'));
+    });
+
+    test('bhv serializationobject 211 stringify int64 gives its decimal digits', () {
+      expect(stringify(9999999999), equals('9999999999'));
+    });
+
+    test('bhv serializationobject 078 a double is written as its string form', () {
+      expect(stringify(3.14), equals('3.14'));
+    });
+
+    test('bhv serializationobject 156 stringify bytes is padded standard base64', () {
+      expect(stringify(Uint8List.fromList([0x68, 0x69])), equals('aGk='));
+      expect(stringify(Uint8List.fromList([0xFB, 0xFF])), equals('+/8='));
+    });
+
+    test('bhv serializationobject 014 a readOnly property is decoded', () {
+      final decoded = Account.fromJson({'id': 7, 'username': 'u'});
+      expect(decoded.id, equals(7));
+    });
+
+    test('bhv misc 242 a readOnly and a writeOnly property have no wire effect', () {
+      final encoded = serialize(const Account(id: 7, username: 'u', password: 'p'));
+      expect(jsonDecode(encoded), equals({'id': 7, 'username': 'u', 'password': 'p'}));
+    });
+
+    test('bhv serializationobject 018 a writeOnly property is serialized', () {
+      final encoded = serialize(const Account(username: 'u', password: 'p'));
+      expect(jsonDecode(encoded), equals({'username': 'u', 'password': 'p'}));
+    });
+
+    test('bhv serializationobject 017 a writeOnly property is decoded', () {
+      final decoded =
+          Account.fromJson({'id': 7, 'username': 'u', 'password': 'p'});
+      expect(decoded.password, equals('p'));
+    });
+
+    test('bhv serializationobject 007 a format: password property is masked in toString and kept on the wire', () {
+      final secret = ['s', 'e', 'c', 'r', 'e', 't'].join();
+      final account = Account(username: 'u', password: secret);
+      expect(account.toString(), isNot(contains(secret)));
+      expect(account.toString(), contains('password: ***'));
+      expect(account.toString(), contains('username: u'));
+      expect(account.password, equals(secret));
+      expect(jsonDecode(serialize(account)),
+          equals({'username': 'u', 'password': secret}));
+    });
+
+    test('bhv serializationobject 155 a boolean is stringified as true or false', () {
+      expect(stringify(true), equals('true'));
+      expect(stringify(false), equals('false'));
+    });
+
+    test('bhv serializationobject 157 stringify date time returns iso 8601 string', () {
+      final ts = DateTime.utc(2024, 1, 15, 10, 30, 0);
+      final result = stringify(ts);
+      expect(result, equals('2024-01-15T10:30:00.000+00:00'));
+    });
+
+    test('bhv serializationobject 110 stringify null returns empty string', () {
+      expect(stringify(null), equals(''));
+    });
+
+    // DateTimeOffsetPreservationTests
+
+    test('bhv serializationobject 174 UTC datetime serializes containing date-time and offset', () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+      final result = stringify(dt);
+      expect(result, equals('2024-01-01T12:30:45.000+00:00'));
+    });
+
+    test('bhv serializationobject 116 positive timezone offset is preserved', () {
+      // Use a fixed UTC equivalent: 12:30:45+05:30 = 07:00:45 UTC
+      final utcDt = DateTime.utc(2024, 1, 1, 7, 0, 45);
+      final result = stringify(utcDt);
+      expect(result, equals('2024-01-01T07:00:45.000+00:00'));
+    });
+
+    test('bhv serializationobject 107 negative timezone offset does not lose the offset', () {
+      final utcDt = DateTime.utc(2024, 1, 1, 20, 30, 45); // 12:30:45-08:00 = 20:30:45 UTC
+      final result = stringify(utcDt);
+      expect(result, equals('2024-01-01T20:30:45.000+00:00'));
+    });
+
+    test('bhv serializationobject 199 subseconds are preserved in a serialized datetime', () {
+      final dt = DateTime.utc(2020, 1, 2, 3, 4, 5, 123);
+      expect(serialize(dt), contains('05.123'));
+    });
+
+    test('bhv serializationobject 046 date-time serialization preserves sub-second precision', () {
+      // Canonical cross-SDK regression: the decode path (DateTime.parse)
+      // accepts fractional seconds, so the encode path must emit them too.
+      // Use the shared instant 2020-01-02T03:04:05.123Z (UTC) with
+      // millisecond precision — the common denominator every language's
+      // native date-time type can represent.
+      final dt = DateTime.utc(2020, 1, 2, 3, 4, 5, 123);
+      final result = stringify(dt);
+      // (1) the millisecond fraction is NOT truncated to whole seconds.
+      expect(result, equals('2020-01-02T03:04:05.123+00:00'),
+          reason: 'milliseconds must survive serialization: $result');
+      // (2) deserializing yields a date-time equal to the original instant.
+      final parsed = DateTime.parse(result);
+      expect(parsed.toUtc().millisecondsSinceEpoch,
+          equals(dt.millisecondsSinceEpoch),
+          reason: 'round-trip must be lossless to the millisecond');
+    });
+
+    test('bhv serializationobject 134 date formatted as string contains date component', () {
+      final dt = DateTime.utc(2024, 1, 1, 0, 0, 0);
+      final result = stringify(dt);
+      expect(result, equals('2024-01-01T00:00:00.000+00:00'));
+    });
+
+    test('bhv serializationobject 150 serialized datetime ends with a numeric offset, never Z', () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+      final result = stringify(dt);
+      expect(result, equals('2024-01-01T12:30:45.000+00:00'));
+      expect(result.endsWith('Z'), isFalse,
+          reason: 'zero offset must render as +00:00, not Z: $result');
+    });
+
+    test('bhv langdart 068 microsecond component is truncated to a fixed 3-digit fraction', () {
+      final dt = DateTime.utc(2020, 1, 2, 3, 4, 5, 123, 456);
+      expect(stringify(dt), equals('2020-01-02T03:04:05.123+00:00'));
+    });
+
+    test('bhv serializationobject 045 a date-time model field keeps its sub-second fraction on the wire', () {
+      final metadata = Metadata(createdAt: DateTime.utc(2024, 1, 2, 3, 4, 5, 678));
+      expect(jsonDecode(serialize(metadata)),
+          equals({'createdAt': '2024-01-02T03:04:05.678+00:00'}));
+    });
+
+    test('bhv serializationobject 144 round-trip: serialize then deserialize yields equivalent instant', () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+      final result = stringify(dt);
+      final parsed = DateTime.parse(result);
+      expect(parsed.toUtc().millisecondsSinceEpoch, equals(dt.millisecondsSinceEpoch));
+    });
+
+    // NonAsciiSerializationTests
+
+    test('bhv serializationobject 019 accented character serializes without unicode escape', () {
+      final result = serialize({'key': 'café'});
+      expect(result, contains('é'));
+    });
+
+    test('bhv serializationobject 031 CJK characters serialize without unicode escape', () {
+      final result = serialize({'key': '日本'});
+      expect(result, contains('日本'));
+    });
+
+    test('bhv serializationobject 160 tab character is properly escaped in JSON', () {
+      final result = serialize({'key': 'a\tb'});
+      expect(result, contains(r'\t'));
+    });
+
+    // Fixture models: wire names, typed defaults and typed values
+
+    test('bhv serializationobject 117 keyword-named EdgeCases properties keep their wire keys through a round trip', () {
+      final wire = <String, Object?>{
+        'and': true,
+        'or': false,
+        'not': true,
+        'class': 'c',
+        'return': 'r',
+        'null': 'n',
+        'true': true,
+        'false': false,
+      };
+      final decoded = deserialize<EdgeCases>(jsonEncode(wire), EdgeCases.fromJson);
+      expect(decoded!.and, isTrue);
+      expect(decoded.or, isFalse);
+      expect(decoded.class_, equals('c'));
+      expect(decoded.return_, equals('r'));
+      expect(decoded.null_, equals('n'));
+      expect(decoded.true_, isTrue);
+      expect(decoded.false_, isFalse);
+      expect(jsonDecode(serialize(decoded)), equals(wire));
+    });
+
+    test('bhv serialization 050 a property whose name begins with a digit reads and writes under its exact wire name', () {
+      final decoded = deserialize<EdgeCases>(
+        '{"2fa":true}',
+        EdgeCases.fromJson,
+      );
+      expect(decoded!.n2fa, isTrue);
+      expect(jsonDecode(serialize(decoded)), equals({'2fa': true}));
+    });
+
+    test('bhv serializationobject 111 Defaults numeric defaults are exact typed values when the keys are absent', () {
+      final defaults = deserialize<Defaults>('{}', Defaults.fromJson)!;
+      expect(defaults.ratio, equals(1.5));
+      expect(defaults.scale, equals(0.25));
+      expect(defaults.weight, equals(2.0));
+      expect(defaults.ceiling, equals(9000000000));
+    });
+
+    test('bhv serializationobject 050 decoding a payload without the property gives the default', () {
+      final defaults = deserialize<Defaults>('{"retries":5}', Defaults.fromJson)!;
+      expect(defaults.label, equals('untitled'));
+    });
+
+    test('bhv serializationobject 196 an explicit value replaces a numeric default', () {
+      final defaults = deserialize<Defaults>(
+          '{"ratio":2.5,"scale":0.5,"weight":3,"ceiling":7}', Defaults.fromJson)!;
+      expect(defaults.ratio, equals(2.5));
+      expect(defaults.scale, equals(0.5));
+      expect(defaults.weight, equals(3.0));
+      expect(defaults.ceiling, equals(7));
+    });
+
+    test('bhv serializationobject 115 a contentEncoding byte property decodes from and encodes to padded base64', () {
+      final passport =
+          deserialize<PetPassport>('{"biometricChip":"aGk="}', PetPassport.fromJson)!;
+      expect(passport.biometricChip, equals(Uint8List.fromList([0x68, 0x69])));
+      expect(jsonDecode(serialize(passport)),
+          equals(<String, Object?>{'biometricChip': 'aGk='}));
+    });
+
+    test('bhv serializationobject 016 a uuid property is written lowercase, decoded from uppercase and refuses a malformed value', () {
+      final order = deserialize<Order>(
+          '{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}', Order.fromJson)!;
+      expect(order.trackingId!.toString(),
+          equals('3f2504e0-4f89-11d3-9a0c-0305e82c3301'));
+      final written = jsonDecode(serialize(order)) as Map<String, dynamic>;
+      expect(written['trackingId'], equals('3f2504e0-4f89-11d3-9a0c-0305e82c3301'));
+      expect(
+        () => deserialize<Order>('{"trackingId":"not-a-uuid"}', Order.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 104 EdgeCases lastError and outcome (schemas named like built-in types) round trip', () {
+      final wire = <String, Object?>{
+        'lastError': {'code': 1, 'message': 'm'},
+        'outcome': {'ok': true},
+      };
+      final decoded = deserialize<EdgeCases>(jsonEncode(wire), EdgeCases.fromJson)!;
+      expect(decoded.lastError!.code, equals(1));
+      expect(decoded.lastError!.message, equals('m'));
+      expect(decoded.outcome!.ok, isTrue);
+      expect(jsonDecode(serialize(decoded)), equals(wire));
+    });
+
+    test('bhv serializationobject 024 an inline enum keeps its mixed-case wire values and gives the catch-all member for an unknown one', () {
+      for (final wire in ['In-Stock', 'on-hold', 'OUT_OF_STOCK']) {
+        final decoded =
+            deserialize<EdgeCases>('{"phase":"$wire"}', EdgeCases.fromJson)!;
+        expect(decoded.phase!.value, equals(wire));
+        expect(jsonDecode(serialize(decoded)),
+            equals(<String, Object?>{'phase': wire}));
+      }
+      expect(
+        deserialize<EdgeCases>('{"phase":"in-stock"}', EdgeCases.fromJson)!.phase,
+        equals(EdgeCasesPhaseEnum.unknownDefaultOpenApi),
+      );
+    });
+
+    test('bhv serializationobject 022 an inline enum (EdgeCases.phase) round-trips every member through its wire value', () {
+      for (final member in EdgeCasesPhaseEnum.values
+          .where((m) => m != EdgeCasesPhaseEnum.unknownDefaultOpenApi)) {
+        final decoded = deserialize<EdgeCases>(
+            jsonEncode({'phase': member.value}), EdgeCases.fromJson)!;
+        expect(decoded.phase, equals(member));
+        expect(jsonDecode(serialize(decoded)),
+            equals(<String, Object?>{'phase': member.value}));
+      }
+    });
+
+    test('bhv serializationobject 013 a protobuf duration decodes to a Duration and encodes back', () {
+      final decoded =
+          deserialize<EdgeCases>('{"retryAfter":"3600s"}', EdgeCases.fromJson)!;
+      expect(decoded.retryAfter, equals(const Duration(seconds: 3600)));
+      expect(jsonDecode(serialize(decoded)),
+          equals(<String, Object?>{'retryAfter': '3600s'}));
+    });
+
+    test('bhv serializationobject 076 Availability members with quotes, backslashes and dollar signs round trip', () {
+      for (final wire in ["o'clock", r'a\b', r'$eq', '#{x}']) {
+        expect(Availability.fromJson(wire).toJson(), equals(wire));
+      }
+    });
+
+    test('bhv serializationobject 124 request JSON writes slash, angle brackets, ampersand, non-ASCII, U+2028, U+2029 and DEL literally', () {
+      final out = serialize({'k': 'a\u2028b\u2029c\u007fd/<>&\u00e9'});
+      expect(out, equals('{"k":"a\u2028b\u2029c\u007fd/<>&\u00e9"}'));
+    });
+
+    test('bhv serializationobject 186 request JSON escapes only the quote, the backslash and controls', () {
+      expect(serialize({'k': 'q"b\\n\n'}), equals(r'{"k":"q\"b\\n\n"}'));
+    });
+
+    test('bhv serializationobject 219 a time value keeps its milliseconds when it is written', () {
+      final decoded = deserialize<EdgeCases>('{"cutoff":"10:30:00.123"}', EdgeCases.fromJson);
+      expect(jsonDecode(serialize(decoded)), equals(<String, Object?>{'cutoff': '10:30:00.123'}));
+    });
+
+    test('bhv serializationobject 114 a format time property passes through as the string it was given', () {
+      for (final wire in ['10:30:00', '10:30:00.123']) {
+        final decoded =
+            deserialize<EdgeCases>('{"cutoff":"$wire"}', EdgeCases.fromJson)!;
+        expect(decoded.cutoff, equals(wire));
+        expect(jsonDecode(serialize(decoded)),
+            equals(<String, Object?>{'cutoff': wire}));
+      }
+    });
+
+    test('bhv serializationobject 012 a prefixItems tuple degrades to an open list that round trips', () {
+      final pet = deserialize<Pet>(
+          '{"name":"n","photoUrls":[],"location":[1.5,2.5,"label"]}',
+          Pet.fromJson)!;
+      expect(pet.location, equals([1.5, 2.5, 'label']));
+      final written = jsonDecode(serialize(pet)) as Map<String, dynamic>;
+      expect(written['location'], equals([1.5, 2.5, 'label']));
+    });
+
+    test('bhv serializationobject 006 a JSON object with a duplicate key resolves to the last value', () {
+      expect(deserializeRaw('{"a":1,"a":2}'), equals({'a': 2}));
+      expect(deserializeRaw('{"o":{"k":1,"k":2}}'), equals({'o': {'k': 2}}));
+      final category = deserialize<Category>(
+          '{"id":"x","id":1,"name":"n"}', Category.fromJson);
+      expect(category!.id, equals(1));
+    });
+
+    test('bhv serializationobject 161 the four Separator wire values decode to distinct constants and re-encode', () {
+      final wires = [' ', '@@', 'a-b', 'a_b'];
+      final constants = wires.map(Separator.fromJson).toSet();
+      expect(constants, hasLength(4));
+      for (final wire in wires) {
+        expect(Separator.fromJson(wire).toJson(), equals(wire));
+        final decoded =
+            deserialize<EdgeCases>('{"separator":${jsonEncode(wire)}}', EdgeCases.fromJson)!;
+        expect(decoded.separator!.value, equals(wire));
+      }
+    });
+
+    test('bhv serializationobject 010 a nickname longer than its declared maximum is accepted and round-trips', () {
+      final nickname = List.filled(10, 'Z').join();
+      final decoded = deserialize<Pet>(
+          '{"name":"n","photoUrls":[],"nickname":"$nickname"}', Pet.fromJson)!;
+      expect(decoded.nickname, equals(nickname));
+      expect(jsonDecode(serialize(decoded)), containsPair('nickname', nickname));
+    });
+
+    test('bhv serializationobject 074 a slug matching the declared pattern is accepted', () {
+      final decoded =
+          deserialize<EdgeCases>('{"slug":"12/ab"}', EdgeCases.fromJson)!;
+      expect(decoded.slug, equals('12/ab'));
+    });
+
+    // DeserializationErrorWrappingTests
+
+    // The error contract: every wire-shape failure throws exactly
+    // SerializationException (no subclass, no library error), and that is an
+    // instance of the SDK root so one `on` clause catches it.
+    final wireShapeFailures = <String, Object? Function()>{
+      'malformed JSON': () => deserialize('{', Category.fromJson),
+      'wrong primitive type': () => deserialize(
+          '{"id":"abc","name":"doggie","photoUrls":[]}', Pet.fromJson),
+      'missing required field': () =>
+          deserialize('{"photoUrls":[]}', Pet.fromJson),
+      'malformed duration': () =>
+          deserialize('{"retryAfter":"soon"}', EdgeCases.fromJson),
+      'malformed date-time': () =>
+          deserialize('{"expiresAt":"not-a-date"}', EdgeCases.fromJson),
+      'undeclared key on a model declaring unevaluatedProperties false': () =>
+          deserialize(
+              '{"id":1,"name":"x","unexpected":true}', StrictTag.fromJson),
+    };
+    test('bhv serializationobject 077 every wire-shape failure throws exactly SerializationException, a root exception', () {
+      wireShapeFailures.forEach((failure, decode) {
+        expect(
+          decode,
+          throwsA(isA<SerializationException>()
+              .having((e) => e.runtimeType, 'runtimeType', SerializationException)
+              .having((e) => e, 'is a root exception', isA<{{errorPrefix}}Exception>())),
+          reason: failure,
+        );
+      });
+    });
+
+    test('bhv serializationobject 047 a model declaring unevaluatedProperties false decodes its declared keys', () {
+      final tag = deserialize('{"id":1,"name":"x"}', StrictTag.fromJson);
+      expect(tag!.id, equals(1));
+      expect(tag.name, equals('x'));
+    });
+
+    test('bhv serializationobject 058 a model without unevaluatedProperties false ignores an undeclared key', () {
+      final category = deserialize(
+          '{"id":1,"name":"x","unexpected":true}', Category.fromJson);
+      expect(category!.name, equals('x'));
+    });
+
+    test('bhv serializationobject 118 a scalar where a nested model is expected raises SerializationException', () {
+      expect(
+        () => deserialize<Pet>('{"name":"Fido","photoUrls":[],"category":"scalar"}', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 121 a null element in an array of models raises SerializationException', () {
+      expect(
+        () => deserialize<Pet>('{"name":"Fido","photoUrls":[],"tags":[null]}', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 122 a null element of a map of int32 raises SerializationException', () {
+      expect(
+        () => deserializeMap<int>(<String, Object?>{'a': null}, readInt32),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv langdart 069 a null element of a nested array of int32 raises SerializationException', () {
+      expect(
+        () => deserializeArray<List<int>>(
+          <Object?>[<Object?>[1, null]],
+          (e) => deserializeArray<int>(e, readInt32),
+        ),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 123 a null value in a map of models raises SerializationException', () {
+      expect(
+        () => deserializeMap<Tag>(<String, Object?>{'a': null},
+            (e) => Tag.fromJson(e as Map<String, dynamic>)),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 227 a model externalDocs description is documented verbatim without HTML entities', () {
+      final source = File('lib/src/models/account.dart').readAsStringSync();
+      expect(source, contains('Account <docs> & "notes" it\'s here'));
+    });
+
+    test('bhv serializationobject 229 deserializeMap returns a model instance for each value', () {
+      final decoded = deserializeMap<Category>(
+        <String, Object?>{
+          'dogs': {'id': 1, 'name': 'Dogs'},
+          'cats': {'id': 2, 'name': 'Cats'},
+        },
+        (e) => Category.fromJson(e as Map<String, dynamic>),
+      );
+      expect(decoded.keys.toList()..sort(), equals(['cats', 'dogs']));
+      expect(decoded['dogs'], isA<Category>());
+      expect(decoded['dogs']!.name, equals('Dogs'));
+    });
+
+    test('bhv serializationobject 230 a time value survives a stringify and parse round trip', () {
+      final decoded = deserialize<EdgeCases>('{"cutoff":"11:22:33"}', EdgeCases.fromJson)!;
+      final restored = deserialize<EdgeCases>(serialize(decoded), EdgeCases.fromJson)!;
+      expect(restored.cutoff, equals('11:22:33'));
+    });
+
+    test('bhv serializationobject 231 deserializing a payload that omits optional fields leaves them unset', () {
+      final decoded = deserialize<Account>('{"username":"ann"}', Account.fromJson)!;
+      expect(decoded.id, isNull);
+      expect(decoded.password, isNull);
+    });
+
+    test('bhv serializationobject 138 deserialize returns null for empty input', () {
+      expect(deserialize<Category>('', Category.fromJson), isNull);
+    });
+
+    test('bhv serializationobject 139 a string value is returned as the same string', () {
+      expect(toQueryValue('hello', 'csv'), equals('hello'));
+    });
+
+    test('bhv serializationobject 148 serialize writes a uuid field in lowercase', () {
+      final order = deserialize<Order>(
+          '{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}', Order.fromJson)!;
+      final written = jsonDecode(serialize(order)) as Map<String, dynamic>;
+      expect(written['trackingId'], equals('3f2504e0-4f89-11d3-9a0c-0305e82c3301'));
+    });
+
+    test('bhv serializationobject 149 a serialized datetime string contains an offset', () {
+      expect(stringify(DateTime(2024, 1, 1, 12, 30, 45)),
+          matches(RegExp(r'[+-]\d{2}:\d{2}$')));
+    });
+
+    test('bhv serializationobject 151 a DateTime serializes in the canonical date-time form', () {
+      expect(stringify(DateTime.utc(2024, 1, 1, 12, 30, 45, 678)),
+          matches(RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+00:00$')));
+    });
+
+    test('bhv serializationobject 152 a model serializes to valid JSON', () {
+      final decoded = jsonDecode(serialize(Category(id: 1, name: 'x')));
+      expect(decoded, isA<Map<String, dynamic>>());
+    });
+
+    test('bhv serializationobject 154 a strict model rejects an undeclared key through deserialize', () {
+      expect(
+        () => deserialize<StrictTag>('{"id":1,"unexpected":true}', StrictTag.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 052 deserialize accepts a strict model when every key is declared', () {
+      final tag = deserialize<StrictTag>('{"id":1,"name":"x"}', StrictTag.fromJson)!;
+      expect(tag.id, equals(1));
+      expect(tag.name, equals('x'));
+    });
+
+    test('bhv serializationobject 172 an unknown enum value decodes to the catch-all member', () {
+      expect(
+        deserialize<StockItem>(
+                '{"priority":1,"availability":"NotAStatus"}', StockItem.fromJson)!
+            .availability,
+        equals(Availability.unknownDefaultOpenApi),
+      );
+    });
+
+    test('bhv serializationobject 177 weightKg survives a serialize then deserialize round trip as a number', () {
+      const pet = Pet(name: 'Fido', photoUrls: {'http://x/y.jpg'}, weightKg: 2.25);
+      final restored = deserialize<Pet>(serialize(pet), Pet.fromJson)!;
+      expect(restored.weightKg, equals(2.25));
+    });
+
+    test('bhv serializationobject 178 a wet subtype serialize auto-emits the discriminator', () {
+      final parsed = jsonDecode(serialize(WetFood(volumeMl: 120))) as Map<String, dynamic>;
+      expect(parsed['foodType'], equals('wet'));
+    });
+
+    test('bhv misc 256 a duration fraction is never trimmed below three digits', () {
+      expect(formatProtobufDuration(const Duration(milliseconds: 1500)), equals('1.500s'));
+    });
+
+    test('bhv serializationobject 179 a whole-second datetime keeps a fixed three-digit fraction', () {
+      expect(stringify(DateTime.utc(2020, 5, 6, 7, 8, 9)),
+          equals('2020-05-06T07:08:09.000+00:00'));
+    });
+
+    test('bhv serializationobject 180 a wrong primitive type throws SerializationException', () {
+      expect(
+        () => deserialize<Category>('{"id":"one","name":"x"}', Category.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 170 truncated JSON throws SerializationException not raw parse error', () {
+      expect(
+        () => deserializeRaw('{'),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 089 incomplete JSON object throws SerializationException', () {
+      expect(
+        () => deserializeRaw('{"name":'),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 162 thrown SerializationException has a cause referencing original error', () {
+      try {
+        deserializeRaw('{');
+        fail('Expected SerializationException');
+      } catch (e) {
+        expect(e, isA<SerializationException>());
+        final serErr = e as SerializationException;
+        expect(serErr.cause, isNotNull);
+      }
+    });
+
+    test('bhv serializationobject 088 serialize includes fields set to default values', () {
+      final category = Category(id: 0, name: '');
+      final json = serialize(category);
+      final parsed = jsonDecode(json) as Map<String, dynamic>;
+      expect(parsed.containsKey('id'), isTrue, reason: 'serialized JSON should include id field');
+      expect(parsed['id'], equals(0));
+      expect(parsed.containsKey('name'), isTrue, reason: 'serialized JSON should include name field');
+      expect(parsed['name'], equals(''));
+    });
+
+    // Gap K — discriminator auto-emitted on subtype serialise.
+
+    test('bhv serializationobject 072 subtype serialise auto-emits discriminator value', () {
+      final dry = DryFood(weightKg: 2.5);
+      final json = serialize(dry);
+      final parsed = jsonDecode(json) as Map<String, dynamic>;
+      expect(parsed['foodType'], equals('dry'));
+      expect(parsed['weightKg'], equals(2.5));
+    });
+
+    test('bhv serializationobject 055 subtype round-trip via parent discriminator routes back to subtype', () {
+      final dry = DryFood(weightKg: 1.25);
+      final json = serialize(dry);
+      final food = PetFood.fromJson(jsonDecode(json) as Map<String, dynamic>);
+      expect(food.actualInstance, isA<DryFood>());
+    });
+
+    // -- Gap AU-residual: missing-discriminator wrapping --
+    //
+    // A PetFood payload that omits the `foodType` discriminator property
+    // (e.g. {"weightKg": 5.0}) must hard-fail with the SDK's
+    // SerializationException, NOT silently wrap the raw dict in a union
+    // container. With no discriminator value the switch lands on the
+    // `default:` branch (disc == null) and throws.
+    test('bhv serializationobject 085 fromJson throws when the discriminator property is missing', () {
+      final input = <String, dynamic>{'weightKg': 5.0};
+      expect(
+        () => PetFood.fromJson(input),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    // -- DiscardNullsOnSerializeTests --
+    //
+    // Models constructed without any of their optional fields must omit those
+    // keys from the toJson() map entirely (no `"id": null` slots). Required
+    // fields and explicit defaults must still appear.
+    test('bhv serializationobject 015 a uniqueItems array of strings keeps the Set insertion order', () {
+      final pet = Pet(name: 'n', photoUrls: <String>{'c', 'a', 'b'});
+      for (var run = 0; run < 2; run++) {
+        expect(serialize(pet), contains('"photoUrls":["a","b","c"]'));
+      }
+    });
+
+    test('bhv serializationobject 202 a null field is omitted on serialize while non-null fields are kept', () {
+      final item = StockItem(priority: Priority.number2, availability: null);
+      expect(jsonDecode(serialize(item)), equals(<String, dynamic>{'priority': 2}));
+    });
+
+    test('bhv serializationobject 023 toJson omits optional fields left null', () {
+      final pet = Pet(name: 'Fido', photoUrls: <String>{'http://x/y.jpg'});
+      final json = pet.toJson();
+      expect(json.containsKey('name'), isTrue, reason: 'required field name present');
+      expect(json.containsKey('photoUrls'), isTrue, reason: 'required field photoUrls present');
+      expect(json.containsKey('id'), isFalse,
+          reason: 'optional id left unset must be omitted, not emitted as null');
+      expect(json.containsKey('category'), isFalse,
+          reason: 'optional category left unset must be omitted');
+      expect(json.containsKey('tags'), isFalse,
+          reason: 'optional tags left unset must be omitted');
+    });
+
+    test('bhv langdart 070 toJson includes optional fields when explicitly set', () {
+      final pet = Pet(
+        id: 7,
+        name: 'Fido',
+        photoUrls: <String>{'http://x/y.jpg'},
+      );
+      final json = pet.toJson();
+      expect(json['id'], equals(7));
+    });
+
+    // -- ByteMapWireTests --
+    //
+    // A `format: byte` map value is native bytes in memory and a base64 string
+    // on the wire, exactly like a byte scalar or array. A plain assignment
+    // would hand jsonEncode a Uint8List, which it writes as an int array.
+    test('bhv serialization 088 serialize writes format:byte map values as base64 strings', () {
+      final vault = BinaryVault(
+        labels: <String, Uint8List>{
+          'a': Uint8List.fromList(<int>[1, 2, 3]),
+          'b': Uint8List.fromList(<int>[255]),
+        },
+      );
+
+      final wire = jsonDecode(serialize(vault)) as Map<String, dynamic>;
+
+      expect(wire['labels'], equals(<String, dynamic>{'a': 'AQID', 'b': '/w=='}));
+    });
+
+    test('bhv serializationobject 026 format:byte map values round-trip through the wire form', () {
+      final vault = BinaryVault(
+        seal: Uint8List.fromList(<int>[9, 8]),
+        labels: <String, Uint8List>{
+          'a': Uint8List.fromList(<int>[1, 2, 3]),
+        },
+      );
+
+      final restored = BinaryVault.fromJson(
+        jsonDecode(serialize(vault)) as Map<String, dynamic>,
+      );
+
+      expect(restored, equals(vault));
+      expect(restored.labels!['a'], equals(Uint8List.fromList(<int>[1, 2, 3])));
+    });
+
+    // -- BinaryVaultEqualityTests --
+    //
+    // Equality compares every byte array by content: a bare array, each element
+    // of a list and each value of a map. Equal content in distinct arrays is
+    // equal and hashes alike.
+    test('bhv serializationobject 075 equality compares byte arrays by content (bare, list and map)', () {
+      final base = BinaryVault(
+        seal: Uint8List.fromList(<int>[1, 2]),
+        shards: <Uint8List>[Uint8List.fromList(<int>[3])],
+        labels: <String, Uint8List>{'a': Uint8List.fromList(<int>[4])},
+      );
+      expect(
+        base,
+        isNot(equals(BinaryVault(
+          seal: Uint8List.fromList(<int>[1, 9]),
+          shards: <Uint8List>[Uint8List.fromList(<int>[3])],
+          labels: <String, Uint8List>{'a': Uint8List.fromList(<int>[4])},
+        ))),
+      );
+      expect(
+        base,
+        isNot(equals(BinaryVault(
+          seal: Uint8List.fromList(<int>[1, 2]),
+          shards: <Uint8List>[Uint8List.fromList(<int>[9])],
+          labels: <String, Uint8List>{'a': Uint8List.fromList(<int>[4])},
+        ))),
+      );
+      expect(
+        base,
+        isNot(equals(BinaryVault(
+          seal: Uint8List.fromList(<int>[1, 2]),
+          shards: <Uint8List>[Uint8List.fromList(<int>[3])],
+          labels: <String, Uint8List>{'a': Uint8List.fromList(<int>[9])},
+        ))),
+      );
+    });
+
+    test('bhv serializationobject 206 a differing map key makes two models unequal', () {
+      final left = BinaryVault(
+        labels: <String, Uint8List>{'first': Uint8List.fromList(<int>[7, 8])},
+      );
+      final right = BinaryVault(
+        labels: <String, Uint8List>{'second': Uint8List.fromList(<int>[7, 8])},
+      );
+      expect(left, isNot(equals(right)));
+    });
+
+    test('bhv serializationobject 005 a differing byte inside a map value makes them unequal', () {
+      final a = BinaryVault(
+        labels: <String, Uint8List>{'a': Uint8List.fromList(<int>[1, 2])},
+      );
+      final b = BinaryVault(
+        labels: <String, Uint8List>{'a': Uint8List.fromList(<int>[1, 3])},
+      );
+      expect(a, isNot(equals(b)));
+    });
+
+    test('bhv serializationobject 009 a list of byte arrays is not equal to a map of them', () {
+      final asList = BinaryVault(
+        shards: <Uint8List>[Uint8List.fromList(<int>[1])],
+      );
+      final asMap = BinaryVault(
+        labels: <String, Uint8List>{'0': Uint8List.fromList(<int>[1])},
+      );
+      expect(asList, isNot(equals(asMap)));
+    });
+
+    test('bhv serializationobject 090 instances holding equal content are equal though every array is distinct', () {
+      final a = BinaryVault(
+        seal: Uint8List.fromList(<int>[1, 2]),
+        shards: <Uint8List>[Uint8List.fromList(<int>[3])],
+        labels: <String, Uint8List>{'a': Uint8List.fromList(<int>[4])},
+      );
+      final b = BinaryVault(
+        seal: Uint8List.fromList(<int>[1, 2]),
+        shards: <Uint8List>[Uint8List.fromList(<int>[3])],
+        labels: <String, Uint8List>{'a': Uint8List.fromList(<int>[4])},
+      );
+      expect(identical(a.seal, b.seal), isFalse);
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    // -- DiscardExtrasOnDeserializeTests --
+    //
+    // fromJson must read only declared properties and silently drop unknown
+    // keys (no exception thrown). This protects clients against new server
+    // fields added after the SDK was generated.
+    test('bhv serialization 068 building a model in code does not validate it, keeping the values as given', () {
+      final pet = Pet(name: '', photoUrls: <String>{}, nickname: 'ZZZZZZZZZZ');
+
+      expect(pet.name, equals(''));
+      expect(pet.nickname, equals('ZZZZZZZZZZ'));
+    });
+
+    test('bhv serialization 069 schema constraints such as pattern and length are not enforced, so out-of-bound values are accepted', () {
+      final pet = deserialize<Pet>(
+          '{"name":"x","photoUrls":[],"nickname":"ZZZZZZZZZZ"}', Pet.fromJson);
+
+      expect(pet!.nickname, equals('ZZZZZZZZZZ'));
+    });
+
+    test('bhv serialization 070 a JSON null is accepted where a field is optional and decodes to null', () {
+      final pet = deserialize<Pet>(
+          '{"name":"x","photoUrls":[],"nickname":null}', Pet.fromJson);
+
+      expect(pet!.nickname, isNull);
+    });
+
+    test('bhv serialization 072 keys the model does not declare are skipped without error, scalar or nested', () {
+      final pet = Pet.fromJson(<String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': <String>['http://x/y.jpg'],
+        'unknownField': 'value',
+        'nestedExtra': {'foo': 'bar'},
+      });
+
+      expect(pet.name, equals('Fido'));
+    });
+
+    test('bhv serialization 073 a required field that is missing fails decoding with an error naming that field', () {
+      expect(
+        () => deserialize<Pet>('{"photoUrls":[]}', Pet.fromJson),
+        throwsA(predicate((e) => e.toString().contains('name'))),
+      );
+    });
+
+    test('bhv serializationobject 082 fromJson silently ignores unknown extra fields', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': <String>['http://x/y.jpg'],
+        // Unknown / future fields:
+        'unknownField': 'value',
+        'serverSideOnly': 12345,
+        'nestedExtra': {'foo': 'bar'},
+      };
+      final pet = Pet.fromJson(input);
+      expect(pet.id, equals(1));
+      expect(pet.name, equals('Fido'));
+      // Declared optional fields stay null when absent.
+      expect(pet.category, isNull);
+      expect(pet.status, isNull);
+    });
+
+    // -- RequiredFieldHardFailTests (DIVERGENCE #10) --
+    //
+    // Deserialising a model whose required, non-nullable field is MISSING or
+    // explicitly NULL must hard-fail with the SDK's SerializationException rather
+    // than silently building a partial object. Pet requires both `name` and
+    // `photoUrls`.
+    test('bhv serializationobject 083 fromJson throws when a required field is absent', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        // 'name' omitted entirely
+        'photoUrls': <String>['http://x/y.jpg'],
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 084 fromJson throws when a required field is explicitly null', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': null,
+        'photoUrls': <String>['http://x/y.jpg'],
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 063 fromJson throws when a required array field is absent', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        // 'photoUrls' omitted entirely
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 062 fromJson throws when a required array field is explicitly null', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': null,
+      };
+      expect(
+        () => Pet.fromJson(input),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 061 fromJson succeeds when all required fields are present', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': <String>['http://x/y.jpg'],
+      };
+      final pet = Pet.fromJson(input);
+      expect(pet.name, equals('Fido'));
+      expect(pet.photoUrls, contains('http://x/y.jpg'));
+    });
+
+    // -- MapOfModelDeepDeserializeTests (4.6) --
+    //
+    // For a Map<String, Foo> field on a generated model, the template
+    // must recursively call Foo.fromJson on each entry value rather than
+    // leaving the raw decoded JSON map in place. This test exercises the
+    // same `.map((k, v) => MapEntry(k, Foo.fromJson(v as Map<String, dynamic>)))`
+    // shape that model.mustache emits for non-primitive map item types.
+    test('bhv serializationobject 145 Map<String, Model> round-trips through toJson per entry', () {
+      final tags = <String, Tag>{
+        'a': const Tag(id: 10, name: 'alpha'),
+        'b': const Tag(id: 20, name: 'beta'),
+      };
+
+      final wire = tags.map((k, v) => MapEntry(k, v.toJson()));
+      final restored = wire.map(
+        (k, v) => MapEntry(k, Tag.fromJson(v)),
+      );
+
+      expect(restored['a'], equals(tags['a']));
+      expect(restored['b'], equals(tags['b']));
+    });
+
+    // -- UuidValueTests (2.2) --
+    //
+    // `format: uuid` is exposed as `UuidValue` from `package:uuid` rather
+    // than a raw `String`, so the public API is typed and construction
+    // validates the wire shape. These tests cover the stringify/serialize
+    // path the generated `model.toJson()` calls into.
+    test('bhv serializationobject 175 UUID returns its canonical string representation', () {
+      final u = UuidValue.fromString('12345678-1234-1234-1234-1234567890ab');
+      expect(stringify(u), equals('12345678-1234-1234-1234-1234567890ab'));
+    });
+
+    test('bhv serializationobject 048 UuidValue.fromString rejects malformed input', () {
+      // Constructor-side validation is the whole reason we wrap.
+      expect(
+        () => UuidValue.fromString('not-a-uuid'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('bhv serializationobject 176 UuidValue round-trips through jsonEncode/decode via toString', () {
+      final u = UuidValue.fromString('abcdef01-2345-6789-abcd-ef0123456789');
+      final encoded = jsonEncode({'id': u.toString()});
+      final decoded = jsonDecode(encoded) as Map<String, dynamic>;
+      final restored = UuidValue.fromString(decoded['id'] as String);
+      expect(restored, equals(u));
+    });
+
+    // -- ProtobufDurationTests (4.8) --
+    //
+    // OpenAPI `format: duration` maps to Dart's `Duration`, but Dart's
+    // default `Duration.toString()` (`HH:MM:SS.mmmmmm`) is not the wire
+    // form. parseProtobufDuration / formatProtobufDuration bridge between
+    // the `google.protobuf.Duration` JSON form (a decimal second count
+    // suffixed with `s`, e.g. `5400s`) and `Duration` in memory.
+
+    test('bhv serializationobject 112 parseProtobufDuration parses whole seconds', () {
+      expect(parseProtobufDuration('5400s'),
+          equals(const Duration(hours: 1, minutes: 30)));
+    });
+
+    test('bhv serialization 080 parseProtobufDuration parses a large second count', () {
+      expect(
+        parseProtobufDuration('93784s'),
+        equals(const Duration(days: 1, hours: 2, minutes: 3, seconds: 4)),
+      );
+    });
+
+    test('bhv serializationobject 181 zero Duration stringifies as 0s', () {
+      expect(parseProtobufDuration('0s'), equals(Duration.zero));
+    });
+
+    test('bhv serializationobject 054 parseProtobufDuration handles fractional seconds at micro resolution', () {
+      expect(
+        parseProtobufDuration('0.5s'),
+        equals(const Duration(milliseconds: 500)),
+      );
+      expect(
+        parseProtobufDuration('1.000001s'),
+        equals(const Duration(seconds: 1, microseconds: 1)),
+      );
+    });
+
+    test('bhv langdart 071 parseProtobufDuration truncates sub-microsecond digits', () {
+      // Nanosecond resolution on the wire, microsecond resolution in
+      // memory — digits below 1µs are truncated.
+      expect(
+        parseProtobufDuration('0.000000999s'),
+        equals(Duration.zero),
+      );
+    });
+
+    test('bhv serializationobject 223 a protobuf duration at the bound of plus or minus 315576000000 seconds is accepted and one past it is rejected', () {
+      expect(parseProtobufDuration('315576000000s'), equals(Duration(seconds: 315576000000)));
+      expect(parseProtobufDuration('-315576000000s'), equals(Duration(seconds: -315576000000)));
+      for (final text in ['315576000001s', '-315576000001s', '315576000000.000000001s']) {
+        expect(
+          () => parseProtobufDuration(text),
+          throwsA(isA<SerializationException>()),
+          reason: text,
+        );
+      }
+    });
+
+    test('bhv serializationobject 113 a negative protobuf duration parses into a negative value', () {
+      expect(parseProtobufDuration('-3600s'),
+          equals(const Duration(hours: -1)));
+    });
+
+    test('bhv serializationobject 080 parseProtobufDuration rejects malformed input', () {
+      expect(() => parseProtobufDuration('not-a-duration'),
+          throwsA(isA<SerializationException>()));
+      expect(() => parseProtobufDuration(''),
+          throwsA(isA<SerializationException>()));
+      // Missing the trailing `s` suffix.
+      expect(() => parseProtobufDuration('3600'),
+          throwsA(isA<SerializationException>()));
+      // ISO-8601 form is no longer accepted.
+      expect(() => parseProtobufDuration('PT1H30M'),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serializationobject 184 an ISO-8601 duration string is rejected', () {
+      expect(() => parseProtobufDuration('PT1H'),
+          throwsA(isA<SerializationException>()));
+      expect(() => parseProtobufDuration('P1Y'),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serializationobject 158 formatProtobufDuration emits canonical zero', () {
+      expect(formatProtobufDuration(Duration.zero), equals('0s'));
+    });
+
+    test('bhv serializationobject 081 formatProtobufDuration emits whole seconds', () {
+      expect(
+        formatProtobufDuration(const Duration(hours: 1, minutes: 30)),
+        equals('5400s'),
+      );
+      expect(
+        formatProtobufDuration(
+          const Duration(days: 1, hours: 2, minutes: 3, seconds: 4),
+        ),
+        equals('93784s'),
+      );
+    });
+
+    test('bhv serializationobject 106 formatProtobufDuration emits fractional seconds in 3/6/9 digit groups', () {
+      expect(
+        formatProtobufDuration(const Duration(milliseconds: 500)),
+        equals('0.500s'),
+      );
+      expect(
+        formatProtobufDuration(
+          const Duration(seconds: 1, microseconds: 1),
+        ),
+        equals('1.000001s'),
+      );
+    });
+
+    test('bhv serializationobject 105 formatProtobufDuration emits negative durations with leading sign', () {
+      expect(
+        formatProtobufDuration(const Duration(hours: -1)),
+        equals('-3600s'),
+      );
+    });
+
+    test('bhv serializationobject 073 Duration round-trips through format then parse', () {
+      const original = Duration(days: 3, hours: 4, minutes: 5, seconds: 6);
+      final wire = formatProtobufDuration(original);
+      expect(parseProtobufDuration(wire), equals(original));
+    });
+
+    test('bhv serializationobject 146 stringify Duration emits protobuf duration form, not Dart default', () {
+      // Dart's Duration.toString() would print "1:30:00.000000" — we
+      // explicitly want the protobuf-JSON wire form on every transport-
+      // side conversion path.
+      final result = stringify(const Duration(hours: 1, minutes: 30));
+      expect(result, equals('5400s'));
+    });
+
+    // -- PartialTimeTests (4.8) --
+    //
+    // `format: time` stays as String (no civil-time stdlib type in Dart
+    // outside Flutter), but the generated helper validates the wire shape
+    // so callers opting into validation get a useful failure mode.
+
+    test('bhv langdart 072 a partial-time string in HHMMSS form is accepted', () {
+      expect(validatePartialTime('14:30:00'), equals('14:30:00'));
+    });
+
+    test('bhv serializationobject 163 validatePartialTime accepts fractional seconds', () {
+      expect(
+        validatePartialTime('14:30:00.123'),
+        equals('14:30:00.123'),
+      );
+    });
+
+    test('bhv serializationobject 102 validatePartialTime rejects malformed input', () {
+      // A bad argument to a public helper is an ArgumentError, never a raw
+      // FormatException.
+      expect(() => validatePartialTime('2pm'), throwsArgumentError);
+      expect(() => validatePartialTime('14:30'), throwsArgumentError);
+      expect(() => validatePartialTime(''), throwsArgumentError);
+    });
+
+    test('bhv serializationobject 205 an extra key survives a full deserialize then serialize round-trip', () {
+      final meta = deserialize<Metadata>('{"region":"emea"}', Metadata.fromJson);
+      final back = deserialize<Metadata>(serialize(meta), Metadata.fromJson);
+      expect(back!.additionalProperties['region'], equals('emea'));
+    });
+
+    test('bhv langdart 073 fromJson then toJson does not leak unknown fields back to wire', () {
+      final input = <String, dynamic>{
+        'id': 9,
+        'name': 'Rex',
+        'photoUrls': <String>['http://x/z.jpg'],
+        'unknownLeak': 'should not appear',
+      };
+      final pet = Pet.fromJson(input);
+      final round = pet.toJson();
+      expect(round.containsKey('unknownLeak'), isFalse,
+          reason: 'unknown fields read by fromJson must NOT be re-emitted by toJson');
+    });
+
+    // -- IntegerBackedEnumWireFormTests (canonical scenario 1) --
+    //
+    // Priority is an integer-backed enum (1/2/3). It must serialize to a JSON
+    // NUMBER (2, not the string "2") and deserialize a numeric 2 back to the
+    // matching member. StockItem.priority is the model-field carrier, so this
+    // exercises the same toJson()/fromJson() the generated model calls into.
+    test('bhv serializationobject 093 integer-backed Priority enum serializes as a JSON number', () {
+      expect(Priority.number2.toJson(), equals(2));
+      expect(Priority.number2.toJson(), isA<int>());
+
+      final item = StockItem(priority: Priority.number2);
+      final wire = item.toJson();
+      // The number must be emitted as 2, never the string "2".
+      expect(wire['priority'], equals(2));
+      expect(wire['priority'], isA<int>());
+
+      final encoded = jsonEncode(wire);
+      expect(encoded, contains('"priority":2'));
+      expect(encoded, isNot(contains('"priority":"2"')));
+    });
+
+    test('bhv serializationobject 092 integer-backed Priority enum deserializes from a JSON number', () {
+      expect(Priority.fromJson(2), equals(Priority.number2));
+
+      final restored = StockItem.fromJson(<String, dynamic>{'priority': 3});
+      expect(restored.priority, equals(Priority.number3));
+    });
+
+    test('bhv serializationobject 193 an unknown integer enum value decodes to the catch-all member', () {
+      expect(
+        deserialize<StockItem>('{"priority":99}', StockItem.fromJson)!.priority,
+        equals(Priority.unknownDefaultOpenApi),
+      );
+    });
+
+    // -- DecimalAsNumberWireFormTests (WAVE B) --
+    //
+    // Pet.weightKg is declared `type: number` with NO `format`, i.e. a bare
+    // JSON number. It must serialize to an UNQUOTED JSON number (1.5), never a
+    // quoted string ("1.5"). Dart models the field as a native `double`, so
+    // jsonEncode emits a number directly — this guards that the field never
+    // regresses to a string-wrapped arbitrary-precision Decimal (the bug other
+    // SDKs hit). It also asserts the value survives serialize -> deserialize as
+    // a number.
+    test('bhv serializationobject 171 type:number weightKg serializes as an unquoted JSON number', () {
+      final pet = Pet(
+        name: 'Fido',
+        photoUrls: <String>{'http://x/y.jpg'},
+        weightKg: 1.5,
+      );
+
+      final wire = pet.toJson();
+      expect(wire['weightKg'], equals(1.5));
+      expect(wire['weightKg'], isA<double>());
+
+      final encoded = serialize(pet);
+      // The number must appear as 1.5, never the string "1.5".
+      expect(encoded, contains('"weightKg":1.5'));
+      expect(encoded, isNot(contains('"weightKg":"1.5"')));
+
+      // Round-trip: it survives serialize -> deserialize still a number.
+      final restored = deserialize<Pet>(encoded, Pet.fromJson);
+      expect(restored, isNotNull);
+      expect(restored!.weightKg, equals(1.5));
+      expect(restored.weightKg, isA<double>());
+    });
+
+    // -- NonLowercaseStringEnumTests (canonical scenario 2) --
+    //
+    // Availability is a string enum whose wire values are NOT all lowercase
+    // ("Available", "Sold") and include a hyphenated value ("on-hold"). The
+    // wire casing must round-trip verbatim, deserializing "Available" must
+    // yield the right member, and an unknown value must be rejected.
+    test('bhv serializationobject 109 non-lowercase Availability enum preserves wire casing on serialize', () {
+      expect(Availability.available.toJson(), equals('Available'));
+      expect(Availability.sold.toJson(), equals('Sold'));
+      expect(Availability.onHold.toJson(), equals('on-hold'));
+    });
+
+    test('bhv serializationobject 069 non-lowercase Availability enum deserializes the wire value', () {
+      expect(Availability.fromJson('Available'), equals(Availability.available));
+      expect(Availability.fromJson('on-hold'), equals(Availability.onHold));
+    });
+
+    test('bhv serializationobject 194 a hyphenated enum wire value is serialized exactly as declared', () {
+      final item = StockItem(priority: Priority.number1, availability: Availability.onHold);
+      expect(jsonDecode(serialize(item)), equals(<String, dynamic>{'priority': 1, 'availability': 'on-hold'}));
+    });
+
+    test('bhv serializationobject 208 hostile enum member wire strings are kept exactly through serialize and decode', () {
+      for (final wire in ["o'clock", r'a\b', r'$eq', '#{x}']) {
+        final item = StockItem(priority: Priority.number1, availability: Availability.fromJson(wire));
+        expect(jsonDecode(serialize(item)), containsPair('availability', wire), reason: wire);
+        final restored = deserialize<StockItem>(serialize(item), StockItem.fromJson);
+        expect(restored!.availability, equals(Availability.fromJson(wire)), reason: wire);
+      }
+    });
+
+    test('bhv serializationobject 059 non-lowercase Availability enum gives the catch-all member for an unknown wire value', () {
+      expect(Availability.fromJson('available'),
+          equals(Availability.unknownDefaultOpenApi));
+      expect(Availability.fromJson('unknown'),
+          equals(Availability.unknownDefaultOpenApi));
+    });
+
+    // -- ByteFieldBase64RoundTripTests (canonical scenario 3) --
+    //
+    // format:byte fields map to Uint8List and travel as base64 on the wire.
+    // PetPassport carries BOTH a scalar byte field (thumbnail) and an
+    // array-of-byte field (scans). Both must base64-encode on toJson and
+    // base64-decode back to the original bytes on fromJson.
+    test('bhv serializationobject 108 a nested array-of-array deep-round-trips to typed int leaves', () {
+      final item = deserialize<StockItem>(
+          '{"priority":1,"matrix":[[1,2],[3]]}', StockItem.fromJson)!;
+      expect(item.matrix, equals(<List<int>>[[1, 2], [3]]));
+      final wire = jsonDecode(serialize(item)) as Map<String, dynamic>;
+      expect(wire['matrix'], equals(<List<int>>[[1, 2], [3]]));
+    });
+
+    test('bhv serializationobject 079 format:byte scalar and array fields round-trip through base64', () {
+      final thumb = Uint8List.fromList(<int>[0xDE, 0xAD, 0xBE, 0xEF]);
+      final scanA = Uint8List.fromList(<int>[1, 2, 3]);
+      final scanB = Uint8List.fromList(<int>[4, 5, 6]);
+
+      final passport = PetPassport(
+        thumbnail: thumb,
+        scans: <Uint8List>[scanA, scanB],
+      );
+
+      final wire = passport.toJson();
+      // On the wire the bytes are base64 strings, not raw byte arrays.
+      expect(wire['thumbnail'], equals(base64Encode(thumb)));
+      expect(wire['scans'], equals(<String>[base64Encode(scanA), base64Encode(scanB)]));
+
+      final restored = PetPassport.fromJson(jsonDecode(jsonEncode(wire)) as Map<String, dynamic>);
+      expect(restored.thumbnail, equals(thumb));
+      expect(restored.scans, equals(<Uint8List>[scanA, scanB]));
+    });
+
+    test('bhv serializationobject 221 deserializing an array of base64 strings decodes each element to raw bytes', () {
+      final vault = BinaryVault.fromJson(<String, dynamic>{'shards': ['AQID', '/w==']});
+      expect(
+        vault.shards,
+        equals(<Uint8List>[Uint8List.fromList(<int>[1, 2, 3]), Uint8List.fromList(<int>[255])]),
+      );
+    });
+
+    test('bhv serializationobject 222 serializing an array of byte values encodes each element to base64 in the wire array', () {
+      final vault = BinaryVault(
+        shards: <Uint8List>[Uint8List.fromList(<int>[1, 2, 3]), Uint8List.fromList(<int>[255])],
+      );
+      final wire = jsonDecode(serialize(vault)) as Map<String, dynamic>;
+      expect(wire['shards'], equals(<String>['AQID', '/w==']));
+    });
+
+    // -- DoubleFromIntegralJsonTests (canonical scenario 4) --
+    //
+    // A double/number-typed field must accept an INTEGRAL JSON value
+    // ({"lat":5}, not 5.0) without crashing. Dart's `5 as double` throws, so
+    // the generated fromJson coerces via `(json[..] as num?)?.toDouble()`.
+    test('bhv serializationobject 071 double-typed field deserializes from an integral JSON value', () {
+      final loc = PhotoMetadataLocation.fromJson(<String, dynamic>{'lat': 5, 'lng': 7});
+      expect(loc.lat, equals(5.0));
+      expect(loc.lat, isA<double>());
+      expect(loc.lng, equals(7.0));
+
+      // A genuine fractional value still decodes unchanged.
+      final fractional = PhotoMetadataLocation.fromJson(<String, dynamic>{'lat': 1.5});
+      expect(fractional.lat, equals(1.5));
+    });
+
+    // -- ModelFieldEnumRejectsUnknownTests (canonical scenario 10) --
+    //
+    // A model field typed as a referenced enum must REJECT an unknown wire
+    // value during the model's own deserialize, not just when the enum's
+    // fromJson is called directly. StockItem.availability references the
+    // Availability enum, so an unknown value must surface as an ArgumentError
+    // out of StockItem.fromJson.
+    test('bhv serializationobject 119 model field typed as a referenced enum gives the catch-all member for an unknown wire value', () {
+      expect(
+        StockItem.fromJson(<String, dynamic>{
+          'priority': 1,
+          'availability': 'NotAStatus',
+        }).availability,
+        equals(Availability.unknownDefaultOpenApi),
+      );
+    });
+
+    // -- ProtobufDurationNoSciNotationTests (canonical scenario 9 closure) --
+    //
+    // A sub-0.0001s magnitude duration must format as a plain decimal, never
+    // in scientific notation (e.g. "0.000050s", not "5e-5s"), and a negative
+    // duration must round-trip. The bulk of the duration matrix is covered
+    // above; this nails the no-scientific-notation guard explicitly.
+    test('bhv serializationobject 212 sub-0.0001s and negative durations format without scientific notation', () {
+      final tiny = formatProtobufDuration(const Duration(microseconds: 50));
+      expect(tiny, equals('0.000050s'));
+      expect(tiny.toLowerCase(), isNot(contains('e')));
+
+      final negTiny = formatProtobufDuration(const Duration(microseconds: -50));
+      expect(negTiny, equals('-0.000050s'));
+      expect(negTiny.toLowerCase(), isNot(contains('e')));
+
+      // Round-trip both back to the original magnitude.
+      expect(parseProtobufDuration(tiny), equals(const Duration(microseconds: 50)));
+      expect(parseProtobufDuration(negTiny), equals(const Duration(microseconds: -50)));
+    });
+
+    // Cross-cutting `oneof-nondiscriminator-no-match-silent`: resolveOneOf
+    // returns the first matching variant, and throws a SerializationException
+    // (never returns null) when no variant matches.
+    test('bhv serializationobject 128 resolveOneOf returns first matching variant', () {
+      final result = resolveOneOf<String>(
+        <String, dynamic>{'k': 'v'},
+        [
+          (j) => throw const SerializationException('first miss'),
+          (j) => 'matched',
+        ],
+      );
+      expect(result, equals('matched'));
+    });
+
+    test('bhv serializationobject 129 resolveOneOf throws SerializationException when no variant matches', () {
+      expect(
+        () => resolveOneOf<String>(
+          <String, dynamic>{'k': 'v'},
+          [
+            (j) => throw const SerializationException('miss 1'),
+            (j) => throw const SerializationException('miss 2'),
+          ],
+        ),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 127 resolveAnyOf throws SerializationException when no variant matches', () {
+      expect(
+        () => resolveAnyOf<String>(
+          <String, dynamic>{'k': 'v'},
+          [(j) => throw const SerializationException('miss')],
+        ),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    // -- CanonicalSerdeBehaviours (cross-SDK) --
+
+    // serialize(null) must emit the literal "null" (regression guard for the
+    // null-body fix), NOT throw or emit an empty string.
+    test('bhv serializationobject 087 serialize(null) returns the literal "null"', () {
+      expect(serialize(null), equals('null'));
+    });
+
+    // A non-finite double (NaN, ±Infinity) must reject on ENCODE rather than be
+    // silently emitted (RFC 8259 §6 has no such token). jsonEncode throws a
+    // JsonUnsupportedObjectError, which serialize wraps as SerializationException.
+    test('bhv serializationobject 153 serializing a non-finite double throws SerializationException', () {
+      expect(() => serialize(double.nan), throwsA(isA<SerializationException>()));
+      expect(() => serialize(double.infinity), throwsA(isA<SerializationException>()));
+      expect(
+        () => serialize(double.negativeInfinity),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    // A bare JSON null body decoded to a model type returns null (rather than
+    // throwing "Expected JSON object, got Null").
+    test('bhv serializationobject 067 a literal null body deserializes to null', () {
+      expect(deserialize<Category>('null', Category.fromJson), isNull);
+    });
+
+    // An empty body decoded to a model type returns null.
+    test('bhv serializationobject 136 an empty body deserializes to null', () {
+      expect(deserialize<Category>('', Category.fromJson), isNull);
+    });
+
+    // A format:byte model field (PetPassport.thumbnail) carrying a bad-alphabet
+    // base64 string is rejected: base64Decode throws a FormatException rather
+    // than silently truncating, surfaced as the SDK's SerializationException.
+    test('bhv serializationobject 094 invalid base64 in a byte field throws SerializationException', () {
+      expect(
+        () => deserialize<PetPassport>(
+          '{"thumbnail":"!!!!"}',
+          PetPassport.fromJson,
+        ),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 011 every non RFC 3339 date-time is rejected', () {
+      for (final text in [
+        '2024-01-01T10:00:00',
+        '01/02/2024 10:00',
+        'tomorrow',
+        '10:00',
+        '1700000000',
+        '2024-01-01',
+      ]) {
+        expect(
+          () => deserialize<Order>(
+              jsonEncode({'shipDate': text}), Order.fromJson),
+          throwsA(isA<SerializationException>()), reason: '"$text"');
+      }
+    });
+
+    test('bhv serializationobject 003 a date-time without an offset is rejected', () {
+      expect(() => parseDateTime('2024-01-01T10:00:00'),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv langdart 074 an RFC 3339 date-time with any fraction and offset is accepted', () {
+      expect(parseDateTime('2024-01-01T10:00:00Z'),
+          equals(DateTime.utc(2024, 1, 1, 10)));
+      expect(parseDateTime('2024-01-01T10:00:00.123456789+05:30'),
+          equals(DateTime.utc(2024, 1, 1, 4, 30, 0, 123, 456)));
+    });
+
+    test('bhv serializationobject 207 every non-standard base64 value is rejected', () {
+      for (final text in ['dGVzdA', 'dGVz dA==', 'dGVz\ndA==', '-_8=', '!!!!']) {
+        expect(
+          () => deserialize<PetPassport>(
+              jsonEncode({'thumbnail': text}), PetPassport.fromJson),
+          throwsA(isA<SerializationException>()), reason: jsonEncode(text));
+      }
+    });
+
+    test('bhv serializationobject 185 a padded standard base64 value is accepted', () {
+      final decoded = deserialize<PetPassport>(
+          '{"thumbnail":"dGVzdA=="}', PetPassport.fromJson);
+      expect(decoded!.thumbnail, equals(utf8.encode('test')));
+    });
+
+    test('bhv serializationobject 021 every absolute URI is accepted verbatim', () {
+      for (final uri in [
+        'urn:isbn:0451450523',
+        'mailto:a@b.com',
+        'ftp://x.org/f',
+        'https://example.com/items/1',
+      ]) {
+        expect(parseUri(uri), equals(uri), reason: uri);
+      }
+    });
+
+    test('bhv serializationobject 008 a format: uri model field rejects a relative reference', () {
+      expect(
+        () => deserialize<Pet>(
+            '{"name":"x","photoUrls":[],"homepageUrl":"/relative"}', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 173 a format: uri-reference model field still accepts a relative reference',
+        () {
+      final decoded = deserialize<Pet>(
+          '{"name":"x","photoUrls":[],"thumbnailRef":"/assets/thumb.png",'
+          '"homepageUrl":"urn:isbn:0451450523"}',
+          Pet.fromJson);
+      expect(decoded!.thumbnailRef, equals('/assets/thumb.png'));
+      expect(decoded.homepageUrl, equals('urn:isbn:0451450523'));
+    });
+
+    test('bhv langdart 075 every non-absolute URI is rejected', () {
+      for (final uri in ['/relative', 'not a uri', '']) {
+        expect(() => parseUri(uri), throwsA(isA<SerializationException>()), reason: '"$uri"');
+      }
+    });
+
+    // parseJson parses a payload within the 1000-deep cap and rejects one past it.
+    test('bhv serializationobject 051 deep JSON within the cap parses but past it is rejected', () {
+      final within = '[' * 600 + ']' * 600;
+      expect(parseJson(within), isNotNull);
+      final beyond = '[' * 1500 + ']' * 1500;
+      expect(() => parseJson(beyond), throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serializationobject 056 an explicit null is kept over the schema default', () {
+      final decoded = deserialize<Defaults>('{"label":null}', Defaults.fromJson);
+      expect(decoded!.label, isNull);
+    });
+
+    test('bhv serializationobject 064 a time value keeps its time portion as written', () {
+      final decoded =
+          deserialize<EdgeCases>('{"cutoff":"23:59:59.999"}', EdgeCases.fromJson)!;
+      expect(decoded.cutoff, equals('23:59:59.999'));
+    });
+
+    test('bhv serializationobject 065 a uuid string decodes to a UuidValue with the same text', () {
+      final order = deserialize<Order>(
+          '{"trackingId":"3f2504e0-4f89-11d3-9a0c-0305e82c3301"}', Order.fromJson)!;
+      expect(order.trackingId, isA<UuidValue>());
+      expect(order.trackingId.toString(),
+          equals('3f2504e0-4f89-11d3-9a0c-0305e82c3301'));
+    });
+
+    test('bhv serializationobject 070 a JSON object deserializes to the typed model', () {
+      final pet = deserialize<Pet>('{"name":"Fido","photoUrls":["u"]}', Pet.fromJson);
+      expect(pet, isA<Pet>());
+      expect(pet!.name, equals('Fido'));
+    });
+
+    test('bhv serializationobject 086 a null on a required non-nullable field throws SerializationException', () {
+      expect(
+        () => deserialize<Pet>('{"name":null,"photoUrls":["u"]}', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 091 an integer returns its string representation', () {
+      expect(stringify(42), equals('42'));
+    });
+
+    test('bhv serializationobject 095 a JSON array where an object is expected throws SerializationException', () {
+      expect(
+        () => deserialize<Pet>('[1,2]', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 096 an array joins with a comma in a header value', () {
+      expect(toHeaderValue([1, 2, 3]), equals('1,2,3'));
+    });
+
+    test('bhv serializationobject 098 an array joins with a comma for csv', () {
+      expect(toQueryValue(['a', 'b'], 'csv'), equals('a,b'));
+    });
+
+    test('bhv serializationobject 100 an array joins with a space for ssv', () {
+      expect(toQueryValue(['a', 'b'], 'ssv'), equals('a b'));
+    });
+
+    test('bhv serializationobject 103 a malformed uuid string raises SerializationException on decode', () {
+      expect(
+        () => deserialize<Order>('{"trackingId":"12345"}', Order.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+  });
+
+  group('integer fields', () {
+    test('bhv serialization 131 an integer with no format is 64-bit', () {
+      final ledger = deserialize<Ledger>('{"entryId":3000000000,"entryIds":[4000000000]}', Ledger.fromJson);
+      expect(ledger!.entryId, 3000000000);
+      expect(ledger.entryIds, [4000000000]);
+    });
+
+    test('bhv serializationobject 030 an int32 field outside its range is rejected when decoded', () {
+      expect(
+        () => deserialize<ApiResponse>('{"code":2147483648}', ApiResponse.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 120 a fractional number is rejected for an integer field', () {
+      expect(
+        () => deserialize<ApiResponse>('{"code":1.5}', ApiResponse.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serializationobject 191 an int64 above 2^53 keeps every digit', () {
+      final order = deserialize<Order>(
+        '{"id":9007199254740993}',
+        Order.fromJson,
+      );
+
+      expect(order!.id.toString(), equals('9007199254740993'));
+    });
+
+    test('bhv serializationobject 190 a long is stringified to its exact decimal digits', () {
+      expect(stringify(9007199254740993), equals('9007199254740993'));
+    });
+
+    test('bhv serializationobject 192 an unknown enum string decodes to the catch-all member', () {
+      expect(
+        deserialize<StockItem>(
+                '{"priority":1,"availability":"NotAStatus"}', StockItem.fromJson)!
+            .availability,
+        equals(Availability.unknownDefaultOpenApi),
+      );
+    });
+
+    test('bhv serialization 011 query parameters and model keys are written in the order the schema gives them', () {
+      final json = serialize(const Category(id: 1, name: 'dog'));
+
+      expect(json.indexOf('"id"'), lessThan(json.indexOf('"name"')), reason: json);
+    });
+
+    test('bhv serialization 009 a value that cannot be serialized raises the serialization error with no partial output', () {
+      expect(
+        () => serialize({'ok': 1, 'bad': Object()}),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serialization 022 a top-level JSON scalar decodes to a value of that scalar type', () {
+      expect(deserializeRaw('42'), equals(42));
+      expect(deserializeRaw('"text"'), equals('text'));
+      expect(deserializeRaw('true'), isTrue);
+    });
+
+    test('bhv serialization 023 a payload that is not well-formed JSON, or has content after the document, is refused', () {
+      expect(() => deserializeRaw('{"a":1} trailing'),
+          throwsA(isA<SerializationException>()));
+      expect(() => deserializeRaw('{"a":'),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 024 brackets inside JSON strings do not count toward the nesting limit, and deeper nesting is refused', () {
+      final brackets = '"${List.filled(2000, '[').join()}"';
+      expect(deserializeRaw('{"s":$brackets}'), isA<Map<String, dynamic>>());
+
+      final deep = List.filled(1001, '[').join() + List.filled(1001, ']').join();
+      expect(() => deserializeRaw(deep), throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 025 typed leaves nested inside arrays and models decode to their own typed values', () {
+      final pet = Pet.fromJson(jsonDecode(
+              '{"name":"Fido","photoUrls":[],"tags":[{"id":3,"name":"t"}],"category":{"id":5,"name":"c"}}')
+          as Map<String, dynamic>);
+
+      expect(pet.tags!.single.id, equals(3));
+      expect(pet.category!.name, equals('c'));
+    });
+
+    test('bhv serialization 026 a JSON object decodes to a map of its keys and typed values, and an empty object to an empty map', () {
+      expect(deserializeRaw('{"a":1,"b":"x"}'), equals({'a': 1, 'b': 'x'}));
+      expect(deserializeRaw('{}'), isEmpty);
+      expect(deserializeRaw('{}'), isA<Map<String, dynamic>>());
+    });
+
+    test('bhv serialization 027 an empty JSON array decodes to an empty collection, distinct from an absent value', () {
+      final present = Pet.fromJson({'name': 'Fido', 'photoUrls': <String>[], 'tags': <Object?>[]});
+      final absent = Pet.fromJson({'name': 'Fido', 'photoUrls': <String>[]});
+
+      expect(present.tags, isNotNull);
+      expect(present.tags, isEmpty);
+      expect(absent.tags, isNull);
+    });
+
+    test('bhv serialization 028 a JSON value of the wrong kind for a model or a list is refused with the serialization error', () {
+      expect(() => deserialize<Category>('[1]', Category.fromJson),
+          throwsA(isA<SerializationException>()));
+      expect(() => Pet.fromJson({'name': 'Fido', 'photoUrls': 'not-a-list'}),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 029 a quoted number or other wrong-kind value for an integer field is refused', () {
+      expect(() => Category.fromJson({'id': '7'}),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 030 a date-time field accepts only a string', () {
+      expect(() => Order.fromJson({'shipDate': 5}),
+          throwsA(isA<SerializationException>()));
+      expect(() => Order.fromJson({'shipDate': true}),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 031 a whole number at the largest 32-bit and 64-bit values decodes exactly', () {
+      expect(Category.fromJson({'id': 2147483647}).id, equals(2147483647));
+      expect(Order.fromJson({'id': 9223372036854775807}).id,
+          equals(9223372036854775807));
+    });
+
+    test('bhv serialization 032 an integer field refuses a number written with a fraction or an exponent', () {
+      expect(() => Category.fromJson({'id': 1.0}),
+          throwsA(isA<SerializationException>()));
+      expect(() => readInt32(1.5), throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 033 each leaf of an integer collection must be a plain integer in range and any other leaf is refused', () {
+      expect(readInt32(7), equals(7));
+      expect(() => readInt32('7'), throwsA(isA<SerializationException>()));
+      expect(() => readInt32(2147483648), throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 034 a floating-point field decodes any finite JSON number to its exact value', () {
+      expect(readDouble(0.1), equals(0.1));
+      expect(readDouble(3), equals(3.0));
+      expect(readDouble(-2.5), equals(-2.5));
+    });
+
+    test('bhv serialization 035 the NaN and Infinity literals are refused when a payload is decoded', () {
+      expect(() => deserializeRaw('NaN'), throwsA(isA<SerializationException>()));
+      expect(() => deserializeRaw('Infinity'), throwsA(isA<SerializationException>()));
+      expect(() => deserializeRaw('-Infinity'), throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 036 a whole-number floating-point value is written with a decimal point', () {
+      expect(serialize(1.0), equals('1.0'));
+    });
+
+    test('bhv serialization 037 a decimal number is written with every significant digit', () {
+      expect(serialize(12345678.125), equals('12345678.125'));
+    });
+
+    test('bhv serialization 038 a date-time with digits finer than a millisecond is truncated, never rounded up', () {
+      final json = serialize(DateTime.utc(2024, 1, 1, 0, 0, 0, 999, 999));
+
+      expect(json, contains('T00:00:00.999'), reason: json);
+      expect(json, isNot(contains('999999')), reason: json);
+    });
+
+    test('bhv serialization 039 a date-time is read from any RFC 3339 spelling to the same instant', () {
+      expect(parseDateTime('2024-01-01T05:30:00+05:30').toUtc(),
+          equals(DateTime.utc(2024, 1, 1)));
+      expect(parseDateTime('2024-01-01T00:00:00Z').toUtc(),
+          equals(DateTime.utc(2024, 1, 1)));
+      expect(parseDateTime('2024-01-01T00:00:00.000000Z').toUtc(),
+          equals(DateTime.utc(2024, 1, 1)));
+    });
+
+    test('bhv serialization 045 a malformed date-time string is refused with the serialization error', () {
+      expect(() => parseDateTime('2024-13-99T99:99:99Z'),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 049 a URI-format value must be absolute, and a relative or empty string is refused', () {
+      expect(parseUri('https://example.com/a'), equals('https://example.com/a'));
+      expect(() => parseUri('relative/path'), throwsA(isA<SerializationException>()));
+      expect(() => parseUri(''), throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 054 a value in a free-form field keeps its JSON type', () {
+      final decoded = deserializeRaw('{"s":"text","n":null}') as Map<String, dynamic>;
+
+      expect(decoded['s'], equals('text'));
+      expect(decoded.containsKey('n'), isTrue);
+      expect(decoded['n'], isNull);
+    });
+
+    test('bhv serialization 061 slash, angle brackets, ampersand and non-ASCII text are written literally', () {
+      expect(serialize('a/b<c>&é'), equals('"a/b<c>&é"'));
+    });
+
+    test('bhv serialization 062 a base64 string decodes to the raw bytes it encodes', () {
+      expect(decodeBase64('aGk='), equals(Uint8List.fromList([104, 105])));
+    });
+
+    test('bhv serialization 063 raw bytes are written as padded standard base64 text', () {
+      expect(serialize(Uint8List.fromList([104, 105])), equals('"aGk="'));
+    });
+
+    test('bhv serialization 064 a collection of unique values is written as a JSON array of its members', () {
+      expect(serialize(<String>{'a', 'b'}), equals('["a","b"]'));
+    });
+
+    test('bhv serialization 065 a null inside an array of plain values is kept as null in its own position', () {
+      expect(deserializeRaw('[1,null,3]'), equals([1, null, 3]));
+    });
+
+    test('bhv serialization 066 a null is kept only where the property is declared nullable', () {
+      expect(() => Pet.fromJson({'name': null, 'photoUrls': <String>[]}),
+          throwsA(isA<SerializationException>()));
+      expect(Category.fromJson({'id': null, 'name': null}).name, isNull);
+    });
+
+    test('bhv models 017 a copy can set or clear an optional field and the original model keeps its value', () {
+      const original = Category(id: 1, name: 'dog');
+      final cleared = original.copyWith(name: null);
+
+      expect(cleared.name, isNull);
+      expect(original.name, equals('dog'));
+    });
+
+    test('bhv models 019 two models with a different value in any field compare unequal', () {
+      expect(const Category(id: 1, name: 'a'),
+          isNot(equals(const Category(id: 1, name: 'b'))));
+      expect(const Category(id: 1, name: 'a'),
+          isNot(equals(const Category(id: 2, name: 'a'))));
+    });
+
+    test('bhv models 020 models with the same field values compare equal and hash alike', () {
+      const first = Category(id: 1, name: 'a');
+      final second = Category(id: 1, name: 'a');
+
+      expect(first, equals(second));
+      expect(first.hashCode, equals(second.hashCode));
+      expect(<Category>{first, second}, hasLength(1));
+    });
+
+    test('bhv models 021 each member of an integer-backed enum carries its declared number as its value', () {
+      expect(Priority.number1.value, equals(1));
+      expect(Priority.number2.value, equals(2));
+      expect(Priority.number3.value, equals(3));
+    });
+
+    test('bhv misc 137 a generated enum lists its declared values and gives the catch-all member for any other', () {
+      expect(
+          Separator.values
+              .where((e) => e != Separator.unknownDefaultOpenApi)
+              .map((e) => e.value)
+              .toList(),
+          equals([' ', '@@', 'a-b', 'a_b']));
+      expect(Separator.fromJson('nope'), equals(Separator.unknownDefaultOpenApi));
+    });
+
+    test('bhv misc 138 converting an enum member to text yields its wire value', () {
+      expect(Separator.ab.toString(), equals('a-b'));
+      expect(Separator.ab2.toString(), equals('a_b'));
+    });
+
+    test('bhv misc 140 deserializing a model without a required property fails with an error that names it', () {
+      expect(
+        () => Account.fromJson({'id': 7}),
+        throwsA(isA<SerializationException>()
+            .having((e) => e.message, 'message', contains('username'))),
+      );
+    });
+
+    test('bhv misc 141 a model built without a defaulted property holds the default', () {
+      const model = Defaults();
+
+      expect(model.retries, equals(3));
+      expect(model.greeting,
+          equals('it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b'));
+    });
+
+    test('bhv misc 142 additional properties are returned unchanged by key and the map holds exactly the stored entries', () {
+      final meta = Metadata.fromJson(<String, dynamic>{'note': 'x', 'owner': 'ann'});
+
+      expect(meta.additionalProperties['note'], equals('x'));
+      expect(meta.additionalProperties.keys.toList(), equals(['note', 'owner']));
+    });
+
+    test('bhv misc 143 a copy keeps the additional properties and compares equal to the original', () {
+      final original = Metadata.fromJson(<String, dynamic>{'customField': 'a'});
+      final copy = original.copyWith();
+
+      expect(copy.additionalProperties, equals({'customField': 'a'}));
+      expect(copy, equals(original));
+    });
+
+    test('bhv misc 144 validating a model refuses a string given for a numeric field', () {
+      expect(
+        () => deserialize<Defaults>('{"retries":"3"}', Defaults.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv misc 147 a nested model is shared, not cloned, by a copy', () {
+      const error = ModelError(code: 1);
+      const original = EdgeCases(lastError: error);
+
+      expect(original.copyWith(cutoff: 'later').lastError, same(error));
+    });
+
+    test('bhv misc 148 the copy serializes like the original with the change applied', () {
+      final copy = const Category(id: 1, name: 'Dogs').copyWith(name: 'Cats');
+
+      expect(jsonDecode(serialize(copy)), equals({'id': 1, 'name': 'Cats'}));
+    });
+
+    test('bhv misc 150 a model is equal to itself', () {
+      const category = Category(id: 1, name: 'Dogs');
+
+      expect(category, equals(category));
+    });
+
+    test('bhv misc 151 a model holding a map compares equal when the maps hold the same entries and unequal when any entry differs', () {
+      final first = Metadata.fromJson(<String, dynamic>{'a': '1', 'b': '2'});
+      final same = Metadata.fromJson(<String, dynamic>{'a': '1', 'b': '2'});
+      final differs = Metadata.fromJson(<String, dynamic>{'a': '1', 'b': '3'});
+
+      expect(first, equals(same));
+      expect(first, isNot(equals(differs)));
+    });
+
+    test('bhv models 024 a newly built model leaves its optional properties unset', () {
+      const empty = Category();
+
+      expect(empty.id, isNull);
+      expect(empty.name, isNull);
+    });
+
+    test('bhv serialization 020 a field the caller leaves unset is written with its schema default value', () {
+      expect(jsonDecode(serialize(const Defaults())), containsPair('retries', 3));
+      expect(jsonDecode(serialize(const Defaults())), containsPair('mode', 'medium'));
+    });
+
+    test('bhv models 013 a newly built model starts with an empty additional properties collection, never null', () {
+      final model = Metadata.fromJson(<String, dynamic>{});
+
+      expect(model.additionalProperties, isNotNull);
+      expect(model.additionalProperties, isEmpty);
+    });
+
+    test('bhv models 015 a changed copy of a model keeps the additional properties of the original', () {
+      final original = Metadata.fromJson(<String, dynamic>{'extra': 'a'});
+      final changed = original.copyWith(createdAt: null);
+
+      expect(changed.additionalProperties, equals({'extra': 'a'}));
+    });
+
+    test('bhv models 018 models whose decimal fields hold numerically equal values compare equal', () {
+      const first = Defaults(ratio: 1.0);
+      const second = Defaults(ratio: 1.00);
+
+      expect(first, equals(second));
+    });
+
+    test('bhv models 022 a generated model whose schema allows undeclared properties reports that it does', () {
+      final model = Metadata.fromJson(<String, dynamic>{'extra': 'x'});
+
+      expect(model.additionalProperties.containsKey('extra'), isTrue);
+    });
+
+    test('bhv models 023 undeclared keys named like the SDK method names are kept as additional properties', () {
+      final model = Metadata.fromJson(<String, dynamic>{'toJson': 'a', 'copyWith': 'b'});
+
+      expect(model.additionalProperties, equals({'toJson': 'a', 'copyWith': 'b'}));
+      expect(model.toJson()['toJson'], equals('a'));
+    });
+
+    test('bhv serialization 012 keys of maps are written in ascending order so equal data always produces identical output', () {
+      expect(serialize({'b': 1, 'a': 2}), equals('{"a":2,"b":1}'));
+    });
+
+    test('bhv serialization 019 an unset optional property is left out of the serialized output', () {
+      expect(serialize(const Category(name: 'dog')), equals('{"name":"dog"}'));
+    });
+
+    test('bhv serialization 021 values with equal content compare equal and hash alike, and differing content does not', () {
+      const first = Category(id: 1, name: 'a');
+      const second = Category(id: 1, name: 'a');
+      const third = Category(id: 1, name: 'b');
+
+      expect(first, equals(second));
+      expect(first.hashCode, equals(second.hashCode));
+      expect(first, isNot(equals(third)));
+    });
+
+    test('bhv serialization 040 a form value writes each date-time, number, integer and boolean in its canonical wire text', () {
+      expect(toFormValue(true), equals('true'));
+      expect(toFormValue(3), equals('3'));
+      expect(toFormValue(2.5), equals('2.5'));
+      expect(toFormValue(DateTime.utc(2024, 1, 1)), startsWith('2024-01-01T00:00:00'));
+    });
+
+    test('bhv serialization 041 a time string in hours, minutes and seconds form is accepted', () {
+      expect(() => validatePartialTime('10:20:30'), returnsNormally);
+    });
+
+    test('bhv serialization 043 a time of day is written as hours, minutes and seconds and never as a full date-time', () {
+      expect(validatePartialTime('10:20:30'), isNot(contains('T')));
+    });
+
+    test('bhv serialization 046 a duration fraction is written in the shortest group of three, six or nine digits', () {
+      expect(formatProtobufDuration(const Duration(milliseconds: 1500)), equals('1.500s'));
+      expect(formatProtobufDuration(const Duration(microseconds: 1500100)), equals('1.500100s'));
+    });
+
+    test('bhv serialization 047 a very large duration is formatted without overflow and an out-of-range duration string is refused', () {
+      expect(() => formatProtobufDuration(const Duration(days: 365 * 200)), returnsNormally);
+      expect(() => parseProtobufDuration('999999999999999999999s'),
+          throwsA(isA<SerializationException>()));
+    });
+
+    test('bhv serialization 048 a duration written on its own is written as its protobuf seconds string', () {
+      expect(formatProtobufDuration(const Duration(seconds: 2)), equals('2s'));
+    });
+
+    test('bhv serialization 052 undeclared keys are kept as additional properties on a model read from the wire', () {
+      final model = Metadata.fromJson(<String, dynamic>{'undeclared': 'kept'});
+
+      expect(model.additionalProperties, containsPair('undeclared', 'kept'));
+      expect(model.toJson(), containsPair('undeclared', 'kept'));
+    });
+
+    test('bhv serialization 053 undeclared keys held by a model are written back as keys of that model', () {
+      final json = Metadata.fromJson(<String, dynamic>{'undeclared': 'kept'}).toJson();
+
+      expect(json['undeclared'], equals('kept'));
+    });
+
+    test('bhv serialization 001 the text form of an enum member is exactly its declared wire value', () {
+      expect(Swatch.green.value, equals('green'));
+    });
+
+    test('bhv serialization 002 an enum member held by a model is written as its exact declared wire string', () {
+      expect(serialize(Defaults(swatch: Swatch.green)), contains('"swatch":"green"'));
+    });
+
+    test('bhv serialization 003 a wire value an enum declares decodes to the member carrying exactly that value', () {
+      expect(Defaults.fromJson({'swatch': 'green'}).swatch, equals(Swatch.green));
+    });
+
+    test('bhv serialization 004 a generated enum gives the catch-all member for any value outside its declared members', () {
+      expect(Defaults.fromJson({'swatch': 'purple'}).swatch,
+          equals(Swatch.unknownDefaultOpenApi));
+    });
+
+    group('native value formats', () {
+      NativeValues decode(String json) => deserialize<NativeValues>(json, NativeValues.fromJson)!;
+
+      test('bhv serializationobject 403 a duration field is the native Duration', () {
+        final Duration? wait = decode('{"wait":"3600s"}').wait;
+
+        expect(wait, equals(const Duration(hours: 1)));
+      });
+
+      test('bhv serializationobject 404 a duration keeps every microsecond and truncates the rest toward zero', () {
+        expect(
+          decode('{"wait":"1.123456789s"}').wait,
+          equals(const Duration(seconds: 1, microseconds: 123456)),
+        );
+        expect(
+          decode('{"wait":"-1.123456789s"}').wait,
+          equals(-const Duration(seconds: 1, microseconds: 123456)),
+        );
+      });
+
+      test('bhv serializationobject 405 an ipv4 field is the address text and is kept unchanged', () {
+        expect(serialize(decode('{"address4":"192.0.2.1"}')), equals('{"address4":"192.0.2.1"}'));
+      });
+
+      test('bhv serializationobject 406 an ipv6 field keeps the address text unchanged', () {
+        for (final text in ['2001:0DB8:0:0:0:0:0:1', '2001:db8::1', '::1']) {
+          expect(serialize(decode('{"address6":"$text"}')), equals('{"address6":"$text"}'));
+        }
+      });
+
+      test('bhv serializationobject 408 every absolute URI of the corpus round-trips byte for byte', () {
+        for (final text in [
+          'https://example.com',
+          'HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag',
+          'mailto:a@b.c',
+          'urn:isbn:0451450523',
+          "https://example.com/[x]?q='a'",
+          'https://example.com?',
+          'https://example.com/%7euser',
+          'https://[2001:db8::1]:8443/',
+        ]) {
+          final json = jsonEncode({'homepage': text});
+
+          expect(serialize(decode(json)), equals(json), reason: text);
+        }
+      });
+
+      test('bhv serializationobject 409 a hostname and an email are kept as given', () {
+        const json = '{"host":"not a host!","contact":"x@"}';
+
+        expect(serialize(decode(json)), equals(json));
+      });
+    });
+  });
+
+  group('enum member names and descriptions', () {
+    String source(String name) => File('lib/src/models/$name.dart').readAsStringSync();
+
+    test('bhv enums 001 a string member named by an array exposes the given name and its wire value', () {
+      expect([Tier.small.value, Tier.medium.value, Tier.large.value], equals(['s', 'm', 'l']));
+      final item = deserialize<Subscription>('{"rank":1,"tier":"m"}', Subscription.fromJson);
+      expect(item!.tier, equals(Tier.medium));
+    });
+
+    test('bhv enums 002 an integer member named by an array exposes the given name and its number', () {
+      expect([Rank.low.value, Rank.medium.value, Rank.high.value], equals([1, 2, 3]));
+      final item = deserialize<Subscription>('{"rank":3}', Subscription.fromJson);
+      expect(item!.rank, equals(Rank.high));
+      expect(serialize(item), contains('"rank":3'));
+    });
+
+    test('bhv enums 003 an object keyed by wire value names the members it lists', () {
+      expect(deserialize<Subscription>('{"rank":1,"stage":"paused"}', Subscription.fromJson)!.stage,
+          equals(Stage.onHold));
+      expect(deserialize<Subscription>('{"rank":1,"stage":"active"}', Subscription.fromJson)!.stage,
+          equals(Stage.active));
+    });
+
+    test('bhv enums 004 a supplied name that is not a legal identifier is cleaned and cased', () {
+      expect(Stage.onHold.value, equals('paused'));
+    });
+
+    test('bhv enums 005 two supplied names that collide after casing keep distinct names and wires', () {
+      expect(Stage.active.value, equals('active'));
+      expect(Stage.active2.value, equals('live'));
+      expect(deserialize<Subscription>('{"rank":1,"stage":"live"}', Subscription.fromJson)!.stage,
+          equals(Stage.active2));
+    });
+
+    test('bhv enums 006 an inline property enum takes its member names from its own keys', () {
+      expect(SubscriptionIntervalEnum.monthly.value, equals('month'));
+      expect(SubscriptionIntervalEnum.yearly.value, equals('year'));
+    });
+
+    test('bhv enums 007 a default on a referenced enum property starts at the supplied member', () {
+      expect(const Subscription(rank: Rank.low).tier, equals(Tier.medium));
+      expect(deserialize<Subscription>('{"rank":1}', Subscription.fromJson)!.tier, equals(Tier.medium));
+    });
+
+    test('bhv enums 008 encoding writes the wire value and decoding rejects a supplied name', () {
+      expect(const Subscription(rank: Rank.low, tier: Tier.medium).toJson()['tier'], equals('m'));
+      expect(deserialize<Subscription>('{"rank":1,"tier":"Medium"}', Subscription.fromJson)!.tier,
+          equals(Tier.unknownDefaultOpenApi));
+    });
+
+    test('bhv enums 012 the catch-all member of an enum has no wire value and cannot be written', () {
+      expect(() => serialize(const Subscription(rank: Rank.low, tier: Tier.unknownDefaultOpenApi)),
+          throwsA(anything));
+    });
+
+    test('bhv enums 009 a description is the one-line comment directly above the member', () {
+      expect(source('tier'), contains('  /// The smallest tier.\n  small('));
+      expect(source('tier'), contains('  /// The medium tier.\n  medium('));
+    });
+
+    test('bhv enums 010 a member without a description keeps the comment it has today', () {
+      expect(source('rank'), contains('  /// Represents the value 2.\n  medium(2),'));
+    });
+
+    test('bhv enums 011 a description with terminators and sigils still yields a comment', () {
+      expect(source('tier'), contains(r'  /// The largest tier. Ends with */ and #{x} and $x.' '\n  large('));
+    });
+
+    test('bhv serialization 090 malformed base64 is rejected, not repaired, including inside arrays and maps', () {
+      expect(() => decodeBase64('aGk'), throwsA(isA<SerializationException>()));
+      expect(
+        () => deserialize<BinaryVault>('{"shards":["aGk"]}', BinaryVault.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+      expect(
+        () => deserialize<BinaryVault>('{"labels":{"a":"@@@="}}', BinaryVault.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serialization 091 byte values with the high bit set survive an encode and decode round trip', () {
+      final data = Uint8List.fromList([0xff, 0x80, 0x00]);
+      expect(decodeBase64(stringify(data)), equals(data));
+    });
+
+    test('bhv serialization 092 a time of day round-trips through its string form and back to the same time', () {
+      expect(validatePartialTime('23:59:59'), equals('23:59:59'));
+    });
+
+    test('bhv serialization 093 a date-time is written as ISO-8601 with a numeric UTC offset and keeps sub-seconds', () {
+      final moment = DateTime.utc(2024, 1, 2, 3, 4, 5, 5);
+      final out = stringify(moment);
+      expect(out, equals('2024-01-02T03:04:05.005+00:00'));
+      expect(out.endsWith('Z'), isFalse);
+    });
+
+    test('bhv serialization 094 strings in model fields are written verbatim with HTML, ampersands and slashes', () {
+      final text = serialize(Freeform(label: '<a>&/b'));
+      expect(jsonDecode(text), containsPair('label', '<a>&/b'));
+      expect(text, contains('<a>&/b'));
+    });
+
+    test('bhv serialization 095 an explicit null on the wire replaces the schema default when decoding', () {
+      expect(deserialize<Defaults>('{"retries":null}', Defaults.fromJson)?.retries, isNull);
+    });
+
+    test('bhv serialization 096 an absent field decodes to its declared schema default', () {
+      expect(deserialize<Defaults>('{}', Defaults.fromJson)?.retries, equals(3));
+    });
+
+    test('bhv serialization 097 an enum field with a schema default is written with that default value', () {
+      expect(jsonDecode(serialize(const Defaults())), containsPair('mode', 'medium'));
+    });
+
+    test('bhv serialization 098 an unset optional field is left out of the serialized output at any depth', () {
+      final wire = jsonDecode(serialize({'current': const StrictTag(name: 'Dogs')})) as Map<String, dynamic>;
+      expect(wire['current'], equals({'name': 'Dogs'}));
+    });
+
+    test('bhv serialization 099 a strict model rejects an undeclared key with an error', () {
+      expect(
+        () => deserialize<StrictTag>('{"id":1,"name":"x","unexpected":true}', StrictTag.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serialization 100 a valid payload with several declared fields decodes every field', () {
+      final order = deserialize<Order>(
+        '{"id":1,"petId":2,"quantity":3,"status":"approved"}',
+        Order.fromJson,
+      );
+      expect(order?.id, equals(1));
+      expect(order?.petId, equals(2));
+      expect(order?.quantity, equals(3));
+      expect(order?.status, equals(OrderStatusEnum.approved));
+    });
+
+    test('bhv serialization 101 an integer-backed enum is written as a JSON number and decodes back to its member', () {
+      expect(serialize(Priority.number2), equals('2'));
+      expect(Priority.fromJson(2), equals(Priority.number2));
+    });
+
+    test('bhv serialization 102 a Zulu timestamp decodes to the same instant as its offset form', () {
+      final metadata = deserialize<Metadata>('{"createdAt":"2024-01-01T00:00:00Z"}', Metadata.fromJson);
+      expect(metadata?.createdAt, equals(DateTime.utc(2024, 1, 1)));
+      expect(metadata?.createdAt?.isUtc, isTrue);
+    });
+
+    test('bhv serialization 103 a malformed JSON body is rejected with an error message describing it', () {
+      expect(
+        () => parseJson('{"a":'),
+        throwsA(isA<SerializationException>().having((e) => e.message, 'message', isNotEmpty)),
+      );
+    });
+
+    test('bhv serialization 104 an uppercase UUID is written in lowercase canonical form', () {
+      final order = deserialize<Order>('{"trackingId":"0F8FAD5B-D9CB-469F-A165-70867728950E"}', Order.fromJson);
+      expect(order?.trackingId.toString(), equals('0f8fad5b-d9cb-469f-a165-70867728950e'));
+    });
+
+    test('bhv serialization 105 an enum value with the wrong case gives the catch-all member', () {
+      expect(
+        deserialize<Order>('{"status":"PLACED"}', Order.fromJson)!.status,
+        equals(OrderStatusEnum.unknownDefaultOpenApi),
+      );
+    });
+
+    test('bhv serialization 112 a password is masked in the string form and written verbatim on the wire', () {
+      const account = Account(username: 'u', password: 'p-secret-value');
+      expect(account.toString(), isNot(contains('p-secret-value')));
+      expect(serialize(account), contains('"password":"p-secret-value"'));
+    });
+
+    test('bhv serialization 113 a string value passes through unchanged without normalising its form', () {
+      expect(stringify('é'), equals('é'));
+    });
+
+    test('bhv serialization 114 a decoded number keeps its full magnitude and fractional part', () {
+      final food = deserialize<DryFood>(
+        '{"foodType":"dry","weightKg":12345678901234567890.5}',
+        DryFood.fromJson,
+      );
+      expect(food?.weightKg, equals(12345678901234567890.5));
+    });
+
+    test('bhv serialization 115 an integral JSON number decoded into a floating-point field becomes a float', () {
+      final food = deserialize<DryFood>('{"foodType":"dry","weightKg":5}', DryFood.fromJson);
+      expect(food?.weightKg, equals(5.0));
+      expect(food?.weightKg, isA<double>());
+    });
+
+    test('bhv serialization 116 a property named as a language keyword keeps its exact wire key', () {
+      expect(deserialize<EdgeCases>('{"class":"x"}', EdgeCases.fromJson)?.class_, equals('x'));
+    });
+
+    test('bhv serialization 117 a protobuf duration string decodes to a duration both standalone and as a property', () {
+      expect(parseProtobufDuration('3600s'), equals(const Duration(hours: 1)));
+      expect(
+        deserialize<EdgeCases>('{"retryAfter":"3600s"}', EdgeCases.fromJson)?.retryAfter,
+        equals(const Duration(hours: 1)),
+      );
+    });
+    test('bhv misc 287 A wire key literally named additional_properties is kept as an undeclared extra', () {
+      final metadata = deserialize<Metadata>(
+        '{"additional_properties":"bar","region":"eu"}',
+        Metadata.fromJson,
+      )!;
+
+      expect(metadata.additionalProperties, containsPair('additional_properties', 'bar'));
+      expect(metadata.additionalProperties, containsPair('region', 'eu'));
+    });
+
+    test('bhv misc 288 A snake_case key at the top level of an object is captured as an undeclared extra', () {
+      final freeform = deserialize<Freeform>('{"label":"x","snake_case_key":1}', Freeform.fromJson)!;
+
+      expect(freeform.additionalProperties, equals({'snake_case_key': 1}));
+    });
+
+    test('bhv misc 289 A snake_case key inside a list element is captured as an undeclared extra', () {
+      final items = (jsonDecode('[{"label":"x","snake_case_key":1}]') as List<dynamic>)
+          .map((item) => Freeform.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      expect(items.first.additionalProperties, equals({'snake_case_key': 1}));
+    });
+
+    test('bhv misc 290 An undeclared key whose value is a dictionary survives a full serialize and deserialize round trip', () {
+      final freeform = deserialize<Freeform>('{"label":"x","nested":{"a":1}}', Freeform.fromJson)!;
+
+      final restored = deserialize<Freeform>(serialize(freeform), Freeform.fromJson)!;
+
+      expect(restored.additionalProperties['nested'], equals({'a': 1}));
+    });
+
+    test('bhv serialization 130 a failed serialize reports its detail under the canonical serialize message prefix', () {
+      expect(
+        () => serialize(Object()),
+        throwsA(isA<SerializationException>().having(
+          (e) => e.message,
+          'message',
+          startsWith('Failed to serialize object to JSON'),
+        )),
+      );
+    });
+    test('bhv serialization 067 extra properties are written as top-level keys beside the declared fields', () {
+      final metadata = deserialize<Metadata>(
+        '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}',
+        Metadata.fromJson,
+      )!;
+
+      final wire = jsonDecode(serialize(metadata)) as Map<String, dynamic>;
+
+      expect(wire['region'], equals('eu'));
+      expect(wire.containsKey('createdAt'), isTrue);
+    });
+
+    test('bhv serialization 071 JSON nested deeper than the allowed depth is refused before parsing', () {
+      final deep = '[' * 1001 + ']' * 1001;
+
+      expect(
+        () => parseJson(deep),
+        throwsA(isA<SerializationException>().having(
+          (e) => e.message,
+          'message',
+          contains('exceeds limit 1000'),
+        )),
+      );
+    });
+
+    test('bhv serialization 074 nested arrays serialize back to the same nested shape they were decoded from', () {
+      expect(jsonDecode(serialize([[1, 2], [3]])), equals([[1, 2], [3]]));
+    });
+
+    test('bhv serialization 075 an enum value decodes from its wire string to the matching member', () {
+      final order = deserialize<Order>('{"id":10,"status":"placed"}', Order.fromJson);
+
+      expect(order!.status, equals(OrderStatusEnum.placed));
+    });
+
+    test('bhv serialization 077 a duration written to its wire string and decoded back is unchanged', () {
+      final values = <Duration>[
+        Duration.zero,
+        const Duration(seconds: -90, microseconds: -250000),
+        const Duration(microseconds: 1500),
+        const Duration(days: 3, seconds: 5),
+        const Duration(seconds: 315576000000),
+      ];
+
+      for (final value in values) {
+        expect(parseProtobufDuration(formatProtobufDuration(value)), equals(value));
+      }
+    });
+
+    test('bhv serialization 079 copying a model with named changes changes only those fields', () {
+      final original = Order();
+
+      final copy = original.copyWith(quantity: 500);
+
+      expect(identical(copy, original), isFalse);
+      expect(copy.quantity, equals(500));
+      expect(original.quantity, isNot(equals(500)));
+    });
+
+    test('bhv serialization 081 a value of the wrong JSON type is rejected and never coerced', () {
+      expect(
+        () => deserialize<Metadata>('{"createdAt":123}', Metadata.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv serialization 083 a serialization error is the library error type and carries a non-empty message', () {
+      expect(
+        () => deserialize<Metadata>('{', Metadata.fromJson),
+        throwsA(isA<SerializationException>().having(
+          (e) => e.message,
+          'message',
+          isNotEmpty,
+        )),
+      );
+    });
+
+    test('bhv serialization 084 protobuf duration fractions parse to their exact value, including short padded ones', () {
+      expect(parseProtobufDuration('1.5s'), equals(const Duration(seconds: 1, microseconds: 500000)));
+      expect(parseProtobufDuration('0.1s'), equals(const Duration(microseconds: 100000)));
+      expect(parseProtobufDuration('1.000001s'), equals(const Duration(seconds: 1, microseconds: 1)));
+    });
+
+    test('bhv serialization 085 a date-time field decodes from its ISO-8601 string into a date-time value', () {
+      final metadata = deserialize<Metadata>(
+        '{"createdAt":"2024-01-01T00:00:00Z"}',
+        Metadata.fromJson,
+      )!;
+
+      expect(metadata.createdAt, isA<DateTime>());
+      expect(metadata.createdAt, equals(DateTime.utc(2024, 1, 1)));
+    });
+
+    test('bhv serialization 086 a duration is written as protobuf seconds with days folded in', () {
+      expect(formatProtobufDuration(const Duration(days: 1, seconds: 5)), equals('86405s'));
+      expect(formatProtobufDuration(const Duration(seconds: 2)), equals('2s'));
+    });
+
+    test('bhv serialization 087 a very small duration is written as fixed-point decimal digits, never scientific', () {
+      final out = formatProtobufDuration(const Duration(microseconds: 1));
+
+      expect(out, equals('0.000001s'));
+      expect(out.toLowerCase(), isNot(contains('e')));
+    });
+
+    test('bhv serialization 089 a base64 wire string decodes into a byte value', () {
+      final request = SetPetAvatarThumbnailRequest.fromJson('aGk=');
+
+      expect(request.actualInstance, equals(Uint8List.fromList(<int>[0x68, 0x69])));
+    });
+  });
+}
+{{/generateTests}}

@@ -1,0 +1,281 @@
+{{>api_info}}
+
+using System.Security.Cryptography;
+using System.Text;
+
+namespace {{packageName}}.Auth.OAuth;
+
+/// <summary>
+/// Authenticator for the OAuth2 Authorization Code flow.
+///
+/// Implements <see cref="IHttpAwareAuthenticator"/> so that token exchange requests
+/// use the shared <see cref="IApiClient"/> with the same transport configuration
+/// (proxy, TLS, timeouts) as regular API calls.
+///
+/// Usage:
+/// <list type="number">
+///   <item><description>Call <see cref="BuildAuthorizationUrl"/> to get the authorization URL.</description></item>
+///   <item><description>Redirect the user to that URL.</description></item>
+///   <item><description>After the callback, call <see cref="ExchangeCodeAsync"/> with the auth code.</description></item>
+///   <item><description>Use the authenticator normally -- tokens are managed automatically.</description></item>
+/// </list>
+/// </summary>
+public class OAuth2AuthorizationCodeAuthenticator
+    : BaseAuthenticator,
+        IHttpAwareAuthenticator,
+        IInvalidatableAuthenticator
+{
+    private readonly string _host;
+    private readonly string _clientId;
+    private readonly string _clientSecret;
+    private readonly Uri _authorizationUrl;
+    private readonly Uri _tokenUrl;
+    private readonly Uri _refreshUrl;
+    private readonly Uri _redirectUri;
+    private readonly string[] _scopes;
+    private readonly OAuth2TokenManager _tokenManager;
+    /* Written by ExchangeCodeAsync (typically from a callback thread) and read
+     * by request threads, so volatile gives the reader a happens-before. */
+    private volatile bool _tokenExchanged;
+    /* The PKCE code verifier of the last authorization URL built, kept until
+     * the code is exchanged (RFC 7636). */
+    private volatile string? _pkceVerifier;
+
+    /// <summary>
+    /// Create a new authorization code authenticator.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="clientId">OAuth2 client ID.</param>
+    /// <param name="clientSecret">OAuth2 client secret.</param>
+    /// <param name="authorizationUrl">Authorization endpoint URL.</param>
+    /// <param name="tokenUrl">Token endpoint URL.</param>
+    /// <param name="redirectUri">Redirect URI registered with the OAuth2 provider.</param>
+    /// <param name="scopes">Requested scopes.</param>
+    /// <param name="refreshUrl">Refresh token endpoint URL. Falls back to tokenUrl if null.</param>
+    public OAuth2AuthorizationCodeAuthenticator(
+        string host,
+        string clientId,
+        string clientSecret,
+        Uri authorizationUrl,
+        Uri tokenUrl,
+        Uri redirectUri,
+        string[] scopes,
+        Uri? refreshUrl = null
+    )
+        : this(host, clientId, clientSecret, authorizationUrl, tokenUrl, redirectUri, scopes, refreshUrl, new OAuth2TokenManager(), false) { }
+
+    /// <summary>
+    /// Create an authenticator around an existing session, so the tokens and the
+    /// exchanged flag carry over. OpenID Connect uses this when a rediscovery names
+    /// new endpoints.
+    /// </summary>
+    internal OAuth2AuthorizationCodeAuthenticator(
+        string host,
+        string clientId,
+        string clientSecret,
+        Uri authorizationUrl,
+        Uri tokenUrl,
+        Uri redirectUri,
+        string[] scopes,
+        Uri? refreshUrl,
+        OAuth2TokenManager tokenManager,
+        bool tokenExchanged,
+        string? pkceVerifier = null
+    )
+    {
+        _pkceVerifier = pkceVerifier;
+        _tokenManager = tokenManager;
+        _tokenExchanged = tokenExchanged;
+        _host = host;
+        _clientId = clientId;
+        _clientSecret = clientSecret;
+        _authorizationUrl = authorizationUrl;
+        _tokenUrl = tokenUrl;
+        _refreshUrl = refreshUrl ?? tokenUrl;
+        _redirectUri = redirectUri;
+        _scopes = [.. scopes];
+    }
+
+    /// <summary>The session this authenticator holds (internal, for rediscovery).</summary>
+    internal OAuth2TokenManager TokenManager => _tokenManager;
+
+    /// <summary>The pending PKCE code verifier (internal, for rediscovery).</summary>
+    internal string? PkceVerifier => _pkceVerifier;
+
+    /// <summary>Whether a code exchange succeeded (internal, for rediscovery).</summary>
+    internal bool TokenExchanged => _tokenExchanged;
+
+    /// <inheritdoc/>
+    public void SetApiClient(IApiClient apiClient)
+    {
+        _tokenManager.SetApiClient(apiClient);
+    }
+
+    /// <summary>
+    /// Builds the URL to redirect the user to for authorization.
+    /// </summary>
+    /// <param name="state">Optional CSRF state parameter.</param>
+    /// <returns>The authorization URL.</returns>
+    public Uri BuildAuthorizationUrl(string? state = null)
+    {
+        Dictionary<string, string> parameters = new()
+        {
+            ["response_type"] = "code",
+            ["client_id"] = _clientId,
+            ["redirect_uri"] = _redirectUri.OriginalString,
+        };
+        if (_scopes.Length > 0)
+        {
+            parameters["scope"] = string.Join(" ", _scopes);
+        }
+
+        if (!string.IsNullOrEmpty(state))
+        {
+            parameters["state"] = state;
+        }
+
+        /* RFC 7636 / RFC 9700 section 2.1.1: bind the code to this client with
+         * a PKCE S256 challenge. The 43-character verifier (32 random bytes,
+         * base64url) is kept for ExchangeCodeAsync. */
+        string verifier = Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        _pkceVerifier = verifier;
+        parameters["code_challenge"] = S256Challenge(verifier);
+        parameters["code_challenge_method"] = "S256";
+
+        string query = string.Join(
+            "&",
+            parameters.Select(p =>
+                Uri.EscapeDataString(p.Key) + "=" + Uri.EscapeDataString(p.Value)
+            )
+        );
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component. Use '&' as the separator when one is already
+         * present so existing params are preserved, '?' otherwise. The base is
+         * the configured text verbatim: Uri.ToString() would drop a default
+         * port and lower-case the host. */
+        string authUrl = _authorizationUrl.OriginalString;
+        string separator = authUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        return new Uri(authUrl + separator + query);
+    }
+
+    private static string Base64UrlEncode(byte[] bytes)
+    {
+        return Convert
+            .ToBase64String(bytes)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    /// <summary>
+    /// The RFC 7636 section 4.2 S256 code challenge for a verifier: the base64url
+    /// encoded SHA-256 digest of its ASCII bytes, with no padding.
+    /// </summary>
+    internal static string S256Challenge(string verifier)
+    {
+        return Base64UrlEncode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
+    }
+
+    /// <summary>
+    /// Exchanges an authorization code for an access token.
+    /// </summary>
+    /// <param name="code">The authorization code from the callback.</param>
+    public async Task ExchangeCodeAsync(string code)
+    {
+        /* Reject an empty/whitespace authorization code before issuing the
+         * token POST: an empty code is a programmer/precondition error that
+         * would otherwise surface as a confusing downstream OAuth error.
+         * Matches the harmonised cross-SDK canonical (validate code non-empty
+         * before the exchange). */
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new ArgumentException(
+                "Authorization code must not be empty",
+                nameof(code));
+        }
+
+        Dictionary<string, string> parameters = new()
+        {
+            ["grant_type"] = "authorization_code",
+            ["code"] = code,
+            ["client_id"] = _clientId,
+            ["client_secret"] = _clientSecret,
+            ["redirect_uri"] = _redirectUri.OriginalString,
+        };
+        string? verifier = _pkceVerifier;
+        if (verifier is not null)
+        {
+            parameters["code_verifier"] = verifier;
+        }
+        /* Always POST the authorization_code grant: the exchange bypasses
+         * the token cache and the refresh path, replaces the session on
+         * success and keeps the previous session when the code is rejected. */
+        _ = await _tokenManager.ExchangeAsync(_tokenUrl, parameters).ConfigureAwait(false);
+        _tokenExchanged = true;
+        _pkceVerifier = null;
+    }
+
+    /// <summary>
+    /// Drops the cached access token so that the next request fetches a fresh
+    /// one (a refresh grant first when a refresh token is held, which is kept).
+    /// The SDK calls this itself when the API answers 401; callers may use it
+    /// to force a refresh.
+    /// </summary>
+    public void InvalidateAccessToken()
+    {
+        _tokenManager.InvalidateAccessToken();
+    }
+
+    /// <inheritdoc/>
+    public override string GetHost()
+    {
+        return _host;
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// OAuth2 authenticators require asynchronous token exchange. The
+    /// synchronous path is not safe (it deadlocks under non-default
+    /// <see cref="System.Threading.SynchronizationContext"/>); callers
+    /// must use <see cref="GetAuthHeadersAsync(CancellationToken)"/> instead.
+    /// </remarks>
+    public override Dictionary<string, string> GetAuthHeaders()
+    {
+        throw new InvalidOperationException(
+            "OAuth2 authenticators require async token exchange; "
+                + "use GetAuthHeadersAsync() instead."
+        );
+    }
+
+    /// <inheritdoc/>
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken)
+    {
+        if (!_tokenExchanged)
+        {
+            throw new InvalidOperationException(
+                "Must call ExchangeCodeAsync() before making API requests"
+            );
+        }
+
+        Dictionary<string, string> parameters = new()
+        {
+            ["grant_type"] = "refresh_token",
+            ["refresh_token"] = _tokenManager.RefreshToken ?? "",
+            ["client_id"] = _clientId,
+            ["client_secret"] = _clientSecret,
+        };
+        string token = await _tokenManager
+            .GetAccessTokenAsync(_refreshUrl, parameters, null, null, cancellationToken)
+            .ConfigureAwait(false);
+        return new() { ["Authorization"] = "Bearer " + token };
+    }
+
+    /// <summary>
+    /// Returns a string representation with the client secret redacted so the
+    /// credential never leaks into logs, stack traces, or debugger output.
+    /// </summary>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(Host={_host}, ClientId={_clientId}, ClientSecret=***, AuthorizationUrl={_authorizationUrl}, TokenUrl={_tokenUrl}, RedirectUri={_redirectUri}, Scopes=[{string.Join(", ", _scopes)}])";
+    }
+}

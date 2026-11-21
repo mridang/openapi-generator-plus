@@ -1,0 +1,14 @@
+{{>api_info}}
+package {{packageName}}
+
+// ApiHttpResponse represents an HTTP API response.
+type ApiHttpResponse struct {
+	/* StatusCode is the HTTP status code. */
+	StatusCode int
+
+	/* Body is the response body. */
+	Body string
+
+	/* Headers are the response headers. */
+	Headers map[string]string
+}

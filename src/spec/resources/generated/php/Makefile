@@ -1,0 +1,39 @@
+.PHONY: install build test lint format analyze audit docs clean examples examples-run
+
+install:
+	composer install --no-interaction --prefer-dist
+
+build: install
+
+test: install
+	vendor/bin/pest --testdox --parallel
+
+lint: install
+	vendor/bin/phpcs
+
+format: install
+	vendor/bin/phpcbf || true
+
+analyze: install
+	vendor/bin/phpstan analyse
+
+audit: install
+	composer audit
+
+docs: install
+	mkdir -p .phpdoc
+	test -f .phpdoc/phpDocumentor.phar || curl -fsSL -o .phpdoc/phpDocumentor.phar https://github.com/phpDocumentor/phpDocumentor/releases/download/v3.10.0/phpDocumentor.phar
+	php .phpdoc/phpDocumentor.phar --config phpdoc.dist.xml --no-interaction -v 2>&1 | tee .phpdoc/phpdoc.log
+	! grep -iE 'unable to|an error was detected|could not|^[[:space:]]*WARNING|^[[:space:]]*ERROR' .phpdoc/phpdoc.log | grep -viE 'Writer twig|reports/(errors|deprecated|markers)\.html'
+	grep -qiE 'no errors have been found' .out/docs/reports/errors.html
+
+clean:
+	rm -rf vendor .phpunit.result.cache .pest.cache .phpdoc docs
+
+# Lints every file under examples and type-checks the directory with the shipped phpstan.neon.
+examples: install
+	find examples -name '*.php' -print0 | xargs -0 -n1 php -l
+	vendor/bin/phpstan analyse --no-progress --memory-limit=-1 examples
+
+examples-run: examples
+	SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL="$(API_BASE_URL)" SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN=placeholder php examples/quickstart.php

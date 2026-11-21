@@ -1,0 +1,86 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class CallHookTest {
+
+    private static final CallInfo INFO =
+            new CallInfo("echo_operation", "GET", "/items/{id}", "http://localhost/items/7", "localhost");
+
+    private static CallHook recording(String name, List<String> events) {
+        return (info, headers) -> {
+            events.add("start " + name);
+            return outcome -> events.add("finish " + name);
+        };
+    }
+
+    @Test
+    void bhvHooks020ChainStartsInOrderAndFinishesInReverse() {
+        {
+            List<String> events = new ArrayList<>();
+            CallHook chained = CallHook.chain(recording("a", events), recording("b", events));
+
+            CallObserver observer = chained.start(INFO, new HashMap<>());
+            assertNotNull(observer);
+            observer.finish(new CallOutcome(200, Map.of(), null));
+
+            assertEquals(List.of("start a", "start b", "finish b", "finish a"), events);
+        }
+        {
+            List<String> events = new ArrayList<>();
+            CallHook silent = (info, headers) -> null;
+
+            CallObserver observer =
+                    CallHook.chain(silent, recording("a", events), silent).start(INFO, new HashMap<>());
+            assertNotNull(observer);
+            observer.finish(new CallOutcome(200, Map.of(), null));
+            assertEquals(List.of("start a", "finish a"), events);
+            assertNull(CallHook.chain(silent).start(INFO, new HashMap<>()));
+        }
+        {
+            CallHook first = (info, headers) -> {
+                headers.put("X-First", "1");
+                return null;
+            };
+            Map<String, String> seen = new HashMap<>();
+            CallHook second = (info, headers) -> {
+                seen.putAll(headers);
+                return null;
+            };
+
+            CallHook.chain(first, second).start(INFO, new HashMap<>());
+
+            assertEquals("1", seen.get("X-First"));
+        }
+        {
+            List<String> events = new ArrayList<>();
+            IllegalStateException failure = new IllegalStateException("refused");
+            CallHook failing = (info, headers) -> {
+                throw failure;
+            };
+
+            IllegalStateException caught = assertThrows(
+                    IllegalStateException.class,
+                    () -> CallHook.chain(recording("a", events), failing, recording("b", events))
+                            .start(INFO, new HashMap<>()));
+
+            assertSame(failure, caught);
+            assertEquals(List.of("start a", "finish a"), events);
+        }
+    }
+
+
+
+}

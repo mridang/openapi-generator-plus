@@ -1,0 +1,62 @@
+{{>api_info}}
+
+mod authenticator;
+pub use authenticator::*;
+
+mod http_aware_authenticator;
+pub use http_aware_authenticator::*;
+
+{{#hasBasicAuth}}
+mod basic_authenticator;
+pub use basic_authenticator::*;
+{{/hasBasicAuth}}
+
+mod bearer_authenticator;
+pub use bearer_authenticator::*;
+
+{{#hasApiKeyAuth}}
+pub mod api_key_authenticator;
+pub use api_key_authenticator::*;
+
+pub mod api_key_location;
+pub use api_key_location::*;
+{{/hasApiKeyAuth}}
+
+{{#hasAnyOAuth2}}
+pub mod oauth;
+{{/hasAnyOAuth2}}
+
+{{! Per-scheme (named) authenticators generated from the spec's security
+    schemes, e.g. admin_basic_authenticator / api_key_header_authenticator.
+    Rust needs an explicit `mod` for each or cargo drops the file as dead
+    source; the list is populated during generation (perSchemeAuthModules). }}
+{{#perSchemeAuthModules}}
+pub mod {{module}};
+pub use {{module}}::*;
+{{/perSchemeAuthModules}}
+
+{{#hasSecuritySchemeEnvVars}}
+
+/// Resolves one credential of a per-scheme authenticator: the explicit argument
+/// wins (an empty one is kept and rejected by the authenticator itself), then the
+/// environment variable, read once, where an empty value counts as unset. A
+/// credential found in neither place is a `ConfigurationError` naming the
+/// variable.
+pub(crate) fn resolve_credential(
+    explicit: Option<&str>,
+    variable: &str,
+) -> Result<String, crate::errors::configuration_error::ConfigurationError> {
+    if let Some(value) = explicit {
+        return Ok(value.to_string());
+    }
+    std::env::var(variable)
+        .ok()
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                "The credential is required: pass it or set {}",
+                variable
+            ))
+        })
+}
+{{/hasSecuritySchemeEnvVars}}

@@ -1,0 +1,21 @@
+{{>api_info}}
+
+from typing import Any, Optional
+
+from {{packageName}}.errors.server_exception import ServerException
+
+
+class BadGatewayException(ServerException):
+    """Exception for HTTP 502 Bad Gateway."""
+
+    def __init__(
+        self,
+        message: Optional[str] = None,
+        response_headers: Optional[Any] = None,
+        response_body: Optional[str] = None,
+        error_body: Optional[Any] = None,
+        cause: Optional[BaseException] = None,
+        request_method: Optional[str] = None,
+        request_path: Optional[str] = None,
+    ) -> None:
+        super().__init__(status_code=502, message=message, response_headers=response_headers, response_body=response_body, error_body=error_body, cause=cause, request_method=request_method, request_path=request_path)

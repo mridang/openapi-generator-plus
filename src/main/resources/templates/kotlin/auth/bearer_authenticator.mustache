@@ -1,0 +1,102 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth
+
+/**
+ * Authenticator for HTTP Bearer token authentication.
+ *
+ * The token is [token], or whatever [tokenProvider] returns on every request (for a token that
+ * rotates; a provider that is passed wins over the environment variable), or else the environment
+ * variable `{{envVarPrefix}}_TOKEN` (read once, here; an empty value counts as unset). When none
+ * of them is given, building the authenticator fails.
+ *
+ * @param host the base URL of the API
+ * @param token the bearer token
+ * @param tokenProvider returns the current bearer token on each request
+ * @throws IllegalArgumentException if there is no token, or it is not a valid header value
+ */
+open class BearerAuthenticator internal constructor(
+    private val host: String,
+    token: String?,
+    private val tokenProvider: (suspend () -> String)?,
+    environmentVariable: String,
+) : BaseAuthenticator() {
+
+    /**
+     * Creates an authenticator that reads `{{envVarPrefix}}_TOKEN` when no token is passed.
+     *
+     * @param host the base URL of the API
+     * @param token the bearer token
+     * @param tokenProvider returns the current bearer token on each request
+     * @throws IllegalArgumentException if there is no token, if both a token and a tokenProvider are passed, or if the token is not a valid header value
+     */
+    constructor(
+        host: String,
+        token: String? = null,
+        tokenProvider: (suspend () -> String)? = null,
+    ) : this(host, token, tokenProvider, "{{envVarPrefix}}_TOKEN")
+
+    // An explicitly passed token is kept as given, so an empty one is refused by validateToken
+    // below rather than replaced by the environment. Scheme wrappers pass an empty argument as
+    // null (not passed), which is what reads the environment.
+    private val token: String? =
+        if (tokenProvider != null) {
+            token
+        } else {
+            token ?: CredentialEnvironment.read(environmentVariable) ?: throw IllegalArgumentException(
+                "A bearer token is required: pass one, pass a tokenProvider or set $environmentVariable"
+            )
+        }
+
+    init {
+        require(token == null || tokenProvider == null) { "Pass either token or tokenProvider, not both" }
+        this.token?.let { validateToken(it) }
+    }
+
+    private fun validateToken(token: String) {
+        // Reject an empty or whitespace-only token: it would otherwise emit the
+        // literal "Authorization: Bearer " header, sending the request
+        // effectively unauthenticated.
+        if (token.all { c -> c == ' ' || c in '\t'..'\r' }) {
+            throw IllegalArgumentException("Bearer token must not be empty")
+        }
+        // RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+        // Reject anything outside printable ASCII + TAB so callers see a
+        // clear error rather than (a) HTTP header injection from a CR/LF
+        // (common when reading tokens from .env / files with trailing
+        // newlines), or (b) silently-mangled non-ASCII bytes that
+        // different HTTP libs encode differently per language.
+        if (token.any { c -> c != '\t' && (c.code < 0x20 || c.code >= 0x7F) }) {
+            throw IllegalArgumentException(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+            )
+        }
+    }
+
+    override fun getHost(): String = host
+
+    override suspend fun getAuthHeaders(): Map<String, String> {
+        val token: String =
+            this.token ?: requireNotNull(tokenProvider).invoke().also { validateToken(it) }
+        // Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+        // from env files are commonly stored already-prefixed; emitting
+        // "Bearer Bearer xyz" would otherwise silently break auth.
+        val stripped = if (token.length >= 7 &&
+            token.substring(0, 7).equals("bearer ", ignoreCase = true)
+        ) {
+            token.substring(7)
+        } else {
+            token
+        }
+        return mapOf("Authorization" to "Bearer $stripped")
+    }
+
+    /**
+     * Returns a string representation that redacts the token so credentials
+     * never leak into logs or stack traces (matching the other SDKs).
+     *
+     * @return a redacted string representation
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, token=***)"
+}

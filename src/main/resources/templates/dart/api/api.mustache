@@ -1,0 +1,654 @@
+{{>api_info}}
+import 'dart:typed_data';
+
+import '../api_client.dart';
+import '../api_result.dart';
+import '../auth/authenticator.dart';
+import 'base_api.dart';
+import '../configuration.dart';
+import '../object_serializer.dart';
+import '../value_serializer.dart';
+import '../errors/api_exception.dart';
+{{#errorImports}}
+import '../errors/{{classFilename}}.dart';
+{{/errorImports}}
+{{#imports}}
+import '../models/{{filename}}.dart';
+{{/imports}}
+{{#optionsImports}}
+import 'options/{{optionsFileName}}.dart';
+{{/optionsImports}}
+
+{{#operations}}
+{{#serverTypeDefs}}
+
+/// Abstract base class for per-operation server URLs for {{operationId}}.
+abstract class {{serverTypeName}} {
+  /// Returns the server URL.
+  String getUrl();
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+/// Valid values for the {{name}} server variable in {{serverTypeName}}.
+enum {{serverTypeName}}{{enumTypeName}} {
+{{#enumValues}}
+  {{{name}}}({{{literal}}}),
+{{/enumValues}}
+  ;
+
+  final String value;
+  const {{serverTypeName}}{{enumTypeName}}(this.value);
+}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+/// {{#hasDescription}}{{#lambda.dartDocLines}}{{{description}}}{{/lambda.dartDocLines}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
+class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
+{{#serverVariables}}
+  final {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}};
+{{/serverVariables}}
+
+  {{serverTypeName}}{{variantName}}({{#serverVariables}}this.{{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}});
+
+  @override
+  String getUrl() {
+    var url = '{{#lambda.dartString}}{{{url}}}{{/lambda.dartString}}';
+{{#serverVariables}}
+    url = url.replaceAll('{' + '{{{name}}}' + '}', {{#hasEnumValues}}{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}});
+{{/serverVariables}}
+    return url;
+  }
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
+/// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+/// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+/// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/tagExternalDocs}}
+/// The contract of [{{classname}}]: every operation of the {{baseName}} API group and its
+/// `WithHttpInfo` variant. Depend on it instead of the class to substitute a hand-written fake in
+/// your own tests.
+abstract interface class {{classname}}Interface {
+{{#operation}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}});
+
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}});
+{{/operation}}
+}
+
+class {{classname}} extends BaseApi implements {{classname}}Interface {
+  {{classname}}({
+    ApiClient? apiClient,
+    Configuration? config,
+    Authenticator? authenticator,
+    Map<String, Authenticator>? schemeAuthenticators,
+  }) : super(
+         apiClient: apiClient,
+         config: config,
+         authenticator: authenticator,
+         schemeAuthenticators: schemeAuthenticators,
+       );
+{{#operation}}
+
+{{#summary}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/summary}}
+{{#notes}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/notes}}
+{{#allParams}}
+{{#description}}
+  /// `{{paramName}}` {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/description}}
+{{/allParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+  /// `options` {{#vendorExtensions.op.hasOptionsParam}}options for query, header, form, and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}options carrying the per-call timeout, headers and retry budget{{/vendorExtensions.op.hasOptionsParam}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#allParams}}
+{{#vendorExtensions.pluralExamples}}
+  /// ### `{{paramName}}` — {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// ```json
+  /// {{#lambda.dartDocLines}}{{{value}}}{{/lambda.dartDocLines}}
+  /// ```
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{#externalDocs}}
+  /// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/externalDocs}}
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  @override
+  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
+{{#returnType}}
+    final result = await {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as {{{returnType}}}` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for {{operationId}} but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+{{/returnType}}
+{{^returnType}}
+    await {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
+{{/returnType}}
+  }
+
+  /// Performs the {{operationId}} operation and returns the full API result.
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  @override
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
+{{#hasAuthMethods}}
+    {{! The credential of the security scheme this operation's spec names, set }}
+    {{! on the client; a scheme without a credential fails the call. }}
+{{#vendorExtensions.op.hasAllOfGroup}}
+    final Authenticator? auth = requirementAuthenticator(const <List<String>>[{{#vendorExtensions.op.securityGroups}}[{{#schemes}}'{{name}}'{{^-last}}, {{/-last}}{{/schemes}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityGroups}}]);
+{{/vendorExtensions.op.hasAllOfGroup}}
+{{^vendorExtensions.op.hasAllOfGroup}}
+    final Authenticator? auth = schemeAuthenticator(const [{{#authMethods}}'{{name}}'{{^-last}}, {{/-last}}{{/authMethods}}]);
+{{/vendorExtensions.op.hasAllOfGroup}}
+{{/hasAuthMethods}}
+{{! Cross-cutting `required-nested-param-validation`: a REQUIRED query/header/ }}
+{{! form/cookie param carried on the Options object must be rejected at }}
+{{! runtime when missing, for parity with the SDKs that throw. }}
+{{! }}
+{{! Two cases: }}
+{{!  - Options REQUIRED (optionsParamRequired): the field is generated }}
+{{!    non-nullable (`final String foo;` + `required this.foo`), so a missing }}
+{{!    value is already rejected by Dart's sound null safety at construction }}
+{{!    and at the call boundary — the type system IS the guard. We still emit }}
+{{!    an explicit ArgumentError.checkNotNull so the enforcement point is }}
+{{!    uniform across SDKs and survives a value that slips past static typing }}
+{{!    (e.g. an unsound-null caller). checkNotNull is lint-safe: it is a }}
+{{!    method call, not a `== null` comparison on a non-nullable. }}
+{{!  - Options OPTIONAL: the object itself can be null, which would silently }}
+{{!    drop the required param; guard the whole object so the call throws }}
+{{!    instead of sending an incomplete request. }}
+{{! }}
+{{! For a REQUIRED STRING param we additionally reject the empty string "", }}
+{{! matching go/rust/swift/elixir which treat "" as "absent" for required }}
+{{! string params. The check is gated on isString so non-string params are }}
+{{! unaffected. The null check above is preserved. }}
+{{#pathParams}}{{#required}}{{#isString}}{{^isUuid}}
+    if ({{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isUuid}}{{/isString}}{{/required}}{{/pathParams}}
+{{#queryParams}}{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.param.queryRequiredNullable}}
+    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{#isString}}{{^isUuid}}
+    if (options.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isUuid}}{{/isString}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options?.{{paramName}} == null) {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{#isString}}{{^isUuid}}
+    if (options?.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isUuid}}{{/isString}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}{{/queryParams}}
+{{#headerParams}}{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{#isString}}{{^isUuid}}
+    if (options.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isUuid}}{{/isString}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options?.{{paramName}} == null) {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{#isString}}{{^isUuid}}
+    if (options?.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isUuid}}{{/isString}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}{{/headerParams}}
+{{#formParams}}{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{#isString}}{{^isUuid}}
+    if (options.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isUuid}}{{/isString}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options?.{{paramName}} == null) {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{#isString}}{{^isUuid}}
+    if (options?.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isUuid}}{{/isString}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}{{/formParams}}
+{{#cookieParams}}{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+    ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{#isString}}{{^isUuid}}
+    if (options.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isUuid}}{{/isString}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options?.{{paramName}} == null) {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{#isString}}{{^isUuid}}
+    if (options?.{{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isUuid}}{{/isString}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}{{/cookieParams}}
+
+    var path = '{{{path}}}';
+{{#pathParams}}
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
+    path = path.replaceAll('{' + '{{{baseName}}}' + '}', {{#vendorExtensions.param.queryContent}}encodePathSegment(serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}serializeStyled('{{baseName}}', {{#isDate}}stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates({{paramName}}){{/items.isDate}}{{^items.isDate}}{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}{{paramName}}{{/isArray}}{{/isDate}}, 'path','{{{dataType}}}', '', '{{style}}', {{isExplode}}).toString(){{/vendorExtensions.param.queryContent}});
+{{/pathParams}}
+{{#servers}}
+{{#-first}}
+    if (server != null) {
+      final serverUrl = server.getUrl();
+      if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
+        path = serverUrl + path;
+      }
+    }
+{{/-first}}
+{{/servers}}
+
+    final queryParams = <String, Object?>{};
+{{#queryParams}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+    if (options.{{paramName}} == null) {
+      queryParams['{{baseName}}'] = '';
+    } else {
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+    }
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
+{{#isAllowEmptyValue}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+{{/required}}
+{{^required}}
+    if (options.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+    }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options != null && options.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+{{#vendorExtensions.param.queryDeepObject}}
+    serializeDeepObject('{{baseName}}', parameterObject(options.{{paramName}})).forEach((k, v) {
+      queryParams[k] = v;
+    });
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+    queryParams['{{baseName}}'] = serialize(options.{{paramName}});
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
+    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+{{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
+{{/required}}
+{{^required}}
+    if (options.{{paramName}} != null) {
+{{#vendorExtensions.param.queryDeepObject}}
+      serializeDeepObject('{{baseName}}', parameterObject(options.{{paramName}})).forEach((k, v) {
+        queryParams[k] = v;
+      });
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+      queryParams['{{baseName}}'] = serialize(options.{{paramName}});
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+{{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
+    }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options != null && options.{{paramName}} != null) {
+{{#vendorExtensions.param.queryDeepObject}}
+      serializeDeepObject('{{baseName}}', parameterObject(options.{{paramName}})).forEach((k, v) {
+        queryParams[k] = v;
+      });
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+      queryParams['{{baseName}}'] = serialize(options.{{paramName}});
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+{{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/isAllowEmptyValue}}
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{/queryParams}}
+
+    final headerParams = <String, String>{};
+{{#headerParams}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+    headerParams['{{baseName}}'] = {{#vendorExtensions.param.queryContent}}serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}};
+{{/required}}
+{{^required}}
+    if (options.{{paramName}} != null) {
+      headerParams['{{baseName}}'] = {{#vendorExtensions.param.queryContent}}serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}};
+    }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options != null && options.{{paramName}} != null) {
+      headerParams['{{baseName}}'] = {{#vendorExtensions.param.queryContent}}serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}};
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/headerParams}}
+{{#hasCookieParams}}
+    final cookieParts = <String>[];
+    /* RFC 6265 cookie-value grammar, identical to the auth-cookie path in
+       base_api. Operation cookie params are interpolated straight into the
+       Cookie request header, so an attacker-controlled CR/LF/control-char
+       value would otherwise smuggle in extra headers. Validate every
+       assembled value the same way the auth-cookie path does and fail closed
+       with the same ArgumentError so header injection is impossible. */
+    final operationCookieValueRe = RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');
+    void addCookiePart(String name, String value) {
+      if (!operationCookieValueRe.hasMatch(value)) {
+        throw ArgumentError("Cookie value for '$name' contains characters forbidden by RFC 6265");
+      }
+      cookieParts.add('$name=$value');
+    }
+{{#cookieParams}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+    addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
+{{/required}}
+{{^required}}
+    if (options.{{paramName}} != null) {
+      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
+    }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options != null && options.{{paramName}} != null) {
+      addCookiePart('{{baseName}}', {{#vendorExtensions.param.queryContent}}encodeContentCookie(serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}'${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}'{{/vendorExtensions.param.queryContent}});
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/cookieParams}}
+    if (cookieParts.isNotEmpty) {
+      headerParams['Cookie'] = cookieParts.join('; ');
+    }
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+    /* The form body is a `Map<String, Object?>` (NOT `Map<String, String>`)
+     * so values reach the serializer in their native shape:
+     *   - a `List` stays a list, which the form-urlencoded encoder expands
+     *     into repeated keys (`tags=a&tags=b`) and the multipart builder
+     *     emits as repeated parts (form-array-repeated-keys);
+     *   - a binary file (`Uint8List`/`List<int>`) stays bytes so the
+     *     multipart builder routes it through the binary branch with a
+     *     filename-derived Content-Type instead of stringifying the bytes;
+     *   - a scalar is stringified at the edge by the serializer.
+     * Optional null/absent fields are never added, so they are omitted on
+     * the wire (form-optional-null-omitted). */
+    final formBody = <String, Object?>{};
+{{#formParams}}
+{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+    formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options != null) {
+      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}
+{{^required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+    if (options.{{paramName}} != null) {
+      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+    if (options != null && options.{{paramName}} != null) {
+      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}};
+    }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}
+{{/formParams}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+    /* multi-content-type-binary-body: this operation declares more than one
+     * request Content-Type — `multipart/form-data` AND a raw binary type
+     * (e.g. `application/octet-stream`). When the caller selects a
+     * non-multipart type, the wire body must be the single binary part's RAW
+     * bytes (Content-Type: application/octet-stream), NOT a multipart/form-data
+     * envelope and NOT the formBody Map (which base_api would JSON-stringify
+     * for a non-multipart content type). Only build the multipart Map when the
+     * effective content type is `multipart/form-data`; otherwise stream the
+     * binary field's bytes directly, mirroring the single-binary-body path
+     * used by setPetAvatar. */
+    final Object? requestBody =
+        (requestContentType == null ||
+                requestContentType == 'multipart/form-data')
+            ? formBody
+{{#formParams}}
+{{#isBinary}}
+            : options.{{paramName}};
+{{/isBinary}}
+{{/formParams}}
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.hasMultipleConsumes}}
+    final Object? requestBody = formBody;
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+    final Object? requestBody = {{paramName}};
+{{/bodyParam}}
+{{^bodyParam}}
+    final Object? requestBody = null;
+{{/bodyParam}}
+{{/hasFormParams}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+    /* Reject an unrecognised requestContentType client-side so a typo never
+     * rides the wire as an undeclared Content-Type (matching java/elixir and
+     * the other SDKs); null defaults to the first declared type below. */
+    const declaredConsumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}];
+    if (requestContentType != null &&
+        !declaredConsumes.contains(requestContentType)) {
+      throw ArgumentError(
+          "Unsupported request content-type '$requestContentType' for {{operationId}}; declared types are $declaredConsumes");
+    }
+{{/vendorExtensions.op.hasMultipleConsumes}}
+
+    return invokeApiForResult{{#returnType}}<{{{.}}}>{{/returnType}}{{^returnType}}<void>{{/returnType}}(
+      method: '{{httpMethod}}',
+      operation: '{{classname}}.{{operationId}}',
+      operationId: '{{#lambda.dartString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.dartString}}',
+      urlTemplate: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+{{! Optional request-content-type selector (decision H3). For an operation }}
+{{! that declares more than one request Content-Type, the caller may pass an }}
+{{! optional `requestContentType` to choose among the DECLARED types; when }}
+{{! null it defaults to the first declared type (effectiveConsumes), so }}
+{{! existing call sites keep sending the first type unchanged. Single-consume }}
+{{! operations keep the plain literal. }}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+      contentType: requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.hasMultipleConsumes}}
+      contentType: '{{vendorExtensions.op.effectiveConsumes}}',
+{{/vendorExtensions.op.hasMultipleConsumes}}
+      returnType: '{{#returnType}}{{{.}}}{{/returnType}}',
+{{#bodyParam}}
+{{#isBinary}}
+      rawBody: true,
+{{/isBinary}}
+{{/bodyParam}}
+      {{! security-none suppression: an operation without auth methods is }}
+      {{! declared `security: []` and must NOT inherit the client-level }}
+      {{! authenticator. Pass the `noAuth` sentinel (not `null`, which means }}
+      {{! "fall back to the client authenticator") so base_api suppresses auth }}
+      {{! entirely. A secured op passes its per-call override (`auth`, possibly }}
+      {{! null for "use the client credential") unchanged. }}
+      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+      timeout: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.timeout,
+      callHeaders: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.headers,
+      maxRetries: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.maxRetries,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+      errorSchemas: const {
+{{#vendorExtensions.op.errorSchemaResponses}}
+        '{{{status}}}': {{{schemaClassName}}}.fromErrorResponse,
+{{/vendorExtensions.op.errorSchemaResponses}}
+      },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+{{! Several distinct 2xx schemas: a status a row declares is decoded by that row. }}
+{{! A success status no row names decodes as the first declared success type the }}
+{{! body fits, in declaration order; when none fits the last refusal is raised. }}
+      deserializeByStatus: (body, statusCode) {
+{{#vendorExtensions.op.successResponses}}
+        if ({{#isRange}}statusCode >= 200 && statusCode < 300{{/isRange}}{{^isRange}}statusCode == {{statusCode}}{{/isRange}}) {
+          return {{{vendorExtensions.op.successUnionType}}}(deserialize(body, {{{returnType}}}.fromJson) as {{{returnType}}});
+        }
+{{/vendorExtensions.op.successResponses}}
+        final failures = <SerializationException>[];
+{{#vendorExtensions.op.successResponses}}
+        try {
+          return {{{vendorExtensions.op.successUnionType}}}(deserialize(body, {{{returnType}}}.fromJson) as {{{returnType}}});
+        } on SerializationException catch (e) {
+          failures.add(e);
+        }
+{{/vendorExtensions.op.successResponses}}
+        throw failures.last;
+      },
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{^vendorExtensions.op.hasMultiple2xx}}
+{{#returnType}}
+{{#returnTypeIsPrimitive}}
+{{#isMap}}
+{{! Strict container of primitives: every value is checked eagerly (a quoted }}
+{{! number, a fractional for an integer or a null raises the SDK }}
+{{! SerializationException), exactly like a single primitive. }}
+{{#returnProperty}}{{#items}}
+      deserialize: (body) => deserializeMapFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/items}}{{/returnProperty}}
+{{/isMap}}
+{{^isMap}}
+      deserialize: (body) => deserializeRaw(body) as {{{returnType}}},
+{{/isMap}}
+{{/returnTypeIsPrimitive}}
+{{^returnTypeIsPrimitive}}
+{{#isArray}}
+{{! Recursive container descent (recursive-container-deserialize): when the }}
+{{! array element is ITSELF a container (e.g. List<Map<String, Category>>), }}
+{{! the leaf model factory must be applied at the innermost level, not to the }}
+{{! outer element. The deserialize_arg partial walks returnProperty.items and }}
+{{! emits a per-element deserializer that re-enters deserializeMap/ }}
+{{! deserializeArray for each further level, so the leaves become typed model }}
+{{! instances instead of raw maps. The simple List<Model> case (items is a }}
+{{! leaf model) stays byte-identical via the deserializeList(body, X.fromJson) }}
+{{! form below. }}
+{{#returnProperty}}{{#items}}{{#isArray}}
+      deserialize: (body) => deserializeArrayFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isArray}}{{#isMap}}
+      deserialize: (body) => deserializeArrayFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isMap}}{{^isArray}}{{^isMap}}
+      deserialize: (body) => deserializeList(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},
+{{/isMap}}{{/isArray}}{{/items}}{{/returnProperty}}
+{{/isArray}}
+{{^isArray}}
+{{#isMap}}
+{{#returnProperty}}{{#items}}{{#isArray}}
+      deserialize: (body) => deserializeMapFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isArray}}{{#isMap}}
+      deserialize: (body) => deserializeMapFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/isMap}}{{^isArray}}{{^isMap}}
+      deserialize: (body) => (deserializeRaw(body) as Map).cast<String, {{{returnBaseType}}}>(),
+{{/isMap}}{{/isArray}}{{/items}}{{/returnProperty}}
+{{/isMap}}
+{{^isMap}}
+{{#returnProperty}}{{#isEnumRef}}
+      deserialize: (body) => {{{returnBaseType}}}.fromJson(deserializeRaw(body) as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}),
+{{/isEnumRef}}{{^isEnumRef}}
+      deserialize: (body) => deserialize(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},
+{{/isEnumRef}}{{/returnProperty}}
+{{/isMap}}
+{{/isArray}}
+{{/returnTypeIsPrimitive}}
+{{/returnType}}
+{{/vendorExtensions.op.hasMultiple2xx}}
+    );
+  }
+{{/operation}}
+}
+
+{{/operations}}

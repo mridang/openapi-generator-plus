@@ -1,0 +1,2999 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{invokerPackage}}\Test;
+
+use {{apiPackage}}\BaseApi;
+use {{invokerPackage}}\Configuration;
+use {{invokerPackage}}\DefaultApiClient;
+use {{invokerPackage}}\Servers;
+use {{invokerPackage}}\TransportOptions;
+use {{invokerPackage}}\Auth\Authenticator;
+use {{invokerPackage}}\Auth\BearerAuthenticator;
+use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
+use {{invokerPackage}}\Auth\ApiKeyLocation;
+use {{invokerPackage}}\Errors\ApiException;
+use {{invokerPackage}}\Errors\NetworkException;
+use {{invokerPackage}}\Errors\NetworkTimeoutException;
+use {{invokerPackage}}\Errors\SerializationException;
+use {{invokerPackage}}\CallHook;
+use {{invokerPackage}}\OpenTelemetryCallHook;
+use {{invokerPackage}}\Errors\ClientException;
+use {{invokerPackage}}\Errors\ServerException;
+use {{invokerPackage}}\Errors\BadRequestException;
+use {{invokerPackage}}\Errors\UnauthorizedException;
+use {{invokerPackage}}\Errors\ForbiddenException;
+use {{invokerPackage}}\Errors\NotFoundException;
+use {{invokerPackage}}\Errors\ConflictException;
+use {{invokerPackage}}\Errors\UnprocessableEntityException;
+use {{invokerPackage}}\Errors\TooManyRequestsException;
+use {{invokerPackage}}\Errors\BadGatewayException;
+use {{invokerPackage}}\Errors\InternalServerErrorException;
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiHttpResponse;
+use {{apiPackage}}\PetApi;
+use {{apiPackage}}\StoreApi;
+use {{apiPackage}}\Options\FindPetsByStatusOptions;
+use {{apiPackage}}\Options\AddPetOptions;
+use {{apiPackage}}\Options\DeletePetOptions;
+use {{apiPackage}}\Options\GetPetTagOptions;
+use {{apiPackage}}\Options\SetPetPreferencesOptions;
+use {{invokerPackage}}\Models\Category;
+use {{invokerPackage}}\Models\Pet;
+
+function makeBaseApiTestableApi(): TestableApi
+{
+    $url = getenv('CHASM_HTTP_URL') ?: '';
+    $config = new Configuration($url);
+    return new TestableApi(new DefaultApiClient(TransportOptions::builder()->maxRetries(0)->build()), $config);
+}
+
+test('bhv misc 021 the error path keeps the base url prefix and drops the query string', function (): void {
+    $client = new ScriptedApiClient([new ApiHttpResponse(404, '{}', ['Content-Type' => 'application/json'])]);
+    $api = new TestableApi($client, new Configuration('https://example.test/v1'));
+
+    try {
+        $api->call('GET', '/items/1', ['q' => 'x'], [], null, ['application/json'], 'application/json', null);
+        test()->fail('Expected exception not thrown');
+    } catch (NotFoundException $e) {
+        expect($e->getRequestPath())->toBe('/v1/items/1');
+    }
+});
+
+test('bhv misc 025 a typed call fails when the server answers with a client error status', function (): void {
+    $client = new ScriptedApiClient([new ApiHttpResponse(404, '{}', ['Content-Type' => 'application/json'])]);
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], 'application/json', 'object'))
+        ->toThrow(NotFoundException::class);
+});
+
+test('bhv errors 037 an error response throws the exception type matching its status', function (int $status, string $expectedClass): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            "/test/status/$status",
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (ApiException $e) {
+        expect($e::class)->toBe($expectedClass);
+        expect($e->getCode())->toBe($status);
+        expect($e->getResponseBody())->not->toBeEmpty();
+        expect($e->getRequestMethod())->toBe('GET');
+        expect($e->getRequestPath())->toBe("/test/status/$status");
+    }
+})->with([
+    [400, BadRequestException::class],
+    [401, UnauthorizedException::class],
+    [403, ForbiddenException::class],
+    [404, NotFoundException::class],
+    [409, ConflictException::class],
+    [422, UnprocessableEntityException::class],
+    [429, TooManyRequestsException::class],
+    [418, ClientException::class],
+    [500, InternalServerErrorException::class],
+    [502, BadGatewayException::class],
+]);
+
+test('bhv errors 071 a 401 response surfaces as an unauthorized error', function (): void {
+    expect(fn (): mixed => makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/status/401',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    ))->toThrow(UnauthorizedException::class);
+});
+
+test('bhv errors 029 get typed error body deserializes into given class', function (): void {
+    $ex = new ApiException(400, 'boom', [], '{"id":42,"name":"Dogs"}');
+    $typed = $ex->getTypedErrorBody(Category::class);
+
+    expect($typed)->toBeInstanceOf(Category::class);
+    assert($typed instanceof Category);
+    expect($typed->id)->toBe(42);
+    expect($typed->name)->toBe('Dogs');
+});
+
+test('bhv errors 028 get typed error body returns null for empty body', function (): void {
+    $ex = new ApiException(400, 'boom', [], '');
+    expect($ex->getTypedErrorBody(Category::class))->toBeNull();
+});
+
+test('bhv errors 030 get typed error body returns null for whitespace body', function (): void {
+    $ex = new ApiException(400, 'boom', [], "   \n\t");
+    expect($ex->getTypedErrorBody(Category::class))->toBeNull();
+});
+
+test('bhv errors 034 parses json error body', function (): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            '/test/status/400',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (BadRequestException $e) {
+        expect($e->getErrorBody())->not->toBeNull();
+    }
+});
+
+test('bhv errors 033 notFoundError is ClientError is ApiError', function (): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            '/test/status/404',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (NotFoundException $e) {
+        expect($e::class)->toBe(NotFoundException::class);
+        expect($e)->toBeInstanceOf(ClientException::class);
+        expect($e)->toBeInstanceOf(ApiException::class);
+        expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
+    }
+});
+
+test('bhv errors 031 internal server error hierarchy', function (): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            '/test/status/500',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (InternalServerErrorException $e) {
+        expect($e::class)->toBe(InternalServerErrorException::class);
+        expect($e)->toBeInstanceOf(ServerException::class);
+        expect($e)->toBeInstanceOf(ApiException::class);
+        expect($e)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
+    }
+});
+
+test('bhv serializationwire 004 a JSON response is deserialized into the declared type', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        'object'
+    );
+    expect($result)->toBeArray();
+    /** @var array<string, mixed> $result */
+    expect($result['method'])->toBe('GET');
+});
+
+test('bhv serializationwire 019 returns raw string for non json', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/text-plain',
+        [],
+        [],
+        null,
+        ['text/plain'],
+        'application/json',
+        'string'
+    );
+    expect($result)->toBeString();
+    expect($result)->not->toBeEmpty();
+});
+
+test('bhv operations 015 returns null when return type is null', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($result)->toBeNull();
+});
+
+test('bhv serializationwire 002 appends query params to URL', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        ['foo' => 'bar'],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($result)->toBeNull();
+});
+
+test('bhv operations 155 an operation sends its query parameters in the order the specification declares them', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->getPetTag(7, 'x', new GetPetTagOptions(colors: ['red'], sizes: ['m'], filter: 'f'));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->toBe('http://localhost/pet/;petId=7/tag/.x?colors=red&sizes=m&filter=f');
+});
+
+test('bhv operations 156 an operation sends its form body fields in the order the specification declares them', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->setPetPreferences(7, new SetPetPreferencesOptions(nickname: 'Rex', tags: ['a'], note: 'n'));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured body
+    }
+    expect($client->capturedBody)->toBe('nickname=Rex&tags=a&note=n');
+});
+
+test('bhv options 054 an operation accepts per call options alongside its other arguments', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    $api->deletePet(7, new DeletePetOptions(apiKey: 'key', timeout: 5000, headers: ['X-Trace' => 'abc'], maxRetries: 0));
+
+    $headers = array_change_key_case($client->capturedHeaders, CASE_LOWER);
+    expect($client->capturedUrl)->toBe('http://localhost/pet/7');
+    expect($headers['x-trace'] ?? null)->toBe('abc');
+});
+
+test('bhv misc 229 a per call max retries value overrides the client setting so a call can retry when the client has none', function (): void {
+    /** @var \ArrayObject<int, string> $attempts */
+    $attempts = new \ArrayObject();
+    $mock = new \Symfony\Component\HttpClient\MockHttpClient(
+        function (string $method, string $url, array $options) use ($attempts): \Symfony\Component\HttpClient\Response\MockResponse {
+            $attempts[] = $url;
+            $status = count($attempts) <= 2 ? 503 : 200;
+
+            return new \Symfony\Component\HttpClient\Response\MockResponse(
+                '{"ok":true}',
+                ['http_code' => $status, 'response_headers' => ['Content-Type' => 'application/json']]
+            );
+        }
+    );
+    $client = new StubbedDefaultApiClient($mock, TransportOptions::builder()->maxRetries(0)->build());
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object', null, maxRetries: 2);
+
+    expect(count($attempts))->toBe(3);
+});
+
+test('bhv misc 239 an operation query parameter is serialized when no authenticator is configured', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => 'a b'], [], null, ['application/json'], null);
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%20b');
+});
+
+test('bhv options 057 a per call timeout below one millisecond is refused before any request is sent', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    expect(function () use ($api): void {
+        $api->deletePet(7, new DeletePetOptions(timeout: 0));
+    })->toThrow(\InvalidArgumentException::class, 'Invalid timeout');
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv retries 043 an unauthorized response is returned after one request when no authenticator can supply credentials', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = alwaysUnauthorizedApiClient($requests, 2);
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'))
+        ->toThrow(UnauthorizedException::class);
+    expect($requests->count())->toBe(1);
+});
+
+test('bhv serialization 006 query names and values percent encode reserved and space characters', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['a&b=c' => 'x&y=z d'], [], null, ['application/json'], 'application/json');
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?a%26b%3Dc=x%26y%3Dz%20d');
+});
+
+test('bhv serialization 007 a literal plus is sent as percent 2B and non ascii text as percent encoded utf 8', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => "a+b \u{00e9}"], [], null, ['application/json'], 'application/json');
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%2Bb%20%C3%A9');
+
+    $api->call('POST', '/test/echo', [], [], ['q' => "a+b \u{00e9}"], ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('q=a%2Bb+%C3%A9');
+});
+
+test('bhv serialization 008 a content typed parameter is json encoded once and percent encoded once for its location', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['filter' => '{"a":"b c"}'], [], null, ['application/json'], 'application/json');
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?filter=%7B%22a%22%3A%22b%20c%22%7D');
+});
+
+test('bhv serialization 009 a value that cannot be serialized raises before any request or partial output', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    expect(fn (): mixed => $api->call('POST', '/test/echo', [], [], INF, ['application/json'], 'application/json', null))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv serialization 010 a body is sent with exactly the content type the caller declared', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('POST', '/test/echo', [], [], 'hello', ['text/plain'], 'text/plain', null);
+
+    $headers = array_change_key_case($client->capturedHeaders, CASE_LOWER);
+    expect($headers['content-type'] ?? null)->toBe('text/plain');
+});
+
+test('bhv authintegration 010 auth headers are forwarded on the request', function (): void {
+    $auth = new TestAuthenticator(headers: ['X-Custom' => 'auth-value']);
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        'object',
+        $auth
+    );
+    expect($result)->toBeArray();
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['x-custom'])->toBe('auth-value');
+});
+
+test('bhv authintegration 019 an invalid auth cookie fails before any request is sent', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $auth = new TestAuthenticator(cookies: ['session' => 'a;b']);
+
+    expect(fn () => $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', $auth))
+        ->toThrow(\InvalidArgumentException::class, "Cookie value for 'session' contains characters forbidden by RFC 6265");
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv serializationparam 107 a query value keeps only the unreserved set literal', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ["k*'" => "a~b*c!d'e(f)g h"], [], null, ['application/json'], 'application/json');
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?k%2A%27=a~b%2Ac%21d%27e%28f%29g%20h');
+});
+
+test('bhv authintegration 017 sets Cookie header from auth cookies', function (): void {
+    $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        'object',
+        $auth
+    );
+    expect($result)->toBeArray();
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['cookie'])->toBe('session=abc123');
+});
+
+/**
+ * A transport that issues a new token (t1, t2, ...) at the token endpoint and
+ * accepts only the bearer token t2 at every other URL, answering 401 otherwise.
+ * Every request it receives is appended to $requests.
+ *
+ * @param \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests
+ */
+function tokenRotatingApiClient(\ArrayObject $requests): ApiClient
+{
+    return new class ($requests) implements ApiClient {
+        private int $issued = 0;
+
+        /** @param \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+        public function __construct(private readonly \ArrayObject $requests)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->requests[] = ['url' => $url, 'headers' => $headers];
+            if ($url === 'https://auth.example.com/token') {
+                $this->issued++;
+                return new ApiHttpResponse(
+                    200,
+                    (string) json_encode(['access_token' => 't' . $this->issued, 'expires_in' => 3600]),
+                    ['Content-Type' => 'application/json']
+                );
+            }
+            $status = ($headers['Authorization'] ?? '') === 'Bearer t2' ? 200 : 401;
+            return new ApiHttpResponse($status, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+}
+
+test('bhv errors 205 a decode failure of a response carries the status, the headers and the raw body', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '[1, 2', ['Content-Type' => 'application/json', 'x-request-id' => 'r1']);
+        }
+    };
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    try {
+        $api->call('post', '/items?token=secret', [], [], null, ['application/json'], null, Category::class);
+        test()->fail('Expected exception not thrown');
+    } catch (\{{invokerPackage}}\Errors\SerializationException $e) {
+        expect($e->getStatusCode())->toBe(200);
+        expect($e->getResponseHeaders())->toBe(['Content-Type' => 'application/json', 'x-request-id' => 'r1']);
+        expect($e->getResponseBody())->toBe('[1, 2');
+        expect($e->getRequestMethod())->toBe('POST');
+        expect($e->getRequestPath())->toBe('/items');
+        expect($e->getPrevious())->not->toBeNull();
+    }
+});
+
+test('bhv retries 001 a 401 drops the cached token and replays the request once with a fresh one', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost'), $auth);
+
+    $result = $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    expect($result)->toBeArray();
+    $apiCalls = array_values(array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    ));
+    expect($apiCalls)->toHaveCount(2);
+    expect($apiCalls[0]['headers']['Authorization'])->toBe('Bearer t1');
+    expect($apiCalls[1]['headers']['Authorization'])->toBe('Bearer t2');
+});
+
+test('bhv authintegration 002 a per-call oauth authenticator is given the transport before it is used', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/items', [], [], null, ['application/json'], null, null, $auth);
+
+    $first = $requests[0] ?? ['url' => ''];
+    expect($first['url'])->toBe('https://auth.example.com/token');
+});
+
+test('bhv authintegration 009 falls back to client-level authenticator when no per-call auth is supplied', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $clientAuth = new TestAuthenticator(headers: ['X-Client-Auth' => 'client-level-token']);
+    $api = new TestableApi($client, $config, $clientAuth);
+    $api->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedHeaders['X-Client-Auth'] ?? '')->toBe('client-level-token');
+});
+
+test('bhv authintegration 013 per-call auth overrides the client-level authenticator', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $clientAuth = new TestAuthenticator(headers: ['X-Client-Auth' => 'client-level-token']);
+    $perCallAuth = new TestAuthenticator(headers: ['X-Client-Auth' => 'per-call-token']);
+    $api = new TestableApi($client, $config, $clientAuth);
+    $api->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null,
+        $perCallAuth
+    );
+    expect($client->capturedHeaders['X-Client-Auth'] ?? '')->toBe('per-call-token');
+});
+
+// -- one credential per security scheme (F857) --
+
+/**
+ * Builds a TestableApi with the given scheme credentials and the default authenticator.
+ *
+ * @param array<string, Authenticator> $schemes
+ * @return array{0: TestableApi, 1: CapturingApiClient}
+ */
+function newSchemeApi(array $schemes, ?Authenticator $default = null): array
+{
+    $client = new CapturingApiClient();
+
+    return [new TestableApi($client, new Configuration('http://localhost'), $default, $schemes), $client];
+}
+
+test('bhv authintegration 003 an operation uses the credential of the scheme its requirement names', function (): void {
+    [$api, $client] = newSchemeApi([
+        'bearer' => new TestAuthenticator(headers: ['Authorization' => 'Bearer b']),
+        'key' => new TestAuthenticator(headers: ['X-Key' => 'k']),
+    ]);
+
+    $api->callWithRequirements(['application/json'], [['key']]);
+
+    expect($client->capturedHeaders['X-Key'] ?? null)->toBe('k');
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
+});
+
+test('bhv authintegration 014 an operation uses the first alternative whose schemes are all configured', function (): void {
+    [$api, $client] = newSchemeApi([
+        'bearer' => new TestAuthenticator(headers: ['Authorization' => 'Bearer b']),
+    ]);
+
+    $api->callWithRequirements(['application/json'], [['key'], ['bearer']]);
+
+    expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer b');
+});
+
+test('bhv misc 074 an alternative that needs two schemes applies both credentials', function (): void {
+    [$api, $client] = newSchemeApi([
+        'bearer' => new TestAuthenticator(headers: ['Authorization' => 'Bearer b']),
+        'key' => new TestAuthenticator(headers: ['X-Key' => 'k']),
+    ]);
+
+    $api->callWithRequirements(['application/json'], [['key', 'bearer']]);
+
+    expect($client->capturedHeaders['X-Key'] ?? null)->toBe('k');
+    expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer b');
+});
+
+test('bhv authintegration 007 an alternative with a scheme that has no credential is not used', function (): void {
+    [$api, $client] = newSchemeApi([
+        'key' => new TestAuthenticator(headers: ['X-Key' => 'k']),
+    ]);
+
+    $api->callWithRequirements(['application/json'], [['key', 'bearer']]);
+
+    expect($client->capturedHeaders)->not->toHaveKey('X-Key');
+});
+
+test('bhv authintegration 016 an operation sends no credential when none of its schemes is configured', function (): void {
+    [$api, $client] = newSchemeApi(
+        ['key' => new TestAuthenticator(headers: ['X-Key' => 'k'])],
+        new TestAuthenticator(headers: ['X-Default' => 'd'])
+    );
+
+    $api->callWithRequirements(['application/json'], [['bearer']]);
+
+    expect($client->capturedHeaders)->not->toHaveKey('X-Key');
+    expect($client->capturedHeaders)->not->toHaveKey('X-Default');
+});
+
+test('bhv authintegration 008 without scheme credentials the default authenticator applies to a secured operation', function (): void {
+    [$api, $client] = newSchemeApi([], new TestAuthenticator(headers: ['X-Default' => 'd']));
+
+    $api->callWithRequirements(['application/json'], [['bearer']]);
+
+    expect($client->capturedHeaders['X-Default'] ?? null)->toBe('d');
+});
+
+// -- AUTH-APPLIED (Wave A1) --
+//
+// Regression guard for the Elixir bug where a CONFIGURED authenticator was
+// silently dropped: a Bearer / apiKey authenticator handed to the client must
+// actually appear on the OUTBOUND request to a SECURED operation. addPet is
+// secured (apiKeyHeader / petStoreBearer). We drive the real generated PetApi
+// through a CapturingApiClient and assert the credential is on the wire.
+
+test('bhv authintegration 006 configured bearer authenticator is applied to a secured operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new PetApi($client, $config, $auth);
+    $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
+    try {
+        $api->addPetWithHttpInfo($pet);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
+});
+
+test('bhv authintegration 018 configured api-key header authenticator is applied to a secured operation', function (): void {
+    // apiKeyHeader scheme defined by the spec sends X-API-Key as a header.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER);
+    $api = new PetApi($client, $config, $auth);
+    $pet = new Pet('Rex', new \Ds\Set(['http://example.com/rex.png']));
+    try {
+        $api->addPetWithHttpInfo($pet);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['X-API-Key'] ?? '')->toBe('secret-api-key');
+});
+
+// -- AUTH-SUPPRESSED (Wave A2) — security:[] operations --
+//
+// An operation declared `security: []` in the spec is explicitly
+// UNAUTHENTICATED. Even when the client is configured WITH an authenticator,
+// the generated method passes the NoAuth sentinel, so BaseApi must NOT fall
+// back to the client credential. getInventory is declared `security: []`. We
+// configure the client with BOTH a bearer (Authorization header) and an
+// api-key (X-API-Key header) authenticator, then drive getInventory through a
+// CapturingApiClient and assert NONE of the credentials reach the wire.
+
+test('bhv authintegration 005 configured bearer authenticator is suppressed on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new StoreApi($client, $config, $auth);
+    try {
+        $api->getInventoryWithHttpInfo();
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
+    expect($client->capturedUrl)->not->toContain('secret-jwt-token');
+});
+
+test('bhv authintegration 015 configured api-key authenticator is suppressed on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER);
+    $api = new StoreApi($client, $config, $auth);
+    try {
+        $api->getInventoryWithHttpInfo();
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('X-API-Key');
+    expect($client->capturedUrl)->not->toContain('secret-api-key');
+});
+
+test('bhv langphp 052 configured api-key query authenticator sends no api-key param on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'api_key', 'secret-api-key', ApiKeyLocation::QUERY);
+    $api = new StoreApi($client, $config, $auth);
+    try {
+        $api->getInventoryWithHttpInfo();
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedUrl)->not->toContain('api_key=');
+    expect($client->capturedUrl)->not->toContain('secret-api-key');
+});
+
+test('bhv auth 044 configured cookie authenticator sets no cookie on a security:[] operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new ApiKeyAuthenticator('http://localhost', 'session', 'secret-session', ApiKeyLocation::COOKIE);
+    $api = new StoreApi($client, $config, $auth);
+    try {
+        $api->getInventoryWithHttpInfo();
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('Cookie');
+});
+
+// -- AUTH-APPLIED on an INHERITED-security operation --
+//
+// getPetById declares no security of its own, so it inherits the global
+// requirement. This generator strips the inherited auth methods off such an
+// operation, so the generated method passes null (not the NoAuth sentinel) and
+// BaseApi falls back to the client-level authenticator. A configured client
+// credential MUST reach the wire — the regression that silently dropped auth on
+// every inherited-security operation.
+test('bhv authintegration 012 configured bearer authenticator is applied on an inherited-security operation', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->toHaveKey('Authorization');
+    expect($client->capturedHeaders['Authorization'])->toBe('Bearer secret-jwt-token');
+});
+
+test('bhv serializationwire 022 serializes JSON body for POST', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'POST',
+        '/test/echo',
+        [],
+        [],
+        ['key' => 'value'],
+        ['application/json'],
+        'application/json',
+        'object'
+    );
+    expect($result)->toBeArray();
+    /** @var array{body: string} $result */
+    /** @var array<string, mixed> $parsedBody */
+    $parsedBody = (array) json_decode($result['body'], true);
+    expect($parsedBody['key'])->toBe('value');
+});
+
+test('bhv operations 016 sends no body when null', function (): void {
+    makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect(true)->toBeTrue();
+});
+
+test('bhv operations 041 findPetsByStatus omitting status sends no status key in query', function (): void {
+    // findPetsByStatus has an optional `status` query param declared
+    // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
+    // value IF the client chooses to send the key — it does NOT mean the SDK
+    // must always send the key. When the caller omits status (null), the built
+    // request URL must carry no `status` key at all rather than a spurious
+    // empty `status=` pair.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $api = new PetApi($client, $config);
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions());
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
+test('bhv options 002 null options omits allow empty value param from the query', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->findPetsByStatus();
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
+test('bhv serializationwire 001 allowEmptyValue param omitted when value is null in options', function (): void {
+    // Same wire contract as the serializationwire 010 test below: a null value in the options object
+    // is omitted from the query, and the allowEmptyValue flag does not force an empty key.
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions());
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
+test('bhv serializationwire 010 findPetsByStatus omitting status sends no status= in query', function (): void {
+    // findPetsByStatus has an optional `status` query param declared
+    // allowEmptyValue:true. allowEmptyValue means the server tolerates an empty
+    // value IF the client chooses to send the key — it does NOT mean the SDK
+    // must always send the key. When the caller omits status (null), the built
+    // request URL must carry no `status` key at all rather than a spurious
+    // empty `status=` pair.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $api = new PetApi($client, $config);
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions());
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->not->toContain('status=');
+});
+
+test('bhv operations 003 allowEmptyValue param included when value is empty string', function (): void {
+    // When the caller explicitly supplies an empty value for the
+    // allowEmptyValue param, the key IS present with an empty value: `status=`.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $api = new PetApi($client, $config);
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(''));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->toContain('status=');
+});
+
+test('bhv operations 040 findPetsByStatus with explicit empty status sends status= in query', function (): void {
+    // When the caller explicitly supplies an empty value for the
+    // allowEmptyValue param, the key IS present with an empty value: `status=`.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $api = new PetApi($client, $config);
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(''));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured URL
+    }
+    expect($client->capturedUrl)->toContain('status=');
+});
+
+test('bhv serializationwire 016 allow empty value includes param in query string', function (): void {
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        ['filter' => ''],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($result)->toBeNull();
+});
+
+test('bhv serializationwire 009 expands array query params', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        ['tags' => ['a', 'b']],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->toContain('tags=a&tags=b');
+});
+
+test('bhv serializationwire 020 serializes boolean query params', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        ['active' => true],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->toContain('active=true');
+});
+
+test('bhv serializationwire 023 serializes number query params', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        ['limit' => 10],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->toContain('limit=10');
+    expect($client->capturedUrl)->not->toContain('limit=10.0');
+});
+
+test('bhv serializationwire 015 handles empty query params', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->not->toContain('?');
+});
+
+test('bhv operations 007 collapses double-slash when base url has trailing slash', function (): void {
+    // baseUrl='http://host/' + path='/v1/thing' must produce
+    // 'http://host/v1/thing', not 'http://host//v1/thing' which most
+    // servers route to 404.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://host/');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/v1/thing',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    expect($client->capturedUrl)->toBe('http://host/v1/thing');
+});
+
+// -- server variable overrides via Configuration --
+
+test('bhv options 003 server variable overrides resolve in base url', function (): void {
+    $config = Configuration::builder()
+        ->server(Servers::server1(), ['environment' => 'staging'])
+        ->build();
+    expect($config->baseUrl)->toBe('https://staging.example.com/api/v3');
+});
+
+test('bhv operations 009 default server variables produce correct base url', function (): void {
+    $config = Configuration::builder()
+        ->server(Servers::server1())
+        ->build();
+    expect($config->baseUrl)->toBe('https://api.example.com/api/v3');
+});
+
+test('bhv errors 032 invalid enum value throws exception', function (): void {
+    expect(fn () => Configuration::builder()
+        ->server(Servers::server1(), ['environment' => 'invalid'])
+        ->build())->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv operations 005 api request uses resolved server url', function (): void {
+    $config = Configuration::builder()
+        ->server(Servers::server1(), ['environment' => 'staging'])
+        ->build();
+    expect($config->baseUrl)->toStartWith('https://staging.example.com/api/v3');
+});
+
+// -- content-type deserialization --
+
+test('bhv serializationwire 025 skips deserialization for non json content type', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['text/plain'], 'application/json', 'string');
+    expect($result)->toBe('hello');
+});
+
+test('bhv errors 035 rejects a text plain body for a model return with a serialization error naming the content type', function (string $returnType): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain; charset=utf-8']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+
+    expect(fn () => $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', $returnType))
+        ->toThrow(
+            \{{invokerPackage}}\Errors\SerializationException::class,
+            "Content-Type 'text/plain'"
+        );
+})->with(['\{{invokerPackage}}\Models\Pet', 'int', 'array<string>']);
+
+test('bhv errors 054 an unexpected content type error names the operation rather than the HTTP verb', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain']);
+        }
+    };
+    $testApi = new TestableApi($client, new Configuration('http://localhost'));
+
+    try {
+        $testApi->callOperation('testOperation', '/test/echo', 'GET', '/test/echo', returnType: 'int');
+        test()->fail('Expected exception not thrown');
+    } catch (\{{invokerPackage}}\Errors\SerializationException $e) {
+        expect($e->getMessage())->toContain('for TestableApi.testOperation:');
+        expect($e->getMessage())->not->toContain('GET');
+    }
+});
+
+test('bhv serializationwire 060 a binary return type gets the raw bytes of a JSON body', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"id":7,"name":"photo"}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['image/jpeg', 'application/json'], 'application/json', 'string');
+    expect($result)->toBe('{"id":7,"name":"photo"}');
+});
+
+test('bhv serializationwire 005 deserializes vendor json mime types', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"title":"Not Found"}', ['Content-Type' => 'application/problem+json']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', 'object');
+    expect($result)->toBeArray();
+    /** @var array<string, mixed> $result */
+    expect($result['title'])->toBe('Not Found');
+});
+
+// -- body serialization by content type --
+
+test('bhv serializationwire 024 serializes text plain body', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], 'hello world',
+        ['application/json'], 'text/plain', null);
+    expect($client->capturedBody)->not->toBeNull();
+    expect($client->capturedBody)->toBeString();
+    expect($client->capturedBody)->toContain('hello world');
+});
+
+test('bhv serializationwire 021 serializes form urlencoded body', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], ['name' => 'alice'],
+        ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->not->toBeNull();
+    expect($client->capturedBody)->toBeString();
+    expect($client->capturedBody)->toContain('name=alice');
+});
+
+test('bhv serializationwire 012 form urlencoded body encodes space as plus', function (): void {
+    // application/x-www-form-urlencoded bodies encode a space as '+'
+    // (WHATWG form-encoding), matching the other 11 SDKs, not '%20'.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], ['q' => 'a b c'],
+        ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('q=a+b+c');
+});
+
+test('bhv serializationwire 057 a form-urlencoded body keeps only the unreserved set literal and escapes the rest', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], ['k~*' => "a~b*c!'()"],
+        ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
+});
+
+test('bhv serialization 040 form urlencoded body renders date-time, enum and number fields canonically', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], [
+        'at' => new \DateTime('2024-01-15T10:00:00+00:00'),
+        'status' => \{{invokerPackage}}\Models\PetStatusEnum::SOLD,
+        'ratio' => 1.0,
+        'flag' => true,
+        'tags' => ['a', null, 'b'],
+    ], ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe(
+        'at=2024-01-15T10%3A00%3A00.000%2B00%3A00&status=sold&ratio=1.0&flag=true&tags=a&tags=b'
+    );
+});
+
+test('bhv serializationwire 014 form urlencoded body rejects a nested map field', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    expect(fn () => $testApi->call('POST', '/test/echo', [], [], ['location' => ['lat' => 1.5]],
+        ['application/json'], 'application/x-www-form-urlencoded', null))
+        ->toThrow(
+            \{{invokerPackage}}\Errors\SerializationException::class,
+            'form-urlencoded field location must be a scalar or array of scalars'
+        );
+    expect($client->capturedBody)->toBeNull();
+});
+
+test('bhv operations 014 passes binary body as is', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], "\x01\x02\x03",
+        ['application/json'], 'application/octet-stream', null);
+    expect($client->capturedBody)->not->toBeNull();
+});
+
+// -- header flow-through --
+
+test('bhv serializationwire 007 empty content type defaults to json', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], [],
+        ['application/json'], '', null);
+    expect($client->capturedHeaders['Content-Type'] ?? '')->toBe('application/json');
+});
+
+test('bhv operations 002 all headers from selector flow through', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], [],
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders)->toHaveKey('Accept');
+    expect($client->capturedHeaders)->toHaveKey('Content-Type');
+});
+
+// -- Default header merge order (Gap C / R5-1) --
+//
+// Canonical cross-SDK scenario: a caller's config default `Accept` must win
+// over the operation-negotiated Accept. selectHeaders() runs first (negotiating
+// Accept from $accepts), then config->defaultHeaders is merged OVER it
+// (matching java putAll, python, elixir). RED in ruby before its merge-order
+// fix; GREEN in PHP (base_api array_merge puts the config defaults last).
+
+test('bhv operations 008 config default Accept wins over operation-negotiated Accept', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('Accept', 'application/xml')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
+});
+
+test('bhv options 001 config default header overrides operation negotiated accept', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('Accept', 'application/xml')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders['Accept'] ?? null)->toBe('application/xml');
+});
+
+test('bhv operations 004 an explicit Accept header parameter wins over the configured default and the negotiated one', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('Accept', 'application/xml')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], ['Accept' => 'text/csv'], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders['Accept'] ?? null)->toBe('text/csv');
+    expect(array_keys(array_change_key_case($client->capturedHeaders, CASE_LOWER)))
+        ->toContain('accept');
+});
+
+test('bhv headers 030 a default header in another case replaces the negotiated one instead of being sent beside it', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('accept', 'application/vnd.x+json')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    $names = array_filter(
+        array_keys($client->capturedHeaders),
+        static fn (string $name): bool => strtolower($name) === 'accept',
+    );
+    expect(array_values($names))->toBe(['accept']);
+    expect($client->capturedHeaders['accept'] ?? null)->toBe('application/vnd.x+json');
+});
+
+test('bhv operations 001 a per call header replaces a default header of the same name', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('X-Tenant', 'default-tenant')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('GET', '/test/echo', [], ['X-Tenant' => 'per-call-tenant'], null,
+        ['application/json'], 'application/json', null);
+    $tenantValues = array_filter(
+        $client->capturedHeaders,
+        static fn (string $name): bool => strcasecmp($name, 'X-Tenant') === 0,
+        ARRAY_FILTER_USE_KEY
+    );
+    expect(array_values($tenantValues))->toBe(['per-call-tenant']);
+});
+
+test('bhv serializationwire 013 form urlencoded body keeps a well formed surrogate pair', function (): void {
+    // U+1F600 is a surrogate pair in UTF-16 and four UTF-8 bytes; the form body must carry
+    // exactly those bytes percent-encoded, with no lone surrogate.
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], ['q' => "\u{1F600}"],
+        ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('q=%F0%9F%98%80');
+});
+
+// -- BinaryResponseTests --
+
+test('bhv serializationwire 018 octet stream response decoded as base 64 bytes', function (): void {
+    $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A";
+    $encoded = base64_encode($binaryData);
+    $client = new class implements ApiClient {
+        public string $body = '';
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
+        }
+    };
+    $client->body = $encoded;
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/octet-stream'], 'application/octet-stream', 'string');
+    expect($result)->toBe($binaryData);
+});
+
+test('bhv operations 012 image png response decoded as bytes', function (): void {
+    $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A\x00\x00\x00\x0D";
+    $encoded = base64_encode($binaryData);
+    $client = new class implements ApiClient {
+        public string $body = '';
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'image/png']);
+        }
+    };
+    $client->body = $encoded;
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/api/img', [], [], null,
+        ['image/png'], 'image/png', 'string');
+    expect($result)->toBe($binaryData);
+});
+
+test('bhv serializationwire 017 binary response roundtrips nul and high bytes', function (): void {
+    // Use a byte sequence containing NUL (0x00) and a high byte (0xFF)
+    // that would be mangled by any naive UTF-8 string conversion.
+    $binaryData = "\x00\xFF\x42";
+    $encoded = base64_encode($binaryData);
+    $client = new class implements ApiClient {
+        public string $body = '';
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
+        }
+    };
+    $client->body = $encoded;
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/api/bin', [], [], null,
+        ['application/octet-stream'], 'application/octet-stream', 'string');
+    expect($result)->toBe($binaryData);
+    assert(is_string($result));
+    expect(strlen($result))->toBe(3);
+});
+
+test('bhv serializationwire 006 empty binary body yields null', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', ['Content-Type' => 'application/octet-stream']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/api/bin', [], [], null,
+        ['application/octet-stream'], 'application/octet-stream', null);
+    expect($result)->toBeNull();
+});
+
+test('bhv serializationwire 003 json response parsed to object', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"id":42,"name":"test"}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/json'], null, 'object');
+    expect($result)->toBe(['id' => 42, 'name' => 'test']);
+});
+
+test('bhv operations 017 text plain response returns string', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello world', ['Content-Type' => 'text/plain']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['text/plain'], null, 'string');
+    expect($result)->toBeString();
+    expect($result)->toBe('hello world');
+});
+
+test('bhv operations 010 empty body yields null', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', ['Content-Type' => 'application/octet-stream']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['application/octet-stream'], null, null);
+    expect($result)->toBeNull();
+});
+
+// -- NullBodyContentTypeTests --
+
+test('bhv operations 013 null body post does not send content type', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders)->not->toHaveKey('Content-Type');
+});
+
+test('bhv operations 131 a request with no body sends no content type header', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('DELETE', '/test/echo', [], [], null,
+        ['application/json'], 'application/json', null);
+    expect($client->capturedBody)->toBeNull();
+    expect($client->capturedHeaders)->not->toHaveKey('Content-Type');
+});
+
+test('bhv operations 011 empty string body includes content type', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], '',
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders)->toHaveKey('Content-Type');
+});
+
+test('bhv serializationwire 008 empty json object body includes content type', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], '{}',
+        ['application/json'], 'application/json', null);
+    expect($client->capturedHeaders)->toHaveKey('Content-Type');
+    expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
+});
+
+/**
+ * A transport that answers 503 for the first $failures requests and 200 after,
+ * recording the Authorization header of every request it receives.
+ *
+ * @param \ArrayObject<int, string> $seen
+ */
+function flakyTransportApi(int $failures, \ArrayObject $seen, ?Authenticator $auth): TestableApi
+{
+    $mock = new \Symfony\Component\HttpClient\MockHttpClient(
+        function (string $method, string $url, array $options) use ($failures, $seen): \Symfony\Component\HttpClient\Response\MockResponse {
+            $authorization = '';
+            /** @var array<int, string> $lines */
+            $lines = $options['headers'] ?? [];
+            foreach ($lines as $line) {
+                if (stripos($line, 'authorization:') === 0) {
+                    $authorization = trim(substr($line, strlen('authorization:')));
+                }
+            }
+            $seen[] = $authorization;
+            $status = count($seen) <= $failures ? 503 : 200;
+
+            return new \Symfony\Component\HttpClient\Response\MockResponse(
+                '{"ok":true}',
+                ['http_code' => $status, 'response_headers' => ['Content-Type' => 'application/json']]
+            );
+        }
+    );
+
+    return new TestableApi(new StubbedDefaultApiClient($mock), new Configuration('http://localhost'), $auth);
+}
+
+test('bhv retries 005 a transient failure is retried and the retry carries freshly built authentication headers', function (): void {
+    $auth = new class implements Authenticator {
+        private int $issued = 0;
+
+        public function getHost(): string
+        {
+            return '';
+        }
+
+        public function getAuthHeaders(): array
+        {
+            $this->issued++;
+
+            return ['Authorization' => 'Bearer t' . $this->issued];
+        }
+
+        public function getQueryParams(): array
+        {
+            return [];
+        }
+
+        public function getCookieParams(): array
+        {
+            return [];
+        }
+    };
+    /** @var \ArrayObject<int, string> $seen */
+    $seen = new \ArrayObject();
+    $api = flakyTransportApi(2, $seen, $auth);
+
+    $result = $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    expect($result)->toBeArray();
+    expect($seen->getArrayCopy())->toBe(['Bearer t1', 'Bearer t2', 'Bearer t3']);
+});
+
+test('bhv misc 167 an operation that keeps failing with a retryable status is attempted three times, then reported', function (): void {
+    /** @var \ArrayObject<int, string> $seen */
+    $seen = new \ArrayObject();
+    $api = flakyTransportApi(99, $seen, null);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
+        ->toThrow(ServerException::class);
+    expect(count($seen))->toBe(3);
+});
+
+/**
+ * A transport that answers 401 to every API call. Its token endpoint issues a token for
+ * the first $tokens requests and fails after that. Every request is appended to $requests.
+ *
+ * @param \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests
+ */
+function alwaysUnauthorizedApiClient(\ArrayObject $requests, int $tokens): ApiClient
+{
+    return new class ($requests, $tokens) implements ApiClient {
+        private int $issued = 0;
+
+        /** @param \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+        public function __construct(private readonly \ArrayObject $requests, private readonly int $tokens)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->requests[] = ['url' => $url, 'headers' => $headers];
+            if ($url === 'https://auth.example.com/token') {
+                $this->issued++;
+                if ($this->issued > $this->tokens) {
+                    return new ApiHttpResponse(500, '{"error":"server_error"}', ['Content-Type' => 'application/json']);
+                }
+                return new ApiHttpResponse(
+                    200,
+                    (string) json_encode(['access_token' => 't' . $this->issued, 'expires_in' => 3600]),
+                    ['Content-Type' => 'application/json']
+                );
+            }
+            return new ApiHttpResponse(401, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+}
+
+test('bhv authintegration 001 a failed re-authentication leaves the 401 as it is', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = alwaysUnauthorizedApiClient($requests, 1);
+    $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost'), $auth);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'))
+        ->toThrow(UnauthorizedException::class);
+    $apiCalls = array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    );
+    expect($apiCalls)->toHaveCount(1);
+});
+
+test('bhv retries 008 reports a second 401 as unauthorized after exactly one replay', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = alwaysUnauthorizedApiClient($requests, 2);
+    $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost'), $auth);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'))
+        ->toThrow(UnauthorizedException::class);
+    $apiCalls = array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    );
+    expect($apiCalls)->toHaveCount(2);
+});
+
+test('bhv retries 002 a bearer authenticator is never replayed on a 401', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = alwaysUnauthorizedApiClient($requests, 0);
+    $api = new TestableApi(
+        $client,
+        new Configuration('http://localhost'),
+        new BearerAuthenticator('https://api.example.com', 'static-token')
+    );
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'))
+        ->toThrow(UnauthorizedException::class);
+    expect($requests)->toHaveCount(1);
+});
+
+test('bhv authintegration 004 appends auth cookies to a cookie header the operation already set', function (): void {
+    $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        ['Cookie' => 'theme=dark'],
+        null,
+        ['application/json'],
+        'application/json',
+        'object',
+        $auth
+    );
+    expect($result)->toBeArray();
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['cookie'])->toBe('theme=dark; session=abc123');
+});
+
+test('bhv authintegration 011 has no per call authenticator on any options object', function (string $class): void {
+    expect(property_exists($class, 'authenticator'))->toBeFalse();
+    expect(property_exists($class, 'auth'))->toBeFalse();
+})->with([
+    'add pet' => [AddPetOptions::class],
+    'find pets by status' => [FindPetsByStatusOptions::class],
+]);
+
+test('bhv errors 027 an absolute url in the path bypasses the client base url', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', 'https://other.example.com/v1/items', [], [], null, ['application/json'], null, null);
+
+    expect($client->capturedUrl)->toBe('https://other.example.com/v1/items');
+});
+
+/**
+ * Runs $body with an OpenTelemetry SDK (W3C propagator, in-memory exporter) as the global instance.
+ *
+ * @param callable(\OpenTelemetry\SDK\Trace\TracerProvider): void $body
+ */
+function withBaseApiTestTracing(callable $body): void
+{
+    $tracerProvider = new \OpenTelemetry\SDK\Trace\TracerProvider(
+        new \OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor(
+            new \OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter()
+        )
+    );
+    $scope = \OpenTelemetry\API\Instrumentation\Configurator::create()
+        ->withTracerProvider($tracerProvider)
+        ->withPropagator(\OpenTelemetry\API\Trace\Propagation\TraceContextPropagator::getInstance())
+        ->activate();
+    try {
+        $body($tracerProvider);
+    } finally {
+        $scope->detach();
+        $tracerProvider->shutdown();
+    }
+}
+
+/** @return array<string, string> the headers the operation sent */
+function baseApiCapturedHeaders(): array
+{
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', null);
+
+    return $client->capturedHeaders;
+}
+
+test('bhv tracing 013 an operation sends the traceparent of the span that is active in the caller context', function (): void {
+    withBaseApiTestTracing(function (\OpenTelemetry\SDK\Trace\TracerProvider $tracerProvider): void {
+        $span = $tracerProvider->getTracer('base-api-test')->spanBuilder('caller')->startSpan();
+        $scope = $span->activate();
+        try {
+            $headers = baseApiCapturedHeaders();
+        } finally {
+            $scope->detach();
+            $span->end();
+        }
+        $context = $span->getContext();
+        expect($headers['traceparent'] ?? null)->toBe(sprintf(
+            '00-%s-%s-%02x',
+            $context->getTraceId(),
+            $context->getSpanId(),
+            $context->getTraceFlags()
+        ));
+    });
+});
+
+test('bhv tracing 016 an operation with no active span sends no traceparent even when a propagator is configured', function (): void {
+    withBaseApiTestTracing(function (\OpenTelemetry\SDK\Trace\TracerProvider $tracerProvider): void {
+        $span = $tracerProvider->getTracer('base-api-test')->spanBuilder('earlier')->startSpan();
+        $scope = $span->activate();
+        try {
+            expect(baseApiCapturedHeaders())->toHaveKey('traceparent');
+        } finally {
+            $scope->detach();
+            $span->end();
+        }
+
+        expect(baseApiCapturedHeaders())->not->toHaveKey('traceparent');
+    });
+});
+
+/**
+ * A pet API over a scripted transport and a configuration that carries $hook.
+ */
+function hookedPetApi(ScriptedApiClient $client, ?CallHook $hook, ?Authenticator $auth = null): PetApi
+{
+    $config = Configuration::builder()->baseUrl('http://localhost:8080')->callHook($hook)->build();
+
+    return new PetApi($client, $config, $auth);
+}
+
+/**
+ * A transport that answers each request with the next status of $statuses (200 once they are
+ * used up) and records the headers of every request, by lower-cased name.
+ *
+ * @param list<int> $statuses
+ * @param \ArrayObject<int, array<string, string>> $seen
+ */
+function hookedTransportApi(array $statuses, \ArrayObject $seen, Configuration $config, ?Authenticator $auth = null): TestableApi
+{
+    $mock = new \Symfony\Component\HttpClient\MockHttpClient(
+        function (string $method, string $url, array $options) use ($statuses, $seen): \Symfony\Component\HttpClient\Response\MockResponse {
+            $headers = [];
+            /** @var array<int, string> $lines */
+            $lines = $options['headers'] ?? [];
+            foreach ($lines as $line) {
+                $position = strpos($line, ':');
+                if ($position === false) {
+                    continue;
+                }
+                $headers[strtolower(substr($line, 0, $position))] = trim(substr($line, $position + 1));
+            }
+            $index = count($seen);
+            $seen[] = $headers;
+
+            return new \Symfony\Component\HttpClient\Response\MockResponse(
+                '{"ok":true}',
+                ['http_code' => $statuses[$index] ?? 200, 'response_headers' => ['Content-Type' => 'application/json']]
+            );
+        }
+    );
+
+    return new TestableApi(new StubbedDefaultApiClient($mock), $config, $auth);
+}
+
+test('bhv hooks 001 without a hook set a call sends the same headers and returns the same result as before', function (): void {
+    $plain = new ScriptedApiClient();
+    $observing = new ScriptedApiClient();
+    $hook = new RecordingCallHook();
+    $auth = new TestAuthenticator(['Authorization' => 'Bearer abc']);
+
+    hookedPetApi($plain, null, $auth)->deletePet(7);
+    hookedPetApi($observing, $hook, $auth)->deletePet(7);
+
+    expect(Configuration::builder()->build()->getCallHook())->toBeNull();
+    expect($plain->requests)->toHaveCount(1);
+    expect($plain->requests[0]['headers'])->toBe($observing->requests[0]['headers']);
+    expect($plain->requests[0]['headers']['Authorization'])->toBe('Bearer abc');
+});
+
+test('bhv hooks 002 start is called once per call with the spec operation id, the method, the url template and the url', function (): void {
+    $client = new ScriptedApiClient();
+    $hook = new RecordingCallHook();
+
+    hookedPetApi($client, $hook)->deletePet(7);
+
+    expect($hook->infos)->toHaveCount(1);
+    $info = $hook->infos[0];
+    expect($info->operationId)->toBe('deletePet');
+    expect($info->method)->toBe('DELETE');
+    expect($info->urlTemplate)->toBe('/pet/{petId}');
+    expect($info->url)->toBe('http://localhost:8080/pet/7');
+    expect($info->serverAddress)->toBe('localhost');
+});
+
+test('bhv hooks 003 server address is the host without port and without the brackets of an IPv6 literal', function (string $base, string $host): void {
+    $hook = new RecordingCallHook();
+    $config = new Configuration($base, [], $hook);
+    $api = new TestableApi(new ScriptedApiClient(), $config);
+
+    $api->callOperation('listThings', '/things', 'GET', '/things');
+
+    expect($hook->infos[0]->serverAddress)->toBe($host);
+    expect($hook->infos[0]->url)->toBe($base . '/things');
+})->with([
+    'ipv6 literal' => ['http://[::1]:8080', '::1'],
+    'upper case host and port' => ['https://API.Example.COM:8443', 'api.example.com'],
+    'plain host' => ['http://example.org', 'example.org'],
+]);
+
+test('bhv hooks 004 a header the hook sets reaches the server', function (): void {
+    $client = new ScriptedApiClient();
+    $hook = new RecordingCallHook(edit: static fn (array $headers): array => $headers + ['X-Hook' => 'yes']);
+
+    hookedPetApi($client, $hook)->deletePet(7);
+
+    expect($client->requests[0]['headers']['X-Hook'])->toBe('yes');
+});
+
+test('bhv hooks 005 start sees the final header set and can replace one', function (): void {
+    $client = new ScriptedApiClient();
+    $hook = new RecordingCallHook(edit: static function (array $headers): array {
+        $headers['Authorization'] = 'Bearer replaced';
+
+        return $headers;
+    });
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost:8080')
+        ->defaultHeader('X-Default', 'd')
+        ->callHook($hook)
+        ->build();
+    $api = new PetApi($client, $config, new TestAuthenticator(['Authorization' => 'Bearer original']));
+
+    $api->deletePet(7);
+
+    expect($hook->headersSeen[0]['Authorization'])->toBe('Bearer original');
+    expect($hook->headersSeen[0]['X-Default'])->toBe('d');
+    expect($client->requests[0]['headers']['Authorization'])->toBe('Bearer replaced');
+    expect($client->requests[0]['headers']['X-Default'])->toBe('d');
+});
+
+test('bhv hooks 006 a header the hook sets is on every send of the call, retries and the replay after a 401 included', function (): void {
+    $hook = new RecordingCallHook(edit: static fn (array $headers): array => $headers + ['X-Hook' => 'yes']);
+    /** @var \ArrayObject<int, array<string, string>> $seen */
+    $seen = new \ArrayObject();
+    $retried = hookedTransportApi([503, 503, 200], $seen, new Configuration('http://localhost', [], $hook));
+
+    $retried->callOperation('listThings', '/things', 'GET', '/things');
+
+    expect($seen)->toHaveCount(3);
+    foreach ($seen as $headers) {
+        expect($headers['x-hook'] ?? null)->toBe('yes');
+    }
+
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $replayed = new TestableApi($client, new Configuration('http://localhost', [], $hook), $auth);
+
+    $replayed->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    $apiCalls = array_values(array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    ));
+    expect($apiCalls)->toHaveCount(2);
+    expect($apiCalls[0]['headers']['X-Hook'])->toBe('yes');
+    expect($apiCalls[1]['headers']['X-Hook'])->toBe('yes');
+});
+
+test('bhv hooks 007 the fresh authentication headers of a replay still replace a hook header of the same name', function (): void {
+    $hook = new RecordingCallHook(edit: static function (array $headers): array {
+        $headers['Authorization'] = 'Bearer from-hook';
+
+        return $headers;
+    });
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost', [], $hook), $auth);
+
+    $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    $apiCalls = array_values(array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    ));
+    expect($apiCalls)->toHaveCount(2);
+    expect($apiCalls[0]['headers']['Authorization'])->toBe('Bearer from-hook');
+    expect($apiCalls[1]['headers']['Authorization'])->toBe('Bearer t2');
+});
+
+test('bhv hooks 008 a call that is retried by the transport calls start once and finish once', function (): void {
+    $hook = new RecordingCallHook();
+    /** @var \ArrayObject<int, array<string, string>> $seen */
+    $seen = new \ArrayObject();
+    $api = hookedTransportApi([503, 503, 200], $seen, new Configuration('http://localhost', [], $hook));
+
+    $api->callOperation('listThings', '/things', 'GET', '/things');
+
+    expect($seen)->toHaveCount(3);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook']);
+    expect($hook->outcomes[0]->statusCode)->toBe(200);
+});
+
+test('bhv hooks 009 the plain and the WithHttpInfo variant of an operation call the hook once each', function (): void {
+    $hook = new RecordingCallHook();
+    $api = hookedPetApi(new ScriptedApiClient(), $hook);
+
+    $api->deletePet(7);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook']);
+
+    $api->deletePetWithHttpInfo(7);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook', 'start:hook', 'finish:hook']);
+});
+
+test('bhv hooks 010 a hook set on the client still fires when the caller supplied the transport', function (): void {
+    $hook = new RecordingCallHook();
+    $transport = new ScriptedApiClient();
+    $client = new \{{invokerPackage}}\{{clientClassName}}(
+        new BearerAuthenticator('http://localhost:8080', 'test-token'),
+        null,
+        $transport,
+        callHook: $hook
+    );
+
+    $client->pet->deletePet(7);
+
+    expect($transport->requests)->toHaveCount(1);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook']);
+    expect($hook->infos[0]->operationId)->toBe('deletePet');
+});
+
+test('bhv hooks 011 finish gets the status, the lower-cased response headers and no error on a 2xx', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new ScriptedApiClient([
+        new ApiHttpResponse(200, '', ['Content-Type' => 'application/json', 'X-Request-Id' => 'r1']),
+    ]);
+
+    hookedPetApi($client, $hook)->deletePet(7);
+
+    $outcome = $hook->outcomes[0];
+    expect($outcome->statusCode)->toBe(200);
+    expect($outcome->headers)->toBe(['content-type' => 'application/json', 'x-request-id' => 'r1']);
+    expect($outcome->error)->toBeNull();
+});
+
+test('bhv hooks 012 finish gets the status, the headers and the same typed error the caller receives on a non-2xx', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new ScriptedApiClient([new ApiHttpResponse(404, '{}', ['X-Request-Id' => 'r2'])]);
+    $caught = null;
+
+    try {
+        hookedPetApi($client, $hook)->deletePet(7);
+    } catch (ApiException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(NotFoundException::class);
+    $outcome = $hook->outcomes[0];
+    expect($outcome->statusCode)->toBe(404);
+    expect($outcome->headers)->toBe(['x-request-id' => 'r2']);
+    expect($outcome->error)->toBe($caught);
+});
+
+test('bhv hooks 013 finish gets status 0, null headers and the network error when no response arrived', function (): void {
+    $hook = new RecordingCallHook();
+    $failure = new NetworkException('connection refused');
+    $caught = null;
+
+    try {
+        hookedPetApi(new ScriptedApiClient([$failure]), $hook)->deletePet(7);
+    } catch (NetworkException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($failure);
+    $outcome = $hook->outcomes[0];
+    expect($outcome->statusCode)->toBe(0);
+    expect($outcome->headers)->toBeNull();
+    expect($outcome->error)->toBe($failure);
+});
+
+test('bhv hooks 014 finish gets the timeout error when the end-to-end budget is exhausted', function (): void {
+    $hook = new RecordingCallHook();
+    $timeout = new NetworkTimeoutException('timed out');
+
+    expect(function () use ($timeout, $hook): void {
+        hookedPetApi(new ScriptedApiClient([$timeout]), $hook)->deletePet(7);
+    })->toThrow(NetworkTimeoutException::class);
+
+    expect($hook->outcomes[0]->error)->toBe($timeout);
+    expect($hook->outcomes[0]->statusCode)->toBe(0);
+});
+
+test('bhv hooks 016 finish gets the decode error with the status that arrived when the response cannot be decoded', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new ScriptedApiClient([
+        new ApiHttpResponse(200, '[1, 2', ['Content-Type' => 'application/json', 'x-request-id' => 'r1']),
+    ]);
+    $api = new TestableApi($client, new Configuration('http://localhost', [], $hook));
+    $caught = null;
+
+    try {
+        $api->call('GET', '/items', [], [], null, ['application/json'], null, Category::class);
+    } catch (SerializationException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(SerializationException::class);
+    $outcome = $hook->outcomes[0];
+    expect($outcome->statusCode)->toBe(200);
+    expect($outcome->headers)->toBe(['content-type' => 'application/json', 'x-request-id' => 'r1']);
+    expect($outcome->error)->toBe($caught);
+});
+
+test('bhv hooks 017 finish is called when the request body cannot be encoded and nothing is sent', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new ScriptedApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost', [], $hook));
+
+    expect(fn (): mixed => $api->callOperation(
+        'createThing',
+        '/things',
+        'POST',
+        '/things',
+        body: ['nested' => ['not' => 'scalar']],
+        contentType: 'application/x-www-form-urlencoded'
+    ))->toThrow(SerializationException::class);
+
+    expect($client->requests)->toBe([]);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook']);
+    expect($hook->outcomes[0]->statusCode)->toBe(0);
+    expect($hook->outcomes[0]->headers)->toBeNull();
+    expect($hook->outcomes[0]->error)->toBeInstanceOf(SerializationException::class);
+});
+
+test('bhv hooks 018 an error thrown by start reaches the caller unchanged, nothing is sent and finish is not called', function (): void {
+    $refusal = new \DomainException('refused by the hook');
+    $hook = new RecordingCallHook(failOnStart: $refusal);
+    $client = new ScriptedApiClient();
+    $caught = null;
+
+    try {
+        hookedPetApi($client, $hook)->deletePet(7);
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($refusal);
+    expect($client->requests)->toBe([]);
+    expect($hook->outcomes)->toBe([]);
+});
+
+test('bhv hooks 019 an error thrown by finish is swallowed and the caller still gets its result or its own error', function (): void {
+    $hook = new RecordingCallHook(failOnFinish: new \RuntimeException('observer broke'));
+
+    hookedPetApi(new ScriptedApiClient(), $hook)->deletePet(7);
+    $result = hookedPetApi(new ScriptedApiClient(), $hook)->deletePetWithHttpInfo(7);
+    expect($result->statusCode)->toBe(200);
+
+    expect(function () use ($hook): void {
+        hookedPetApi(new ScriptedApiClient([new ApiHttpResponse(404, '{}', [])]), $hook)->deletePet(7);
+    })->toThrow(NotFoundException::class);
+    expect(count($hook->outcomes))->toBe(3);
+});
+
+test('bhv hooks 021 the url given to the hook never carries the query string or the fragment', function (): void {
+    $hook = new RecordingCallHook();
+    $api = new TestableApi(new ScriptedApiClient(), new Configuration('http://localhost', [], $hook));
+
+    $api->callOperation('listThings', '/things', 'GET', '/things#frag', queryParams: ['a' => '1', 'token' => 'secret']);
+    $api->callOperation('listThings', '/things', 'GET', '/things?b=2');
+
+    expect($hook->infos[0]->url)->toBe('http://localhost/things');
+    expect($hook->infos[1]->url)->toBe('http://localhost/things');
+});
+
+test('bhv telemetry 007 a call retried by the transport records one span and one count', function (): void {
+    [$tracer, $spans, $meter, $reader, $metrics] = HookTelemetry::providers();
+    /** @var \ArrayObject<int, array<string, string>> $seen */
+    $seen = new \ArrayObject();
+    $hook = OpenTelemetryCallHook::create($tracer, $meter);
+    $api = hookedTransportApi([503, 503, 200], $seen, new Configuration('http://localhost', [], $hook));
+
+    $api->callOperation('listThings', '/things', 'GET', '/things');
+
+    expect($seen)->toHaveCount(3);
+    expect($spans->getSpans())->toHaveCount(1);
+    $count = HookTelemetry::number(HookTelemetry::metrics($reader, $metrics)['http.client.request.count']);
+    expect($count->value)->toEqual(1);
+});
+
+test('bhv auth 046 an operation that inherits the document level security receives the client authenticator on the wire', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $auth = new BearerAuthenticator('http://localhost', 'secret-jwt-token');
+    $api = new PetApi($client, $config, $auth);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
+});
+
+test('bhv auth 043 each operation sends only the credential of the scheme it names in its security requirement', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'), null, [
+        'apiKeyHeader' => new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER),
+        'petStoreBearer' => new BearerAuthenticator('http://localhost', 'secret-jwt-token'),
+    ]);
+    try {
+        $api->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['X-API-Key'] ?? '')->toBe('secret-api-key');
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
+});
+
+test('bhv auth 045 a credential supplied for an operation scheme replaces a default authorization header set on the client', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost', ['Authorization' => 'Basic default-credential']);
+    $api = new PetApi($client, $config, null, [
+        'petStoreBearer' => new BearerAuthenticator('http://localhost', 'secret-jwt-token'),
+    ]);
+    try {
+        $api->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer secret-jwt-token');
+});
+
+test('bhv auth 047 an operation with several schemes uses the first one it holds and sends no scheme credential when it holds none', function (): void {
+    $held = new CapturingApiClient();
+    $firstHeld = new PetApi($held, new Configuration('http://localhost'), null, [
+        'petStoreBearer' => new BearerAuthenticator('http://localhost', 'secret-jwt-token'),
+        'apiKeyHeader' => new ApiKeyAuthenticator('http://localhost', 'X-API-Key', 'secret-api-key', ApiKeyLocation::HEADER),
+    ]);
+    try {
+        $firstHeld->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($held->capturedHeaders['X-API-Key'] ?? '')->toBe('secret-api-key');
+    expect($held->capturedHeaders)->not->toHaveKey('Authorization');
+
+    $none = new CapturingApiClient();
+    $noneHeld = new PetApi($none, new Configuration('http://localhost'), null, [
+        'unrelatedScheme' => new BearerAuthenticator('http://localhost', 'secret-jwt-token'),
+    ]);
+    try {
+        $noneHeld->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($none->capturedHeaders)->not->toHaveKey('Authorization');
+    expect($none->capturedHeaders)->not->toHaveKey('X-API-Key');
+});
+
+test('bhv operations 163 a request with no body sends no content type header whatever the case of the default', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost', ['content-type' => 'application/json']);
+    $api = new PetApi($client, $config);
+    try {
+        $api->getPetByIdWithHttpInfo(1);
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect(array_change_key_case($client->capturedHeaders, CASE_LOWER))->not->toHaveKey('content-type');
+});
+
+test('bhv operations 164 a call with a missing required parameter raises a type error and sends no request', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    expect(fn () => callUnchecked($api, 'getPetByIdWithHttpInfo', null))->toThrow(\TypeError::class);
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv operations 161 a text plain response is returned as the raw text even when it looks like base64', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'aGVsbG8=', ['Content-Type' => 'text/plain']);
+        }
+    };
+    $testApi = new TestableApi($client, new Configuration('http://localhost'));
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['text/plain'], 'application/json', 'string');
+    expect($result)->toBe('aGVsbG8=');
+});
+
+test('bhv misc 053 a per call retry budget of zero is accepted, and a negative or non whole budget is refused', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    $api->deletePet(7, new DeletePetOptions(maxRetries: 0));
+
+    expect($client->capturedUrl)->toBe('http://localhost/pet/7');
+
+    $refused = new CapturingApiClient();
+    $refusedApi = new PetApi($refused, new Configuration('http://localhost'));
+
+    expect(function () use ($refusedApi): void {
+        $refusedApi->deletePet(7, new DeletePetOptions(maxRetries: -1));
+    })->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
+    expect($refused->capturedUrl)->toBe('');
+
+    expect(fn () => newUnchecked(DeletePetOptions::class, ['maxRetries' => 1.5]))->toThrow(\TypeError::class);
+});
+
+test('bhv misc 054 per call headers are a copy that later changes to the caller map do not reach', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    $headers = ['X-Trace' => 'before'];
+    $options = new DeletePetOptions(headers: $headers);
+    $headers['X-Trace'] = 'after';
+
+    $api->deletePet(7, $options);
+
+    $captured = array_change_key_case($client->capturedHeaders, CASE_LOWER);
+    expect($captured['x-trace'] ?? null)->toBe('before');
+});
+
+test('bhv misc 064 an operation that declares no security never sends the client default credential', function (): void {
+    $client = new CapturingApiClient();
+    $api = new StoreApi($client, new Configuration('http://localhost'), new TestAuthenticator(headers: ['X-Default' => 'default']));
+    try {
+        $api->getInventoryWithHttpInfo();
+    } catch (\Exception $e) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('X-Default');
+});
+
+test('bhv misc 065 scheme credentials are copied when the api is built', function (): void {
+    $schemes = ['bearer' => new TestAuthenticator(headers: ['Authorization' => 'Bearer first'])];
+    [$api, $client] = newSchemeApi($schemes);
+    $schemes['bearer'] = new TestAuthenticator(headers: ['Authorization' => 'Bearer second']);
+
+    $api->callWithRequirements(['application/json'], [['bearer']]);
+
+    expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer first');
+});
+
+test('bhv misc 191 an auth cookie with a forbidden character raises an argument error that is not an openapi error', function (): void {
+    $api = new TestableApi(new CapturingApiClient(), new Configuration('http://localhost'));
+    $auth = new TestAuthenticator(cookies: ['session' => 'a"b']);
+    try {
+        $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', $auth);
+        test()->fail('Expected exception not thrown');
+    } catch (\InvalidArgumentException $e) {
+        expect($e)->not->toBeInstanceOf(ApiException::class);
+    }
+});
+
+test('bhv misc 192 a cookie value made only of legal cookie octets is sent exactly as given', function (): void {
+    $value = 'a!#$%&\'()*+-./0123:<=>?@[]^_`{|}~';
+    $auth = new TestAuthenticator(cookies: ['session' => $value]);
+    $result = makeBaseApiTestableApi()->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', $auth);
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['cookie'])->toBe('session=' . $value);
+});
+
+test('bhv misc 197 the default authenticator serves an operation whose named schemes the client does not hold', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $auth = new BearerAuthenticator('http://localhost', 'default');
+    $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', $auth);
+    expect($client->capturedHeaders['Authorization'])->toBe('Bearer default');
+});
+
+test('bhv misc 209 a void operation ignores a success body whether it is text or a non object json value', function (): void {
+    foreach (['text/plain' => 'plain words', 'application/json' => '42'] as $contentType => $body) {
+        $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse(200, $body, ['Content-Type' => $contentType])]), new Configuration('https://example.test'));
+        expect($api->call('GET', '/items', [], [], null, ['application/json'], 'application/json', null))->toBeNull();
+    }
+});
+
+test('bhv misc 210 a date time form field is encoded in canonical form with its colons and plus sign percent escaped', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $api->call('POST', '/x', [], [], ['renewalDate' => '2024-01-01T13:45:30+02:00'], ['application/json'], 'application/x-www-form-urlencoded');
+    expect($client->capturedBody)->toContain('renewalDate=2024-01-01T13%3A45%3A30%2B02%3A00');
+});
+
+test('bhv misc 212 a 404 or 500 response raises its error class through the api layer', function (): void {
+    foreach ([[404, NotFoundException::class], [500, InternalServerErrorException::class]] as [$status, $class]) {
+        $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse($status, '{"message":"failed"}', ['Content-Type' => 'application/json'])]), new Configuration('https://example.test'));
+        expect(fn () => $api->call('GET', '/items', [], [], null, ['application/json'], 'application/json', 'string'))->toThrow($class);
+    }
+});
+
+test('bhv misc 216 a binary response is returned decoded while the raw body keeps the encoded text', function (): void {
+    $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse(200, 'aGVsbG8=', ['Content-Type' => 'application/octet-stream'])]), new Configuration('https://example.test'));
+    $result = $api->callOperation('getBytes', '/x', 'GET', '/x', [], [], null, ['application/octet-stream'], 'application/json', 'bytes');
+    expect($result->data)->toBe('hello');
+    expect($result->rawBody)->toBe('aGVsbG8=');
+});
+
+test('bhv misc 218 a per call header takes precedence over a configured header of the same name without a duplicate key', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost', ['X-Trace' => 'configured']));
+    $api->call('GET', '/x', [], ['X-Trace' => 'per-call'], null, ['application/json'], 'application/json');
+    expect($client->capturedHeaders['X-Trace'])->toBe('per-call');
+    expect(array_filter(array_keys($client->capturedHeaders), fn (string $key): bool => strtolower($key) === 'x-trace'))->toHaveCount(1);
+});
+
+test('bhv misc 220 a full response call keeps the status code and decodes the body', function (): void {
+    $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse(201, '{"drugName":"Amoxicillin","dosage":"250mg"}', ['Content-Type' => 'application/json'])]), new Configuration('https://example.test'));
+    $result = $api->callOperation('create', '/x', 'POST', '/x', [], [], null, ['application/json'], 'application/json', 'object');
+    expect($result->statusCode)->toBe(201);
+    expect($result->data)->toBe(['drugName' => 'Amoxicillin', 'dosage' => '250mg']);
+});
+
+test('bhv misc 221 a credential is sent using the security scheme the operation declares rather than bearer', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', new ApiKeyAuthenticator('http://localhost', 'X-Api-Key', 'key', ApiKeyLocation::HEADER));
+    expect($client->capturedHeaders['X-Api-Key'])->toBe('key');
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
+});
+
+test('bhv misc 222 a success response with a 201 status and an empty body returns no data without an error', function (): void {
+    $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse(201, '', ['Content-Type' => 'application/json'])]), new Configuration('https://example.test'));
+    expect($api->call('POST', '/x', [], [], null, ['application/json'], 'application/json', 'object'))->toBeNull();
+});
+
+test('bhv misc 202 a text body without a declared content type goes out with the bare json media type', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $api->call('POST', '/test/echo', [], [], 'hello', ['application/json'], '');
+    expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
+});
+test('bhv misc 296 a failed request is retried twice by default, so three requests reach the wire', function (): void {
+    /** @var \ArrayObject<int, string> $seen */
+    $seen = new \ArrayObject();
+    $api = flakyTransportApi(99, $seen, null);
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
+        ->toThrow(ServerException::class);
+    expect(count($seen))->toBe(3);
+});
+
+test('bhv misc 081 a base64 body under a binary content type is decoded before the caller gets it', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, base64_encode("\x89PNG\r\n"), ['Content-Type' => 'image/png']);
+        }
+    };
+    $testApi = new TestableApi($client, new Configuration('http://localhost'));
+
+    $result = $testApi->call('GET', '/test/echo', [], [], null, ['image/png'], 'application/json', 'string');
+
+    expect($result)->toBe("\x89PNG\r\n");
+});
+
+test('bhv serialization 111 a form-urlencoded body keeps only the unreserved set literal and escapes the rest', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], ['k~*' => "a~b*c!'()"],
+        ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
+});
+
+test('bhv serialization 125 a literal plus is sent as percent 2B and non ascii text as percent encoded utf 8', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => "a+b \u{00e9}"], [], null, ['application/json'], 'application/json');
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%2Bb%20%C3%A9');
+
+    $api->call('POST', '/test/echo', [], [], ['q' => "a+b \u{00e9}"], ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('q=a%2Bb+%C3%A9');
+});
+
+test('bhv serialization 128 a binary return type gets the raw bytes of a JSON body', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"id":7,"name":"photo"}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['image/jpeg', 'application/json'], 'application/json', 'string');
+    expect($result)->toBe('{"id":7,"name":"photo"}');
+});
+
+test('bhv misc 254 an unmarked query value percent encodes reserved characters such as slash and colon', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => 'a/b:c'], [], null, ['application/json'], null);
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%2Fb%3Ac');
+});
+
+test('bhv misc 255 separate query parameters encode a space as percent 20', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['a' => 'x y', 'b' => 'z'], [], null, ['application/json'], null);
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?a=x%20y&b=z');
+});
+
+test('bhv misc 264 each listed error status from the server raises the api error carrying that code', function (int $status, string $expectedClass): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            "/test/status/$status",
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (ApiException $e) {
+        expect($e::class)->toBe($expectedClass);
+        expect($e->getCode())->toBe($status);
+    }
+})->with([
+    [400, BadRequestException::class],
+    [401, UnauthorizedException::class],
+    [403, ForbiddenException::class],
+    [404, NotFoundException::class],
+    [409, ConflictException::class],
+    [422, UnprocessableEntityException::class],
+    [429, TooManyRequestsException::class],
+    [500, InternalServerErrorException::class],
+    [502, BadGatewayException::class],
+]);
+
+test('bhv misc 159 a 401 is replayed once even when transport retries are turned off', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost'), $auth);
+
+    $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    $apiCalls = array_values(array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    ));
+    expect($apiCalls)->toHaveCount(2);
+});
+
+test('bhv misc 176 a required cookie parameter is sent in the Cookie header with its value', function (): void {
+    $auth = new TestAuthenticator(cookies: ['session' => 'abc']);
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        'object',
+        $auth
+    );
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['cookie'])->toBe('session=abc');
+});
+
+/**
+ * A transport that stays in flight until the caller resumes or cancels the fiber that runs the
+ * call: PHP's native way to cancel work that is waiting (Fiber::throw), since a call takes no
+ * cancellation signal of its own (S7).
+ *
+ * @param \ArrayObject<int, string>                       $requests    the URL of every request the transport started
+ * @param \ArrayObject<int, array<string, string>>|null $headersSeen the headers of every request, when given
+ */
+function inFlightTransport(
+    \ArrayObject $requests,
+    ?\Throwable $thenFail = null,
+    ?\ArrayObject $headersSeen = null
+): ApiClient {
+    return new class ($requests, $thenFail, $headersSeen) implements ApiClient {
+        /**
+         * @param \ArrayObject<int, string>                       $requests
+         * @param \ArrayObject<int, array<string, string>>|null $headersSeen
+         */
+        public function __construct(
+            private \ArrayObject $requests,
+            private ?\Throwable $thenFail,
+            private ?\ArrayObject $headersSeen
+        ) {
+        }
+
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->requests->append($url);
+            $this->headersSeen?->append($headers);
+            \Fiber::suspend('in flight');
+            if ($this->thenFail !== null) {
+                throw $this->thenFail;
+            }
+
+            return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+}
+
+/**
+ * Starts $call in a fiber, lets it reach its in-flight request, then cancels it with $cancel.
+ *
+ * @param callable(): mixed $call
+ */
+function cancelWhileInFlight(callable $call, \Throwable $cancel): ?\Throwable
+{
+    $fiber = new \Fiber($call);
+    $fiber->start();
+    expect($fiber->isSuspended())->toBeTrue();
+    $caught = null;
+    try {
+        $fiber->throw($cancel);
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+    expect($fiber->isTerminated())->toBeTrue();
+
+    return $caught;
+}
+
+test('bhv transport 083 cancelling an in-flight call aborts its request and surfaces the cancellation', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $api = new TestableApi(inFlightTransport($requests), new Configuration('http://localhost'));
+    $cancel = new \RuntimeException('cancelled by the caller');
+
+    $caught = cancelWhileInFlight(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'),
+        $cancel
+    );
+
+    expect($caught)->toBe($cancel);
+    expect($requests)->toHaveCount(1);
+});
+
+test('bhv transport 084 an in-flight call that is cancelled or dropped sends nothing more', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $api = new TestableApi(inFlightTransport($requests), new Configuration('http://localhost'));
+    $dropped = new \Fiber(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object')
+    );
+    $dropped->start();
+    expect($dropped->isSuspended())->toBeTrue();
+    unset($dropped);
+    gc_collect_cycles();
+
+    $cancel = new \RuntimeException('cancelled by the caller');
+    $caught = cancelWhileInFlight(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'),
+        $cancel
+    );
+
+    expect($caught)->toBe($cancel);
+    expect($requests)->toHaveCount(2);
+});
+
+test('bhv transport 060 cancelling an in-flight call is not reported as a timeout', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $api = new TestableApi(inFlightTransport($requests), new Configuration('http://localhost'));
+
+    $caught = cancelWhileInFlight(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'),
+        new \RuntimeException('cancelled by the caller')
+    );
+
+    expect($caught)->not->toBeInstanceOf(NetworkTimeoutException::class);
+    expect($caught)->not->toBeInstanceOf(NetworkException::class);
+});
+
+test('bhv misc 029 a cancellation raised by the caller is never wrapped in the SDK error', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $api = new TestableApi(inFlightTransport($requests), new Configuration('http://localhost'));
+    $cancel = new class ('cancelled') extends \Exception {
+    };
+
+    $caught = cancelWhileInFlight(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'),
+        $cancel
+    );
+
+    expect($caught)->toBe($cancel);
+    expect($caught)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
+});
+
+test('bhv misc 262 a cancellation raised by the underlying transport reaches the caller unwrapped', function (): void {
+    $cancel = new \RuntimeException('request cancelled');
+    $api = new TestableApi(new ScriptedApiClient([$cancel]), new Configuration('http://localhost'));
+    $caught = null;
+
+    try {
+        $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($cancel);
+});
+
+test('bhv transport 085 a timeout still raises the network timeout error when no cancellation ever fires', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $timeout = new NetworkTimeoutException('timed out');
+    $api = new TestableApi(inFlightTransport($requests, $timeout), new Configuration('http://localhost'));
+    $fiber = new \Fiber(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object')
+    );
+    $fiber->start();
+    $caught = null;
+
+    try {
+        $fiber->resume();
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($timeout);
+});
+
+test('bhv hooks 015 finish gets the cancellation and the call rethrows it, never as the timeout error', function (): void {
+    $hook = new RecordingCallHook();
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $config = Configuration::builder()->baseUrl('http://localhost:8080')->callHook($hook)->build();
+    $api = new PetApi(inFlightTransport($requests), $config);
+    $cancel = new \RuntimeException('cancelled by the caller');
+
+    $caught = cancelWhileInFlight(
+        static function () use ($api): void {
+            $api->deletePet(7);
+        },
+        $cancel
+    );
+
+    expect($caught)->toBe($cancel);
+    expect($hook->outcomes[0]->error)->toBe($cancel);
+    expect($hook->outcomes[0]->error)->not->toBeInstanceOf(NetworkTimeoutException::class);
+});
+
+test('bhv tracing 014 the traceparent still reaches the request when building the headers waits on the credentials', function (): void {
+    withBaseApiTestTracing(function (\OpenTelemetry\SDK\Trace\TracerProvider $tracerProvider): void {
+        $client = new CapturingApiClient();
+        $api = new TestableApi($client, new Configuration('http://localhost'));
+        $slowCredentials = new class implements Authenticator {
+            public function getHost(): string
+            {
+                return '';
+            }
+
+            public function getAuthHeaders(): array
+            {
+                \Fiber::suspend('waiting for the credentials');
+
+                return ['x-credential' => 'secret'];
+            }
+
+            public function getQueryParams(): array
+            {
+                return [];
+            }
+
+            public function getCookieParams(): array
+            {
+                return [];
+            }
+        };
+        $span = $tracerProvider->getTracer('base-api-test')->spanBuilder('caller')->startSpan();
+        $fiber = new \Fiber(static function () use ($api, $slowCredentials, $span): void {
+            $scope = $span->activate();
+            try {
+                $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', null, $slowCredentials);
+            } finally {
+                $scope->detach();
+            }
+        });
+        $fiber->start();
+        expect($fiber->isSuspended())->toBeTrue();
+        $fiber->resume();
+        $span->end();
+
+        $context = $span->getContext();
+        expect($client->capturedHeaders['x-credential'] ?? null)->toBe('secret');
+        expect($client->capturedHeaders['traceparent'] ?? null)->toBe(sprintf(
+            '00-%s-%s-%02x',
+            $context->getTraceId(),
+            $context->getSpanId(),
+            $context->getTraceFlags()
+        ));
+    });
+});
+
+test('bhv tracing 015 concurrent operations each send the traceparent of their own caller span', function (): void {
+    withBaseApiTestTracing(function (\OpenTelemetry\SDK\Trace\TracerProvider $tracerProvider): void {
+        /** @var \ArrayObject<int, string> $requests */
+        $requests = new \ArrayObject();
+        /** @var \ArrayObject<int, array<string, string>> $headersSeen */
+        $headersSeen = new \ArrayObject();
+        $api = new TestableApi(inFlightTransport($requests, null, $headersSeen), new Configuration('http://localhost'));
+        $tracer = $tracerProvider->getTracer('base-api-test');
+        $spans = [$tracer->spanBuilder('first')->startSpan(), $tracer->spanBuilder('second')->startSpan()];
+        $fibers = [];
+        foreach ($spans as $span) {
+            $fibers[] = new \Fiber(static function () use ($api, $span): void {
+                $scope = $span->activate();
+                try {
+                    $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+                } finally {
+                    $scope->detach();
+                }
+            });
+        }
+        foreach ($fibers as $fiber) {
+            $fiber->start();
+        }
+        foreach ($fibers as $fiber) {
+            $fiber->resume();
+        }
+
+        expect($headersSeen)->toHaveCount(2);
+        foreach ($spans as $index => $span) {
+            $span->end();
+            $context = $span->getContext();
+            expect($headersSeen[$index]['traceparent'] ?? null)->toBe(sprintf(
+                '00-%s-%s-%02x',
+                $context->getTraceId(),
+                $context->getSpanId(),
+                $context->getTraceFlags()
+            ));
+        }
+        expect($headersSeen[0]['traceparent'] ?? '')->not->toBe($headersSeen[1]['traceparent'] ?? '');
+    });
+});

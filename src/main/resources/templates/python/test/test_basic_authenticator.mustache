@@ -1,0 +1,188 @@
+{{>api_info}}
+import pytest
+
+from {{packageName}}.auth.basic_authenticator import BasicAuthenticator
+from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
+from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator
+from {{packageName}}.auth.api_key_location import ApiKeyLocation
+
+
+class TestBasicAuthenticator:
+
+    def test_bhv_authbasic_011_valid_credentials_produce_basic_header(self) -> None:
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
+        headers = auth.get_auth_headers()
+        assert headers['Authorization'] == 'Basic YWxpY2U6czNjcmV0'
+
+    def test_bhv_authbasic_009_rejects_username_with_crlf_at_construction(self) -> None:
+        with pytest.raises(ValueError):
+            BasicAuthenticator(host='https://api.example.com', username='alice\r\n', password='s3cret')
+
+    def test_bhv_authbasic_007_rejects_password_with_nul_at_construction(self) -> None:
+        with pytest.raises(ValueError):
+            BasicAuthenticator(host='https://api.example.com', username='alice', password='s3c\x00ret')
+
+    def test_bhv_authbasic_008_rejects_username_with_colon_at_construction(self) -> None:
+        with pytest.raises(ValueError):
+            BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='s3cret')
+
+    def test_bhv_authbasic_018_password_may_contain_a_colon(self) -> None:
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='p:ss')
+
+        assert auth.get_auth_headers() == {'Authorization': 'Basic YWxpY2U6cDpzcw=='}
+
+    def test_bhv_authbasic_005_password_is_not_leaked_in_repr(self) -> None:
+        # The default repr/str must never expose the secret.
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
+        assert 's3cret' not in repr(auth)
+        assert 's3cret' not in str(auth)
+        assert 'https://api.example.com' in repr(auth)
+
+    def test_bhv_authbasic_006_redacts_secret(self) -> None:
+        """The repr masks the password as ``***`` and never leaks its value."""
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
+        rendered = repr(auth)
+        assert 's3cret' not in rendered
+        assert '***' in rendered
+
+    def test_bhv_lang_python_034_equal_credentials_are_not_equal_by_value(self) -> None:
+        """Authenticators compare by identity, so a secret is never compared or hashed by value."""
+        first = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
+        second = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cret')
+        assert first != second
+        assert first == first
+        assert len({first, second}) == 2
+
+
+class TestBearerAuthenticator:
+
+    def test_bhv_lang_python_035_rejects_empty_token(self) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host='https://api.example.com', token='')
+
+    def test_bhv_authbearer_027_rejects_whitespace_only_token(self) -> None:
+        with pytest.raises(ValueError):
+            BearerAuthenticator(host='https://api.example.com', token='   ')
+
+    def test_bhv_auth_036_username_containing_a_colon_is_rejected_with_an_error(self) -> None:
+        with pytest.raises(ValueError, match="must not contain ':'"):
+            BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='pw')
+
+    def test_bhv_lang_python_036_token_is_not_leaked_in_repr(self) -> None:
+        auth = BearerAuthenticator(host='https://api.example.com', token='supersecret')
+        assert 'supersecret' not in repr(auth)
+        assert 'supersecret' not in str(auth)
+
+
+class TestApiKeyAuthenticatorRedaction:
+
+    def test_bhv_authapikey_026_api_key_is_not_leaked_in_repr(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='X-API-Key',
+            api_key='topsecretkey',
+            location=ApiKeyLocation.HEADER,
+        )
+        assert 'topsecretkey' not in repr(auth)
+        assert 'topsecretkey' not in str(auth)
+
+
+class TestBasicNonAsciiCredentials:
+    def test_bhv_authbasic_004_non_ascii_credentials_are_utf8_encoded(self) -> None:
+        auth = BasicAuthenticator(
+            host="https://api.example.com",
+            username="ünïcødé",
+            password="pässwörd",
+        )
+
+        assert auth.get_auth_headers() == {
+            "Authorization": "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA=="
+        }
+
+
+class TestBasicRedactedRepr:
+    def test_bhv_authbasic_010_repr_lists_the_non_secret_fields_and_masks_the_password(self) -> None:
+        auth = BasicAuthenticator(
+            host="https://api.example.com", username="alice", password="s3cret"
+        )
+
+        assert repr(auth) == (
+            "BasicAuthenticator(host='https://api.example.com', "
+            "username='alice', password='***')"
+        )
+
+    def test_bhv_authbasic_020_password_is_masked_in_debug_output(self) -> None:
+        auth = BasicAuthenticator(host="https://api.example.com", username="alice", password="s3cret")
+
+        assert "s3cret" not in repr(auth)
+        assert "s3cret" not in str(auth)
+        assert "password='***'" in str(auth)
+
+
+class TestBasicSchemeWrappers:
+    def test_bhv_authbasic_001_reads_credentials_from_the_environment_when_none_passed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import importlib
+
+        monkeypatch.setenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME', 'alice')
+        monkeypatch.setenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD', 's3cret')
+        cls = getattr(importlib.import_module('{{packageName}}.auth.pet_store_basic_authenticator'), 'PetStoreBasicAuthenticator')
+
+        auth = cls('https://api.example.com')
+
+        assert auth.get_auth_headers() == {'Authorization': 'Basic YWxpY2U6czNjcmV0'}
+
+    @pytest.mark.parametrize('username_value', [None, ''])
+    def test_bhv_authbasic_003_missing_or_empty_credentials_fail_at_construction(
+        self, monkeypatch: pytest.MonkeyPatch, username_value: str | None
+    ) -> None:
+        import importlib
+
+        monkeypatch.delenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME', raising=False)
+        if username_value is not None:
+            monkeypatch.setenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME', username_value)
+        monkeypatch.setenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD', 's3cret')
+        cls = getattr(importlib.import_module('{{packageName}}.auth.pet_store_basic_authenticator'), 'PetStoreBasicAuthenticator')
+
+        with pytest.raises(ValueError, match='Missing the credential'):
+            cls('https://api.example.com')
+
+    @pytest.mark.parametrize(
+        ("module", "name"),
+        [
+            ("admin_basic_authenticator", "AdminBasicAuthenticator"),
+            ("pet_store_basic_authenticator", "PetStoreBasicAuthenticator"),
+        ],
+    )
+    def test_bhv_authbasic_002_wrapper_sends_basic_credentials_and_still_validates(
+        self, module: str, name: str
+    ) -> None:
+        import importlib
+
+        cls = getattr(importlib.import_module(f"{{packageName}}.auth.{module}"), name)
+
+        auth = cls("https://api.example.com", "alice", "s3cret")
+
+        assert auth.get_auth_headers() == {"Authorization": "Basic YWxpY2U6czNjcmV0"}
+        assert "s3cret" not in repr(auth)
+        with pytest.raises(ValueError):
+            cls("https://api.example.com", "ali:ce", "s3cret")
+
+
+class TestBasicBehaviours:
+    def test_bhv_auth_018_a_password_never_appears_in_a_refusal_or_in_the_printable_form(self) -> None:
+        with pytest.raises(ValueError) as excinfo:
+            BasicAuthenticator(host='https://api.example.com', username='ali:ce', password='s3cr3t')
+        auth = BasicAuthenticator(host='https://api.example.com', username='alice', password='s3cr3t')
+
+        assert 's3cr3t' not in str(excinfo.value)
+        assert 's3cr3t' not in repr(auth)
+
+    def test_bhv_errors_081_a_refused_username_is_named_as_the_fault(self) -> None:
+        with pytest.raises(ValueError, match='username'):
+            BasicAuthenticator(host='https://api.example.com', username='alice\r\n', password='s3cret')
+
+    def test_bhv_lang_python_037_a_refused_password_is_named_as_the_fault(self) -> None:
+        with pytest.raises(ValueError, match='password'):
+            BasicAuthenticator(host='https://api.example.com', username='alice', password='s3c\x00ret')

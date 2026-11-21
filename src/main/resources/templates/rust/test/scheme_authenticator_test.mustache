@@ -1,0 +1,377 @@
+{{>api_info}}
+
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::BearerAuthenticator;
+use {{packageName}}::ConfigurationError;
+
+/* F862: every per-scheme authenticator reads its credentials from the
+ * environment when an argument is not passed. The tests share the process
+ * environment, so they run one at a time. */
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn with_variables<R>(variables: &[(&str, Option<&str>)], body: impl FnOnce() -> R) -> R {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let saved: Vec<(String, Option<String>)> = variables
+        .iter()
+        .map(|(name, _)| (name.to_string(), std::env::var(name).ok()))
+        .collect();
+    for (name, value) in variables {
+        match value {
+            Some(value) => std::env::set_var(name, value),
+            None => std::env::remove_var(name),
+        }
+    }
+    let result = body();
+    for (name, value) in saved {
+        match value {
+            Some(value) => std::env::set_var(name, value),
+            None => std::env::remove_var(name),
+        }
+    }
+    result
+}
+
+fn invalid_argument_text<T>(result: Result<T, ConfigurationError>) -> String {
+    match result {
+        Err(ConfigurationError::InvalidArgument(text)) => text,
+        Err(other) => panic!("expected InvalidArgument, got {:?}", other),
+        Ok(_) => panic!("expected InvalidArgument, got an authenticator"),
+    }
+}
+#[test]
+fn test_bhv_auth_007_a_generic_authenticator_built_without_credentials_reads_no_environment() {
+    with_variables(&[("AUTH_UNREAD_TOKEN", Some("value-that-must-not-be-read"))], || {
+        assert!(BearerAuthenticator::new("https://api.example.com", "").is_err());
+    });
+}
+{{#perSchemeAuthEntries}}
+
+mod {{module}} {
+    use super::*;
+    use {{packageName}}::{{{path}}}::{{className}};
+
+{{^commonBhvOnce}}    #[allow(dead_code)]
+{{/commonBhvOnce}}    fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
+        vec![{{#envParams}}("{{envName}}", Some("value-{{name}}")), {{/envParams}}]
+    }
+
+{{^commonBhvOnce}}    #[allow(dead_code)]
+{{/commonBhvOnce}}    fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
+        vec![{{#envParams}}("{{envName}}", None), {{/envParams}}]
+    }
+
+{{^commonBhvOnce}}    #[allow(dead_code)]
+{{/commonBhvOnce}}    fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
+        vec![{{#envParams}}("{{envName}}", Some("")), {{/envParams}}]
+    }
+
+{{#commonBhvOnce}}
+    #[test]
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
+        with_variables(&set_all(), || {
+            assert!({{className}}::new({{{bareArgs}}}).is_ok());
+        });
+    }
+{{/commonBhvOnce}}
+
+{{#commonBhvOnce}}
+    #[test]
+    fn test_bhv_authscheme_002_explicit_arguments_need_no_environment() {
+        with_variables(&unset_all(), || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+{{/commonBhvOnce}}
+
+{{#explicitWinsOnce}}
+    #[test]
+    fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![{{#envParams}}("{{envName}}", Some("bad\r\nvalue")), {{/envParams}}];
+        with_variables(&unusable, || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_auth_003_an_empty_environment_value_counts_as_unset_and_the_next_source_is_used() {
+        with_variables(&empty_all(), || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_auth_004_built_with_no_argument_and_no_environment_is_refused() {
+        with_variables(&unset_all(), || {
+            assert!({{className}}::new({{{bareArgs}}}).is_err());
+        });
+    }
+{{/explicitWinsOnce}}
+
+{{#mixedOnce}}
+    #[test]
+    fn test_bhv_auth_024_each_credential_field_takes_its_passed_value_or_its_own_variable() {
+        let rest: Vec<(&str, Option<&str>)> = vec![{{#restEnvParams}}("{{envName}}", Some("value-{{name}}")), {{/restEnvParams}}];
+        with_variables(&rest, || {
+            assert!({{className}}::new({{{mixedArgs}}}).is_ok());
+        });
+        let rest_unset: Vec<(&str, Option<&str>)> = vec![{{#restEnvParams}}("{{envName}}", None), {{/restEnvParams}}];
+        with_variables(&rest_unset, || {
+            let text = invalid_argument_text({{className}}::new({{{mixedArgs}}}));
+            assert!(text.contains("{{secondEnvName}}"), "{}", text);
+        });
+    }
+{{/mixedOnce}}
+
+{{#bearerIdOnce}}
+    #[test]
+    fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+{{/bearerIdOnce}}
+
+{{#commonBhvOnce}}
+    #[test]
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
+        with_variables(&unset_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+{{/commonBhvOnce}}
+
+{{#commonBhvOnce}}
+    #[test]
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+{{/commonBhvOnce}}
+
+{{#emptyVariableBhv}}
+    #[test]
+    fn test_bhv_{{emptyVariableToken}}_an_empty_variable_is_unset_and_fails_naming_it() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+{{/emptyVariableBhv}}
+
+{{^explicitWinsOnce}}
+{{#explicitNotOverriddenOnce}}
+    #[test]
+    fn test_{{#explicitNotOverriddenOnce}}bhv_auth_041_{{/explicitNotOverriddenOnce}}an_explicit_argument_is_not_overridden_by_the_environment() {
+        /* The variables hold values no authenticator accepts, so the call can
+         * only succeed when they were never consulted. */
+        let unusable: Vec<(&str, Option<&str>)> = vec![{{#envParams}}("{{envName}}", Some("bad\r\nvalue")), {{/envParams}}];
+        with_variables(&unusable, || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+{{/explicitNotOverriddenOnce}}
+{{/explicitWinsOnce}}
+{{#isBasic}}
+
+    #[test]
+    fn test_bhv_authbasic_013_an_explicit_credential_wins_over_the_environment() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![{{#envParams}}("{{envName}}", Some("bad\r\nvalue")), {{/envParams}}];
+        with_variables(&unusable, || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_authbasic_012_an_empty_variable_counts_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+
+    #[test]
+    fn test_bhv_authscheme_003_a_scheme_authenticator_fails_naming_its_variable_when_empty() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+{{/isBasic}}
+{{#isApiKey}}
+
+    #[test]
+    fn test_bhv_serializationobject_187_an_explicit_key_wins_over_the_environment() {
+        let unusable: Vec<(&str, Option<&str>)> = vec![{{#envParams}}("{{envName}}", Some("bad\r\nvalue")), {{/envParams}}];
+        with_variables(&unusable, || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authapikey_021_the_key_is_read_from_the_environment_and_a_passed_key_wins() {
+        let from_environment = with_variables(&set_all(), || {
+            {{className}}::new({{{bareArgs}}}).unwrap()
+        });
+        let expected = "value-{{firstParam}}";
+        let headers = from_environment.auth_headers().await;
+        let query = from_environment.query_params();
+        let cookies = from_environment.cookie_params();
+        assert!(
+            headers.values().chain(query.values()).chain(cookies.values()).any(|v| v.as_str() == expected),
+            "the environment value was not emitted"
+        );
+
+        let explicit = with_variables(&set_all(), || {
+            {{className}}::new({{{explicitArgs}}}).unwrap()
+        });
+        let headers = explicit.auth_headers().await;
+        let query = explicit.query_params();
+        let cookies = explicit.cookie_params();
+        assert!(
+            headers.values().chain(query.values()).chain(cookies.values()).any(|v| v.as_str() == "explicit-{{firstParam}}"),
+            "the passed key was not emitted"
+        );
+    }
+{{/isApiKey}}
+{{#bearerIdOnce}}
+
+    /// A token provider takes the place of the token the environment would supply, so the provider's value is sent.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_auth_038_a_token_provider_takes_precedence_over_the_environment_token() {
+        let auth = with_variables(&set_all(), || {
+            {{className}}::with_token_provider(
+                "https://api.example.com",
+                std::sync::Arc::new(|| "from-provider".to_string()),
+            )
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(headers.get("Authorization").map(|s| s.as_str()), Some("Bearer from-provider"));
+    }
+
+    /// An environment variable that is set but empty counts as unset, and the refusal names it.
+    #[test]
+    fn test_bhv_auth_040_an_environment_variable_set_but_empty_is_treated_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+
+    /// An explicitly passed empty token is kept and refused by the authenticator, not replaced by the environment.
+    #[test]
+    fn test_bhv_auth_042_an_explicit_empty_value_is_refused_not_replaced_by_the_environment() {
+        with_variables(&set_all(), || {
+            let text = invalid_argument_text({{className}}::new("https://api.example.com", Some("")));
+            assert!(!text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_lifecycle_025_the_environment_is_read_once_when_the_authenticator_is_built() {
+        let auth = with_variables(&set_all(), || {
+            let auth = {{className}}::new({{{bareArgs}}}).unwrap();
+            std::env::set_var("{{firstEnvName}}", "changed-after-build");
+            auth
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer value-{{firstParam}}")
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authbearer_018_an_explicit_token_wins_over_the_environment() {
+        let auth = with_variables(&set_all(), || {
+            {{className}}::new({{{explicitArgs}}}).unwrap()
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer explicit-{{firstParam}}")
+        );
+    }
+
+    #[test]
+    fn test_bhv_authbearer_019_an_empty_environment_value_counts_as_unset() {
+        with_variables(&empty_all(), || {
+            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
+            assert!(text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authbearer_023_generated_bearer_wrappers_emit_a_bearer_header_and_keep_their_name() {
+        let auth = {{className}}::new({{{explicitArgs}}}).unwrap();
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer explicit-{{firstParam}}")
+        );
+        let debug = format!("{:?}", auth);
+        assert!(debug.starts_with("{{className}}("), "{}", debug);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_authbearer_025_the_environment_variable_is_read_once_for_every_request() {
+        let auth = with_variables(&set_all(), || {
+            let auth = {{className}}::new({{{bareArgs}}}).unwrap();
+            std::env::set_var("{{firstEnvName}}", "changed-after-build");
+            auth
+        });
+        for _ in 0..2 {
+            let headers = auth.auth_headers().await;
+            assert_eq!(
+                headers.get("Authorization").map(|s| s.as_str()),
+                Some("Bearer value-{{firstParam}}")
+            );
+        }
+    }
+{{/bearerIdOnce}}
+{{#isBearer}}
+
+{{#bearerIdOnce}}
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_langrust_082_the_explicit_token_is_the_one_sent() {
+        let auth = with_variables(&set_all(), || {
+            {{className}}::new({{{explicitArgs}}}).unwrap()
+        });
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer explicit-{{firstParam}}")
+        );
+    }
+{{/bearerIdOnce}}
+
+{{#bearerIdOnce}}
+    #[test]
+    fn test_bhv_auth_023_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment() {
+        with_variables(&set_all(), || {
+            let text = invalid_argument_text({{className}}::new("https://api.example.com", Some("")));
+            assert!(!text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+{{/bearerIdOnce}}
+
+{{#bearerIdOnce}}
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_bhv_langrust_083_a_token_provider_is_called_for_every_request() {
+        let auth = {{className}}::with_token_provider(
+            "https://api.example.com",
+            std::sync::Arc::new(|| "from-provider".to_string()),
+        );
+        let headers = auth.auth_headers().await;
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Bearer from-provider")
+        );
+    }
+{{/bearerIdOnce}}
+{{/isBearer}}
+}
+{{/perSchemeAuthEntries}}

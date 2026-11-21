@@ -1,0 +1,34 @@
+{{#modelImports}}
+import type { {{.}} } from '../../models/index.js';
+{{/modelImports}}
+{{#hasTemporalImport}}
+import type { Temporal } from 'temporal-polyfill';
+{{/hasTemporalImport}}
+{{#hasModelImports}}
+
+{{/hasModelImports}}
+/**
+ * Options for the {{operationId}} operation.
+ */
+export interface {{className}} {
+{{#params}}
+{{#deprecated}}
+{{#description}}
+  /**
+   * {{{description}}}
+   *
+   * @deprecated This parameter is deprecated.
+   */
+{{/description}}
+{{^description}}
+  /** @deprecated This parameter is deprecated. */
+{{/description}}
+{{/deprecated}}
+{{^deprecated}}
+{{#description}}
+  /** {{{description}}} */
+{{/description}}
+{{/deprecated}}
+  readonly {{paramName}}{{^required}}?{{/required}}: {{dataType}}{{#isNullable}} | null{{/isNullable}};
+{{/params}}
+}

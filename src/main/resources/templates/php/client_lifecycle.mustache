@@ -1,0 +1,37 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * Whether a client has been closed. The client and every API group of it share one instance,
+ * so closing the client makes each later request fail with the same error, whichever transport
+ * (the SDK's own or one the caller supplied) carries the request. A request already sent is
+ * not interrupted.
+ */
+final class ClientLifecycle
+{
+    /** The message of the error a closed client raises. */
+    public const string CLOSED_MESSAGE = 'client closed';
+
+    private bool $closed = false;
+
+    /** Marks the client closed. Safe to call more than once. */
+    public function close(): void
+    {
+        $this->closed = true;
+    }
+
+    public function isClosed(): bool
+    {
+        return $this->closed;
+    }
+
+    /**
+     * @throws \LogicException when the client is closed
+     */
+    public function assertOpen(): void
+    {
+        if ($this->closed) {
+            throw new \LogicException(self::CLOSED_MESSAGE);
+        }
+    }
+}

@@ -1,0 +1,66 @@
+import 'dart:typed_data';
+
+{{#hasDartImports}}
+{{#dartImports}}
+import '../../models/{{filename}}.dart';
+{{/dartImports}}
+
+{{/hasDartImports}}
+{{#hasAuthField}}
+import '{{authImport}}';
+
+{{/hasAuthField}}
+/// Options for the {{operationId}} operation.
+class {{className}} {
+{{#params}}
+{{#description}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/description}}
+{{#deprecated}}
+  @Deprecated('This parameter is deprecated.')
+{{/deprecated}}
+{{#required}}
+  final {{{dataType}}}{{#requiredNullable}}?{{/requiredNullable}} {{name}};
+{{/required}}
+{{^required}}
+  final {{{dataType}}}? {{name}};
+{{/required}}
+
+{{/params}}
+{{#hasAuthField}}
+  /// Per-operation authenticator. When non-null it overrides the client's
+  /// configured credentials for this call only; null falls back to the
+  /// configured authenticator.
+  final {{authFieldType}}? auth;
+
+{{/hasAuthField}}
+  /// End-to-end timeout in milliseconds for this call only. When non-null it
+  /// replaces the transport's timeout; null keeps it. Must not be negative.
+  final int? timeout;
+
+  /// Headers sent with this call only. A name that is already set, in any
+  /// case, is replaced.
+  final Map<String, String>? headers;
+
+  /// How many times this call is sent again after a retryable failure,
+  /// replacing the transport's `maxRetries`. 0 disables retries; null keeps
+  /// the transport's value.
+  final int? maxRetries;
+
+  const {{className}}({
+{{#params}}
+{{#required}}
+    required this.{{name}},
+{{/required}}
+{{^required}}
+    this.{{name}},
+{{/required}}
+{{/params}}
+{{#hasAuthField}}
+    this.auth,
+{{/hasAuthField}}
+    this.timeout,
+    this.headers,
+    this.maxRetries,
+  });
+}

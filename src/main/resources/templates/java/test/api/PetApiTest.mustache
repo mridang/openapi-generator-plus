@@ -1,0 +1,2203 @@
+{{>api_info}}
+
+package {{apiPackage}};
+
+import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.ApiHttpResponse;
+import {{invokerPackage}}.Configuration;
+import {{invokerPackage}}.DefaultApiClient;
+import {{invokerPackage}}.TransportOptions;
+import {{invokerPackage}}.ChasmContainer;
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.AdminBasicAuthenticator;
+import {{invokerPackage}}.auth.ApiKeyHeaderAuthenticator;
+import {{invokerPackage}}.auth.PetStoreBearerAuthenticator;
+import {{modelPackage}}.ApiResponse;
+import {{modelPackage}}.Pet;
+import {{modelPackage}}.PetPassport;
+import {{modelPackage}}.Photo;
+import {{modelPackage}}.PhotoMetadata;
+import {{modelPackage}}.SetPetAvatarThumbnailRequest;
+import {{apiPackage}}.options.FindPetsByStatusOptions;
+import {{apiPackage}}.options.UploadPetCertificateOptions;
+import {{apiPackage}}.options.UploadPetDocumentOptions;
+import {{apiPackage}}.options.AddPetPhotosOptions;
+import {{apiPackage}}.options.GetPetTagOptions;
+import {{apiPackage}}.options.AddPetOptions;
+import {{apiPackage}}.options.DeletePetOptions;
+import {{apiPackage}}.options.SetPetPreferencesOptions;
+import {{apiPackage}}.options.GetPetByNameOptions;
+import {{apiPackage}}.options.GetPetByNoteOptions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import com.sun.net.httpserver.HttpServer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+/**
+ * Integration tests for the Pet API endpoints.
+ */
+@SuppressWarnings("NullAway")
+class PetApiTest {
+
+    private PetApi api;
+    private PetStoreBearerAuthenticator bearerAuth;
+    private AdminBasicAuthenticator basicAuth;
+
+    @BeforeEach
+    void setUp() {
+        String baseUrl = ChasmContainer.getBaseUrl();
+        Configuration config = Configuration.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build();
+        bearerAuth = new PetStoreBearerAuthenticator(baseUrl, "test-token");
+        basicAuth = new AdminBasicAuthenticator(baseUrl, "admin", "password");
+        api = new PetApi(new DefaultApiClient(), config, null,
+                Map.of("petStoreBearer", bearerAuth, "adminBasic", basicAuth));
+    }
+
+    @Test
+    void bhvLangjava050TestSchemeAuthenticatorsPrintTheirOwnNameWithTheSecretRedacted() {
+        String baseUrl = ChasmContainer.getBaseUrl();
+        assertThat(bearerAuth.toString())
+                .isEqualTo("PetStoreBearerAuthenticator(host=" + baseUrl + ", token=***)");
+        assertThat(basicAuth.toString())
+                .isEqualTo("AdminBasicAuthenticator(host=" + baseUrl + ", username=admin, password=***)");
+    }
+
+    @Test
+    void bhvOperations022TestAddPet() throws Exception {
+        Pet pet = Pet.builder().id(12345L).name("TestDog").photoUrls(Set.of("http://example.com/photo.jpg")).status(Pet.StatusEnum.AVAILABLE).build();
+
+        Pet result = api.addPet(pet);
+        assertNotNull(result);
+
+        assertThat(result.name).isNotNull();
+    }
+
+    @Test
+    void bhvOperations081TestAddPetUsingConfiguredCredentials() throws Exception {
+        // The Options arg is optional: omitting it sends the configured credentials
+        // (the default Authorization header set in setUp), which must satisfy the
+        // secured endpoint.
+        Pet pet = Pet.builder().id(54321L).name("DefaultCredsDog").photoUrls(Set.of("http://example.com/photo.jpg")).status(Pet.StatusEnum.AVAILABLE).build();
+
+        Pet result = api.addPet(pet);
+        assertNotNull(result);
+
+        assertThat(result.name).isNotNull();
+    }
+
+    @Test
+    void bhvOperations025TestAddPetWithHttpInfo() throws Exception {
+        Pet pet = Pet.builder().id(99L).name("HttpInfoDog").photoUrls(Set.of("http://example.com/photo.jpg")).status(Pet.StatusEnum.AVAILABLE).build();
+
+        var result = api.addPetWithHttpInfo(pet);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isBetween(200, 299);
+        assertThat(result.data()).isNotNull();
+    }
+
+    @Test
+    void bhvOperations039TestFindPetsByStatus() throws Exception {
+        List<Pet> result = api.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
+        assertNotNull(result);
+
+        assertThat(result).isNotEmpty();
+        assertThat(result.get(0)).isInstanceOf(Pet.class);
+    }
+
+    @Test
+    void bhvOperations042TestFindPetsByStatusWithHttpInfo() throws Exception {
+        var result = api.findPetsByStatusWithHttpInfo(new FindPetsByStatusOptions().status("available"));
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void bhvOperations047TestGetPetById() throws Exception {
+        Pet result = api.getPetById(1L);
+        assertNotNull(result);
+
+        assertThat(result.id).isNotNull();
+        assertThat(result.name).isNotNull();
+    }
+
+    @Test
+    void bhvOperations048TestGetPetByIdWithHttpInfo() throws Exception {
+        var result = api.getPetByIdWithHttpInfo(1L);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isEqualTo(200);
+        assertThat(result.data()).isNotNull();
+    }
+
+    @Test
+    void bhvOperations087TestUpdatePet() throws Exception {
+        Pet pet = Pet.builder().id(1L).name("UpdatedDog").photoUrls(Set.of("http://example.com/updated.jpg")).status(Pet.StatusEnum.PENDING).build();
+
+        Pet result = api.updatePet(1L, pet);
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations088TestUpdatePetWithHttpInfo() throws Exception {
+        Pet pet = Pet.builder().id(1L).name("UpdatedDog").photoUrls(Set.of("http://example.com/updated.jpg")).status(Pet.StatusEnum.PENDING).build();
+
+        var result = api.updatePetWithHttpInfo(1L, pet);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isBetween(200, 299);
+    }
+
+    @Test
+    void bhvOperations027TestDeletePet() throws Exception {
+        api.deletePet(1L);
+
+        assertThat(true).isTrue();
+    }
+
+    @Test
+    void bhvOperations031TestDeletePetWithHttpInfo() throws Exception {
+        var result = api.deletePetWithHttpInfo(1L);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isBetween(200, 299);
+    }
+
+    @Test
+    void bhvOperations070TestSetPetAvatar() throws Exception {
+        InputStream fakeImageData = new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8));
+        api.setPetAvatar(1L, fakeImageData);
+
+        assertThat(true).isTrue();
+    }
+
+    @Test
+    void bhvOperations045TestGetPetAvatar() throws Exception {
+        InputStream result = api.getPetAvatar(1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations063TestGetPetAvatarThumbnailRejectsMalformedBase64() {
+        ApiClient malformed = (method, url, headers, body) ->
+                new ApiHttpResponse(200, "\"!!not*base64??\"", Map.of("Content-Type", "application/json"));
+        PetApi malformedApi = new PetApi(malformed, Configuration.builder().baseUrl("http://localhost").build());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> malformedApi.getPetAvatarThumbnail(1L))
+                .isInstanceOf({{invokerPackage}}.errors.SerializationException.class);
+    }
+
+    @Test
+    void bhvOperations046TestGetPetAvatarThumbnail() throws Exception {
+        // The thumbnail is a top-level `format: byte` value carried as
+        // application/json, so it arrives as the JSON string literal
+        // "dGVzdC1pbWFnZQ==". The SDK must JSON-parse the literal and then
+        // base64-decode the inner string to the raw bytes "test-image" —
+        // neither the quoted literal's UTF-8 bytes nor the un-decoded base64.
+        byte[] result = api.getPetAvatarThumbnail(1L);
+        assertNotNull(result);
+        assertThat(new String(result, StandardCharsets.UTF_8)).isEqualTo("test-image");
+    }
+
+    @Test
+    void bhvOperations074TestSetPetAvatarThumbnail() throws Exception {
+        byte[] thumbnailData = new byte[]{0x01, 0x02, 0x03, 0x04};
+        SetPetAvatarThumbnailRequest request = new SetPetAvatarThumbnailRequest(thumbnailData);
+
+        api.setPetAvatarThumbnail(1L, request);
+
+        assertThat(true).isTrue();
+    }
+
+    @Test
+    void bhvOperations090TestUploadPetCertificate() throws Exception {
+        InputStream fakeFile = new ByteArrayInputStream("fake-pdf-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = api.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations091TestUploadPetDocument() throws Exception {
+        InputStream fakeDoc = new ByteArrayInputStream("fake-doc-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = api.uploadPetDocument(
+                1L, new UploadPetDocumentOptions(fakeDoc).documentType("vaccination_record").notes("Annual checkup"));
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations023TestAddPetPhotos() throws Exception {
+        PhotoMetadata metadata = PhotoMetadata.builder().caption("Test photo").isPrimary(true).build();
+
+        List<InputStream> files = List.of(new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8)));
+        List<Photo> result = api.addPetPhotos(
+                1L, new AddPetPhotosOptions(files, metadata));
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations035TestDownloadPetDocument() throws Exception {
+        InputStream result = api.downloadPetDocument(1L, 1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations055TestGetPetPhoto() throws Exception {
+        InputStream result = api.getPetPhoto(1L, 1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations058TestGetPetTag() throws Exception {
+        Pet result = api.getPetTag(5L, "cute",
+                new GetPetTagOptions().colors(List.of("blue", "black")).sizes(List.of("S", "M")));
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations061TestGetExternalPetInfo() throws Exception {
+        /* The operation declares its own server. The client below sends every
+         * request for that server to the mock server instead, and records the
+         * URL the SDK asked for, so the test proves the chosen per-operation
+         * server was used and still gets a real response. */
+        String externalServer = "https://external-api.example.com/v1";
+        List<String> requestedUrls = new java.util.ArrayList<>();
+        DefaultApiClient transport = new DefaultApiClient();
+        ApiClient redirectingClient = new ApiClient() {
+            @Override
+            public {{invokerPackage}}.ApiHttpResponse sendRequest(
+                    String method, String url, java.util.Map<String, String> headers,
+                    @javax.annotation.Nullable Object body) {
+                requestedUrls.add(url);
+                return transport.sendRequest(method,
+                        url.replace(externalServer, ChasmContainer.getBaseUrl()), headers, body);
+            }
+        };
+        PetApi externalApi = new PetApi(redirectingClient, Configuration.builder()
+                .baseUrl(ChasmContainer.getBaseUrl())
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build());
+
+        Pet result = externalApi.getExternalPetInfo(
+                1L, new PetApi.GetExternalPetInfoServer.Server0(), null);
+
+        assertNotNull(result);
+        assertThat(requestedUrls).hasSize(1);
+        assertThat(requestedUrls.get(0)).startsWith(externalServer + "/");
+    }
+
+    @Test
+    void bhvOperations053TestGetPetPassport() throws Exception {
+        PetPassport result = api.getPetPassport(1L);
+        assertNotNull(result);
+
+        assertThat(result.pet).isNotNull();
+        assertThat(result.thumbnail).isNotNull();
+        assertThat(result.scans).isNotNull();
+        assertThat(result.issuedAt).isNotNull();
+    }
+
+    @Test
+    void bhvOperations054TestGetPetPassportWithHttpInfo() throws Exception {
+        var result = api.getPetPassportWithHttpInfo(1L);
+        assertNotNull(result);
+
+        assertThat(result.statusCode()).isEqualTo(200);
+        assertThat(result.data()).isNotNull();
+    }
+
+    private PetApi newPetApiForMock(int status, String contentType, String body) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            byte[] responseBytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.sendResponseHeaders(status, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+        return new PetApi(new DefaultApiClient(), config);
+    }
+
+    @Test
+    void bhvOperations037TestErrorHandlingNotFound() throws Exception {
+        PetApi mockApi = newPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
+
+        assertThatThrownBy(() -> mockApi.getPetById(99999L))
+                .isExactlyInstanceOf({{invokerPackage}}.errors.NotFoundException.class)
+                .satisfies(e -> {
+                    {{invokerPackage}}.errors.ApiException api =
+                            ({{invokerPackage}}.errors.ApiException) e;
+                    assertThat(api.getStatusCode()).isEqualTo(404);
+                    assertThat(api.getResponseBody()).isEqualTo("{\"message\":\"Pet not found\"}");
+                });
+    }
+
+    @Test
+    void bhvOperations038TestErrorHandlingServerError() throws Exception {
+        PetApi mockApi = newPetApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
+
+        assertThatThrownBy(() -> mockApi.getPetById(1L))
+                .isExactlyInstanceOf({{invokerPackage}}.errors.InternalServerErrorException.class)
+                .satisfies(e -> assertThat(
+                        (({{invokerPackage}}.errors.ApiException) e).getStatusCode()).isEqualTo(500));
+    }
+
+    @Test
+    void bhvOperations036TestEmptyBodyOnBodyReturningOperationThrows() throws Exception {
+        // A 200 with an empty body for a body-returning operation must surface
+        // as a typed ApiException from the plain convenience accessor, never a
+        // silent null return.
+        PetApi mockApi = newPetApiForMock(200, "application/json", "");
+
+        assertThatThrownBy(() -> mockApi.getPetById(1L))
+                .isInstanceOf({{invokerPackage}}.errors.ApiException.class)
+                .hasMessageContaining("Expected a response body for getPetById but received none");
+    }
+
+    @Test
+    void bhvOperations130MalformedBodyOnBodyReturningOperationThrows() throws Exception {
+        // A 200 whose body is not valid JSON for the declared return type must
+        // surface the deserialization failure loudly rather than handing back
+        // the raw, un-parsed string. Truncated JSON ("{" never closes) forces
+        // the parser to fail, and that error must propagate.
+        PetApi mockApi = newPetApiForMock(200, "application/json", "{ not-valid-json");
+
+        assertThatThrownBy(() -> mockApi.getPetById(1L))
+                .isExactlyInstanceOf({{invokerPackage}}.errors.SerializationException.class);
+    }
+
+    @Test
+    void bhvOperations034TestDownloadBinaryMock() throws Exception {
+        PetApi mockApi = newPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
+
+        InputStream result = mockApi.getPetAvatar(1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations089TestUploadMultipartMock() throws Exception {
+        PetApi mockApi = newPetApiForMock(200, "application/json", "{\"code\":200,\"type\":\"\",\"message\":\"success\"}");
+
+        InputStream fakeFile = new ByteArrayInputStream("fake-cert-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = mockApi.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations079TestAddPetUsesTheCredentialOfTheSchemeTheSpecRequires() throws Exception {
+        // addPet lists the apiKeyHeader and petStoreBearer schemes. The client holds only a
+        // bearer credential, so it is the one on the wire, and it replaces the default header.
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi schemeApi = new PetApi(capturing,
+                Configuration.builder()
+                        .baseUrl("http://localhost")
+                        .defaultHeader("Authorization", "Bearer default-token")
+                        .build(),
+                null,
+                Map.of("petStoreBearer",
+                        new PetStoreBearerAuthenticator("http://localhost", "scheme-token")));
+
+        schemeApi.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+
+        assertThat(capturing.capturedHeaders).containsEntry("Authorization", "Bearer scheme-token");
+    }
+
+    @Test
+    void bhvOperations080TestAddPetUsesTheFirstDeclaredSchemeTheClientHoldsACredentialFor() throws Exception {
+        // The spec lists apiKeyHeader before petStoreBearer, so holding both sends the key.
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi schemeApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build(),
+                null,
+                Map.of("petStoreBearer",
+                                new PetStoreBearerAuthenticator("http://localhost", "scheme-token"),
+                        "apiKeyHeader",
+                                new ApiKeyHeaderAuthenticator("http://localhost", "key-1")));
+
+        schemeApi.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+
+        assertThat(capturing.capturedHeaders).containsEntry("X-API-Key", "key-1");
+        assertThat(capturing.capturedHeaders).doesNotContainKey("Authorization");
+    }
+
+    @Test
+    void bhvOperations020TestAddPetIgnoresACredentialHeldForAnotherScheme() throws Exception {
+        // adminBasic is not one of the schemes addPet lists, so its credential never goes out.
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi schemeApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build(),
+                null,
+                Map.of("adminBasic",
+                        new AdminBasicAuthenticator("http://localhost", "admin", "password")));
+
+        schemeApi.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+
+        assertThat(capturing.capturedHeaders).doesNotContainKey("Authorization");
+        assertThat(capturing.capturedHeaders).doesNotContainKey("X-API-Key");
+    }
+
+    @Test
+    void bhvOperations026TestAddPetFallsBackToTheClientLevelAuthenticatorWhenNoSchemeMatches() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi schemeApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build(),
+                new PetStoreBearerAuthenticator("http://localhost", "single-token"),
+                Map.of("adminBasic",
+                        new AdminBasicAuthenticator("http://localhost", "admin", "password")));
+
+        schemeApi.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+
+        assertThat(capturing.capturedHeaders).containsEntry("Authorization", "Bearer single-token");
+    }
+
+    @Test
+    void bhvLangjava051TestTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt() throws Exception {
+        List<Map<String, String>> sent = new java.util.ArrayList<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            Map<String, String> seen = new HashMap<>();
+            seen.put("path", exchange.getRequestURI().getPath());
+            seen.put("authorization", String.valueOf(exchange.getRequestHeaders().getFirst("Authorization")));
+            synchronized (sent) {
+                sent.add(seen);
+            }
+            byte[] responseBytes = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        try (var client = {{clientClassName}}.builder("http://localhost:" + server.getAddress().getPort())
+                .petStoreBearer(new PetStoreBearerAuthenticator("http://ignored", "bearer-1"))
+                .adminBasic(new AdminBasicAuthenticator("http://ignored", "admin", "password"))
+                .build()) {
+            client.pet.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+            client.pet.deletePet(7L);
+        } finally {
+            server.stop(0);
+        }
+
+        assertThat(sent).hasSize(2);
+        assertThat(sent.get(0)).containsEntry("authorization", "Bearer bearer-1");
+        assertThat(sent.get(1).get("authorization")).startsWith("Basic ");
+    }
+
+    @Test
+    void bhvAuth021AClientWithNoCredentialSendsNoAuthenticationHeader() throws Exception {
+        List<String> sent = new java.util.ArrayList<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            synchronized (sent) {
+                sent.add(String.valueOf(exchange.getRequestHeaders().getFirst("Authorization")));
+            }
+            byte[] responseBytes = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        try (var client = {{clientClassName}}.builder("http://localhost:" + server.getAddress().getPort()).build()) {
+            client.pet.addPet(Pet.builder().name("x").photoUrls(Set.of()).build());
+        } finally {
+            server.stop(0);
+        }
+
+        assertThat(sent).containsExactly("null");
+    }
+
+    @Test
+    void bhvOperations082TestNoOperationOptionsOffersAPerCallAuthenticator() {
+        for (Class<?> options : List.of(AddPetOptions.class, DeletePetOptions.class)) {
+            assertThat(java.util.Arrays.stream(options.getMethods()).map(java.lang.reflect.Method::getName))
+                    .doesNotContain("auth");
+            assertThat(java.util.Arrays.stream(options.getDeclaredFields()).map(java.lang.reflect.Field::getName))
+                    .doesNotContain("auth");
+        }
+    }
+
+    @Test
+    void bhvOperations078TestAddPetUsesConfiguredCredentialsWhenNoSchemeCredentialIsHeld() throws Exception {
+        // When the client holds no credential for the operation's scheme, the
+        // credentials configured on the Configuration (the default Authorization
+        // header) are all there is. Verify that token reaches the wire.
+        final String[] capturedAuthHeader = new String[1];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedAuthHeader[0] = exchange.getRequestHeaders().getFirst("Authorization");
+            byte[] responseBytes = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration defaultConfig = Configuration.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer default-token")
+                .build();
+        PetApi defaultApi = new PetApi(new DefaultApiClient(), defaultConfig);
+
+        Pet pet = Pet.builder().id(1L).name("DefaultDog").photoUrls(Set.of("http://example.com/p.jpg")).build();
+        defaultApi.addPet(pet);
+
+        assertThat(capturedAuthHeader[0]).isEqualTo("Bearer default-token");
+    }
+
+    @Test
+    void bhvOperations086TestUnsecuredOperationOptionsExposesNoAuth() throws Exception {
+        // Compile-level guard: an unsecured operation's Options object must NOT
+        // expose an auth field/method, and unsecured ops with path params only
+        // (getPetById) take no Options arg at all. This is a no-op at runtime;
+        // it fails to compile if a regression reintroduces auth on unsecured
+        // operations.
+        FindPetsByStatusOptions opts = new FindPetsByStatusOptions().status("available");
+        assertNotNull(opts);
+        Pet result = api.getPetById(1L);
+        assertNotNull(result);
+    }
+
+    /**
+     * Captures the request body the SDK hands to the transport, without
+     * touching the network, so wire-format assertions can run as fast unit
+     * tests.
+     */
+    private static final class CapturingApiClient implements ApiClient {
+        @javax.annotation.Nullable Object capturedBody;
+        @javax.annotation.Nullable String capturedUrl;
+        @javax.annotation.Nullable java.util.Map<String, String> capturedHeaders;
+
+        @Override
+        public {{invokerPackage}}.ApiHttpResponse sendRequest(
+                String method,
+                String url,
+                java.util.Map<String, String> headers,
+                @javax.annotation.Nullable Object body) {
+            this.capturedBody = body;
+            this.capturedUrl = url;
+            this.capturedHeaders = headers;
+            return new {{invokerPackage}}.ApiHttpResponse(
+                    200, "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}",
+                    java.util.Map.of("Content-Type", "application/json"));
+        }
+    }
+
+    @Test
+    void bhvLangjava052GetPetByNameTildeInPathIsNotOverEncoded() throws Exception {
+        // RFC 3986 unreserved '~' must survive in a path segment as a literal
+        // tilde, never percent-encoded to %7E.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.getPetByName("a~b", new GetPetByNameOptions("cats", "corr-1"));
+
+        assertNotNull(capturing.capturedUrl);
+        assertThat(capturing.capturedUrl).contains("/pet/byName/a~b");
+        assertThat(capturing.capturedUrl).doesNotContain("%7E");
+    }
+
+    @Test
+    void bhvOperations051GetPetByNameRejectsADotSegmentBeforeDispatch() throws Exception {
+        // RFC 3986 section 5.2.4: '.' and '..' are path navigation, so a URL
+        // parser could re-route the request. They are rejected client-side.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        for (String dots : List.of(".", "..")) {
+            assertThatThrownBy(() -> petApi.getPetByName(dots, new GetPetByNameOptions("cats", "corr-1")))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Path parameter 'name' must not be '.' or '..'");
+        }
+        assertThat(capturing.capturedUrl).isNull();
+
+        petApi.getPetByName("a..b", new GetPetByNameOptions("cats", "corr-1"));
+        assertThat(capturing.capturedUrl).startsWith("http://localhost/pet/byName/a..b?");
+    }
+
+    @Test
+    void bhvOperations052GetPetByNameThrowsWhenTheRequiredPathParamIsEmpty() {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.getPetByName("", new GetPetByNameOptions("cats", "corr-1")))
+                .isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'name' when calling PetApi.getPetByName");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    void bhvOperations064GetPetByNameKeepsANameThatOnlyContainsDots() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getPetByName("...", new GetPetByNameOptions("cats", "corr-1"));
+
+        assertThat(capturing.capturedUrl).startsWith("http://localhost/pet/byName/...?");
+    }
+
+    @Test
+    void bhvOperations065GetPetByNameSendsTheRequiredQueryParamOnTheWire() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getPetByName("rex", new GetPetByNameOptions("cats", "corr-1"));
+
+        assertThat(capturing.capturedUrl).contains("category=cats");
+    }
+
+    @Test
+    void bhvOperations157GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue() throws Exception {
+        {
+            CapturingApiClient capturing = new CapturingApiClient();
+            PetApi petApi = new PetApi(capturing,
+                    Configuration.builder().baseUrl("http://localhost").build());
+
+            petApi.getPetByNote(new GetPetByNoteOptions(null, 3L));
+
+            assertThat(capturing.capturedUrl).endsWith("?note=&rank=3");
+        }
+        {
+            // End-to-end transport check against a real HttpServer: selecting
+            // application/octet-stream must put the RAW file bytes on the wire with
+            // Content-Type: application/octet-stream — proving the transport does
+            // not re-wrap the body as multipart. Guards the DefaultApiClient
+            // dispatch, which previously emitted multipart whenever the body was a
+            // Map regardless of the selected content-type.
+            final byte[][] capturedBody = new byte[1][];
+            final String[] capturedContentType = new String[1];
+            HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+            server.createContext("/", exchange -> {
+                capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
+                capturedBody[0] = exchange.getRequestBody().readAllBytes();
+                byte[] responseBytes =
+                        "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+                                .getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, responseBytes.length);
+                exchange.getResponseBody().write(responseBytes);
+                exchange.getResponseBody().close();
+            });
+            server.start();
+            try {
+                String baseUrl = "http://localhost:" + server.getAddress().getPort();
+                Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+                PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+                byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
+
+                petApi.uploadPetDocument(
+                        1L,
+                        new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
+                        "application/octet-stream");
+
+                // The wire body is exactly the raw payload — no boundary, no part
+                // headers, no base64.
+                assertNotNull(capturedBody[0]);
+                assertThat(capturedBody[0]).isEqualTo(payload);
+
+                // Content-Type is the selected octet-stream, never multipart.
+                assertNotNull(capturedContentType[0]);
+                assertThat(capturedContentType[0]).startsWith("application/octet-stream");
+                assertThat(capturedContentType[0]).doesNotContain("multipart");
+                assertThat(capturedContentType[0]).doesNotContain("boundary");
+            } finally {
+                server.stop(0);
+            }
+        }
+    }
+
+    @Test
+    void bhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue() throws Exception {
+        {
+            CapturingApiClient capturing = new CapturingApiClient();
+            PetApi petApi = new PetApi(capturing,
+                    Configuration.builder().baseUrl("http://localhost").build());
+
+            petApi.getPetByNote(new GetPetByNoteOptions("a b", 3L));
+
+            assertThat(capturing.capturedUrl).endsWith("?note=a%20b&rank=3");
+        }
+        {
+            ApiClient empty = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+            PetApi petApi = new PetApi(empty, Configuration.builder().baseUrl("http://localhost").build());
+            assertThatThrownBy(() -> petApi.findPetsByStatus())
+                    .isInstanceOf({{invokerPackage}}.errors.ApiException.class);
+        }
+    }
+
+    @Test
+    void bhvOperations059GetPetTagSendsByteParametersAsStandardPaddedBase64() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.getPetTag(5L, "cute", new GetPetTagOptions()
+                .fingerprint(new byte[] {0x68, 0x69})
+                .xFingerprint(new byte[] {0x68, 0x69}));
+        assertThat(capturing.capturedUrl).contains("fingerprint=aGk%3D");
+        assertThat(capturing.capturedHeaders).containsEntry("X-Fingerprint", "aGk=");
+
+        petApi.getPetTag(5L, "cute", new GetPetTagOptions()
+                .fingerprint(new byte[] {(byte) 0xFB, (byte) 0xFF}));
+        assertThat(capturing.capturedUrl).contains("fingerprint=%2B%2F8%3D");
+        assertThat(capturing.capturedUrl).doesNotContain("fingerprint=-");
+    }
+
+    @Test
+    void bhvOperations155GetPetTagSendsQueryParametersInDeclarationOrder() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.getPetTag(5L, "cute", new GetPetTagOptions()
+                .revision("v1.0/beta:rc1")
+                .filter("f")
+                .sizes(List.of("x", "y"))
+                .colors(List.of("a", "b")));
+
+        String url = java.util.Objects.requireNonNull(capturing.capturedUrl);
+        assertThat(url.substring(url.indexOf('?') + 1))
+                .isEqualTo("colors=a%7Cb&sizes=x%20y&filter=f&revision=v1.0/beta:rc1");
+    }
+
+    @Test
+    void bhvOperations060GetPetTagUsesTheMatrixAndLabelPathStyles() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getPetTag(5L, "x", new GetPetTagOptions());
+
+        assertThat(capturing.capturedUrl).startsWith("http://localhost/pet/;petId=5/tag/.x");
+    }
+
+    @Test
+    void bhvOperations068GetPetTagSerializesOptionalArrayQueryParamsAsStyledValues() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getPetTag(5L, "cute", new GetPetTagOptions()
+                .colors(List.of("blue", "black"))
+                .sizes(List.of("S", "M")));
+
+        assertThat(capturing.capturedUrl)
+                .contains("colors=blue%7Cblack")
+                .contains("sizes=S%20M");
+    }
+
+    @Test
+    void bhvOperations066GetPetTagPercentEncodesAHashInAnAllowReservedValue() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.getPetTag(5L, "cute", new GetPetTagOptions().revision("v1.0/beta:rc1#frag"));
+
+        assertThat(capturing.capturedUrl).contains("revision=v1.0/beta:rc1%23frag");
+    }
+
+    @Test
+    void bhvOperations125GetPetByNameMissingRequiredQueryParamThrows() throws Exception {
+        // A required query param that is null at runtime must fail client-side
+        // with a clear error before any request is made — parity with path/body
+        // required-param validation. The options field is typed non-null, so to
+        // simulate a value that slipped past the type system (e.g. a legacy or
+        // reflection-built caller) the final field is injected with null.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        GetPetByNameOptions options = new GetPetByNameOptions("placeholder", "corr-1");
+        java.lang.reflect.Field categoryField = GetPetByNameOptions.class.getDeclaredField("category");
+        categoryField.setAccessible(true);
+        categoryField.set(options, null);
+
+        assertThatThrownBy(() -> petApi.getPetByName("Rex", options))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "Missing the required parameter 'category' when calling PetApi.getPetByName");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    /* Passing null for a required Options object is the violation under test;
+     * NullAway forbids it by design, so it is suppressed on this one method. */
+    @SuppressWarnings("NullAway")
+    void bhvOperations132NullRequiredOptionsNamesTheFirstRequiredField() {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        assertThatThrownBy(() -> petApi.addPetPhotos(1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'files' when calling PetApi.addPetPhotos");
+        assertThatThrownBy(() -> petApi.getPetByName("Rex", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'category' when calling PetApi.getPetByName");
+        assertThatThrownBy(() -> petApi.setPetPreferences(1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'nickname' when calling PetApi.setPetPreferences");
+        assertThatThrownBy(() -> petApi.uploadPetCertificate(1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'file' when calling PetApi.uploadPetCertificate");
+        assertThatThrownBy(() -> petApi.uploadPetDocument(1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'file' when calling PetApi.uploadPetDocument");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    /* A null path parameter beside a null required Options object is the
+     * violation under test; NullAway forbids it by design. */
+    @SuppressWarnings("NullAway")
+    void bhvLangjava064NullPathParameterIsReportedBeforeANullRequiredOptions() {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        assertThatThrownBy(() -> petApi.addPetPhotos(null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'petId' when calling PetApi.addPetPhotos");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    void bhvOperations049GetPetByNameEmptyRequiredStringQueryParamThrows() throws Exception {
+        // Parity with go/rust/swift/elixir: a required STRING param that is the
+        // empty string "" is treated as absent and must fail client-side with
+        // the same missing-required-parameter error, before any request is made.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        GetPetByNameOptions options = new GetPetByNameOptions("", "corr-1");
+
+        assertThatThrownBy(() -> petApi.getPetByName("Rex", options))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        "Missing the required parameter 'category' when calling PetApi.getPetByName");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    void bhvOperations041FindPetsByStatusOmittingStatusSendsNoStatusKeyInQuery() throws Exception {
+        // allowEmptyValue:true means the server tolerates an empty value WHEN the
+        // client chooses to send the key — it does not oblige the SDK to always
+        // send it. An omitted optional param must be left out of the query string
+        // entirely, never emitted as a spurious "status=" with an empty value.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        // status is omitted (left null) — the only param on this call.
+        try {
+            petApi.findPetsByStatus(new FindPetsByStatusOptions());
+        } catch (Exception ignored) {
+            // The capturing client returns no body, so deserialization of the
+            // List<Pet> result may fail; we only care about the captured URL.
+        }
+
+        assertNotNull(capturing.capturedUrl);
+        assertThat(capturing.capturedUrl).doesNotContain("status=");
+    }
+
+    @Test
+    void bhvSerializationWire010FindPetsByStatusOmittingStatusSendsNoStatusInQuery() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        try {
+            petApi.findPetsByStatus(new FindPetsByStatusOptions());
+        } catch (Exception ignored) {
+            // The capturing client returns no body; only the captured URL matters.
+        }
+
+        assertNotNull(capturing.capturedUrl);
+        assertThat(capturing.capturedUrl).doesNotContain("status=");
+    }
+
+    @Test
+    void bhvOperations040FindPetsByStatusExplicitEmptyStatusSendsStatusKeyInQuery() throws Exception {
+        // The counterpart to the omit case: when the caller explicitly opts into
+        // an empty value (status=""), allowEmptyValue:true permits the key to ride
+        // the wire with an empty value, so "status=" must be present.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        try {
+            petApi.findPetsByStatus(new FindPetsByStatusOptions().status(""));
+        } catch (Exception ignored) {
+            // The capturing client returns no body, so deserialization of the
+            // List<Pet> result may fail; we only care about the captured URL.
+        }
+
+        assertNotNull(capturing.capturedUrl);
+        assertThat(capturing.capturedUrl).contains("status=");
+    }
+
+    @Test
+    void bhvOperations156SetPetPreferencesFormBodyFollowsDeclarationOrder() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.setPetPreferences(1L, new SetPetPreferencesOptions("n")
+                .renewalDate(java.time.LocalDate.of(2025, 1, 2))
+                .note("m")
+                .tags(List.of("x", "y")));
+
+        assertNotNull(capturing.capturedBody);
+        assertThat(capturing.capturedBody.toString())
+                .isEqualTo("nickname=n&tags=x&tags=y&note=m&renewalDate=2025-01-02");
+    }
+
+    @Test
+    void bhvOperations147UploadPetDocumentSendsPartsInDeclarationOrder() throws Exception {
+        final byte[][] capturedBody = new byte[1][];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedBody[0] = exchange.getRequestBody().readAllBytes();
+            byte[] responseBytes =
+                    "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+                            .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        try {
+            String baseUrl = "http://localhost:" + server.getAddress().getPort();
+            Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+            PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+            petApi.uploadPetDocument(
+                    1L,
+                    new UploadPetDocumentOptions(new ByteArrayInputStream(new byte[] {1}))
+                            .notes("n")
+                            .documentType("d"));
+
+            assertNotNull(capturedBody[0]);
+            String wireText = new String(capturedBody[0], StandardCharsets.UTF_8);
+            int file = wireText.indexOf("Content-Disposition: form-data; name=\"file\"");
+            int documentType = wireText.indexOf("Content-Disposition: form-data; name=\"documentType\"");
+            int notes = wireText.indexOf("Content-Disposition: form-data; name=\"notes\"");
+            assertThat(file).isGreaterThanOrEqualTo(0);
+            assertThat(documentType).isGreaterThan(file);
+            assertThat(notes).isGreaterThan(documentType);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void bhvOperations075SetPetPreferencesFormBodyIsCanonical() throws Exception {
+        // Parity regression: application/x-www-form-urlencoded body must encode
+        //   - a space as '+' (nickname="a b" -> nickname=a+b)
+        //   - an array as repeated keys, exploded (tags=x&tags=y, never tags=x,y)
+        //   - an absent optional field omitted entirely (no note=)
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        SetPetPreferencesOptions options =
+                new SetPetPreferencesOptions("a b").tags(List.of("x", "y"))
+                        .reminder(java.time.OffsetDateTime.of(
+                                2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC));
+        petApi.setPetPreferences(1L, options);
+
+        assertNotNull(capturing.capturedBody);
+        String wire = capturing.capturedBody.toString();
+
+        // Order-tolerant on field grouping, but the exact tokens must be present.
+        List<String> pairs = List.of(wire.split("&"));
+        assertThat(pairs).contains("nickname=a+b", "tags=x", "tags=y",
+                "reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00");
+        assertThat(wire).doesNotContain("note=");
+        assertThat(wire).doesNotContain("tags=x,y");
+        assertThat(wire).doesNotContain("tags%5B%5D");
+        assertThat(wire).doesNotContain("%20");
+    }
+
+    @Test
+    void bhvSerializationWire055FormSpaceEncodesAsPlus() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.setPetPreferences(1L, new SetPetPreferencesOptions("Good Boy").note("be kind"));
+
+        assertNotNull(capturing.capturedBody);
+        String wire = capturing.capturedBody.toString();
+        assertThat(wire).contains("nickname=Good+Boy", "note=be+kind");
+        assertThat(wire).doesNotContain("%20");
+    }
+
+    @Test
+    void bhvOperations073SetPetAvatarStreamsRawBytesWithDeclaredContentType() throws Exception {
+        // A request body declared `type: string, format: binary` with a declared
+        // Content-Type of image/jpeg must ride the wire as the RAW bytes, with the
+        // declared Content-Type preserved. It must NEVER be JSON-marshaled (a JSON
+        // int-array like [255,216,255,224] or the literal "{}"), base64-encoded, or
+        // have its Content-Type overridden to application/octet-stream or
+        // application/json.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        // JPEG SOI marker — a known, non-trivial binary payload including a
+        // high-bit byte (0xFF) that a JSON encoder would mangle.
+        byte[] payload = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+
+        petApi.setPetAvatar(1L, new ByteArrayInputStream(payload));
+
+        // The SDK hands the transport the raw InputStream body unchanged.
+        assertNotNull(capturing.capturedBody);
+        assertThat(capturing.capturedBody).isInstanceOf(InputStream.class);
+        byte[] wireBytes = ((InputStream) capturing.capturedBody).readAllBytes();
+        assertThat(wireBytes).isEqualTo(payload);
+
+        // Not JSON-marshaled, not a JSON int-array, not base64, not "{}".
+        String wireText = new String(wireBytes, StandardCharsets.ISO_8859_1);
+        assertThat(wireText).doesNotContain("[255");
+        assertThat(wireText).doesNotContain("{}");
+
+        // The declared Content-Type rides the wire verbatim.
+        assertNotNull(capturing.capturedHeaders);
+        assertThat(capturing.capturedHeaders).containsEntry("Content-Type", "image/jpeg");
+    }
+
+    @Test
+    void bhvOperations071SetPetAvatarHonoursTheSelectedRequestContentType() throws Exception {
+        // setPetAvatar declares three request content-types
+        // (image/jpeg, image/png, application/json). The optional
+        // content-type selector must let the caller pick among them, with the
+        // chosen value sent as the Content-Type header. Omitting the selector
+        // must default to the FIRST declared type (image/jpeg) so existing
+        // call sites keep behaving exactly as before.
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+
+        // The same raw bytes are used in both cases; only the selector differs.
+        byte[] payload = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+
+        // (1) No selector -> first declared content-type (image/jpeg).
+        CapturingApiClient defaultCapture = new CapturingApiClient();
+        PetApi defaultApi = new PetApi(defaultCapture, config);
+        defaultApi.setPetAvatar(1L, new ByteArrayInputStream(payload));
+        assertNotNull(defaultCapture.capturedHeaders);
+        assertThat(defaultCapture.capturedHeaders).containsEntry("Content-Type", "image/jpeg");
+
+        // (2) Selector set to image/png -> Content-Type is image/png, not jpeg.
+        CapturingApiClient pngCapture = new CapturingApiClient();
+        PetApi pngApi = new PetApi(pngCapture, config);
+        pngApi.setPetAvatar(1L, new ByteArrayInputStream(payload), null, "image/png");
+        assertNotNull(pngCapture.capturedHeaders);
+        assertThat(pngCapture.capturedHeaders).containsEntry("Content-Type", "image/png");
+
+        // The raw bytes are unchanged regardless of the selected content-type.
+        assertThat(pngCapture.capturedBody).isInstanceOf(InputStream.class);
+        byte[] wireBytes =
+                ((InputStream) java.util.Objects.requireNonNull(pngCapture.capturedBody))
+                        .readAllBytes();
+        assertThat(wireBytes).isEqualTo(payload);
+    }
+
+    @Test
+    void bhvOperations072SetPetAvatarSendsTheBytesVerbatimUnderTheJsonSelector() throws Exception {
+        // A format:binary body is never routed through the JSON serializer:
+        // the application/json selector only changes the Content-Type.
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        byte[] payload = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+        CapturingApiClient jsonCapture = new CapturingApiClient();
+        PetApi jsonApi = new PetApi(jsonCapture, config);
+
+        jsonApi.setPetAvatar(1L, new ByteArrayInputStream(payload), null, "application/json");
+
+        assertThat(jsonCapture.capturedHeaders).containsEntry("Content-Type", "application/json");
+        assertThat(jsonCapture.capturedBody).isInstanceOf(InputStream.class);
+        byte[] wireBytes =
+                ((InputStream) java.util.Objects.requireNonNull(jsonCapture.capturedBody))
+                        .readAllBytes();
+        assertThat(wireBytes).isEqualTo(payload);
+    }
+
+    @Test
+    void bhvOperations092UploadPetDocumentOctetStreamSelectionSendsRawBytesNotMultipart() throws Exception {
+        // uploadPetDocument declares TWO request content-types
+        // (multipart/form-data AND application/octet-stream). When the caller
+        // selects application/octet-stream the SDK must send the file's RAW
+        // bytes under Content-Type: application/octet-stream — never a
+        // multipart/form-data envelope. The API layer builds a form-style Map
+        // keyed by the declared parts; dispatching multipart on "body is a Map"
+        // would wrongly wrap the octet-stream selection in multipart. This
+        // captures the body handed to the transport and asserts it is the raw
+        // single binary part, not a Map.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
+
+        petApi.uploadPetDocument(
+                1L,
+                new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
+                "application/octet-stream");
+
+        // The transport receives the RAW binary part, not a multipart Map.
+        assertNotNull(capturing.capturedBody);
+        assertThat(capturing.capturedBody).isNotInstanceOf(java.util.Map.class);
+        assertThat(capturing.capturedBody).isInstanceOf(InputStream.class);
+
+        byte[] wireBytes = ((InputStream) capturing.capturedBody).readAllBytes();
+        assertThat(wireBytes).isEqualTo(payload);
+
+        // Not base64, not a multipart envelope, no boundary, no part headers.
+        String wireText = new String(wireBytes, StandardCharsets.ISO_8859_1);
+        assertThat(wireText).doesNotContain("Content-Disposition");
+        assertThat(wireText).doesNotContain("form-data");
+        assertThat(wireText).doesNotContain("--");
+
+        // The selected Content-Type rides the wire verbatim, never overridden to
+        // multipart/form-data.
+        assertNotNull(capturing.capturedHeaders);
+        assertThat(capturing.capturedHeaders)
+                .containsEntry("Content-Type", "application/octet-stream");
+    }
+
+
+    @Test
+    void bhvOperations095UploadPetDocumentPrimitivePartsArePlainTextParts() throws Exception {
+        // Primitive multipart fields are text parts with no part Content-Type
+        // and the canonical stringify form; never quoted JSON parts.
+        final byte[][] capturedBody = new byte[1][];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedBody[0] = exchange.getRequestBody().readAllBytes();
+            byte[] responseBytes =
+                    "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+                            .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        try {
+            String baseUrl = "http://localhost:" + server.getAddress().getPort();
+            Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+            PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+            petApi.uploadPetDocument(
+                    1L,
+                    new UploadPetDocumentOptions(new ByteArrayInputStream(new byte[] {1}))
+                            .isPrimary(true)
+                            .pageCount(3L)
+                            .takenAt(java.time.OffsetDateTime.of(
+                                    2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC))
+                            .swatch({{modelPackage}}.Swatch.RED));
+
+            assertNotNull(capturedBody[0]);
+            String wireText = new String(capturedBody[0], StandardCharsets.UTF_8);
+            assertThat(wireText).contains("name=\"isPrimary\"\r\n\r\ntrue\r\n");
+            assertThat(wireText).contains("name=\"pageCount\"\r\n\r\n3\r\n");
+            assertThat(wireText).contains(
+                    "name=\"takenAt\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n");
+            assertThat(wireText).contains("name=\"swatch\"\r\n\r\nred\r\n");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void bhvOperations094UploadPetDocumentMultipartSelectionStillSendsMultipart() throws Exception {
+        // Over-correction guard: the default selection (and an explicit
+        // multipart/form-data selection) must STILL send a multipart body. The
+        // transport receives the form-style Map and turns it into a
+        // multipart/form-data envelope with a boundary.
+        final byte[][] capturedBody = new byte[1][];
+        final String[] capturedContentType = new String[1];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
+            capturedBody[0] = exchange.getRequestBody().readAllBytes();
+            byte[] responseBytes =
+                    "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+                            .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        try {
+            String baseUrl = "http://localhost:" + server.getAddress().getPort();
+            Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+            PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+            byte[] payload = "raw-doc-bytes".getBytes(StandardCharsets.UTF_8);
+
+            // No selector -> defaults to the first declared type
+            // (multipart/form-data).
+            petApi.uploadPetDocument(
+                    1L, new UploadPetDocumentOptions(new ByteArrayInputStream(payload)));
+
+            assertNotNull(capturedContentType[0]);
+            assertThat(capturedContentType[0]).startsWith("multipart/form-data");
+            assertThat(capturedContentType[0]).contains("boundary=");
+
+            // The body is a multipart envelope: it carries the part headers.
+            assertNotNull(capturedBody[0]);
+            String wireText = new String(capturedBody[0], StandardCharsets.ISO_8859_1);
+            assertThat(wireText).contains("Content-Disposition: form-data");
+            assertThat(wireText).contains("name=\"file\"");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void bhvOperations069TestFindPetsByStatusSerialisesDateParamsWithoutTimeComponent() throws Exception {
+        // format:date params (bornAfter query, Report-Date header) are typed
+        // LocalDate and must hit the wire as a bare YYYY-MM-DD, never as a
+        // date-time (no T00:00:00 / offset suffix).
+        String[] capturedUrl = new String[1];
+        Map<String, String> capturedHeaders = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            capturedHeaders.putAll(headers);
+            return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build());
+
+        mockedApi.findPetsByStatus(new FindPetsByStatusOptions()
+                .status("available")
+                .bornAfter(LocalDate.of(2024, 1, 1))
+                .reportDate(LocalDate.of(2024, 1, 1)));
+
+        assertThat(capturedUrl[0]).contains("bornAfter=2024-01-01");
+        assertThat(capturedUrl[0]).doesNotContain("bornAfter=2024-01-01T");
+        assertThat(capturedUrl[0]).doesNotContain("bornAfter=2024-01-01%");
+        String reportDate = capturedHeaders.entrySet().stream()
+                .filter(e -> e.getKey().equalsIgnoreCase("Report-Date"))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
+        assertThat(reportDate).isEqualTo("2024-01-01");
+    }
+
+    @Test
+    void bhvOperations019SetPetPreferencesSerialisesRenewalDateWithoutTimeComponent() throws Exception {
+        // The format:date form field renewalDate must be sent as YYYY-MM-DD in
+        // the x-www-form-urlencoded body, with no time component.
+        Object[] capturedBody = new Object[1];
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedBody[0] = body;
+            return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+        };
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build());
+
+        mockedApi.setPetPreferences(
+                1L, new SetPetPreferencesOptions("Rex").renewalDate(LocalDate.of(2024, 1, 1)));
+
+        assertThat(capturedBody[0]).isNotNull();
+        String wire = capturedBody[0].toString();
+        assertThat(wire).contains("renewalDate=2024-01-01");
+        assertThat(wire).doesNotContain("renewalDate=2024-01-01T");
+        assertThat(wire).doesNotContain("renewalDate=2024-01-01%");
+    }
+
+    @Test
+    void bhvOperations062TestGetPetAvatarThumbnailDecodesMockedJsonBase64() throws Exception {
+        // Deterministic (no live server) guard for the byte-over-JSON path: the
+        // body is the JSON string literal "dGVzdC1pbWFnZQ==". It must be
+        // JSON-parsed then base64-decoded to the raw bytes "test-image".
+        ApiClient recording = (method, url, headers, body) ->
+                new ApiHttpResponse(
+                        200, "\"dGVzdC1pbWFnZQ==\"", Map.of("Content-Type", "application/json"));
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build());
+
+        byte[] result = mockedApi.getPetAvatarThumbnail(1L);
+
+        assertThat(result).isEqualTo("test-image".getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void bhvOperations083GetStagingPetInfoResolvesTheSelectedServerVariables() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getStagingPetInfo(1L, new PetApi.GetStagingPetInfoServer.StagingServer(
+                PetApi.GetStagingPetInfoServer.Environment.SANDBOX,
+                PetApi.GetStagingPetInfoServer.Version.V3), null);
+        assertThat(capturing.capturedUrl)
+                .isEqualTo("https://sandbox.example.com/api/v3/pet/1/staging");
+
+        petApi.getStagingPetInfo(2L, new PetApi.GetStagingPetInfoServer.StagingServer(
+                PetApi.GetStagingPetInfoServer.Environment.STAGING,
+                PetApi.GetStagingPetInfoServer.Version.V2), null);
+        assertThat(capturing.capturedUrl)
+                .isEqualTo("https://staging.example.com/api/v2/pet/2/staging");
+
+        petApi.getStagingPetInfo(3L);
+        assertThat(capturing.capturedUrl).isEqualTo("http://localhost/pet/3/staging");
+    }
+
+    @Test
+    void bhvOperations084TheMirrorOperationServerResolvesReservedCharactersRaw() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getMultiServerPetInfo(3L, new PetApi.GetMultiServerPetInfoServer.Mirror(
+                PetApi.GetMultiServerPetInfoServer.MirrorRegion.EU,
+                PetApi.GetMultiServerPetInfoServer.Channel.IT_S), null);
+
+        assertThat(capturing.capturedUrl)
+                .isEqualTo("https://eu.mirror.example.com/it's/v1/pet/3/multi");
+    }
+
+    @Test
+    void bhvOperations085GetMultiServerPetInfoPicksAmongItsDeclaredServers() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getMultiServerPetInfo(1L, new PetApi.GetMultiServerPetInfoServer.Primary(), null);
+        assertThat(capturing.capturedUrl).isEqualTo("https://primary.example.com/v1/pet/1/multi");
+
+        for (PetApi.GetMultiServerPetInfoServer.RegionalRegion region
+                : PetApi.GetMultiServerPetInfoServer.RegionalRegion.values()) {
+            petApi.getMultiServerPetInfo(
+                    2L, new PetApi.GetMultiServerPetInfoServer.Regional(region), null);
+            assertThat(capturing.capturedUrl)
+                    .isEqualTo("https://" + region.getValue() + ".example.com/v1/pet/2/multi");
+        }
+
+        petApi.getMultiServerPetInfo(3L, new PetApi.GetMultiServerPetInfoServer.Mirror(
+                PetApi.GetMultiServerPetInfoServer.MirrorRegion.EU,
+                PetApi.GetMultiServerPetInfoServer.Channel.A_B), null);
+        assertThat(capturing.capturedUrl)
+                .isEqualTo("https://eu.mirror.example.com/a&b/v1/pet/3/multi");
+        assertThat(PetApi.GetMultiServerPetInfoServer.Channel.IT_S.getValue()).isEqualTo("it's");
+    }
+
+    @Test
+    void bhvOperations043FindPetsBornOnSendsTheDatePathParameterWithoutATimeComponent() throws Exception {
+        String[] capturedUrl = new String[1];
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.findPetsBornOn(LocalDate.of(2024, 1, 1));
+
+        assertThat(capturedUrl[0]).isEqualTo("http://localhost/pet/born-on/2024-01-01");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "abc\r\nInjected: yes", "abc\u0000def", "a b", "a\"b", "a,b", "a;b", "a\\b", "café"})
+    void bhvOperations028DeletePetRefusesACookieValueWithAnIllegalCookieOctet(String value) {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey(value)))
+                .isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Cookie value for 'api_key' contains characters outside the RFC 6265"
+                        + " cookie-octet set; percent-encode the value before passing it");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"k-1", "a%20b%3D", "dG9rZW4=", "!#$%&'()*+-./:<=>?@[]^_`{|}~"})
+    void bhvOperations030DeletePetSendsALegalCookieValueRaw(String value) throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.deletePet(1L, new DeletePetOptions().apiKey(value));
+
+        assertNotNull(capturing.capturedHeaders);
+        assertThat(capturing.capturedHeaders).containsEntry("Cookie", "api_key=" + value);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"abc\r\nInjected: yes", "abc\rdef", "abc\ndef"})
+    void bhvOperations029DeletePetRefusesACookieValueWithCrlfFailingClosed(String value) {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey(value)))
+                .isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Cookie value for 'api_key' contains characters outside the RFC 6265"
+                        + " cookie-octet set; percent-encode the value before passing it");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    void bhvOperations077SetPetAvatarThumbnailStillSendsABase64JsonString() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.setPetAvatarThumbnail(1L, new SetPetAvatarThumbnailRequest(new byte[] {1, 2, 3, 4}));
+
+        assertThat(capturing.capturedBody).isEqualTo("\"AQIDBA==\"");
+    }
+
+    @Test
+    void bhvOperations076SetPetAvatarRejectsAnUndeclaredRequestContentType() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.setPetAvatar(
+                        1L, new ByteArrayInputStream(new byte[] {1}), null, "application/unknown-type"))
+                .isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Unsupported request content-type 'application/unknown-type' for"
+                        + " setPetAvatar; declared types are"
+                        + " [image/jpeg, image/png, application/json]");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    void bhvOperations093UploadPetDocumentRejectsAnUndeclaredRequestContentType() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.uploadPetDocument(
+                        1L,
+                        new UploadPetDocumentOptions(new ByteArrayInputStream(new byte[] {1})),
+                        "application/unknown-type"))
+                .isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Unsupported request content-type 'application/unknown-type' for"
+                        + " uploadPetDocument; declared types are"
+                        + " [multipart/form-data, application/octet-stream]");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    private static final class SummaryRecording implements ApiClient {
+        @javax.annotation.Nullable String capturedUrl;
+        @javax.annotation.Nullable java.util.Map<String, String> capturedHeaders;
+
+        @Override
+        public {{invokerPackage}}.ApiHttpResponse sendRequest(
+                String method,
+                String url,
+                java.util.Map<String, String> headers,
+                @javax.annotation.Nullable Object body) {
+            this.capturedUrl = url;
+            this.capturedHeaders = headers;
+            return new {{invokerPackage}}.ApiHttpResponse(
+                    200, "plain summary", java.util.Map.of("Content-Type", "text/plain"));
+        }
+    }
+
+    @Test
+    void bhvOperations057GetPetSummarySendsTheMatrixPathTheDateArrayAndTheRequiredCookie() throws Exception {
+        SummaryRecording recording = new SummaryRecording();
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        String summary = petApi.getPetSummary(
+                7L,
+                LocalDate.of(2024, 1, 15),
+                new {{apiPackage}}.options.GetPetSummaryOptions("abc")
+                        .days(List.of(LocalDate.of(2024, 1, 15), LocalDate.of(2024, 2, 1))));
+
+        assertThat(summary).isEqualTo("plain summary");
+        String url = java.net.URLDecoder.decode(
+                String.valueOf(recording.capturedUrl), StandardCharsets.UTF_8);
+        assertThat(url).startsWith("http://localhost/pet/7/summary/;asOf=2024-01-15");
+        assertThat(url).contains("days=2024-01-15").contains("days=2024-02-01");
+        assertThat(recording.capturedHeaders).containsEntry("Cookie", "session=abc");
+    }
+
+    @Test
+    void bhvMisc176ARequiredCookieParameterIsSentInTheCookieHeaderWithItsValue() throws Exception {
+        SummaryRecording recording = new SummaryRecording();
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getPetSummary(
+                7L, LocalDate.of(2024, 1, 15), new {{apiPackage}}.options.GetPetSummaryOptions("tok"));
+
+        assertThat(recording.capturedHeaders).containsEntry("Cookie", "session=tok");
+    }
+
+    @Test
+    void bhvOperations056GetPetSummaryRefusesAnEmptyRequiredCookieBeforeSending() throws Exception {
+        SummaryRecording recording = new SummaryRecording();
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.getPetSummary(
+                        7L, LocalDate.of(2024, 1, 15),
+                        new {{apiPackage}}.options.GetPetSummaryOptions("")))
+                .isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'session' when calling PetApi.getPetSummary");
+        assertThat(recording.capturedUrl).isNull();
+    }
+
+    @Test
+    void bhvOperations050GetPetByNameRefusesAnEmptyRequiredHeaderBeforeSending() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.getPetByName("rex", new GetPetByNameOptions("cats", "")))
+                .isExactlyInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'X-Correlation-Id'"
+                        + " when calling PetApi.getPetByName");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    private static final class UrlRecording implements ApiClient {
+        @javax.annotation.Nullable String capturedUrl;
+        @javax.annotation.Nullable String capturedBody;
+        java.util.Map<String, String> capturedHeaders = new HashMap<>();
+        private final String responseBody;
+
+        UrlRecording(String responseBody) {
+            this.responseBody = responseBody;
+        }
+
+        @Override
+        public {{invokerPackage}}.ApiHttpResponse sendRequest(
+                String method,
+                String url,
+                java.util.Map<String, String> headers,
+                @javax.annotation.Nullable Object body) {
+            this.capturedUrl = java.net.URLDecoder.decode(url, StandardCharsets.UTF_8);
+            this.capturedBody = body == null ? null : String.valueOf(body);
+            this.capturedHeaders = headers;
+            return new {{invokerPackage}}.ApiHttpResponse(
+                    200, responseBody, java.util.Map.of("Content-Type", "application/json"));
+        }
+    }
+
+    @Test
+    void bhvOperations021DigitLeadingQueryParameterKeepsItsWireName() throws Exception {
+        UrlRecording recording = new UrlRecording("[]");
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.findPetsByStatus(new FindPetsByStatusOptions().n2ndPage(2));
+
+        assertThat(recording.capturedUrl).contains("2ndPage=2").doesNotContain("n2ndPage=");
+    }
+
+    @Test
+    void bhvOperations044TestFindPetsByStatusSendsTheDigitLeadingQueryNameAndTheDeepObjectFilter() throws Exception {
+        UrlRecording recording = new UrlRecording("[]");
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.findPetsByStatus(new FindPetsByStatusOptions()
+                .n2ndPage(2)
+                .filter(Map.of("owner", "ann")));
+
+        assertThat(recording.capturedUrl).contains("2ndPage=2").contains("filter[owner]=ann");
+    }
+
+    @Test
+    void bhvOperations067TestGetPetTagWiresTheMatrixLabelAndObjectValuedParameters() throws Exception {
+        UrlRecording recording = new UrlRecording("{\"name\":\"x\",\"photoUrls\":[]}");
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        {{modelPackage}}.PetCriteria criteria = {{modelPackage}}.PetCriteria.builder().breed("lab").minAge(3).build();
+
+        petApi.getPetTag(5L, "x", new GetPetTagOptions()
+                .criteria(criteria)
+                .criteriaCsv(criteria)
+                .criteriaDeep(criteria)
+                .xCriteria(criteria));
+
+        assertThat(recording.capturedUrl).startsWith("http://localhost/pet/;petId=5/tag/.x?");
+        assertThat(recording.capturedUrl)
+                .contains("breed=lab")
+                .contains("min_age=3")
+                .contains("criteriaCsv=breed,lab,min_age,3")
+                .contains("criteriaDeep[breed]=lab")
+                .contains("criteriaDeep[min_age]=3");
+        assertThat(recording.capturedHeaders).containsEntry("X-Criteria", "breed,lab,min_age,3");
+    }
+
+    @Test
+    void bhvOperations024TestAddPetTreatmentSendsExactlyTheChosenVariantAsTheBody() throws Exception {
+        UrlRecording recording = new UrlRecording("{\"drugName\":\"aspirin\"}");
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        {{modelPackage}}.Medication medication =
+                new {{modelPackage}}.Medication("aspirin").toBuilder().dosage("10mg").build();
+
+        {{modelPackage}}.PetTreatment result =
+                petApi.addPetTreatment(9L, new {{modelPackage}}.PetTreatment(medication));
+
+        assertThat(recording.capturedUrl).contains("/pet/9/");
+        assertThat(recording.capturedBody).contains("\"drugName\":\"aspirin\"").contains("\"dosage\":\"10mg\"");
+        assertThat(result.getActualInstance()).isInstanceOf({{modelPackage}}.Medication.class);
+    }
+
+    @Test
+    void bhvOperations032TestDeprecationMarkersAreEmitted() throws Exception {
+        assertThat(PetApi.class.getMethod("findPetsByStatus", FindPetsByStatusOptions.class)
+                .isAnnotationPresent(Deprecated.class)).isTrue();
+        assertThat({{modelPackage}}.Tag.class.isAnnotationPresent(Deprecated.class)).isTrue();
+        assertThat(PetApi.class.getMethod("getPetByName", String.class, GetPetByNameOptions.class)
+                .isAnnotationPresent(Deprecated.class)).isFalse();
+    }
+
+    @Test
+    void bhvOperations033DeprecationMarkersSitOnEveryVariantOfADeprecatedOperation() {
+        var variants = java.util.Arrays.stream(PetApi.class.getMethods())
+                .filter(m -> m.getName().startsWith("findPetsByStatus"))
+                .toList();
+        assertThat(variants).isNotEmpty();
+        assertThat(variants).allMatch(m -> m.isAnnotationPresent(Deprecated.class));
+    }
+
+    @Test
+    void bhvOperations138GetPetByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes() throws Exception {
+        Object[][] table = {
+            {400, {{invokerPackage}}.errors.BadRequestException.class},
+            {401, {{invokerPackage}}.errors.UnauthorizedException.class},
+            {403, {{invokerPackage}}.errors.ForbiddenException.class},
+            {409, {{invokerPackage}}.errors.ConflictException.class},
+            {418, {{invokerPackage}}.errors.ClientException.class},
+            {422, {{invokerPackage}}.errors.UnprocessableEntityException.class},
+            {502, {{invokerPackage}}.errors.BadGatewayException.class},
+        };
+        for (Object[] row : table) {
+            PetApi routed = new PetApi(
+                    new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+                    Configuration.builder()
+                    .baseUrl(ChasmContainer.getBaseUrl() + "/test/status/" + row[0])
+                    .build());
+            Class<?> expected = (Class<?>) row[1];
+            assertThatThrownBy(() -> routed.getPetById(1L)).isExactlyInstanceOf(expected);
+        }
+    }
+
+    /** Records what an operation hands the transport: the per-call overrides and headers. */
+    private static final class PerCallRecording implements ApiClient {
+        final List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+        final List<Integer> sentTimeouts = new java.util.ArrayList<>();
+        final List<Integer> sentRetries = new java.util.ArrayList<>();
+
+        @Override
+        public ApiHttpResponse sendRequest(
+                String method,
+                String url,
+                Map<String, String> headers,
+                @javax.annotation.Nullable Object body) {
+            return record(headers, null, null);
+        }
+
+        @Override
+        public ApiHttpResponse sendRequest(
+                String method,
+                String url,
+                Map<String, String> headers,
+                @javax.annotation.Nullable Object body,
+                @javax.annotation.Nullable Integer timeoutMillis,
+                @javax.annotation.Nullable Integer maxRetries) {
+            return record(headers, timeoutMillis, maxRetries);
+        }
+
+        private ApiHttpResponse record(
+                Map<String, String> headers,
+                @javax.annotation.Nullable Integer timeoutMillis,
+                @javax.annotation.Nullable Integer maxRetries) {
+            sentHeaders.add(new HashMap<>(headers));
+            sentTimeouts.add(timeoutMillis);
+            sentRetries.add(maxRetries);
+            return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        }
+    }
+
+    @Test
+    void bhvOptions054OperationAcceptsPerCallOptionsAlongsideItsArguments() throws Exception {
+        PerCallRecording recording = new PerCallRecording();
+        PetApi perCall = new PetApi(
+                recording, Configuration.builder().baseUrl("http://localhost").build());
+
+        perCall.findPetsByStatus(new FindPetsByStatusOptions()
+                .status("available")
+                .timeout(5000)
+                .maxRetries(1)
+                .headers(Map.of("X-Trace", "trace-1")));
+
+        assertThat(recording.sentTimeouts.get(0)).isEqualTo(5000);
+        assertThat(recording.sentRetries.get(0)).isEqualTo(1);
+        assertThat(recording.sentHeaders.get(0).get("X-Trace")).isEqualTo("trace-1");
+    }
+
+    @Test
+    void bhvOptions053PerCallOptionsTakeEffectOnThatCallOnly() throws Exception {
+        PerCallRecording recording = new PerCallRecording();
+        PetApi perCall = new PetApi(
+                recording, Configuration.builder().baseUrl("http://localhost").build());
+
+        perCall.findPetsByStatus(new FindPetsByStatusOptions()
+                .status("available")
+                .timeout(5000)
+                .maxRetries(1)
+                .headers(Map.of("X-Trace", "trace-1")));
+        perCall.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
+
+        assertThat(recording.sentTimeouts.get(1)).isNull();
+        assertThat(recording.sentRetries.get(1)).isNull();
+        assertThat(recording.sentHeaders.get(1).get("X-Trace")).isNull();
+    }
+
+    @Test
+    void bhvOptions055CallWithoutPerCallOptionsLeavesTheClientSettingsInForce() throws Exception {
+        PerCallRecording recording = new PerCallRecording();
+        PetApi plain = new PetApi(
+                recording, Configuration.builder().baseUrl("http://localhost").build());
+
+        plain.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
+
+        assertThat(recording.sentTimeouts.get(0)).isNull();
+        assertThat(recording.sentRetries.get(0)).isNull();
+        assertThat(recording.sentHeaders.get(0).get("X-Trace")).isNull();
+    }
+
+    /** A recording fake of the group: default methods run their body and land on the full form. */
+    private static PetApiInterface fakeApi(
+            java.util.List<Object[]> calls, @javax.annotation.Nullable RuntimeException failWith) {
+        return (PetApiInterface) java.lang.reflect.Proxy.newProxyInstance(
+                PetApiInterface.class.getClassLoader(),
+                new Class<?>[] {PetApiInterface.class},
+                (proxy, method, args) -> {
+                    if (method.isDefault()) {
+                        return java.lang.reflect.InvocationHandler.invokeDefault(proxy, method, args);
+                    }
+                    calls.add(args == null ? new Object[0] : args);
+                    if (failWith != null) {
+                        throw failWith;
+                    }
+                    return Pet.builder().id(1L).name("fake").photoUrls(Set.of()).build();
+                });
+    }
+
+    /** Code under test: it takes the group interface, never the generated class. */
+    private static Pet lookUp(PetApiInterface group, long id) {
+        return group.getPetById(id);
+    }
+
+    private static String classify(Runnable call) {
+        try {
+            call.run();
+            return "none";
+        } catch ({{invokerPackage}}.errors.NotFoundException e) {
+            return "not found";
+        } catch ({{invokerPackage}}.errors.ApiException e) {
+            return "api error";
+        }
+    }
+
+    @Test
+    void bhvMocking003FakeIsAcceptedWhereTheInterfaceIsAcceptedAndReceivesTheArguments() {
+        java.util.List<Object[]> calls = new java.util.ArrayList<>();
+
+        Pet pet = lookUp(fakeApi(calls, null), 42L);
+
+        assertThat(pet.name).isEqualTo("fake");
+        assertThat(calls).hasSize(1);
+        assertThat(calls.get(0)[0]).isEqualTo(42L);
+    }
+
+    @Test
+    void bhvMocking004FakeRaisesTheTypedErrorAndTheCallerHandlesItLikeTheRealClients() throws Exception {
+        PetApiInterface fake = fakeApi(new java.util.ArrayList<>(), new {{invokerPackage}}.errors.NotFoundException("missing"));
+        PetApi real = newPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
+
+        assertThat(classify(() -> lookUp(fake, 1L))).isEqualTo("not found");
+        assertThat(classify(() -> lookUp(real, 1L))).isEqualTo(classify(() -> lookUp(fake, 1L)));
+        assertThatThrownBy(() -> lookUp(fake, 1L)).isInstanceOf({{invokerPackage}}.errors.ApiException.class);
+    }
+
+    @Test
+    void bhvMocking005InterfaceCallSendsTheSameRequestAndReturnsTheSameResultAsTheClassCall() {
+        PetApiInterface viaInterface = api;
+
+        var direct = api.getPetByIdWithHttpInfo(1L);
+        var through = viaInterface.getPetByIdWithHttpInfo(1L);
+
+        assertThat(through.statusCode()).isEqualTo(direct.statusCode());
+        assertThat(through.data()).isEqualTo(direct.data());
+        assertThat(through.headers().keySet()).isEqualTo(direct.headers().keySet());
+    }
+
+    @Test
+    void bhvMocking006CallWithoutOptionsReachesTheFullSignatureWithNoneSet() {
+        java.util.List<Object[]> calls = new java.util.ArrayList<>();
+
+        lookUp(fakeApi(calls, null), 7L);
+
+        assertThat(calls).hasSize(1);
+        assertThat(calls.get(0)).hasSize(3);
+        assertThat(calls.get(0)[0]).isEqualTo(7L);
+        assertThat(calls.get(0)[1]).isNull();
+        assertThat(calls.get(0)[2]).isNull();
+    }
+
+    @Test
+    void bhvAuth043OperationSendsOnlyTheCredentialOfTheSchemeItNames() throws Exception {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        AdminBasicAuthenticator basic = new AdminBasicAuthenticator("http://localhost", "admin", "password");
+        PetStoreBearerAuthenticator bearer = new PetStoreBearerAuthenticator("http://localhost", "test-token");
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build(), null, Map.of("adminBasic", basic, "petStoreBearer", bearer));
+
+        mockedApi.deletePet(7L);
+
+        assertThat(sent.get("Authorization")).isEqualTo(basic.getAuthHeaders().get("Authorization"));
+        assertThat(sent.get("Authorization")).doesNotContain("test-token");
+    }
+
+    @Test
+    void bhvAuth044OperationWithNoSecurityRequirementSendsNoCredential() throws Exception {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "{}", Map.of());
+        };
+        PetStoreBearerAuthenticator bearer = new PetStoreBearerAuthenticator("http://localhost", "test-token");
+        StoreApi mockedApi = new StoreApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build(), bearer);
+
+        mockedApi.getOrderByTrackingId(java.util.UUID.randomUUID());
+
+        assertThat(sent.get("Authorization")).isNull();
+    }
+
+    @Test
+    void bhvAuth045CredentialOfTheOperationsSchemeReplacesTheDefaultAuthorizationHeader() throws Exception {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        AdminBasicAuthenticator basic = new AdminBasicAuthenticator("http://localhost", "admin", "password");
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("Authorization", "Bearer default-token")
+                .build(), null, Map.of("adminBasic", basic));
+
+        mockedApi.deletePet(7L);
+
+        assertThat(sent.get("Authorization")).isEqualTo(basic.getAuthHeaders().get("Authorization"));
+        assertThat(sent.get("Authorization")).doesNotContain("default-token");
+    }
+
+    @Test
+    void bhvAuth047OperationSendsNoSchemeCredentialWhenItHoldsNone() throws Exception {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build(), null, Map.of());
+
+        mockedApi.deletePet(7L);
+
+        assertThat(sent.get("Authorization")).isNull();
+    }
+
+
+    @Test
+    void bhvOperations160ExternalVariantOperationIsSentToItsServerVariantUrl() {
+        UrlRecording recording = new UrlRecording("{\"name\":\"x\",\"photoUrls\":[]}");
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        petApi.getExternalPetInfo(7L, new PetApi.GetExternalPetInfoServer.Server0(), null);
+        assertThat(recording.capturedUrl).startsWith("https://external-api.example.com/v1");
+    }
+
+    @Test
+    void bhvOperations161TextPlainResponseIsReturnedRawEvenWhenItLooksLikeBase64() {
+        ApiClient textual = (method, url, headers, body) ->
+                new ApiHttpResponse(200, "aGVsbG8=", Map.of("Content-Type", "text/plain"));
+        PetApi petApi = new PetApi(textual, Configuration.builder().baseUrl("http://localhost").build());
+        String summary = petApi.getPetSummary(7L, LocalDate.of(2024, 1, 15),
+                new {{apiPackage}}.options.GetPetSummaryOptions("abc"));
+        assertThat(summary).isEqualTo("aGVsbG8=");
+    }
+
+    @Test
+    void bhvOperations162DateOnlyParameterIsBareDateInPathQueryAndHeader() throws Exception {
+        SummaryRecording recording = new SummaryRecording();
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        petApi.getPetSummary(7L, LocalDate.of(2024, 3, 9),
+                new {{apiPackage}}.options.GetPetSummaryOptions("abc")
+                        .days(List.of(LocalDate.of(2024, 3, 9))));
+        String url = java.net.URLDecoder.decode(String.valueOf(recording.capturedUrl), StandardCharsets.UTF_8);
+        assertThat(url).contains("asOf=2024-03-09").contains("days=2024-03-09");
+        assertThat(url).doesNotContain("T00:00");
+    }
+
+    @Test
+    void bhvOperations163RequestWithNoBodySendsNoContentTypeWhateverTheDefaultHeaderCase() {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        PetApi petApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("content-type", "application/json")
+                .build());
+        petApi.deletePet(7L);
+        assertThat(sent.keySet().stream().noneMatch(k -> k.equalsIgnoreCase("Content-Type"))).isTrue();
+    }
+
+    @Test
+    void bhvOperations164MissingRequiredParameterRaisesAnArgumentErrorAndSendsNothing() {
+        int[] sends = new int[1];
+        ApiClient counting = (method, url, headers, body) -> {
+            sends[0]++;
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        PetApi petApi = new PetApi(counting, Configuration.builder().baseUrl("http://localhost").build());
+        assertThatThrownBy(() -> petApi.deletePet(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(sends[0]).isZero();
+    }
+
+    @Test
+    void bhvOperations165PathParameterUsesTheMatrixStyleTheOperationDeclares() {
+        SummaryRecording recording = new SummaryRecording();
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        petApi.getPetSummary(7L, LocalDate.of(2024, 1, 15),
+                new {{apiPackage}}.options.GetPetSummaryOptions("abc"));
+        assertThat(String.valueOf(recording.capturedUrl)).contains("/pet/7/summary/;asOf=2024-01-15");
+    }
+
+    @Test
+    void bhvAuth046InheritedSecurityReceivesTheClientAuthenticator() throws Exception {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}", Map.of());
+        };
+        PetStoreBearerAuthenticator bearer = new PetStoreBearerAuthenticator("http://localhost", "client-token");
+        PetApi petApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build(), bearer);
+
+        petApi.getPetById(7L);
+
+        assertThat(sent.get("Authorization")).isEqualTo(bearer.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvMisc003AnAllOptionalOperationSendsNoOmittedParameter() {
+        UrlRecording recording = new UrlRecording("[]");
+        PetApi petApi = new PetApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        petApi.findPetsByStatus();
+        assertThat(String.valueOf(recording.capturedUrl)).doesNotContain("?");
+    }
+
+    @Test
+    void bhvMisc004AMissingRequiredOptionsFieldIsNamedInTheArgumentError() {
+        ApiClient unused = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+        PetApi petApi = new PetApi(unused, Configuration.builder().baseUrl("http://localhost").build());
+        assertThatThrownBy(() -> petApi.getPetSummary(7L, LocalDate.of(2024, 1, 15),
+                new {{apiPackage}}.options.GetPetSummaryOptions("")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("session");
+    }
+
+    @Test
+    void bhvMisc005ABareNullListBodyIsAnApiError() {
+        ApiClient nullBody = (method, url, headers, body) -> new ApiHttpResponse(200, "null", Map.of());
+        PetApi petApi = new PetApi(nullBody, Configuration.builder().baseUrl("http://localhost").build());
+        assertThatThrownBy(() -> petApi.findPetsByStatus())
+                .isInstanceOf({{invokerPackage}}.errors.ApiException.class);
+    }
+
+    @Test
+    void bhvMisc006ABareNullResponseGivesNoDataAndKeepsTheRawBody() {
+        ApiClient nullBody = (method, url, headers, body) -> new ApiHttpResponse(200, "null", Map.of());
+        PetApi petApi = new PetApi(nullBody, Configuration.builder().baseUrl("http://localhost").build());
+        var result = petApi.getPetByIdWithHttpInfo(7L);
+        assertThat(result.data()).isNull();
+        assertThat(result.rawBody()).isEqualTo("null");
+    }
+
+    @Test
+    void bhvMisc007AMissingPathParameterIsNamedAndNothingIsSent() {
+        int[] sends = new int[1];
+        ApiClient counting = (method, url, headers, body) -> {
+            sends[0]++;
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        PetApi petApi = new PetApi(counting, Configuration.builder().baseUrl("http://localhost").build());
+        assertThatThrownBy(() -> petApi.getPetSummary(7L, null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("asOf");
+        assertThat(sends[0]).isZero();
+    }
+
+    @Test
+    void bhvMisc008ARequiredCookieParameterIsSentInTheCookieHeader() {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "\"ok\"", Map.of());
+        };
+        PetApi petApi = new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+        petApi.getPetSummary(7L, LocalDate.of(2024, 1, 15),
+                new {{apiPackage}}.options.GetPetSummaryOptions("abc123"));
+        assertThat(sent.get("Cookie")).contains("session=abc123");
+    }
+
+    @Test
+    void bhvMisc009ACallWithoutOptionsSendsNoPerCallHeaders() {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}", Map.of());
+        };
+        PetApi petApi = new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+        petApi.getPetById(7L);
+        assertThat(sent).doesNotContainKey("X-Per-Call");
+    }
+
+    @Test
+    void bhvMisc010AnOptionsObjectWithRequiredFieldsIsRefusedWhenOmitted() {
+        ApiClient unused = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+        PetApi petApi = new PetApi(unused, Configuration.builder().baseUrl("http://localhost").build());
+        assertThatThrownBy(() -> petApi.getPetSummary(7L, LocalDate.of(2024, 1, 15), null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void bhvErrors091StatusErrorNamesTheMethodAndTheSubstitutedPath() {
+        ApiClient failing = (method, url, headers, body) -> new ApiHttpResponse(500, "", Map.of());
+        PetApi petApi = new PetApi(failing, Configuration.builder().baseUrl("http://localhost").build());
+        assertThatThrownBy(() -> petApi.getPetById(7L))
+                .isInstanceOfSatisfying({{invokerPackage}}.errors.ApiException.class, err -> {
+                    assertThat(err.getRequestMethod()).isEqualTo("GET");
+                    assertThat(err.getRequestPath()).isEqualTo("/pet/7");
+                });
+    }
+
+    @Test
+    void bhvMisc179AFormUrlencodedBodySendsItsContentType() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.setPetPreferences(1L, new SetPetPreferencesOptions("a"));
+
+        assertThat(capturing.capturedHeaders)
+                .containsEntry("Content-Type", "application/x-www-form-urlencoded");
+    }
+
+    @Test
+    void bhvMisc191AnAuthCookieWithAForbiddenOctetRaisesAnArgumentErrorNotAnApiError() {
+        PetApi petApi = new PetApi(new CapturingApiClient(),
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey("bad\u0001value")))
+                .isExactlyInstanceOf(IllegalArgumentException.class);
+    }
+
+
+    @Test
+    void bhvMisc219AnOperationWithSeveralServersSendsItsRequestToTheChosenServer() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getStagingPetInfo(1L, new PetApi.GetStagingPetInfoServer.StagingServer(
+                PetApi.GetStagingPetInfoServer.Environment.SANDBOX,
+                PetApi.GetStagingPetInfoServer.Version.V3), null);
+        assertThat(capturing.capturedUrl).startsWith("https://sandbox.example.com/api/v3/");
+    }
+
+
+    @Test
+    void bhvMisc236ADateOnlyValueIsSentWithNoTimeInTheQueryAndAHeader() throws Exception {
+        String[] capturedUrl = new String[1];
+        Map<String, String> capturedHeaders = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            capturedHeaders.putAll(headers);
+            return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build());
+
+        mockedApi.findPetsByStatus(new FindPetsByStatusOptions()
+                .status("available")
+                .bornAfter(LocalDate.of(2024, 1, 1))
+                .reportDate(LocalDate.of(2024, 1, 1)));
+
+        assertThat(capturedUrl[0]).contains("bornAfter=2024-01-01");
+        assertThat(capturedUrl[0]).doesNotContain("bornAfter=2024-01-01T");
+        assertThat(capturedHeaders.entrySet().stream()
+                .filter(e -> e.getKey().equalsIgnoreCase("Report-Date"))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse("")).isEqualTo("2024-01-01");
+    }
+}

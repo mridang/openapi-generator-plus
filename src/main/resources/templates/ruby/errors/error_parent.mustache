@@ -1,0 +1,10 @@
+# frozen_string_literal: true
+
+{{> api_info}}
+{{{moduleNameNestedOpen}}}{{moduleNameNestedIndent}}module Errors
+{{moduleNameNestedIndent}}  # The root of every error this SDK raises: HTTP failures (ApiError and its
+{{moduleNameNestedIndent}}  # subclasses), serialization failures and OAuth2 token failures.
+{{moduleNameNestedIndent}}  class {{apiErrorParentSimpleName}} < StandardError
+{{moduleNameNestedIndent}}  end
+{{moduleNameNestedIndent}}end
+{{{moduleNameNestedClose}}}

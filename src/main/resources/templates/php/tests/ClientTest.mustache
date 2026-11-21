@@ -1,0 +1,915 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiHttpResponse;
+use {{invokerPackage}}\{{clientClassName}};
+use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
+use {{invokerPackage}}\Auth\ApiKeyLocation;
+use {{invokerPackage}}\Auth\BearerAuthenticator;
+use {{invokerPackage}}\Auth\HttpAwareAuthenticator;
+use {{invokerPackage}}\Psr18ApiClient;
+use {{invokerPackage}}\TransportOptions;
+use {{invokerPackage}}\Test\RecordingCallHook;
+use {{invokerPackage}}\Test\StubPsr18Client;
+use Nyholm\Psr7\Factory\Psr17Factory;
+
+beforeEach(function (): void {
+    $this->authenticator = new BearerAuthenticator('{{{basePath}}}', 'test-token');
+});
+
+test('bhv lifecycle 012 construct with authenticator only', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
+
+test('bhv lifecycle 010 construct with authenticator and null transport options', function (): void {
+    // A null transport must fall back to the default builder output, so
+    // constructing with an explicit null is equivalent to omitting it.
+    $client = new {{clientClassName}}($this->authenticator, null);
+
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
+
+test('bhv lifecycle 011 construct with authenticator and transport options', function (): void {
+    $transport = TransportOptions::builder()->build();
+
+    $client = new {{clientClassName}}($this->authenticator, $transport);
+
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
+
+test('bhv authbearer 028 bearer rejects crlf at construction', function (): void {
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', "tok\r\nInjected: yes"))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv lifecycle 006 bearer rejects non ascii', function (): void {
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', 'ñoño'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv lifecycle 005 bearer rejects empty token', function (): void {
+    // An empty / whitespace-only token would emit "Authorization: Bearer "
+    // (no credential), so it must be rejected at construction.
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', ''))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => new BearerAuthenticator('{{{basePath}}}', '   '))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv lifecycle 002 api key header rejects crlf and non ascii', function (): void {
+    // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+    // ApiKeyAuthenticator's HEADER location must reject anything
+    // outside printable ASCII + TAB to prevent header injection
+    // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+    expect(fn () => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', "abc\r\nInjected: yes", ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv lifecycle 004 api key header rejects non ascii', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'kéy', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv lifecycle 003 api key query allows non ascii', function (): void {
+    // Non-header locations accept arbitrary chars.
+    $auth = new ApiKeyAuthenticator('{{{basePath}}}', 'api_key', 'kéy', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'kéy']);
+});
+
+test('bhv lifecycle 001 api groups are accessible', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    expect($client->{{clientPropertyName}})->toBeInstanceOf(\{{apiPackage}}\{{classname}}::class);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+test('bhv langphp 055 injected api client is wired into every api group', function (): void {
+    // A custom ApiClient passed to the facade must be the exact instance every
+    // API group sends through — this is the seam that lets a Psr18ApiClient (or
+    // any bespoke transport) replace the bundled DefaultApiClient.
+    $stub = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '', []);
+        }
+    };
+
+    $client = new {{clientClassName}}($this->authenticator, null, $stub);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $property = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->getProperty('apiClient');
+    expect($property->getValue($client->{{clientPropertyName}}))->toBe($stub);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+test('bhv lifecycle 017 a token provider in place of the token builds a client', function (): void {
+    /* The facade's withToken() takes a static string; a rotating token goes
+     * through a provider on the bearer authenticator handed to withAuthenticator(). */
+    $authenticator = new BearerAuthenticator('{{{basePath}}}', null, fn (): string => 'rotating-token');
+
+    $client = {{clientClassName}}::withAuthenticator($authenticator);
+
+    expect($client)->toBeInstanceOf({{clientClassName}}::class);
+});
+
+test('bhv lifecycle 007 close on a client with a supplied transport leaves that transport usable', function (): void {
+    $stub = new class implements ApiClient {
+        public int $sent = 0;
+
+        public int $closes = 0;
+
+        public function close(): void
+        {
+            $this->closes++;
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->sent++;
+
+            return new ApiHttpResponse(200, '', []);
+        }
+    };
+
+    $client = new {{clientClassName}}($this->authenticator, null, $stub);
+    $client->close();
+    $client->close();
+
+    $stub->sendRequest('GET', 'http://example.com/ping', [], null);
+    expect($stub->closes)->toBe(0);
+    expect($stub->sent)->toBe(1);
+});
+
+test('bhv lifecycle 013 close on a client that built its own transport rejects later requests and is idempotent', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+    $client->close();
+    $client->close();
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $property = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->getProperty('apiClient');
+    $transport = $property->getValue($client->{{clientPropertyName}});
+    assert($transport instanceof ApiClient);
+    expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
+        ->toThrow(\LogicException::class, 'closed');
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+/**
+ * A transport that counts how often it was asked to send and to close.
+ *
+ * @return array{0: ApiClient, 1: \stdClass}
+ */
+function newRecordingTransport(): array
+{
+    $counts = new \stdClass();
+    $counts->sent = 0;
+    $counts->closes = 0;
+    $transport = new class($counts) implements ApiClient {
+        public function __construct(private readonly \stdClass $counts)
+        {
+        }
+
+        public function close(): void
+        {
+            $this->counts->closes++;
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->counts->sent++;
+
+            return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+
+    return [$transport, $counts];
+}
+
+test('bhv lifecycle 035 a request after close fails with the one closed client error and never reaches the transport', function (): void {
+    [$transport, $counts] = newRecordingTransport();
+    $client = new {{clientClassName}}($this->authenticator, null, $transport);
+    $client->close();
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    $api = $client->{{clientPropertyName}};
+    $method = new \ReflectionMethod($api, 'invokeApiForResult');
+    expect(fn () => $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null))
+        ->toThrow(\LogicException::class, 'client closed');
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    expect($counts->sent)->toBe(0);
+});
+
+test('bhv lifecycle 009 closing a client never closes a transport the caller supplied', function (): void {
+    [$transport, $counts] = newRecordingTransport();
+    $client = new {{clientClassName}}($this->authenticator, null, $transport);
+    $client->close();
+    $client->close();
+
+    expect($counts->closes)->toBe(0);
+});
+
+test('bhv langphp 056 a client that is not closed still sends', function (): void {
+    [$transport, $counts] = newRecordingTransport();
+    $client = new {{clientClassName}}($this->authenticator, null, $transport);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    $api = $client->{{clientPropertyName}};
+    $method = new \ReflectionMethod($api, 'invokeApiForResult');
+    $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null);
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    expect($counts->sent)->toBe(1);
+});
+
+test('bhv lifecycle 026 a client built with no credential at all is refused', function (): void {
+    expect(fn () => new {{clientClassName}}())
+        ->toThrow(\InvalidArgumentException::class, 'at least one security scheme');
+});
+
+{{#schemeCredentials}}
+{{#-first}}
+test('bhv lifecycle 015 a client can be built from the credential of one security scheme alone', function (): void {
+    $credential = new BearerAuthenticator('{{{basePath}}}', 'scheme-token');
+    $client = new {{clientClassName}}({{param}}: $credential);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    $property = (new \ReflectionClass(\{{apiPackage}}\BaseApi::class))->getProperty('schemeAuthenticators');
+    expect($property->getValue($client->{{clientPropertyName}}))->toBe([{{{schemeLiteral}}} => $credential]);
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+{{/-first}}
+{{/schemeCredentials}}
+test('bhv transport 081 a supplied psr18 client receives the request from every api group', function (): void {
+    $factory = new Psr17Factory();
+    $responses = [];
+    for ($i = 0; $i < 50; $i++) {
+        $responses[] = $factory->createResponse(200)->withBody($factory->createStream('{}'));
+    }
+    $stub = new StubPsr18Client(...$responses);
+
+    $client = {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory);
+
+    $clients = [];
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $clients[] = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))
+        ->getProperty('apiClient')
+        ->getValue($client->{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    foreach ($clients as $apiClient) {
+        expect($apiClient)->toBeInstanceOf(Psr18ApiClient::class);
+        if ($apiClient instanceof Psr18ApiClient) {
+            $apiClient->sendRequest('GET', 'http://example.com/ping', [], null);
+        }
+    }
+    expect($stub->requests)->toHaveCount(count($clients));
+});
+
+test('bhv lifecycle 024 a supplied psr18 client conflicts with sdk proxy and tls settings', function (TransportOptions $options): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+})->with([
+    'proxy' => [fn () => TransportOptions::builder()->proxy('http://proxy:3128')->build()],
+    'ca bundle' => [fn () => TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build()],
+    'tls verification off' => [fn () => TransportOptions::builder()->verifySsl(false)->build()],
+]);
+
+test('bhv transport 078 a supplied psr18 client is refused at construction when a proxy is also configured', function (): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->proxy('http://proxy:3128')->build();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+});
+
+test('bhv transport 079 turning off certificate verification is refused at construction on a supplied psr18 client', function (): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->verifySsl(false)->build();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+});
+
+test('bhv transport 080 a proxy setting a supplied psr18 client cannot apply makes construction fail', function (): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->proxy('http://proxy.example.com:8080')->build();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv lifecycle 016 with token fails when the token is empty', function (): void {
+    expect(fn () => {{clientClassName}}::withToken('{{{basePath}}}', ''))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+/**
+ * A transport that records the URL and the headers of the last request it was asked to send.
+ *
+ * @return array{0: ApiClient, 1: \stdClass}
+ */
+function newCapturingTransport(): array
+{
+    $seen = new \stdClass();
+    $seen->url = null;
+    $seen->headers = [];
+    $transport = new class($seen) implements ApiClient {
+        public function __construct(private readonly \stdClass $seen)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->seen->url = $url;
+            $this->seen->headers = $headers;
+
+            return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+
+    return [$transport, $seen];
+}
+
+{{#bearerScheme}}
+test('bhv lifecycle 028 an explicit host and token win over the environment', function (): void {
+    $name = '{{tokenEnv}}';
+    $previous = getenv($name);
+    putenv($name . '=from-environment');
+    try {
+        [$transport, $seen] = newCapturingTransport();
+        $client = {{clientClassName}}::withToken('https://arg.example.com', 'arg-token', null, $transport);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+        $api = $client->{{clientPropertyName}};
+        $method = new \ReflectionMethod($api, 'invokeApiForResult');
+        $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null);
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        expect((string) $seen->url)->toStartWith('https://arg.example.com');
+        expect($seen->headers['Authorization'] ?? null)->toBe('Bearer arg-token');
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv lifecycle 032 a token passed to the client is preferred to the one in the environment', function (): void {
+    $name = '{{tokenEnv}}';
+    $previous = getenv($name);
+    putenv($name . '=from-environment');
+    try {
+        [$transport, $seen] = newCapturingTransport();
+        $client = new {{clientClassName}}(new BearerAuthenticator('https://api.example.com', 'arg-token'), null, $transport);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+        $api = $client->{{clientPropertyName}};
+        $method = new \ReflectionMethod($api, 'invokeApiForResult');
+        $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null);
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        expect($seen->headers['Authorization'] ?? null)->toBe('Bearer arg-token');
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+{{/bearerScheme}}
+
+{{#schemeCredentials}}
+{{#-first}}
+test('bhv lifecycle 030 the base url comes from the authenticator first, then the first scheme credential', function (): void {
+    $default = new BearerAuthenticator('https://default.example.com', 'tok');
+    $scheme = new BearerAuthenticator('https://scheme.example.com', 'tok');
+
+    $withDefault = new {{clientClassName}}($default, {{param}}: $scheme);
+    $schemeOnly = new {{clientClassName}}({{param}}: $scheme);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    $property = (new \ReflectionClass(\{{apiPackage}}\BaseApi::class))->getProperty('config');
+    expect($property->getValue($withDefault->{{clientPropertyName}}))->toHaveProperty('baseUrl', 'https://default.example.com');
+    expect($property->getValue($schemeOnly->{{clientPropertyName}}))->toHaveProperty('baseUrl', 'https://scheme.example.com');
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+{{/-first}}
+{{/schemeCredentials}}
+
+test('bhv auth 025 a credential that sends http requests gets the client transport when the client is built', function (): void {
+    $transport = new class implements ApiClient {
+        public int $sent = 0;
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->sent++;
+
+            return new ApiHttpResponse(200, '{"access_token":"token-1","expires_in":3600}', [
+                'Content-Type' => 'application/json',
+            ]);
+        }
+    };
+    $credential = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        ['read']
+    );
+
+    new {{clientClassName}}($credential, null, $transport);
+
+    expect($credential->getAuthHeaders())->toBe(['Authorization' => 'Bearer token-1']);
+    expect($transport->sent)->toBe(1);
+});
+
+test('bhv lifecycle 038 a caller supplied transport without a close operation is valid and closing the client repeatedly keeps it sending', function (): void {
+    $psr18 = new StubPsr18Client(
+        (new Psr17Factory())->createResponse(200),
+        (new Psr17Factory())->createResponse(200)
+    );
+    $transport = new Psr18ApiClient($psr18, new Psr17Factory(), new Psr17Factory());
+    $client = new {{clientClassName}}($this->authenticator, null, $transport);
+
+    $client->close();
+    $client->close();
+    $transport->sendRequest('GET', 'http://example.com/ping', [], null);
+
+    expect($psr18->requests)->toHaveCount(1);
+});
+
+test('bhv lifecycle 039 a client with no host or an empty token is refused at construction and a valid token builds one', function (): void {
+    expect(fn () => {{clientClassName}}::withToken('', 'valid-token'))
+        ->toThrow(\InvalidArgumentException::class);
+    expect(fn () => {{clientClassName}}::withToken('{{{basePath}}}', ''))
+        ->toThrow(\InvalidArgumentException::class);
+    expect({{clientClassName}}::withToken('{{{basePath}}}', 'valid-token'))
+        ->toBeInstanceOf({{clientClassName}}::class);
+});
+
+test('bhv lifecycle 040 releasing the last reference to a client closes the transport it built', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    $property = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->getProperty('apiClient');
+    $transport = $property->getValue($client->{{clientPropertyName}});
+    assert($transport instanceof ApiClient);
+    unset($client);
+    expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
+        ->toThrow(\LogicException::class, 'closed');
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+{{#bearerScheme}}
+test('bhv config 025 an empty token environment value counts as unset and construction names the variable', function (): void {
+    $name = '{{tokenEnv}}';
+    $previous = getenv($name);
+    putenv($name . '=');
+    try {
+        expect(fn () => new \{{invokerPackage}}\Auth\{{className}}('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, '{{tokenEnv}}');
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+{{/bearerScheme}}
+
+test('bhv mocking 001 every group has an interface the class implements', function (): void {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    expect((new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->implementsInterface(\{{apiPackage}}\{{classname}}Interface::class))->toBeTrue();
+    ${{clientPropertyName}}Listed = get_class_methods(\{{apiPackage}}\{{classname}}Interface::class);
+{{#operation}}
+    expect(${{clientPropertyName}}Listed)->toContain('{{operationId}}')->toContain('{{operationId}}WithHttpInfo');
+{{/operation}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+/**
+ * @param class-string $class
+ * @return list<string>
+ */
+function declaredPublicMethodNames(string $class): array
+{
+    $names = [];
+    foreach ((new \ReflectionClass($class))->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+        if ($method->class === $class && !$method->isConstructor()) {
+            $names[] = $method->getName();
+        }
+    }
+    sort($names);
+
+    return $names;
+}
+
+test('bhv mocking 002 the group interface lists exactly the public operations of the class', function (): void {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    expect(declaredPublicMethodNames(\{{apiPackage}}\{{classname}}Interface::class))
+        ->toBe(declaredPublicMethodNames(\{{apiPackage}}\{{classname}}::class));
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+test('bhv mocking 007 the client interface exposes every group typed as its interface and close', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+
+    expect($client)->toBeInstanceOf(\{{invokerPackage}}\{{clientClassName}}Interface::class);
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $returnType = (new \ReflectionMethod(\{{invokerPackage}}\{{clientClassName}}Interface::class, 'get{{clientAccessorSuffix}}'))->getReturnType();
+    assert($returnType instanceof \ReflectionNamedType);
+    expect($returnType->getName())->toBe(\{{apiPackage}}\{{classname}}Interface::class);
+    expect($client->get{{clientAccessorSuffix}}())->toBe($client->{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    $client->close();
+
+    expect(fn () => $client->pet->getPetById(1))->toThrow(\LogicException::class, 'closed');
+});
+
+test('bhv mocking 008 a client built from fakes never connects and closes without error', function (): void {
+    $fake = new class implements \{{invokerPackage}}\{{clientClassName}}Interface {
+        public int $closed = 0;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        public function get{{clientAccessorSuffix}}(): \{{apiPackage}}\{{classname}}Interface
+        {
+            return fakeGroup(\{{apiPackage}}\{{classname}}Interface::class);
+        }
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+        public function close(): void
+        {
+            $this->closed++;
+        }
+    };
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    expect($fake->get{{clientAccessorSuffix}}())->toBeInstanceOf(\{{apiPackage}}\{{classname}}Interface::class);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    $fake->close();
+    $fake->close();
+
+    expect($fake->closed)->toBe(2);
+});
+
+test('bhv langphp 057 a call hook given to the client is handed to every api group', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new {{clientClassName}}($this->authenticator, null, null, callHook: $hook);
+
+    $configs = [];
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $configs[] = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))
+        ->getProperty('config')
+        ->getValue($client->{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    foreach ($configs as $config) {
+        expect($config)->toBeInstanceOf(\{{invokerPackage}}\Configuration::class);
+        if ($config instanceof \{{invokerPackage}}\Configuration) {
+            expect($config->getCallHook())->toBe($hook);
+        }
+    }
+    expect($configs)->not->toBe([]);
+});
+
+test('bhv lifecycle 045 closing the sdk client does not close a supplied http client, which keeps sending', function (): void {
+    [$transport, $counts] = newRecordingTransport();
+    $client = new {{clientClassName}}($this->authenticator, null, $transport);
+    $client->close();
+
+    expect(fn () => $transport->sendRequest('GET', 'http://example.com/ping', [], null))
+        ->not->toThrow(\LogicException::class);
+    expect($counts->closes)->toBe(0);
+});
+
+test('bhv lifecycle 041 a supplied http client with sdk proxy or tls settings is refused with a conflict error', function (TransportOptions $options): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+})->with([
+    'proxy' => [TransportOptions::builder()->proxy('http://proxy:3128')->build()],
+    'ca bundle' => [TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build()],
+    'tls verification off' => [TransportOptions::builder()->verifySsl(false)->build()],
+]);
+
+test('bhv misc 042 disabled verification on a supplied client is refused and the error names verifySsl', function (): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->verifySsl(false)->build();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'verifySsl');
+});
+
+test('bhv misc 186 a value that is not an http connection is refused as the connection, and a ready made connection with a ca bundle is refused when the options are built', function (): void {
+    expect(fn () => newUnchecked({{clientClassName}}::class, [$this->authenticator, null, new \stdClass()]))
+        ->toThrow(\TypeError::class);
+
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build();
+
+    expect(fn () => {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+});
+
+test('bhv misc 188 a client reports closed only after close has been called', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+    expect($client->isClosed())->toBeFalse();
+    $client->close();
+    expect($client->isClosed())->toBeTrue();
+});
+
+test('bhv misc 203 closing a client that is already closed does nothing and raises no error', function (): void {
+    $client = new {{clientClassName}}($this->authenticator);
+    $client->close();
+    $client->close();
+    expect($client->isClosed())->toBeTrue();
+});
+
+{{#bearerScheme}}
+test('bhv misc 204 a bearer authenticator without a token fails immediately with a missing credential error', function (): void {
+    $name = '{{tokenEnv}}';
+    $previous = getenv($name);
+    putenv($name);
+    try {
+        expect(fn () => new \{{invokerPackage}}\Auth\{{className}}('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class);
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv misc 205 a credential found nowhere makes the missing credential error name the variable', function (): void {
+    $name = '{{tokenEnv}}';
+    $previous = getenv($name);
+    putenv($name);
+    try {
+        expect(fn () => new \{{invokerPackage}}\Auth\{{className}}('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, $name);
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+{{/bearerScheme}}
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+test('bhv misc 206 a client built with only a default authenticator takes its host from that authenticator', function (): void {
+    $client = new {{clientClassName}}(new BearerAuthenticator('https://only-default.example.com', 'tok'));
+    $property = (new \ReflectionClass(\{{apiPackage}}\BaseApi::class))->getProperty('config');
+    expect($property->getValue($client->{{clientPropertyName}}))->toHaveProperty('baseUrl', 'https://only-default.example.com');
+});
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+{{#bearerScheme}}
+test('bhv misc 207 a credential not passed to the constructor is read from the matching environment variable', function (): void {
+    $name = '{{tokenEnv}}';
+    $previous = getenv($name);
+    putenv($name . '=from-environment');
+    try {
+        $authenticator = new \{{invokerPackage}}\Auth\{{className}}('https://api.example.com');
+        expect($authenticator->getAuthHeaders()['Authorization'])->toBe('Bearer from-environment');
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv misc 208 an empty environment variable is treated the same as an unset one for the implicit credential', function (): void {
+    $name = '{{tokenEnv}}';
+    $previous = getenv($name);
+    putenv($name . '=');
+    try {
+        expect(fn () => new \{{invokerPackage}}\Auth\{{className}}('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class);
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+{{/bearerScheme}}
+
+test('bhv misc 071 a client level credential that needs http receives the clients transport', function (): void {
+    $credential = new class('{{{basePath}}}', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
+        public ?ApiClient $received = null;
+
+        public function setApiClient(ApiClient $apiClient): void
+        {
+            $this->received = $apiClient;
+        }
+    };
+    $client = new {{clientClassName}}($credential);
+    $property = (new \ReflectionClass(\{{apiPackage}}\BaseApi::class))->getProperty('apiClient');
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    expect($property->getValue($client->{{clientPropertyName}}))->toBe($credential->received);
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+
+{{#schemeCredentials}}
+{{#-first}}
+test('bhv misc 072 every api group holds the default credential and the scheme credentials', function (): void {
+    $default = new BearerAuthenticator('https://default.example.com', 'tok');
+    $scheme = new BearerAuthenticator('https://scheme.example.com', 'tok');
+    $client = new {{clientClassName}}($default, {{param}}: $scheme);
+    $base = new \ReflectionClass(\{{apiPackage}}\BaseApi::class);
+    $authenticator = $base->getProperty('authenticator');
+    $schemes = $base->getProperty('schemeAuthenticators');
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    expect($authenticator->getValue($client->{{clientPropertyName}}))->toBe($default);
+    expect(array_values((array) $schemes->getValue($client->{{clientPropertyName}})))->toBe([$scheme]);
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+});
+{{/-first}}
+{{/schemeCredentials}}
+
+{{#hasSchemeCredentials}}
+test('bhv misc 073 a wrapper class exists for every security scheme the spec declares', function (): void {
+{{#schemeCredentials}}
+    expect(class_exists('{{{escapedClassFqcn}}}'))->toBeTrue();
+{{/schemeCredentials}}
+});
+{{/hasSchemeCredentials}}
+
+test('bhv misc 075 a credential keyed to an undeclared scheme is refused when the client is built', function (): void {
+    $credential = new BearerAuthenticator('{{{basePath}}}', 'tok');
+
+    expect(fn () => (new \ReflectionClass({{clientClassName}}::class))->newInstanceArgs(['undeclaredScheme' => $credential]))
+        ->toThrow(\Error::class, 'undeclaredScheme');
+});
+
+test('bhv transport 092 a supplied psr18 client receives the request from every api group', function (): void {
+    $factory = new Psr17Factory();
+    $responses = [];
+    for ($i = 0; $i < 50; $i++) {
+        $responses[] = $factory->createResponse(200)->withBody($factory->createStream('{}'));
+    }
+    $stub = new StubPsr18Client(...$responses);
+
+    $client = {{clientClassName}}::withHttpClient($this->authenticator, $stub, $factory, $factory);
+
+    $clients = [];
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $clients[] = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))
+        ->getProperty('apiClient')
+        ->getValue($client->{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    foreach ($clients as $apiClient) {
+        expect($apiClient)->toBeInstanceOf(Psr18ApiClient::class);
+        if ($apiClient instanceof Psr18ApiClient) {
+            $apiClient->sendRequest('GET', 'http://example.com/ping', [], null);
+        }
+    }
+    expect($stub->requests)->toHaveCount(count($clients));
+});

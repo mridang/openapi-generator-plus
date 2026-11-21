@@ -1,0 +1,297 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"testing"
+)
+
+func TestBhvHeaders019_HeaderSelector_IsJSONMIMETrueForApplicationJSON(t *testing.T) {
+	t.Parallel()
+	if !newHeaderSelector().isJSONMIME("application/json") {
+		t.Error("expected application/json to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders020_HeaderSelector_IsJSONMIMETrueForApplicationJSONWithCharset(t *testing.T) {
+	t.Parallel()
+	if !newHeaderSelector().isJSONMIME("application/json; charset=UTF-8") {
+		t.Error("expected application/json with a charset to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders021_HeaderSelector_IsJSONMIMEIsCaseInsensitive(t *testing.T) {
+	t.Parallel()
+	if !newHeaderSelector().isJSONMIME("APPLICATION/JSON") {
+		t.Error("expected APPLICATION/JSON to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders022_HeaderSelector_IsJSONMIMETrueForVendorJSONTypes(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+	for _, mime := range []string{"application/vnd.api+json", "application/hal+json"} {
+		if !hs.isJSONMIME(mime) {
+			t.Errorf("expected %q to be a JSON MIME type", mime)
+		}
+	}
+}
+
+func TestBhvHeaders012_HeaderSelector_IsJSONMIMEFalseForOctetStream(t *testing.T) {
+	t.Parallel()
+	if newHeaderSelector().isJSONMIME("application/octet-stream") {
+		t.Error("expected application/octet-stream not to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders013_HeaderSelector_IsJSONMIMEFalseForApplicationXML(t *testing.T) {
+	t.Parallel()
+	if newHeaderSelector().isJSONMIME("application/xml") {
+		t.Error("expected application/xml not to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders014_HeaderSelector_IsJSONMIMEFalseForEmptyString(t *testing.T) {
+	t.Parallel()
+	if newHeaderSelector().isJSONMIME("") {
+		t.Error("expected the empty string not to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders016_HeaderSelector_IsJSONMIMEFalseForTextHTML(t *testing.T) {
+	t.Parallel()
+	if newHeaderSelector().isJSONMIME("text/html") {
+		t.Error("expected text/html not to be a JSON MIME type")
+	}
+}
+
+func TestBhvHeaders003_HeaderSelector_SelectAcceptHeaderDoesNotReorderOrWeightJSONTypes(t *testing.T) {
+	t.Parallel()
+	accept := newHeaderSelector().selectAcceptHeader([]string{"text/html", "application/vnd.api+json", "application/json"})
+
+	if accept != "text/html, application/vnd.api+json, application/json" {
+		t.Errorf("expected the declared order with no weights, got %q", accept)
+	}
+}
+
+func TestBhvHeaders026_HeaderSelector_SelectHeadersJoinsNonJSONTypesInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	headers := newHeaderSelector().selectHeaders([]string{"text/html", "text/plain"}, "application/json", false)
+
+	if headers["Accept"] != "text/html, text/plain" {
+		t.Errorf("expected Accept 'text/html, text/plain', got %q", headers["Accept"])
+	}
+}
+
+func TestBhvHeaders006_HeaderSelector_SelectHeadersOmitsAcceptWhenAllEntriesAreBlank(t *testing.T) {
+	t.Parallel()
+	headers := newHeaderSelector().selectHeaders([]string{"", "   "}, "application/json", false)
+
+	if _, ok := headers["Accept"]; ok {
+		t.Errorf("expected no Accept header, got %q", headers["Accept"])
+	}
+}
+
+func TestBhvHeaders025_HeaderSelector_SelectHeadersSetsContentTypeWhenNotMultipart(t *testing.T) {
+	t.Parallel()
+	headers := newHeaderSelector().selectHeaders([]string{"application/json"}, "text/plain", false)
+
+	if headers["Content-Type"] != "text/plain" {
+		t.Errorf("expected Content-Type 'text/plain', got %q", headers["Content-Type"])
+	}
+}
+
+func TestBhvHeaders011_HeaderSelector_SelectAcceptHeaderJoinsInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	accept := hs.selectAcceptHeader([]string{"image/jpeg", "image/png", "application/json"})
+
+	if accept != "image/jpeg, image/png, application/json" {
+		t.Errorf("expected 'image/jpeg, image/png, application/json', got %q", accept)
+	}
+}
+
+func TestBhvHeaders017_HeaderSelector_SelectAcceptHeaderSingleElement(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	accept := hs.selectAcceptHeader([]string{"application/json"})
+
+	if accept != "application/json" {
+		t.Errorf("expected 'application/json', got %q", accept)
+	}
+}
+
+func TestBhvHeaders009_HeaderSelector_SelectAcceptHeaderFiltersEmptyEntries(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	accept := hs.selectAcceptHeader([]string{"", "application/json", ""})
+
+	if accept != "application/json" {
+		t.Errorf("expected 'application/json', got %q", accept)
+	}
+}
+
+func TestBhvHeaders008_HeaderSelector_SelectAcceptHeaderDropsWhitespaceOnlyEntries(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	accept := hs.selectAcceptHeader([]string{"   ", "application/json"})
+
+	if accept != "application/json" {
+		t.Errorf("expected 'application/json', got %q", accept)
+	}
+}
+
+func TestBhvHeaders027_HeaderSelector_SelectAcceptHeaderOfAnEmptyArrayIsEmptyString(t *testing.T) {
+	t.Parallel()
+	if accept := newHeaderSelector().selectAcceptHeader([]string{}); accept != "" {
+		t.Errorf("expected an empty Accept header, got %q", accept)
+	}
+}
+
+// TestBhvHeaders029 pins that the Accept header is empty when every entry is blank,
+// whether empty or made only of whitespace.
+func TestBhvHeaders029_HeaderSelector_SelectAcceptHeaderIsEmptyWhenEveryEntryIsBlank(t *testing.T) {
+	t.Parallel()
+	if accept := newHeaderSelector().selectAcceptHeader([]string{"", "   ", ""}); accept != "" {
+		t.Errorf("expected an empty Accept header, got %q", accept)
+	}
+}
+
+func TestBhvHeaders005_HeaderSelector_SelectAcceptHeaderEmptyWhenNothingRemains(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	if accept := hs.selectAcceptHeader([]string{"", ""}); accept != "" {
+		t.Errorf("expected empty Accept header, got %q", accept)
+	}
+	if accept := hs.selectAcceptHeader([]string{}); accept != "" {
+		t.Errorf("expected empty Accept header, got %q", accept)
+	}
+}
+
+func TestBhvHeaders023_HeaderSelector_SelectHeadersWithSingleAccept(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	headers := hs.selectHeaders([]string{"application/json"}, "application/json", false)
+
+	if headers["Accept"] != "application/json" {
+		t.Errorf("expected Accept 'application/json', got %q", headers["Accept"])
+	}
+	if headers["Content-Type"] != "application/json" {
+		t.Errorf("expected Content-Type 'application/json', got %q", headers["Content-Type"])
+	}
+}
+
+func TestBhvHeaders024_HeaderSelector_SelectHeadersWithMultipleAccepts(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	headers := hs.selectHeaders([]string{"application/json", "application/xml"}, "application/json", false)
+
+	if headers["Accept"] != "application/json, application/xml" {
+		t.Errorf("expected Accept 'application/json, application/xml', got %q", headers["Accept"])
+	}
+}
+
+func TestBhvHeaders004_HeaderSelector_SelectHeadersWithEmptyAccepts(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	headers := hs.selectHeaders([]string{}, "application/json", false)
+
+	if _, ok := headers["Accept"]; ok {
+		t.Error("expected no Accept header for empty accepts list")
+	}
+}
+
+func TestBhvHeaders007_HeaderSelector_SelectHeadersMultipartOmitsContentType(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	headers := hs.selectHeaders([]string{"application/json"}, "multipart/form-data", true)
+
+	if _, ok := headers["Content-Type"]; ok {
+		t.Error("expected no Content-Type header for multipart requests")
+	}
+}
+
+func TestBhvHeaders001_HeaderSelector_SelectHeadersDefaultContentType(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	headers := hs.selectHeaders([]string{"application/json"}, "", false)
+
+	if headers["Content-Type"] != "application/json" {
+		t.Errorf("expected default Content-Type 'application/json', got %q", headers["Content-Type"])
+	}
+}
+
+func TestBhvHeaders018_HeaderSelector_SelectHeadersSingleNonJSONAcceptAsIs(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	headers := hs.selectHeaders([]string{"text/html"}, "application/json", false)
+
+	if headers["Accept"] != "text/html" {
+		t.Errorf("expected Accept 'text/html', got %q", headers["Accept"])
+	}
+}
+
+func TestBhvHeaders010_HeaderSelector_SelectHeadersFiltersOutEmptyEntries(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	headers := hs.selectHeaders([]string{"", "application/json"}, "application/json", false)
+
+	if headers["Accept"] != "application/json" {
+		t.Errorf("expected Accept 'application/json', got %q", headers["Accept"])
+	}
+}
+
+func TestBhvLanggo036_HeaderSelector_IsTextMIME(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	testCases := []struct {
+		input    string
+		expected bool
+	}{
+		{"text/plain", true},
+		{"TEXT/HTML; charset=utf-8", true},
+		{"application/xml", true},
+		{"application/javascript", true},
+		{"application/atom+xml", true},
+		{"application/json", false},
+		{"application/octet-stream", false},
+		{"", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			if result := hs.isTextMIME(tc.input); result != tc.expected {
+				t.Errorf("isTextMIME(%q) = %v, want %v", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestBhvLanggo037_HeaderSelector_MediaTypeStripsParametersAndLowercases(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	if got := hs.mediaType(" Text/Plain ; charset=utf-8"); got != "text/plain" {
+		t.Errorf("mediaType = %q, want %q", got, "text/plain")
+	}
+}
+
+func TestBhvHeaders032_HeaderSelector_AcceptHeaderListsMediaTypesWithoutQualityWeights(t *testing.T) {
+	t.Parallel()
+	got := newHeaderSelector().selectAcceptHeader([]string{"application/json", "text/plain"})
+	if got != "application/json, text/plain" {
+		t.Errorf("expected the media types without q= weights, got %q", got)
+	}
+}

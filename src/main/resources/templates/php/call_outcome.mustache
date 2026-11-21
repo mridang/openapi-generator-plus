@@ -1,0 +1,24 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * How an operation call ended, handed to {@see CallObserver::finish()}.
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+final readonly class CallOutcome
+{
+    /**
+     * @param int                        $statusCode the HTTP status, or 0 when no response arrived
+     * @param array<string, string>|null $headers    the lower-cased response headers, or null when no
+     *                                               response arrived
+     * @param \Throwable|null            $error      the very error the caller receives, or null on success
+     */
+    public function __construct(
+        public int $statusCode,
+        public ?array $headers,
+        public ?\Throwable $error,
+    ) {
+    }
+}

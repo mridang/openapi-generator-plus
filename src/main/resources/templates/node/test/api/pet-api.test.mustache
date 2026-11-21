@@ -1,0 +1,1847 @@
+{{>api_info}}
+
+import * as fs from 'node:fs';
+import * as http from 'node:http';
+import * as path from 'node:path';
+import { GetExternalPetInfoServer, GetExternalPetInfoServerServer0, GetMultiServerPetInfoServerChannel, GetMultiServerPetInfoServerMirror, GetMultiServerPetInfoServerMirrorRegion, GetMultiServerPetInfoServerPrimary, GetMultiServerPetInfoServerRegionalRegion, GetMultiServerPetInfoServerRegional, GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerStagingServer, GetStagingPetInfoServerVersion, PetApi, UploadPetDocumentDocumentTypeEnum, type PetApiInterface } from '../../src/api/pet-api{{importFileExtension}}';
+import type { UploadPetDocumentOptions, SetPetPreferencesOptions } from '../../src/api/options/index{{importFileExtension}}';
+import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
+import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
+import { ApiKeyAuthenticator } from '../../src/auth/api-key-authenticator{{importFileExtension}}';
+import { ApiKeyLocation } from '../../src/auth/api-key-location{{importFileExtension}}';
+import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{importFileExtension}}';
+import { Configuration } from '../../src/configuration{{importFileExtension}}';
+import { DefaultApiClient } from '../../src/default-api-client{{importFileExtension}}';
+import { TransportOptions } from '../../src/transport-options{{importFileExtension}}';
+import { Servers } from '../../src/servers{{importFileExtension}}';
+import { Medication, Pet, PetCriteria, PetStatusEnum, PetTreatment, PhotoMetadata, SetPetAvatarThumbnailRequest, Swatch } from '../../src/models/index{{importFileExtension}}';
+import { ApiError } from '../../src/errors/api-error{{importFileExtension}}';
+import { BadGatewayError, BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NotFoundError, UnauthorizedError, UnprocessableEntityError } from '../../src/errors/index{{importFileExtension}}';
+import { SerializationError } from '../../src/errors/serialization-error{{importFileExtension}}';
+
+const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
+const config = Configuration.builder()
+  .baseUrl(baseUrl)
+  .defaultHeader('Authorization', 'Bearer test-token')
+  .build();
+const api = new PetApi(undefined, config);
+
+describe('PetApi', () => {
+  beforeAll(async () => {
+    for (let i = 0; i < 5; i++) {
+      try {
+        await fetch(baseUrl, { method: 'GET' });
+        return;
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  });
+
+  test('bhv operations 022 addPet', async () => {
+    const pet = new Pet({
+      id: 12345,
+      name: 'TestDog',
+      photoUrls: new Set(['http://example.com/photo.jpg']),
+      status: PetStatusEnum.Available,
+    });
+
+    const result = await api.addPet(pet);
+
+    expect(result).toBeDefined();
+    expect(result.name).toBeDefined();
+  });
+
+  test('bhv operations 039 findPetsByStatus', async () => {
+    const result = await api.findPetsByStatus({ status: PetStatusEnum.Available });
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  test('bhv operations 047 getPetById', async () => {
+    const result = await api.getPetById(1);
+
+    expect(result).toBeDefined();
+    expect(result.id).toBeDefined();
+    expect(result.name).toBeDefined();
+  });
+
+  test('bhv operations 087 updatePet', async () => {
+    const pet = new Pet({
+      id: 1,
+      name: 'UpdatedDog',
+      photoUrls: new Set(['http://example.com/updated.jpg']),
+      status: PetStatusEnum.Pending,
+    });
+
+    const result = await api.updatePet(1, pet);
+
+    expect(result).toBeDefined();
+  });
+
+  test('bhv operations 027 deletePet', async () => {
+    await api.deletePet(1);
+  });
+
+  test('bhv operations 070 setPetAvatar', async () => {
+    const body = Buffer.from([0xFF, 0xD8, 0xFF]);
+
+    await api.setPetAvatar(1, body);
+  });
+
+  test('bhv operations 045 getPetAvatar', async () => {
+    const result = await api.getPetAvatarWithHttpInfo(1);
+
+    expect(Buffer.isBuffer(result.data)).toBe(true);
+    expect((result.data as Buffer).toString('base64')).toBe(result.rawBody);
+  });
+
+  test('bhv operations 046 getPetAvatarThumbnail', async () => {
+    // A top-level `type: string, format: byte` response carried as
+    // application/json arrives as a JSON string literal ("dGVzdC1pbWFnZQ==").
+    // The SDK must JSON-parse it and base64-decode the inner string to raw
+    // bytes — not return the quoted literal nor the un-decoded base64 string.
+    const result = await api.getPetAvatarThumbnail(1);
+
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect(result.toString('utf8')).toBe('test-image');
+  });
+
+  test('bhv operations 074 setPetAvatarThumbnail', async () => {
+    const request: SetPetAvatarThumbnailRequest = Buffer.from('aGVsbG8=', 'base64');
+
+    await api.setPetAvatarThumbnail(1, request);
+  });
+
+  test('bhv operations 090 uploadPetCertificate', async () => {
+    const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
+
+    const result = await api.uploadPetCertificate(1, { file });
+
+    expect(result).toBeDefined();
+  });
+
+  test('bhv operations 091 uploadPetDocument', async () => {
+    const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
+
+    const result = await api.uploadPetDocument(1, { file, documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate, notes: 'Annual checkup document' });
+
+    expect(result).toBeDefined();
+  });
+
+  test('bhv operations 023 addPetPhotos', async () => {
+    const files = [
+      Buffer.from([0xFF, 0xD8, 0xFF]),
+    ];
+    const metadata = new PhotoMetadata({
+      caption: 'Test photo',
+      isPrimary: true,
+    });
+
+    const result = await api.addPetPhotos(1, { files, metadata });
+
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  test('bhv operations 035 downloadPetDocument', async () => {
+    const result = await api.downloadPetDocument(1, 100);
+
+    expect(result).toBeDefined();
+  });
+
+  test('bhv operations 055 getPetPhoto', async () => {
+    const result = await api.getPetPhoto(1, 100);
+
+    expect(result).toBeDefined();
+  });
+
+  test('bhv operations 073 setPetAvatar streams raw bytes with declared content type', async () => {
+    let capturedBody: unknown = null;
+    let capturedHeaders: Record<string, string> = {};
+    const capturingClient: ApiClient = {
+      async sendRequest(_method: string, _url: string, headers: Record<string, string>, body: unknown): Promise<ApiHttpResponse> {
+        capturedBody = body;
+        capturedHeaders = headers;
+        return { statusCode: 200, body: '', headers: {} };
+      },
+    };
+    const capturingApi = new PetApi(capturingClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
+    const payload = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]);
+
+    await capturingApi.setPetAvatar(1, payload);
+
+    expect(Buffer.isBuffer(capturedBody)).toBe(true);
+    expect((capturedBody as Buffer).equals(payload)).toBe(true);
+    expect(capturedHeaders['Content-Type']).toBe('image/jpeg');
+  });
+
+  test('bhv operations 060 getPetTag sends styled parameters (matrix/label path styles)', async () => {
+    const result = await api.getPetTag(5, 'cute', { colors: ['blue', 'black'], sizes: ['S', 'M'] });
+
+    expect(result).toBeDefined();
+    expect(result.id).toBeDefined();
+  });
+
+  // optional-array-param: an OPTIONAL array query parameter set to multiple
+  // values must reach the wire as the OAS style-encoded form, never a language
+  // debug blob (e.g. go's `&[blue black]`). getPetTag's `colors` is
+  // pipeDelimited/explode:false and `sizes` is spaceDelimited/explode:false, so
+  // they serialize to `colors=blue|black` and `sizes=S M` (the `|` and space
+  // percent-encoded by the URL builder). We capture the outbound request URL and
+  // assert the styled values are present and the debug form is absent.
+  test('bhv operations 068 getPetTag serializes optional array query params as styled values', async () => {
+    let capturedUrl: string | undefined;
+    const server = http.createServer((req, res) => {
+      capturedUrl = req.url;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      // A valid Pet (photoUrls is required) so the response deserializes and
+      // the call returns normally; the assertion target is the captured URL.
+      res.end('{"id":7,"name":"styled-tag","photoUrls":[]}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const cfg = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .defaultHeader('Authorization', 'Bearer test-token')
+        .build();
+      const styledApi = new PetApi(undefined, cfg);
+
+      await styledApi.getPetTag(5, 'cute', {
+        colors: ['blue', 'black'],
+        sizes: ['S', 'M'],
+      });
+
+      expect(capturedUrl).toBeDefined();
+      const decoded = decodeURIComponent(capturedUrl!);
+      // pipeDelimited (explode:false) -> blue|black ; spaceDelimited -> S M.
+      expect(decoded).toContain('colors=blue|black');
+      expect(decoded).toContain('sizes=S M');
+      // The values must NOT appear as a JS/array debug blob.
+      expect(capturedUrl).not.toContain('blue,black');
+      expect(decoded).not.toContain('[blue');
+      expect(decoded).not.toContain('blue black');
+      expect(decoded).not.toContain('[object Object]');
+    } finally {
+      server.close();
+    }
+  });
+
+  // date-only serialization: node types `format: date` as `Date` (same as
+  // date-time), so the codegen must route such params through `stringifyDate`.
+  // findPetsByStatus takes `bornAfter` (query) and `Report-Date` (header),
+  // both `format: date`; each must reach the wire as YYYY-MM-DD with NO time
+  // component (java's LocalDate wire form), never a full ISO date-time. The
+  // Date carries a non-midnight time so a leaked time would be visible.
+  test('bhv operations 069 findPetsByStatus serializes date-only query and header params as YYYY-MM-DD', async () => {
+    let capturedUrl: string | undefined;
+    let capturedHeader: string | string[] | undefined;
+    const server = http.createServer((req, res) => {
+      capturedUrl = req.url;
+      capturedHeader = req.headers['report-date'];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('[]');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const cfg = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .defaultHeader('Authorization', 'Bearer test-token')
+        .build();
+      const dateApi = new PetApi(undefined, cfg);
+
+      await dateApi.findPetsByStatus({
+        status: PetStatusEnum.Available,
+        bornAfter: new Date(Date.UTC(2024, 0, 1, 13, 45, 30)),
+        reportDate: new Date(Date.UTC(2024, 0, 1, 13, 45, 30)),
+      });
+
+      expect(capturedUrl).toBeDefined();
+      const query = new URL(capturedUrl!, 'http://localhost').searchParams;
+      expect(query.get('bornAfter')).toBe('2024-01-01');
+      expect(capturedHeader).toBe('2024-01-01');
+      // No time component may leak into either location.
+      expect(capturedUrl).not.toContain('T13');
+      expect(capturedUrl).not.toContain('00Z');
+      expect(String(capturedHeader)).not.toContain('T');
+    } finally {
+      server.close();
+    }
+  });
+
+  test('bhv operations 061 getExternalPetInfo uses the per-operation server', async () => {
+    /* The operation's own server wins over the client's base URL: the
+     * client points at a closed port, the per-operation server at the mock. */
+    class MockServer extends GetExternalPetInfoServer {
+      getUrl(): string {
+        return baseUrl;
+      }
+    }
+    const closedPortApi = new PetApi(
+      undefined,
+      Configuration.builder()
+        .baseUrl('http://127.0.0.1:1')
+        .defaultHeader('Authorization', 'Bearer test-token')
+        .build(),
+    );
+
+    const result = await closedPortApi.getExternalPetInfo(1, new MockServer());
+
+    expect(result).toBeDefined();
+  });
+
+  test('bhv options 054 the per-call request options follow the server argument', async () => {
+    class MockServer extends GetExternalPetInfoServer {
+      getUrl(): string {
+        return baseUrl;
+      }
+    }
+    const result = await api.getExternalPetInfo(1, new MockServer(), {
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toBeDefined();
+  });
+
+  test('bhv misc 035 an aborted per-call signal rejects the call with an AbortError', async () => {
+    const error = await api
+      .getPetById(1, undefined, { signal: AbortSignal.abort() })
+      .catch((e: unknown) => e);
+
+    expect((error as Error).name).toBe('AbortError');
+  });
+
+  test('bhv langnode 009 an operation without an Options object takes the per-call settings', async () => {
+    const result = await api.getPetPassport(1, {
+      timeout: 5000,
+      maxRetries: 0,
+      headers: { 'X-Trace-Id': 'abc' },
+    });
+
+    expect(result.pet).toBeDefined();
+  });
+
+  test('bhv operations 053 getPetPassport', async () => {
+    const result = await api.getPetPassport(1);
+
+    expect(result).toBeDefined();
+    expect(result.pet).toBeDefined();
+    expect(result.thumbnail).toBeDefined();
+    expect(result.scans).toBeDefined();
+  });
+
+  test('bhv operations 025 addPetWithHttpInfo', async () => {
+    const pet = new Pet({
+      id: 99,
+      name: 'HttpInfoDog',
+      photoUrls: new Set(['http://example.com/photo.jpg']),
+      status: PetStatusEnum.Available,
+    });
+
+    const result = await api.addPetWithHttpInfo(pet);
+
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+    expect(result.data).toBeDefined();
+  });
+
+  test('bhv operations 048 getPetByIdWithHttpInfo', async () => {
+    const result = await api.getPetByIdWithHttpInfo(1);
+
+    expect(result.statusCode).toBe(200);
+    expect(result.data).toBeDefined();
+    expect(result.rawBody).toBeDefined();
+  });
+
+  test('bhv operations 088 updatePetWithHttpInfo', async () => {
+    const pet = new Pet({
+      id: 1,
+      name: 'UpdatedDog',
+      photoUrls: new Set(['http://example.com/updated.jpg']),
+      status: PetStatusEnum.Pending,
+    });
+
+    const result = await api.updatePetWithHttpInfo(1, pet);
+
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+  });
+
+  test('bhv operations 031 deletePetWithHttpInfo', async () => {
+    const result = await api.deletePetWithHttpInfo(1);
+
+    expect(result.statusCode).toBeGreaterThanOrEqual(200);
+    expect(result.statusCode).toBeLessThan(300);
+  });
+
+  test('bhv operations 042 findPetsByStatusWithHttpInfo', async () => {
+    const result = await api.findPetsByStatusWithHttpInfo({ status: PetStatusEnum.Available });
+
+    expect(result.statusCode).toBe(200);
+  });
+
+  test('bhv operations 054 getPetPassportWithHttpInfo', async () => {
+    const result = await api.getPetPassportWithHttpInfo(1);
+
+    expect(result.statusCode).toBe(200);
+    expect(result.data).toBeDefined();
+  });
+});
+
+function createMockServer(status: number, requestContentType: string, body: string): Promise<{ api: PetApi; server: http.Server; close: () => void }> {
+  return new Promise((resolve) => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(status, { 'Content-Type': requestContentType });
+      res.end(body);
+    });
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address() as { port: number };
+      const mockConfig = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .build();
+      const mockApi = new PetApi(new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()), mockConfig);
+      resolve({ api: mockApi, server, close: () => server.close() });
+    });
+  });
+}
+
+describe('PetApi top-level byte responses', () => {
+  test('bhv operations 063 getPetAvatarThumbnail rejects malformed base64 with a SerializationError', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '"!!not*base64??"');
+    try {
+      await expect(mockApi.getPetAvatarThumbnail(1)).rejects.toBeInstanceOf(SerializationError);
+    } finally {
+      close();
+    }
+  });
+});
+
+describe('PetApi', () => {
+  test('bhv operations 037 error handling not found', async () => {
+    const { api: mockApi, close } = await createMockServer(404, 'application/json', '{"message":"Pet not found"}');
+    try {
+      await expect(mockApi.getPetById(99999)).rejects.toBeInstanceOf(NotFoundError);
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv misc 212 an error response from a call raises the matching error class through the API layer', async () => {
+    for (const [status, errorClass] of [
+    [404, NotFoundError],
+    [500, InternalServerError],
+  ] as const) {
+      const { api: mockApi, close } = await createMockServer(status, 'application/json', '{"message":"failed"}');
+      try {
+        await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(errorClass);
+      } finally {
+        close();
+      }
+    }
+  });
+  test('bhv operations 038 error handling server error throws InternalServerError', async () => {
+    const { api: mockApi, close } = await createMockServer(500, 'application/json', '{"message":"Internal server error"}');
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(InternalServerError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 138 getPetById picks the status-specific error for every listed status', async () => {
+    for (const [status, expected] of [
+    [400, BadRequestError],
+    [401, UnauthorizedError],
+    [403, ForbiddenError],
+    [404, NotFoundError],
+    [409, ConflictError],
+    [418, ClientError],
+    [422, UnprocessableEntityError],
+    [500, InternalServerError],
+    [502, BadGatewayError],
+  ] as const) {
+      const statusApi = new PetApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
+      );
+
+      const error = await statusApi.getPetById(1).catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(expected);
+      expect((error as ClientError).statusCode).toBe(status);
+    }
+  });
+
+  test('bhv operations 034 download binary mock', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/octet-stream', 'FAKE_BINARY_DATA');
+    try {
+      const result = await mockApi.getPetAvatar(1);
+      expect(result).toBeDefined();
+    } finally {
+      close();
+    }
+  });
+
+  // A top-level `type: string, format: byte` value carried as application/json
+  // arrives as a JSON string literal (quotes included). The SDK must JSON-parse
+  // it and then base64-decode the inner string to the raw bytes.
+  test('bhv operations 062 getPetAvatarThumbnail decodes a JSON string literal as base64 bytes', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '"dGVzdC1pbWFnZQ=="');
+    try {
+      const result = await mockApi.getPetAvatarThumbnail(1);
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result).toEqual(Buffer.from('test-image'));
+      expect(result.toString('utf8')).toBe('test-image');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 089 upload multipart mock', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"code":200,"type":"","message":"success"}');
+    try {
+      const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
+      const result = await mockApi.uploadPetCertificate(1, { file });
+      expect(result).toBeDefined();
+    } finally {
+      close();
+    }
+  });
+
+  // convenience-empty-body-handling: a body-returning operation that receives a
+  // 200 with an empty body must surface a typed ApiError from the plain
+  // convenience method, never a silently-cast undefined.
+  test('bhv operations 036 an empty body with status 200 or 204 on a body-returning op throws ApiError', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '');
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
+      await expect(mockApi.getPetById(1)).rejects.toThrow(
+        'Expected a response body for getPetById but received none',
+      );
+    } finally {
+      close();
+    }
+    const { api: noContentApi, close: closeNoContent } = await createMockServer(204, 'application/json', '');
+    try {
+      await expect(noContentApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
+    } finally {
+      closeNoContent();
+    }
+  });
+
+  test('bhv operations 136 a bare JSON null body from a model operation throws an ApiError naming the operation', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', 'null');
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
+      await expect(mockApi.getPetById(1)).rejects.toThrow(
+        'Expected a response body for getPetById but received none',
+      );
+    } finally {
+      close();
+    }
+  });
+
+  // Canonical #11 — a malformed 2xx response body must FAIL LOUD. The
+  // convenience method routes the body through ObjectSerializer.parseJson and
+  // the model deserializer; both throw, so the error propagates instead of the
+  // raw string being returned. Two failure modes are exercised: syntactically
+  // broken JSON (parse error) and well-formed JSON of the wrong shape (a Pet
+  // payload missing the required `name`, which the deserializer rejects).
+  test('bhv operations 130 a malformed 2xx JSON body propagates the deserialization error', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{ not json');
+    try {
+      // The error propagates instead of the raw string being returned.
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 127 a malformed 2xx body fails loud with a serialization error, not returned raw', async () => {
+    // 200 with valid JSON whose shape violates the Pet contract (required
+    // `name` absent). The model deserializer must throw rather than hand back
+    // a partial object or the raw dict.
+    const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"id":1,"photoUrls":["u"]}');
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
+  // Canonical #6 — an operation cookie param carrying CR/LF (or any control
+  // char) must FAIL CLOSED with the RFC-6265 error before any HTTP call.
+  // deletePet's optional `api_key` cookie is the path; the guard mirrors the
+  // auth-cookie validation in BaseApi.
+  test('bhv operations 029 deletePet api_key cookie with CR/LF fails closed (RFC 6265)', async () => {
+    await expect(
+      api.deletePet(1, { apiKey: 'abc\r\nInjected: yes' }),
+    ).rejects.toThrow(/RFC 6265/);
+  });
+
+  test('bhv operations 028 deletePet api_key cookie with a bare control char is refused before sending', async () => {
+    await expect(
+      api.deletePet(1, { apiKey: 'abc\x00def' }),
+    ).rejects.toThrow(/RFC 6265/);
+  });
+
+  test('bhv operations 030 deletePet sends a legal cookie value raw', async () => {
+    // Control: a value with no forbidden characters must pass validation and
+    // reach the wire as a Cookie header (proves the guard is value-specific,
+    // not a blanket rejection of the cookie path).
+    let capturedCookie: string | undefined;
+    const server = http.createServer((req, res) => {
+      capturedCookie = req.headers['cookie'];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      const cfg = Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build();
+      const cookieApi = new PetApi(undefined, cfg);
+      await cookieApi.deletePet(1, { apiKey: 'session-abc123' });
+      expect(capturedCookie).toContain('api_key=session-abc123');
+    } finally {
+      server.close();
+    }
+  });
+
+  // required-string-param-empty-string: a required STRING parameter must reject
+  // the empty string the same way it rejects null, matching go/rust/swift/elixir.
+  // Validation happens before any HTTP call, so no mock server is needed.
+  test('bhv operations 049 required string query param rejects empty string', async () => {
+    await expect(api.getPetByName('Rex', { category: '', xCorrelationId: 'sample-correlation' })).rejects.toThrow(
+      "Missing the required parameter 'category' when calling PetApi.getPetByName"
+    );
+  });
+
+  test('bhv operations 164 a missing required parameter raises a TypeError and sends no request', async () => {
+    let sent = 0;
+    const countingClient: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        sent++;
+        return { statusCode: 200, body: '', headers: {} };
+      },
+    };
+    const countingApi = new PetApi(countingClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
+
+    const error = await countingApi.getPetByName('Rex', { category: 'dog' } as never).catch((caught: unknown) => caught);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect(sent).toBe(0);
+  });
+
+  test('bhv operations 052 required string path param rejects empty string', async () => {
+    await expect(api.getPetByName('', { category: 'dog', xCorrelationId: 'sample-correlation' })).rejects.toThrow(
+      "Missing the required parameter 'name' when calling PetApi.getPetByName"
+    );
+  });
+
+  // options-are-readonly: the generated per-operation Options interfaces expose
+  // only `readonly` members. This test constructs an Options object literal (a
+  // multipart op's params) and reads each back, which compiles under tsc
+  // precisely because readonly members are still assignable via object
+  // literals; only post-construction mutation is rejected.
+  test('bhv options 062 Options object literals are constructible and readable', () => {
+    const uploadOptions: UploadPetDocumentOptions = {
+      file: Buffer.from('doc'),
+      documentType: 'invoice',
+      notes: 'a note',
+    };
+
+    expect(uploadOptions.file.toString()).toBe('doc');
+    expect(uploadOptions.documentType).toBe('invoice');
+    expect(uploadOptions.notes).toBe('a note');
+  });
+});
+
+// Canonical form-urlencoded body behaviors (#1 array -> repeated keys,
+// #2 optional null/absent -> omitted, #3 space -> '+'). setPetPreferences
+// posts an application/x-www-form-urlencoded body; a local capturing server
+// records the exact wire bytes so the assertions check the encoded form, not
+// just a round-trip status.
+describe('PetApi form-urlencoded body serialization', () => {
+  function captureFormBody(): Promise<{
+    api: PetApi;
+    getCapture: () => { body: string; requestContentType: string | undefined };
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let captured = { body: '', requestContentType: undefined as string | undefined };
+      const server = http.createServer((req, res) => {
+        let body = '';
+        req.on('data', (chunk: Buffer) => (body += chunk.toString('utf-8')));
+        req.on('end', () => {
+          captured = { body, requestContentType: req.headers['content-type'] };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"code":200,"type":"ok","message":"saved"}');
+        });
+      });
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server.address() as { port: number };
+        const cfg = Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .build();
+        resolve({
+          api: new PetApi(undefined, cfg),
+          getCapture: () => captured,
+          close: () => server.close(),
+        });
+      });
+    });
+  }
+
+  test('bhv operations 156 setPetPreferences sends its form fields in the declared order', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { note: 'calm', nickname: 'Rex', tags: ['fast'] };
+      await api.setPetPreferences(1, options);
+      expect([...new URLSearchParams(getCapture().body).keys()]).toEqual(['nickname', 'tags', 'note']);
+    } finally {
+      close();
+    }
+  });
+
+  // #1 — an array form field is emitted as repeated keys (tags=a&tags=b),
+  // never a single comma-joined value (tags=a%2Cb).
+  test('bhv serializationwire 053 an array form field emits repeated keys', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { nickname: 'Rex', tags: ['fast', 'loyal'] };
+      await api.setPetPreferences(1, options);
+      const { body } = getCapture();
+      expect(body).toContain('tags=fast');
+      expect(body).toContain('tags=loyal');
+      expect(body).not.toContain('tags=fast%2Cloyal');
+      expect(body).not.toContain('tags=fast,loyal');
+    } finally {
+      close();
+    }
+  });
+
+  // #2 — an optional field that is absent (or null) is omitted from the
+  // body entirely, never serialized as the literal string "undefined"/"null".
+  test('bhv serialization 098 case 2: absent optional form field is omitted', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { nickname: 'Rex' };
+      await api.setPetPreferences(1, options);
+      const { body } = getCapture();
+      expect(body).toContain('nickname=Rex');
+      expect(body).not.toContain('note');
+      expect(body).not.toContain('tags');
+      expect(body).not.toContain('undefined');
+      expect(body).not.toContain('null');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv misc 210 a date-time form field is percent-escaped for its colons and plus sign', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      await api.setPetPreferences(1, { nickname: 'good boy', reminder: new Date('2024-01-01T13:45:30+02:00') });
+      expect(getCapture().body).toContain('reminder=2024-01-01T11%3A45%3A30.000%2B00%3A00');
+    } finally {
+      close();
+    }
+  });
+  // #3 — spaces in a form-body value are encoded as '+', not %20, the
+  // canonical application/x-www-form-urlencoded encoding.
+  test('bhv serializationwire 055 a space in a form value encodes as plus', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = { nickname: 'good boy', note: 'very fast' };
+      await api.setPetPreferences(1, options);
+      const { body, requestContentType } = getCapture();
+      expect(requestContentType).toContain('application/x-www-form-urlencoded');
+      expect(body).toContain('nickname=good+boy');
+      expect(body).toContain('note=very+fast');
+      expect(body).not.toContain('%20');
+    } finally {
+      close();
+    }
+  });
+
+  // #4 — a `format: date` form field (renewalDate) is date-only on the wire:
+  // renewalDate=2024-01-01, with no time component (java's LocalDate form).
+  test('bhv operations 019 date-only form field serializes as YYYY-MM-DD', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = {
+        nickname: 'Rex',
+        renewalDate: new Date(Date.UTC(2024, 0, 1, 13, 45, 30)),
+      };
+      await api.setPetPreferences(1, options);
+      const { body } = getCapture();
+      const params = new URLSearchParams(body);
+      expect(params.get('renewalDate')).toBe('2024-01-01');
+      expect(body).not.toContain('T13');
+      expect(body).not.toContain('%3A');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 075 set_pet_preferences serialises the date-time form field in the canonical form', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = {
+        nickname: 'Rex',
+        reminder: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
+      };
+      await api.setPetPreferences(1, options);
+      const { body } = getCapture();
+      expect(body).toContain('reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00');
+      expect(body).not.toContain('%20');
+    } finally {
+      close();
+    }
+  });
+});
+
+// Cross-SDK multipart parity — addPetPhotos sends a multipart/form-data body
+// whose `metadata` part is a PhotoMetadata MODEL serialized as JSON. That model
+// part must be routed through the configured ObjectSerializer so it carries the
+// WIRE property names (isPrimary, takenAt — never snake_case is_primary /
+// taken_at) and the SDK's own date-time format. A local capturing server records
+// the exact raw multipart bytes so the assertions inspect the on-the-wire JSON,
+// not just a round-trip status.
+describe('PetApi multipart model-part serialization', () => {
+  function captureMultipartBody(): Promise<{
+    api: PetApi;
+    getCapture: () => { body: string; requestContentType: string | undefined };
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let captured = { body: '', requestContentType: undefined as string | undefined };
+      const server = http.createServer((req, res) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk: Buffer) => chunks.push(chunk));
+        req.on('end', () => {
+          captured = {
+            body: Buffer.concat(chunks).toString('utf-8'),
+            requestContentType: req.headers['content-type'],
+          };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('[{"id":1,"url":"u"}]');
+        });
+      });
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server.address() as { port: number };
+        const cfg = Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .build();
+        resolve({
+          api: new PetApi(undefined, cfg),
+          getCapture: () => captured,
+          close: () => server.close(),
+        });
+      });
+    });
+  }
+
+  test('bhv serialization 121 model part uses wire property names and SDK date-time format', async () => {
+    const { api, getCapture, close } = await captureMultipartBody();
+    try {
+      const files = [Buffer.from([0xFF, 0xD8, 0xFF])];
+      const metadata = new PhotoMetadata({
+        isPrimary: true,
+        takenAt: new Date('2020-01-02T03:04:05.123Z'),
+      });
+
+      // The convenience method deserializes the response body, so wrap it the
+      // same way the neighbouring capture tests do.
+      try {
+        await api.addPetPhotos(1, { files, metadata });
+      } catch {
+        // Deserialization of the canned response is irrelevant here; the
+        // assertions below inspect the OUTGOING multipart body only.
+      }
+
+      const { body, requestContentType } = getCapture();
+      expect(requestContentType).toContain('multipart/form-data');
+
+      // Isolate the JSON `metadata` part from the multipart body.
+      const metadataPart = body
+        .split(/--[^\r\n]+\r\n/)
+        .find((part) => part.includes('name="metadata"'));
+      expect(metadataPart).toBeDefined();
+      const jsonText = (metadataPart as string)
+        .split('\r\n\r\n')[1]
+        .replace(/\r\n[\s\S]*$/, '');
+      const modelPart = JSON.parse(jsonText) as Record<string, unknown>;
+
+      // Wire keys, not snake_case.
+      expect(modelPart).toHaveProperty('isPrimary', true);
+      expect(modelPart).toHaveProperty('takenAt');
+      expect(Object.keys(modelPart)).not.toContain('is_primary');
+      expect(Object.keys(modelPart)).not.toContain('taken_at');
+      expect(jsonText).toContain('"isPrimary"');
+      expect(jsonText).toContain('"takenAt"');
+      expect(jsonText).not.toContain('is_primary');
+      expect(jsonText).not.toContain('taken_at');
+
+      // date-time carries the SDK's offset format (the equivalent of the
+      // 2020-01-02T03:04:05.123Z input), not Date.toJSON()'s trailing `Z`.
+      expect(modelPart.takenAt).toBe('2020-01-02T03:04:05.123+00:00');
+    } finally {
+      close();
+    }
+  });
+});
+
+// Cross-SDK content-type-selector parity — uploadPetDocument declares MULTIPLE
+// request content types (multipart/form-data AND application/octet-stream).
+// The per-call `requestContentType` argument MUST steer how the body is framed on the
+// wire:
+//   * multipart/form-data  -> a multipart/form-data envelope (boundary, parts)
+//   * application/octet-stream -> the RAW file bytes verbatim, with no
+//     multipart boundary, no Content-Disposition headers, and no base64
+//     re-encoding — mirroring setPetAvatar's single-binary raw-Buffer path.
+// A local capturing server records the exact outbound Content-Type and raw body
+// bytes so the assertions inspect the on-the-wire framing, not just a 2xx.
+describe('PetApi request content-type selector', () => {
+  function captureRawBody(): Promise<{
+    api: PetApi;
+    getCapture: () => { body: Buffer; requestContentType: string | undefined };
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let captured = {
+        body: Buffer.alloc(0),
+        requestContentType: undefined as string | undefined,
+      };
+      const server = http.createServer((req, res) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk: Buffer) => chunks.push(chunk));
+        req.on('end', () => {
+          captured = {
+            body: Buffer.concat(chunks),
+            requestContentType: req.headers['content-type'],
+          };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"code":200,"type":"ok","message":"stored"}');
+        });
+      });
+      server.listen(0, '127.0.0.1', () => {
+        const addr = server.address() as { port: number };
+        const cfg = Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .build();
+        resolve({
+          api: new PetApi(undefined, cfg),
+          getCapture: () => captured,
+          close: () => server.close(),
+        });
+      });
+    });
+  }
+
+  // OCTET-STREAM-RAW-BODY: selecting application/octet-stream must send the
+  // single binary part's RAW bytes as the request body — never a multipart
+  // envelope and never base64.
+  test('bhv operations 092 octet-stream selection sends raw bytes, not multipart', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      const fileBytes = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x00, 0x01, 0x02, 0xFF]);
+      const options: UploadPetDocumentOptions = { file: fileBytes };
+
+      try {
+        await api.uploadPetDocument(1, options, 'application/octet-stream');
+      } catch {
+        // The canned JSON response is irrelevant; the assertions below inspect
+        // the OUTGOING request framing only.
+      }
+
+      const { body, requestContentType } = getCapture();
+
+      // The outbound Content-Type is the selected raw binary type, with no
+      // multipart boundary parameter.
+      expect(requestContentType).toBe('application/octet-stream');
+      expect(requestContentType).not.toContain('multipart/form-data');
+      expect(requestContentType).not.toContain('boundary');
+
+      // The body is the exact bytes handed in — byte-for-byte, no envelope.
+      expect(Buffer.isBuffer(body)).toBe(true);
+      expect(body.equals(fileBytes)).toBe(true);
+
+      // Defensive: none of the multipart envelope markers leak into the body,
+      // and the bytes are not base64-re-encoded.
+      const bodyText = body.toString('latin1');
+      expect(bodyText).not.toContain('Content-Disposition');
+      expect(bodyText).not.toContain('name="file"');
+      expect(bodyText).not.toContain('--');
+      expect(bodyText).not.toBe(fileBytes.toString('base64'));
+    } finally {
+      close();
+    }
+  });
+
+  // Over-correction guard: selecting multipart/form-data (the default) still
+  // frames the body as a multipart/form-data envelope carrying the file part.
+  test('bhv operations 094 multipart selection still sends a multipart envelope', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      const fileBytes = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x00, 0x01, 0x02, 0xFF]);
+      const options: UploadPetDocumentOptions = {
+        file: fileBytes,
+        documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
+      };
+
+      try {
+        await api.uploadPetDocument(1, options, 'multipart/form-data');
+      } catch {
+        // Canned response irrelevant; inspecting the OUTGOING framing only.
+      }
+
+      const { body, requestContentType } = getCapture();
+      expect(requestContentType).toContain('multipart/form-data');
+      expect(requestContentType).toContain('boundary=');
+
+      const bodyText = body.toString('latin1');
+      expect(bodyText).toContain('Content-Disposition: form-data');
+      expect(bodyText).toContain('name="file"');
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 147 multipart parts are sent in declaration order', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      // The options are handed over in the reverse of the declared order.
+      const options: UploadPetDocumentOptions = {
+        notes: 'n',
+        documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
+        file: Buffer.from([0x25, 0x50, 0x44, 0x46]),
+      };
+
+      await api.uploadPetDocument(1, options, 'multipart/form-data').catch(() => undefined);
+
+      const bodyText = getCapture().body.toString('latin1');
+      const positions = ['file', 'documentType', 'notes'].map((name) => bodyText.indexOf(`name="${name}"`));
+      expect(positions.every((position) => position >= 0)).toBe(true);
+      expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 072 setPetAvatar with the JSON selector sends the binary body verbatim', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      const bytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+      await api.setPetAvatar(1, bytes, 'application/json').catch(() => undefined);
+
+      const { body, requestContentType } = getCapture();
+      expect(requestContentType).toBe('application/json');
+      expect(body.equals(bytes)).toBe(true);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv operations 077 setPetAvatarThumbnail still sends a format:byte JSON body as base64', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      await api.setPetAvatarThumbnail(1, Buffer.from([1, 2, 3, 4])).catch(() => undefined);
+
+      expect(getCapture().body.toString('utf-8')).toBe('"AQIDBA=="');
+    } finally {
+      close();
+    }
+  });
+});
+
+describe('PetApi operation servers', () => {
+  test('bhv servers 020 a server variable value outside the declared enum is rejected', () => {
+    for (const value of ['a$&b', '{version}', 'unknown']) {
+      expect(
+        () =>
+          new GetStagingPetInfoServerStagingServer(
+            value as unknown as GetStagingPetInfoServerEnvironment,
+            GetStagingPetInfoServerVersion.V2,
+          ),
+      ).toThrow(/Invalid value .* for server variable 'environment'/);
+    }
+  });
+
+  test('bhv servers 021 a server URL with special characters in its default and enum values resolves to the raw characters', () => {
+    const server = Servers.SERVER_2;
+
+    expect(server.getUrl()).toBe("https://o'neil.example.com/api");
+    expect(server.getUrl({ tenant: 'a&b' })).toBe('https://a&b.example.com/api');
+  });
+
+  test('bhv misc 157 a declared server variable value is substituted into the URL', () => {
+    const server = new GetStagingPetInfoServerStagingServer(
+      GetStagingPetInfoServerEnvironment.STAGING,
+      GetStagingPetInfoServerVersion.V2,
+    );
+
+    expect(server.getUrl()).toBe('https://staging.example.com/api/v2');
+  });
+
+  test('bhv langnode 010 a server variant documents itself with the operation server description', () => {
+    const source = fs.readFileSync(path.join(process.cwd(), 'src/api/pet-api.ts'), 'utf8');
+
+    expect(source).toMatch(
+      /\* CDN-backed read endpoint for pet details\s+\*\/\s+export class GetPetByIdServerCDNBackedReadEndpointForPetDetails /,
+    );
+  });
+});
+
+describe('PetApi doc comments', () => {
+  const source = fs.readFileSync(path.join(process.cwd(), 'src/api/pet-api.ts'), 'utf8');
+
+  test('bhv langnode 011 a parameter description keeps its quotes, angle brackets and ampersand raw', () => {
+    expect(source).toContain(String.raw`* @param options.session Session token: \"a<b>\" & it's required (required)`);
+  });
+
+  test('bhv langnode 012 no doc comment carries an HTML entity', () => {
+    expect(source).not.toMatch(/&(#\d+|#x[0-9a-f]+|[a-z]+);/i);
+  });
+
+  test('bhv langnode 013 every operation documents its options argument', () => {
+    for (const [operation, line] of [
+    ['deletePet', '* @param options options for query, header, form, and cookie parameters\n'],
+    ['getPetSummary', '* @param options options for query, header, form, and cookie parameters\n'],
+  ] as const) {
+      const start = source.lastIndexOf('/**', source.indexOf(`  async ${operation}(`));
+      const doc = source.slice(start, source.indexOf(`  async ${operation}(`));
+
+      expect(doc).toContain(line);
+    }
+  });
+
+  test('bhv operations 032 a deprecated operation carries the deprecated doc tag', () => {
+    const start = source.lastIndexOf('/**', source.indexOf('  async findPetsByStatus('));
+    expect(source.slice(start, source.indexOf('  async findPetsByStatus('))).toContain('@deprecated');
+  });
+
+  test('bhv operations 033 every variant of a deprecated operation carries the deprecated doc tag', () => {
+    for (const name of ['findPetsByStatus', 'findPetsByStatusWithHttpInfo']) {
+      const start = source.lastIndexOf('/**', source.indexOf(`  async ${name}(`));
+      expect(source.slice(start, source.indexOf(`  async ${name}(`))).toContain('@deprecated');
+    }
+  });
+});
+
+describe('PetApi against a recording client', () => {
+  const recorded: Array<{ method: string; url: string; headers: Record<string, string> }> = [];
+  const recordingClient: ApiClient = {
+    async sendRequest(method: string, url: string, headers: Record<string, string>): Promise<ApiHttpResponse> {
+      recorded.push({ method, url, headers });
+      return {
+        statusCode: 200,
+        body: url.includes('/pet/born-on/') || url.includes('/pet/findByStatus') ? '[]' : '{"id":7,"name":"recorded","photoUrls":[]}',
+        headers: { 'content-type': 'application/json' },
+      };
+    },
+  };
+  const recordingApi = new PetApi(
+    recordingClient,
+    Configuration.builder().baseUrl('https://client-base.example.com').build(),
+  );
+
+  const nullClient: ApiClient = {
+    async sendRequest(): Promise<ApiHttpResponse> {
+      return { statusCode: 200, body: 'null', headers: { 'content-type': 'application/json' } };
+    },
+  };
+  const nullApi = new PetApi(nullClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
+
+  beforeEach(() => {
+    recorded.length = 0;
+  });
+
+  test('bhv operations 083 the generated operation-server variants resolve the URLs the spec declares', () => {
+    expect(new GetExternalPetInfoServerServer0().getUrl()).toBe('https://external-api.example.com/v1');
+    expect(new GetMultiServerPetInfoServerPrimary().getUrl()).toBe('https://primary.example.com/v1');
+    expect(new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.EU).getUrl()).toBe(
+      'https://eu.example.com/v1',
+    );
+    expect(
+      new GetStagingPetInfoServerStagingServer(
+        GetStagingPetInfoServerEnvironment.SANDBOX,
+        GetStagingPetInfoServerVersion.V3,
+      ).getUrl(),
+    ).toBe('https://sandbox.example.com/api/v3');
+  });
+
+  test('bhv operations 160 getExternalPetInfo sends the request to the generated variant', async () => {
+    await recordingApi.getExternalPetInfo(1, new GetExternalPetInfoServerServer0());
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.url.startsWith('https://external-api.example.com/v1/')).toBe(true);
+  });
+
+  test('bhv misc 219 getStagingPetInfo sends the request to the variant with its variables substituted', async () => {
+    await recordingApi.getStagingPetInfo(
+      1,
+      new GetStagingPetInfoServerStagingServer(
+        GetStagingPetInfoServerEnvironment.SANDBOX,
+        GetStagingPetInfoServerVersion.V3,
+      ),
+    );
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.url.startsWith('https://sandbox.example.com/api/v3/')).toBe(true);
+  });
+
+  test('bhv operations 085 the multi-server operation offers a fixed and a templated server', async () => {
+    const rows: Array<[unknown, string]> = [
+      [new GetMultiServerPetInfoServerPrimary(), 'https://primary.example.com/v1/'],
+      [new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.AP), 'https://ap.example.com/v1/'],
+    ];
+    for (const [server, prefix] of rows) {
+      recorded.length = 0;
+      await recordingApi.getMultiServerPetInfo(1, server as Parameters<typeof recordingApi.getMultiServerPetInfo>[1]);
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]!.url.startsWith(prefix)).toBe(true);
+    }
+  });
+
+  test('bhv operations 084 the mirror operation server resolves reserved characters raw', async () => {
+    const rows: Array<[GetMultiServerPetInfoServerChannel, string]> = [
+      [GetMultiServerPetInfoServerChannel.A_B, 'https://eu.mirror.example.com/a&b/v1/pet/3/multi'],
+      [GetMultiServerPetInfoServerChannel.IT_S, "https://eu.mirror.example.com/it's/v1/pet/3/multi"],
+    ];
+    for (const [channel, expected] of rows) {
+      recorded.length = 0;
+      await recordingApi.getMultiServerPetInfo(
+        3,
+        new GetMultiServerPetInfoServerMirror(GetMultiServerPetInfoServerMirrorRegion.EU, channel),
+      );
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]!.url).toBe(expected);
+    }
+  });
+
+  test('bhv operations 051 getPetByName rejects a dot segment before dispatch', async () => {
+    for (const name of ['.', '..']) {
+      const error = await recordingApi
+        .getPetByName(name, { category: 'sample', xCorrelationId: 'sample-correlation' })
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(TypeError);
+      expect((error as Error).message).toBe(`Path parameter 'name' must not be '.' or '..'`);
+    }
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv operations 064 getPetByName keeps a name that only contains dots', async () => {
+    await recordingApi.getPetByName('a..b', { category: 'sample', xCorrelationId: 'sample-correlation' });
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.url).toContain('/pet/byName/a..b?');
+  });
+
+  test('bhv langnode 014 getPetByName puts every listed value in the path as written, never as a replacement pattern', async () => {
+    for (const name of ['a$&b', 'US$$', "x$'y", '$1']) {
+        recorded.length = 0;
+        await recordingApi.getPetByName(name, { category: 'sample', xCorrelationId: 'sample-correlation' });
+
+        expect(recorded).toHaveLength(1);
+        expect(recorded[0]!.url).toContain(`/pet/byName/${name}?`);
+    }
+  });
+
+  test('bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire', async () => {
+    await recordingApi.getPetTag(5, 'sample', { revision: 'v1.0/beta:rc1@x,y;z=1' });
+
+    expect(recorded[0]!.url).toContain('revision=v1.0/beta:rc1@x,y;z=1');
+  });
+
+  test('bhv operations 066 getPetTag percent-encodes # in an allowReserved value', async () => {
+    await recordingApi.getPetTag(5, 'sample', { revision: 'v1.0/beta:rc1#frag' });
+
+    expect(recorded[0]!.url).toContain('revision=v1.0/beta:rc1%23frag');
+  });
+
+  test('bhv operations 059 getPetTag sends format:byte parameters as standard padded base64', async () => {
+    const cases: Array<[Buffer, string, string]> = [
+      [Buffer.from('hi', 'utf-8'), 'fingerprint=aGk%3D', 'aGk='],
+      [Buffer.from([0xfb, 0xff]), 'fingerprint=%2B%2F8%3D', '+/8='],
+    ];
+    for (const [bytes, query, header] of cases) {
+      recorded.length = 0;
+      await recordingApi.getPetTag(5, 'sample', { fingerprint: bytes, xFingerprint: bytes });
+
+      expect(recorded[0]!.url).toContain(query);
+      expect(recorded[0]!.headers['X-Fingerprint']).toBe(header);
+    }
+  });
+
+  test('bhv operations 067 getPetTag expands the object-valued criteria parameters per their styles', async () => {
+    const criteria = new PetCriteria({ breed: 'lab', min_age: 3 });
+
+    await recordingApi.getPetTag(5, 'sample', {
+      criteria,
+      criteriaCsv: criteria,
+      criteriaDeep: criteria,
+      xCriteria: criteria,
+    });
+
+    expect(new URL(recorded[0]!.url).search).toContain(
+      'breed=lab&min_age=3&criteriaCsv=breed%2Clab%2Cmin_age%2C3&criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3',
+    );
+    expect(recorded[0]!.headers['X-Criteria']).toBe('breed,lab,min_age,3');
+  });
+
+  test('bhv operations 165 getPetTag writes the matrix path parameter and the label path parameter', async () => {
+    await recordingApi.getPetTag(5, 'cute');
+
+    expect(new URL(recorded[0]!.url).pathname).toBe('/pet/;petId=5/tag/.cute');
+  });
+
+  test('bhv operations 058 getPetTag returns the decoded pet', async () => {
+    const pet = await recordingApi.getPetTag(5, 'cute');
+
+    expect(pet.id).toBe(7);
+  });
+
+  test('bhv operations 065 getPetByName sends the required category query param on the wire', async () => {
+    await recordingApi.getPetByName('x', { category: 'sample', xCorrelationId: 'sample-correlation' });
+
+    expect(new URL(recorded[0]!.url).searchParams.get('category')).toBe('sample');
+  });
+
+  test('bhv operations 157 getPetByNote sends a null required nullable query parameter as an empty value', async () => {
+    await recordingApi.getPetByNote({ note: null, rank: 3 });
+
+    expect(new URL(recorded[0]!.url).search).toBe('?note=&rank=3');
+  });
+
+  test('bhv operations 158 getPetByNote sends every null required nullable query parameter in declaration order', async () => {
+    await recordingApi.getPetByNote({ note: null, rank: null });
+
+    expect(new URL(recorded[0]!.url).search).toBe('?note=&rank=');
+  });
+
+  test('bhv operations 159 getPetByNote sends a non-null required nullable query parameter with its value', async () => {
+    await recordingApi.getPetByNote({ note: 'a b', rank: 3 });
+
+    expect(new URL(recorded[0]!.url).search).toBe('?note=a%20b&rank=3');
+  });
+
+  test('bhv operations 125 getPetByName refuses a null required query parameter that is not nullable', async () => {
+    const error = await recordingApi
+      .getPetByName('x', { category: null, xCorrelationId: 'sample-correlation' } as never)
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'category' when calling PetApi.getPetByName",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv operations 044 findPetsByStatus writes the deepObject filter as bracketed keys', async () => {
+    await recordingApi.findPetsByStatus({ filter: { color: 'blue', size: 'large' } }).catch(() => undefined);
+
+    expect(new URL(recorded[0]!.url).search).toContain('filter%5Bcolor%5D=blue&filter%5Bsize%5D=large');
+  });
+
+  test('bhv operations 021 findPetsByStatus keeps the digit-leading query parameter name', async () => {
+    await recordingApi.findPetsByStatus({ n2ndPage: 2 }).catch(() => undefined);
+
+    expect(new URL(recorded[0]!.url).searchParams.get('2ndPage')).toBe('2');
+  });
+
+  test('bhv operations 050 getPetByName without the required X-Correlation-Id header sends no request', async () => {
+    const error = await recordingApi.getPetByName('x', { category: 'sample' } as never).catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv operations 132 a missing required options object or body names the first required field', async () => {
+    const optionsError = await recordingApi.getPetByName('x', undefined as never).catch((e: unknown) => e);
+    const bodyError = await recordingApi.addPet(undefined as never).catch((e: unknown) => e);
+
+    expect((optionsError as Error).constructor).toBe(TypeError);
+    expect((optionsError as Error).message).toBe(
+      "Missing the required parameter 'category' when calling PetApi.getPetByName",
+    );
+    expect((bodyError as Error).constructor).toBe(TypeError);
+    expect((bodyError as Error).message).toBe(
+      "Missing the required parameter 'pet' when calling PetApi.addPet",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv operations 056 getPetSummary without the required session cookie sends no request', async () => {
+    const error = await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {} as never).catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv operations 024 addPetTreatment sends the chosen anyOf variant as the request body', async () => {
+    const sent: { path?: string; body?: string | Buffer | Record<string, unknown> | null } = {};
+    const treatmentApi = new PetApi(
+      {
+        async sendRequest(_method, url, _headers, body): Promise<ApiHttpResponse> {
+          sent.path = new URL(url).pathname;
+          sent.body = body;
+          return {
+            statusCode: 200,
+            body: '{"drugName":"Amoxicillin","dosage":"250mg"}',
+            headers: { 'content-type': 'application/json' },
+          };
+        },
+      },
+      Configuration.builder().baseUrl('https://client-base.example.com').build(),
+    );
+
+    const result = await treatmentApi.addPetTreatment(
+      7,
+      new PetTreatment(new Medication({ drugName: 'Amoxicillin', dosage: '250mg' })),
+    );
+
+    expect(sent.path).toBe('/pet/7/treatment');
+    expect(JSON.parse(sent.body as string)).toEqual({ drugName: 'Amoxicillin', dosage: '250mg' });
+    expect(result).toBeInstanceOf(PetTreatment);
+    expect(result.getActualInstance()).toBeInstanceOf(Medication);
+  });
+
+  test('bhv operations 095 uploadPetDocument sends the non-string scalar parts as plain text parts', async () => {
+    const chunks: Buffer[] = [];
+    const server = http.createServer((req, res) => {
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{}');
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const port = (server.address() as { port: number }).port;
+      const uploadApi = new PetApi(
+        undefined,
+        Configuration.builder().baseUrl(`http://127.0.0.1:${port}`).build(),
+      );
+
+      await uploadApi.uploadPetDocument(1, {
+        file: Buffer.from('document-content'),
+        isPrimary: true,
+        pageCount: 3,
+        takenAt: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
+        swatch: Swatch.Red,
+      });
+    } finally {
+      server.close();
+    }
+
+    const body = Buffer.concat(chunks).toString('utf-8');
+    const part = (name: string) => body.split('\r\n--').find((p) => p.includes(`name="${name}"`))!;
+    expect(part('isPrimary')).toMatch(/name="isPrimary"\r\n\r\ntrue$/);
+    expect(part('pageCount')).toMatch(/name="pageCount"\r\n\r\n3$/);
+    expect(part('takenAt')).toMatch(/name="takenAt"\r\n\r\n2024-01-15T10:30:00\.000\+00:00$/);
+    expect(part('swatch')).toMatch(/name="swatch"\r\n\r\nred$/);
+    for (const name of ['isPrimary', 'pageCount', 'takenAt', 'swatch']) {
+      expect(part(name)).not.toContain('Content-Type');
+    }
+  });
+
+  test('bhv servers 013 the third global server keeps its hostile text unchanged', () => {
+    const server = Servers.SERVER_2;
+
+    expect(server.urlTemplate).toBe('https://{tenant}.example.com/api');
+    expect(server.description).toBe('Bob\'s "sandbox" & co: $5 #{x} a*/b');
+    const tenant = server.variables['tenant']!;
+    expect(tenant.defaultValue).toBe("o'neil");
+    expect(tenant.description).toBe('Tenant\'s "id"');
+    expect([...tenant.enumValues]).toEqual(["o'neil", 'a&b']);
+    expect(server.getUrl()).toBe("https://o'neil.example.com/api");
+    expect(server.getUrl({ tenant: 'a&b' })).toBe('https://a&b.example.com/api');
+  });
+
+  test('bhv operations 153 an operation with no chosen server is sent to the client base URL', async () => {
+    await recordingApi.getExternalPetInfo(1);
+
+    expect(recorded[0]!.url.startsWith('https://client-base.example.com/')).toBe(true);
+  });
+
+  test('bhv operations 043 findPetsBornOn serializes the format:date path parameter as YYYY-MM-DD', async () => {
+    await recordingApi.findPetsBornOn(new Date(Date.UTC(2024, 0, 1, 13, 45, 30)));
+
+    expect(new URL(recorded[0]!.url).pathname).toBe('/pet/born-on/2024-01-01');
+  });
+
+  test('bhv operations 057 getPetSummary applies the matrix style to the format:date path parameter', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15, 13, 45, 30)), { session: 'abc' });
+
+    expect(new URL(recorded[0]!.url).pathname).toBe('/pet/1/summary/;asOf=2024-01-15');
+  });
+
+  test('bhv operations 162 a date-only parameter is sent as a bare date in the path and in the query', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15, 13, 45, 30)), {
+      session: 'abc',
+      days: [new Date(Date.UTC(2024, 0, 15, 10, 30))],
+    });
+
+    const url = new URL(recorded[0]!.url);
+    expect(url.pathname).toBe('/pet/1/summary/;asOf=2024-01-15');
+    expect(url.search).toBe('?days=2024-01-15');
+  });
+
+  test('bhv serializationparam 120 getPetSummary sends each format:date array item as YYYY-MM-DD', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {
+      session: 'abc',
+      days: [new Date(Date.UTC(2024, 0, 15, 10, 30)), new Date(Date.UTC(2024, 1, 1, 23, 59))],
+    });
+
+    expect(new URL(recorded[0]!.url).search).toBe('?days=2024-01-15&days=2024-02-01');
+  });
+
+  test('bhv misc 176 getPetSummary sends the required cookie parameter', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), { session: 'abc' });
+
+    expect(recorded[0]!.headers['Cookie']).toBe('session=abc');
+  });
+
+  test('bhv misc 003 an all-optional operation runs with no arguments and sends no omitted parameter', async () => {
+    await recordingApi.findPetsByStatus();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.url).not.toContain('?');
+  });
+
+  test('bhv misc 004 calling an operation with required fields and no options object names the first missing field', async () => {
+    await expect(recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), undefined as never)).rejects.toThrow(
+      "'session'",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv misc 005 a bare null body for a list operation raises an API error', async () => {
+    await expect(nullApi.findPetsByStatus()).rejects.toThrow(ApiError);
+  });
+
+  test('bhv misc 006 a bare null response read through the HTTP-info variant gives no data and keeps the raw body', async () => {
+    const result = await nullApi.findPetsByStatusWithHttpInfo();
+
+    expect(result.data ?? null).toBeNull();
+    expect(result.rawBody).toBe('null');
+  });
+
+  test('bhv misc 007 a missing path parameter and no options object names the parameter and sends nothing', async () => {
+    await expect(recordingApi.getPetSummary(1, undefined as never, undefined as never)).rejects.toThrow("'asOf'");
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv misc 008 a supplied required cookie parameter is sent in the Cookie header', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), { session: 'abc123' });
+
+    expect(recorded[0]!.headers['Cookie']).toBe('session=abc123');
+  });
+
+  test('bhv misc 009 an operation called without an options object sends none of the per-call headers', async () => {
+    await recordingApi.getPetTag(5, 'sample');
+
+    expect(recorded[0]!.headers['X-Criteria']).toBeUndefined();
+  });
+
+  test('bhv operations 076 setPetAvatar rejects an undeclared request content type before sending', async () => {
+    const undeclared: string = 'application/unknown-type';
+    const error = await recordingApi
+      .setPetAvatar(1, Buffer.from([1]), undeclared as 'image/png')
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are [image/jpeg, image/png, application/json]",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('bhv operations 093 uploadPetDocument rejects an undeclared request content type before sending', async () => {
+    const undeclared: string = 'application/unknown-type';
+    const error = await recordingApi
+      .uploadPetDocument(
+        1,
+        { file: Buffer.from([1]), documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate },
+        undeclared as 'multipart/form-data',
+      )
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(
+      "Unsupported request content-type 'application/unknown-type' for uploadPetDocument; declared types are [multipart/form-data, application/octet-stream]",
+    );
+    expect(recorded).toHaveLength(0);
+  });
+  test('bhv misc 123 deletePet sends every listed cookie value exactly as given', async () => {
+    for (const value of ['abc123', 'a%20b%3Bc', 'a=b', 'x/y:z']) {
+        recorded.length = 0;
+        await recordingApi.deletePet(1, { apiKey: value });
+
+        expect(recorded).toHaveLength(1);
+        expect(recorded[0]!.headers['Cookie']).toBe(`api_key=${value}`);
+    }
+  });
+
+  test('bhv misc 192 deletePet sends a cookie value made only of cookie octets exactly as given', async () => {
+    const octets = Array.from({ length: 0x7e - 0x21 + 1 }, (_, i) => String.fromCharCode(0x21 + i)).filter(
+      (c) => !['"', ',', ';', '\\'].includes(c),
+    );
+    const value = octets.join('');
+
+    await recordingApi.deletePet(1, { apiKey: value });
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.headers['Cookie']).toBe(`api_key=${value}`);
+  });
+
+  it('bhv misc 209 a void operation ignores a success body and returns no data', async () => {
+    for (const [contentType, body] of [
+    ['text/plain', 'ok'],
+    ['application/json', '42'],
+  ] as const) {
+      const textClient: ApiClient = {
+        async sendRequest(): Promise<ApiHttpResponse> {
+          return { statusCode: 200, body, headers: { 'content-type': contentType } };
+        },
+      };
+      const textApi = new PetApi(textClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
+
+      await expect(textApi.deletePet(1)).resolves.toBeUndefined();
+    }
+  });
+
+  test('bhv misc 213 an optional array query parameter is sent in its declared style, never bracketed or comma-joined', async () => {
+    await recordingApi.getPetTag(5, 'cute', { colors: ['blue', 'black'] });
+
+    const url = recorded[recorded.length - 1]!.url;
+    expect(url).toContain('colors=blue%7Cblack');
+    expect(url).not.toContain('colors%5B');
+    expect(url).not.toContain('blue%2Cblack');
+  });
+  test('bhv langnode 015 deletePet refuses every listed cookie value before sending', async () => {
+    for (const value of ['a b', 'a;b', 'a,b', 'a"b', 'a\\b', 'café', 'a\tb']) {
+        const error = await recordingApi.deletePet(1, { apiKey: value }).catch((e: unknown) => e);
+
+        expect((error as Error).constructor).toBe(TypeError);
+        expect((error as Error).message).toBe(
+          "Cookie value for 'api_key' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it",
+        );
+        expect(recorded).toHaveLength(0);
+    }
+  });
+
+  describe('credentials per security scheme', () => {
+    const host = 'https://client-base.example.com';
+    const config = Configuration.builder().baseUrl(host).build();
+    const bearer = new BearerAuthenticator(host, 'bearer-token');
+    const apiKey = new ApiKeyAuthenticator(host, 'X-Api-Key', 'key-token', ApiKeyLocation.HEADER);
+    const fallback = new BearerAuthenticator(host, 'fallback-token');
+    const newPet = () => new Pet({ id: 1, name: 'x', photoUrls: new Set<string>() });
+
+    test('bhv operations 079 an operation uses the credential of the scheme its spec names', async () => {
+      const petApi = new PetApi(recordingClient, config, null, { petStoreBearer: bearer });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers['Authorization']).toBe('Bearer bearer-token');
+    });
+
+    test('bhv operations 080 an operation uses the first scheme of its own list that the client holds', async () => {
+      const petApi = new PetApi(recordingClient, config, null, { petStoreBearer: bearer, apiKeyHeader: apiKey });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers['X-Api-Key']).toBe('key-token');
+      expect(recorded[0]!.headers['Authorization']).toBeUndefined();
+    });
+
+    test('bhv operations 020 a credential held for a scheme the operation does not name is never sent', async () => {
+      const petApi = new PetApi(recordingClient, config, null, { adminBasic: apiKey });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers['X-Api-Key']).toBeUndefined();
+      expect(recorded[0]!.headers['Authorization']).toBeUndefined();
+    });
+
+    test('bhv operations 026 an operation no scheme credential matches uses the client-level authenticator', async () => {
+      const petApi = new PetApi(recordingClient, config, fallback, { adminBasic: apiKey });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers['Authorization']).toBe('Bearer fallback-token');
+      expect(recorded[0]!.headers['X-Api-Key']).toBeUndefined();
+    });
+
+    test('bhv misc 221 a scheme credential wins over the client-level authenticator', async () => {
+      const petApi = new PetApi(recordingClient, config, fallback, { petStoreBearer: bearer });
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers['Authorization']).toBe('Bearer bearer-token');
+    });
+
+    test('bhv operations 078 addPet uses the configured credentials when no scheme credential is held', async () => {
+      const configured = Configuration.builder()
+        .baseUrl(host)
+        .defaultHeader('Authorization', 'Bearer configured-token')
+        .build();
+      const petApi = new PetApi(recordingClient, configured, null, {});
+
+      await petApi.addPet(newPet());
+
+      expect(recorded[0]!.headers['Authorization']).toBe('Bearer configured-token');
+    });
+
+    test('bhv operations 081 addPet without an Options object completes with the configured credentials', async () => {
+      const server = http.createServer((req, res) => {
+        const accepted = req.headers.authorization === 'Bearer configured-token';
+        res.writeHead(accepted ? 200 : 401, { 'Content-Type': 'application/json' });
+        res.end(accepted ? '{"id":7,"name":"recorded","photoUrls":[]}' : '{"message":"Unauthorized"}');
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+      try {
+        const addr = server.address() as { port: number };
+        const configured = Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .defaultHeader('Authorization', 'Bearer configured-token')
+          .build();
+        const petApi = new PetApi(
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+          configured,
+          null,
+          {},
+        );
+
+        const pet = await petApi.addPet(newPet());
+
+        expect(pet.name).toBe('recorded');
+      } finally {
+        server.close();
+      }
+    });
+
+    test('bhv operations 082 no operation options offers a per call authenticator', () => {
+      const dir = path.join(process.cwd(), 'src/api/options');
+      const files = fs.readdirSync(dir).filter((name) => name.endsWith('.ts') && name !== 'index.ts');
+
+      expect(files.length).toBeGreaterThan(0);
+      for (const name of files) {
+        const source = fs.readFileSync(path.join(dir, name), 'utf8');
+        expect(source).not.toMatch(/^\s*(readonly\s+)?auth\??\s*:/m);
+        expect(source).not.toMatch(/Authenticator/);
+      }
+    });
+
+    test('bhv operations 086 there is no per-call authenticator: no Options object has an auth member', async () => {
+      const options = fs.readFileSync(path.join(process.cwd(), 'src/api/options/delete-pet-options.ts'), 'utf8');
+
+      expect(options).not.toMatch(/\bauth\b/);
+      expect(fs.existsSync(path.join(process.cwd(), 'src/api/options/add-pet-options.ts'))).toBe(false);
+      // @ts-expect-error an Options object takes no per-call authenticator
+      await recordingApi.deletePet(1, { auth: bearer });
+    });
+  });
+});
+
+/** A hand-written fake of the group: it fakes one operation and records the call. */
+function fakePetApi(failWith?: Error): { fake: PetApiInterface; calls: unknown[][] } {
+  const calls: unknown[][] = [];
+  const fake: Partial<PetApiInterface> = {
+    getPetById: async (petId, server, requestOptions) => {
+      calls.push([petId, server, requestOptions]);
+      if (failWith) {
+        throw failWith;
+      }
+      return new Pet({ name: 'fake', photoUrls: new Set<string>() });
+    },
+  };
+  return { fake: fake as PetApiInterface, calls };
+}
+
+/** Code under test: it takes the group interface, never the generated class. */
+async function lookUp(group: PetApiInterface, petId: number): Promise<Pet> {
+  return group.getPetById(petId);
+}
+
+async function classify(call: () => Promise<unknown>): Promise<string> {
+  try {
+    await call();
+    return 'none';
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return 'not found';
+    }
+    if (error instanceof ApiError) {
+      return 'api error';
+    }
+    throw error;
+  }
+}
+
+describe('PetApi mocking', () => {
+  test('bhv mocking 003 a fake is accepted where the interface is accepted and receives the arguments', async () => {
+    const { fake, calls } = fakePetApi();
+
+    const pet = await lookUp(fake, 42);
+
+    expect(pet.name).toBe('fake');
+    expect(calls.map(call => call[0])).toEqual([42]);
+  });
+
+  test('bhv mocking 004 a fake raises the typed error and the caller handles it like the real client', async () => {
+    const { fake } = fakePetApi(new NotFoundError('missing'));
+    const { api: real, close } = await createMockServer(404, 'application/json', '{"message":"Pet not found"}');
+    try {
+      expect(await classify(() => lookUp(fake, 1))).toBe('not found');
+      expect(await classify(() => lookUp(real, 1))).toBe(await classify(() => lookUp(fake, 1)));
+      await expect(lookUp(fake, 1)).rejects.toBeInstanceOf(ApiError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv mocking 005 a call through the interface sends the same request as the class call', async () => {
+    const viaInterface: PetApiInterface = api;
+
+    const direct = await api.getPetByIdWithHttpInfo(1);
+    const through = await viaInterface.getPetByIdWithHttpInfo(1);
+
+    expect(through.statusCode).toBe(direct.statusCode);
+    expect(through.rawBody).toBe(direct.rawBody);
+    expect(through.data).toEqual(direct.data);
+  });
+
+  test('bhv mocking 006 a call without options reaches the full signature with none set', async () => {
+    const { fake, calls } = fakePetApi();
+
+    await lookUp(fake, 7);
+
+    expect(calls).toEqual([[7, undefined, undefined]]);
+  });
+});
+
+describe('PetApi misc behaviours', () => {
+  test('bhv misc 010 an operation whose options have required fields refuses a call that omits the options argument', async () => {
+    await expect(api.addPetPhotos(1, undefined as never)).rejects.toThrow(TypeError);
+  });
+
+  test('bhv misc 012 a nil required argument raises a TypeError that names it', async () => {
+    const error = await api.addPet(null as never).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).toContain("'pet'");
+  });
+});

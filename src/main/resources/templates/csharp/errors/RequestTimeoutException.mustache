@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for HTTP 408 Request Timeout.
+/// </summary>
+public class RequestTimeoutException : ClientException
+{
+    public RequestTimeoutException()
+        : this("Request Timeout") { }
+
+    public RequestTimeoutException(string message)
+        : this(message, null, null, null) { }
+
+    public RequestTimeoutException(string message, Exception innerException)
+        : base(408, message, innerException) { }
+
+    public RequestTimeoutException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(408, message, responseHeaders, responseBody, errorBody) { }
+}

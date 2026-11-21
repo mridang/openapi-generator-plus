@@ -1,0 +1,14 @@
+{{>api_info}}
+
+/**
+ * Represents a typed API response with deserialized data, status code,
+ * raw body, and headers. Returned by `withHttpInfo` methods.
+ */
+export interface ApiResult<T> {
+  readonly statusCode: number;
+  readonly data: T | undefined;
+  /* The transport always produces a body string (possibly empty), so
+   * rawBody is never null. */
+  readonly rawBody: string;
+  readonly headers: Readonly<Record<string, string>>;
+}

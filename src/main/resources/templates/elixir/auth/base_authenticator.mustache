@@ -1,0 +1,50 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Auth.BaseAuthenticator do
+  @moduledoc """
+  Base module providing default implementations for optional `Authenticator`
+  callbacks. Concrete authenticators should `use` this module.
+  """
+
+  defmacro __using__(_opts) do
+    quote do
+      @behaviour {{moduleName}}.Auth.Authenticator
+
+      @impl true
+      def query_params(_self), do: %{}
+
+      @impl true
+      def cookie_params(_self), do: %{}
+
+      defoverridable query_params: 1, cookie_params: 1
+    end
+  end
+
+  @doc false
+  # Resolves one credential of an authenticator. A value that was passed is used
+  # as it is. A `nil` is read once, now, from the environment variable
+  # `env_name`; an empty variable counts as unset. An empty string passed is
+  # kept as given and refused by the caller's own validation. A credential
+  # found in neither place raises, so a client that is missing one fails when
+  # it is built and not on its first request. The authenticator of a security scheme passes the
+  # variable of that scheme; `credential/2` is the variable of an authenticator
+  # built on its own: `{{envVarPrefix}}_<FIELD>`, for the field "TOKEN"
+  # `{{envVarPrefix}}_TOKEN`.
+  @spec credential(term(), String.t(), String.t()) :: term()
+  def credential(nil, field, env_name) do
+    case System.get_env(env_name) do
+      value when value in [nil, ""] ->
+        raise ArgumentError,
+              "Missing the credential '#{String.downcase(field)}': pass it, or set the environment variable #{env_name}"
+
+      value ->
+        value
+    end
+  end
+
+  def credential(value, _field, _env_name), do: value
+
+  @doc false
+  @spec credential(term(), String.t()) :: term()
+  def credential(value, field), do: credential(value, field, "{{envVarPrefix}}_" <> field)
+end

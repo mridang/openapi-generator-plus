@@ -1,0 +1,113 @@
+{{>api_info}}
+
+"""A :class:`CallHook` that records one span, one request count and one
+duration per call with OpenTelemetry.
+
+It is built on ``opentelemetry-api`` only (``pip install {{projectName}}[opentelemetry]``)
+and is never imported by the rest of the package.
+"""
+
+import asyncio
+import time
+from typing import Dict, Optional
+
+from opentelemetry import metrics, trace
+from opentelemetry.metrics import MeterProvider
+from opentelemetry.trace import SpanKind, Status, StatusCode, TracerProvider
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from opentelemetry.util.types import AttributeValue
+
+from {{packageName}}.call_hook import CallInfo, CallObserver, CallOutcome
+from {{packageName}}.errors import NetworkException, NetworkTimeoutException
+from {{packageName}}.errors.serialization_exception import SerializationException
+
+_SCOPE_NAME = '{{{projectName}}}'
+_SCOPE_VERSION = '{{{packageVersion}}}'
+
+_PROPAGATOR = TraceContextTextMapPropagator()
+
+
+def _error_type(outcome: CallOutcome) -> Optional[str]:
+    if outcome.status_code >= 400:
+        return str(outcome.status_code)
+    error = outcome.error
+    if error is None:
+        return None
+    if isinstance(error, NetworkTimeoutException):
+        return 'timeout'
+    if isinstance(error, NetworkException):
+        return 'network_error'
+    if isinstance(error, SerializationException):
+        return 'serialization_error'
+    if isinstance(error, asyncio.CancelledError):
+        return 'cancelled'
+    return '_OTHER'
+
+
+class _Observer:
+    def __init__(self, hook: 'OpenTelemetryCallHook', span: trace.Span, attributes: Dict[str, AttributeValue]) -> None:
+        self._hook = hook
+        self._span = span
+        self._attributes = attributes
+        self._began = time.monotonic()
+
+    def finish(self, outcome: CallOutcome) -> None:
+        seconds = time.monotonic() - self._began
+        attributes: Dict[str, AttributeValue] = dict(self._attributes)
+        if outcome.status_code > 0:
+            attributes['http.response.status_code'] = outcome.status_code
+        error_type = _error_type(outcome)
+        if error_type is not None:
+            attributes['error.type'] = error_type
+        try:
+            self._span.set_attributes(attributes)
+            if outcome.status_code >= 400 or outcome.error is not None:
+                self._span.set_status(Status(StatusCode.ERROR))
+        finally:
+            self._span.end()
+        self._hook._count.add(1, attributes)
+        self._hook._duration.record(seconds, attributes)
+
+
+class OpenTelemetryCallHook:
+    """Records a client span, ``http.client.request.count`` and
+    ``http.client.request.duration`` for every call.
+
+    The span is named with the operation id, has kind client and carries
+    ``http.request.method``, ``url.template``, ``server.address``, and
+    ``http.response.status_code`` and ``error.type`` when they apply. It is a
+    child of the caller's active span. The hook injects ``traceparent`` itself
+    after the span starts, so the request names the client span as its parent.
+    Without a provider the global one is used, and with none configured it
+    records nothing.
+
+    Args:
+        tracer_provider: The tracer provider to use instead of the global one.
+        meter_provider: The meter provider to use instead of the global one.
+    """
+
+    def __init__(
+        self,
+        tracer_provider: Optional[TracerProvider] = None,
+        meter_provider: Optional[MeterProvider] = None,
+    ) -> None:
+        if tracer_provider is not None:
+            self._tracer = tracer_provider.get_tracer(_SCOPE_NAME, _SCOPE_VERSION)
+        else:
+            self._tracer = trace.get_tracer(_SCOPE_NAME, _SCOPE_VERSION)
+        if meter_provider is not None:
+            meter = meter_provider.get_meter(_SCOPE_NAME, _SCOPE_VERSION)
+        else:
+            meter = metrics.get_meter(_SCOPE_NAME, _SCOPE_VERSION)
+        self._count = meter.create_counter('http.client.request.count', unit='{request}')
+        self._duration = meter.create_histogram('http.client.request.duration', unit='s')
+
+    def start(self, info: CallInfo, headers: Dict[str, str]) -> Optional[CallObserver]:
+        attributes: Dict[str, AttributeValue] = {
+            'http.request.method': info.method,
+            'url.template': info.url_template,
+            'server.address': info.server_address,
+        }
+        span = self._tracer.start_span(info.operation_id, kind=SpanKind.CLIENT, attributes=attributes)
+        _PROPAGATOR.inject(headers, trace.set_span_in_context(span))
+        return _Observer(self, span, attributes)

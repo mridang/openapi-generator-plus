@@ -1,0 +1,27 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
+import { ServerError } from './server-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 502 Bad Gateway.
+ */
+export class BadGatewayError<T = unknown> extends ServerError<T> {
+  constructor(
+    message: string = '',
+    responseHeaders: Record<string, string> | null = null,
+    responseBody: string | null = null,
+    errorBody: T | null = null,
+    options?: ApiErrorOptions
+  ) {
+    super(502, message, responseHeaders, responseBody, errorBody, options);
+    this.name = 'BadGatewayError';
+  }
+}
+
+ApiError.registerStatusError(
+  502,
+  (_statusCode, message, headers, body, errorBody, options) =>
+    new BadGatewayError(message, headers, body, errorBody, options)
+);

@@ -1,0 +1,31 @@
+module Petstore::Client::Models
+  class Defaults < Dry::Struct
+    class ModeEnum
+      LOW: String
+      MEDIUM: String
+      HIGH: String
+      UNKNOWN_DEFAULT_OPEN_API: String
+      VALUES: Array[String]
+      def self.all_vars: () -> Array[String]
+      def self.validate!: (String?) -> String?
+    end
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
+    PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
+    def inspect: () -> String
+    def to_s: () -> String
+    def with: (**untyped) -> Defaults
+    attr_reader retries: Integer?
+    attr_reader mode: String?
+    attr_reader label: String?
+    attr_reader greeting: String?
+    attr_reader swatch: Swatch?
+    attr_reader ratio: BigDecimal?
+    attr_reader scale: Float?
+    attr_reader weight: Float?
+    attr_reader ceiling: Integer?
+  end
+end

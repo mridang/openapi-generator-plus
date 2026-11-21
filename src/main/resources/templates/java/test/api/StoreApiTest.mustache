@@ -1,0 +1,662 @@
+{{>api_info}}
+
+package {{apiPackage}};
+
+import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.ApiHttpResponse;
+import {{invokerPackage}}.ApiResult;
+import {{invokerPackage}}.Configuration;
+import {{invokerPackage}}.DefaultApiClient;
+import {{invokerPackage}}.ChasmContainer;
+import {{modelPackage}}.Category;
+import {{modelPackage}}.Availability;
+import {{modelPackage}}.Defaults;
+import {{modelPackage}}.Department;
+import {{modelPackage}}.Order;
+import {{modelPackage}}.Priority;
+import {{modelPackage}}.StockItem;
+import {{modelPackage}}.TreeNode;
+import {{modelPackage}}.Swatch;
+import {{apiPackage}}.options.GetBySwatchOptions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+
+import com.sun.net.httpserver.HttpServer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+/**
+ * Integration tests for the Store API endpoints.
+ */
+@SuppressWarnings("NullAway")
+class StoreApiTest {
+
+    private StoreApi api;
+
+    @BeforeEach
+    void setUp() {
+        String baseUrl = ChasmContainer.getBaseUrl();
+        Configuration config = Configuration.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build();
+        api = new StoreApi(new DefaultApiClient(), config);
+    }
+
+    @Test
+    void bhvOperations102TestGetInventory() throws Exception {
+        Map<String, Integer> result = api.getInventory();
+        assertNotNull(result);
+    }
+
+    @Test
+    void bhvOperations117TestPlaceOrder() throws Exception {
+        Order order = Order.builder().id(1L).petId(12345L).quantity(1).shipDate(OffsetDateTime.now(ZoneOffset.UTC)).status(Order.StatusEnum.PLACED).complete(false).build();
+
+        Order result = api.placeOrder(order);
+        assertNotNull(result);
+
+        assertThat(result.id).isNotNull();
+    }
+
+    @Test
+    void bhvOperations103TestGetInventoryWithHttpInfo() throws Exception {
+        ApiResult<Map<String, Integer>> result = api.getInventoryWithHttpInfo();
+        assertNotNull(result);
+        assertThat(result.statusCode()).isBetween(200, 299);
+        assertThat(result.data()).isNotNull();
+    }
+
+    @Test
+    void bhvOperations119TestPlaceOrderWithHttpInfo() throws Exception {
+        Order order = Order.builder().id(1L).petId(12345L).quantity(1).shipDate(OffsetDateTime.now(ZoneOffset.UTC)).status(Order.StatusEnum.PLACED).complete(false).build();
+
+        ApiResult<Order> result = api.placeOrderWithHttpInfo(order);
+        assertNotNull(result);
+        assertThat(result.statusCode()).isBetween(200, 299);
+        assertThat(result.data()).isNotNull();
+    }
+
+    @Test
+    void bhvOperations104TestGetOrderById() throws Exception {
+        Order result = api.getOrderById(1L);
+        assertNotNull(result);
+
+        assertThat(result.id).isNotNull();
+    }
+
+    @Test
+    void bhvOperations105TestGetOrderByIdWithHttpInfo() throws Exception {
+        ApiResult<Order> result = api.getOrderByIdWithHttpInfo(1L);
+        assertNotNull(result);
+        assertThat(result.statusCode()).isBetween(200, 299);
+        assertThat(result.data()).isNotNull();
+    }
+
+    @Test
+    void bhvOperations099TestDeleteOrder() throws Exception {
+        api.deleteOrder(1L);
+
+        assertThat(true).isTrue();
+    }
+
+    private StoreApi newStoreApiForMock(int status, String contentType, String body) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            byte[] responseBytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.sendResponseHeaders(status, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+        return new StoreApi(new DefaultApiClient(), config);
+    }
+
+    @Test
+    void bhvOperations106TestGetOrderNotFound() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+
+        assertThatThrownBy(() -> mockApi.getOrderById(99999L))
+                .isExactlyInstanceOf({{invokerPackage}}.errors.NotFoundException.class)
+                .satisfies(e -> assertThat(
+                        (({{invokerPackage}}.errors.ApiException) e).getStatusCode()).isEqualTo(404));
+    }
+
+    @Test
+    void bhvOperations118TestPlaceOrderServerError() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
+
+        Order order = Order.builder().id(1L).petId(12345L).quantity(1).status(Order.StatusEnum.PLACED).complete(false).build();
+
+        assertThatThrownBy(() -> mockApi.placeOrder(order))
+                .isExactlyInstanceOf({{invokerPackage}}.errors.InternalServerErrorException.class)
+                .satisfies(e -> assertThat(
+                        (({{invokerPackage}}.errors.ApiException) e).getStatusCode()).isEqualTo(500));
+    }
+
+    @Test
+    void bhvOperations100TestDeleteOrderNotFound() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+
+        assertThatThrownBy(() -> mockApi.deleteOrder(99999L))
+                .isExactlyInstanceOf({{invokerPackage}}.errors.NotFoundException.class)
+                .satisfies(e -> assertThat(
+                        (({{invokerPackage}}.errors.ApiException) e).getStatusCode()).isEqualTo(404));
+    }
+
+    @Test
+    void bhvOperations101TestGetGroupedCategoriesDeserializesNestedContainer() throws Exception {
+        // A nested generic container (array of map of model) must decode its
+        // leaves into typed Category instances, not leave them as raw maps.
+        StoreApi mockApi = newStoreApiForMock(
+                200,
+                "application/json",
+                "[{\"a\":{\"id\":1,\"name\":\"Dogs\"}},{\"b\":{\"id\":2,\"name\":\"Cats\"}}]");
+
+        List<Map<String, Category>> result = mockApi.getGroupedCategories();
+        assertNotNull(result);
+
+        // The leaf is statically typed Category (Map<String, Category>), so a
+        // successful nested decode yields a typed instance with populated
+        // fields rather than a raw map.
+        Category category =
+                java.util.Objects.requireNonNull(
+                        result.get(0).get("a"), "leaf 'a' must decode to a typed Category");
+        assertThat(category.id).isEqualTo(1L);
+        assertThat(category.name).isEqualTo("Dogs");
+    }
+
+    @Test
+    void bhvOperations122TestGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader() throws Exception {
+        // A named enum ($ref) parameter must ride the wire as its value
+        // ("red"), never as the language's enum constant name ("RED").
+        String[] capturedUrl = new String[1];
+        Map<String, String> capturedHeaders = new java.util.HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            capturedHeaders.putAll(headers);
+            return new ApiHttpResponse(200, "{\"id\":1,\"name\":\"x\"}",
+                    Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        mockedApi.getBySwatch(Swatch.RED,
+                new GetBySwatchOptions().querySwatch(Swatch.GREEN).preferredSwatch(Swatch.BLUE));
+
+        assertThat(capturedUrl[0]).isEqualTo("http://localhost/store/by-swatch/red?querySwatch=green");
+        assertThat(capturedHeaders).containsEntry("Preferred-Swatch", "blue");
+    }
+
+    @Test
+    void bhvOperations098TestCreateAccountSendsAndReceivesReadOnlyAndWriteOnlyProperties() throws Exception {
+        // readOnly/writeOnly have no wire effect: the writeOnly password is
+        // sent, and the readOnly id in the response is decoded.
+        Object[] capturedBody = new Object[1];
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedBody[0] = body;
+            return new ApiHttpResponse(200, "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}",
+                    Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        {{modelPackage}}.Account account = {{modelPackage}}.Account.builder().username("u").password("p").build();
+
+        {{modelPackage}}.Account result = mockedApi.createAccount(account);
+
+        assertThat(String.valueOf(capturedBody[0])).contains("\"password\":\"p\"");
+        assertNotNull(result);
+        assertThat(result.id).isEqualTo(7L);
+        assertThat(result.password).isEqualTo("p");
+    }
+
+    @Test
+    void bhvOperations107GetBySwatchWithoutOptionsSendsOnlyThePathValue() throws Exception {
+        String[] capturedUrl = new String[1];
+        Map<String, String> capturedHeaders = new java.util.HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            capturedHeaders.putAll(headers);
+            return new ApiHttpResponse(200, "{\"id\":1,\"name\":\"x\"}",
+                    Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        mockedApi.getBySwatch(Swatch.BLUE);
+
+        assertThat(capturedUrl[0]).isEqualTo("http://localhost/store/by-swatch/blue");
+        assertThat(capturedHeaders).doesNotContainKey("Preferred-Swatch");
+    }
+
+    @Test
+    void bhvOperations116TestGetTreeDeserializesTheRecursiveModel() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json",
+                "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}");
+
+        TreeNode tree = mockApi.getTree();
+
+        assertThat(tree.value).isEqualTo("root");
+        assertThat(java.util.Objects.requireNonNull(tree.child).value).isEqualTo("leaf");
+        assertThat(tree.child.child).isNull();
+    }
+
+    @Test
+    void bhvOperations108TestGetDepartmentDeserializesTheMutuallyReferencingModels() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json",
+                "{\"name\":\"ops\",\"lead\":{\"name\":\"ann\"}}");
+
+        Department department = mockApi.getDepartment();
+
+        assertThat(department.name).isEqualTo("ops");
+        assertThat(java.util.Objects.requireNonNull(department.lead).name).isEqualTo("ann");
+    }
+
+    @Test
+    void bhvOperations123TestGetDefaultsAppliesTheSchemaDefaultsToMissingFields() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json", "{\"retries\":5}");
+
+        Defaults defaults = mockApi.getDefaults();
+
+        assertThat(defaults.retries).isEqualTo(5);
+        assertThat(defaults.mode).isEqualTo(Defaults.ModeEnum.MEDIUM);
+        assertThat(defaults.label).isEqualTo("untitled");
+    }
+
+    @Test
+    void bhvOperations112TestGetStockItemDeserializesEnumsAndNestedArrays() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json",
+                "{\"priority\":2,\"availability\":\"on-hold\",\"matrix\":[[1,2],[3]]}");
+
+        StockItem item = mockApi.getStockItem();
+
+        assertThat(item.priority).isEqualTo(Priority.NUMBER_2);
+        assertThat(item.availability).isEqualTo(Availability.ON_HOLD);
+        assertThat(item.matrix).isEqualTo(List.of(List.of(1, 2), List.of(3)));
+    }
+
+    @Test
+    void bhvOperations109TestGetMatrixDeserializesNestedIntegerArrays() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json", "[[1,2],[3]]");
+
+        assertThat(mockApi.getMatrix()).isEqualTo(List.of(List.of(1, 2), List.of(3)));
+    }
+
+    @Test
+    void bhvOperations113TestGetSwatchDecodesTheEnumWireValue() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json", "\"green\"");
+
+        assertThat(mockApi.getSwatch()).isEqualTo(Swatch.GREEN);
+    }
+
+    @Test
+    void bhvOperations114TestGetSwatchGroupsDecodesEnumLeavesInNestedContainers() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(
+                200, "application/json", "[{\"a\":\"red\"},{\"b\":\"blue\"}]");
+
+        List<Map<String, Swatch>> result = mockApi.getSwatchGroups();
+
+        assertThat(result.get(0).get("a")).isEqualTo(Swatch.RED);
+        assertThat(result.get(1).get("b")).isEqualTo(Swatch.BLUE);
+    }
+
+    @Test
+    void bhvOperations115TestGetTimestampGroupsDecodesDateTimeLeavesInNestedContainers() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(
+                200, "application/json", "[{\"a\":\"2024-01-02T03:04:05Z\"}]");
+
+        List<Map<String, OffsetDateTime>> result = mockApi.getTimestampGroups();
+
+        assertThat(result.get(0).get("a"))
+                .isEqualTo(OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC));
+    }
+
+    @Test
+    void bhvOperations121TestSearchStoreSendsTheContentQueryTheHeaderTheSetAndTheTime() throws Exception {
+        String[] capturedUrl = new String[1];
+        Map<String, String> capturedHeaders = new java.util.HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            capturedHeaders.putAll(headers);
+            return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        {{modelPackage}}.PhotoMetadata metadata = {{modelPackage}}.PhotoMetadata.builder().caption("a<b").takenAt(OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC)).build();
+
+        mockedApi.searchStore(new {{apiPackage}}.options.SearchStoreOptions()
+                .q(metadata)
+                .labels(java.util.Set.of("one"))
+                .at(java.time.LocalTime.of(10, 30, 0, 123_456_789))
+                .xFilter(Map.of("k", "v")));
+
+        String url = java.net.URLDecoder.decode(capturedUrl[0], StandardCharsets.UTF_8);
+        assertThat(url).contains("\"caption\":\"a<b\"");
+        assertThat(url).contains("\"takenAt\":\"2024-01-02T03:04:05.000+00:00\"");
+        assertThat(url).contains("labels=one").contains("at=10:30:00.123");
+        assertThat(capturedHeaders).containsEntry("X-Filter", "{\"k\":\"v\"}");
+    }
+
+    @Test
+    void bhvOperations097SearchStoreContentQueryIsTheObjectSerializerOutput() throws Exception {
+        String[] capturedUrl = new String[1];
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        {{modelPackage}}.PhotoMetadata metadata = {{modelPackage}}.PhotoMetadata.builder().caption("a<b").build();
+
+        mockedApi.searchStore(new {{apiPackage}}.options.SearchStoreOptions().q(metadata));
+
+        String url = java.net.URLDecoder.decode(capturedUrl[0], StandardCharsets.UTF_8);
+        assertThat(url).contains("q=").contains("\"caption\":\"a<b\"");
+    }
+
+    @Test
+    void bhvOperations124TestGetOrderByTrackingIdPutsTheLowercaseUuidInThePath() throws Exception {
+        String[] capturedUrl = new String[1];
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            return new ApiHttpResponse(200, "{\"id\":1}", Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        mockedApi.getOrderByTrackingId(
+                java.util.UUID.fromString("0F8FAD5B-D9CB-469F-A165-70867728950E"));
+
+        assertThat(capturedUrl[0]).isEqualTo(
+                "http://localhost/store/order/by-tracking/0f8fad5b-d9cb-469f-a165-70867728950e");
+    }
+
+    @Test
+    void bhvOperations110TestGetOrderByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes() throws Exception {
+        Object[][] table = {
+            {400, {{invokerPackage}}.errors.BadRequestException.class},
+            {401, {{invokerPackage}}.errors.UnauthorizedException.class},
+            {403, {{invokerPackage}}.errors.ForbiddenException.class},
+            {409, {{invokerPackage}}.errors.ConflictException.class},
+            {418, {{invokerPackage}}.errors.ClientException.class},
+            {422, {{invokerPackage}}.errors.UnprocessableEntityException.class},
+            {500, {{invokerPackage}}.errors.InternalServerErrorException.class},
+            {502, {{invokerPackage}}.errors.BadGatewayException.class},
+        };
+        for (Object[] row : table) {
+            StoreApi routed = new StoreApi(
+                    new DefaultApiClient({{invokerPackage}}.TransportOptions.builder().maxRetries(0).build()),
+                    Configuration.builder()
+                            .baseUrl(ChasmContainer.getBaseUrl() + "/test/status/" + row[0])
+                            .build());
+            Class<?> expected = (Class<?>) row[1];
+            assertThatThrownBy(() -> routed.getOrderById(1L)).isExactlyInstanceOf(expected);
+        }
+    }
+
+    @Test
+    void bhvOperations120TestReserveStockDecodesTheBodyAsTheSchemaOfTheStatusThatArrived() throws Exception {
+        String both =
+                "{\"reservationId\":1,\"quantity\":2,\"receiptCode\":\"rcpt-1\","
+                        + "\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+
+        {{modelPackage}}.ReserveStockResponse existing =
+                newStoreApiForMock(200, "application/json", both).reserveStock();
+        {{modelPackage}}.ReserveStockResponse created =
+                newStoreApiForMock(201, "application/json", both).reserveStock();
+
+        assertThat(existing.getActualInstance()).isInstanceOf({{modelPackage}}.Reservation.class);
+        assertThat(existing.asReservation()).isPresent();
+        assertThat(existing.asReservationReceipt()).isEmpty();
+        assertThat(created.getActualInstance()).isInstanceOf({{modelPackage}}.ReservationReceipt.class);
+        assertThat(created.isReservationReceipt()).isTrue();
+        assertThat(created.asReservation()).isEmpty();
+    }
+
+    @Test
+    void bhvUnions036StatusCodeNotBodyShapeSelectsTheVariant() throws Exception {
+        String receipt = "{\"receiptCode\":\"rcpt-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+
+        assertThatThrownBy(() -> newStoreApiForMock(200, "application/json", receipt).reserveStock())
+                .isInstanceOf({{invokerPackage}}.errors.SerializationException.class);
+        {{modelPackage}}.ReserveStockResponse created =
+                newStoreApiForMock(201, "application/json", receipt).reserveStock();
+        assertThat(created.asReservationReceipt()).isPresent();
+    }
+
+    @Test
+    void bhvOperations154ReserveStockRejectsABodyThatDoesNotMatchTheSchemaOfItsStatus() throws Exception {
+        StoreApi mockApi =
+                newStoreApiForMock(201, "application/json", "{\"reservationId\":1,\"quantity\":2}");
+
+        assertThatThrownBy(mockApi::reserveStock)
+                .isInstanceOf({{invokerPackage}}.errors.SerializationException.class);
+    }
+
+    @Test
+    void bhvMisc048ASuccessStatusNoRowNamesDecodesAsTheUnionReturnType() throws Exception {
+        String both =
+                "{\"reservationId\":1,\"quantity\":2,\"receiptCode\":\"rcpt-1\","
+                        + "\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+
+        assertThat(newStoreApiForMock(202, "application/json", both).reserveStock()).isNotNull();
+    }
+
+    @Test
+    void bhvOperations126PlaceOrderWithoutAnArgumentSendsNoBody() throws Exception {
+        Object[] capturedBody = new Object[] {"unset"};
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedBody[0] = body;
+            return new ApiHttpResponse(200, "{\"id\":1}", Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        Order placed = mockedApi.placeOrder();
+
+        assertThat(placed.id).isEqualTo(1L);
+        assertThat(capturedBody[0]).isNull();
+        assertThat(mockedApi.placeOrderWithHttpInfo().statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void bhvOperations127MalformedSuccessBodyFailsLoudWithASerializationError() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json", "plain words, not json");
+
+        assertThatThrownBy(() -> mockApi.getOrderById(1L))
+                .isExactlyInstanceOf({{invokerPackage}}.errors.SerializationException.class);
+    }
+
+    @Test
+    void bhvOperations128UnserializableContentQueryRaisesAndSendsNoRequest() throws Exception {
+        int[] requests = new int[1];
+        ApiClient recording = (method, url, headers, body) -> {
+            requests[0]++;
+            return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        {{modelPackage}}.PhotoMetadata metadata = {{modelPackage}}.PhotoMetadata.builder()
+                .location({{modelPackage}}.PhotoMetadataLocation.builder().lat(Double.NaN).build())
+                .build();
+
+        assertThatThrownBy(() -> mockedApi.searchStore(
+                new {{apiPackage}}.options.SearchStoreOptions().q(metadata)))
+                .isExactlyInstanceOf({{invokerPackage}}.errors.SerializationException.class);
+        assertThat(requests[0]).isZero();
+    }
+
+    @Test
+    void bhvOperations129ReserveStockDecodesA200AsTheExistingReservation() throws Exception {
+        {{modelPackage}}.ReserveStockResponse existing = newStoreApiForMock(200, "application/json",
+                "{\"reservationId\":31,\"quantity\":4}").reserveStock();
+
+        assertThat(existing.asReservation())
+                .hasValueSatisfying(reservation -> assertThat(reservation.reservationId).isEqualTo(31L));
+        assertThat(existing.asReservationReceipt()).isEmpty();
+    }
+
+    @Test
+    void bhvOperations136BareJsonNullBodyThrowsAnApiErrorNamingTheOperation() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json", "null");
+
+        assertThatThrownBy(() -> mockApi.getOrderById(1L))
+                .isInstanceOf({{invokerPackage}}.errors.ApiException.class)
+                .hasMessageContaining("Expected a response body for getOrderById but received none");
+    }
+
+    @Test
+    void bhvOperations139NonZeroTimeQueryKeepsItsFractionalSeconds() throws Exception {
+        String[] capturedUrl = new String[1];
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        mockedApi.searchStore(new {{apiPackage}}.options.SearchStoreOptions()
+                .at(java.time.LocalTime.of(10, 30, 0, 123_000_000)));
+
+        String url = java.net.URLDecoder.decode(capturedUrl[0], StandardCharsets.UTF_8);
+        assertThat(url).contains("at=10:30:00.123");
+    }
+
+    @Test
+    void bhvMisc011AnOptionsObjectForAnOperationWithNoParametersAcceptsTheCallSettings() {
+        var built = new {{apiPackage}}.options.GetDefaultsOptions()
+                .timeout(5)
+                .headers(Map.of("X-A", "1"))
+                .maxRetries(0);
+        assertThat(built.timeout()).isEqualTo(5);
+        assertThat(built.maxRetries()).isEqualTo(0);
+        assertThat(new {{apiPackage}}.options.GetDefaultsOptions().timeout()).isNull();
+    }
+
+    @Test
+    void bhvMisc012ANilRequiredArgumentIsNamedAndNothingIsSent() {
+        int[] sends = new int[1];
+        ApiClient counting = (method, url, headers, body) -> {
+            sends[0]++;
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        StoreApi counted = new StoreApi(counting, Configuration.builder().baseUrl("http://localhost").build());
+        assertThatThrownBy(() -> counted.getBySwatch(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pathSwatch");
+        assertThat(sends[0]).isZero();
+    }
+
+    @Test
+    void bhvMisc013AnOperationWithNoParametersReturnsItsResult() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json", "{\"available\":3}");
+        assertThat(mockApi.getInventory()).containsEntry("available", 3).hasSize(1);
+    }
+
+    @Test
+    void bhvMisc014ANullSuccessBodyForAnOperationThatMustReturnOneIsAnApiError() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json", "null");
+        assertThatThrownBy(() -> mockApi.getOrderById(1L))
+                .isInstanceOf({{invokerPackage}}.errors.ApiException.class);
+    }
+
+    @Test
+    void bhvMisc021ErrorRequestPathKeepsTheBasePathPrefixAndDropsTheQuery() {
+        ApiClient failing = (method, url, headers, body) -> new ApiHttpResponse(404, "", Map.of());
+        StoreApi failingApi = new StoreApi(failing,
+                Configuration.builder().baseUrl("http://localhost/v1").build());
+        assertThatThrownBy(() -> failingApi.getInventory())
+                .isInstanceOfSatisfying({{invokerPackage}}.errors.ApiException.class, err -> {
+                    assertThat(err.getRequestPath()).startsWith("/v1/");
+                    assertThat(err.getRequestPath()).doesNotContain("?");
+                });
+    }
+
+    @Test
+    void bhvMisc024ATransportFailureKeepsTheUnderlyingErrorAsItsCause() {
+        StoreApi unreachable = new StoreApi(
+                new DefaultApiClient({{invokerPackage}}.TransportOptions.builder().maxRetries(0).build()),
+                Configuration.builder().baseUrl("http://127.0.0.1:1").build());
+        assertThatThrownBy(() -> unreachable.getInventory())
+                .isInstanceOf({{invokerPackage}}.errors.NetworkException.class)
+                .hasCauseInstanceOf(Throwable.class);
+    }
+
+    @Test
+    void bhvMisc025ATypedOperationCallFailsOnAClientErrorStatus() {
+        ApiClient notFound = (method, url, headers, body) -> new ApiHttpResponse(404, "{}", Map.of());
+        StoreApi notFoundApi = new StoreApi(notFound, Configuration.builder().baseUrl("http://localhost").build());
+        assertThatThrownBy(() -> notFoundApi.getInventory())
+                .isInstanceOf({{invokerPackage}}.errors.ClientException.class);
+    }
+
+    @Test
+    void bhvMisc027ATransportFailureWithoutAResponseIsANetworkErrorWithItsCause() {
+        StoreApi unreachable = new StoreApi(
+                new DefaultApiClient({{invokerPackage}}.TransportOptions.builder().maxRetries(0).build()),
+                Configuration.builder().baseUrl("http://127.0.0.1:1").build());
+        assertThatThrownBy(() -> unreachable.getInventory())
+                .isInstanceOfAny({{invokerPackage}}.errors.NetworkException.class,
+                        {{invokerPackage}}.errors.NetworkTimeoutException.class)
+                .hasCauseInstanceOf(Throwable.class);
+    }
+
+    @Test
+    void bhvMisc082GetBySwatchCarriesTheEnumWireValueInPathQueryAndHeader() throws Exception {
+        // A named enum ($ref) parameter must ride the wire as its value
+        // ("red"), never as the language's enum constant name ("RED").
+        String[] capturedUrl = new String[1];
+        Map<String, String> capturedHeaders = new java.util.HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            capturedHeaders.putAll(headers);
+            return new ApiHttpResponse(200, "{\"id\":1,\"name\":\"x\"}",
+                    Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        mockedApi.getBySwatch(Swatch.RED,
+                new GetBySwatchOptions().querySwatch(Swatch.GREEN).preferredSwatch(Swatch.BLUE));
+
+        assertThat(capturedUrl[0]).isEqualTo("http://localhost/store/by-swatch/red?querySwatch=green");
+        assertThat(capturedHeaders).containsEntry("Preferred-Swatch", "blue");
+    }
+
+    @Test
+    void bhvMisc079Status201DecodesItsOwnReceiptSchema() throws Exception {
+        {{modelPackage}}.ReserveStockResponse created = newStoreApiForMock(201, "application/json",
+                "{\"receiptCode\":\"C1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}").reserveStock();
+
+        assertThat(created.getActualInstance()).isInstanceOf({{modelPackage}}.ReservationReceipt.class);
+    }
+
+    @Test
+    void bhvMisc080A200BodyIsRefusedWhenItOnlyFitsTheReceiptSchema() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(200, "application/json",
+                "{\"receiptCode\":\"C1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}");
+
+        assertThatThrownBy(mockApi::reserveStock)
+                .isInstanceOf({{invokerPackage}}.errors.SerializationException.class);
+    }
+
+    @Test
+    void bhvMisc114ASuccessResponseIsDecodedForTheStatusActuallyReceived() throws Exception {
+        String receipt = "{\"receiptCode\":\"R-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+        {{modelPackage}}.ReserveStockResponse created =
+                newStoreApiForMock(201, "application/json", receipt).reserveStock();
+        assertThat(created.getActualInstance()).isInstanceOf({{modelPackage}}.ReservationReceipt.class);
+    }
+}

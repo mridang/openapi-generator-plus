@@ -1,0 +1,575 @@
+{{>api_info}}
+import Foundation
+
+/// A clock that a change of the wall clock does not move, so a token or a
+/// discovery document is not kept too long, or dropped at once, when the system
+/// time is set. Seconds from an arbitrary start: only differences mean
+/// anything. On Apple platforms it is `CLOCK_MONOTONIC`, which keeps counting
+/// while the machine sleeps; elsewhere `systemUptime`.
+enum MonotonicClock {
+    static func now() -> TimeInterval {
+        #if canImport(Darwin)
+        return TimeInterval(clock_gettime_nsec_np(CLOCK_MONOTONIC)) / 1_000_000_000
+        #else
+        return ProcessInfo.processInfo.systemUptime
+        #endif
+    }
+}
+
+/// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+///
+/// Uses the shared ``ApiClient`` instance so that token exchange requests honour
+/// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
+///
+/// Concurrent calls to ``getAccessToken(tokenURL:params:extraHeaders:refreshURL:)`` are
+/// coalesced into a single in-flight refresh `Task`. If N callers race on an
+/// expired token, exactly one HTTP request is sent to the token endpoint and all
+/// callers await the same result. This avoids the thundering-herd pattern that
+/// otherwise overloads the OP and consumes refresh-token rotations.
+public final class OAuth2TokenManager: @unchecked Sendable {
+    /// Largest safety margin (in seconds) taken off a token's lifetime when it
+    /// is stored, so that we refresh slightly before the token actually
+    /// expires, avoiding a race against the server clock. The margin is
+    /// `min(60, expires_in / 2)` and is applied once, at store time only.
+    private static let maxExpirySafetyMargin: TimeInterval = 60
+
+    private let lock = NSLock()
+    private var apiClient: ApiClient?
+    private var accessToken: String = ""
+    private var _refreshToken: String = ""
+    /// Cached token expiry on the ``MonotonicClock``, or `nil` when the token response omitted
+    /// `expires_in`. A `nil` expiry means "cache indefinitely" (valid until
+    /// explicitly invalidated), matching the other SDKs (Java treats a null
+    /// expiry as never-expiring; Go treats a zero Date the same way). The
+    /// previous `.distantPast` sentinel made every no-expiry token look stale,
+    /// so it was refetched on every request.
+    private var tokenExpiry: TimeInterval?
+    /// Set once an explicit ``exchange(tokenURL:params:extraHeaders:)`` succeeds.
+    private var _exchanged: Bool = false
+    /// Set by ``stop()``; every later token request fails with ``OAuth2TokenError/stopped``.
+    private var _stopped: Bool = false
+    /// In-flight refresh task, if any. While non-nil, concurrent callers await
+    /// its result instead of starting another refresh.
+    private var inflightRefresh: Task<String, Error>?
+
+    /// Creates a new token manager.
+    ///
+    /// The ``ApiClient`` must be injected via ``setApiClient(_:)`` before any token requests
+    /// are made.
+    public init() {}
+
+    /// Injects the shared ``ApiClient`` for making token requests.
+    public func setApiClient(_ client: ApiClient) {
+        lock.withLock {
+            self.apiClient = client
+        }
+    }
+
+    /// Stops the token manager. Any later token request throws
+    /// ``OAuth2TokenError/stopped``; stopping again does nothing.
+    public func stop() {
+        lock.withLock { _stopped = true }
+    }
+
+    private func requireRunning() throws {
+        if lock.withLock({ _stopped }) {
+            throw OAuth2TokenError.stopped
+        }
+    }
+
+    /// Returns the current refresh token, if any.
+    public var refreshToken: String {
+        lock.withLock {
+            return _refreshToken
+        }
+    }
+
+    /// Returns a valid access token, fetching or refreshing as necessary.
+    ///
+    /// Concurrent callers that arrive while a refresh is in flight all await the
+    /// same `Task`, so the token endpoint is hit exactly once per refresh
+    /// regardless of caller concurrency.
+    ///
+    /// - Parameters:
+    ///   - tokenURL: The endpoint the original grant (`params`) is posted to.
+    ///   - params: The grant parameters. When `grant_type` is
+    ///     `refresh_token` they are posted exactly once, with no internal
+    ///     refresh attempt and no fallback.
+    ///   - extraHeaders: Headers sent with every token request (for example
+    ///     the Basic client-authentication header).
+    ///   - refreshURL: The endpoint a stored refresh token is redeemed at;
+    ///     `nil` uses `tokenURL`.
+    public func getAccessToken(
+        tokenURL: String,
+        params: [String: String],
+        extraHeaders: [String: String] = [:],
+        refreshURL: String? = nil
+    ) async throws -> String {
+        try requireRunning()
+        /* Fast path under the lock: return the cached token if still fresh, or
+         * piggy-back on an already-running refresh task. NSLock's lock()/unlock()
+         * are unavailable in async contexts under Swift 6 strict concurrency, so
+         * we route the entire critical section through withLock and split the
+         * outcome (cached token / existing refresh task / new refresh task) into
+         * a small enum that the surrounding async code can dispatch on. */
+        enum FastPath {
+            case cached(String)
+            case existing(Task<String, Error>)
+            case start(Task<String, Error>)
+        }
+        let outcome: FastPath = lock.withLock {
+            /* A nil tokenExpiry means the token response carried no expires_in,
+             * so the token is cached indefinitely (valid until explicitly
+             * invalidated) -- matching the other SDKs. Only when an expiry is
+             * known do we refetch once it lapses; the safety margin was
+             * already taken off when the expiry was stored. */
+            if !accessToken.isEmpty {
+                if let expiry = tokenExpiry {
+                    if MonotonicClock.now() < expiry {
+                        return .cached(accessToken)
+                    }
+                } else {
+                    return .cached(accessToken)
+                }
+            }
+            if let existing = inflightRefresh {
+                return .existing(existing)
+            }
+            let currentRefreshToken = _refreshToken
+            let task = Task<String, Error> { [self] in
+                try await performRefresh(
+                    tokenURL: tokenURL,
+                    refreshURL: refreshURL ?? tokenURL,
+                    params: params,
+                    extraHeaders: extraHeaders,
+                    currentRefreshToken: currentRefreshToken
+                )
+            }
+            inflightRefresh = task
+            return .start(task)
+        }
+
+        /* performRefresh always clears inflightRefresh via defer, so we don't
+         * need to clear it here -- doing so could accidentally clear a newer
+         * refresh task that started after ours completed. */
+        switch outcome {
+        case .cached(let token):
+            return token
+        case .existing(let task), .start(let task):
+            return try await Self.wait(for: task)
+        }
+    }
+
+    /// Waits for a shared refresh without tying the caller to it: when the
+    /// caller is cancelled it stops waiting at once with `CancellationError`,
+    /// while the refresh itself keeps running for the other callers and still
+    /// caches its token. Awaiting `task.value` directly would hold a cancelled
+    /// caller until the token endpoint answered.
+    private static func wait(for task: Task<String, Error>) async throws -> String {
+        let gate = CancellableWait()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+                gate.install(continuation)
+                Task {
+                    do {
+                        gate.finish(.success(try await task.value))
+                    } catch {
+                        gate.finish(.failure(error))
+                    }
+                }
+            }
+        } onCancel: {
+            gate.cancel()
+        }
+    }
+
+    /// Resumes a continuation exactly once, with the refresh result or with
+    /// `CancellationError`, whichever comes first.
+    private final class CancellableWait: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuation: CheckedContinuation<String, Error>?
+        private var cancelled = false
+        private var finished = false
+
+        func install(_ continuation: CheckedContinuation<String, Error>) {
+            let cancelNow: Bool = lock.withLock {
+                if cancelled && !finished {
+                    finished = true
+                    return true
+                }
+                self.continuation = continuation
+                return false
+            }
+            if cancelNow {
+                continuation.resume(throwing: CancellationError())
+            }
+        }
+
+        func finish(_ result: Result<String, Error>) {
+            let pending: CheckedContinuation<String, Error>? = lock.withLock {
+                guard !finished else { return nil }
+                finished = true
+                return continuation
+            }
+            pending?.resume(with: result)
+        }
+
+        func cancel() {
+            let pending: CheckedContinuation<String, Error>? = lock.withLock {
+                cancelled = true
+                guard !finished, let pending = continuation else { return nil }
+                finished = true
+                return pending
+            }
+            pending?.resume(throwing: CancellationError())
+        }
+    }
+
+    /// Performs the actual token fetch. When a refresh token is stored and
+    /// `params` is not itself a refresh grant, the refresh token is redeemed
+    /// at `refreshURL` first, authenticated the same way as the original grant
+    /// (RFC 6749 section 6 and 3.2.1: `client_id`/`client_secret` copied from
+    /// `params` and the same `extraHeaders`); on any failure other than
+    /// cancellation the original grant is re-run at `tokenURL`. A refresh
+    /// grant in `params` is posted exactly once. Always clears
+    /// ``inflightRefresh`` before returning so the next call is unblocked.
+    private func performRefresh(
+        tokenURL: String,
+        refreshURL: String,
+        params: [String: String],
+        extraHeaders: [String: String],
+        currentRefreshToken: String
+    ) async throws -> String {
+        defer {
+            lock.withLock { inflightRefresh = nil }
+        }
+
+        if !currentRefreshToken.isEmpty && params["grant_type"] != "refresh_token" {
+            var refreshParams: [String: String] = [
+                "grant_type": "refresh_token",
+                "refresh_token": currentRefreshToken,
+            ]
+            if let clientId = params["client_id"] {
+                refreshParams["client_id"] = clientId
+            }
+            if let clientSecret = params["client_secret"] {
+                refreshParams["client_secret"] = clientSecret
+            }
+            do {
+                let result = try await requestToken(
+                    tokenURL: refreshURL, params: refreshParams, extraHeaders: extraHeaders)
+                return lock.withLock {
+                    apply(result)
+                    return accessToken
+                }
+            } catch let cancellation as CancellationError {
+                throw cancellation
+            } catch {
+                /* Refresh failed (e.g. refresh token revoked or expired).
+                 * Fall back to re-running the original grant below. */
+            }
+        }
+
+        let result = try await requestToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
+        return lock.withLock {
+            apply(result)
+            return accessToken
+        }
+    }
+
+    /// Posts `params` verbatim to `tokenURL` and replaces the whole session
+    /// with the response: no cached token is returned and no stored refresh
+    /// token is redeemed. A response without `refresh_token` leaves no refresh
+    /// token and one without `expires_in` leaves no expiry. On success the
+    /// session is marked exchanged; on any failure the previous session is
+    /// kept unchanged and the error is rethrown, so a mistyped authorization
+    /// code does not log the user out.
+    public func exchange(
+        tokenURL: String,
+        params: [String: String],
+        extraHeaders: [String: String] = [:]
+    ) async throws {
+        try requireRunning()
+        let result = try await requestToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
+        lock.withLock {
+            self.accessToken = result.accessToken
+            self._refreshToken = result.refreshToken ?? ""
+            self.tokenExpiry = result.hasExpiresIn ? Self.expiry(for: result.expiresIn) : nil
+            self._exchanged = true
+        }
+    }
+
+    /// Whether ``exchange(tokenURL:params:extraHeaders:)`` has completed
+    /// successfully at least once.
+    public var exchanged: Bool {
+        lock.withLock { _exchanged }
+    }
+
+    /// Manually sets an access token, bypassing the token endpoint.
+    public func setAccessToken(_ token: String) {
+        lock.withLock {
+            self.accessToken = token
+            /* A manually-set token has no known expiry, so cache it
+             * indefinitely (nil == never expires). */
+            self.tokenExpiry = nil
+        }
+    }
+
+    /// Invalidates the cached access token so that the next call to
+    /// ``getAccessToken(tokenURL:params:extraHeaders:refreshURL:)`` fetches a fresh
+    /// token from the token endpoint. Intended for tests and recovery flows.
+    public func invalidateAccessToken() {
+        lock.withLock {
+            self.accessToken = ""
+            self.tokenExpiry = nil
+        }
+    }
+
+    /// The fields of a successful token response.
+    private struct TokenResult {
+        let accessToken: String
+        let refreshToken: String?
+        let hasExpiresIn: Bool
+        let expiresIn: Int
+    }
+
+    /// Merges a grant response into the cached session (caller holds `lock`):
+    /// a missing `refresh_token` keeps the stored one and a missing
+    /// `expires_in` clears the expiry, so the token is cached until it is
+    /// invalidated, exactly as ``exchange(tokenURL:params:extraHeaders:)`` and
+    /// the first fetch treat it.
+    private func apply(_ result: TokenResult) {
+        self.accessToken = result.accessToken
+        if let refreshToken = result.refreshToken {
+            self._refreshToken = refreshToken
+        }
+        /* No expires_in in the response: the expiry is cleared (nil, cached
+         * until invalidated). Keeping the prior expiry would leave an already
+         * lapsed instant in force, because a refresh only runs once the old
+         * expiry has passed, and every following call would then run another
+         * refresh grant. */
+        self.tokenExpiry = result.hasExpiresIn ? Self.expiry(for: result.expiresIn) : nil
+    }
+
+    /// RFC 6749 section 5.1 says expires_in is a JSON number, but real-world
+    /// providers (Salesforce, some Apigee deployments) send a quoted string
+    /// and others send a JSON float. On anything unparseable or non-positive,
+    /// the token is marked immediately stale so the next call refetches
+    /// (preferable to caching forever). One safety margin of
+    /// `min(60, expires_in / 2)` seconds is taken off the real lifetime here
+    /// and nowhere else, so a 60 second token is reused for 30 seconds.
+    static func expiry(for expiresIn: Int, now: TimeInterval = MonotonicClock.now()) -> TimeInterval {
+        if expiresIn > 0 {
+            let lifetime = TimeInterval(expiresIn)
+            let margin = min(maxExpirySafetyMargin, lifetime / 2)
+            return now + (lifetime - margin)
+        }
+        return now
+    }
+
+    private func requestToken(
+        tokenURL: String,
+        params: [String: String],
+        extraHeaders: [String: String] = [:]
+    ) async throws -> TokenResult {
+        let client: ApiClient = try lock.withLock {
+            guard let client = apiClient else {
+                throw ConfigurationError.invalidState(
+                    "ApiClient has not been injected. "
+                        + "Ensure the {{clientClassName}} constructor calls setApiClient "
+                        + "on HttpAwareAuthenticator before making API requests"
+                )
+            }
+            return client
+        }
+
+        /* Percent-encode both key and value per RFC 6749 §B / RFC 3986
+         * (form-urlencoded body). Raw concatenation would corrupt the
+         * request when client_secret, username, or password contains any
+         * of `=`, `&`, `+`, `%`, or space.
+         *
+         * After percent-encoding, replace `%20` with `+` to match the
+         * application/x-www-form-urlencoded convention used by every other
+         * SDK (C# csharp/auth/oauth/oauth2_token_manager.mustache:189) and
+         * by every standard urlencode library (Go url.Values.Encode, Java
+         * URLEncoder, Python urlencode, etc.). Strict OAuth2 servers
+         * (Salesforce, GitHub) interpret `%20` and `+` differently in
+         * form-urlencoded bodies. */
+        let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        /* Dictionary iteration order is seeded per process, so the body is
+         * emitted in the fixed cross-SDK key order, then any other key sorted. */
+        let priority = [
+            "grant_type", "code", "refresh_token", "username", "password",
+            "client_id", "client_secret", "redirect_uri", "scope"
+        ]
+        let ordered = params.sorted { lhs, rhs in
+            let li = priority.firstIndex(of: lhs.key) ?? priority.count
+            let ri = priority.firstIndex(of: rhs.key) ?? priority.count
+            return li != ri ? li < ri : lhs.key < rhs.key
+        }
+        let body = ordered.map { entry -> String in
+            let key = (entry.key.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.key)
+                .replacingOccurrences(of: "%20", with: "+")
+            let value = (entry.value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.value)
+                .replacingOccurrences(of: "%20", with: "+")
+            return "\(key)=\(value)"
+        }.joined(separator: "&")
+        let bodyData = body.data(using: .utf8)
+
+        var headers = [
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        ]
+        for (key, value) in extraHeaders {
+            headers[key] = value
+        }
+        /* Gap 3.2: token POST must NEVER be silently replayed across
+         * a 307/308 redirect. The body contains the client secret
+         * (or username+password / refresh_token / authorization
+         * code), and the Location header is attacker-controllable
+         * on a malicious OP. noRedirect=true makes the transport
+         * surface 307/308 as an ApiError instead of replaying. */
+        let response = try await client.sendRequest(
+            method: "POST",
+            url: tokenURL,
+            headers: headers,
+            body: bodyData,
+            noRedirect: true
+        )
+
+        guard response.statusCode >= 200 && response.statusCode < 300 else {
+            /* Any non-2xx answer is an OAuth2ServerError carrying its status,
+             * including a 3xx: RFC 6749 §3.2 forbids redirects at the token
+             * endpoint, and with noRedirect=true the transport surfaces the
+             * 3xx verbatim rather than replaying the credential-bearing POST
+             * to the redirect target.
+             *
+             * RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+             * `error` (required), `error_description`, `error_uri`. Parse
+             * them into the typed OAuth2ServerError so callers can catch
+             * them specifically. Fall back to the raw body when the
+             * response is not a valid error object. */
+            throw Self.parseOAuth2ServerError(statusCode: response.statusCode, body: response.body)
+        }
+
+        /* The body is parsed once, dynamically, so expires_in can arrive as a
+         * number or a quoted string (Salesforce, some Apigee deployments), and
+         * the three failures carry the canonical text with no parser detail. */
+        guard let data = response.body.data(using: .utf8),
+            let json = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+        else {
+            throw OAuth2TokenError.invalidResponse("Token response is not valid JSON")
+        }
+        guard let rawJson = json as? [String: Any] else {
+            throw OAuth2TokenError.invalidResponse("Token response is not a JSON object")
+        }
+        guard let accessTokenValue = rawJson["access_token"] as? String, !accessTokenValue.isEmpty else {
+            throw OAuth2TokenError.missingAccessToken(
+                "Token response missing or empty access_token field"
+            )
+        }
+        /* Only a Bearer credential can be sent as `Authorization: Bearer`: a
+         * DPoP, MAC or N_A token would be replayed as the wrong scheme. An
+         * absent or null token_type is accepted. */
+        if let tokenType = rawJson["token_type"], !(tokenType is NSNull),
+            (tokenType as? String)?.lowercased() != "bearer"
+        {
+            throw OAuth2TokenError.invalidResponse("Unsupported token_type in token response")
+        }
+        let rawExpiresIn = rawJson["expires_in"]
+        let hasExpiresIn = rawExpiresIn != nil && !(rawExpiresIn is NSNull)
+        let expiresIn = Self.parseExpiresIn(rawExpiresIn)
+
+        let refreshTokenValue = (rawJson["refresh_token"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        return TokenResult(
+            accessToken: accessTokenValue,
+            refreshToken: refreshTokenValue,
+            hasExpiresIn: hasExpiresIn,
+            expiresIn: expiresIn
+        )
+    }
+
+    /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
+    /// ``OAuth2ServerError``. Falls back to a generic error using the raw
+    /// body when the body is not a valid OAuth2 error object.
+    private static func parseOAuth2ServerError(statusCode: Int, body: String) -> OAuth2ServerError {
+        guard let data = body.data(using: .utf8),
+              let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let code = parsed["error"] as? String,
+              !code.isEmpty else {
+            return OAuth2ServerError(
+                statusCode: statusCode,
+                code: nil,
+                description: nil,
+                uri: nil,
+                rawBody: body
+            )
+        }
+        let description = parsed["error_description"] as? String
+        /* An error_uri that is not an absolute URI is dropped, keeping the code. */
+        var uri: String? = nil
+        if let candidate = parsed["error_uri"] as? String,
+            (try? ObjectSerializer.requireAbsoluteUri(candidate, property: "error_uri")) != nil
+        {
+            uri = candidate
+        }
+        return OAuth2ServerError(
+            statusCode: statusCode,
+            code: code,
+            description: description,
+            uri: uri,
+            rawBody: body
+        )
+    }
+
+    /// Longest lifetime a token response may set: one year. A larger
+    /// `expires_in` is clamped to it, so a huge or overflowing value from the
+    /// server never traps the integer conversion and never caches a token
+    /// for longer than a year.
+    static let maxExpiresInSeconds = 31_536_000
+
+    /// Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
+    ///
+    /// Returns `0` (caller skips caching) when the value is missing,
+    /// unparseable, or non-positive. Accepts integers, floors floats,
+    /// and parses digit strings (e.g. `"3600"` from Salesforce). Any value
+    /// above ``maxExpiresInSeconds`` is clamped to it.
+    static func parseExpiresIn(_ raw: Any?) -> Int {
+        guard let raw = raw else { return 0 }
+        if let n = raw as? Int {
+            return min(n, maxExpiresInSeconds)
+        }
+        if let n = raw as? Int64 {
+            return Int(min(n, Int64(maxExpiresInSeconds)))
+        }
+        if let d = raw as? Double {
+            return clampedSeconds(d)
+        }
+        if let n = raw as? NSNumber {
+            return clampedSeconds(n.doubleValue)
+        }
+        if let s = raw as? String {
+            /* Plain decimal digits with an optional fraction only: Swift's
+               Double(_:) would also take hex ("0x10"), "inf" and "nan". Any
+               whitespace, newlines included, is trimmed first. */
+            let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.range(of: "^[0-9]+(\\.[0-9]*)?$", options: .regularExpression) != nil,
+                  let d = Double(trimmed) else { return 0 }
+            /* Digits only, so an infinite parse is a number too long for a
+               Double: clamp it like any other over-large lifetime. */
+            return d.isFinite ? clampedSeconds(d) : maxExpiresInSeconds
+        }
+        return 0
+    }
+
+    /// Floors a floating-point lifetime into whole seconds, clamped to
+    /// ``maxExpiresInSeconds``. A non-finite value is unparseable (`0`); an
+    /// over-large one is clamped before `Int(_:)`, which would trap on it.
+    private static func clampedSeconds(_ value: Double) -> Int {
+        guard value.isFinite else { return 0 }
+        if value >= Double(maxExpiresInSeconds) {
+            return maxExpiresInSeconds
+        }
+        return Int(value.rounded(.down))
+    }
+}

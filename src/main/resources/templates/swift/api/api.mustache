@@ -1,0 +1,556 @@
+{{>api_info}}
+import Foundation
+
+{{#operations}}
+{{#serverTypeDefs}}
+
+/// Protocol for per-operation server URLs for {{operationId}}.
+public protocol {{serverTypeName}} {
+    /// Returns the server URL.
+    func getUrl() -> String
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+/// Valid values for the {{name}} server variable in {{serverTypeName}}.
+public enum {{serverTypeName}}{{enumTypeName}}: String {
+{{#enumValues}}
+    case {{name}} = {{{literal}}}
+{{/enumValues}}
+}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+/// {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
+public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
+{{#serverVariables}}
+    public let {{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}
+{{/serverVariables}}
+
+    public init({{#serverVariables}}{{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) {
+{{#serverVariables}}
+        self.{{camelName}} = {{camelName}}
+{{/serverVariables}}
+    }
+
+    public func getUrl() -> String {
+{{#serverVariables.0}}
+        var url = "{{url}}"
+{{#serverVariables}}
+        url = url.replacingOccurrences(of: "{" + "{{name}}" + "}", with: {{#hasEnumValues}}{{camelName}}.rawValue{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}})
+{{/serverVariables}}
+        return url
+{{/serverVariables.0}}
+{{^serverVariables.0}}
+        return "{{url}}"
+{{/serverVariables.0}}
+    }
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
+/// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+/// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+/// See {{{url}}} {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
+{{/tagExternalDocs}}
+public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sendable {
+    /// Creates a new `{{classname}}`.
+    public override init(
+        apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil,
+        schemeAuthenticators: [String: Authenticator] = [:]
+    ) {
+        super.init(
+            apiClient: apiClient, config: config, authenticator: authenticator,
+            schemeAuthenticators: schemeAuthenticators)
+    }
+{{#operation}}
+
+{{#summary}}
+    /// {{#lambda.singleLine}}{{{summary}}}{{/lambda.singleLine}}
+{{/summary}}
+{{#notes}}
+    /// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
+{{/notes}}
+{{#externalDocs}}
+    /// See {{{url}}} {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
+{{/externalDocs}}
+{{#vendorExtensions.op.signatureArgs.0}}
+    ///
+    /// - Parameters:
+{{#allParams}}
+{{#isPathParam}}
+    ///   - {{paramName}}: {{#description}}{{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}{{/description}}{{^description}}The {{paramName}} path parameter.{{/description}}
+{{/isPathParam}}
+{{#isBodyParam}}
+    ///   - {{paramName}}: {{#description}}{{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}{{/description}}{{^description}}The request body.{{/description}}
+{{/isBodyParam}}
+{{/allParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+    ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+{{/isOptions}}
+{{#isServer}}
+    ///   - server: Optional per-operation server override.
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#consumes}}
+{{#-last}}
+{{^-first}}
+    ///   - requestContentType: Optional request Content-Type, chosen from the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when nil; an unrecognized value throws `ConfigurationError.invalidArgument`.
+{{/-first}}
+{{/-last}}
+{{/consumes}}
+{{/vendorExtensions.op.signatureArgs.0}}
+{{>api/operation_doc_throws}}
+{{#allParams}}
+{{#vendorExtensions.pluralExamples}}
+    ///
+    /// ### `{{paramName}}` — {{#lambda.singleLine}}{{{summary}}}{{/lambda.singleLine}}
+    /// {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
+    /// ```json
+    /// {{{value}}}
+    /// ```
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+        let result = try await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: requestContentType{{/-first}}{{/-last}}{{/consumes}})
+{{#returnType}}
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Expected a response body for {{operationId}} but received none",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
+{{/returnType}}
+{{^returnType}}
+        _ = result
+{{/returnType}}
+    }
+
+    /// Performs the {{operationId}} operation and returns the full API result.
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+        try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, style: "{{style}}", operation: "{{classname}}.{{operationId}}")
+{{/isString}}
+{{#isDate}}
+        try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, operation: "{{classname}}.{{operationId}}")
+{{/isDate}}
+{{/required}}
+{{/pathParams}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#queryParams}}
+{{#required}}
+{{#isString}}
+        guard {{^vendorExtensions.param.queryRequiredNullable}}!options.{{paramName}}.isEmpty{{/vendorExtensions.param.queryRequiredNullable}}{{#vendorExtensions.param.queryRequiredNullable}}options.{{paramName}}?.isEmpty != true{{/vendorExtensions.param.queryRequiredNullable}} else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{#isDate}}
+        guard {{^vendorExtensions.param.queryRequiredNullable}}!options.{{paramName}}.isEmpty{{/vendorExtensions.param.queryRequiredNullable}}{{#vendorExtensions.param.queryRequiredNullable}}options.{{paramName}}?.isEmpty != true{{/vendorExtensions.param.queryRequiredNullable}} else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
+{{/required}}
+{{/cookieParams}}
+{{/vendorExtensions.op.optionsParamRequired}}
+
+{{#pathParams.0}}
+        var path = "{{{path}}}"
+{{#pathParams}}
+        path = path.replacingOccurrences(
+            of: "{" + "{{baseName}}" + "}",
+            with: {{#vendorExtensions.swiftContent}}ValueSerializer.encodeStyledPathValue(try ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}})
+{{/pathParams}}
+{{#servers.0}}
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
+{{/servers.0}}
+{{/pathParams.0}}
+{{^pathParams.0}}
+{{#servers.0}}
+        var path = "{{{path}}}"
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
+{{/servers.0}}
+{{^servers.0}}
+        let path = "{{{path}}}"
+{{/servers.0}}
+{{/pathParams.0}}
+
+        {{#queryParams.0}}var{{/queryParams.0}}{{^queryParams.0}}let{{/queryParams.0}} queryParams: OrderedParams<Any?> = [:]
+{{#queryParams}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        if let val = options.{{paramName}} {
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+        } else {
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery("")
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
+{{#isAllowEmptyValue}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+        do {
+            let val = options.{{paramName}}
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
+        }
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
+        }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+            queryParams["{{baseName}}"] = ValueSerializer.allowEmptyQuery(ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+        do {
+            let val = options.{{paramName}}
+{{#vendorExtensions.param.queryDeepObject}}
+            for (k, v) in try ValueSerializer.serializeDeepObjectValue("{{baseName}}", value: val) {
+                queryParams[k] = v
+            }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+            /* Serialize through ObjectSerializer so a Date-bearing content param
+             * emits RFC 3339 via the shared date-strategy encoder, matching every
+             * other serialization path (a bare JSONEncoder would default to
+             * .deferredToDate and emit epoch-seconds doubles instead). */
+            queryParams["{{baseName}}"] = try ObjectSerializer.serialize(val)
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}
+{{^vendorExtensions.param.queryContent}}
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+{{/vendorExtensions.param.queryContent}}
+{{/vendorExtensions.param.queryDeepObject}}
+        }
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+{{#vendorExtensions.param.queryDeepObject}}
+            for (k, v) in try ValueSerializer.serializeDeepObjectValue("{{baseName}}", value: val) {
+                queryParams[k] = v
+            }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+            /* Serialize through ObjectSerializer so a Date-bearing content param
+             * emits RFC 3339 via the shared date-strategy encoder, matching every
+             * other serialization path (a bare JSONEncoder would default to
+             * .deferredToDate and emit epoch-seconds doubles instead). */
+            queryParams["{{baseName}}"] = try ObjectSerializer.serialize(val)
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}
+{{^vendorExtensions.param.queryContent}}
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+{{/vendorExtensions.param.queryContent}}
+{{/vendorExtensions.param.queryDeepObject}}
+        }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+{{#vendorExtensions.param.queryDeepObject}}
+            for (k, v) in try ValueSerializer.serializeDeepObjectValue("{{baseName}}", value: val) {
+                queryParams[k] = v
+            }
+{{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryContent}}
+            /* Serialize through ObjectSerializer so a Date-bearing content param
+             * emits RFC 3339 via the shared date-strategy encoder, matching every
+             * other serialization path (a bare JSONEncoder would default to
+             * .deferredToDate and emit epoch-seconds doubles instead). */
+            queryParams["{{baseName}}"] = try ObjectSerializer.serialize(val)
+{{/vendorExtensions.param.queryContent}}
+{{^vendorExtensions.param.queryDeepObject}}
+{{^vendorExtensions.param.queryContent}}
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+{{/vendorExtensions.param.queryContent}}
+{{/vendorExtensions.param.queryDeepObject}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/isAllowEmptyValue}}
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{/queryParams}}
+
+        {{#headerParams.0}}var{{/headerParams.0}}{{^headerParams.0}}{{#hasCookieParams}}var{{/hasCookieParams}}{{^hasCookieParams}}let{{/hasCookieParams}}{{/headerParams.0}} headerParams: [String: String] = [:]
+{{#headerParams}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+        headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
+        }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/headerParams}}
+{{#hasCookieParams}}
+        var cookieParts: [String] = []
+        /* Operation-level cookie params are interpolated straight into the
+         * Cookie request header. A value made only of RFC 6265 cookie-octets
+         * goes out as it is, never encoded by the SDK; any other value fails
+         * with ConfigurationError.invalidArgument before a request is sent, and
+         * the caller pre-encodes it. This also stops a value holding CR, LF or
+         * another control character from smuggling extra header lines into the
+         * request (header injection). A `content:` cookie is a typed value the
+         * caller cannot pre-encode, so its JSON text is percent-encoded here. */
+{{#cookieParams}}
+{{#vendorExtensions.op.optionsParamRequired}}
+{{#required}}
+        let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+        if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
+            throw ConfigurationError.invalidArgument(
+                "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+            )
+        }
+        cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
+{{/required}}
+{{^required}}
+        if let val = options.{{paramName}} {
+            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+            if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
+                throw ConfigurationError.invalidArgument(
+                    "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+                )
+            }
+            cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
+        }
+{{/required}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+            let {{paramName}}CookieValue = {{#vendorExtensions.swiftContent}}ValueSerializer.encodeCookieValue(try ObjectSerializer.serialize(val)){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+            if !BaseApi.isValidCookieValue({{paramName}}CookieValue) {
+                throw ConfigurationError.invalidArgument(
+                    "Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+                )
+            }
+            cookieParts.append("{{baseName}}=\({{paramName}}CookieValue)")
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/cookieParams}}
+        if !cookieParts.isEmpty {
+            headerParams["Cookie"] = cookieParts.joined(separator: "; ")
+        }
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+        /* Form fields are stored as `Any` so array values survive as arrays
+         * (rather than being stringified to a Swift "[a, b]" description) and
+         * can be emitted as repeated keys by the form/multipart encoder.
+         * Optional nil fields are omitted entirely — never sent as an empty
+         * `name=` pair. */
+        var formBody: OrderedParams<Any> = [:]
+{{#formParams}}
+{{#required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options {
+            formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(options.{{paramName}}, schemaType: "date"){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}
+{{^required}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        if let val = options.{{paramName}} {
+            formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.op.optionsParamRequired}}
+        if let options = options, let val = options.{{paramName}} {
+            formBody["{{baseName}}"] = {{#isDate}}ValueSerializer.calendarDateValue(val, schemaType: "date"){{/isDate}}{{^isDate}}val{{/isDate}}
+        }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+
+{{#consumes}}{{#-last}}{{^-first}}
+        /* This operation declares more than one request content-type. The
+         * optional `requestContentType` selector lets the caller pick one of
+         * the declared types; a nil value defaults to the first declared type.
+         * An unrecognized value is rejected client-side so a typo never rides
+         * the wire as an undeclared Content-Type (matching java/elixir and the
+         * other SDKs), rather than being silently dropped. */
+        let declaredRequestContentTypes = [{{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}}]
+        let effectiveRequestContentType: String
+        if let requestContentType {
+            guard declaredRequestContentTypes.contains(requestContentType) else {
+                throw ConfigurationError.invalidArgument(
+                    "Unsupported request content-type '\(requestContentType)' for {{operationId}}; declared types are [\(declaredRequestContentTypes.joined(separator: ", "))]")
+            }
+            effectiveRequestContentType = requestContentType
+        } else {
+            effectiveRequestContentType = "{{vendorExtensions.op.effectiveConsumes}}"
+        }
+{{/-first}}{{/-last}}{{/consumes}}
+{{#hasFormParams}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+        /* This operation accepts multipart/form-data alongside a raw binary
+         * content-type (e.g. application/octet-stream). When the caller
+         * selects multipart, send the assembled form fields as a multipart
+         * envelope; otherwise the selected content-type carries the single
+         * binary part's bytes directly, with no multipart framing. */
+        let requestBody: Any?
+        if effectiveRequestContentType == "multipart/form-data" {
+            requestBody = formBody
+        } else {
+            requestBody = {{#formParams}}{{#isBinary}}{{#vendorExtensions.op.optionsParamRequired}}options.{{paramName}}{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{paramName}}{{/vendorExtensions.op.optionsParamRequired}}{{/isBinary}}{{/formParams}}
+        }
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{^vendorExtensions.op.hasMultipleConsumes}}
+        let requestBody: Any? = formBody
+{{/vendorExtensions.op.hasMultipleConsumes}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        let requestBody: Any? = {{paramName}}
+{{/bodyParam}}
+{{^bodyParam}}
+        let requestBody: Any? = nil
+{{/bodyParam}}
+{{/hasFormParams}}
+        let params = InvokeAPIParams(
+            method: "{{httpMethod}}",
+            path: path,
+            queryParams: queryParams,
+            headerParams: headerParams,
+            body: requestBody,
+            accepts: [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
+            contentType: {{#consumes}}{{#-last}}{{^-first}}effectiveRequestContentType{{/-first}}{{#-first}}"{{vendorExtensions.op.effectiveConsumes}}"{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes}},
+            returnType: "{{#returnType}}{{{.}}}{{/returnType}}",
+            auth: {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}requirementAuthenticator([{{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}]){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}schemeAuthenticator([{{#vendorExtensions.op.securitySchemeOrder}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}]){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}BaseApi.noAuthSentinel{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}},
+            operation: "{{classname}}.{{operationId}}",
+            operationId: "{{#lambda.swiftString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.swiftString}}",
+            urlTemplate: "{{#lambda.swiftString}}{{{path}}}{{/lambda.swiftString}}"{{#bodyParam}}{{#isBinary}},
+            rawBody: true{{/isBinary}}{{/bodyParam}}{{#vendorExtensions.op.hasOptionsObject}},
+            timeout: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}timeout,
+            requestHeaders: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}headers,
+            maxRetries: {{#vendorExtensions.op.optionsParamRequired}}options.{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.{{/vendorExtensions.op.optionsParamRequired}}maxRetries{{/vendorExtensions.op.hasOptionsObject}}{{#vendorExtensions.op.hasErrorSchemaResponses}},
+            errorSchemas: [
+{{#vendorExtensions.op.errorSchemaResponses}}
+                "{{status}}": {{{schemaClassName}}}.fromErrorResponse{{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+            ]{{/vendorExtensions.op.hasErrorSchemaResponses}}
+        )
+
+{{#returnType}}
+{{#vendorExtensions.op.hasMultiple2xx}}
+        /* Several 2xx responses with different schemas: the body is read as the
+         * schema of the status that arrived. */
+        return try await invokeAPIForResult(params) { (response: ApiHttpResponse) -> {{{vendorExtensions.op.successUnionType}}}? in
+            switch response.statusCode {
+{{#vendorExtensions.op.successResponses}}
+            case {{statusCode}}:
+                return try ObjectSerializer.deserialize(response.body, as: {{{returnType}}}.self)
+                    .map { {{{vendorExtensions.op.successUnionType}}}($0) }
+{{/vendorExtensions.op.successResponses}}
+            default:
+                /* An undeclared success status takes the first success schema that
+                 * decodes the body, in declaration order. */
+                var lastError: Error?
+{{#vendorExtensions.op.successResponses}}
+                do {
+                    if let value = try ObjectSerializer.deserialize(response.body, as: {{{returnType}}}.self) {
+                        return {{{vendorExtensions.op.successUnionType}}}(value)
+                    }
+                } catch {
+                    lastError = error
+                }
+{{/vendorExtensions.op.successResponses}}
+                if let lastError { throw lastError }
+                return nil
+            }
+        }
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{^vendorExtensions.op.hasMultiple2xx}}
+        return try await invokeAPIForResult(params, as: {{{.}}}.self)
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{/returnType}}
+{{^returnType}}
+        return try await invokeAPIForEmptyResult(params)
+{{/returnType}}
+    }
+{{/operation}}
+}
+{{/operations}}

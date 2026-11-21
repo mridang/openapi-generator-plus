@@ -1,0 +1,219 @@
+defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
+  use ExUnit.Case, async: true
+
+  defp create_authenticator do
+    PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+      "https://api.example.com",
+      "my-client-id",
+      "https://auth.example.com/authorize",
+      ["read", "write"]
+    )
+  end
+
+  describe "OAuth2ImplicitAuthenticator" do
+    test "bhv authscheme 016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_CLIENT_ID"
+      on_exit(fn -> System.delete_env(name) end)
+      System.put_env(name, "")
+
+      assert_raise ArgumentError,
+                   "Missing the credential 'client_id': pass it, or set the environment variable #{name}",
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+                       "https://api.example.com",
+                       nil,
+                       "https://auth.example.com/authorize",
+                       ["read", "write"]
+                     )
+                   end
+    end
+
+    test "bhv authoauthtwoimplicit 006 scheme authenticator keeps the declared scopes in the authorization URL" do
+      auth =
+        PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id"
+        )
+
+      assert auth.scopes == ["read"]
+
+      url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+
+      assert String.contains?(url, "scope=read")
+    end
+
+    test "bhv authoauthtwoimplicit 003 builds authorization URL with response type token" do
+      auth = create_authenticator()
+
+      url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+
+      assert String.starts_with?(url, "https://auth.example.com/authorize?")
+      assert String.contains?(url, "response_type=token")
+    end
+
+    test "bhv authoauthtwoimplicit 002 builds authorization URL with client id" do
+      auth = create_authenticator()
+
+      url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+
+      assert String.contains?(url, "client_id=my-client-id")
+    end
+
+    test "bhv authoauthtwoimplicit 004 builds authorization URL with scopes" do
+      auth = create_authenticator()
+
+      url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+
+      assert String.contains?(url, "scope=read%20write")
+      refute String.contains?(url, "scope=read+write")
+    end
+
+    test "bhv authoauthtwoimplicit 005 builds authorization URL with state" do
+      auth = create_authenticator()
+
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(
+          auth,
+          "my-state"
+        )
+
+      assert String.contains?(url, "state=my-state")
+    end
+
+    test "bhv langelixir 045 authorization URL parameters are in the fixed order" do
+      auth = create_authenticator()
+
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth, "s")
+
+      assert url ==
+               "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=s"
+    end
+
+    test "bhv authoauthtwoimplicit 009 empty state is omitted" do
+      auth = create_authenticator()
+
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth, "")
+
+      refute String.contains?(url, "state")
+
+      assert url ==
+               PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+    end
+
+    test "bhv authoauthtwoimplicit 007 get_auth_headers returns Bearer after set_access_token" do
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(
+          auth,
+          "implicit-tok"
+        )
+
+      headers = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)
+
+      assert headers["Authorization"] == "Bearer implicit-tok"
+    end
+
+    test "bhv authoauthtwoimplicit 012 throws when access token not set" do
+      auth = create_authenticator()
+
+      assert_raise RuntimeError, ~r/Must set the access token before making API requests/, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)
+      end
+    end
+
+    test "bhv authoauthtwoimplicit 013 throws when access token was set to empty" do
+      auth = create_authenticator()
+      auth = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(auth, "")
+
+      assert_raise RuntimeError, ~r/Must set the access token before making API requests/, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)
+      end
+    end
+
+    test "bhv authoauthtwoimplicit 014 set_access_token rejects a token that is not printable ASCII" do
+      auth = create_authenticator()
+
+      for token <- ["tok\r\nX-Injected: 1", "tok\nX", "tok\rX", "tok\0X", "t\u00F6k", "tok\u007F"] do
+        assert_raise ArgumentError,
+                     "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                     fn ->
+                       PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(
+                         auth,
+                         token
+                       )
+                     end
+      end
+    end
+
+    test "bhv authoauthtwoimplicit 016 a tab is allowed inside the access token" do
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(auth, "tok\tX")
+
+      headers = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)
+
+      assert headers["Authorization"] == "Bearer tok\tX"
+    end
+
+    test "bhv authoauthtwoimplicit 001 authorization URL percent-encodes * ! ' ( ) and keeps ~ literal" do
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(
+          "https://api.example.com",
+          "id~*!'()",
+          "https://auth.example.com/authorize",
+          ["read", "a*b(c)"]
+        )
+
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(
+          auth,
+          "s t'a!te"
+        )
+
+      assert String.contains?(url, "client_id=id~%2A%21%27%28%29")
+      assert String.contains?(url, "scope=read%20a%2Ab%28c%29")
+      assert String.contains?(url, "state=s%20t%27a%21te")
+    end
+
+    test "bhv authoauthtwoimplicit 008 get_host returns configured host" do
+      auth = create_authenticator()
+
+      assert PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.host(auth) ==
+               "https://api.example.com"
+    end
+
+    test "bhv authoauthtwoimplicit 010 redacts secret" do
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(
+          auth,
+          "implicit-tok"
+        )
+
+      refute inspect(auth) =~ "implicit-tok"
+      assert inspect(auth) =~ ~s(access_token: "***")
+    end
+
+    test "bhv authoauthtwoimplicit 011 the redacted repr shows the non-secret fields" do
+      shown = create_authenticator() |> inspect()
+
+      assert shown =~ ~s(host: "https://api.example.com")
+      assert shown =~ ~s(client_id: "my-client-id")
+      assert shown =~ ~s(authorization_url: "https://auth.example.com/authorize")
+    end
+
+    test "bhv auth 049 the implicit flow builds an authorize URL with response_type token and %20 scopes" do
+      auth = create_authenticator()
+
+      url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+
+      assert String.contains?(url, "response_type=token")
+      assert String.contains?(url, "scope=read%20write")
+    end
+  end
+end

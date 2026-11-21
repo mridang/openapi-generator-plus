@@ -1,0 +1,84 @@
+#nullable enable
+{{#hasModelImports}}
+using {{packageName}}.Models;
+{{/hasModelImports}}
+
+namespace {{packageName}}.Api.Options;
+
+/// <summary>
+/// Options for the {{operationId}} operation.
+/// </summary>
+public sealed class {{className}}
+{
+{{#params}}
+{{#required}}
+{{#description}}
+    /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
+{{/description}}
+{{#pluralExamples}}
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{{value}}}{{/lambda.escapeXml}}</example>
+{{/pluralExamples}}
+{{#deprecated}}
+    {{! FORCED: a doc-only <remarks> note, NOT the [Obsolete] attribute. The
+        generated PetApi reads this field internally to build the request, and
+        the build/static-analysis specs compile with `dotnet build --warnaserror`,
+        which escalates CS0618 ("use of obsolete member") to a hard ERROR —
+        .editorconfig's `CS0618.severity = none` does not override --warnaserror.
+        So [Obsolete] here breaks the build (verified). The doc note still
+        surfaces the deprecation in IntelliSense without breaking
+        self-consumption, placing C# in the doc-comment cohort
+        (Go/Python/Ruby/Elixir). See AGENTS.md. }}
+    /// <remarks>This parameter is deprecated.</remarks>
+{{/deprecated}}
+    public required {{{dataType}}}{{#requiredNullable}}?{{/requiredNullable}} {{pascalParamName}} { get; init; }
+{{/required}}
+{{^required}}
+{{#description}}
+    /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
+{{/description}}
+{{#pluralExamples}}
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{{value}}}{{/lambda.escapeXml}}</example>
+{{/pluralExamples}}
+{{#deprecated}}
+    {{! FORCED: a doc-only <remarks> note, NOT the [Obsolete] attribute. The
+        generated PetApi reads this field internally to build the request, and
+        the build/static-analysis specs compile with `dotnet build --warnaserror`,
+        which escalates CS0618 ("use of obsolete member") to a hard ERROR —
+        .editorconfig's `CS0618.severity = none` does not override --warnaserror.
+        So [Obsolete] here breaks the build (verified). The doc note still
+        surfaces the deprecation in IntelliSense without breaking
+        self-consumption, placing C# in the doc-comment cohort
+        (Go/Python/Ruby/Elixir). See AGENTS.md. }}
+    /// <remarks>This parameter is deprecated.</remarks>
+{{/deprecated}}
+    public {{{dataType}}}? {{pascalParamName}} { get; init; }
+{{/required}}
+
+{{/params}}
+    /// <summary>
+    /// End-to-end timeout in milliseconds for this call only: it replaces
+    /// <see cref="TransportOptions.Timeout"/> and must be greater than zero.
+    /// When null the transport's timeout applies.
+    /// </summary>
+    public int? Timeout { get; init; }
+
+    /// <summary>
+    /// Extra request headers for this call only. They are sent after the
+    /// default and authentication headers and replace a header of the same
+    /// name, whatever its casing.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Headers
+    {
+        get => _headers;
+        init => _headers = value is null ? null : new Dictionary<string, string>(value);
+    }
+
+    private readonly IReadOnlyDictionary<string, string>? _headers;
+
+    /// <summary>
+    /// Maximum number of retries for this call only: it replaces
+    /// <see cref="TransportOptions.MaxRetries"/>, and 0 turns retries off.
+    /// When null the transport's setting applies.
+    /// </summary>
+    public int? MaxRetries { get; init; }
+}

@@ -1,0 +1,211 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\TraceContextUtil;
+use OpenTelemetry\API\Instrumentation\Configurator;
+use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
+use OpenTelemetry\API\Trace\Span;
+use OpenTelemetry\API\Trace\SpanContext;
+use OpenTelemetry\API\Trace\TraceFlags;
+use OpenTelemetry\API\Trace\TraceState;
+use OpenTelemetry\Context\Context;
+use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\Context\Propagation\PropagationGetterInterface;
+use OpenTelemetry\Context\Propagation\PropagationSetterInterface;
+use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
+use OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter;
+use OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor;
+use OpenTelemetry\SDK\Trace\TracerProvider;
+
+test('bhv tracing 007 no op without tracer', function (): void {
+    $headers = [];
+    TraceContextUtil::injectTraceContext($headers);
+    expect($headers)->toBeEmpty();
+});
+
+test('bhv tracing 003 empty headers do not cause exception', function (): void {
+    $headers = [];
+    TraceContextUtil::injectTraceContext($headers);
+    expect($headers)->toBeEmpty();
+});
+
+/**
+ * Test that injectTraceContext does not inject traceparent when OTel is not installed.
+ */
+test('bhv tracing 001 does not inject traceparent without o tel', function (): void {
+    $headers = [];
+    TraceContextUtil::injectTraceContext($headers);
+    expect($headers)->not->toHaveKey('traceparent');
+});
+
+test('bhv tracing 002 does not inject tracestate without o tel', function (): void {
+    $headers = [];
+    TraceContextUtil::injectTraceContext($headers);
+    expect($headers)->not->toHaveKey('tracestate');
+});
+
+test('bhv tracing 010 the Authorization header is preserved on the traced request', function (): void {
+    $headers = ['Authorization' => 'Bearer token123'];
+    TraceContextUtil::injectTraceContext($headers);
+    expect($headers['Authorization'])->toEqual('Bearer token123');
+});
+
+test('bhv tracing 011 preserves content type header', function (): void {
+    $headers = ['Content-Type' => 'application/json'];
+    TraceContextUtil::injectTraceContext($headers);
+    expect($headers['Content-Type'])->toEqual('application/json');
+});
+
+test('bhv tracing 012 preserves x request id header', function (): void {
+    $headers = ['X-Request-ID' => 'req-12345'];
+    TraceContextUtil::injectTraceContext($headers);
+    expect($headers['X-Request-ID'])->toEqual('req-12345');
+});
+
+test('bhv tracing 009 preserves all existing headers', function (): void {
+    $headers = [
+        'Authorization' => 'Bearer token',
+        'Content-Type' => 'application/json',
+        'X-Request-ID' => 'abc-123',
+    ];
+    TraceContextUtil::injectTraceContext($headers);
+    expect($headers)->toHaveCount(3);
+    expect($headers['Authorization'])->toEqual('Bearer token');
+    expect($headers['Content-Type'])->toEqual('application/json');
+    expect($headers['X-Request-ID'])->toEqual('abc-123');
+});
+
+/**
+ * Registers an OpenTelemetry SDK with the W3C trace-context propagator and an
+ * in-memory exporter as the global instance for the duration of $body.
+ *
+ * @param callable(InMemoryExporter, TracerProvider): void $body
+ */
+function withTestTracing(callable $body): void
+{
+    $exporter = new InMemoryExporter();
+    $tracerProvider = new TracerProvider(new SimpleSpanProcessor($exporter));
+    $scope = Configurator::create()
+        ->withTracerProvider($tracerProvider)
+        ->withPropagator(TraceContextPropagator::getInstance())
+        ->activate();
+    try {
+        $body($exporter, $tracerProvider);
+    } finally {
+        $scope->detach();
+        $tracerProvider->shutdown();
+    }
+}
+
+/**
+ * Starts a span under $parent, injects the trace context while it is
+ * current, ends it, and returns the injected headers with the span's ids.
+ *
+ * @return array<string, string>
+ */
+function injectTraceUnder(TracerProvider $tracerProvider, ContextInterface $parent): array
+{
+    $span = $tracerProvider->getTracer('trace-context-test')
+        ->spanBuilder('request')
+        ->setParent($parent)
+        ->startSpan();
+    $headers = [];
+    /* Activate on the CURRENT context, not on $parent: $parent is derived
+     * from the root context and carries none of the tracer provider and
+     * propagator that withTestTracing() put on the current one, so
+     * Globals::propagator() would fall back to the no-op propagator and
+     * inject nothing. The span already carries $parent's trace id. */
+    $spanScope = $span->activate();
+    try {
+        TraceContextUtil::injectTraceContext($headers);
+    } finally {
+        $spanScope->detach();
+        $span->end();
+    }
+    $headers['x-test-trace-id'] = $span->getContext()->getTraceId();
+    $headers['x-test-span-id'] = $span->getContext()->getSpanId();
+    $headers['x-test-flags'] = sprintf('%02x', $span->getContext()->getTraceFlags());
+
+    return $headers;
+}
+
+function remoteTraceParent(int $flags, ?TraceState $state): ContextInterface
+{
+    return Span::wrap(SpanContext::createFromRemoteParent(
+        '0af7651916cd43dd8448eb211c80319c',
+        'b7ad6b7169203331',
+        $flags,
+        $state
+    ))->storeInContext(Context::getRoot());
+}
+
+test('bhv tracing 006 injects traceparent when a span is active', function (): void {
+    withTestTracing(function (InMemoryExporter $exporter, TracerProvider $tracerProvider): void {
+        $headers = injectTraceUnder($tracerProvider, Context::getRoot());
+        expect($headers['traceparent'] ?? null)->toBe(
+            '00-' . $headers['x-test-trace-id'] . '-' . $headers['x-test-span-id'] . '-' . $headers['x-test-flags']
+        );
+        expect($exporter->getSpans())->toHaveCount(1);
+    });
+});
+
+test('bhv tracing 005 includes tracestate when present on the active span', function (): void {
+    withTestTracing(function (InMemoryExporter $exporter, TracerProvider $tracerProvider): void {
+        $headers = injectTraceUnder(
+            $tracerProvider,
+            remoteTraceParent(TraceFlags::SAMPLED, new TraceState('vendor=value'))
+        );
+        expect($headers['traceparent'] ?? '')->toStartWith('00-0af7651916cd43dd8448eb211c80319c-');
+        expect($headers['tracestate'] ?? null)->toBe('vendor=value');
+    });
+});
+
+test('bhv tracing 008 omits tracestate when empty on the active span', function (): void {
+    withTestTracing(function (InMemoryExporter $exporter, TracerProvider $tracerProvider): void {
+        $headers = injectTraceUnder($tracerProvider, remoteTraceParent(TraceFlags::SAMPLED, null));
+        expect($headers)->toHaveKey('traceparent');
+        expect($headers)->not->toHaveKey('tracestate');
+    });
+});
+
+test('bhv tracing 004 formats trace flags correctly on the active span', function (): void {
+    withTestTracing(function (InMemoryExporter $exporter, TracerProvider $tracerProvider): void {
+        $sampled = injectTraceUnder($tracerProvider, remoteTraceParent(TraceFlags::SAMPLED, null));
+        $unsampled = injectTraceUnder($tracerProvider, remoteTraceParent(TraceFlags::DEFAULT, null));
+        expect($sampled['traceparent'] ?? '')->toEndWith('-01');
+        expect($unsampled['traceparent'] ?? '')->toEndWith('-00');
+    });
+});
+
+test('bhv misc 002 a trace propagator the caller registers is the one used and headers already present are kept', function (): void {
+    $propagator = new class implements TextMapPropagatorInterface {
+        /** @param mixed $carrier */
+        public function inject(&$carrier, ?PropagationSetterInterface $setter = null, ?ContextInterface $context = null): void
+        {
+            \assert(is_array($carrier));
+            $carrier['x-caller-trace'] = 'registered';
+        }
+
+        /** @param mixed $carrier */
+        public function extract($carrier, ?PropagationGetterInterface $getter = null, ?ContextInterface $context = null): ContextInterface
+        {
+            return $context ?? Context::getRoot();
+        }
+
+        public function fields(): array
+        {
+            return ['x-caller-trace'];
+        }
+    };
+    $scope = Configurator::create()->withPropagator($propagator)->activate();
+    try {
+        $headers = ['Authorization' => 'Bearer token'];
+        TraceContextUtil::injectTraceContext($headers);
+
+        expect($headers['x-caller-trace'] ?? null)->toBe('registered');
+        expect($headers['Authorization'])->toBe('Bearer token');
+    } finally {
+        $scope->detach();
+    }
+});
