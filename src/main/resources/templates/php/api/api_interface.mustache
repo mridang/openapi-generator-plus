@@ -5,6 +5,9 @@ use {{invokerPackage}}\ApiResult;
 {{#hasBinaryStream}}
 use {{invokerPackage}}\ByteStream;
 {{/hasBinaryStream}}
+{{#hasPagedOperation}}
+use {{invokerPackage}}\Paginator;
+{{/hasPagedOperation}}
 {{#hasSseStream}}
 use {{invokerPackage}}\SseStream;
 {{/hasSseStream}}
@@ -144,6 +147,10 @@ interface {{classname}}Interface
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult;
 {{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/returnType}}
 {{^returnType}}
     /**

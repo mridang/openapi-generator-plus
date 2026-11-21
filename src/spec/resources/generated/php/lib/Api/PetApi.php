@@ -17,6 +17,7 @@ use PetstoreClient\ApiClient;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\ApiResult;
 use PetstoreClient\ByteStream;
+use PetstoreClient\Paginator;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
@@ -2359,6 +2360,38 @@ class PetApi extends BaseApi implements PetApiInterface
     }
 
     /**
+     * Lists the pet catalog one page at a time with a next-cursor token
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetCatalogWithHttpInfo()}, with the same options on each page.
+     * The value of the `cursor` option is where the list starts,
+     * and the page after each one is requested with the `next_cursor`
+     * it returned.
+     *
+     * @param ListPetCatalogOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetCatalogPages(?ListPetCatalogOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetCatalogOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, string> $pages */
+        $pages = Paginator::ofCursor(
+            $pageOptions->cursor,
+            fn (?string $pageCursor): ApiResult => $this->listPetCatalogWithHttpInfo($pageOptions->withPageCursor($pageCursor)),
+            static fn (\PetstoreClient\Models\PetCatalogPage $page): iterable => $page->items ?? [],
+            static fn (\PetstoreClient\Models\PetCatalogPage $page): ?string => $page->nextCursor,
+            '/pet/catalog'
+        );
+
+        return $pages;
+    }
+
+    /**
      * Lists pet events; only the generator option says it is paged
      * @param ListPetEventsOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -2441,6 +2474,38 @@ class PetApi extends BaseApi implements PetApiInterface
     }
 
     /**
+     * Lists pet events; only the generator option says it is paged
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetEventsWithHttpInfo()}, with the same options on each page.
+     * The value of the `since` option is where the list starts,
+     * and the page after each one is requested with the `upto`
+     * it returned.
+     *
+     * @param ListPetEventsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<string, string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetEventsPages(?ListPetEventsOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetEventsOptions();
+
+        /** @var Paginator<string, string> $pages */
+        $pages = Paginator::ofCursor(
+            $pageOptions->since,
+            fn (?string $pageCursor): ApiResult => $this->listPetEventsWithHttpInfo($pageOptions->withPageCursor($pageCursor)),
+            static fn (\PetstoreClient\Models\PetEventPage $page): iterable => $page->events ?? [],
+            static fn (\PetstoreClient\Models\PetEventPage $page): ?string => $page->upto,
+            '/pet/events'
+        );
+
+        return $pages;
+    }
+
+    /**
      * Lists the pet feed one page at a time with a Link header
      * @param ListPetFeedOptions|null $options Options for query, header, form, and cookie parameters
      * @return \Ds\Vector<\PetstoreClient\Models\Pet>
@@ -2476,6 +2541,16 @@ class PetApi extends BaseApi implements PetApiInterface
      */
     public function listPetFeedWithHttpInfo(?ListPetFeedOptions $options = null): ApiResult
     {
+        return $this->listPetFeedPage($options, null);
+    }
+
+    /**
+     * One page of the list: the first when $pageUrl is null, else the URL the Link header named.
+     *
+     * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
+     */
+    private function listPetFeedPage(?ListPetFeedOptions $options, ?string $pageUrl): ApiResult
+    {
         $path = '/pet/feed';
         $queryParams = [];
         /* OAS allowReserved: query parameters declared `allowReserved: true`
@@ -2499,6 +2574,10 @@ class PetApi extends BaseApi implements PetApiInterface
         $headerParams = [];
         $requestBody = null;
 
+        if ($pageUrl !== null) {
+            $path = $pageUrl;
+            $queryParams = [];
+        }
         /** @var ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>> $result */
         $result = $this->invokeApiForResult(
             'GET',
@@ -2521,6 +2600,36 @@ class PetApi extends BaseApi implements PetApiInterface
             urlTemplate: '/pet/feed',
         );
         return $result;
+    }
+
+    /**
+     * Lists the pet feed one page at a time with a Link header
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetFeedWithHttpInfo()}, with the same options on each page.
+     * The page after each one is the `rel="next"` link of its `Link` header, followed only within the
+     * origin of the client.
+     *
+     * @param ListPetFeedOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, null>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetFeedPages(?ListPetFeedOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetFeedOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, null> $pages */
+        $pages = Paginator::ofLink(
+            $this->config->baseUrl,
+            fn (?string $pageUrl): ApiResult => $this->listPetFeedPage($pageOptions, $pageUrl),
+            static fn (\Ds\Vector $page): iterable => $page,
+            '/pet/feed'
+        );
+
+        return $pages;
     }
 
     /**
@@ -2685,6 +2794,38 @@ class PetApi extends BaseApi implements PetApiInterface
             urlTemplate: '/pet/notes',
         );
         return $result;
+    }
+
+    /**
+     * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetNotesWithHttpInfo()}, with the same options on each page.
+     * The value of the `pos` option is where the list starts,
+     * and the page after each one is requested with the `following`
+     * it returned.
+     *
+     * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<string, string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetNotesPages(?ListPetNotesOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetNotesOptions();
+
+        /** @var Paginator<string, string> $pages */
+        $pages = Paginator::ofCursor(
+            $pageOptions->pos,
+            fn (?string $pageCursor): ApiResult => $this->listPetNotesWithHttpInfo($pageOptions->withPageCursor($pageCursor)),
+            static fn (\PetstoreClient\Models\PetNotePage $page): iterable => $page->rows ?? [],
+            static fn (\PetstoreClient\Models\PetNotePage $page): ?string => $page->following,
+            '/pet/notes'
+        );
+
+        return $pages;
     }
 
     /**

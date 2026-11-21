@@ -1364,8 +1364,10 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
 
     /**
      * Resolve a (possibly relative) Location header against the previous URL.
+     *
+     * @internal Shared with {@see Paginator}; not part of the public API.
      */
-    protected static function resolveUrl(string $base, string $location): ?string
+    public static function resolveUrl(string $base, string $location): ?string
     {
         $parsed = parse_url($location);
         if ($parsed === false) {
@@ -1475,8 +1477,10 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
 
     /**
      * Compare two URLs by scheme + host + effective port.
+     *
+     * @internal Shared with {@see Paginator}; not part of the public API.
      */
-    protected static function sameOrigin(string $a, string $b): bool
+    public static function sameOrigin(string $a, string $b): bool
     {
         $pa = parse_url($a);
         $pb = parse_url($b);

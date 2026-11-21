@@ -471,6 +471,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
             new SupportingFileSpec("raw_stream_response.mustache", invokerFolder, "RawStreamResponse.php"),
             new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.php"),
+            new SupportingFileSpec("paginator.mustache", invokerFolder, "Paginator.php"),
+            new SupportingFileSpec("page.mustache", invokerFolder, "Page.php"),
+            new SupportingFileSpec("link_header.mustache", invokerFolder, "LinkHeader.php"),
+            new SupportingFileSpec("errors/PaginationException.mustache", errorsFolder, "PaginationException.php"),
             new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.php"),
             new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.php"),
             new SupportingFileSpec("server_sent_event.mustache", invokerFolder, "ServerSentEvent.php"),
@@ -974,6 +978,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/BaseApiTest.mustache",
                             "tests",
                             "BaseApiTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/PaginatorTest.mustache",
+                            "tests",
+                            "PaginatorTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/CapturingApiClient.mustache",
@@ -1552,6 +1561,26 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             params.add(param);
         }
 
+        // A paged operation's Options object can copy itself with another cursor, so every page is
+        // sent with its own one.
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        final Object pagination =
+                opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
+        boolean hasPageCursor = false;
+        String pageCursorType = "string";
+        if (pagination instanceof Map && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"))) {
+            final Map<?, ?> token = (Map<?, ?>) pagination;
+            hasPageCursor = true;
+            for (final Map<String, Object> param : params) {
+                final boolean cursor =
+                        java.util.Objects.equals(param.get("paramName"), token.get("requestParamName"));
+                param.put("isPageCursor", cursor);
+                if (cursor) {
+                    pageCursorType = String.valueOf(param.get("phpType"));
+                }
+            }
+        }
+
         final List<Map<String, Object>> requiredParams = new ArrayList<>();
         final List<Map<String, Object>> optionalParams = new ArrayList<>();
         for (final Map<String, Object> param : params) {
@@ -1609,6 +1638,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         context.put("hasRequiredParams", !requiredParams.isEmpty());
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty());
+        context.put("hasPageCursor", hasPageCursor);
+        context.put("pageCursorType", pageCursorType);
         injectAuthFieldContext(op, context);
         context.put("authImport", invokerPackage + "\\Auth\\" + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
@@ -2051,6 +2082,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             boolean hasBinaryStream = false;
             boolean hasSseMethod = false;
             boolean hasStreamMethod = false;
+            boolean hasPagedOperation = false;
             if (orderedOps != null) {
                 for (final CodegenOperation op : orderedOps) {
                     hasBinaryStream |= markBinaryStream(op);
@@ -2070,6 +2102,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     final Object deco = op.vendorExtensions.get("op");
                     if (deco instanceof Map) {
                         final Map<String, Object> decoMap = (Map<String, Object>) deco;
+                        hasPagedOperation |= markPaged(op, decoMap);
                         final Object sigArgs = decoMap.get("signatureArgs");
                         if (sigArgs instanceof List) {
                             final List<Map<String, Object>> ordered =
@@ -2086,6 +2119,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     }
                 }
             }
+            processed.put("hasPagedOperation", hasPagedOperation);
             processed.put("hasBinaryStream", hasBinaryStream);
             processed.put("hasSseStream", hasSseMethod);
             processed.put("hasStreamMethod", hasStreamMethod);
@@ -2097,6 +2131,31 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             }
         }
         return processed;
+    }
+
+    /**
+     * Adds the PHP types of the paged method to the pagination decorators: {@code phpItemType} (the
+     * documented item type, fully qualified for a model) and {@code phpCursorType} ({@code null} for a
+     * list that is followed by a {@code Link} header).
+     *
+     * @param op the operation
+     * @param decorators the operation decorators, which hold the shared {@code pagination} map
+     * @return whether the operation has a paged method
+     */
+    @SuppressWarnings("unchecked")
+    boolean markPaged(final CodegenOperation op, final Map<String, Object> decorators) {
+        final Object pagination = decorators.get("pagination");
+        if (!(pagination instanceof Map)) {
+            return false;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        String item = String.valueOf(p.get("itemType"));
+        if (p.get("itemModel") != null && !item.startsWith("\\")) {
+            item = "\\" + invokerPackage + "\\Models\\" + p.get("itemModel");
+        }
+        p.put("phpItemType", withDsGenerics(item));
+        p.put("phpCursorType", Boolean.TRUE.equals(p.get("isLink")) ? "null" : String.valueOf(p.get("cursorType")));
+        return true;
     }
 
     /**
@@ -2148,7 +2207,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     /**
      * Hands the README and SKILLS the first operation of each streaming kind, as {@code
-     * binaryStreamOperation}, {@code sseStreamOperation} and {@code jsonLinesStreamOperation} (each
+     * binaryStreamOperation}, {@code sseStreamOperation} and {@code jsonLinesStreamOperation}, and the
+     * first paged operation as {@code pagedOperation} (each
      * with its {@code ...Group}, its operations map, and a {@code has...Operation} flag), so the
      * Streaming examples call real operations of the spec under generation. Nothing is rendered for a
      * kind the spec has none of.
@@ -2156,8 +2216,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
-        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
         for (int kind = 0; kind < flags.length; kind++) {
             CodegenOperation found = null;
             Object group = null;

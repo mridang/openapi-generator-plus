@@ -9,6 +9,9 @@ use {{invokerPackage}}\ApiResult;
 {{#hasBinaryStream}}
 use {{invokerPackage}}\ByteStream;
 {{/hasBinaryStream}}
+{{#hasPagedOperation}}
+use {{invokerPackage}}\Paginator;
+{{/hasPagedOperation}}
 {{#hasSseStream}}
 use {{invokerPackage}}\SseStream;
 {{/hasSseStream}}
@@ -205,7 +208,28 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
     {
-{{>api/operation_prelude}}        /** @var ApiResult<{{{vendorExtensions.phpDocReturnType}}}> $result */
+{{#vendorExtensions.op.pagination.isLink}}
+        return $this->{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}${{paramName}}, {{/vendorExtensions.op.signatureArgs}}null);
+    }
+
+    /**
+     * One page of the list: the first when $pageUrl is null, else the URL the Link header named.
+     *
+{{#pathParams}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/pathParams}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options
+     * @param string|null $pageUrl
+     * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
+     */
+    private function {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isOptions}}?{{{dataType}}} $options{{/isOptions}}, {{/vendorExtensions.op.signatureArgs}}?string $pageUrl): ApiResult
+    {
+{{/vendorExtensions.op.pagination.isLink}}
+{{>api/operation_prelude}}{{#vendorExtensions.op.pagination.isLink}}        if ($pageUrl !== null) {
+            $path = $pageUrl;
+            $queryParams = [];
+        }
+{{/vendorExtensions.op.pagination.isLink}}        /** @var ApiResult<{{{vendorExtensions.phpDocReturnType}}}> $result */
         $result = $this->{{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{/vendorExtensions.op.streamsBinary}}(
             '{{httpMethod}}',
             $path,
@@ -244,6 +268,10 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
         return $result;
     }
 {{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/returnType}}
 {{^returnType}}
     public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): void

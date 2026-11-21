@@ -40,4 +40,21 @@ class ListPetNotesOptions
             );
         }
     }
+
+    /**
+     * Returns a copy of these options with another value for the cursor parameter: the same value for
+     * every other parameter, the same timeout, retry count and headers. A paged list uses it to send each
+     * page with its own cursor.
+     *
+     * @param string|null $cursor the cursor of the page to request, or null for the first
+     */
+    public function withPageCursor(?string $cursor): self
+    {
+        return new self(
+            pos: $cursor,
+            timeout: $this->timeout,
+            headers: $this->headers,
+            maxRetries: $this->maxRetries,
+        );
+    }
 }

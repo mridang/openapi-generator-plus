@@ -1,0 +1,38 @@
+     * {{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see {{operationId}}WithHttpInfo()}, with the same options on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+     * The value of the `{{vendorExtensions.op.pagination.requestParam}}` option is where the list starts,
+     * and the page after each one is requested with the `{{vendorExtensions.op.pagination.responseProperty}}`
+     * it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+     * The page after each one is the `rel="next"` link of its `Link` header, followed only within the
+     * origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+     *
+{{#pathParams}}
+     * @param {{{dataType}}} ${{paramName}}{{#description}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/description}}
+{{/pathParams}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#vendorExtensions.op.optionsMinted}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying the per-call timeout, headers and retry count
+{{/vendorExtensions.op.optionsMinted}}
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+     * @return Paginator<{{{vendorExtensions.op.pagination.phpItemType}}}, {{{vendorExtensions.op.pagination.phpCursorType}}}>
+     * @throws \{{invokerPackage}}\Errors\ApiException
+     * @throws \{{invokerPackage}}\Errors\SerializationException when a response body cannot be decoded
+     * @throws \{{invokerPackage}}\Errors\PaginationException when the list cannot be followed
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}

@@ -1,0 +1,4 @@
+    /**
+{{>api/operation_pages_doc}}
+     */
+    public function {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}): Paginator;
