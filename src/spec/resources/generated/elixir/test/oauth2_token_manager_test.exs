@@ -159,7 +159,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert err.message == "Token request failed with status 400: invalid_grant -- Code expired"
     end
 
-    test "bhv authoauthtwotokenmgr 028 stores refresh token" do
+    test "bhv authoauthtwotokenmgr 028 the refresh token from the token response is stored" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{

@@ -962,7 +962,7 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("bhvTransport005 decompresses gzip response")
-    void bhvTransport005DecompressesGzipResponse() throws ApiException {
+    void bhvTransport005AGzipResponseBodyIsDecompressed() throws ApiException {
       DefaultApiClient client = new DefaultApiClient();
       HashMap<String, String> headers = new HashMap<>();
       headers.put("Accept-Encoding", "gzip");
@@ -974,7 +974,7 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("bhvTransport004 decompresses brotli response")
-    void bhvTransport004DecompressesBrotliResponse() throws ApiException {
+    void bhvTransport004ABrotliResponseBodyIsDecompressed() throws ApiException {
       DefaultApiClient client = new DefaultApiClient();
       HashMap<String, String> headers = new HashMap<>();
       headers.put("Accept-Encoding", "br");
@@ -986,7 +986,7 @@ class DefaultApiClientTest {
 
     @Test
     @DisplayName("bhvTransport006 decompresses zstd response")
-    void bhvTransport006DecompressesZstdResponse() throws ApiException {
+    void bhvTransport006AZstdResponseBodyIsDecompressed() throws ApiException {
       DefaultApiClient client = new DefaultApiClient();
       HashMap<String, String> headers = new HashMap<>();
       headers.put("Accept-Encoding", "zstd");

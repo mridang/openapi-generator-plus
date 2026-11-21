@@ -2,7 +2,7 @@
 defmodule {{moduleName}}.ConfigurationTest do
   use ExUnit.Case, async: true
 
-  test "bhv config 005 new produces correct defaults" do
+  test "bhv config 005 the builder produces the default values when nothing is set" do
     config = {{moduleName}}.Configuration.new()
 
     assert config.base_url == "{{{basePath}}}"
@@ -203,7 +203,7 @@ defmodule {{moduleName}}.ConfigurationTest do
     assert config.base_url == "https://staging.example.com/api/v2"
   end
 
-  test "bhv config 001 base_url overrides server" do
+  test "bhv config 001 a base URL overrides the server" do
     server = %{{moduleName}}.ServerConfiguration{
       url_template: "https://api.example.com"
     }

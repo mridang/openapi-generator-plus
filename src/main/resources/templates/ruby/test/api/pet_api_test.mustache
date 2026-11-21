@@ -277,7 +277,7 @@ describe {{moduleName}}::Api::PetApi do
 
   # F1158: a deepObject query parameter reaches the wire as bracketed keys.
   describe '#find_pets_by_status deepObject filter' do
-    it 'bhv_operations_044 sends filter[key]=value pairs' do
+    it 'bhv_operations_044 findPetsByStatus sends the deepObject filter as bracketed pairs' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         api.find_pets_by_status(

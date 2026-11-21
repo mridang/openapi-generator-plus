@@ -41,7 +41,7 @@ class ApiResultTest {
 
     @Test
     @DisplayName("bhvLangkotlin004 value equality holds for identical results")
-    fun bhvLangkotlin004ValueEquality() {
+    fun bhvLangkotlin004TwoResultValuesWithEqualFieldsCompareEqualAndHashAlike() {
         val a = ApiResult(200, "x", "raw", mapOf("h" to "v"))
         val b = ApiResult(200, "x", "raw", mapOf("h" to "v"))
         assertEquals(a, b)

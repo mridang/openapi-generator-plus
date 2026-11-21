@@ -10,7 +10,7 @@ defmodule {{moduleName}}.Models.MetadataTest do
       assert json != nil
     end
 
-    test "bhv models 003 deserializes empty object" do
+    test "bhv models 003 an empty object deserializes into a model with no values" do
       metadata = {{moduleName}}.ObjectSerializer.deserialize("{}", "Metadata")
 
       assert metadata != nil
@@ -165,7 +165,7 @@ defmodule {{moduleName}}.Models.MetadataTest do
       assert text =~ ~s(additional_properties: %{"customField" => "hello"})
     end
 
-    test "bhv models 022 defines additional_properties function" do
+    test "bhv models 022 a generated model whose schema allows undeclared properties reports that it does" do
       assert {{moduleName}}.Models.Metadata.additional_properties() == true
     end
   end

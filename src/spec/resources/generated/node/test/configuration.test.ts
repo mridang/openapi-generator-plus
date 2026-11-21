@@ -13,7 +13,7 @@ import {
 } from "../src/server-configuration.js";
 
 describe("Configuration", () => {
-  test("bhv config 005 builder produces correct defaults", () => {
+  test("bhv config 005 the builder produces the default values when nothing is set", () => {
     const config = Configuration.builder().build();
 
     expect(config.baseUrl).toBe("/api/v3");
@@ -26,7 +26,7 @@ describe("Configuration", () => {
     expect(builder).toBeInstanceOf(ConfigurationBuilder);
   });
 
-  test("bhv config 011 builder sets baseUrl", () => {
+  test("bhv config 011 the builder sets the base URL", () => {
     const config = Configuration.builder()
       .baseUrl("https://custom.example.com")
       .build();
@@ -76,7 +76,7 @@ describe("Configuration", () => {
     });
   });
 
-  test("bhv config 002 builder accumulates headers", () => {
+  test("bhv config 002 the builder accumulates headers across calls", () => {
     const config = Configuration.builder()
       .defaultHeader("X-First", "one")
       .defaultHeader("X-Second", "two")
@@ -144,7 +144,7 @@ describe("Configuration", () => {
     ).toThrow(TypeError);
   });
 
-  test("bhv config 001 baseUrl overrides server", () => {
+  test("bhv config 001 a base URL overrides the server", () => {
     const server = new ServerConfiguration("https://api.example.com", null, {});
 
     const config = Configuration.builder()
@@ -238,7 +238,7 @@ describe("Configuration", () => {
     expect(first.baseUrl).toBe(second.baseUrl);
   });
 
-  test("bhv config 017 configuration is immutable", () => {
+  test("bhv config 017 a built configuration cannot be changed", () => {
     const config = Configuration.builder()
       .defaultHeader("X-Key", "value")
       .build();
@@ -246,7 +246,7 @@ describe("Configuration", () => {
     expect(Object.isFrozen(config.defaultHeaders)).toBe(true);
   });
 
-  test("bhv config 003 builder is fluent", () => {
+  test("bhv config 003 every builder setter returns the same builder", () => {
     const builder = Configuration.builder();
 
     expect(builder.baseUrl("https://example.com")).toBe(builder);

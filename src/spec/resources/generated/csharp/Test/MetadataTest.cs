@@ -29,7 +29,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void BhvModels003DeserializesEmptyObject()
+    public void BhvModels003AnEmptyObjectDeserializesIntoAModelWithNoValues()
     {
         var json = "{}";
 

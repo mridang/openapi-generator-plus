@@ -1358,7 +1358,7 @@ async fn test_bhv_serializationwire_052_sends_post_with_json_body() {
 }
 
 #[tokio::test]
-async fn test_bhv_transport_051_returns_response_headers() {
+async fn test_bhv_transport_051_response_headers_are_returned_with_the_response() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1387,7 +1387,7 @@ async fn test_bhv_transport_050_returns_non_2xx_status_code() {
 }
 
 #[tokio::test]
-async fn test_bhv_transport_055_sends_put_request() {
+async fn test_bhv_transport_055_a_put_request_is_sent_with_the_put_method() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
@@ -1401,7 +1401,7 @@ async fn test_bhv_transport_055_sends_put_request() {
 }
 
 #[tokio::test]
-async fn test_bhv_transport_053_sends_delete_request() {
+async fn test_bhv_transport_053_a_delete_request_is_sent_with_the_delete_method() {
     let base_url = start_method_echo_server();
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();

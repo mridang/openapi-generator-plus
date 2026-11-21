@@ -341,12 +341,12 @@ void main() {
       expect(result['name'], equals('Fido'));
     });
 
-    test('bhv serializationobject 130 deserializeRaw empty data', () {
+    test('bhv serializationobject 130 returns empty string for nil', () {
       final result = deserializeRaw('');
       expect(result, isNull);
     });
 
-    test('bhv serializationobject 066 deserializeRaw invalid JSON', () {
+    test('bhv serializationobject 066 invalid JSON is refused when deserializing raw', () {
       expect(
         () => deserializeRaw('not json'),
         throwsA(isA<SerializationException>()),
@@ -480,11 +480,11 @@ void main() {
       expect(top.child!.child, isNull);
     });
 
-    test('bhv serializationobject 141 toPathValue string', () {
+    test('bhv serializationobject 141 returns the string for a string value', () {
       expect(toPathValue('hello'), equals('hello'));
     });
 
-    test('bhv serializationobject 036 toPathValue int', () {
+    test('bhv serializationobject 036 an integer in a path is written as its digits', () {
       expect(toPathValue(42), equals('42'));
     });
 
@@ -525,15 +525,15 @@ void main() {
       expect(toQueryValue(['a', 'b', 'c'], ''), equals('a,b,c'));
     });
 
-    test('bhv serializationobject 037 toQueryValue int', () {
+    test('bhv serializationobject 037 an integer in a query is written as its digits', () {
       expect(toQueryValue(42, ''), equals('42'));
     });
 
-    test('bhv serializationobject 028 toQueryValue bool true', () {
+    test('bhv serializationobject 028 the boolean true is written as the text true', () {
       expect(toQueryValue(true, ''), equals('true'));
     });
 
-    test('bhv serializationobject 027 toQueryValue bool false', () {
+    test('bhv serializationobject 027 the boolean false is written as the text false', () {
       expect(toQueryValue(false, ''), equals('false'));
     });
 
@@ -541,7 +541,7 @@ void main() {
       expect(toQueryValue(null, ''), isNull);
     });
 
-    test('bhv serializationobject 142 toHeaderValue string', () {
+    test('bhv serializationobject 142 returns the string for a string value', () {
       expect(toHeaderValue('hello'), equals('hello'));
     });
 
@@ -549,15 +549,15 @@ void main() {
       expect(toHeaderValue(['a', 'b', 'c']), equals('a,b,c'));
     });
 
-    test('bhv serializationobject 038 toHeaderValue int', () {
+    test('bhv serializationobject 038 an integer in a header is written as its digits', () {
       expect(toHeaderValue(42), equals('42'));
     });
 
-    test('bhv serializationobject 034 toHeaderValue bool false', () {
+    test('bhv serializationobject 034 false in a header is written as the text false', () {
       expect(toHeaderValue(false), equals('false'));
     });
 
-    test('bhv serializationobject 043 toHeaderValue bool true', () {
+    test('bhv serializationobject 043 true in a header is written as the text true', () {
       expect(toHeaderValue(true), equals('true'));
     });
 
@@ -565,11 +565,11 @@ void main() {
       expect(toHeaderValue(null), equals(''));
     });
 
-    test('bhv serializationobject 140 toFormValue string', () {
+    test('bhv serializationobject 140 returns the string for a string value', () {
       expect(toFormValue('hello'), equals('hello'));
     });
 
-    test('bhv langdart 067 toFormValue int', () {
+    test('bhv langdart 067 a form value of an integer is written as its digits', () {
       expect(toFormValue(123), equals('123'));
     });
 
@@ -577,11 +577,11 @@ void main() {
       expect(toFormValue(null), equals(''));
     });
 
-    test('bhv serializationobject 042 toFormValue bool true', () {
+    test('bhv serializationobject 042 true in a form is written as the text true', () {
       expect(toFormValue(true), equals('true'));
     });
 
-    test('bhv serializationobject 035 toFormValue bool false', () {
+    test('bhv serializationobject 035 false in a form is written as the text false', () {
       expect(toFormValue(false), equals('false'));
     });
 
@@ -612,15 +612,15 @@ void main() {
       expect(encodeContentCookie(wire), equals('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D'));
     });
 
-    test('bhv serializationobject 143 toCookieValue string', () {
+    test('bhv serializationobject 143 returns the string for a string value', () {
       expect(toCookieValue('hello'), equals('hello'));
     });
 
-    test('bhv serializationobject 033 toCookieValue bool false', () {
+    test('bhv serializationobject 033 false in a cookie is written as the text false', () {
       expect(toCookieValue(false), equals('false'));
     });
 
-    test('bhv serializationobject 041 toCookieValue bool true', () {
+    test('bhv serializationobject 041 true in a cookie is written as the text true', () {
       expect(toCookieValue(true), equals('true'));
     });
 
@@ -628,7 +628,7 @@ void main() {
       expect(toCookieValue(null), equals(''));
     });
 
-    test('bhv serializationobject 040 toCookieValue int', () {
+    test('bhv serializationobject 040 an integer in a cookie is written as its digits', () {
       expect(toCookieValue(42), equals('42'));
     });
 
@@ -636,7 +636,7 @@ void main() {
       expect(stringify('hello'), equals('hello'));
     });
 
-    test('bhv serializationobject 039 stringify int', () {
+    test('bhv serializationobject 039 an integer is stringified as its digits', () {
       expect(stringify(42), equals('42'));
     });
 
@@ -644,7 +644,7 @@ void main() {
       expect(stringify(9999999999), equals('9999999999'));
     });
 
-    test('bhv serializationobject 078 stringify double', () {
+    test('bhv serializationobject 078 a double is written as its string form', () {
       expect(stringify(3.14), equals('3.14'));
     });
 
@@ -685,12 +685,12 @@ void main() {
           equals({'username': 'u', 'password': secret}));
     });
 
-    test('bhv serializationobject 155 stringify bool', () {
+    test('bhv serializationobject 155 a boolean is stringified as true or false', () {
       expect(stringify(true), equals('true'));
       expect(stringify(false), equals('false'));
     });
 
-    test('bhv serializationobject 157 stringify DateTime', () {
+    test('bhv serializationobject 157 stringify date time returns iso 8601 string', () {
       final ts = DateTime.utc(2024, 1, 15, 10, 30, 0);
       final result = stringify(ts);
       expect(result, equals('2024-01-15T10:30:00.000+00:00'));
@@ -1599,7 +1599,7 @@ void main() {
       );
     });
 
-    test('bhv serializationobject 181 parseProtobufDuration parses zero', () {
+    test('bhv serializationobject 181 zero Duration stringifies as 0s', () {
       expect(parseProtobufDuration('0s'), equals(Duration.zero));
     });
 
@@ -1635,7 +1635,7 @@ void main() {
       }
     });
 
-    test('bhv serializationobject 113 parseProtobufDuration handles negative durations', () {
+    test('bhv serializationobject 113 a negative protobuf duration parses into a negative value', () {
       expect(parseProtobufDuration('-3600s'),
           equals(const Duration(hours: -1)));
     });
@@ -1717,7 +1717,7 @@ void main() {
     // outside Flutter), but the generated helper validates the wire shape
     // so callers opting into validation get a useful failure mode.
 
-    test('bhv langdart 072 validatePartialTime accepts HH:MM:SS', () {
+    test('bhv langdart 072 a partial-time string in HHMMSS form is accepted', () {
       expect(validatePartialTime('14:30:00'), equals('14:30:00'));
     });
 

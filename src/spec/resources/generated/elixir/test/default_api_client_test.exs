@@ -921,7 +921,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert String.contains?(json["body"], "file-content-bytes")
   end
 
-  test "bhv redirects 006 respects max_redirects limit" do
+  test "bhv redirects 006 following stops at the configured maximum number of redirects" do
     transport =
       PetstoreClient.TransportOptions.new(
         follow_redirects: true,
@@ -1086,7 +1086,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     end
   end
 
-  test "bhv transport 005 decompresses gzip response" do
+  test "bhv transport 005 a gzip response body is decompressed" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -1110,7 +1110,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
   # compiles from C source). Without it the SDK neither advertises nor
   # decodes br; consumers opt in by adding :brotli to their own deps.
   @tag skip: "the optional :brotli NIF is not loaded in the test environment"
-  test "bhv transport 004 decompresses brotli response" do
+  test "bhv transport 004 a brotli response body is decompressed" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -1127,7 +1127,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert String.contains?(response.body, "compressed fixture body")
   end
 
-  test "bhv transport 006 decompresses zstd response" do
+  test "bhv transport 006 a zstd response body is decompressed" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
 
@@ -1156,7 +1156,7 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
   end
 
-  test "bhv lifecycle 023 use-after-close raises RuntimeError" do
+  test "bhv lifecycle 023 throws the invalid-state Error when sendRequest is called after close" do
     client = PetstoreClient.DefaultApiClient.new()
     assert PetstoreClient.DefaultApiClient.close(client) == :ok
 

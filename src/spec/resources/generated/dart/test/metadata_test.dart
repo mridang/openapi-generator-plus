@@ -351,19 +351,22 @@ void main() {
       expect(json, isNotEmpty);
     });
 
-    test('bhv langdart 055 deserialize from JSON', () {
+    test('bhv langdart 055 a model deserializes from its JSON form', () {
       final jsonData = '{"createdAt":"2024-01-15T10:30:00+00:00"}';
 
       final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
       expect(parsed['createdAt'], isNotNull);
     });
 
-    test('bhv models 003 deserialize empty object', () {
-      final jsonData = '{}';
+    test(
+      'bhv models 003 an empty object deserializes into a model with no values',
+      () {
+        final jsonData = '{}';
 
-      final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
-      expect(parsed, isEmpty);
-    });
+        final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
+        expect(parsed, isEmpty);
+      },
+    );
 
     test('bhv models 004 deserialize with additional properties', () {
       final jsonData =
@@ -374,7 +377,7 @@ void main() {
       expect(parsed['count'], equals('42'));
     });
 
-    test('bhv models 011 round trip', () {
+    test('bhv models 011 test round trip preserves additional properties', () {
       final jsonData = '{"createdAt":"2024-01-15T10:30:00+00:00"}';
 
       final parsed = jsonDecode(jsonData);

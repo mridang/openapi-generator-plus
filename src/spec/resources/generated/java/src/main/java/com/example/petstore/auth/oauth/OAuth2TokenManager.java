@@ -61,6 +61,7 @@ public class OAuth2TokenManager {
 
   @Nullable private String refreshToken;
   private boolean exchanged;
+  private boolean stopped;
 
   /**
    * Create a new token manager.
@@ -79,6 +80,20 @@ public class OAuth2TokenManager {
    */
   public void setApiClient(ApiClient apiClient) {
     this.apiClient = apiClient;
+  }
+
+  /**
+   * Stop the token manager. Any later token request fails with an {@link OAuth2TokenException}
+   * saying the manager has been stopped; stopping again does nothing.
+   */
+  public synchronized void stop() {
+    stopped = true;
+  }
+
+  private void requireRunning() {
+    if (stopped) {
+      throw new OAuth2TokenException("The token manager has been stopped.");
+    }
   }
 
   /**
@@ -131,6 +146,7 @@ public class OAuth2TokenManager {
       Map<String, String> params,
       Map<String, String> extraHeaders,
       @Nullable String refreshUrl) {
+    requireRunning();
     if (accessToken != null && (tokenExpiry == null || Instant.now().isBefore(tokenExpiry))) {
       return accessToken;
     }
@@ -182,6 +198,7 @@ public class OAuth2TokenManager {
    */
   public synchronized String exchange(
       String tokenUrl, Map<String, String> params, Map<String, String> extraHeaders) {
+    requireRunning();
     String previousAccessToken = accessToken;
     Instant previousExpiry = tokenExpiry;
     String previousRefreshToken = refreshToken;

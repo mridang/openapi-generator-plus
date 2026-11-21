@@ -1003,13 +1003,13 @@ class TestHttpCompression:
         assert "content-length" not in response.headers
         assert json.loads(response.body)["title"] == "compressed fixture body"
 
-    def test_bhv_transport_005_decompresses_gzip_response(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_005_a_gzip_response_body_is_decompressed(self, chasm_http_url: Any) -> None:
         self._assert_decompresses(chasm_http_url, "gzip")
 
-    def test_bhv_transport_004_decompresses_brotli_response(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_004_a_brotli_response_body_is_decompressed(self, chasm_http_url: Any) -> None:
         self._assert_decompresses(chasm_http_url, "br")
 
-    def test_bhv_transport_006_decompresses_zstd_response(self, chasm_http_url: Any) -> None:
+    def test_bhv_transport_006_a_zstd_response_body_is_decompressed(self, chasm_http_url: Any) -> None:
         self._assert_decompresses(chasm_http_url, "zstd")
 
 

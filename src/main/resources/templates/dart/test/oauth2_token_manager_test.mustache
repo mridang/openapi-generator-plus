@@ -114,7 +114,7 @@ void main() {
       expect(client.requestCount, equals(0));
     });
 
-    test('bhv authoauthtwotokenmgr 028 stores refresh token', () async {
+    test('bhv authoauthtwotokenmgr 028 the refresh token from the token response is stored', () async {
       final client = _FakeApiClient();
       client.enqueue(
           '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');

@@ -158,7 +158,7 @@ describe("Metadata", () => {
       expect(json).toBeDefined();
     });
 
-    test("bhv models 003 deserializes empty object", () => {
+    test("bhv models 003 an empty object deserializes into a model with no values", () => {
       const metadata = ObjectSerializer.deserialize({}, Metadata);
       expect(metadata).toBeDefined();
     });

@@ -38,7 +38,7 @@ describe Petstore::Client::ValueSerializer do
       _(Petstore::Client::ValueSerializer.serialize('a/b', :path, 'string')).must_equal('a%2Fb')
     end
 
-    it 'bhv_serializationparam_044 integer returns string' do
+    it 'bhv_serializationparam_044 an integer in a path is written as its digits' do
       _(Petstore::Client::ValueSerializer.serialize(42, :path, 'integer')).must_equal('42')
     end
 
@@ -56,11 +56,11 @@ describe Petstore::Client::ValueSerializer do
       _(Petstore::Client::ValueSerializer.serialize(nil, :query, 'string')).must_be_nil
     end
 
-    it 'bhv_serializationparam_096 string returns as-is' do
+    it 'bhv_serializationparam_096 a string in a query is written unchanged' do
       _(Petstore::Client::ValueSerializer.serialize('hello', :query, 'string')).must_equal('hello')
     end
 
-    it 'bhv_serializationparam_045 integer returns string' do
+    it 'bhv_serializationparam_045 an integer in a query is written as its digits' do
       _(Petstore::Client::ValueSerializer.serialize(42, :query, 'integer')).must_equal('42')
     end
 
@@ -151,11 +151,11 @@ describe Petstore::Client::ValueSerializer do
       _(Petstore::Client::ValueSerializer.serialize(nil, :header, 'string')).must_equal('')
     end
 
-    it 'bhv_serializationparam_097 string returns as-is' do
+    it 'bhv_serializationparam_097 a string in a header is written unchanged' do
       _(Petstore::Client::ValueSerializer.serialize('hello', :header, 'string')).must_equal('hello')
     end
 
-    it 'bhv_serializationparam_046 integer returns string' do
+    it 'bhv_serializationparam_046 an integer in a header is written as its digits' do
       _(Petstore::Client::ValueSerializer.serialize(42, :header, 'integer')).must_equal('42')
     end
 
@@ -177,7 +177,7 @@ describe Petstore::Client::ValueSerializer do
   end
 
   describe 'cookie location' do
-    it 'bhv_serializationparam_099 string returns as-is' do
+    it 'bhv_serializationparam_099 a string in a cookie is written unchanged' do
       _(Petstore::Client::ValueSerializer.serialize('hello', :cookie, 'string')).must_equal('hello')
     end
 
@@ -191,11 +191,11 @@ describe Petstore::Client::ValueSerializer do
       _(Petstore::Client::ValueSerializer.serialize(nil, :form, 'string')).must_equal('')
     end
 
-    it 'bhv_serializationparam_098 string returns as-is' do
+    it 'bhv_serializationparam_098 a string in a form is written unchanged' do
       _(Petstore::Client::ValueSerializer.serialize('hello', :form, 'string')).must_equal('hello')
     end
 
-    it 'bhv_serializationparam_047 integer returns string' do
+    it 'bhv_serializationparam_047 an integer in a form is written as its digits' do
       _(Petstore::Client::ValueSerializer.serialize(42, :form, 'integer')).must_equal('42')
     end
 
@@ -431,7 +431,7 @@ describe Petstore::Client::ValueSerializer do
   # Cross-language parity tests for path-segment percent-encoding.
   # Every SDK must produce identical encoded strings for these inputs.
   describe 'path encoding parity' do
-    it 'bhv_serializationparam_016 ASCII-safe pass-through' do
+    it 'bhv_serializationparam_016 ASCII safe text passes through unchanged' do
       _(Petstore::Client::ValueSerializer.serialize('abc123', :path, 'string')).must_equal('abc123')
     end
 
@@ -439,27 +439,27 @@ describe Petstore::Client::ValueSerializer do
       _(Petstore::Client::ValueSerializer.serialize('a b', :path, 'string')).must_equal('a%20b')
     end
 
-    it 'bhv_serializationparam_091 slash encoded' do
+    it 'bhv_serializationparam_091 a slash is percent-encoded' do
       _(Petstore::Client::ValueSerializer.serialize('a/b', :path, 'string')).must_equal('a%2Fb')
     end
 
-    it 'bhv_serializationparam_079 question mark encoded' do
+    it 'bhv_serializationparam_079 a question mark is percent-encoded' do
       _(Petstore::Client::ValueSerializer.serialize('a?b', :path, 'string')).must_equal('a%3Fb')
     end
 
-    it 'bhv_serializationparam_043 hash encoded' do
+    it 'bhv_serializationparam_043 a hash sign is percent-encoded' do
       _(Petstore::Client::ValueSerializer.serialize('a#b', :path, 'string')).must_equal('a%23b')
     end
 
-    it 'bhv_serializationparam_026 comma preserved (sub-delimiter)' do
+    it 'bhv_serializationparam_026 a comma is left unencoded as a sub-delimiter' do
       _(Petstore::Client::ValueSerializer.serialize('a,b', :path, 'string')).must_equal('a,b')
     end
 
-    it 'bhv_serializationparam_025 colon preserved (sub-delimiter)' do
+    it 'bhv_serializationparam_025 a colon is left unencoded as a sub-delimiter' do
       _(Petstore::Client::ValueSerializer.serialize('a:b', :path, 'string')).must_equal('a:b')
     end
 
-    it 'bhv_serializationparam_077 plus preserved (sub-delimiter)' do
+    it 'bhv_serializationparam_077 a plus sign is left unencoded as a sub-delimiter' do
       _(Petstore::Client::ValueSerializer.serialize('a+b', :path, 'string')).must_equal('a+b')
     end
 
@@ -494,7 +494,7 @@ describe Petstore::Client::ValueSerializer do
       _(Petstore::Client::ValueSerializer.serialize('日本', :path, 'string')).must_equal('%E6%97%A5%E6%9C%AC')
     end
 
-    it 'bhv_serializationparam_034 empty string preserved' do
+    it 'bhv_serializationparam_034 an empty string is kept as an empty value' do
       _(Petstore::Client::ValueSerializer.serialize('', :path, 'string')).must_equal('')
     end
 

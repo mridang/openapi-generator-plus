@@ -5,7 +5,7 @@ import Testing
 
 @Suite final class ServerVariableTests {
 
-    @Test func testBhvLangswift069StoresDefaultValue() {
+    @Test func testBhvLangswift069AServerVariableStoresItsDefaultValue() {
         let variable = ServerVariable(defaultValue: "prod")
         #expect(variable.defaultValue == "prod")
     }

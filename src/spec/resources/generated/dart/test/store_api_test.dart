@@ -598,24 +598,27 @@ void main() {
       }
     });
 
-    test('bhv operations 110 serverError', () async {
-      final config = ConfigurationBuilder()
-          .baseUrl('$chasmHttpUrl/test/status/500')
-          .build();
-      final api = StoreApi(
-        apiClient: DefaultApiClient(
-          transportOptions: TransportOptions.builder().maxRetries(0).build(),
-        ),
-        config: config,
-      );
+    test(
+      'bhv operations 110 getOrderById picks the status-specific error class for each typed status route',
+      () async {
+        final config = ConfigurationBuilder()
+            .baseUrl('$chasmHttpUrl/test/status/500')
+            .build();
+        final api = StoreApi(
+          apiClient: DefaultApiClient(
+            transportOptions: TransportOptions.builder().maxRetries(0).build(),
+          ),
+          config: config,
+        );
 
-      try {
-        await api.getOrderById(1, null);
-        fail('Expected error for server error response');
-      } on InternalServerErrorException {
-        // Expected
-      }
-    });
+        try {
+          await api.getOrderById(1, null);
+          fail('Expected error for server error response');
+        } on InternalServerErrorException {
+          // Expected
+        }
+      },
+    );
 
     test('bhv operations 118 placeOrderServerError', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

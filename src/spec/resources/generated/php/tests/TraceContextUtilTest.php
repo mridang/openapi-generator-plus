@@ -45,7 +45,7 @@ test('bhv tracing 002 does not inject tracestate without o tel', function (): vo
     expect($headers)->not->toHaveKey('tracestate');
 });
 
-test('bhv tracing 010 preserves authorization header', function (): void {
+test('bhv tracing 010 the Authorization header is preserved on the traced request', function (): void {
     $headers = ['Authorization' => 'Bearer token123'];
     TraceContextUtil::injectTraceContext($headers);
     expect($headers['Authorization'])->toEqual('Bearer token123');

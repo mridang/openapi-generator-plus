@@ -80,7 +80,7 @@ describe("TraceContextUtil", () => {
     expect(headers["tracestate"]).toBeUndefined();
   });
 
-  test("bhv tracing 010 preserves Authorization header", () => {
+  test("bhv tracing 010 the Authorization header is preserved on the traced request", () => {
     const headers: Record<string, string> = {
       Authorization: "Bearer token123",
     };
@@ -88,7 +88,7 @@ describe("TraceContextUtil", () => {
     expect(headers["Authorization"]).toBe("Bearer token123");
   });
 
-  test("bhv tracing 011 preserves Content-Type header", () => {
+  test("bhv tracing 011 the Content-Type header is preserved on the traced request", () => {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -96,7 +96,7 @@ describe("TraceContextUtil", () => {
     expect(headers["Content-Type"]).toBe("application/json");
   });
 
-  test("bhv tracing 012 preserves X-Request-ID header", () => {
+  test("bhv tracing 012 the X-Request-ID header is preserved on the traced request", () => {
     const headers: Record<string, string> = { "X-Request-ID": "req-12345" };
     injectTraceContext(headers);
     expect(headers["X-Request-ID"]).toBe("req-12345");

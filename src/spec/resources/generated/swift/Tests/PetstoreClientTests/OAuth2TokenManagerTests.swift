@@ -108,7 +108,31 @@ import Testing
     #expect(token == "tok123")
   }
 
-  @Test func testBhvAuthoauthtwotokenmgr028StoresRefreshToken() async throws {
+  @Test func testBhvMisc185StoppingTwiceIsANoOpAndALaterTokenRequestFailsWithAFixedMessage()
+    async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+    manager.stop()
+    manager.stop()
+
+    let error = await #expect(throws: OAuth2TokenError.self) {
+      _ = try await manager.getAccessToken(
+        tokenURL: "https://auth.example.com/token",
+        params: ["grant_type": "client_credentials"]
+      )
+    }
+
+    #expect(error == .stopped)
+    #expect(error?.localizedDescription == "The token manager has been stopped.")
+    #expect(client.requests.isEmpty)
+  }
+
+  @Test func testBhvAuthoauthtwotokenmgr028TheRefreshTokenFromTheTokenResponseIsStored()
+    async throws
+  {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(

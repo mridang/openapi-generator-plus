@@ -3,7 +3,7 @@
 require 'test_helper'
 
 describe {{moduleName}}::Configuration do
-  it 'bhv_config_005 builder produces correct defaults' do
+  it 'bhv_config_005 the builder produces the default values when nothing is set' do
     config = {{moduleName}}::Configuration.builder.build
 
     _(config.base_url).must_equal('{{{basePath}}}')
@@ -24,7 +24,7 @@ describe {{moduleName}}::Configuration do
     _(config.base_url).must_equal('https://custom.example.com')
   end
 
-  it 'bhv_config_011 builder sets base_url' do
+  it 'bhv_config_011 the builder sets the base URL' do
     config = {{moduleName}}::Configuration.builder
       .base_url('https://custom.example.com')
       .build
@@ -54,7 +54,7 @@ describe {{moduleName}}::Configuration do
     })
   end
 
-  it 'bhv_config_002 builder accumulates headers' do
+  it 'bhv_config_002 the builder accumulates headers across calls' do
     config = {{moduleName}}::Configuration.builder
       .default_header('X-First', 'one')
       .default_header('X-Second', 'two')
@@ -144,7 +144,7 @@ describe {{moduleName}}::Configuration do
     }).must_raise(ArgumentError)
   end
 
-  it 'bhv_config_001 base_url overrides server' do
+  it 'bhv_config_001 a base URL overrides the server' do
     server = {{moduleName}}::ServerConfiguration.new(
       url_template: 'https://api.example.com'
     )
@@ -261,7 +261,7 @@ describe {{moduleName}}::Configuration do
     _(first.base_url).must_equal(second.base_url)
   end
 
-  it 'bhv_config_017 configuration is immutable' do
+  it 'bhv_config_017 a built configuration cannot be changed' do
     config = {{moduleName}}::Configuration.builder
       .default_header('X-Key', 'value')
       .build
@@ -270,7 +270,7 @@ describe {{moduleName}}::Configuration do
     _(config.default_headers).must_be(:frozen?)
   end
 
-  it 'bhv_config_003 builder is fluent' do
+  it 'bhv_config_003 every builder setter returns the same builder' do
     builder = {{moduleName}}::Configuration.builder
 
     _(builder.base_url('https://example.com')).must_be_same_as(builder)

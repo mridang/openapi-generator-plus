@@ -95,7 +95,7 @@ class TraceContextUtilTest {
 
   @Test
   @DisplayName("bhvTracing010 preserves existing Authorization header")
-  void bhvTracing010PreservesAuthorizationHeader() {
+  void bhvTracing010TheAuthorizationHeaderIsPreservedOnTheTracedRequest() {
     GlobalOpenTelemetry.resetForTest();
     try {
       Map<String, String> headers = new HashMap<>();

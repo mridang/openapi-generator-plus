@@ -59,7 +59,9 @@ class TestValueSerializerPath:
     def test_bhv_serializationparam_101_string_with_slash_is_url_encoded(self) -> None:
         assert ValueSerializer.serialize("a/b", "path", "string") == "a%2Fb"
 
-    def test_bhv_serializationparam_044_integer_returns_string(self) -> None:
+    def test_bhv_serializationparam_044_an_integer_in_a_path_is_written_as_its_digits(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize(42, "path", "integer") == "42"
 
     def test_bhv_serializationparam_021_boolean_true_returns_true(self) -> None:
@@ -123,7 +125,9 @@ class TestValueSerializerQuery:
     def test_bhv_serializationparam_096_string_returns_as_is(self) -> None:
         assert ValueSerializer.serialize("hello", "query", "string") == "hello"
 
-    def test_bhv_serializationparam_045_integer_returns_string(self) -> None:
+    def test_bhv_serializationparam_045_an_integer_in_a_query_is_written_as_its_digits(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize(42, "query", "integer") == "42"
 
     def test_bhv_serializationparam_022_boolean_true_returns_true(self) -> None:
@@ -220,7 +224,9 @@ class TestValueSerializerHeader:
     def test_bhv_serializationparam_097_string_returns_as_is(self) -> None:
         assert ValueSerializer.serialize("hello", "header", "string") == "hello"
 
-    def test_bhv_serializationparam_046_integer_returns_string(self) -> None:
+    def test_bhv_serializationparam_046_an_integer_in_a_header_is_written_as_its_digits(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize(42, "header", "integer") == "42"
 
     def test_bhv_serializationparam_023_boolean_true_returns_true(self) -> None:
@@ -258,7 +264,9 @@ class TestValueSerializerForm:
     def test_bhv_serializationparam_098_string_returns_as_is(self) -> None:
         assert ValueSerializer.serialize("hello", "form", "string") == "hello"
 
-    def test_bhv_serializationparam_047_integer_returns_string(self) -> None:
+    def test_bhv_serializationparam_047_an_integer_in_a_form_is_written_as_its_digits(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize(42, "form", "integer") == "42"
 
     def test_bhv_serializationparam_024_boolean_true_returns_true(self) -> None:
@@ -643,36 +651,48 @@ class TestPathEncodingParity:
     def test_bhv_serializationparam_016_ascii_safe_pass_through(self) -> None:
         assert ValueSerializer.serialize("abc123", "path", "string") == "abc123"
 
-    def test_bhv_serializationparam_092_space_encoded(self) -> None:
+    def test_bhv_serializationparam_092_a_space_is_written_as_percent_20(self) -> None:
         assert ValueSerializer.serialize("a b", "path", "string") == "a%20b"
 
-    def test_bhv_serializationparam_091_slash_encoded(self) -> None:
+    def test_bhv_serializationparam_091_a_slash_is_percent_encoded(self) -> None:
         assert ValueSerializer.serialize("a/b", "path", "string") == "a%2Fb"
 
-    def test_bhv_serializationparam_079_question_mark_encoded(self) -> None:
+    def test_bhv_serializationparam_079_a_question_mark_is_percent_encoded(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize("a?b", "path", "string") == "a%3Fb"
 
-    def test_bhv_serializationparam_043_hash_encoded(self) -> None:
+    def test_bhv_serializationparam_043_a_hash_sign_is_percent_encoded(self) -> None:
         assert ValueSerializer.serialize("a#b", "path", "string") == "a%23b"
 
-    def test_bhv_serializationparam_026_comma_preserved(self) -> None:
+    def test_bhv_serializationparam_026_a_comma_is_left_unencoded_as_a_sub_delimiter(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize("a,b", "path", "string") == "a,b"
 
-    def test_bhv_serializationparam_025_colon_preserved(self) -> None:
+    def test_bhv_serializationparam_025_a_colon_is_left_unencoded_as_a_sub_delimiter(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize("a:b", "path", "string") == "a:b"
 
-    def test_bhv_serializationparam_077_plus_preserved(self) -> None:
+    def test_bhv_serializationparam_077_a_plus_sign_is_left_unencoded_as_a_sub_delimiter(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize("a+b", "path", "string") == "a+b"
 
-    def test_bhv_serializationparam_103_unicode_encoded(self) -> None:
+    def test_bhv_serializationparam_103_unicode_encoded_as_utf_8_percent(self) -> None:
         assert (
             ValueSerializer.serialize("日本", "path", "string") == "%E6%97%A5%E6%9C%AC"
         )
 
-    def test_bhv_serializationparam_034_empty_string_preserved(self) -> None:
+    def test_bhv_serializationparam_034_an_empty_string_is_kept_as_an_empty_value(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize("", "path", "string") == ""
 
-    def test_bhv_serializationparam_070_null_returns_empty(self) -> None:
+    def test_bhv_serializationparam_070_path_encoding_parity_null_returns_empty(
+        self,
+    ) -> None:
         assert ValueSerializer.serialize(None, "path", "string") == ""
 
     def test_bhv_serializationparam_089_simple_style_encodes_value(self) -> None:

@@ -25,7 +25,7 @@ import Testing
     #expect(result.headers.isEmpty)
   }
 
-  @Test func testBhvResults007PreservesAllHeaders() {
+  @Test func testBhvResults007AResultReturnsThePayloadData() {
     let result = ApiResult<Int>(
       statusCode: 200,
       data: 42,
@@ -37,7 +37,7 @@ import Testing
     #expect(result.headers["X-RateLimit-Remaining"] == "99")
   }
 
-  @Test func testBhvResults002ExposesHeaders() {
+  @Test func testBhvResults002AResultExposesTheResponseHeaders() {
     let result = ApiResult(statusCode: 200, data: 1, rawBody: "1", headers: ["X-Trace": "abc"])
     #expect(result.headers == ["X-Trace": "abc"])
   }

@@ -48,7 +48,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BhvConfig005BuilderProducesCorrectDefaults()
+    public void BhvConfig005TheBuilderProducesTheDefaultValuesWhenNothingIsSet()
     {
         var config = Configuration.Builder().Build();
 
@@ -144,7 +144,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BhvConfig002BuilderAccumulatesHeaders()
+    public void BhvConfig002TheBuilderAccumulatesHeadersAcrossCalls()
     {
         var config = Configuration
             .Builder()
@@ -398,7 +398,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BhvConfig017ConfigurationIsImmutable()
+    public void BhvConfig017ABuiltConfigurationCannotBeChanged()
     {
         var config = Configuration.Builder().DefaultHeader("X-Key", "value").Build();
 
@@ -407,7 +407,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void BhvConfig003BuilderIsFluent()
+    public void BhvConfig003EveryBuilderSetterReturnsTheSameBuilder()
     {
         var builder = Configuration.Builder();
 

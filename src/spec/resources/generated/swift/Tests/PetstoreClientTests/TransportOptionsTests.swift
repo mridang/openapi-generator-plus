@@ -121,7 +121,7 @@ import Testing
     #expect(try TransportOptionsBuilder().build().session == nil)
   }
 
-  @Test func testBhvLangswift071SessionIsKept() throws {
+  @Test func testBhvLangswift071ACallerSuppliedSessionIsKeptByTheTransportOptions() throws {
     let session = URLSession(configuration: .ephemeral)
     let opts = try TransportOptionsBuilder().session(session).build()
     #expect(opts.session === session)

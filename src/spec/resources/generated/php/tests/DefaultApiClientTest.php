@@ -687,7 +687,7 @@ test('bhv serializationwire 026 multipart field name with crlf rejected on strin
 
 // -- HTTP compression --
 
-test('bhv transport 005 decompresses gzip response', function (): void {
+test('bhv transport 005 a gzip response body is decompressed', function (): void {
     $client = new DefaultApiClient();
     $response = $client->sendRequest(
         'GET',
@@ -700,7 +700,7 @@ test('bhv transport 005 decompresses gzip response', function (): void {
     expect($response->body)->toContain('userId');
 });
 
-test('bhv transport 004 decompresses brotli response', function (): void {
+test('bhv transport 004 a brotli response body is decompressed', function (): void {
     if (!function_exists('brotli_uncompress')) {
         test()->markTestSkipped('ext-brotli not available');
     }
@@ -717,7 +717,7 @@ test('bhv transport 004 decompresses brotli response', function (): void {
     expect($response->body)->toContain('userId');
 });
 
-test('bhv transport 006 decompresses zstd response', function (): void {
+test('bhv transport 006 a zstd response body is decompressed', function (): void {
     if (!function_exists('zstd_uncompress')) {
         test()->markTestSkipped('ext-zstd not available');
     }

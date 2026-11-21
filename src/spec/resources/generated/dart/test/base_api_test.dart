@@ -268,47 +268,52 @@ void main() {
   });
 
   group('BaseApi', () {
-    test('bhv langdart 010 error dispatch', () async {
-      // The Chasm mock serves only these status routes. Every status-to-exception
-      // pair is pinned without a server by bhv errors 006 in the api error test.
-      final testCases = <int, Type>{
-        400: BadRequestException,
-        401: UnauthorizedException,
-        403: ForbiddenException,
-        404: NotFoundException,
-        409: ConflictException,
-        418: ClientException,
-        422: UnprocessableEntityException,
-        429: TooManyRequestsException,
-        500: InternalServerErrorException,
-        502: BadGatewayException,
-      };
+    test(
+      'bhv langdart 010 each failing status is dispatched to the error type declared for it',
+      () async {
+        // The Chasm mock serves only these status routes. Every status-to-exception
+        // pair is pinned without a server by bhv errors 006 in the api error test.
+        final testCases = <int, Type>{
+          400: BadRequestException,
+          401: UnauthorizedException,
+          403: ForbiddenException,
+          404: NotFoundException,
+          409: ConflictException,
+          418: ClientException,
+          422: UnprocessableEntityException,
+          429: TooManyRequestsException,
+          500: InternalServerErrorException,
+          502: BadGatewayException,
+        };
 
-      for (final entry in testCases.entries) {
-        final status = entry.key;
-        final errType = entry.value;
+        for (final entry in testCases.entries) {
+          final status = entry.key;
+          final errType = entry.value;
 
-        final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
-        final api = BaseApi(
-          apiClient: DefaultApiClient(
-            transportOptions: TransportOptions.builder().maxRetries(0).build(),
-          ),
-          config: config,
-        );
-
-        try {
-          await api.invokeApi(method: 'GET', path: '/test/status/$status');
-          fail('Expected error for status $status');
-        } on ApiException catch (e) {
-          expect(
-            e.runtimeType,
-            equals(errType),
-            reason:
-                'Status $status should throw $errType, got ${e.runtimeType}',
+          final config = ConfigurationBuilder().baseUrl(chasmHttpUrl).build();
+          final api = BaseApi(
+            apiClient: DefaultApiClient(
+              transportOptions: TransportOptions.builder()
+                  .maxRetries(0)
+                  .build(),
+            ),
+            config: config,
           );
+
+          try {
+            await api.invokeApi(method: 'GET', path: '/test/status/$status');
+            fail('Expected error for status $status');
+          } on ApiException catch (e) {
+            expect(
+              e.runtimeType,
+              equals(errType),
+              reason:
+                  'Status $status should throw $errType, got ${e.runtimeType}',
+            );
+          }
         }
-      }
-    });
+      },
+    );
 
     /* Cross-cutting `apierror-responsebody-headers-nullable-split`:
      * ApiException.responseBody and responseHeaders are nullable so a
@@ -405,19 +410,22 @@ void main() {
       }
     });
 
-    test('bhv serializationwire 004 deserializes JSON response', () async {
-      final client = DefaultApiClient();
-      final resp = await client.sendRequest(
-        'GET',
-        '$chasmHttpUrl/test/echo',
-        {},
-        null,
-      );
-      expect(resp.body, isNotEmpty);
+    test(
+      'bhv serializationwire 004 a JSON response is deserialized into the declared type',
+      () async {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.body, isNotEmpty);
 
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(parsed['method'], equals('GET'));
-    });
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(parsed['method'], equals('GET'));
+      },
+    );
 
     test('bhv serializationwire 019 returns raw body for non-JSON', () async {
       final client = DefaultApiClient();
@@ -461,26 +469,32 @@ void main() {
       },
     );
 
-    test('bhv authintegration 010 forwards auth headers', () async {
-      final auth = _BaseApiAuth(
-        headers: {'Authorization': 'Bearer test-token'},
-      );
-      final api = _chasmApi(schemes: {'petStoreBearer': auth});
+    test(
+      'bhv authintegration 010 auth headers are forwarded on the request',
+      () async {
+        final auth = _BaseApiAuth(
+          headers: {'Authorization': 'Bearer test-token'},
+        );
+        final api = _chasmApi(schemes: {'petStoreBearer': auth});
 
-      // Exercise auth headers through the API layer
-      try {
-        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), null);
-      } catch (_) {}
+        // Exercise auth headers through the API layer
+        try {
+          await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), null);
+        } catch (_) {}
 
-      // Verify via echo endpoint
-      final client = DefaultApiClient();
-      final resp = await client.sendRequest('GET', '$chasmHttpUrl/test/echo', {
-        'Authorization': 'Bearer test-token',
-      }, null);
-      final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
-      final headers = parsed['headers'] as Map<String, dynamic>;
-      expect(headers['authorization'], equals('Bearer test-token'));
-    });
+        // Verify via echo endpoint
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          {'Authorization': 'Bearer test-token'},
+          null,
+        );
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        final headers = parsed['headers'] as Map<String, dynamic>;
+        expect(headers['authorization'], equals('Bearer test-token'));
+      },
+    );
 
     test(
       'bhv authintegration 018 a configured client authenticator is applied to a secured operation',
@@ -2116,31 +2130,34 @@ void main() {
       }
     });
 
-    test('bhv serializationwire 024 serializes text/plain body', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String receivedBody = '';
-      server.listen((request) async {
-        receivedBody = await utf8.decoder.bind(request).join();
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{}')
-          ..close();
-      });
+    test(
+      'bhv serializationwire 024 a text plain body is written as plain text',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String receivedBody = '';
+        server.listen((request) async {
+          receivedBody = await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{}')
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        await client.sendRequest(
-          'POST',
-          'http://localhost:${server.port}/api/test',
-          {'Content-Type': 'text/plain'},
-          utf8.encode('hello world'),
-        );
-        expect(receivedBody, contains('hello world'));
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/api/test',
+            {'Content-Type': 'text/plain'},
+            utf8.encode('hello world'),
+          );
+          expect(receivedBody, contains('hello world'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test(
       'bhv serializationwire 013 form-urlencoded body keeps a well-formed surrogate pair',
@@ -2176,31 +2193,34 @@ void main() {
       },
     );
 
-    test('bhv serializationwire 021 serializes form-urlencoded body', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String receivedBody = '';
-      server.listen((request) async {
-        receivedBody = await utf8.decoder.bind(request).join();
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{}')
-          ..close();
-      });
+    test(
+      'bhv serializationwire 021 a form-urlencoded body is serialized as form fields',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String receivedBody = '';
+        server.listen((request) async {
+          receivedBody = await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{}')
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        await client.sendRequest(
-          'POST',
-          'http://localhost:${server.port}/api/test',
-          {'Content-Type': 'application/x-www-form-urlencoded'},
-          utf8.encode('name=alice'),
-        );
-        expect(receivedBody, contains('name=alice'));
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/api/test',
+            {'Content-Type': 'application/x-www-form-urlencoded'},
+            utf8.encode('name=alice'),
+          );
+          expect(receivedBody, contains('name=alice'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     // -- FormBodySerializationTests --
     //

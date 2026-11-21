@@ -16,7 +16,9 @@ class TestConfigurationDefaults:
         assert config.base_url == "/api/v3"
         assert len(config.default_headers) == 0
 
-    def test_bhv_config_005_builder_produces_correct_defaults(self) -> None:
+    def test_bhv_config_005_the_builder_produces_the_default_values_when_nothing_is_set(
+        self,
+    ) -> None:
         config = Configuration.builder().build()
 
         assert config.base_url == "/api/v3"
@@ -83,7 +85,7 @@ class TestConfigurationBuilder:
         assert config.default_headers["Authorization"] == "Bearer token123"
         assert config.default_headers["X-Custom"] == "value"
 
-    def test_bhv_config_002_builder_accumulates_headers(self) -> None:
+    def test_bhv_config_002_the_builder_accumulates_headers_across_calls(self) -> None:
         config = (
             Configuration.builder()
             .default_header("X-First", "one")
@@ -145,7 +147,7 @@ class TestConfigurationBuilder:
         assert config.default_headers["Authorization"] == "Bearer token"
         assert config.default_headers["X-Custom"] == "value"
 
-    def test_bhv_config_003_builder_is_fluent(self) -> None:
+    def test_bhv_config_003_every_builder_setter_returns_the_same_builder(self) -> None:
         builder = Configuration.builder()
 
         assert builder is builder.base_url("https://example.com")

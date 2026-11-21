@@ -219,7 +219,7 @@ class TestExceptionDispatch:
             (502, BadGatewayException),
         ],
     )
-    async def test_bhv_errors_037_throws_correct_exception(
+    async def test_bhv_errors_037_an_error_response_throws_the_exception_type_matching_its_status(
         self, api: Any, status: Any, expected_class: Any
     ) -> None:
         with pytest.raises(expected_class) as exc_info:
@@ -1065,7 +1065,9 @@ class TestMultipleSuccessResponses:
 
 
 class TestExceptionHierarchy:
-    async def test_bhv_errors_033_not_found_hierarchy(self, api: Any) -> None:
+    async def test_bhv_errors_033_notfounderror_is_clienterror_is_apierror(
+        self, api: Any
+    ) -> None:
         with pytest.raises(NotFoundException) as exc_info:
             await api.call(
                 "GET",
@@ -1101,7 +1103,7 @@ class TestExceptionHierarchy:
 
 
 class TestSuccessDeserialization:
-    async def test_bhv_serializationwire_004_deserializes_json_response(
+    async def test_bhv_serializationwire_004_a_json_response_is_deserialized_into_the_declared_type(
         self, api: Any
     ) -> None:
         result = await api.call(
@@ -1237,7 +1239,7 @@ class TestSuccessDeserialization:
 
 
 class TestQueryParameters:
-    async def test_bhv_serializationwire_002_appends_query_params(
+    async def test_bhv_serializationwire_002_appends_query_params_to_url(
         self, api: Any
     ) -> None:
         result = await api.call(
@@ -1561,7 +1563,7 @@ class TestAllowEmptyValueQueryParams:
 
 
 class TestAuthInjection:
-    async def test_bhv_authintegration_010_forwards_auth_headers(
+    async def test_bhv_authintegration_010_auth_headers_are_forwarded_on_the_request(
         self, api: Any
     ) -> None:
         auth = StubAuthenticator(headers={"X-Custom": "auth-value"})
@@ -1580,7 +1582,9 @@ class TestAuthInjection:
         # chasm envelope lowercases all header keys
         assert result["headers"]["x-custom"] == "auth-value"
 
-    async def test_bhv_authintegration_017_sets_cookie_header(self, api: Any) -> None:
+    async def test_bhv_authintegration_017_sets_cookie_header_from_auth_cookies(
+        self, api: Any
+    ) -> None:
         auth = StubAuthenticator(cookies={"session": "abc123"})
         result = await api.call(
             "GET",
@@ -2409,7 +2413,7 @@ class TestBodySerialization:
         )
         assert client.captured_body == "q=a%2Bb+c"
 
-    async def test_bhv_serializationwire_022_serializes_json_body(
+    async def test_bhv_serializationwire_022_serializes_json_body_for_post(
         self, api: Any
     ) -> None:
         result = await api.call(

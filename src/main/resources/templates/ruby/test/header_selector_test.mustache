@@ -168,7 +168,7 @@ describe {{moduleName}}::HeaderSelector do
       _(headers['Accept']).must_equal('application/json')
     end
 
-    it 'bhv_headers_008 drops whitespace-only entries' do
+    it 'bhv_headers_008 whitespace-only entries are dropped' do
       headers = @header_selector.select_headers(
         ['   ', 'application/json'],
         'application/json',

@@ -98,7 +98,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationParam044 integer returns string")
-    void bhvSerializationParam044IntegerReturnsString() {
+    void bhvSerializationParam044AnIntegerInAPathIsWrittenAsItsDigits() {
       assertEquals("42", ValueSerializer.serialize(42, "path", "integer", null));
     }
 
@@ -125,7 +125,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationParam034 empty string preserved")
-    void bhvSerializationParam034EmptyStringPreserved() {
+    void bhvSerializationParam034AnEmptyStringIsKeptAsAnEmptyValue() {
       assertEquals("", ValueSerializer.serialize("", "path", "string", null));
       assertEquals("", ValueSerializer.serialize("", "query", "string", null));
     }
@@ -138,61 +138,61 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationParam092 space encoded as %20")
-    void bhvSerializationParam092SpaceEncoded() {
+    void bhvSerializationParam092ASpaceIsWrittenAsPercent20() {
       assertEquals("a%20b", ValueSerializer.serialize("a b", "path", "string", null));
     }
 
     @Test
     @DisplayName("bhvSerializationParam091 slash encoded")
-    void bhvSerializationParam091SlashEncoded() {
+    void bhvSerializationParam091ASlashIsPercentEncoded() {
       assertEquals("a%2Fb", ValueSerializer.serialize("a/b", "path", "string", null));
     }
 
     @Test
     @DisplayName("bhvSerializationParam079 question mark encoded")
-    void bhvSerializationParam079QuestionMarkEncoded() {
+    void bhvSerializationParam079AQuestionMarkIsPercentEncoded() {
       assertEquals("a%3Fb", ValueSerializer.serialize("a?b", "path", "string", null));
     }
 
     @Test
     @DisplayName("bhvSerializationParam043 hash encoded")
-    void bhvSerializationParam043HashEncoded() {
+    void bhvSerializationParam043AHashSignIsPercentEncoded() {
       assertEquals("a%23b", ValueSerializer.serialize("a#b", "path", "string", null));
     }
 
     @Test
     @DisplayName("bhvSerializationParam081 semicolon preserved (sub-delimiter)")
-    void bhvSerializationParam081SemicolonPreserved() {
+    void bhvSerializationParam081ASemicolonIsLeftUnencodedAsASubDelimiter() {
       assertEquals("a;b", ValueSerializer.serialize("a;b", "path", "string", null));
     }
 
     @Test
     @DisplayName("bhvSerializationParam026 comma preserved (sub-delimiter)")
-    void bhvSerializationParam026CommaPreserved() {
+    void bhvSerializationParam026ACommaIsLeftUnencodedAsASubDelimiter() {
       assertEquals("a,b", ValueSerializer.serialize("a,b", "path", "string", null));
     }
 
     @Test
     @DisplayName("bhvSerializationParam025 colon preserved (sub-delimiter)")
-    void bhvSerializationParam025ColonPreserved() {
+    void bhvSerializationParam025AColonIsLeftUnencodedAsASubDelimiter() {
       assertEquals("a:b", ValueSerializer.serialize("a:b", "path", "string", null));
     }
 
     @Test
     @DisplayName("equals preserved (sub-delimiter)")
-    void bhvLangjava055EqualsPreserved() {
+    void bhvLangjava055AnEqualsSignInAPathValueIsWrittenUnencoded() {
       assertEquals("x=y", ValueSerializer.serialize("x=y", "path", "string", null));
     }
 
     @Test
     @DisplayName("bhvSerializationParam103 unicode encoded as UTF-8 percent")
-    void bhvSerializationParam103UnicodeEncoded() {
+    void bhvSerializationParam103UnicodeEncodedAsUTF8Percent() {
       assertEquals("%E6%97%A5%E6%9C%AC", ValueSerializer.serialize("日本", "path", "string", null));
     }
 
     @Test
     @DisplayName("bhvSerializationParam077 plus preserved (sub-delimiter)")
-    void bhvSerializationParam077PlusPreserved() {
+    void bhvSerializationParam077APlusSignIsLeftUnencodedAsASubDelimiter() {
       assertEquals("a+b", ValueSerializer.serialize("a+b", "path", "string", null));
     }
 
@@ -217,7 +217,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationParam004 already-percent-encoded is re-encoded (literal %)")
-    void bhvSerializationParam004AlreadyEncodedReencoded() {
+    void bhvSerializationParam004AnAlreadyPercentEncodedValueIsEncodedAgain() {
       // Inputs are treated as raw literals; the '%' is itself encoded.
       assertEquals("a%2520b", ValueSerializer.serialize("a%20b", "path", "string", null));
     }
@@ -316,7 +316,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationParam045 integer returns string")
-    void bhvSerializationParam045IntegerReturnsString() {
+    void bhvSerializationParam045AnIntegerInAQueryIsWrittenAsItsDigits() {
       assertEquals("42", ValueSerializer.serialize(42, "query", "integer", null));
     }
 
@@ -464,7 +464,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationParam046 integer returns string")
-    void bhvSerializationParam046IntegerReturnsString() {
+    void bhvSerializationParam046AnIntegerInAHeaderIsWrittenAsItsDigits() {
       assertEquals("42", ValueSerializer.serialize(42, "header", "integer", null));
     }
 
@@ -514,7 +514,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("bhvSerializationParam047 integer returns string")
-    void bhvSerializationParam047IntegerReturnsString() {
+    void bhvSerializationParam047AnIntegerInAFormIsWrittenAsItsDigits() {
       assertEquals("42", ValueSerializer.serialize(42, "form", "integer", null));
     }
 
@@ -1072,7 +1072,7 @@ class ValueSerializerTest {
 
     @Test
     @DisplayName("matrix, label and simple styles expand per the explode flag")
-    void bhvSerialization015PathStylesExpand() {
+    void bhvSerialization015AnObjectValuedPathOrQueryParameterIsWrittenWithThePrefix() {
       assertEquals(
           ";c=breed,lab,min_age,3",
           ValueSerializer.serializeStyled("c", fields(), "path", "object", null, "matrix", false));

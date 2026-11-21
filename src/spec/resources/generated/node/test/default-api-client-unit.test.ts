@@ -154,7 +154,7 @@ describe("DefaultApiClient unit", () => {
     expect(body.body).toContain("key");
   });
 
-  it("bhv transport 051 returns response headers", async () => {
+  it("bhv transport 051 response headers are returned with the response", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "GET",
@@ -177,7 +177,7 @@ describe("DefaultApiClient unit", () => {
     expect(response.body).toBe("not found");
   });
 
-  it("bhv transport 055 sends PUT request", async () => {
+  it("bhv transport 055 a PUT request is sent with the PUT method", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "PUT",
@@ -190,7 +190,7 @@ describe("DefaultApiClient unit", () => {
     expect(body.method).toBe("PUT");
   });
 
-  it("bhv transport 053 sends DELETE request", async () => {
+  it("bhv transport 053 a DELETE request is sent with the DELETE method", async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       "DELETE",
@@ -4146,7 +4146,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(new Set(ids).size).toBe(3);
   });
 
-  it("bhv retries 018 maxRetries(0) disables retries", async () => {
+  it("bhv retries 018 maxRetries 0 sends the request once", async () => {
     const response = await send(
       clientPlaying([reply(503)], (builder) => builder.maxRetries(0)),
     );

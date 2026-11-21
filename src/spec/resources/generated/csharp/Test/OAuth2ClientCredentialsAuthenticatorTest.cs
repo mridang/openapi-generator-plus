@@ -183,7 +183,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public async Task BhvAuthoauthtwoclientcred013SendsScopes()
+    public async Task BhvAuthoauthtwoclientcred013TheConfiguredScopesAreSentInTheTokenRequest()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");

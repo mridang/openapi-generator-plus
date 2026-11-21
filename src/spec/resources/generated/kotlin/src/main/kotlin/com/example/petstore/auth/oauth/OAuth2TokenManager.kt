@@ -90,6 +90,24 @@ class OAuth2TokenManager {
     @Volatile
     private var refreshToken: String? = null
 
+    @Volatile
+    private var stopped: Boolean = false
+
+    /**
+     * Stops the token manager. Any later token request fails with an
+     * [OAuth2TokenException] saying the manager has been stopped; stopping
+     * again does nothing.
+     */
+    fun stop() {
+        stopped = true
+    }
+
+    private fun requireRunning() {
+        if (stopped) {
+            throw OAuth2TokenException("The token manager has been stopped.")
+        }
+    }
+
     private fun isJsonLiteral(content: String): Boolean =
         content == "true" || content == "false" || content == "null" || content.toDoubleOrNull() != null
 
@@ -131,6 +149,7 @@ class OAuth2TokenManager {
         extraHeaders: Map<String, String> = emptyMap(),
         refreshUrl: String? = null,
     ): String {
+        requireRunning()
         // Fast path: serve the cached token without taking the lock.
         val cached = accessToken
         val cachedExpiry = tokenExpiryMs
@@ -197,6 +216,7 @@ class OAuth2TokenManager {
         extraHeaders: Map<String, String> = emptyMap(),
     ): String =
         refreshMutex.withLock {
+            requireRunning()
             val previousAccess = accessToken
             val previousExpiry = tokenExpiryMs
             val previousRefresh = refreshToken

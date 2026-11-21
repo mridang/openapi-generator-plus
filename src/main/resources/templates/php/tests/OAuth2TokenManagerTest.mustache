@@ -19,7 +19,7 @@ function makeOAuth2TokenManagerResponse(
     return new ApiHttpResponse(200, (string) json_encode($body), ['Content-Type' => 'application/json']);
 }
 
-test('bhv authoauthtwotokenmgr 028 stores refresh token', function (): void {
+test('bhv authoauthtwotokenmgr 028 the refresh token from the token response is stored', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(makeOAuth2TokenManagerResponse('access1', 3600, 'refresh1'));
 

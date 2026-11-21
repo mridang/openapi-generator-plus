@@ -57,7 +57,7 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.serialize("a/b", "path", "string")).toBe("a%2Fb");
     });
 
-    test("bhv serializationparam 044 integer returns string", () => {
+    test("bhv serializationparam 044 an integer in a path is written as its digits", () => {
       expect(ValueSerializer.serialize(42, "path", "integer")).toBe("42");
     });
 
@@ -107,7 +107,7 @@ describe("ValueSerializer", () => {
       ).toBe("a=1&a=2&b=%20x");
     });
 
-    test("bhv langnode 168 null returns undefined", () => {
+    test("bhv langnode 168 a null value returns undefined", () => {
       expect(
         ValueSerializer.serialize(null, "query", "string"),
       ).toBeUndefined();
@@ -119,13 +119,13 @@ describe("ValueSerializer", () => {
       ).toBeUndefined();
     });
 
-    test("bhv serializationparam 096 string returns as-is", () => {
+    test("bhv serializationparam 096 a string in a query is written unchanged", () => {
       expect(ValueSerializer.serialize("hello", "query", "string")).toBe(
         "hello",
       );
     });
 
-    test("bhv serializationparam 045 integer returns string", () => {
+    test("bhv serializationparam 045 an integer in a query is written as its digits", () => {
       expect(ValueSerializer.serialize(42, "query", "integer")).toBe("42");
     });
 
@@ -238,13 +238,13 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.serialize(null, "header", "string")).toBe("");
     });
 
-    test("bhv serializationparam 097 string returns as-is", () => {
+    test("bhv serializationparam 097 a string in a header is written unchanged", () => {
       expect(ValueSerializer.serialize("hello", "header", "string")).toBe(
         "hello",
       );
     });
 
-    test("bhv serializationparam 046 integer returns string", () => {
+    test("bhv serializationparam 046 an integer in a header is written as its digits", () => {
       expect(ValueSerializer.serialize(42, "header", "integer")).toBe("42");
     });
 
@@ -823,7 +823,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("cookie location", () => {
-    test("bhv serializationparam 099 string returns as-is", () => {
+    test("bhv serializationparam 099 a string in a cookie is written unchanged", () => {
       expect(
         ValueSerializer.serialize("hello", "cookie", "string", undefined),
       ).toBe("hello");
@@ -1083,13 +1083,13 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.serialize(null, "form", "string")).toBe("");
     });
 
-    test("bhv serializationparam 098 string returns as-is", () => {
+    test("bhv serializationparam 098 a string in a form is written unchanged", () => {
       expect(ValueSerializer.serialize("hello", "form", "string")).toBe(
         "hello",
       );
     });
 
-    test("bhv serializationparam 047 integer returns string", () => {
+    test("bhv serializationparam 047 an integer in a form is written as its digits", () => {
       expect(ValueSerializer.serialize(42, "form", "integer")).toBe("42");
     });
 
@@ -1104,7 +1104,7 @@ describe("ValueSerializer", () => {
 
   // Cross-language parity tests for path-segment percent-encoding.
   // Every SDK must produce identical encoded strings for these inputs.
-  test("bhv serializationparam 016 ASCII-safe pass-through", () => {
+  test("bhv serializationparam 016 ASCII safe text passes through unchanged", () => {
     expect(ValueSerializer.serialize("abc123", "path", "string")).toBe(
       "abc123",
     );
@@ -1114,31 +1114,31 @@ describe("ValueSerializer", () => {
     expect(ValueSerializer.serialize("a b", "path", "string")).toBe("a%20b");
   });
 
-  test("bhv serializationparam 091 slash encoded", () => {
+  test("bhv serializationparam 091 a slash is percent-encoded", () => {
     expect(ValueSerializer.serialize("a/b", "path", "string")).toBe("a%2Fb");
   });
 
-  test("bhv serializationparam 079 question mark encoded", () => {
+  test("bhv serializationparam 079 a question mark is percent-encoded", () => {
     expect(ValueSerializer.serialize("a?b", "path", "string")).toBe("a%3Fb");
   });
 
-  test("bhv serializationparam 043 hash encoded", () => {
+  test("bhv serializationparam 043 a hash sign is percent-encoded", () => {
     expect(ValueSerializer.serialize("a#b", "path", "string")).toBe("a%23b");
   });
 
-  test("bhv serializationparam 026 comma preserved (sub-delimiter)", () => {
+  test("bhv serializationparam 026 a comma is left unencoded as a sub-delimiter", () => {
     expect(ValueSerializer.serialize("a,b", "path", "string")).toBe("a,b");
   });
 
-  test("bhv serializationparam 025 colon preserved (sub-delimiter)", () => {
+  test("bhv serializationparam 025 a colon is left unencoded as a sub-delimiter", () => {
     expect(ValueSerializer.serialize("a:b", "path", "string")).toBe("a:b");
   });
 
-  test("bhv serializationparam 077 plus preserved (sub-delimiter)", () => {
+  test("bhv serializationparam 077 a plus sign is left unencoded as a sub-delimiter", () => {
     expect(ValueSerializer.serialize("a+b", "path", "string")).toBe("a+b");
   });
 
-  test("bhv serializationparam 081 semicolon preserved (sub-delimiter)", () => {
+  test("bhv serializationparam 081 a semicolon is left unencoded as a sub-delimiter", () => {
     expect(ValueSerializer.serialize("a;b", "path", "string")).toBe("a;b");
   });
 
@@ -1148,7 +1148,7 @@ describe("ValueSerializer", () => {
     );
   });
 
-  test("bhv serializationparam 034 empty string preserved", () => {
+  test("bhv serializationparam 034 an empty string is kept as an empty value", () => {
     expect(ValueSerializer.serialize("", "path", "string")).toBe("");
   });
 

@@ -315,7 +315,6 @@ dart | misc087 | Dart's number is a binary double with no decimal type, so a dec
 dart | misc088 | Dart's number is a binary double with no decimal type, so the decimal places a value was written with are not kept, as serializationobject002 records
 csharp | misc178 | the C# client builds every multipart body as MultipartFormDataContent, which always writes multipart/form-data, and ignores any content type a caller declares for a dictionary body, so no other declared multipart type can reach the transport
 csharp | misc182 | the C# SDK has no API that removes a default or per-call header by name, so there is no removal call whose name matching could be tested
-csharp | misc185 | the C# OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
 kotlin | misc075 | The scheme constructor takes one optional parameter per declared scheme, so a credential cannot be keyed to an undeclared scheme; the compiler refuses it
 csharp | misc100 | The C# SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back from
 java | misc100 | The Java SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back
@@ -335,7 +334,6 @@ swift | misc135 | the Swift client has no client-level cancellation handle: canc
 swift | misc149 | copy takes only the model's declared properties as typed parameters, so an undeclared attribute is a compile-time error and no runtime error naming it can occur
 swift | misc152 | Swift has no abort signal: a call is cancelled through Task cancellation, and no call takes a signal that could already be aborted
 swift | misc153 | Swift has no client-level or per-call cancel signal: cancellation is Task cancellation of the awaiting task, and the client has no signal to set
-swift | misc185 | the Swift OAuth2 token manager has no stop operation and holds no background task, so a second stop and a token request after stop cannot be observed
 dart | misc135 | Dart has no client-level cancellation handle: a call is cancelled through the subscription it returns, so the configuration holds no signal to store
 dart | misc139 | Dart model constructors are const and store a passed map by reference, so a copy cannot be taken when the model is built without losing const construction
 dart | misc152 | Dart has no cancellation signal on a call: a request is cancelled by cancelling the stream subscription it returns, so there is no already-aborted signal to pass
@@ -350,11 +348,9 @@ go | misc231 | Go model fields are statically typed, so a model built in code ca
 elixir | transport091 | Elixir multipart file content is in-memory bytes given to the call and the SDK never opens a caller file or stream, so no caller handle exists that could stay open after the request
 elixir | serialization129 | Elixir Duration holds microseconds at most, so a nanosecond-precision value cannot be built and the nine-digit fraction is never produced from a Duration
 go | misc260 | Go takes server variable overrides as map[string]string, so a nil value for an enum variable cannot be expressed and the type system rules it out
-python | misc185 | python's OAuth2 token manager has no stop operation and holds no process or resource to release, so a second stop and a stopped-manager error do not exist
 kotlin | misc101 | Kotlin request bodies and multipart parts are ByteArray or String values read in full before the call (transport061 pins the buffering), so no source can become unreadable during the send and a missing value fails when the caller builds the body
 kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema forbids cannot be passed to it, and the generated models never validate on copy (misc051 pins the typed arguments)
 java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
-kotlin | misc185 | Kotlin's OAuth2 token manager exposes no stop operation, so a second stop and a token request after stop cannot be made; the token manager has no lifecycle to end
 kotlin | misc187 | Kotlin's withToken takes the host as a required argument, so a missing host is refused at compile time and there is no environment fallback for it; the token fallback is pinned by bhv lifecycle 014
 kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
 kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
@@ -369,7 +365,6 @@ java | misc283 | Java has no package root that re-exports types, so the error ty
 dart | retries045 | Dart has no streamed request body: the body is an in-memory byte list, so there is no one-shot stream that a replay could exhaust
 dart | serialization078 | Dart has no time-of-day type: a format: time property is a String that the SDK passes through unchanged (serializationobject114), so there is no HH:mm:ss or .SSS format
 php | misc088 | php has no decimal type: a decimal decodes to a float, which cannot keep the places it was written with
-java | misc185 | The Java OAuth2 token manager has no stop operation and runs no background task, so there is nothing to stop twice and no later token request that a stop could refuse
 java | misc187 | The Java authenticators never read the API base URL from the environment and document the host as never read from it, so a client cannot take its host from the environment
 dart | misc262 | The SDK always wraps an http.ClientException from a cancelled request in NetworkException (abstract_api_client), so a cancellation is never surfaced to the caller unwrapped
 node | serialization102 | A JS Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)

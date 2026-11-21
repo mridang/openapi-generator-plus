@@ -68,7 +68,7 @@ class TestBearerAuthenticator:
         with pytest.raises(ValueError, match='not both'):
             BearerAuthenticator(host='https://api.example.com', token='explicit', token_provider=lambda: 'p')
 
-    def test_bhv_authbearer_005_rejects_empty_token(self) -> None:
+    def test_bhv_authbearer_005_empty_token_is_rejected_at_construction(self) -> None:
         # bearer-no-empty-token-guard: an empty token would emit a bare
         # "Authorization: Bearer " header and send the request unauthenticated,
         # so construction must reject it.
@@ -90,13 +90,13 @@ class TestBearerAuthenticator:
         with pytest.raises(ValueError, match='printable ASCII'):
             BearerAuthenticator(host='https://api.example.com', token='\u00a0')
 
-    def test_bhv_authbearer_012_rejects_crlf(self) -> None:
+    def test_bhv_authbearer_012_a_token_with_a_carriage_return_or_line_feed_or_non_ascii_character_is_rejected(self) -> None:
         # RFC 7230 §3.2.6 — reject anything outside printable ASCII + TAB to
         # prevent header injection (\r\n).
         with pytest.raises(ValueError):
             BearerAuthenticator(host='https://api.example.com', token='tok\r\nInjected: yes')
 
-    def test_bhv_authbearer_022_rejects_non_ascii(self) -> None:
+    def test_bhv_authbearer_022_a_bearer_authenticator_rejects_a_non_ascii_token_at_construction(self) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator(host='https://api.example.com', token='ñoño')
 
@@ -105,7 +105,7 @@ class TestBearerAuthenticator:
         assert 'supersecret' not in repr(auth)
         assert 'supersecret' not in str(auth)
 
-    def test_bhv_authbearer_011_redacts_secret(self) -> None:
+    def test_bhv_authbearer_011_redacts_the_token_in_tostring(self) -> None:
         """The repr masks the token as ``***`` and never leaks its value."""
         auth = BearerAuthenticator(host='https://api.example.com', token='xyz')
         rendered = repr(auth)

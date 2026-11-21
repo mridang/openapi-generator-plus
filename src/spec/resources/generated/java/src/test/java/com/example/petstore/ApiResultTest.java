@@ -43,7 +43,7 @@ class ApiResultTest {
   }
 
   @Test
-  void bhvResults002ExposesHeaders() {
+  void bhvResults002AResultExposesTheResponseHeaders() {
     ApiResult<String> result =
         new ApiResult<>(200, "payload", "payload", Map.of("x-request-id", "abc"));
 

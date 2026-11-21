@@ -368,7 +368,7 @@ import Testing
     }
   }
 
-  @Test func testBhvErrors071ErrorDispatch401() async throws {
+  @Test func testBhvErrors071A401ResponseSurfacesAsAnUnauthorizedError() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 401
     mockClient.responseBody = "{\"error\":\"unauthorized\"}"
@@ -440,7 +440,9 @@ import Testing
 
   // MARK: - JSON response deserialization
 
-  @Test func testBhvSerializationwire004DeserializesJSONResponse() async throws {
+  @Test func testBhvSerializationwire004AJSONResponseIsDeserializedIntoTheDeclaredType()
+    async throws
+  {
     let mockClient = MockApiClient()
     mockClient.responseBody =
       "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"]}"
@@ -525,7 +527,7 @@ import Testing
 
   // MARK: - Auth header injection
 
-  @Test func testBhvAuthintegration010ForwardsAuthHeaders() async throws {
+  @Test func testBhvAuthintegration010AuthHeadersAreForwardedOnTheRequest() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
@@ -1086,7 +1088,7 @@ import Testing
 
   // MARK: - Body serialization
 
-  @Test func testBhvSerializationwire022SerializesJsonBody() async throws {
+  @Test func testBhvSerializationwire022SerializesJSONBodyForPOST() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":1,\"name\":\"TestPet\",\"photoUrls\":[]}"
 
@@ -1111,14 +1113,14 @@ import Testing
     }
   }
 
-  @Test func testBhvSerializationwire006SerializeBodyBinary() {
+  @Test func testBhvSerializationwire006EmptyBinaryBodyYieldsNull() {
     let data = Data([0x01, 0x02, 0x03])
     let result = try? BaseApi.serializeBody(data, contentType: "application/octet-stream")
     #expect(result != nil)
     #expect(result! == data)
   }
 
-  @Test func testBhvOperations016SerializeBodyNil() {
+  @Test func testBhvOperations016SendsNoBodyWhenNull() {
     let result = try? BaseApi.serializeBody(nil, contentType: "application/json")
     #expect(result == nil)  // nil body serializes to nil
   }
@@ -1185,7 +1187,7 @@ import Testing
 
   // MARK: - 418 Teapot (unrecognized status)
 
-  @Test func testBhvErrors048ErrorDispatch418() async throws {
+  @Test func testBhvErrors048A418ResponseThrowsTheClientError() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 418
     mockClient.responseBody = "{\"error\":\"teapot\"}"
@@ -1239,7 +1241,7 @@ import Testing
 
   // MARK: - Query parameter serialization
 
-  @Test func testBhvSerializationwire002QueryParamSerialization() async throws {
+  @Test func testBhvSerializationwire002AppendsQueryParamsToURL() async throws {
     let mockClient = MockApiClient()
     mockClient.responseBody = "[]"
 

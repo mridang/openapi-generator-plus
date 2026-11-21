@@ -174,7 +174,7 @@ class OAuth2ImplicitAuthenticatorTest {
 
   @Test
   @DisplayName("bhvAuthOauthTwoImplicit011 toString() redacts the access token and shows ***")
-  void bhvAuthOauthTwoImplicit011RedactsSecret() {
+  void bhvAuthOauthTwoImplicit011TheRedactedReprShowsTheNonSecretFields() {
     OAuth2ImplicitAuthenticator auth = createAuthenticator();
     auth.setAccessToken("implicit-tok");
     String repr = auth.toString();

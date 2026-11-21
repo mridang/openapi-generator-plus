@@ -51,7 +51,7 @@ import Testing
     #expect(metadata != nil)
   }
 
-  @Test func testBhvModels003DeserializeEmptyObject() throws {
+  @Test func testBhvModels003AnEmptyObjectDeserializesIntoAModelWithNoValues() throws {
     let jsonData = Data("{}".utf8)
 
     let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
@@ -179,7 +179,7 @@ import Testing
     #expect(!json.contains("\"x\""))
   }
 
-  @Test func testBhvModels011RoundTrip() throws {
+  @Test func testBhvModels011TestRoundTripPreservesAdditionalProperties() throws {
     // Use ObjectSerializer for consistent date encoding/decoding
     let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
 

@@ -712,7 +712,7 @@ describe('DefaultApiClient', () => {
     }, 30000);
   });
 
-  test('bhv redirects 006 respects maxRedirects limit', () => {
+  test('bhv redirects 006 following stops at the configured maximum number of redirects', () => {
     const transport = TransportOptions.builder()
       .followRedirects(true)
       .maxRedirects(5)
@@ -761,7 +761,7 @@ describe('DefaultApiClient', () => {
     `${process.env['CHASM_HTTP_URL']!}/test/compressed/${encoding}`;
   const fixtureBody = { userId: 1, id: 1, title: 'compressed fixture body' };
 
-  test('bhv transport 005 decompresses gzip response', async () => {
+  test('bhv transport 005 a gzip response body is decompressed', async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       'GET',
@@ -774,7 +774,7 @@ describe('DefaultApiClient', () => {
     expect(JSON.parse(response.body)).toEqual(fixtureBody);
   });
 
-  test('bhv transport 004 decompresses brotli response', async () => {
+  test('bhv transport 004 a brotli response body is decompressed', async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest(
       'GET',

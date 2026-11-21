@@ -12,7 +12,7 @@ import Testing
 
 @Suite final class ConfigurationTests {
 
-  @Test func testBhvConfig014DefaultValues() {
+  @Test func testBhvConfig014ADefaultConfigurationCarriesNoSharedState() {
     let config = Configuration.default()
 
     #expect(config.baseURL == "/api/v3")
@@ -44,7 +44,7 @@ import Testing
     #expect(Configuration.default().baseURL == "/api/v3")
   }
 
-  @Test func testBhvConfig007BuilderReturnsInstance() {
+  @Test func testBhvConfig007BuilderReturnsConfigurationBuilderInstance() {
     let builder = ConfigurationBuilder()
     _ = builder
   }
@@ -102,7 +102,7 @@ import Testing
     #expect(config.defaultHeaders["Authorization"] == "Bearer token")
   }
 
-  @Test func testBhvConfig008ServerURLResolution() throws {
+  @Test func testBhvConfig008TheBuilderResolvesTheServerURL() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.example.com/api/{version}",
       description: "Test server",
@@ -148,7 +148,7 @@ import Testing
     #expect(config.baseURL == "https://api.example.com/api/v3")
   }
 
-  @Test func testBhvConfig001BaseURLOverride() {
+  @Test func testBhvConfig001ABaseURLOverridesTheServer() {
     let config = ConfigurationBuilder()
       .baseURL("https://original.example.com")
       .baseURL("https://override.example.com")
@@ -239,7 +239,7 @@ import Testing
       "Build() should produce independent instances")
   }
 
-  @Test func testBhvConfig005BuilderProducesCorrectDefaults() {
+  @Test func testBhvConfig005TheBuilderProducesTheDefaultValuesWhenNothingIsSet() {
     let config = Configuration.builder().build()
     #expect(config.defaultHeaders.isEmpty)
     #expect(config.baseURL == Configuration.default().baseURL)

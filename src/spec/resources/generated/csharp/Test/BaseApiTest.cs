@@ -1811,7 +1811,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BhvAuthintegration010ForwardsAuthHeaders()
+    public async Task BhvAuthintegration010AuthHeadersAreForwardedOnTheRequest()
     {
         var auth = new TestAuthenticator(
             headers: new Dictionary<string, string> { { "X-Custom", "auth-value" } }
@@ -1945,7 +1945,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BhvAuthintegration017SetsCookieHeader()
+    public async Task BhvAuthintegration017SetsCookieHeaderFromAuthCookies()
     {
         var auth = new TestAuthenticator(
             cookies: new Dictionary<string, string> { { "session", "abc123" } }
@@ -2022,7 +2022,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BhvErrors033NotFoundHierarchy()
+    public async Task BhvErrors033NotFoundErrorIsClientErrorIsApiError()
     {
         var ex = await Assert.ThrowsAsync<NotFoundException>(() =>
             Api()
@@ -2079,7 +2079,10 @@ public class BaseApiTest
 
     [Theory]
     [MemberData(nameof(StatusToException))]
-    public async Task BhvErrors037ThrowsCorrectException(int status, Type expectedType)
+    public async Task BhvErrors037AnErrorResponseThrowsTheExceptionTypeMatchingItsStatus(
+        int status,
+        Type expectedType
+    )
     {
         try
         {
@@ -2497,7 +2500,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BhvSerializationwire002AppendsQueryParams()
+    public async Task BhvSerializationwire002AppendsQueryParamsToURL()
     {
         await Api()
             .CallAsync<object>(
@@ -2530,7 +2533,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BhvSerializationwire004DeserializesJsonResponse()
+    public async Task BhvSerializationwire004AJSONResponseIsDeserializedIntoTheDeclaredType()
     {
         var result = await Api()
             .CallAsync<JsonNode>(
@@ -2905,7 +2908,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task BhvSerializationwire022SerializesJsonBody()
+    public async Task BhvSerializationwire022SerializesJSONBodyForPOST()
     {
         var result = await Api()
             .CallAsync<JsonNode>(

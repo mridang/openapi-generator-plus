@@ -1296,7 +1296,7 @@ public class DefaultApiClientTest
     // -- HTTP compression --
 
     [Fact]
-    public async Task BhvTransport005DecompressesGzipResponse()
+    public async Task BhvTransport005AGzipResponseBodyIsDecompressed()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
@@ -1341,7 +1341,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task BhvTransport004DecompressesBrotliResponse()
+    public async Task BhvTransport004ABrotliResponseBodyIsDecompressed()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(
@@ -1356,7 +1356,7 @@ public class DefaultApiClientTest
     }
 
     [Fact(Skip = "zstd is not supported by the platform: .NET has no built-in zstd decoder")]
-    public async Task BhvTransport006DecompressesZstdResponse()
+    public async Task BhvTransport006AZstdResponseBodyIsDecompressed()
     {
         var client = new DefaultApiClient();
         var response = await client.SendRequestAsync(

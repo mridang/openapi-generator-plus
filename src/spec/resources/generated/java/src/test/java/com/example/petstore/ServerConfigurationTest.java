@@ -230,7 +230,7 @@ class ServerConfigurationTest {
   }
 
   @Test
-  void bhvServers015AllowsANullDescription() {
+  void bhvServers015AServerDescriptionMayBeNull() {
     ServerConfiguration config = new ServerConfiguration("https://api.example.com", null, Map.of());
 
     assertNull(config.getDescription());

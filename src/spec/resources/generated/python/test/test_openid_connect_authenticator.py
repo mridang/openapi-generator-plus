@@ -81,7 +81,9 @@ class TestOpenIdConnectAuthenticator:
         assert params["response_type"] == ["code"]
         assert params["scope"] == ["openid profile"]
 
-    def test_bhv_authoidc_010_fetches_discovery_document(self) -> None:
+    def test_bhv_authoidc_010_the_discovery_document_is_fetched_from_the_issuer(
+        self,
+    ) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
         auth.build_authorization_url()

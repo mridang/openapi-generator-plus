@@ -803,7 +803,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void bhvTransport051ReturnsResponseHeaders() throws Exception {
+  void bhvTransport051ResponseHeadersAreReturnedWithTheResponse() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
     assertNotNull(response.headers());
@@ -826,7 +826,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void bhvTransport055SendsPutRequest() throws Exception {
+  void bhvTransport055APUTRequestIsSentWithThePUTMethod() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("PUT", baseUrl + "/echo", Map.of(), "update");
     assertEquals(200, response.statusCode());
@@ -834,7 +834,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void bhvTransport053SendsDeleteRequest() throws Exception {
+  void bhvTransport053ADELETERequestIsSentWithTheDELETEMethod() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiHttpResponse response = client.sendRequest("DELETE", baseUrl + "/echo", Map.of(), null);
     assertEquals(200, response.statusCode());
@@ -969,7 +969,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void bhvTransport043InjectsRequestId() throws Exception {
+  void bhvTransport043ARequestIdIsInjectedIntoTheRequestHeaders() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
@@ -2173,7 +2173,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void bhvSerializationWire043MultipartFilenameCRLFRejected() {
+  void bhvSerializationWire043AMultipartFilenameWithACarriageReturnOrLineFeedIsRejected() {
     assertThrows(
         IllegalArgumentException.class,
         () -> DefaultApiClient.validateMultipartFilename("a\rb.pdf"));

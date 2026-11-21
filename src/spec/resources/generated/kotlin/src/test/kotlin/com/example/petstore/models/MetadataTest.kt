@@ -46,7 +46,7 @@ class MetadataTest {
 
     @Test
     @DisplayName("bhvLangkotlin029 additional properties are preserved")
-    fun bhvLangkotlin029TestAdditionalProperties() {
+    fun bhvLangkotlin029AModelAdditionalPropertiesAreReadAndWrittenThroughItsOwnAccessor() {
         val metadata = Metadata()
         metadata.additionalProperties["customField"] = "hello"
         metadata.additionalProperties["anotherField"] = "world"

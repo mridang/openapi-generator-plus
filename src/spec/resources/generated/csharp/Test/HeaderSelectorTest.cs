@@ -60,7 +60,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void BhvHeaders015ShouldReturnFalseForNull()
+        public void BhvHeaders015AMissingMediaTypeIsNotAJSONType()
         {
             Assert.False(HeaderSelector.IsJsonMime(null));
         }
@@ -211,7 +211,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void BhvHeaders010ShouldFilterOutEmptyEntries()
+        public void BhvHeaders010EmptyEntriesAreFilteredOut()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["", "application/json"],
@@ -222,7 +222,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void BhvHeaders009ShouldFilterOutBlankEntries()
+        public void BhvHeaders009EmptyAndBlankEntriesAreFilteredOut()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["   ", "text/html", "", "text/plain"],
@@ -233,7 +233,7 @@ public static class HeaderSelectorTest
         }
 
         [Fact]
-        public void BhvHeaders008ShouldDropWhitespaceOnlyEntries()
+        public void BhvHeaders008WhitespaceOnlyEntriesAreDropped()
         {
             var headers = HeaderSelector.SelectHeaders(
                 ["   ", "application/json"],
