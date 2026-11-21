@@ -11,7 +11,9 @@ import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as util from "node:util";
+import { Readable } from "node:stream";
 import * as zlib from "node:zlib";
+import { BodySource } from "../src/body-source.js";
 import { ByteStream } from "../src/byte-stream.js";
 import { JsonLinesStream } from "../src/json-lines-stream.js";
 import { SseStream } from "../src/sse-stream.js";
@@ -4266,7 +4268,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
       "POST",
       "http://api.example/items",
       {},
-      stream as unknown as Buffer,
+      BodySource.once(stream),
     );
 
     expect(response.statusCode).toBe(503);
@@ -6539,6 +6541,7 @@ describe("DefaultApiClient streaming", () => {
       null,
       { reconnectDelay: 1 },
       false,
+      false,
       "GET",
       "/items/events",
     );
@@ -6571,6 +6574,7 @@ describe("DefaultApiClient streaming", () => {
       null,
       { reconnectDelay: 1, maxReconnects: 1 },
       false,
+      false,
       "GET",
       "/items/events",
     );
@@ -6597,11 +6601,390 @@ describe("DefaultApiClient streaming", () => {
       null,
       { reconnectDelay: 1, maxReconnects: 0 },
       false,
+      false,
       "GET",
       "/items/events",
     );
 
     expect((await stream.next()).value!.data).toBe("late");
     expect(server.hits).toBe(1);
+  });
+});
+
+/** What a scripted raw server received as the body of one request. */
+interface Upload {
+  readonly bytes: Buffer;
+  readonly chunked: boolean;
+}
+
+/**
+ * Reads the body that follows `head` on the socket: a chunked one chunk by chunk and one with a
+ * Content-Length to its end. `onFirst` runs as soon as bytes of the body have arrived, while the
+ * rest is still to come.
+ */
+function readUpload(
+  socket: net.Socket,
+  head: string,
+  onFirst: () => void = () => undefined,
+): Promise<Upload> {
+  const lower = head.toLowerCase();
+  const chunked = lower.includes("transfer-encoding: chunked");
+  const declared = /content-length: (\d+)/.exec(lower);
+  const wanted = declared === null ? 0 : Number(declared[1]);
+  let pending = Buffer.from(head.slice(head.indexOf("\r\n\r\n") + 4), "latin1");
+  const received: Buffer[] = [];
+  return new Promise<Upload>((resolve) => {
+    let seen = 0;
+    const settle = (): void => {
+      socket.off("data", onData);
+      socket.off("close", settle);
+      resolve({ bytes: Buffer.concat(received), chunked });
+    };
+    const consume = (): boolean => {
+      if (!chunked) {
+        received.push(pending);
+        seen += pending.length;
+        pending = Buffer.alloc(0);
+        return seen >= wanted;
+      }
+      for (;;) {
+        const lineEnd = pending.indexOf("\r\n");
+        if (lineEnd < 0) {
+          return false;
+        }
+        const size = parseInt(
+          pending.subarray(0, lineEnd).toString("latin1"),
+          16,
+        );
+        if (size === 0) {
+          return true;
+        }
+        if (pending.length < lineEnd + 2 + size + 2) {
+          return false;
+        }
+        received.push(pending.subarray(lineEnd + 2, lineEnd + 2 + size));
+        pending = pending.subarray(lineEnd + 2 + size + 2);
+      }
+    };
+    const onData = (chunk: Buffer): void => {
+      pending = Buffer.concat([pending, chunk]);
+      const complete = consume();
+      onFirst();
+      if (complete) {
+        settle();
+      }
+    };
+    socket.on("data", onData);
+    socket.on("close", settle);
+    if (pending.length > 0 || wanted === 0) {
+      const complete = consume();
+      if (pending.length > 0 || received.length > 0) {
+        onFirst();
+      }
+      if (complete) {
+        settle();
+      }
+    }
+  });
+}
+
+function rawReply(
+  socket: net.Socket,
+  status: number,
+  ...headers: string[]
+): void {
+  rawHead(socket, status, ...headers, "Content-Length: 0");
+  socket.end();
+}
+
+function patterned(size: number): Buffer {
+  const data = Buffer.alloc(size);
+  for (let index = 0; index < size; index++) {
+    data[index] = (index * 31 + 7) & 0xff;
+  }
+  return data;
+}
+
+/** An async iterable that counts how often it is asked to stop early, which is what a close is. */
+function countingChunks(
+  data: Buffer,
+): AsyncIterable<Uint8Array> & { returns: number } {
+  const counter = {
+    returns: 0,
+    [Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
+      let done = false;
+      return {
+        async next(): Promise<IteratorResult<Uint8Array>> {
+          if (done) {
+            return { done: true, value: undefined };
+          }
+          done = true;
+          return { done: false, value: data };
+        },
+        async return(): Promise<IteratorResult<Uint8Array>> {
+          counter.returns++;
+          return { done: true, value: undefined };
+        },
+      };
+    },
+  };
+  return counter;
+}
+
+/** A Readable that is not destroyed when it ends, so only a close by the SDK would destroy it. */
+function callerReadable(data: Buffer): Readable {
+  return Readable.from([data], { autoDestroy: false });
+}
+
+describe("DefaultApiClient uploads", () => {
+  const servers: RawServer[] = [];
+  const files: string[] = [];
+  const clients: DefaultApiClient[] = [];
+
+  beforeEach(() => {
+    globalThis.fetch = nativeFetch;
+  });
+
+  afterEach(async () => {
+    for (const client of clients.splice(0)) {
+      await client.close();
+    }
+    for (const server of servers.splice(0)) {
+      await server.close();
+    }
+    for (const file of files.splice(0)) {
+      fs.rmSync(file, { force: true });
+    }
+  });
+
+  const serve = async (script: RawScript): Promise<RawServer> => {
+    const server = await RawServer.serve(script);
+    servers.push(server);
+    return server;
+  };
+
+  const put = (
+    server: RawServer,
+    body: BodySource,
+    options?: { maxRetries?: number },
+  ) => {
+    const client = new DefaultApiClient(TransportOptions.builder().build());
+    clients.push(client);
+    return client.sendRequest(
+      "PUT",
+      server.url("/items/blob"),
+      { "Content-Type": "application/octet-stream" },
+      body,
+      options,
+    );
+  };
+
+  it("bhv streaming 023 a streamed upload of unknown length is sent chunked and arrives intact", async () => {
+    const data = patterned(300_000);
+    let firstSeen!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      firstSeen = resolve;
+    });
+    const seen: Array<Promise<Upload>> = [];
+    const server = await serve(async (_self, socket, _hit, head) => {
+      const upload = readUpload(socket, head, firstSeen);
+      seen.push(upload);
+      await upload;
+      rawReply(socket, 200);
+    });
+    /* The second half is not readable until the server has the first, so a client that buffered
+     * the stream before sending would wait here for good. */
+    async function* gated(): AsyncGenerator<Uint8Array> {
+      const half = data.length / 2;
+      for (let position = 0; position < half; position += 4096) {
+        yield data.subarray(position, Math.min(position + 4096, half));
+      }
+      await within(
+        gate,
+        15_000,
+        "the first half of the upload to reach the server",
+      );
+      for (let position = half; position < data.length; position += 4096) {
+        yield data.subarray(position, Math.min(position + 4096, data.length));
+      }
+    }
+
+    const response = await put(server, BodySource.once(gated()));
+
+    expect(response.statusCode).toBe(200);
+    const head = server.heads[0]!.toLowerCase();
+    expect(head).toContain("transfer-encoding: chunked");
+    expect(head).not.toContain("content-length");
+    const upload = await seen[0]!;
+    expect(upload.chunked).toBe(true);
+    expect(upload.bytes.equals(data)).toBe(true);
+  });
+
+  it("bhv streaming 024 a streamed upload with a known length sends Content-Length", async () => {
+    const data = patterned(100_000);
+    const file = path.join(
+      os.tmpdir(),
+      `upload-${process.pid}-${Date.now()}.bin`,
+    );
+    fs.writeFileSync(file, data);
+    files.push(file);
+    const seen: Array<Promise<Upload>> = [];
+    const server = await serve(async (_self, socket, _hit, head) => {
+      const upload = readUpload(socket, head);
+      seen.push(upload);
+      await upload;
+      rawReply(socket, 200);
+    });
+    const sources = [
+      BodySource.of(data),
+      BodySource.ofFile(file),
+      BodySource.fromFactory(() => Readable.from([data]), data.length),
+      BodySource.once(Readable.from([data]), data.length),
+    ];
+
+    for (const source of sources) {
+      expect((await put(server, source)).statusCode).toBe(200);
+    }
+
+    expect(seen).toHaveLength(sources.length);
+    for (let index = 0; index < sources.length; index++) {
+      const head = server.heads[index]!.toLowerCase();
+      expect(head).toContain(`content-length: ${data.length}`);
+      expect(head).not.toContain("transfer-encoding");
+      const upload = await seen[index]!;
+      expect(upload.chunked).toBe(false);
+      expect(upload.bytes.equals(data)).toBe(true);
+    }
+    expect(sources[0]!.toString()).toBe("BodySource[bytes, 100000 bytes]");
+    expect(sources[1]!.toString()).toBe("BodySource[file, 100000 bytes]");
+    expect(sources[3]!.toString()).toBe("BodySource[single use, 100000 bytes]");
+    expect(BodySource.fromFactory(() => Readable.from([data])).toString()).toBe(
+      "BodySource[factory, length unknown]",
+    );
+  });
+
+  it("bhv streaming 025 a caller supplied upload stream is never closed by the SDK", async () => {
+    const server = await serve(async (_self, socket, hit, head) => {
+      await readUpload(socket, head);
+      rawReply(socket, hit === 2 ? 503 : 200, "Retry-After: 0");
+    });
+
+    const readable = callerReadable(patterned(5000));
+    expect((await put(server, BodySource.once(readable))).statusCode).toBe(200);
+    expect(readable.destroyed).toBe(false);
+
+    const refused = callerReadable(patterned(5000));
+    expect(
+      (await put(server, BodySource.once(refused), { maxRetries: 0 }))
+        .statusCode,
+    ).toBe(503);
+    expect(refused.destroyed).toBe(false);
+
+    const iterable = countingChunks(patterned(5000));
+    expect((await put(server, BodySource.once(iterable))).statusCode).toBe(200);
+    expect(iterable.returns).toBe(0);
+
+    const web = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(patterned(5000));
+        controller.close();
+      },
+    });
+    expect((await put(server, BodySource.once(web))).statusCode).toBe(200);
+    expect(web.locked).toBe(false);
+
+    const made = countingChunks(patterned(5000));
+    expect(
+      (
+        await put(
+          server,
+          BodySource.fromFactory(() => made),
+        )
+      ).statusCode,
+    ).toBe(200);
+    expect(made.returns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("bhv streaming 026 a replayable upload is rewound and retried after a 503 and a single use upload is not retried and surfaces the original error", async () => {
+    const data = patterned(20_000);
+    const seen: Array<Promise<Upload>> = [];
+    const server = await serve(async (_self, socket, hit, head) => {
+      const upload = readUpload(socket, head);
+      seen.push(upload);
+      await upload;
+      rawReply(socket, hit === 1 ? 503 : 200, "Retry-After: 0");
+    });
+    let opens = 0;
+
+    const response = await put(
+      server,
+      BodySource.fromFactory(() => {
+        opens++;
+        return Readable.from([data]);
+      }),
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(server.hits).toBe(2);
+    expect(opens).toBe(2);
+    expect((await seen[0]!).bytes.equals(data)).toBe(true);
+    expect((await seen[1]!).bytes.equals(data)).toBe(true);
+
+    const failing = await serve(async (_self, socket, _hit, head) => {
+      await readUpload(socket, head);
+      rawReply(socket, 503, "Retry-After: 0");
+    });
+    const original = await put(failing, BodySource.once(Readable.from([data])));
+    expect(original.statusCode).toBe(503);
+    expect(failing.hits).toBe(1);
+
+    const resetting = await serve(async (_self, socket, _hit, head) => {
+      await readUpload(socket, head);
+      rawReset(socket);
+    });
+    await expect(
+      put(resetting, BodySource.once(Readable.from([data]))),
+    ).rejects.toBeInstanceOf(NetworkError);
+    expect(resetting.hits).toBe(1);
+  });
+
+  it("bhv streaming 027 a 307 or 308 with a single use upload is refused and the body is never buffered", async () => {
+    const data = patterned(20_000);
+    for (const status of [307, 308]) {
+      const landed: Array<Promise<Upload>> = [];
+      const target = await serve(async (_self, socket, _hit, head) => {
+        const upload = readUpload(socket, head);
+        landed.push(upload);
+        await upload;
+        rawReply(socket, 200);
+      });
+      const origin = await serve(async (_self, socket, _hit, head) => {
+        await readUpload(socket, head);
+        rawReply(socket, status, `Location: ${target.url("/items/final")}`);
+      });
+      const once = callerReadable(data);
+
+      const refused = await put(origin, BodySource.once(once)).then(
+        () => null,
+        (error: unknown) => error,
+      );
+
+      expect(refused).toBeInstanceOf(ApiError);
+      expect((refused as ApiError).message).toContain(
+        "Refusing to replay a streamed request body",
+      );
+      expect((refused as ApiError).statusCode).toBe(status);
+      expect(target.hits).toBe(0);
+      expect(origin.hits).toBe(1);
+      expect(once.destroyed).toBe(false);
+
+      const followed = await put(
+        origin,
+        BodySource.fromFactory(() => Readable.from([data])),
+      );
+      expect(followed.statusCode).toBe(200);
+      expect(landed).toHaveLength(1);
+      expect((await landed[0]!).bytes.equals(data)).toBe(true);
+    }
   });
 });

@@ -8,6 +8,7 @@
 import type { ApiClient, RequestOptions } from "../api-client.js";
 import { ApiError } from "../errors/api-error.js";
 import type { ApiResult } from "../api-result.js";
+import type { BodySource } from "../body-source.js";
 import type { ByteStream } from "../byte-stream.js";
 import type { Authenticator } from "../auth/authenticator.js";
 import { BaseApi } from "./base-api.js";
@@ -18,6 +19,11 @@ import type { DeepInput } from "../deep-input.js";
 import {
   ApiResponse,
   Pet,
+  PetArchivePage,
+  PetCatalogPage,
+  PetEventPage,
+  PetMatchPage,
+  PetNotePage,
   PetPassport,
   PetTreatment,
   Photo,
@@ -31,6 +37,12 @@ import type { GetPetByNameOptions } from "./options/get-pet-by-name-options.js";
 import type { GetPetByNoteOptions } from "./options/get-pet-by-note-options.js";
 import type { GetPetSummaryOptions } from "./options/get-pet-summary-options.js";
 import type { GetPetTagOptions } from "./options/get-pet-tag-options.js";
+import type { ListPetArchiveOptions } from "./options/list-pet-archive-options.js";
+import type { ListPetCatalogOptions } from "./options/list-pet-catalog-options.js";
+import type { ListPetEventsOptions } from "./options/list-pet-events-options.js";
+import type { ListPetFeedOptions } from "./options/list-pet-feed-options.js";
+import type { ListPetMatchesOptions } from "./options/list-pet-matches-options.js";
+import type { ListPetNotesOptions } from "./options/list-pet-notes-options.js";
 import type { SetPetPreferencesOptions } from "./options/set-pet-preferences-options.js";
 import type { UploadPetCertificateOptions } from "./options/upload-pet-certificate-options.js";
 import type { UploadPetDocumentOptions } from "./options/upload-pet-document-options.js";
@@ -414,15 +426,63 @@ export interface PetApiInterface {
     server?: GetStagingPetInfoServer,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<Pet>>;
+  listPetArchive(
+    options?: ListPetArchiveOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetArchivePage>;
+  listPetArchiveWithHttpInfo(
+    options?: ListPetArchiveOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetArchivePage>>;
+  listPetCatalog(
+    options?: ListPetCatalogOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetCatalogPage>;
+  listPetCatalogWithHttpInfo(
+    options?: ListPetCatalogOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetCatalogPage>>;
+  listPetEvents(
+    options?: ListPetEventsOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetEventPage>;
+  listPetEventsWithHttpInfo(
+    options?: ListPetEventsOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetEventPage>>;
+  listPetFeed(
+    options?: ListPetFeedOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Array<Pet>>;
+  listPetFeedWithHttpInfo(
+    options?: ListPetFeedOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<Pet>>>;
+  listPetMatches(
+    options?: ListPetMatchesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetMatchPage>;
+  listPetMatchesWithHttpInfo(
+    options?: ListPetMatchesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetMatchPage>>;
+  listPetNotes(
+    options?: ListPetNotesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetNotePage>;
+  listPetNotesWithHttpInfo(
+    options?: ListPetNotesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetNotePage>>;
   setPetAvatar(
     petId: number,
-    body: Buffer,
+    body: BodySource,
     requestContentType?: "image/jpeg" | "image/png" | "application/json",
     requestOptions?: RequestOptions,
   ): Promise<void>;
   setPetAvatarWithHttpInfo(
     petId: number,
-    body: Buffer,
+    body: BodySource,
     requestContentType?: "image/jpeg" | "image/png" | "application/json",
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<void>>;
@@ -2588,6 +2648,483 @@ export class PetApi extends BaseApi implements PetApiInterface {
   }
 
   /**
+   * Lists archived pets; it looks paged, and the generator option says it is not
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.cursor  (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return PetArchivePage
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetArchive(
+    options?: ListPetArchiveOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetArchivePage> {
+    const listPetArchiveResult = await this.listPetArchiveWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetArchiveResult.data == null) {
+      throw new ApiError(
+        listPetArchiveResult.statusCode,
+        "Expected a response body for listPetArchive but received none",
+        listPetArchiveResult.headers,
+        listPetArchiveResult.rawBody,
+        null,
+      );
+    }
+    return listPetArchiveResult.data as PetArchivePage;
+  }
+
+  /**
+   * Lists archived pets; it looks paged, and the generator option says it is not (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetArchiveWithHttpInfo(
+    options?: ListPetArchiveOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetArchivePage>> {
+    const path = `/pet/archive`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.cursor != null) {
+      queryParams["cursor"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "cursor",
+          options.cursor,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, PetArchivePage)!,
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetArchive",
+      requestOptions,
+      undefined,
+      "listPetArchive",
+      "/pet/archive",
+    );
+  }
+
+  /**
+   * Lists the pet catalog one page at a time with a next-cursor token
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.limit The number of pets on a page (optional)
+   * @param options.cursor Where to continue, as returned in next_cursor of the previous page (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return PetCatalogPage
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetCatalog(
+    options?: ListPetCatalogOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetCatalogPage> {
+    const listPetCatalogResult = await this.listPetCatalogWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetCatalogResult.data == null) {
+      throw new ApiError(
+        listPetCatalogResult.statusCode,
+        "Expected a response body for listPetCatalog but received none",
+        listPetCatalogResult.headers,
+        listPetCatalogResult.rawBody,
+        null,
+      );
+    }
+    return listPetCatalogResult.data as PetCatalogPage;
+  }
+
+  /**
+   * Lists the pet catalog one page at a time with a next-cursor token (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetCatalogWithHttpInfo(
+    options?: ListPetCatalogOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetCatalogPage>> {
+    const path = `/pet/catalog`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.limit != null) {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit",
+          options.limit,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.cursor != null) {
+      queryParams["cursor"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "cursor",
+          options.cursor,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, PetCatalogPage)!,
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetCatalog",
+      requestOptions,
+      undefined,
+      "listPetCatalog",
+      "/pet/catalog",
+    );
+  }
+
+  /**
+   * Lists pet events; only the generator option says it is paged
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.since  (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return PetEventPage
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetEvents(
+    options?: ListPetEventsOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetEventPage> {
+    const listPetEventsResult = await this.listPetEventsWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetEventsResult.data == null) {
+      throw new ApiError(
+        listPetEventsResult.statusCode,
+        "Expected a response body for listPetEvents but received none",
+        listPetEventsResult.headers,
+        listPetEventsResult.rawBody,
+        null,
+      );
+    }
+    return listPetEventsResult.data as PetEventPage;
+  }
+
+  /**
+   * Lists pet events; only the generator option says it is paged (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetEventsWithHttpInfo(
+    options?: ListPetEventsOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetEventPage>> {
+    const path = `/pet/events`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.since != null) {
+      queryParams["since"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "since",
+          options.since,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, PetEventPage)!,
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetEvents",
+      requestOptions,
+      undefined,
+      "listPetEvents",
+      "/pet/events",
+    );
+  }
+
+  /**
+   * Lists the pet feed one page at a time with a Link header
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.limit The number of pets on a page (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return Array<Pet>
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetFeed(
+    options?: ListPetFeedOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Array<Pet>> {
+    const listPetFeedResult = await this.listPetFeedWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetFeedResult.data == null) {
+      throw new ApiError(
+        listPetFeedResult.statusCode,
+        "Expected a response body for listPetFeed but received none",
+        listPetFeedResult.headers,
+        listPetFeedResult.rawBody,
+        null,
+      );
+    }
+    return listPetFeedResult.data as Array<Pet>;
+  }
+
+  /**
+   * Lists the pet feed one page at a time with a Link header (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetFeedWithHttpInfo(
+    options?: ListPetFeedOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Array<Pet>>> {
+    const path = `/pet/feed`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.limit != null) {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit",
+          options.limit,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserializeArray(json, Pet),
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetFeed",
+      requestOptions,
+      undefined,
+      "listPetFeed",
+      "/pet/feed",
+    );
+  }
+
+  /**
+   * Finds pets and their owners; two lists make it ambiguous, so it is not paged
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.cursor  (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return PetMatchPage
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetMatches(
+    options?: ListPetMatchesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetMatchPage> {
+    const listPetMatchesResult = await this.listPetMatchesWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetMatchesResult.data == null) {
+      throw new ApiError(
+        listPetMatchesResult.statusCode,
+        "Expected a response body for listPetMatches but received none",
+        listPetMatchesResult.headers,
+        listPetMatchesResult.rawBody,
+        null,
+      );
+    }
+    return listPetMatchesResult.data as PetMatchPage;
+  }
+
+  /**
+   * Finds pets and their owners; two lists make it ambiguous, so it is not paged (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetMatchesWithHttpInfo(
+    options?: ListPetMatchesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetMatchPage>> {
+    const path = `/pet/matches`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.cursor != null) {
+      queryParams["cursor"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "cursor",
+          options.cursor,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, PetMatchPage)!,
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetMatches",
+      requestOptions,
+      undefined,
+      "listPetMatches",
+      "/pet/matches",
+    );
+  }
+
+  /**
+   * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.pos  (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return PetNotePage
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetNotes(
+    options?: ListPetNotesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetNotePage> {
+    const listPetNotesResult = await this.listPetNotesWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetNotesResult.data == null) {
+      throw new ApiError(
+        listPetNotesResult.statusCode,
+        "Expected a response body for listPetNotes but received none",
+        listPetNotesResult.headers,
+        listPetNotesResult.rawBody,
+        null,
+      );
+    }
+    return listPetNotesResult.data as PetNotePage;
+  }
+
+  /**
+   * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetNotesWithHttpInfo(
+    options?: ListPetNotesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetNotePage>> {
+    const path = `/pet/notes`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.pos != null) {
+      queryParams["pos"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "pos",
+          options.pos,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, PetNotePage)!,
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetNotes",
+      requestOptions,
+      undefined,
+      "listPetNotes",
+      "/pet/notes",
+    );
+  }
+
+  /**
    * Set the pet's profile photo
    * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
    * @param petId  (required)
@@ -2599,7 +3136,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
    */
   async setPetAvatar(
     petId: number,
-    body: Buffer,
+    body: BodySource,
     requestContentType?: "image/jpeg" | "image/png" | "application/json",
     requestOptions?: RequestOptions,
   ): Promise<void> {
@@ -2619,7 +3156,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
    */
   async setPetAvatarWithHttpInfo(
     petId: number,
-    body: Buffer,
+    body: BodySource,
     requestContentType?: "image/jpeg" | "image/png" | "application/json",
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<void>> {

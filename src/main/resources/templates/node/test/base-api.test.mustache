@@ -23,6 +23,7 @@ import { InternalServerError } from '../src/errors/internal-server-error{{import
 import type { ApiClient, RequestOptions, SendRequestOptions } from '../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../src/api-http-response{{importFileExtension}}';
 import { ApiStreamResponse } from '../src/api-stream-response{{importFileExtension}}';
+import { BodySource } from '../src/body-source{{importFileExtension}}';
 import type { ByteStream } from '../src/byte-stream{{importFileExtension}}';
 import { JsonLinesStream } from '../src/json-lines-stream{{importFileExtension}}';
 import { SseStream } from '../src/sse-stream{{importFileExtension}}';
@@ -974,7 +975,7 @@ describe('BaseApi', () => {
       new Configuration({ baseUrl: 'http://localhost' }),
     );
     try {
-      await defaultApi.setPetAvatar(1, payload);
+      await defaultApi.setPetAvatar(1, BodySource.of(payload));
     } catch {
       // setPetAvatar returns void; the capturing client returns '{}' so nothing
       // should throw, but stay capture-only regardless.
@@ -988,7 +989,7 @@ describe('BaseApi', () => {
       new Configuration({ baseUrl: 'http://localhost' }),
     );
     try {
-      await pngApi.setPetAvatar(1, payload, 'image/png');
+      await pngApi.setPetAvatar(1, BodySource.of(payload), 'image/png');
     } catch {
       // capture-only, as above.
     }

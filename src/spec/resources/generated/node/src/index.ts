@@ -42,6 +42,12 @@ export type {
   SendStreamingOptions,
 } from "./api-client.js";
 export { ApiStreamResponse } from "./api-stream-response.js";
+export { BodySource } from "./body-source.js";
+export type {
+  BodyStream,
+  BodyStreamFactory,
+  OpenedBody,
+} from "./body-source.js";
 export { ByteStream } from "./byte-stream.js";
 export { JsonLinesStream } from "./json-lines-stream.js";
 export { SseStream } from "./sse-stream.js";

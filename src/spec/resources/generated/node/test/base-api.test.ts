@@ -35,6 +35,7 @@ import type {
 } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 import { ApiStreamResponse } from "../src/api-stream-response.js";
+import { BodySource } from "../src/body-source.js";
 import type { ByteStream } from "../src/byte-stream.js";
 import { JsonLinesStream } from "../src/json-lines-stream.js";
 import { SseStream } from "../src/sse-stream.js";
@@ -1717,7 +1718,7 @@ describe("BaseApi", () => {
       new Configuration({ baseUrl: "http://localhost" }),
     );
     try {
-      await defaultApi.setPetAvatar(1, payload);
+      await defaultApi.setPetAvatar(1, BodySource.of(payload));
     } catch {
       // setPetAvatar returns void; the capturing client returns '{}' so nothing
       // should throw, but stay capture-only regardless.
@@ -1731,7 +1732,7 @@ describe("BaseApi", () => {
       new Configuration({ baseUrl: "http://localhost" }),
     );
     try {
-      await pngApi.setPetAvatar(1, payload, "image/png");
+      await pngApi.setPetAvatar(1, BodySource.of(payload), "image/png");
     } catch {
       // capture-only, as above.
     }

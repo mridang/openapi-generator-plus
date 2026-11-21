@@ -169,7 +169,7 @@ When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a
 
 #### Renewal on 401
 
-When the API answers `401` to a call authenticated by OAuth2 or OpenID Connect, the authenticator drops the cached access token (`invalidateAccessToken()`, the refresh token is kept), obtains a new one and the call is replayed once. A second `401` is thrown as the usual `UnauthorizedError`. A multipart body is not replayed, and Bearer, Basic and API key authenticators never replay.
+When the API answers `401` to a call authenticated by OAuth2 or OpenID Connect, the authenticator drops the cached access token (`invalidateAccessToken()`, the refresh token is kept), obtains a new one and the call is replayed once. A second `401` is thrown as the usual `UnauthorizedError`. A single-use or multipart body is not replayed, and Bearer, Basic and API key authenticators never replay.
 
 #### PKCE
 
@@ -345,7 +345,7 @@ const client = new Client(authenticator, transport);
 
 ### Retries
 
-`TransportOptions.builder().maxRetries(n)` sets the automatic retries (default `2`, `0` disables them). A request is retried after a network error before any response and after a `408`, `409`, `429` or `5xx` other than `501`, waiting 0.5 s doubling to 8 s with up to 25% jitter or the server's `Retry-After` (at most 60 s). The retries share the single `timeout` and stop when the call is cancelled; each one rebuilds the headers and asks the authenticator again.
+`TransportOptions.builder().maxRetries(n)` sets the automatic retries (default `2`, `0` disables them). A request is retried after a network error before any response and after a `408`, `409`, `429` or `5xx` other than `501`, waiting 0.5 s doubling to 8 s with up to 25% jitter or the server's `Retry-After` (at most 60 s). The retries share the single `timeout` and stop when the call is cancelled; each one rebuilds the headers and asks the authenticator again; a single-use `BodySource` is never retried.
 
 ### Streaming
 
@@ -372,6 +372,8 @@ async function saveTo(
 ```
 
 The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `null` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `TypeError` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(bytes)`, `BodySource.ofFile(path)` or `BodySource.fromFactory(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
 
 An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Iterate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationError` and end the stream.
 
@@ -498,7 +500,7 @@ function copyOf(model: Account): Account {
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `Buffer | Blob` (a `File` is a `Blob`). A binary response body is returned as a `ByteStream`, a Web `ReadableStream` of `Uint8Array` (see Streaming).
+A raw binary request body is a `BodySource` (see Streaming). Multipart file parameters are typed as `Buffer | Blob` (a `File` is a `Blob`). A binary response body is returned as a `ByteStream`, a Web `ReadableStream` of `Uint8Array` (see Streaming).
 
 ## Comment Style
 

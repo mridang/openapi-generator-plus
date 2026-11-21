@@ -12,6 +12,7 @@ import { ApiError, SerializationError, {{errorPrefix}}Error } from '../errors/in
 import type { ErrorSchemas } from '../errors/index{{importFileExtension}}';
 import { AbstractApiClient } from '../abstract-api-client{{importFileExtension}}';
 import type { ApiStreamResponse } from '../api-stream-response{{importFileExtension}}';
+import { BodySource } from '../body-source{{importFileExtension}}';
 import { ByteStream } from '../byte-stream{{importFileExtension}}';
 import { JsonLinesStream } from '../json-lines-stream{{importFileExtension}}';
 import { SseStream } from '../sse-stream{{importFileExtension}}';
@@ -386,7 +387,17 @@ export abstract class BaseApi {
     const decoder = decode === null ? null : (data: string): T => decode(ObjectSerializer.parseJson(data));
     const signals = [this.config.signal, streamOptions?.signal].filter((s): s is AbortSignal => s != null);
     const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
-    return SseStream.open<T>(opener, decoder, terminator, streamOptions, body != null, method, BaseApi.pathOf(path), signal);
+    return SseStream.open<T>(
+      opener,
+      decoder,
+      terminator,
+      streamOptions,
+      body != null,
+      body instanceof BodySource && !body.replayable,
+      method,
+      BaseApi.pathOf(path),
+      signal
+    );
   }
 
   /**
@@ -622,7 +633,7 @@ export abstract class BaseApi {
         response.statusCode === 401 &&
         effectiveAuth != null &&
         typeof renewable?.invalidateAccessToken === 'function' &&
-        (serializedBody === null || typeof serializedBody === 'string' || Buffer.isBuffer(serializedBody))
+        BaseApi.isReplayableBody(serializedBody)
       ) {
         renewable.invalidateAccessToken();
         let freshAuthHeaders: Record<string, string> | null;
@@ -755,6 +766,14 @@ export abstract class BaseApi {
     return result.data;
   }
 
+  /**
+   * Whether a request can be sent again with the same body, which is what a 401
+   * replay needs: no body, text, bytes, or a replayable {@link BodySource}.
+   */
+  private static isReplayableBody(body: string | Buffer | Record<string, unknown> | BodySource | null): boolean {
+    return body === null || typeof body === 'string' || Buffer.isBuffer(body) || (body instanceof BodySource && body.replayable);
+  }
+
   /** The most of an error body a stream call reads before it raises the error. */
   private static readonly STREAM_ERROR_BODY_LIMIT = 64 * 1024;
 
@@ -769,7 +788,7 @@ export abstract class BaseApi {
     method: string,
     url: string,
     headers: Record<string, string>,
-    serializedBody: string | Buffer | Record<string, unknown> | null,
+    serializedBody: string | Buffer | Record<string, unknown> | BodySource | null,
     effectiveAuth: Authenticator | null,
     signal: AbortSignal | undefined,
     sendOptions: SendStreamingOptions
@@ -788,7 +807,7 @@ export abstract class BaseApi {
       response.statusCode === 401 &&
       effectiveAuth != null &&
       typeof renewable?.invalidateAccessToken === 'function' &&
-      (serializedBody === null || typeof serializedBody === 'string' || Buffer.isBuffer(serializedBody))
+      BaseApi.isReplayableBody(serializedBody)
     ) {
       renewable.invalidateAccessToken();
       let freshAuthHeaders: Record<string, string> | null;
@@ -1088,13 +1107,17 @@ export abstract class BaseApi {
     body: unknown,
     contentType: string,
     rawBody = false
-  ): string | Buffer | Record<string, unknown> | null {
+  ): string | Buffer | Record<string, unknown> | BodySource | null {
     if (body == null) {
       return null;
     }
     /* A `format: binary` request body is the caller's bytes, sent unchanged
      * under whichever declared Content-Type was selected (application/json
      * included): it is never routed through the JSON serializer. */
+    /* A BodySource is sent as it is read, whatever Content-Type was selected. */
+    if (body instanceof BodySource) {
+      return body;
+    }
     if (rawBody && (Buffer.isBuffer(body) || body instanceof Uint8Array || body instanceof Blob)) {
       return body as Buffer;
     }

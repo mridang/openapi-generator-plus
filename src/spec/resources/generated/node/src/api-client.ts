@@ -7,6 +7,7 @@
 
 import type { ApiHttpResponse } from "./api-http-response.js";
 import type { ApiStreamResponse } from "./api-stream-response.js";
+import type { BodySource } from "./body-source.js";
 
 /**
  * Per-request transport overrides accepted by {@link ApiClient.sendRequest}.
@@ -103,8 +104,9 @@ export interface ApiClient {
    * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
    * @param url Fully qualified URL
    * @param headers HTTP headers
-   * @param body Request body (serialized JSON string, raw Buffer for binary, or a
-   *   `Record<string, unknown>` for multipart form data; may be null)
+   * @param body Request body (serialized JSON string, raw Buffer for binary, a
+   *   `Record<string, unknown>` for multipart form data, or a {@link BodySource} for a streamed
+   *   upload, which a transport reads with `open()`; may be null)
    * @param options optional per-request transport overrides (e.g. `noRedirect`)
    * @returns ApiHttpResponse containing status code, body, and headers
    */
@@ -112,7 +114,7 @@ export interface ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
     options?: SendRequestOptions,
   ): Promise<ApiHttpResponse>;
 
@@ -143,7 +145,7 @@ export interface ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | Record<string, unknown> | null,
+    body: string | Buffer | Record<string, unknown> | BodySource | null,
     options?: SendStreamingOptions,
   ): Promise<ApiStreamResponse>;
 }

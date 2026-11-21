@@ -363,6 +363,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("web_api_client.mustache", "src", "default-api-client.web.ts"),
             new SupportingFileSpec("api_response.mustache", "src", "api-http-response.ts"),
             new SupportingFileSpec("api_stream_response.mustache", "src", "api-stream-response.ts"),
+            new SupportingFileSpec("body_source.mustache", "src", "body-source.ts"),
             new SupportingFileSpec("byte_stream.mustache", "src", "byte-stream.ts"),
             new SupportingFileSpec("event_stream.mustache", "src", "event-stream.ts"),
             new SupportingFileSpec("server_sent_event.mustache", "src", "server-sent-event.ts"),
@@ -991,10 +992,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             if (ops != null) {
                 boolean hasEnums = false;
                 boolean hasBinaryStream = false;
+                boolean hasBinaryUpload = false;
                 boolean hasSseStream = false;
                 boolean hasJsonLinesStream = false;
                 for (final CodegenOperation op : ops) {
                     hasBinaryStream |= markBinaryStream(op);
+                    hasBinaryUpload |= markBinaryUpload(op);
                     final Object marked = op.vendorExtensions.get("op");
                     if (marked instanceof Map) {
                         hasSseStream |=
@@ -1023,6 +1026,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     }
                 }
                 objs.put("hasBinaryStream", hasBinaryStream);
+                objs.put("hasBinaryUpload", hasBinaryUpload);
                 objs.put("hasSseStream", hasSseStream);
                 objs.put("hasJsonLinesStream", hasJsonLinesStream);
                 objs.put("hasStreamOptions", hasSseStream || hasJsonLinesStream);
@@ -1110,6 +1114,35 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
         }
         return binary;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of a {@code Buffer}, so a large upload never has to fit in memory. It
+     * runs before the request wrapper is built from the body type. Multipart and every other body
+     * kind keep the type the spec maps.
+     *
+     * @return whether the operation takes a {@code BodySource}
+     */
+    static boolean markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return false;
+        }
+        body.dataType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
+        return true;
     }
 
     /** Item types of a stream that are not generated model classes. */
@@ -1468,6 +1501,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * primitive-array bodies are returned unchanged — there is no class to relax.
      */
     private String deepInputType(CodegenParameter body) {
+        if ("BodySource".equals(body.dataType)) {
+            return body.dataType;
+        }
         final boolean elementIsModel =
                 body.items != null
                         && !body.items.isPrimitiveType

@@ -3,6 +3,9 @@
 import type { ApiClient, RequestOptions } from '../api-client{{importFileExtension}}';
 import { ApiError } from '../errors/api-error{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
+{{#hasBinaryUpload}}
+import type { BodySource } from '../body-source{{importFileExtension}}';
+{{/hasBinaryUpload}}
 {{#hasBinaryStream}}
 import type { ByteStream } from '../byte-stream{{importFileExtension}}';
 {{/hasBinaryStream}}
