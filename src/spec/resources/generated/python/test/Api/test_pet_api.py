@@ -47,6 +47,7 @@ from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
 from petstore_client.api_client import ApiClient
 from petstore_client.api_http_response import ApiHttpResponse
+from petstore_client.body_source import BodySource
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
@@ -273,7 +274,7 @@ class TestPetApi:
         assert True
 
     async def test_bhv_operations_070_set_pet_avatar(self) -> None:
-        await self.api.set_pet_avatar(1, b"\xff\xd8\xff")
+        await self.api.set_pet_avatar(1, BodySource.of(b"\xff\xd8\xff"))
 
         assert True
 
@@ -284,7 +285,9 @@ class TestPetApi:
         # not passed onto the wire as an undeclared Content-Type.
         with pytest.raises(ValueError) as excinfo:
             await self.api.set_pet_avatar(
-                1, b"\xff\xd8\xff", request_content_type="application/unknown-type"
+                1,
+                BodySource.of(b"\xff\xd8\xff"),
+                request_content_type="application/unknown-type",
             )
         assert str(excinfo.value) == (
             "Unsupported request content-type 'application/unknown-type' for "
@@ -324,7 +327,7 @@ class TestPetApi:
         config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
         api = PetApi(config=config)
 
-        await api.set_pet_avatar(1, payload)
+        await api.set_pet_avatar(1, BodySource.of(payload))
 
         assert captured.get("body") == payload
         assert captured.get("content_type") == "image/jpeg"
@@ -372,9 +375,11 @@ class TestPetApi:
         api = PetApi(config=config)
 
         # (1) No selector — defaults to the first declared content type.
-        await api.set_pet_avatar(1, payload)
+        await api.set_pet_avatar(1, BodySource.of(payload))
         # (2) Selector set to image/png — overrides the Content-Type header.
-        await api.set_pet_avatar(1, payload, request_content_type="image/png")
+        await api.set_pet_avatar(
+            1, BodySource.of(payload), request_content_type="image/png"
+        )
 
         assert len(captured) == 2
         assert captured[0]["body"] == payload
@@ -922,9 +927,12 @@ class TestPetApi:
             config=Configuration.builder().base_url("http://localhost").build(),
         )
         await api.set_pet_avatar(
-            1, b"\xff\xd8\xff\xe0", request_content_type="application/json"
+            1,
+            BodySource.of(b"\xff\xd8\xff\xe0"),
+            request_content_type="application/json",
         )
-        assert client.body == b"\xff\xd8\xff\xe0"
+        assert isinstance(client.body, BodySource)
+        assert b"".join(client.body.open()) == b"\xff\xd8\xff\xe0"
         assert client.headers.get("Content-Type") == "application/json"
 
     async def test_bhv_operations_077_set_pet_avatar_thumbnail_byte_body_stays_base64(

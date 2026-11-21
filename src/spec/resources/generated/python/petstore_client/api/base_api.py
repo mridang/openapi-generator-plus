@@ -36,6 +36,7 @@ from ..api_client import ApiClient, StreamingApiClient
 from ..api_http_response import ApiHttpResponse
 from ..api_result import ApiResult
 from ..api_stream_response import ApiStreamResponse
+from ..body_source import BodySource
 from ..byte_stream import ByteStream
 from ..json_lines_stream import JsonLinesStream
 from ..sse_stream import SseStream
@@ -103,6 +104,8 @@ _IDEMPOTENT_METHODS = frozenset(
 
 def _is_replayable(body: Any) -> bool:
     """A body can be sent again only if no part of it is a one-shot stream."""
+    if isinstance(body, BodySource):
+        return body.replayable
     if hasattr(body, "read"):
         return False
     if isinstance(body, dict):
@@ -449,7 +452,8 @@ class BaseApi:
                             parts.append(encoded)
                 query_string = "&".join(parts)
                 if query_string:
-                    url += "?" + query_string
+                    # A paged list's next URL may carry a query of its own.
+                    url += ("&" if "?" in url else "?") + query_string
 
         call_headers = request_options.headers if request_options is not None else None
         call_timeout = request_options.timeout if request_options is not None else None
@@ -574,7 +578,7 @@ class BaseApi:
                 elif raw_body:
                     # The operation's body is format: binary. Whatever declared
                     # Content-Type the caller selected (application/json included),
-                    # the caller's bytes / stream go out verbatim; the selector only
+                    # the caller's bytes / body source go out verbatim; the selector only
                     # changes the header, it never re-encodes the payload.
                     serialized_body = body
                 elif content_type is not None and (
@@ -595,9 +599,9 @@ class BaseApi:
                     if isinstance(body, dict):
                         binary_part = None
                         for _part_value in body.values():
-                            if isinstance(_part_value, (bytes, bytearray)) or hasattr(
-                                _part_value, "read"
-                            ):
+                            if isinstance(
+                                _part_value, (bytes, bytearray, BodySource)
+                            ) or hasattr(_part_value, "read"):
                                 binary_part = _part_value
                                 break
                         serialized_body = (
@@ -654,6 +658,9 @@ class BaseApi:
                     serialized_body = urlencode(form_pairs, doseq=True)
                 else:
                     serialized_body = self._object_serializer.serialize(body)
+            if isinstance(serialized_body, BodySource):
+                # An async stream is read from the worker thread that sends it, on this loop.
+                serialized_body._bind_loop(asyncio.get_running_loop())
 
             if stream:
                 try:
@@ -913,8 +920,10 @@ class BaseApi:
         send: Callable[[Dict[str, str], Optional[float]], Awaitable[_Resp]],
     ) -> _Resp:
         client = self._api_client
-        replayable = body is None or isinstance(
-            body, (str, bytes, bytearray, memoryview)
+        replayable = (
+            body is None
+            or isinstance(body, (str, bytes, bytearray, memoryview))
+            or (isinstance(body, BodySource) and body.replayable)
         )
         max_retries = 0
         timeout = call_timeout
@@ -1358,6 +1367,7 @@ class BaseApi:
             body is not None,
             method,
             urlsplit(path).path,
+            single_use_body=isinstance(body, BodySource) and not body.replayable,
         )
 
     async def _invoke_api(

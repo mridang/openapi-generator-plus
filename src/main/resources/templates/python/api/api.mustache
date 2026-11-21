@@ -158,6 +158,9 @@ class {{classname}}Protocol(Protocol):
         """The ``{{operationId}}_stream`` operation: its {{#vendorExtensions.op.streamsSse}}server-sent events{{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}JSON Lines items{{/vendorExtensions.op.streamsJsonLines}} as a stream."""
         ...
 {{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_protocol}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/operation}}
 
 
@@ -415,7 +418,36 @@ class {{classname}}(BaseApi):
             This operation is deprecated.
 {{/isDeprecated}}
         """
+{{#vendorExtensions.op.pagination.isLink}}
+        return await self._{{operationId}}_page(
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isPath}}
+            {{paramName}},
+{{/isPath}}
+{{#isBody}}
+            {{paramName}},
+{{/isBody}}
+{{#isOptions}}
+            options=options,
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+{{#vendorExtensions.hasMultipleConsumes}}
+            request_content_type=request_content_type,
+{{/vendorExtensions.hasMultipleConsumes}}
+        )
+
+    async def _{{operationId}}_page(
+        self,
+{{>api/operation_args}}        page_url: Optional[str] = None,
+    ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
+        """One page of the list: the first when ``page_url`` is ``None``, else the URL the ``Link`` header named."""
+{{/vendorExtensions.op.pagination.isLink}}
 {{>api/operation_prelude}}
+{{#vendorExtensions.op.pagination.isLink}}
+        if page_url is not None:
+            path = page_url
+            query_params.clear()
+{{/vendorExtensions.op.pagination.isLink}}
 {{^vendorExtensions.op.streamsBinary}}
 {{#vendorExtensions.op.hasMultiple2xx}}
         def decode_success(status_code: int, body: str) -> Any:
@@ -467,5 +499,8 @@ class {{classname}}(BaseApi):
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
         )
 {{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/operation}}
 {{/operations}}

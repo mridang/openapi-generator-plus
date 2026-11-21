@@ -1,0 +1,31 @@
+{{>api_info}}
+
+from typing import Optional
+
+from {{packageName}}.errors import {{errorPrefix}}Exception
+
+
+class PaginationException({{errorPrefix}}Exception):
+    """Raised when a paged list cannot be followed safely.
+
+    The server returned the cursor that was just sent, so asking again would loop forever, or a
+    ``Link`` header pointed to another origin, so following it would send the credentials there. It
+    is not a network error and not an API error: it is a direct child of
+    :class:`{{errorPrefix}}Exception`, and the items already delivered are complete and correct. A
+    failed page request raises the SDK error of that failure instead.
+    """
+
+    def __init__(self, message: str, request_path: Optional[str] = None) -> None:
+        super().__init__(message)
+        self._message = message
+        self._request_path = request_path.split('?', 1)[0] if request_path is not None else None
+
+    @property
+    def message(self) -> str:
+        """What made the list impossible to follow; it never holds a query string."""
+        return self._message
+
+    @property
+    def request_path(self) -> Optional[str]:
+        """The path of the request whose response could not be followed, without its query."""
+        return self._request_path

@@ -14,14 +14,22 @@ from pydantic import StrictInt, StrictStr
 
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.pet import Pet
+from petstore_client.models.pet_archive_page import PetArchivePage
+from petstore_client.models.pet_catalog_page import PetCatalogPage
+from petstore_client.models.pet_event_page import PetEventPage
+from petstore_client.models.pet_match_page import PetMatchPage
+from petstore_client.models.pet_note_page import PetNotePage
 from petstore_client.models.pet_passport import PetPassport
 from petstore_client.models.pet_treatment import PetTreatment
 from petstore_client.models.photo import Photo
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest,
 )
+from dataclasses import replace as _replace_options
 from datetime import date
+from petstore_client.body_source import BodySource
 from petstore_client.byte_stream import ByteStream
+from petstore_client.paginator import Paginator
 
 from ..api_client import ApiClient
 from ..api_result import ApiResult
@@ -50,6 +58,12 @@ from .options.get_pet_photo_options import GetPetPhotoOptions
 from .options.get_pet_summary_options import GetPetSummaryOptions
 from .options.get_pet_tag_options import GetPetTagOptions
 from .options.get_staging_pet_info_options import GetStagingPetInfoOptions
+from .options.list_pet_archive_options import ListPetArchiveOptions
+from .options.list_pet_catalog_options import ListPetCatalogOptions
+from .options.list_pet_events_options import ListPetEventsOptions
+from .options.list_pet_feed_options import ListPetFeedOptions
+from .options.list_pet_matches_options import ListPetMatchesOptions
+from .options.list_pet_notes_options import ListPetNotesOptions
 from .options.set_pet_avatar_options import SetPetAvatarOptions
 from .options.set_pet_avatar_thumbnail_options import SetPetAvatarThumbnailOptions
 from .options.set_pet_preferences_options import SetPetPreferencesOptions
@@ -539,10 +553,122 @@ class PetApiProtocol(Protocol):
         """The ``get_staging_pet_info`` operation with its status code, headers and body."""
         ...
 
+    async def list_pet_archive(
+        self,
+        options: Optional[ListPetArchiveOptions] = None,
+    ) -> PetArchivePage:
+        """The ``list_pet_archive`` operation."""
+        ...
+
+    async def list_pet_archive_with_http_info(
+        self,
+        options: Optional[ListPetArchiveOptions] = None,
+    ) -> "ApiResult[PetArchivePage]":
+        """The ``list_pet_archive`` operation with its status code, headers and body."""
+        ...
+
+    async def list_pet_catalog(
+        self,
+        options: Optional[ListPetCatalogOptions] = None,
+    ) -> PetCatalogPage:
+        """The ``list_pet_catalog`` operation."""
+        ...
+
+    async def list_pet_catalog_with_http_info(
+        self,
+        options: Optional[ListPetCatalogOptions] = None,
+    ) -> "ApiResult[PetCatalogPage]":
+        """The ``list_pet_catalog`` operation with its status code, headers and body."""
+        ...
+
+    def list_pet_catalog_pages(
+        self,
+        options: Optional[ListPetCatalogOptions] = None,
+    ) -> "Paginator[Pet, StrictStr]":
+        """The ``list_pet_catalog_pages`` operation: the items of a paged list as a lazy paginator."""
+        ...
+
+    async def list_pet_events(
+        self,
+        options: Optional[ListPetEventsOptions] = None,
+    ) -> PetEventPage:
+        """The ``list_pet_events`` operation."""
+        ...
+
+    async def list_pet_events_with_http_info(
+        self,
+        options: Optional[ListPetEventsOptions] = None,
+    ) -> "ApiResult[PetEventPage]":
+        """The ``list_pet_events`` operation with its status code, headers and body."""
+        ...
+
+    def list_pet_events_pages(
+        self,
+        options: Optional[ListPetEventsOptions] = None,
+    ) -> "Paginator[StrictStr, StrictStr]":
+        """The ``list_pet_events_pages`` operation: the items of a paged list as a lazy paginator."""
+        ...
+
+    async def list_pet_feed(
+        self,
+        options: Optional[ListPetFeedOptions] = None,
+    ) -> List[Pet]:
+        """The ``list_pet_feed`` operation."""
+        ...
+
+    async def list_pet_feed_with_http_info(
+        self,
+        options: Optional[ListPetFeedOptions] = None,
+    ) -> "ApiResult[List[Pet]]":
+        """The ``list_pet_feed`` operation with its status code, headers and body."""
+        ...
+
+    def list_pet_feed_pages(
+        self,
+        options: Optional[ListPetFeedOptions] = None,
+    ) -> "Paginator[Pet, None]":
+        """The ``list_pet_feed_pages`` operation: the items of a paged list as a lazy paginator."""
+        ...
+
+    async def list_pet_matches(
+        self,
+        options: Optional[ListPetMatchesOptions] = None,
+    ) -> PetMatchPage:
+        """The ``list_pet_matches`` operation."""
+        ...
+
+    async def list_pet_matches_with_http_info(
+        self,
+        options: Optional[ListPetMatchesOptions] = None,
+    ) -> "ApiResult[PetMatchPage]":
+        """The ``list_pet_matches`` operation with its status code, headers and body."""
+        ...
+
+    async def list_pet_notes(
+        self,
+        options: Optional[ListPetNotesOptions] = None,
+    ) -> PetNotePage:
+        """The ``list_pet_notes`` operation."""
+        ...
+
+    async def list_pet_notes_with_http_info(
+        self,
+        options: Optional[ListPetNotesOptions] = None,
+    ) -> "ApiResult[PetNotePage]":
+        """The ``list_pet_notes`` operation with its status code, headers and body."""
+        ...
+
+    def list_pet_notes_pages(
+        self,
+        options: Optional[ListPetNotesOptions] = None,
+    ) -> "Paginator[StrictStr, StrictStr]":
+        """The ``list_pet_notes_pages`` operation: the items of a paged list as a lazy paginator."""
+        ...
+
     async def set_pet_avatar(
         self,
         pet_id: StrictInt,
-        body: bytes,
+        body: BodySource,
         options: Optional[SetPetAvatarOptions] = None,
         request_content_type: Optional[str] = None,
     ) -> None:
@@ -552,7 +678,7 @@ class PetApiProtocol(Protocol):
     async def set_pet_avatar_with_http_info(
         self,
         pet_id: StrictInt,
-        body: bytes,
+        body: BodySource,
         options: Optional[SetPetAvatarOptions] = None,
         request_content_type: Optional[str] = None,
     ) -> "ApiResult[None]":
@@ -2663,10 +2789,593 @@ class PetApi(BaseApi):
             request_options=options,
         )
 
+    async def list_pet_archive(
+        self,
+        options: Optional[ListPetArchiveOptions] = None,
+    ) -> PetArchivePage:
+        """Lists archived pets; it looks paged, and the generator option says it is not
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: PetArchivePage
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.list_pet_archive_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for list_pet_archive but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def list_pet_archive_with_http_info(
+        self,
+        options: Optional[ListPetArchiveOptions] = None,
+    ) -> "ApiResult[PetArchivePage]":
+        """Lists archived pets; it looks paged, and the generator option says it is not (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/pet/archive"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.cursor is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "cursor",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "cursor",
+                            options.cursor,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "PetArchivePage",
+            self._scheme_authenticator("petStoreBearer"),
+            operation_name="list_pet_archive",
+            operation_id="listPetArchive",
+            url_template="/pet/archive",
+            request_options=options,
+        )
+
+    async def list_pet_catalog(
+        self,
+        options: Optional[ListPetCatalogOptions] = None,
+    ) -> PetCatalogPage:
+        """Lists the pet catalog one page at a time with a next-cursor token
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: PetCatalogPage
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.list_pet_catalog_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for list_pet_catalog but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def list_pet_catalog_with_http_info(
+        self,
+        options: Optional[ListPetCatalogOptions] = None,
+    ) -> "ApiResult[PetCatalogPage]":
+        """Lists the pet catalog one page at a time with a next-cursor token (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/pet/catalog"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.limit is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "limit",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "limit",
+                            options.limit,
+                            "query",
+                            "StrictInt",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        if options is not None and options.cursor is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "cursor",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "cursor",
+                            options.cursor,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "PetCatalogPage",
+            self._scheme_authenticator("petStoreBearer"),
+            operation_name="list_pet_catalog",
+            operation_id="listPetCatalog",
+            url_template="/pet/catalog",
+            request_options=options,
+        )
+
+    def list_pet_catalog_pages(
+        self,
+        options: Optional[ListPetCatalogOptions] = None,
+    ) -> "Paginator[Pet, StrictStr]":
+        """Lists the pet catalog one page at a time with a next-cursor token (as a paginator)
+
+        Returns the items as a lazy :class:`Paginator`: no request is sent until you first read an
+        item or a page, and each next page is requested only when you ask for more. Every page is
+        an ordinary call of :meth:`list_pet_catalog_with_http_info`, with the same options on each page.
+        The value of the ``cursor`` option is where the list starts, and the
+        page after each one is requested with the ``next_cursor`` it returned.
+
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget, repeated on every page
+        :return: the paginator over the items
+        """
+        page_options = options if options is not None else ListPetCatalogOptions()
+
+        async def fetch(cursor: Optional[StrictStr]) -> "ApiResult[PetCatalogPage]":
+            return await self.list_pet_catalog_with_http_info(
+                options=_replace_options(page_options, cursor=cursor),
+            )
+
+        return Paginator.of_cursor(
+            page_options.cursor,
+            fetch,
+            lambda page: page.items,
+            lambda page: page.next_cursor,
+            "/pet/catalog",
+        )
+
+    async def list_pet_events(
+        self,
+        options: Optional[ListPetEventsOptions] = None,
+    ) -> PetEventPage:
+        """Lists pet events; only the generator option says it is paged
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: PetEventPage
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.list_pet_events_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for list_pet_events but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def list_pet_events_with_http_info(
+        self,
+        options: Optional[ListPetEventsOptions] = None,
+    ) -> "ApiResult[PetEventPage]":
+        """Lists pet events; only the generator option says it is paged (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/pet/events"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.since is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "since",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "since",
+                            options.since,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "PetEventPage",
+            self._scheme_authenticator("petStoreBearer"),
+            operation_name="list_pet_events",
+            operation_id="listPetEvents",
+            url_template="/pet/events",
+            request_options=options,
+        )
+
+    def list_pet_events_pages(
+        self,
+        options: Optional[ListPetEventsOptions] = None,
+    ) -> "Paginator[StrictStr, StrictStr]":
+        """Lists pet events; only the generator option says it is paged (as a paginator)
+
+        Returns the items as a lazy :class:`Paginator`: no request is sent until you first read an
+        item or a page, and each next page is requested only when you ask for more. Every page is
+        an ordinary call of :meth:`list_pet_events_with_http_info`, with the same options on each page.
+        The value of the ``since`` option is where the list starts, and the
+        page after each one is requested with the ``upto`` it returned.
+
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget, repeated on every page
+        :return: the paginator over the items
+        """
+        page_options = options if options is not None else ListPetEventsOptions()
+
+        async def fetch(cursor: Optional[StrictStr]) -> "ApiResult[PetEventPage]":
+            return await self.list_pet_events_with_http_info(
+                options=_replace_options(page_options, since=cursor),
+            )
+
+        return Paginator.of_cursor(
+            page_options.since,
+            fetch,
+            lambda page: page.events,
+            lambda page: page.upto,
+            "/pet/events",
+        )
+
+    async def list_pet_feed(
+        self,
+        options: Optional[ListPetFeedOptions] = None,
+    ) -> List[Pet]:
+        """Lists the pet feed one page at a time with a Link header
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: List[Pet]
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.list_pet_feed_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for list_pet_feed but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def list_pet_feed_with_http_info(
+        self,
+        options: Optional[ListPetFeedOptions] = None,
+    ) -> "ApiResult[List[Pet]]":
+        """Lists the pet feed one page at a time with a Link header (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        return await self._list_pet_feed_page(
+            options=options,
+        )
+
+    async def _list_pet_feed_page(
+        self,
+        options: Optional[ListPetFeedOptions] = None,
+        page_url: Optional[str] = None,
+    ) -> "ApiResult[List[Pet]]":
+        """One page of the list: the first when ``page_url`` is ``None``, else the URL the ``Link`` header named."""
+        path = "/pet/feed"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.limit is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "limit",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "limit",
+                            options.limit,
+                            "query",
+                            "StrictInt",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        header_params: Dict[str, str] = {}
+        body = None
+        if page_url is not None:
+            path = page_url
+            query_params.clear()
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "List[Pet]",
+            self._scheme_authenticator("petStoreBearer"),
+            operation_name="list_pet_feed",
+            operation_id="listPetFeed",
+            url_template="/pet/feed",
+            request_options=options,
+        )
+
+    def list_pet_feed_pages(
+        self,
+        options: Optional[ListPetFeedOptions] = None,
+    ) -> "Paginator[Pet, None]":
+        """Lists the pet feed one page at a time with a Link header (as a paginator)
+
+        Returns the items as a lazy :class:`Paginator`: no request is sent until you first read an
+        item or a page, and each next page is requested only when you ask for more. Every page is
+        an ordinary call of :meth:`list_pet_feed_with_http_info`, with the same options on each page.
+        The page after each one is the ``rel="next"`` link of its ``Link`` header, followed only
+        within the origin of the client.
+
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget, repeated on every page
+        :return: the paginator over the items
+        """
+        page_options = options if options is not None else ListPetFeedOptions()
+
+        async def fetch(page_url: Optional[str]) -> "ApiResult[List[Pet]]":
+            return await self._list_pet_feed_page(
+                options=page_options,
+                page_url=page_url,
+            )
+
+        return Paginator.of_link(
+            self._config.base_url,
+            fetch,
+            lambda page: page,
+            "/pet/feed",
+        )
+
+    async def list_pet_matches(
+        self,
+        options: Optional[ListPetMatchesOptions] = None,
+    ) -> PetMatchPage:
+        """Finds pets and their owners; two lists make it ambiguous, so it is not paged
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: PetMatchPage
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.list_pet_matches_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for list_pet_matches but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def list_pet_matches_with_http_info(
+        self,
+        options: Optional[ListPetMatchesOptions] = None,
+    ) -> "ApiResult[PetMatchPage]":
+        """Finds pets and their owners; two lists make it ambiguous, so it is not paged (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/pet/matches"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.cursor is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "cursor",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "cursor",
+                            options.cursor,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "PetMatchPage",
+            self._scheme_authenticator("petStoreBearer"),
+            operation_name="list_pet_matches",
+            operation_id="listPetMatches",
+            url_template="/pet/matches",
+            request_options=options,
+        )
+
+    async def list_pet_notes(
+        self,
+        options: Optional[ListPetNotesOptions] = None,
+    ) -> PetNotePage:
+        """Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: PetNotePage
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.list_pet_notes_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for list_pet_notes but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def list_pet_notes_with_http_info(
+        self,
+        options: Optional[ListPetNotesOptions] = None,
+    ) -> "ApiResult[PetNotePage]":
+        """Lists pet notes; the names are not a known cursor, a vendor hint says it is paged (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/pet/notes"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.pos is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "pos",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "pos", options.pos, "query", "StrictStr", None, "form", True
+                        ),
+                        False,
+                    ),
+                )
+            )
+        header_params: Dict[str, str] = {}
+        body = None
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "PetNotePage",
+            self._scheme_authenticator("petStoreBearer"),
+            operation_name="list_pet_notes",
+            operation_id="listPetNotes",
+            url_template="/pet/notes",
+            request_options=options,
+        )
+
+    def list_pet_notes_pages(
+        self,
+        options: Optional[ListPetNotesOptions] = None,
+    ) -> "Paginator[StrictStr, StrictStr]":
+        """Lists pet notes; the names are not a known cursor, a vendor hint says it is paged (as a paginator)
+
+        Returns the items as a lazy :class:`Paginator`: no request is sent until you first read an
+        item or a page, and each next page is requested only when you ask for more. Every page is
+        an ordinary call of :meth:`list_pet_notes_with_http_info`, with the same options on each page.
+        The value of the ``pos`` option is where the list starts, and the
+        page after each one is requested with the ``following`` it returned.
+
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget, repeated on every page
+        :return: the paginator over the items
+        """
+        page_options = options if options is not None else ListPetNotesOptions()
+
+        async def fetch(cursor: Optional[StrictStr]) -> "ApiResult[PetNotePage]":
+            return await self.list_pet_notes_with_http_info(
+                options=_replace_options(page_options, pos=cursor),
+            )
+
+        return Paginator.of_cursor(
+            page_options.pos,
+            fetch,
+            lambda page: page.rows,
+            lambda page: page.following,
+            "/pet/notes",
+        )
+
     async def set_pet_avatar(
         self,
         pet_id: StrictInt,
-        body: bytes,
+        body: BodySource,
         options: Optional[SetPetAvatarOptions] = None,
         request_content_type: Optional[str] = None,
     ) -> None:
@@ -2691,7 +3400,7 @@ class PetApi(BaseApi):
     async def set_pet_avatar_with_http_info(
         self,
         pet_id: StrictInt,
-        body: bytes,
+        body: BodySource,
         options: Optional[SetPetAvatarOptions] = None,
         request_content_type: Optional[str] = None,
     ) -> "ApiResult[None]":
