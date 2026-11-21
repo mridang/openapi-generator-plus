@@ -97,6 +97,8 @@ end
 
 The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `Client.close/1` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `RuntimeError` naming it, and its buffered calls keep working.
 
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(bytes)`, `BodySource.of_file(path)` or `BodySource.from_factory(factory)` (a function that opens a fresh stream each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is returned unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
 An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered function. It has a `<operation>_stream` function that takes the operation's parameters, its options struct and the trailing `opts` keyword list that carries the stream settings, and returns `{:ok, stream}`, a `JsonLinesStream` of the schema type or an `SseStream` of `ServerSentEvent` (`id`, `event`, `data`, `retry` and the raw `data` text; the `data` is the schema of the `data`, or a string). Enumerate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `max_event_bytes` (1 MiB), raise `SerializationError` and end the stream.
 
 ```elixir file
@@ -128,6 +130,30 @@ end
 ```
 
 An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnect_delay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `max_reconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `Client.close/1`. An event named `error` raises `ApiError` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `opts` also takes `idle_timeout` and `last_event_id`.
+
+### Pagination
+
+An operation that returns a list one page at a time has a `<operation>_pages` function next to its plain function. It takes the same parameters in the same order and returns a `Paginator`, an `Enumerable` of the items. The function sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Enumerate the paginator for the items, or call `Paginator.pages/1` for `Page` structs with `items`, `next_cursor` and `result`, the same `ApiResult` that the `_with_http_info` variant returns, so the status and headers stay reachable. Enumerating again starts again from the starting position.
+
+```elixir file
+defmodule ListEverything do
+  def read(client, options) do
+    list = PetstoreClient.Api.PetApi.list_pet_catalog_pages(client.pet, options)
+
+    Enum.each(list, fn item -> IO.inspect(item) end)
+
+    for page <- PetstoreClient.Paginator.pages(list) do
+      IO.puts("#{length(page.items)} items, status #{page.result.status_code}")
+    end
+  end
+end
+```
+
+The cursor you pass to the function is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the enumeration; the SDK never skips a page. A list ends when the next cursor is absent, `nil` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationError`, a member of the `OpenAPIError` family, after its items were delivered, instead of looping. There is no total limit and no collect-all: use `Enum.take/2`.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationError` and nothing, no credentials either, is sent to it; such a function has no starting cursor, so it cannot resume.
+
+The generator finds a paged operation by its names: a GET with one JSON 2xx response that has one array property, and either one cursor query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker` paired with one next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type, or a `Link` header declared on the response. An operation that is ambiguous, or is streamed, keeps only its plain function, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty}`) wins over a hint and over inference, and `pagination=off` switches the feature off.
 
 ### Custom HTTP client
 
@@ -412,7 +438,7 @@ A model is a struct, and a struct never changes in place. Make a changed copy wi
 - An optional property that is absent and a property that is `null` both decode to `nil`; the model cannot tell them apart. A required property that is also nullable must be present, and an explicit `null` is kept. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
 - An enum value the SDK does not know decodes to the catch-all member `:unknown_default_open_api`, which has no wire value, so writing it raises a `SerializationError`; a discriminator value the SDK does not know still raises a `SerializationError`.
 - A response header that repeats arrives as one entry in `headers`, its values joined with `, ` and its name in lower case.
-- A request body and a JSON, text or form response body are held in memory. A binary, JSON Lines or server-sent events response is a stream (see the Streaming section).
+- A request body (except a raw binary upload, which is a `BodySource`) and a JSON, text or form response body are held in memory. A binary, JSON Lines or server-sent events response is a stream (see the Streaming section).
 - `Configuration` (the base URL and the headers of API calls) and `TransportOptions` (proxy, TLS, timeouts, retries) stay separate structs on purpose: the first describes the API, the second the connection.
 
 ## Caveats

@@ -69,6 +69,12 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> early = (Map<String, Object>) objs.get("operations");
+        if (early != null && early.get("operation") != null) {
+            for (final CodegenOperation op : (List<CodegenOperation>) early.get("operation")) {
+                markBinaryUpload(op, moduleName);
+            }
+        }
         final OperationsMap processed = super.postProcessOperationsWithModels(objs, allModels);
         final Map<String, Object> operations = (Map<String, Object>) processed.get("operations");
         if (operations != null) {
@@ -81,6 +87,35 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             }
         }
         return processed;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of the bytes. It runs before the shared pass, which copies the body type
+     * into the signature arguments. Multipart and every other body kind keep the type the spec
+     * maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op, final String moduleName) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        final String type = moduleName + ".BodySource.t()";
+        body.dataType = type;
+        body.baseType = type;
+        body.datatypeWithEnum = type;
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = type;
+                    p.baseType = type;
+                    p.datatypeWithEnum = type;
+                }
+            }
+        }
     }
 
     /**
@@ -120,7 +155,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * Hands the README and SKILLS the first paged operation, as {@code pagedOperation}, and the first operation that returns a {@code ByteStream}, as
      * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
      * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
      * spec under generation. Nothing is rendered when the spec has none.
@@ -128,8 +163,8 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
-        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
         for (int kind = 0; kind < flags.length; kind++) {
             CodegenOperation found = null;
             Object group = null;
@@ -506,6 +541,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "network_error.ex"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "network_timeout_error.ex"),
             new SupportingFileSpec("errors/stream_error.mustache", errorsDir, "stream_error.ex"),
+            new SupportingFileSpec("errors/pagination_error.mustache", errorsDir, "pagination_error.ex"),
             new SupportingFileSpec("errors/root_error.mustache", errorsDir, errorPrefixSnake() + "_error.ex"),
             new SupportingFileSpec("header_selector.mustache", libDir, "header_selector.ex"),
             new SupportingFileSpec("object_serializer.mustache", libDir, "object_serializer.ex"),
@@ -517,12 +553,15 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_response.mustache", libDir, "api_http_response.ex"),
             new SupportingFileSpec("api_result.mustache", libDir, "api_result.ex"),
             new SupportingFileSpec("api_stream_response.mustache", libDir, "api_stream_response.ex"),
+            new SupportingFileSpec("body_source.mustache", libDir, "body_source.ex"),
             new SupportingFileSpec("byte_stream.mustache", libDir, "byte_stream.ex"),
             new SupportingFileSpec("stream_body.mustache", libDir, "stream_body.ex"),
             new SupportingFileSpec("event_stream.mustache", libDir, "event_stream.ex"),
             new SupportingFileSpec("server_sent_event.mustache", libDir, "server_sent_event.ex"),
             new SupportingFileSpec("sse_stream.mustache", libDir, "sse_stream.ex"),
             new SupportingFileSpec("json_lines_stream.mustache", libDir, "json_lines_stream.ex"),
+            new SupportingFileSpec("paginator.mustache", libDir, "paginator.ex"),
+            new SupportingFileSpec("page.mustache", libDir, "page.ex"),
             new SupportingFileSpec("api_client.mustache", libDir, "api_client.ex"),
             new SupportingFileSpec("default_api_client.mustache", libDir, "default_api_client.ex"),
             new SupportingFileSpec("base_api.mustache", Path.of(libDir, "api").toString(), "base_api.ex"),

@@ -92,6 +92,11 @@ defmodule {{moduleName}}.Api.{{classname}}Behaviour do
 
   @callback {{operationId}}_with_http_info({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
+{{#vendorExtensions.op.hasPagesMethod}}
+
+  @callback {{vendorExtensions.op.pagesMethodName}}({{moduleName}}.Api.{{classname}}.t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{moduleName}}.Paginator.t()
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{#vendorExtensions.op.streamOnly}}
 
@@ -274,6 +279,13 @@ defmodule {{moduleName}}.Api.{{classname}} do
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
   @impl true
   def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+{{#vendorExtensions.op.pagination.isLink}}
+    {{operationId}}_page(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, nil)
+  end
+
+  # One page of the list: the first when `page_url` is nil, else the URL the Link header named.
+  defp {{operationId}}_page(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, page_url) do
+{{/vendorExtensions.op.pagination.isLink}}
 {{/vendorExtensions.op.streamOnly}}
 {{#vendorExtensions.op.streamOnly}}
 
@@ -522,9 +534,9 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{^hasFormParams}}
 {{#bodyParam}}
 {{#isBinary}}
-    # A format:binary body is the caller's bytes, sent unchanged whichever
-    # declared content-type is selected; the tag keeps it out of the serializer.
-    request_body = {:raw_body, {{paramName}}}
+    # A format:binary body is a BodySource, sent as it is read whichever declared
+    # content-type is selected; the tag keeps it out of the serializer.
+    request_body = {:raw_body, {{moduleName}}.BodySource.validate!({{paramName}})}
 {{/isBinary}}
 {{^isBinary}}
 {{#isModel}}
@@ -588,6 +600,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
 {{/hasFormParams}}
 {{/consumes.1}}
+{{#vendorExtensions.op.pagination.isLink}}
+    {path, query_params} = if page_url, do: {page_url, []}, else: {path, query_params}
+
+{{/vendorExtensions.op.pagination.isLink}}
     {{moduleName}}.Api.BaseApi.invoke_api_for_result(
       api, :{{httpMethod}}, path, query_params, header_params, request_body,
       [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
@@ -607,6 +623,69 @@ defmodule {{moduleName}}.Api.{{classname}} do
       {{/vendorExtensions.op.hasErrorSchemaResponses}}
     )
   end
+{{#vendorExtensions.op.hasPagesMethod}}
+
+  @doc """
+  {{{summary}}}
+
+  Returns the items as a lazy `{{moduleName}}.Paginator`: no request is sent until you first read an
+  item or a page, and each next page is requested only when you ask for more. Every page is an
+  ordinary call of `{{operationId}}_with_http_info`, with the same options on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+  The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is where the list starts, and the page after
+  each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}` it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+  The page after each one is the `rel="next"` link of its `Link` header, followed only within the
+  origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+
+  Enumerate it for the items, or call `{{moduleName}}.Paginator.pages/1` for the pages with their cursor
+  and result. A failed page raises its error from the read that needed it.
+  {{#isDeprecated}}
+
+  **Deprecated**: This operation is deprecated.
+  {{/isDeprecated}}
+  """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{vendorExtensions.op.pagesMethodName}}(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{moduleName}}.Paginator.t()
+  @impl true
+  def {{vendorExtensions.op.pagesMethodName}}(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+{{#vendorExtensions.op.signatureArgsNoServer}}
+{{#isOptions}}
+    page_options = {{#vendorExtensions.op.optionsParamRequired}}{{paramName}}{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}{{paramName}} || %{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}{}{{/vendorExtensions.op.optionsParamRequired}}
+
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgsNoServer}}
+{{#vendorExtensions.op.pagination.isToken}}
+    {{moduleName}}.Paginator.of_cursor(
+      page_options.{{vendorExtensions.op.pagination.requestParamName}},
+      fn cursor ->
+        {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}%{page_options | {{vendorExtensions.op.pagination.requestParamName}}: cursor}{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts)
+      end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      fn page -> page.{{vendorExtensions.op.pagination.responsePropertyName}} end,
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+    {{moduleName}}.Paginator.of_link(
+      api.config.base_url,
+      fn page_url -> {{operationId}}_page(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}page_options{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, page_url) end,
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+      fn page -> page end,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isLink}}
+  end
+{{/vendorExtensions.op.hasPagesMethod}}
 
 {{#vendorExtensions.op.streamOnly}}
   @doc """
@@ -655,7 +734,8 @@ defmodule {{moduleName}}.Api.{{classname}} do
       opts,
       decoder: {{#vendorExtensions.op.streamTyped}}fn data -> {{moduleName}}.ObjectSerializer.deserialize(data, "{{{vendorExtensions.op.streamItemDecode}}}") end{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}nil{{/vendorExtensions.op.streamTyped}},
       terminator: {{#hasSseTerminator}}"{{{sseTerminator}}}"{{/hasSseTerminator}}{{^hasSseTerminator}}nil{{/hasSseTerminator}},
-      has_body: {{#bodyParam}}true{{/bodyParam}}{{^bodyParam}}{{#hasFormParams}}true{{/hasFormParams}}{{^hasFormParams}}false{{/hasFormParams}}{{/bodyParam}}
+      has_body: {{#bodyParam}}true{{/bodyParam}}{{^bodyParam}}{{#hasFormParams}}true{{/hasFormParams}}{{^hasFormParams}}false{{/hasFormParams}}{{/bodyParam}},
+      single_use_body: {{#bodyParam}}{{moduleName}}.BodySource.single_use?({{paramName}}){{/bodyParam}}{{^bodyParam}}false{{/bodyParam}}
     )
 {{/vendorExtensions.op.streamsSse}}
 {{#vendorExtensions.op.streamsJsonLines}}

@@ -107,7 +107,11 @@ defmodule PetstoreClient.Api.PetApiTest do
     pet_id = :rand.uniform(1_000_000_000)
 
     assert {:ok, _result} =
-             PetstoreClient.Api.PetApi.set_pet_avatar(api, pet_id, <<0xFF, 0xD8, 0xFF>>)
+             PetstoreClient.Api.PetApi.set_pet_avatar(
+               api,
+               pet_id,
+               PetstoreClient.BodySource.of(<<0xFF, 0xD8, 0xFF>>)
+             )
   end
 
   test "bhv operations 045 get_pet_avatar", %{api: api} do
@@ -333,7 +337,11 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert_raise ArgumentError,
                  ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries, :content_type\]/,
                  fn ->
-                   PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>, nil,
+                   PetstoreClient.Api.PetApi.set_pet_avatar(
+                     api,
+                     5,
+                     PetstoreClient.BodySource.of(<<1, 2, 3>>),
+                     nil,
                      contnet_type: "image/png"
                    )
                  end
@@ -1389,7 +1397,11 @@ defmodule PetstoreClient.Api.PetApiTest do
                  ~s(Unsupported request content-type 'application/unknown-type' for set_pet_avatar; ) <>
                    ~s(declared types are [image/jpeg, image/png, application/json]),
                  fn ->
-                   PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>, nil,
+                   PetstoreClient.Api.PetApi.set_pet_avatar(
+                     api,
+                     5,
+                     PetstoreClient.BodySource.of(<<1, 2, 3>>),
+                     nil,
                      content_type: "application/unknown-type"
                    )
                  end
@@ -1590,13 +1602,15 @@ defmodule PetstoreClient.Api.PetApiTest do
     # JPEG SOI marker — a known, non-trivial byte payload.
     payload = <<0xFF, 0xD8, 0xFF, 0xE0>>
 
-    {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, payload)
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, PetstoreClient.BodySource.of(payload))
 
     captured = BodyCapturingApiClient.captured(name)
 
-    # (1) the body must be the EXACT raw bytes — not a JSON int-array, not "{}",
-    # not base64, not JSON-marshaled in any way.
-    assert captured.body == payload
+    # (1) the transport is handed the body source unchanged, and it reads back the EXACT raw
+    # bytes — not a JSON int-array, not "{}", not base64, not JSON-marshaled in any way.
+    assert %PetstoreClient.BodySource{} = captured.body
+    assert {^payload, 4} = PetstoreClient.BodySource.open(captured.body)
     refute captured.body == "{}"
     refute captured.body == Base.encode64(payload)
     refute captured.body == Jason.encode!(:binary.bin_to_list(payload))
@@ -1624,11 +1638,16 @@ defmodule PetstoreClient.Api.PetApiTest do
     default_config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     default_api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, default_config)
 
-    {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_avatar(default_api, 5, payload)
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.set_pet_avatar(
+        default_api,
+        5,
+        PetstoreClient.BodySource.of(payload)
+      )
 
     default_captured = BodyCapturingApiClient.captured(default_name)
     assert default_captured.headers["Content-Type"] == "image/jpeg"
-    assert default_captured.body == payload
+    assert {^payload, 4} = PetstoreClient.BodySource.open(default_captured.body)
     Agent.stop(default_name)
 
     # (2) Selector set to image/png with the SAME raw bytes -> image/png.
@@ -1637,7 +1656,11 @@ defmodule PetstoreClient.Api.PetApiTest do
     png_api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, png_config)
 
     {:ok, _result} =
-      PetstoreClient.Api.PetApi.set_pet_avatar(png_api, 5, payload, nil,
+      PetstoreClient.Api.PetApi.set_pet_avatar(
+        png_api,
+        5,
+        PetstoreClient.BodySource.of(payload),
+        nil,
         content_type: "image/png"
       )
 
@@ -1645,7 +1668,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert png_captured.headers["Content-Type"] == "image/png"
     refute png_captured.headers["Content-Type"] == "image/jpeg"
     # The selector only swaps the header; the raw bytes are unchanged.
-    assert png_captured.body == payload
+    assert {^payload, 4} = PetstoreClient.BodySource.open(png_captured.body)
     Agent.stop(png_name)
   end
 
@@ -1659,12 +1682,12 @@ defmodule PetstoreClient.Api.PetApiTest do
     api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
 
     {:ok, _result} =
-      PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, payload, nil,
+      PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, PetstoreClient.BodySource.of(payload), nil,
         content_type: "application/json"
       )
 
     captured = BodyCapturingApiClient.captured(name)
-    assert captured.body == payload
+    assert {^payload, 4} = PetstoreClient.BodySource.open(captured.body)
     assert captured.headers["Content-Type"] == "application/json"
     Agent.stop(name)
 
@@ -2520,6 +2543,166 @@ defmodule PetstoreClient.Api.PetApiTest do
     def get_staging_pet_info_with_http_info(_api, pet_id, _options \\ nil, _opts \\ []) do
       send(self(), {:called, :get_staging_pet_info_with_http_info, [pet_id]})
       {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_archive(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_archive, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_archive!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_archive!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pet_archive_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_archive_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_catalog(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_catalog, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_catalog!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_catalog!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pet_catalog_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_catalog_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_catalog_pages(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_catalog_pages, []})
+
+      PetstoreClient.Paginator.of_cursor(
+        nil,
+        fn _cursor -> {:error, failure()} end,
+        fn _page -> [] end,
+        fn _page -> nil end,
+        "/"
+      )
+    end
+
+    @impl true
+    def list_pet_events(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_events, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_events!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_events!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pet_events_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_events_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_events_pages(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_events_pages, []})
+
+      PetstoreClient.Paginator.of_cursor(
+        nil,
+        fn _cursor -> {:error, failure()} end,
+        fn _page -> [] end,
+        fn _page -> nil end,
+        "/"
+      )
+    end
+
+    @impl true
+    def list_pet_feed(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_feed, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_feed!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_feed!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pet_feed_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_feed_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_feed_pages(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_feed_pages, []})
+
+      PetstoreClient.Paginator.of_cursor(
+        nil,
+        fn _cursor -> {:error, failure()} end,
+        fn _page -> [] end,
+        fn _page -> nil end,
+        "/"
+      )
+    end
+
+    @impl true
+    def list_pet_matches(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_matches, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_matches!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_matches!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pet_matches_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_matches_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_notes(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_notes, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_notes!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_notes!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pet_notes_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_notes_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_notes_pages(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_notes_pages, []})
+
+      PetstoreClient.Paginator.of_cursor(
+        nil,
+        fn _cursor -> {:error, failure()} end,
+        fn _page -> [] end,
+        fn _page -> nil end,
+        "/"
+      )
     end
 
     @impl true

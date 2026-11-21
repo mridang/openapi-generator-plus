@@ -5767,14 +5767,76 @@ defmodule PetstoreClient.Api.BaseApiTest do
       :gen_tcp.close(socket)
     end
 
+    # The head ends at the first blank line; what was read past it belongs to the body and is kept
+    # in the process of the script for `read_body/2`.
     defp read_head(socket, acc) do
-      if String.ends_with?(acc, "\r\n\r\n") do
-        acc
-      else
-        case :gen_tcp.recv(socket, 0, 5_000) do
-          {:ok, data} -> read_head(socket, acc <> data)
-          {:error, _reason} -> acc
-        end
+      case String.split(acc, "\r\n\r\n", parts: 2) do
+        [head, rest] ->
+          Process.put(:raw_rest, rest)
+          head <> "\r\n\r\n"
+
+        [_incomplete] ->
+          case :gen_tcp.recv(socket, 0, 5_000) do
+            {:ok, data} -> read_head(socket, acc <> data)
+            {:error, _reason} -> acc
+          end
+      end
+    end
+
+    # Reads the request body that follows the head, whether it has a Content-Length or is chunked.
+    def read_body(socket, head) do
+      rest = Process.get(:raw_rest, "")
+      lowered = String.downcase(head)
+
+      case Regex.run(~r/content-length: (\d+)/, lowered) do
+        [_, length] ->
+          read_exact(socket, rest, String.to_integer(length))
+
+        nil ->
+          if lowered =~ "transfer-encoding: chunked", do: read_chunked(socket, rest, ""), else: ""
+      end
+    end
+
+    defp read_exact(_socket, buffer, length) when byte_size(buffer) >= length,
+      do: binary_part(buffer, 0, length)
+
+    defp read_exact(socket, buffer, length) do
+      case :gen_tcp.recv(socket, 0, 5_000) do
+        {:ok, data} -> read_exact(socket, buffer <> data, length)
+        {:error, _reason} -> buffer
+      end
+    end
+
+    defp read_chunked(socket, buffer, decoded) do
+      case String.split(buffer, "\r\n", parts: 2) do
+        [size_line, after_size] ->
+          size = size_line |> String.split(";") |> hd() |> String.to_integer(16)
+
+          if size == 0 do
+            decoded
+          else
+            need = size + 2
+
+            if byte_size(after_size) >= need do
+              read_chunked(
+                socket,
+                binary_part(after_size, need, byte_size(after_size) - need),
+                decoded <> binary_part(after_size, 0, size)
+              )
+            else
+              more(socket, buffer, decoded)
+            end
+          end
+
+        [_incomplete] ->
+          more(socket, buffer, decoded)
+      end
+    end
+
+    defp more(socket, buffer, decoded) do
+      case :gen_tcp.recv(socket, 0, 5_000) do
+        {:ok, data} -> read_chunked(socket, buffer <> data, decoded)
+        {:error, _reason} -> decoded
       end
     end
 
@@ -6133,6 +6195,190 @@ defmodule PetstoreClient.Api.BaseApiTest do
     }
   end
 
+  # ---------------------------------------------------------------------------
+  # Uploads: a raw binary body is a BodySource, sent as it is read
+  # ---------------------------------------------------------------------------
+
+  defp upload_call(state, source, call \\ []) do
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      state,
+      :put,
+      "/items/blob",
+      [],
+      %{},
+      {:raw_body, source},
+      ["application/json"],
+      "application/octet-stream",
+      nil,
+      nil,
+      call,
+      %{}
+    )
+  end
+
+  # A server that reads the whole upload, tells the test what it was and answers with `status`.
+  defp upload_server(statuses) when is_list(statuses) do
+    RawServer.start(fn server, socket, hit, head ->
+      send(server.owner, {:uploaded, hit, RawServer.read_body(socket, head)})
+      status = Enum.at(statuses, hit - 1) || List.last(statuses)
+
+      extra =
+        if status in [307, 308], do: ["Location: /items/elsewhere"], else: ["Retry-After: 0"]
+
+      RawServer.head(socket, status, extra ++ ["Content-Length: 0"])
+    end)
+  end
+
+  defp chunks(parts), do: Stream.map(parts, & &1)
+
+  test "bhv streaming 023 a streamed upload of unknown length is sent chunked and arrives intact" do
+    server = upload_server([200])
+    source = PetstoreClient.BodySource.once(chunks(["ab", "cd", "ef"]))
+
+    assert {:ok, _result} = server |> raw_state(max_retries: 0) |> upload_call(source)
+    assert_received {:uploaded, 1, "abcdef"}
+
+    [head] = RawServer.heads(server)
+    headers = request_headers(head)
+    assert headers["transfer-encoding"] == "chunked"
+    refute Map.has_key?(headers, "content-length")
+    assert headers["content-type"] == "application/octet-stream"
+
+    factory = PetstoreClient.BodySource.from_factory(fn -> chunks(["xy", "z"]) end)
+    assert {:ok, _result} = server |> raw_state(max_retries: 0) |> upload_call(factory)
+    assert_received {:uploaded, 2, "xyz"}
+
+    assert server
+           |> RawServer.heads()
+           |> List.last()
+           |> request_headers()
+           |> Map.get("transfer-encoding") == "chunked"
+  end
+
+  test "bhv streaming 024 a streamed upload with a known length sends Content-Length" do
+    server = upload_server([200])
+    state = raw_state(server, max_retries: 0)
+
+    assert {:ok, _result} =
+             upload_call(state, PetstoreClient.BodySource.once(chunks(["ab", "cd", "ef"]), 6))
+
+    assert_received {:uploaded, 1, "abcdef"}
+
+    path = Path.join(System.tmp_dir!(), "upload-#{System.unique_integer([:positive])}.bin")
+    File.write!(path, String.duplicate("0123456789", 20_000))
+    on_exit(fn -> File.rm(path) end)
+
+    assert {:ok, _result} = upload_call(state, PetstoreClient.BodySource.of_file(path))
+    assert_received {:uploaded, 2, body}
+    assert body == String.duplicate("0123456789", 20_000)
+
+    assert {:ok, _result} = upload_call(state, PetstoreClient.BodySource.of(<<1, 2, 3>>))
+    assert_received {:uploaded, 3, <<1, 2, 3>>}
+
+    [once, file, bytes] = server |> RawServer.heads() |> Enum.map(&request_headers/1)
+    assert once["content-length"] == "6"
+    assert file["content-length"] == "200000"
+    assert bytes["content-length"] == "3"
+
+    for headers <- [once, file, bytes] do
+      refute Map.has_key?(headers, "transfer-encoding")
+    end
+  end
+
+  test "bhv streaming 025 a caller supplied upload stream is never closed by the SDK" do
+    server = upload_server([200])
+    state = raw_state(server, max_retries: 0)
+
+    path = Path.join(System.tmp_dir!(), "upload-#{System.unique_integer([:positive])}.bin")
+    File.write!(path, "caller bytes")
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, device} = File.open(path, [:read, :binary])
+    assert {:ok, _result} = upload_call(state, PetstoreClient.BodySource.once(device, 12))
+    assert_received {:uploaded, 1, "caller bytes"}
+    assert Process.alive?(device), "the device the caller opened is still open"
+    assert :ok = File.close(device)
+
+    {:ok, counter} = Agent.start_link(fn -> %{opened: 0, closed: 0} end)
+
+    opened = fn ->
+      Stream.resource(
+        fn ->
+          Agent.update(counter, &%{&1 | opened: &1.opened + 1})
+          ["sdk ", "bytes"]
+        end,
+        fn
+          [] -> {:halt, []}
+          [next | rest] -> {[next], rest}
+        end,
+        fn _rest -> Agent.update(counter, &%{&1 | closed: &1.closed + 1}) end
+      )
+    end
+
+    assert {:ok, _result} = upload_call(state, PetstoreClient.BodySource.from_factory(opened))
+    assert_received {:uploaded, 2, "sdk bytes"}
+
+    assert Agent.get(counter, & &1) == %{opened: 1, closed: 1},
+           "a stream the SDK opened is closed by the SDK"
+  end
+
+  test "bhv streaming 026 a replayable upload is rewound and retried after a 503, and a single use upload is not retried and surfaces the original error" do
+    server = upload_server([503, 200])
+    state = raw_state(server, max_retries: 2)
+
+    assert {:ok, _result} =
+             upload_call(
+               state,
+               PetstoreClient.BodySource.from_factory(fn -> chunks(["re", "play"]) end)
+             )
+
+    assert RawServer.hits(server) == 2
+    assert_received {:uploaded, 1, "replay"}
+    assert_received {:uploaded, 2, "replay"}, "the body was sent again from the start"
+
+    once_server = upload_server([503, 200])
+
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{status_code: 503}} =
+             once_server
+             |> raw_state(max_retries: 2)
+             |> upload_call(PetstoreClient.BodySource.once(chunks(["on", "ce"])))
+
+    assert RawServer.hits(once_server) == 1, "a single use body is never sent twice"
+    assert_received {:uploaded, 1, "once"}
+    refute_received {:uploaded, 2, _body}
+  end
+
+  test "bhv streaming 027 a 307 or 308 with a single use upload is refused and the body is never buffered" do
+    for status <- [307, 308] do
+      server = upload_server([status, 200])
+      {:ok, reads} = Agent.start_link(fn -> 0 end)
+
+      source =
+        PetstoreClient.BodySource.once(
+          Stream.each(chunks(["ab", "cd"]), fn _chunk -> Agent.update(reads, &(&1 + 1)) end)
+        )
+
+      assert {:error, %PetstoreClient.Errors.ApiError{message: message, status_code: ^status}} =
+               server |> raw_state(max_retries: 0) |> upload_call(source)
+
+      assert message =~ "Refusing to replay a streamed request body"
+      assert RawServer.hits(server) == 1, "the redirect was not followed"
+      assert Agent.get(reads, & &1) == 2, "each chunk was read once, as it was sent"
+    end
+
+    server = upload_server([307, 200])
+
+    assert {:ok, _result} =
+             server
+             |> raw_state(max_retries: 0)
+             |> upload_call(
+               PetstoreClient.BodySource.from_factory(fn -> chunks(["re", "sent"]) end)
+             )
+
+    assert RawServer.hits(server) == 2, "a replayable body is replayed across the redirect"
+    assert_received {:uploaded, 2, "resent"}
+  end
+
   test "bhv streaming 030 a transport that cannot stream fails a stream call naming itself, and buffered calls keep working" do
     transport = %BufferedOnlyApiClient{notify: self()}
 
@@ -6338,5 +6584,599 @@ defmodule PetstoreClient.Api.BaseApiTest do
            "the quiet stretches were shorter than the idle timeout"
 
     assert RawServer.hits(server) == 1
+  end
+
+  # ---------------------------------------------------------------------------
+  # Paged lists: a stateful server that answers per cursor, one request per page
+  # ---------------------------------------------------------------------------
+
+  defp parsed_request(head) do
+    [line | _] = String.split(head, "\r\n")
+    [_method, target, _version] = String.split(line, " ")
+    uri = URI.parse(target)
+    %{path: uri.path, query: URI.decode_query(uri.query || ""), headers: request_headers(head)}
+  end
+
+  defp ok(body, headers \\ []), do: {200, body, headers, 0}
+  defp reply(status, body, headers \\ [], delay \\ 0), do: {status, body, headers, delay}
+
+  # A server whose answer depends on the request and on how many it has had. `handler` gets the
+  # parsed request and the number of the request, and returns `ok/2` or `reply/4`. A reply with a
+  # delay waits for it, and tells the test when the client dropped the connection instead.
+  defp paged_server(handler) do
+    RawServer.start(fn server, socket, hit, head ->
+      {status, body, headers, delay} = handler.(parsed_request(head), hit)
+
+      if delay > 0 and match?({:error, :closed}, :gen_tcp.recv(socket, 0, delay)) do
+        send(server.owner, :client_gone)
+      else
+        lines =
+          ["Content-Type: application/json", "Content-Length: #{byte_size(body)}"]
+          |> Enum.concat(headers)
+          |> Enum.map_join("", &(&1 <> "\r\n"))
+
+        :gen_tcp.send(
+          socket,
+          "HTTP/1.1 #{status} Test\r\n" <> lines <> "Connection: close\r\n\r\n" <> body
+        )
+      end
+    end)
+  end
+
+  defp seen(server), do: server |> RawServer.heads() |> Enum.map(&parsed_request/1)
+  defp seen_param(server, name), do: server |> seen() |> Enum.map(& &1.query[name])
+
+  defp pet_json(name), do: ~s({"id":1,"name":"#{name}","photoUrls":[]})
+
+  defp catalog_body(page, size, pages) do
+    items = Enum.map_join(0..(size - 1)//1, ",", fn index -> pet_json("p#{page}-#{index}") end)
+    next = if page + 1 < pages, do: ~s(,"next_cursor":"c#{page + 1}"), else: ""
+    ~s({"items":[#{items}]#{next}})
+  end
+
+  defp catalog_page(request) do
+    case request.query["cursor"] do
+      nil -> 0
+      "c" <> number -> String.to_integer(number)
+    end
+  end
+
+  defp catalog_server(pages, size) do
+    paged_server(fn request, _hit -> ok(catalog_body(catalog_page(request), size, pages)) end)
+  end
+
+  # A feed page: one pet and a Link header that names the next page, or none on the last.
+  defp feed_server(pages) do
+    paged_server(fn request, _hit ->
+      index = String.to_integer(request.query["page"] || "0")
+      host = request.headers["host"]
+
+      link =
+        if index + 1 < pages,
+          do: ["Link: <http://#{host}/pet/feed?page=#{index + 1}&secret=s3>; rel=\"next\""],
+          else: []
+
+      ok("[" <> pet_json("f#{index}") <> "]", link)
+    end)
+  end
+
+  defp pet_api(
+         server,
+         transport \\ [max_retries: 0],
+         default_headers \\ %{},
+         authenticator \\ nil
+       ) do
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: RawServer.url(server, ""),
+        default_headers: default_headers
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(transport))
+    PetstoreClient.Api.PetApi.new(client, config, authenticator)
+  end
+
+  # Reads a paginator to its end or to its first error: the names delivered, and the error or nil.
+  defp read_names(paginator) do
+    {:ok, agent} = Agent.start_link(fn -> [] end)
+
+    error =
+      try do
+        Enum.each(paginator, fn pet -> Agent.update(agent, &[pet.name | &1]) end)
+        nil
+      rescue
+        error -> error
+      end
+
+    {Agent.get(agent, &Enum.reverse/1), error}
+  end
+
+  defp names_of(paginator) do
+    {names, nil} = read_names(paginator)
+    names
+  end
+
+  defp wait_until(condition, tries \\ 250) do
+    cond do
+      condition.() ->
+        :ok
+
+      tries == 0 ->
+        flunk("the condition was not met in time")
+
+      true ->
+        Process.sleep(20)
+        wait_until(condition, tries - 1)
+    end
+  end
+
+  test "bhv pagination 001 a paged operation reads no page until the first item or page is requested" do
+    server = catalog_server(2, 2)
+    paginator = server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()
+
+    assert %PetstoreClient.Paginator{} = paginator
+    assert RawServer.hits(server) == 0, "the function sends nothing"
+
+    _items = PetstoreClient.Paginator.items(paginator)
+    _pages = PetstoreClient.Paginator.pages(paginator)
+    assert RawServer.hits(server) == 0, "getting a view sends nothing"
+
+    assert [%{name: "p0-0"}] = Enum.take(paginator, 1)
+    assert RawServer.hits(server) == 1, "the first read sends the first request"
+  end
+
+  test "bhv pagination 002 a token-cursor operation yields every item of every page in order and sends the next page's cursor" do
+    server = catalog_server(3, 2)
+
+    assert names_of(server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()) ==
+             ["p0-0", "p0-1", "p1-0", "p1-1", "p2-0", "p2-1"]
+
+    assert seen_param(server, "cursor") == [nil, "c1", "c2"]
+  end
+
+  test "bhv pagination 003 the next request is sent only when the consumer asks for more items" do
+    server = catalog_server(3, 2)
+    paginator = server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()
+
+    delivered =
+      paginator
+      |> PetstoreClient.Paginator.items()
+      |> Enum.map(fn pet -> {pet.name, RawServer.hits(server)} end)
+
+    assert delivered == [
+             {"p0-0", 1},
+             {"p0-1", 1},
+             {"p1-0", 2},
+             {"p1-1", 2},
+             {"p2-0", 3},
+             {"p2-1", 3}
+           ]
+  end
+
+  test "bhv pagination 007 a Link-header operation follows rel=next and ends when it is absent" do
+    server = feed_server(3)
+
+    assert names_of(server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_feed_pages()) == [
+             "f0",
+             "f1",
+             "f2"
+           ]
+
+    assert seen_param(server, "page") == [nil, "1", "2"]
+    assert server |> seen() |> Enum.at(2) |> Map.get(:path) == "/pet/feed"
+  end
+
+  test "bhv pagination 008 a Link next URL on another origin is refused and no credentials are sent to it" do
+    elsewhere = paged_server(fn _request, _hit -> ok("[" <> pet_json("stolen") <> "]") end)
+
+    origin =
+      paged_server(fn _request, _hit ->
+        ok("[" <> pet_json("f0") <> "]", [
+          "Link: <#{RawServer.url(elsewhere, "/pet/feed?page=1")}>; rel=\"next\""
+        ])
+      end)
+
+    api = pet_api(origin, [max_retries: 0], %{"Authorization" => "Bearer secret"})
+    {names, error} = api |> PetstoreClient.Api.PetApi.list_pet_feed_pages() |> read_names()
+
+    assert names == ["f0"], "the page before the foreign link is delivered"
+    assert %PetstoreClient.Errors.PaginationError{} = error
+    refute error.message =~ "page=1", "the message holds no query"
+    assert [first] = seen(origin)
+    assert first.headers["authorization"] == "Bearer secret"
+    assert RawServer.hits(elsewhere) == 0, "nothing was sent to the other origin"
+  end
+
+  test "bhv pagination 009 an empty page with a next cursor continues and an absent, null or empty cursor ends" do
+    for ending <- ["", ~s(,"next_cursor":null), ~s(,"next_cursor":"")] do
+      server =
+        paged_server(fn request, _hit ->
+          if request.query["cursor"] == nil,
+            do: ok(~s({"items":[],"next_cursor":"c1"})),
+            else: ok(~s({"items":[#{pet_json("only")}]#{ending}}))
+        end)
+
+      assert names_of(server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()) ==
+               ["only"],
+             ending
+
+      assert RawServer.hits(server) == 2, "the empty page continued and the end ended: #{ending}"
+    end
+  end
+
+  test "bhv pagination 010 pages yields one page per response with its items, status, headers, decoded body and next cursor" do
+    server =
+      paged_server(fn request, _hit ->
+        page = catalog_page(request)
+        ok(catalog_body(page, 2, 2), ["X-Page: #{page}"])
+      end)
+
+    [first, second] =
+      server
+      |> pet_api()
+      |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()
+      |> PetstoreClient.Paginator.pages()
+      |> Enum.to_list()
+
+    assert Enum.map(first.items, & &1.name) == ["p0-0", "p0-1"]
+    assert first.result.status_code == 200
+    assert first.result.headers["x-page"] == "0"
+    assert second.result.headers["x-page"] == "1"
+    assert %PetstoreClient.Models.PetCatalogPage{} = first.result.data
+    assert first.next_cursor == "c1"
+    assert second.next_cursor == nil
+  end
+
+  test "bhv pagination 011 the cursor passed to the paged method is the starting position and the first request sends it" do
+    server = catalog_server(3, 1)
+
+    paginator =
+      server
+      |> pet_api()
+      |> PetstoreClient.Api.PetApi.list_pet_catalog_pages(
+        %PetstoreClient.Api.Options.ListPetCatalogOptions{cursor: "c1"}
+      )
+
+    assert names_of(paginator) == ["p1-0", "p2-0"]
+    assert hd(seen_param(server, "cursor")) == "c1"
+  end
+
+  test "bhv pagination 012 resuming with the next cursor of a page continues with the following page" do
+    server = catalog_server(3, 1)
+    api = pet_api(server)
+
+    [first | _rest] =
+      api
+      |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()
+      |> PetstoreClient.Paginator.pages()
+      |> Enum.take(1)
+
+    assert first.next_cursor == "c1"
+
+    assert names_of(
+             PetstoreClient.Api.PetApi.list_pet_catalog_pages(
+               api,
+               %PetstoreClient.Api.Options.ListPetCatalogOptions{cursor: first.next_cursor}
+             )
+           ) == ["p1-0", "p2-0"]
+  end
+
+  test "bhv pagination 013 every other parameter, including the page size, is repeated unchanged on each page request" do
+    server = catalog_server(3, 1)
+
+    options = %PetstoreClient.Api.Options.ListPetCatalogOptions{
+      limit: 1,
+      headers: %{"X-Keep" => "yes"}
+    }
+
+    names_of(server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages(options))
+
+    requests = seen(server)
+    assert length(requests) == 3
+
+    for request <- requests do
+      assert request.query["limit"] == "1"
+      assert request.headers["x-keep"] == "yes"
+    end
+
+    assert seen_param(server, "cursor") == [nil, "c1", "c2"]
+  end
+
+  test "bhv pagination 014 a cursor equal to the one just sent, or an offset that did not advance, raises a PaginationError instead of looping" do
+    server =
+      paged_server(fn _request, hit ->
+        ok(~s({"items":[#{pet_json("p#{hit}")}],"next_cursor":"c1"}))
+      end)
+
+    {names, error} =
+      server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages() |> read_names()
+
+    assert names == ["p1", "p2"], "the page that repeated the cursor is still delivered"
+    assert %PetstoreClient.Errors.PaginationError{request_path: "/pet/catalog"} = error
+    assert RawServer.hits(server) == 2, "nothing was asked for after the repeat"
+  end
+
+  test "bhv pagination 015 an error on a later page is raised after the earlier pages' items were delivered and ends iteration" do
+    server =
+      paged_server(fn request, _hit ->
+        if request.query["cursor"] == nil, do: ok(catalog_body(0, 2, 3)), else: reply(404, "{}")
+      end)
+
+    {names, error} =
+      server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages() |> read_names()
+
+    assert names == ["p0-0", "p0-1"]
+    assert %PetstoreClient.Errors.NotFoundError{status_code: 404} = error
+    assert RawServer.hits(server) == 2
+  end
+
+  test "bhv pagination 016 a 503 on the second page is retried under the retry rules and iteration continues" do
+    server =
+      paged_server(fn request, hit ->
+        if hit == 2,
+          do: reply(503, "{}", ["Retry-After: 0"]),
+          else: ok(catalog_body(catalog_page(request), 1, 2))
+      end)
+
+    assert names_of(
+             server
+             |> pet_api(max_retries: 2)
+             |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()
+           ) == ["p0-0", "p1-0"]
+
+    assert seen_param(server, "cursor") == [nil, "c1", "c1"]
+  end
+
+  test "bhv pagination 017 the per-call timeout, headers and retry count apply to each page request" do
+    server =
+      paged_server(fn request, hit ->
+        if rem(hit, 2) == 1,
+          do: reply(503, "{}", ["Retry-After: 0"]),
+          else: ok(catalog_body(catalog_page(request), 1, 2))
+      end)
+
+    options = %PetstoreClient.Api.Options.ListPetCatalogOptions{
+      max_retries: 1,
+      headers: %{"X-Trace" => "t1"}
+    }
+
+    names_of(server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages(options))
+
+    requests = seen(server)
+    assert length(requests) == 4, "each page was tried twice: one try and one retry"
+    assert Enum.all?(requests, &(&1.headers["x-trace"] == "t1"))
+
+    slow =
+      paged_server(fn request, _hit ->
+        if request.query["cursor"] == nil,
+          do: ok(catalog_body(0, 1, 2)),
+          else: reply(200, catalog_body(1, 1, 2), [], 1500)
+      end)
+
+    {names, error} =
+      slow
+      |> pet_api()
+      |> PetstoreClient.Api.PetApi.list_pet_catalog_pages(
+        %PetstoreClient.Api.Options.ListPetCatalogOptions{timeout: 300}
+      )
+      |> read_names()
+
+    assert names == ["p0-0"], "the first page answers within its own budget"
+    assert %PetstoreClient.Errors.NetworkTimeoutError{} = error
+  end
+
+  test "bhv pagination 018 stopping early sends no further request and leaves nothing to close" do
+    server = catalog_server(3, 2)
+    api = pet_api(server)
+
+    assert [%{name: "p0-0"}] =
+             api |> PetstoreClient.Api.PetApi.list_pet_catalog_pages() |> Enum.take(1)
+
+    assert RawServer.hits(server) == 1
+
+    assert [_one, _two] =
+             api |> PetstoreClient.Api.PetApi.list_pet_catalog_pages() |> Enum.take(2)
+
+    assert RawServer.hits(server) == 2, "taking two items read exactly one more page"
+
+    refute function_exported?(PetstoreClient.Paginator, :close, 1)
+  end
+
+  test "bhv pagination 019 cancelling mid-iteration aborts the in-flight page request and is not reported as a timeout" do
+    server =
+      paged_server(fn request, _hit ->
+        if request.query["cursor"] == nil,
+          do: ok(catalog_body(0, 1, 2)),
+          else: reply(200, catalog_body(1, 1, 2), [], 8000)
+      end)
+
+    api = pet_api(server, max_retries: 0, timeout: 20_000)
+
+    task =
+      Task.async(fn ->
+        api |> PetstoreClient.Api.PetApi.list_pet_catalog_pages() |> Enum.to_list()
+      end)
+
+    wait_until(fn -> RawServer.hits(server) == 2 end)
+
+    assert Task.shutdown(task, :brutal_kill) == nil,
+           "the cancelled iteration stopped without a result or an error"
+
+    assert_receive :client_gone, 5_000
+  end
+
+  test "bhv pagination 020 iterating a second time starts again from the starting position" do
+    server = catalog_server(2, 2)
+    paginator = server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()
+
+    first = names_of(paginator)
+    second = names_of(paginator)
+
+    assert first == second
+    assert RawServer.hits(server) == 4, "the second loop read both pages again"
+    assert seen_param(server, "cursor") == [nil, "c1", nil, "c1"]
+  end
+
+  test "bhv pagination 021 a page that does not decode on a later page fails with the serialization error after the earlier items were delivered" do
+    server =
+      paged_server(fn _request, hit ->
+        if hit == 1,
+          do: ok(catalog_body(0, 1, 2)),
+          else: ok(~s({"items":[{"id":"not a number","name":"x","photoUrls":[]}]}))
+      end)
+
+    {names, error} =
+      server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog_pages() |> read_names()
+
+    assert names == ["p0-0"]
+    assert %PetstoreClient.Errors.SerializationError{} = error
+  end
+
+  test "bhv pagination 022 a refreshed credential is used for the next page" do
+    server = catalog_server(3, 1)
+    {:ok, counter} = Agent.start_link(fn -> 0 end)
+    authenticator = %CountingAuthenticator{counter: counter}
+
+    names_of(
+      server
+      |> pet_api([max_retries: 0], %{}, authenticator)
+      |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()
+    )
+
+    attempts = server |> seen() |> Enum.map(fn request -> request.headers["x-attempt"] end)
+    assert length(attempts) == 3
+    assert attempts == Enum.uniq(attempts), "each page request rebuilt its authentication headers"
+    assert hd(attempts) == "n1"
+  end
+
+  test "bhv pagination 023 an error from a Link-driven page request carries the path without the query" do
+    server =
+      paged_server(fn request, _hit ->
+        if request.query["page"] != nil,
+          do: reply(500, "{}"),
+          else:
+            ok("[" <> pet_json("f0") <> "]", ["Link: </pet/feed?page=1&secret=s3>; rel=\"next\""])
+      end)
+
+    {names, error} =
+      server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_feed_pages() |> read_names()
+
+    assert names == ["f0"]
+    assert %PetstoreClient.Errors.InternalServerError{status_code: 500} = error
+    assert error.request_path == "/pet/feed"
+    refute Exception.message(error) =~ "s3"
+  end
+
+  defp pages_functions(module) do
+    {:module, ^module} = Code.ensure_loaded(module)
+    functions = module.__info__(:functions)
+
+    {functions,
+     functions
+     |> Enum.map(&elem(&1, 0))
+     |> Enum.uniq()
+     |> Enum.filter(&String.ends_with?(Atom.to_string(&1), "_pages"))
+     |> Enum.sort()}
+  end
+
+  test "bhv pagination 024 an operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method" do
+    {functions, paged} = pages_functions(PetstoreClient.Api.PetApi)
+
+    assert paged == [
+             :list_pet_catalog_pages,
+             :list_pet_events_pages,
+             :list_pet_feed_pages,
+             :list_pet_notes_pages
+           ]
+
+    assert Keyword.has_key?(functions, :list_pet_matches),
+           "the ambiguous operation keeps its plain function"
+  end
+
+  test "bhv pagination 025 a paged method has the same parameters in the same order as the base method and the base method is unchanged" do
+    {functions, paged} = pages_functions(PetstoreClient.Api.PetApi)
+
+    for pages <- paged, {^pages, arity} <- functions do
+      base = pages |> Atom.to_string() |> String.replace_suffix("_pages", "") |> String.to_atom()
+      assert {base, arity} in functions, "no #{base}/#{arity} beside #{pages}/#{arity}"
+    end
+
+    server = catalog_server(1, 1)
+
+    assert {:ok, %PetstoreClient.Models.PetCatalogPage{}} =
+             server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_catalog()
+  end
+
+  test "bhv pagination 026 the generator option overrides inference and can switch an operation or the whole feature off" do
+    {functions, paged} = pages_functions(PetstoreClient.Api.PetApi)
+
+    assert :list_pet_events_pages in paged, "an operation the option names is paged"
+    refute :list_pet_archive_pages in paged, "an operation the option sets to none is not"
+    assert Keyword.has_key?(functions, :list_pet_archive), "its plain function remains"
+  end
+
+  test "bhv pagination 027 headers and options given to the paged method are sent on every page request" do
+    server = feed_server(3)
+
+    options = %PetstoreClient.Api.Options.ListPetFeedOptions{
+      limit: 1,
+      headers: %{"X-Keep" => "yes"}
+    }
+
+    names_of(server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_feed_pages(options))
+
+    requests = seen(server)
+    assert length(requests) == 3
+    assert Enum.all?(requests, &(&1.headers["x-keep"] == "yes"))
+    assert hd(requests).query["limit"] == "1", "the first page carries the page size"
+  end
+
+  test "bhv pagination 028 the cursor for the next page is taken from the accepted response, never from a retried attempt" do
+    server =
+      paged_server(fn request, hit ->
+        if hit == 1,
+          do: reply(503, ~s({"items":[],"next_cursor":"WRONG"}), ["Retry-After: 0"]),
+          else: ok(catalog_body(if(request.query["cursor"] == nil, do: 0, else: 1), 1, 2))
+      end)
+
+    assert names_of(
+             server
+             |> pet_api(max_retries: 2)
+             |> PetstoreClient.Api.PetApi.list_pet_catalog_pages()
+           ) == ["p0-0", "p1-0"]
+
+    assert seen_param(server, "cursor") == [nil, nil, "c1"]
+  end
+
+  test "bhv pagination 030 a vendor extension on an operation is read as a hint, and the override option wins over it" do
+    {_functions, paged} = pages_functions(PetstoreClient.Api.PetApi)
+
+    assert :list_pet_notes_pages in paged,
+           "the operation whose names are no known cursor is paged by its hint"
+  end
+
+  test "bhv pagination 031 the repeated-cursor failure is a PaginationError and is not a network error or an API error" do
+    server = paged_server(fn _request, _hit -> ok(~s({"items":[],"next_cursor":"c1"})) end)
+
+    {[], error} =
+      server
+      |> pet_api()
+      |> PetstoreClient.Api.PetApi.list_pet_catalog_pages(
+        %PetstoreClient.Api.Options.ListPetCatalogOptions{cursor: "c1"}
+      )
+      |> read_names()
+
+    assert %PetstoreClient.Errors.PaginationError{} = error
+    refute PetstoreClient.Errors.NetworkError.network_error?(error)
+    refute PetstoreClient.Errors.ApiError.api_error?(error)
+    assert PetstoreClient.Errors.OpenAPIError.open_api_error?(error)
+    assert PetstoreClient.Errors.PaginationError in PetstoreClient.errors()
+  end
+
+  test "bhv pagination 032 an operation that is streamed is never also given a paged method" do
+    {functions, paged} = pages_functions(PetstoreClient.Api.StoreApi)
+
+    assert paged == []
+    assert Keyword.has_key?(functions, :export_orders_stream)
   end
 end

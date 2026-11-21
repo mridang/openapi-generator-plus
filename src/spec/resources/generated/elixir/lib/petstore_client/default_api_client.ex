@@ -1043,6 +1043,8 @@ defmodule PetstoreClient.DefaultApiClient do
   # (Req's response); a streaming hop returns at the headers, with the body not
   # read, as `%{status: integer, headers: map, stream: StreamBody.t()}`.
   defp send_hop(client, method, url, headers, body, deadline, call_timeout, :buffered) do
+    {body, headers} = hop_body(body, headers)
+
     # Catch inside the task so it always returns a tagged value and never
     # crashes the linked caller: Task.async links, so an uncaught raise
     # would take down this process before Task.yield could observe it.
@@ -1111,6 +1113,8 @@ defmodule PetstoreClient.DefaultApiClient do
          call_timeout,
          {:stream, idle_timeout}
        ) do
+    {body, headers} = hop_body(body, headers)
+
     options =
       [
         method: method,
@@ -1142,6 +1146,31 @@ defmodule PetstoreClient.DefaultApiClient do
           status_code: 0
     end
   end
+
+  # A BodySource is opened for each hop, so a replay reads it again from the start. A body that
+  # is not in memory is sent as it is read: with its length as `Content-Length` when that is
+  # known, else chunked (no length header at all).
+  defp hop_body(%PetstoreClient.BodySource{} = source, headers) do
+    case PetstoreClient.BodySource.open(source) do
+      {bytes, _length} when is_binary(bytes) ->
+        {bytes, headers}
+
+      {stream, length} ->
+        headers =
+          Map.reject(headers, fn {name, _value} ->
+            String.downcase(to_string(name)) in ["content-length", "transfer-encoding"]
+          end)
+
+        headers =
+          if is_integer(length),
+            do: Map.put(headers, "Content-Length", Integer.to_string(length)),
+            else: headers
+
+        {stream, headers}
+    end
+  end
+
+  defp hop_body(body, headers), do: {body, headers}
 
   # A hop whose response is not the one the caller gets (a redirect that is
   # followed or refused) lets go of its connection first.
@@ -1218,6 +1247,18 @@ defmodule PetstoreClient.DefaultApiClient do
 
             true ->
               cross_origin = not same_origin?(orig_url, next_url)
+
+              # A single use body was read to its end by the first hop. It is
+              # never buffered to make a replay possible, so a redirect that
+              # keeps the method (and so the body) is refused.
+              if next_method_keeps_body?(response.status, method) and
+                   PetstoreClient.BodySource.single_use?(body) do
+                discard_hop(response)
+
+                raise PetstoreClient.Errors.ApiError,
+                  message: "Refusing to replay a streamed request body",
+                  status_code: response.status
+              end
 
               # Refuse to replay a request body across a transport
               # downgrade (HTTPS -> HTTP). A 307/308 normally preserves the
@@ -1393,6 +1434,8 @@ defmodule PetstoreClient.DefaultApiClient do
       true -> method
     end
   end
+
+  defp next_method_keeps_body?(status, method), do: redirect_method(status, method) == method
 
   @doc false
   # Whether following a redirect would replay a request body over an HTTPS ->

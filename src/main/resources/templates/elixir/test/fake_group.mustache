@@ -26,6 +26,14 @@ defmodule Fake{{classname}} do
     send(self(), {:called, :{{operationId}}_with_http_info, [{{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgsNoServer}}]})
     {:error, failure()}
   end
+{{#vendorExtensions.op.hasPagesMethod}}
+
+  @impl true
+  def {{vendorExtensions.op.pagesMethodName}}(_api{{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}, {{paramName}}{{/isPath}}{{#isBody}}, _{{paramName}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}, _{{paramName}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, _opts \\ []) do
+    send(self(), {:called, :{{vendorExtensions.op.pagesMethodName}}, [{{#vendorExtensions.op.signatureArgsNoServer}}{{#isPath}}{{paramName}}, {{/isPath}}{{/vendorExtensions.op.signatureArgsNoServer}}]})
+    {{moduleName}}.Paginator.of_cursor(nil, fn _cursor -> {:error, failure()} end, fn _page -> [] end, fn _page -> nil end, "/")
+  end
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{#vendorExtensions.op.streamOnly}}
   @impl true
