@@ -1549,7 +1549,6 @@ module Petstore::Client
                   "Unsupported request content-type '#{request_content_type}' for " \
                   "set_pet_avatar; declared types are [#{declared_consumes.join(', ')}]"
           end
-
         invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
           [],
@@ -1892,7 +1891,6 @@ module Petstore::Client
                   "Unsupported request content-type '#{request_content_type}' for " \
                   "upload_pet_document; declared types are [#{declared_consumes.join(', ')}]"
           end
-
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],

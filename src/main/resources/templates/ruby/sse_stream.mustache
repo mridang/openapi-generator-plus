@@ -1,0 +1,295 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'time'
+
+module {{moduleName}}
+  # The events of a server-sent events response, parsed as they arrive (WHATWG
+  # HTML, "Server-sent events"), with automatic reconnecting.
+  #
+  # It is an +Enumerable+ of {ServerSentEvent}: walk it with {#each} (or +lazy+,
+  # +first+, +take+) and close it when you stop early. {#close} is idempotent
+  # and aborts the connection.
+  #
+  # When the connection ends, fails or stays silent for the idle timeout, the
+  # stream asks again with a fresh request (headers rebuilt, so a refreshed
+  # token is the one sent) that carries the last event id in +Last-Event-ID+.
+  # It waits the server's +retry+ value, else the +reconnect_delay+ doubling to
+  # 30 seconds with jitter, and gives up after +max_reconnects+ consecutive
+  # failures without an event by raising the last failure. It never reconnects
+  # after a 204, a status other than 408, 429 and 5xx, a response that is not
+  # +text/event-stream+, a cancellation or the closing of the client. An event
+  # named +error+ raises an {Errors::ApiError} with the response status and the
+  # data as its body. {#inspect} and {#to_s} show the status code, the events
+  # delivered and the last event id, never the data.
+  class SseStream
+    # The longest a reconnect waits, in milliseconds, before jitter.
+    MAX_RECONNECT_DELAY_MS = 30_000
+
+    # The longest wait a +Retry-After+ header may ask for, in milliseconds.
+    RETRY_AFTER_CAP_MS = 60_000
+
+    # The statuses of a failed reconnect that are tried again.
+    RECONNECTABLE_STATUSES = [408, 429, *(500..599).to_a].freeze
+
+    include Enumerable
+
+    # Opens the first connection of an event stream; a failure of that request
+    # is raised here.
+    #
+    # @param opener [#call] sends one request with the given last event id (an
+    #   empty string for none) and returns its open {ByteStream}, or raises the
+    #   typed error of a failed status
+    # @param decoder [#call, nil] decodes the +data+ field, or nil to hand it over as a string
+    # @param terminator [String, nil] a +data+ value that ends the stream and is not delivered
+    # @param options [StreamOptions, nil] the call's settings
+    # @param has_body [Boolean] whether the request has a body, which turns reconnecting off by default
+    # @param method [String] the HTTP method, for errors
+    # @param path [String] the request path, for errors
+    # @return [SseStream] the open stream
+    def self.open(opener:, decoder:, terminator:, options:, has_body:, method:, path:)
+      given = options || StreamOptions.new
+      last_event_id = given.last_event_id || ''
+      first = connect_to(opener, last_event_id, method, path)
+      new(opener, decoder, terminator, given, has_body, method, path, first, last_event_id)
+    end
+
+    # Sends the request and checks that the answer is an event stream.
+    #
+    # @api private
+    def self.connect_to(opener, last_event_id, method, path)
+      stream = opener.call(last_event_id)
+      return stream if stream.status_code == 204
+
+      type = stream.headers['content-type'].to_s
+      unless type.downcase.start_with?('text/event-stream')
+        stream.close
+        raise Errors::SerializationError.new(
+          "Unexpected response Content-Type '#{type.split(';').first.to_s.strip}' for #{path}: " \
+          'expected text/event-stream'
+        ).with_response(status_code: stream.status_code, headers: stream.headers, body: nil, request_method: method,
+                        request_path: path)
+      end
+      stream
+    end
+
+    # How long to wait before reconnect number +attempt+ (1 for the first): the
+    # server's +retry+ value, else +Retry-After+, else +base+ doubling to 30
+    # seconds, reduced by up to 25% of jitter.
+    #
+    # @param attempt [Integer] the consecutive reconnect number, from 1
+    # @param base [Integer] the first delay in milliseconds
+    # @param server_retry [Integer, nil] the last +retry+ value of the stream
+    # @param retry_after [Integer, nil] the +Retry-After+ of the failure, in milliseconds
+    # @param jitter_sample [Float] a uniform random value in [0, 1)
+    # @return [Integer] the wait in milliseconds
+    def self.reconnect_wait_ms(attempt, base, server_retry, retry_after, jitter_sample)
+      return server_retry if server_retry
+      return retry_after if retry_after
+
+      doubled = [MAX_RECONNECT_DELAY_MS, base << [attempt - 1, 20].min].min
+      (doubled * (1.0 - (0.25 * jitter_sample))).to_i
+    end
+
+    private_class_method :new
+
+    # @api private
+    def initialize(opener, decoder, terminator, options, has_body, method, path, first, last_event_id)
+      @opener = opener
+      @decoder = decoder
+      @terminator = terminator
+      @max_reconnects = options.max_reconnects || (has_body ? 0 : 5)
+      @reconnect_delay = options.reconnect_delay || 1000
+      @max_event_bytes = options.max_event_bytes || (1024 * 1024)
+      @method = method
+      @path = path
+      @last_event_id = last_event_id
+      @server_retry = nil
+      @consecutive = 0
+      @delivered = 0
+      @done = false
+      @current = first
+      @parser = EventStream::SseParser.new(first, @max_event_bytes, last_event_id)
+    end
+
+    # @return [Integer] the HTTP status code of the current connection
+    def status_code
+      @current.status_code
+    end
+
+    # @return [Hash{String => String}] the lower-cased headers of the current connection
+    def headers
+      @current.headers
+    end
+
+    # Yields the events as they arrive, reconnecting when the connection is lost.
+    #
+    # @yieldparam event [ServerSentEvent] the next event
+    # @return [Enumerator, self] an enumerator without a block, else the stream
+    # @raise [Errors::SerializationError] for data that does not decode or an event that is too long
+    # @raise [Errors::ApiError] for an event named +error+, or a status that is not tried again
+    # @raise [Errors::NetworkError] with the last failure once +max_reconnects+ is used up
+    def each
+      return enum_for(:each) unless block_given?
+
+      while (event = read_next)
+        yield event
+      end
+      self
+    end
+
+    # Closes the stream and aborts the connection; later calls do nothing.
+    #
+    # @return [void]
+    def close
+      @done = true
+      @current.close
+    end
+
+    # Describes the stream by its status code, the events delivered and the last event id.
+    #
+    # @return [String]
+    def inspect
+      "#<#{self.class.name} status_code=#{status_code} events_delivered=#{@delivered} last_event_id=#{@last_event_id}>"
+    end
+    alias to_s inspect
+
+    private
+
+    # The next event, or nil at the end. The stream is finished when there is none,
+    # whether it ended or failed.
+    def read_next
+      return nil if @done
+
+      event = nil
+      begin
+        event = advance
+      ensure
+        finish if event.nil?
+      end
+      event
+    end
+
+    def advance
+      return nil if @current.status_code == 204
+
+      until @done
+        raw = nil
+        lost = nil
+        begin
+          raw = @parser.next_event
+        rescue EventStream::TooLongError => e
+          raise serialization_error("An event of the stream is too long: #{e.message}", e)
+        rescue IOError
+          return nil
+        rescue Errors::NetworkError => e
+          lost = e
+        end
+        @last_event_id = @parser.last_event_id
+        @server_retry = @parser.server_retry
+        if raw
+          @consecutive = 0
+          return deliver(raw)
+        end
+        return nil if @done
+        return nil unless reconnect(lost)
+      end
+      nil
+    end
+
+    def deliver(raw)
+      if raw.event == 'error'
+        raise Errors::ApiError.new(
+          status_code: @current.status_code, message: 'The server sent an error event',
+          response_headers: @current.headers, response_body: raw.data, request_method: @method, request_path: @path
+        )
+      end
+      return nil if @terminator && @terminator == raw.data
+
+      @delivered += 1
+      ServerSentEvent.new(id: raw.id, event: raw.event, data: decode(raw.data), retry: raw.retry, raw: raw.data)
+    end
+
+    def decode(data)
+      return data unless @decoder
+
+      @decoder.call(data)
+    rescue Errors::SerializationError => e
+      raise serialization_error("The data of an event does not decode: #{e.message}", e)
+    end
+
+    # Re-establishes the connection after it was lost; +failure+ is why, or nil
+    # when it ended cleanly. Returns true when a new connection is open and false
+    # when the stream ends.
+    def reconnect(failure)
+      cause = failure
+      loop do
+        @current.close
+        if @max_reconnects.zero?
+          raise cause if cause
+
+          return false
+        end
+        raise exhausted(cause) if @max_reconnects.positive? && @consecutive >= @max_reconnects
+
+        @consecutive += 1
+        pause(self.class.reconnect_wait_ms(@consecutive, @reconnect_delay, @server_retry, retry_after_of(cause), rand))
+        begin
+          @current = self.class.connect_to(@opener, @last_event_id, @method, @path)
+          @parser = EventStream::SseParser.new(@current, @max_event_bytes, @last_event_id)
+          return @current.status_code != 204
+        rescue Errors::NetworkError => e
+          cause = e
+        rescue Errors::ApiError => e
+          raise unless RECONNECTABLE_STATUSES.include?(e.status_code)
+
+          cause = e
+        end
+      end
+    end
+
+    # The failure that ends a stream whose reconnects are used up: the last
+    # failure, or a stream error when the connection only ended.
+    def exhausted(cause)
+      return cause if cause
+
+      Errors::StreamError.new(
+        message: "The event stream ended and was not re-established after #{@max_reconnects} reconnects",
+        request_method: @method, request_path: @path
+      )
+    end
+
+    # The +Retry-After+ of a failed status, in milliseconds, or nil.
+    def retry_after_of(failure)
+      return nil unless failure.is_a?(Errors::ApiError) && !failure.is_a?(Errors::NetworkError)
+      return nil unless [429, 502, 503, 504].include?(failure.status_code)
+
+      value = failure.response_headers&.fetch('retry-after', nil).to_s.strip
+      millis = if value.match?(/\A\d+\z/)
+                 value.to_i * 1000
+               else
+                 ((Time.httpdate(value) - Time.now) * 1000).to_i
+               end
+      millis.negative? ? nil : [millis, RETRY_AFTER_CAP_MS].min
+    rescue ArgumentError
+      nil
+    end
+
+    def pause(millis)
+      sleep(millis / 1000.0) if millis.positive?
+    end
+
+    def finish
+      @done = true
+      @current.close
+    end
+
+    def serialization_error(message, cause)
+      Errors::SerializationError.new(message, cause).with_response(
+        status_code: @current.status_code, headers: @current.headers, body: nil, request_method: @method,
+        request_path: @path
+      )
+    end
+  end
+end

@@ -26,6 +26,12 @@ class TestableApi < {{moduleName}}::Api::BaseApi
   def stream(method, path, auth = nil)
     invoke_api_for_stream(method, path, {}, {}, nil, ['application/octet-stream'], 'application/json', auth)
   end
+
+  def events(header_params = {}, stream_options = nil, auth = nil)
+    invoke_api_for_sse(:GET, '/items/events', {}, header_params, nil, ['text/event-stream'], 'application/json', auth,
+                       stream_options: stream_options, spec_operation_id: 'watch_events',
+                       url_template: '/items/events')
+  end
 end
 
 CallOptions = Struct.new(:timeout, :headers, :max_retries)
@@ -193,6 +199,45 @@ class ScriptedStreamingClient
     {{moduleName}}::ApiStreamResponse.new(
       status_code: @statuses[index], headers: { 'content-type' => @content_type }, body: opening
     )
+  end
+end
+
+# Answers each event stream call with the next scripted body and keeps the
+# headers it was sent. An empty body is a 204.
+class EventStreamClient
+  attr_reader :sent_headers
+
+  def initialize(*bodies)
+    @bodies = bodies
+    @sent_headers = []
+  end
+
+  def send_streaming(_method, _url, headers, _body, **_kwargs)
+    index = [@sent_headers.length, @bodies.length - 1].min
+    @sent_headers << headers.dup
+    text = @bodies[index]
+    return {{moduleName}}::ApiStreamResponse.new(status_code: 204, headers: {}, body: StringIO.new) if text.empty?
+
+    {{moduleName}}::ApiStreamResponse.new(
+      status_code: 200, headers: { 'content-type' => 'text/event-stream' }, body: StringIO.new(text)
+    )
+  end
+end
+
+# A credential that sends a different token every time it is asked.
+class RotatingBearerAuthenticator < {{moduleName}}::Auth::Authenticator
+  def initialize
+    super
+    @count = 0
+  end
+
+  def host
+    ''
+  end
+
+  def auth_headers
+    @count += 1
+    { 'Authorization' => "Bearer t#{@count}" }
   end
 end
 
@@ -2580,5 +2625,70 @@ describe {{moduleName}}::Api::BaseApi do
       api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
       _(transport.sent_url).must_match(%r{/test/echo\z})
     end
+  end
+
+  # ── Event streams ──
+
+  def header_named(headers, name)
+    headers.find { |key, _value| key.casecmp?(name) }&.last
+  end
+
+  def events_api(client, config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build, auth = nil)
+    TestableApi.new(client, config, auth)
+  end
+
+  it 'bhv_sse_006 an SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them' do
+    client = EventStreamClient.new("data: a
+
+", '')
+    events_api(client).events.to_a
+    sent = client.sent_headers.first
+    _(header_named(sent, 'Accept')).must_equal 'text/event-stream'
+    _(header_named(sent, 'Cache-Control')).must_equal 'no-cache'
+    _(header_named(sent, 'Accept-Encoding')).must_equal 'identity'
+
+    own = EventStreamClient.new("data: a
+
+", '')
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').default_header('accept-encoding', 'gzip').build
+    events_api(own, config).events({ 'cache-control' => 'max-age=0' }).to_a
+    chosen = own.sent_headers.first
+    _(header_named(chosen, 'Cache-Control')).must_equal 'max-age=0'
+    _(chosen.keys.count { |name| name.casecmp?('cache-control') }).must_equal 1
+    _(header_named(chosen, 'Accept-Encoding')).must_equal 'gzip'
+    _(chosen.keys.count { |name| name.casecmp?('accept-encoding') }).must_equal 1
+  end
+
+  it 'bhv_sse_012 an SSE stream sends the initial last event id of the call on its first request' do
+    client = EventStreamClient.new("data: a
+
+", '')
+    events_api(client).events({}, {{moduleName}}::StreamOptions.new(last_event_id: '42')).to_a
+    _(header_named(client.sent_headers.first, 'Last-Event-ID')).must_equal '42'
+  end
+
+  it 'bhv_sse_013 an SSE reconnect rebuilds the headers so a refreshed token is the one sent' do
+    client = EventStreamClient.new("data: a
+
+", '')
+    events_api(client, {{moduleName}}::Configuration.builder.base_url('http://localhost').build, RotatingBearerAuthenticator.new)
+      .events({}, {{moduleName}}::StreamOptions.new(reconnect_delay: 1)).to_a
+    _(client.sent_headers.length).must_equal 2
+    _(header_named(client.sent_headers[0], 'Authorization')).must_equal 'Bearer t1'
+    _(header_named(client.sent_headers[1], 'Authorization')).must_equal 'Bearer t2'
+  end
+
+  it 'bhv_sse_020 an SSE reconnect sends Last-Event-ID only when the last event id is not empty' do
+    client = EventStreamClient.new("data: a
+
+", "id: 5
+data: b
+
+", '')
+    events_api(client).events({}, {{moduleName}}::StreamOptions.new(reconnect_delay: 1)).to_a
+    _(client.sent_headers.length).must_equal 3
+    _(header_named(client.sent_headers[0], 'Last-Event-ID')).must_be_nil
+    _(header_named(client.sent_headers[1], 'Last-Event-ID')).must_be_nil
+    _(header_named(client.sent_headers[2], 'Last-Event-ID')).must_equal '5'
   end
 end

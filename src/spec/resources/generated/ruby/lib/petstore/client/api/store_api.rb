@@ -117,45 +117,27 @@ module Petstore::Client
 
       # Exports every order as JSON Lines
       # @param options [ExportOrdersOptions] per-call options: the optional timeout, headers and max_retries
-      # @return [Order]
+      # @param stream_options [StreamOptions, nil] the stream settings (idle timeout, reconnects, event size), or nil for the defaults
+      # @return [JsonLinesStream] the open stream; close it when you stop early
       # @raise [ApiError] if fails to make API call
-      def export_orders(options = nil)
-        result = export_orders_with_http_info(options)
-        # This operation declares a non-void return type. When the server
-        # responds with an empty/undecodable body (204, empty 200), the
-        # unwrapped convenience method has no value to return. Surface this
-        # loudly as a typed ApiError instead of handing back a silent nil,
-        # so callers see the same catchable error across all SDKs.
-        if result.data.nil?
-          raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a response body for export_orders but received none',
-            status_code: result.status_code,
-            response_headers: result.headers,
-            response_body: result.raw_body
-          )
-        end
-        result.data
-      end
-
-      # @return [ApiResult]
-      # @raise [ApiError] if fails to make API call
-      def export_orders_with_http_info(options = nil)
+      def export_orders_stream(options = nil, stream_options = nil)
         path = '/store/orders/export'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-        invoke_api_for_result(
+        invoke_api_for_json_lines(
           :GET, path, query_params, header_params, request_body,
           ['application/x-ndjson'],
           'application/json',
-          'Order',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.export_orders',
           spec_operation_id: 'exportOrders',
           url_template: '/store/orders/export',
-          request_options: options
+          request_options: options,
+          item_type: 'Order',
+          stream_options: stream_options
         )
       end
 
@@ -1056,73 +1038,37 @@ module Petstore::Client
 
       # Streams plain text notices as server-sent events
       # @param options [WatchNoticesOptions] per-call options: the optional timeout, headers and max_retries
-      # @return [String]
+      # @param stream_options [StreamOptions, nil] the stream settings (idle timeout, reconnects, event size), or nil for the defaults
+      # @return [SseStream] the open stream; close it when you stop early
       # @raise [ApiError] if fails to make API call
-      def watch_notices(options = nil)
-        result = watch_notices_with_http_info(options)
-        # This operation declares a non-void return type. When the server
-        # responds with an empty/undecodable body (204, empty 200), the
-        # unwrapped convenience method has no value to return. Surface this
-        # loudly as a typed ApiError instead of handing back a silent nil,
-        # so callers see the same catchable error across all SDKs.
-        if result.data.nil?
-          raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a response body for watch_notices but received none',
-            status_code: result.status_code,
-            response_headers: result.headers,
-            response_body: result.raw_body
-          )
-        end
-        result.data
-      end
-
-      # @return [ApiResult]
-      # @raise [ApiError] if fails to make API call
-      def watch_notices_with_http_info(options = nil)
+      def watch_notices_stream(options = nil, stream_options = nil)
         path = '/store/notices'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-        invoke_api_for_result(
+        invoke_api_for_sse(
           :GET, path, query_params, header_params, request_body,
           ['text/event-stream'],
           'application/json',
-          'String',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.watch_notices',
           spec_operation_id: 'watchNotices',
           url_template: '/store/notices',
-          request_options: options
+          request_options: options,
+          item_type: nil,
+          terminator: nil,
+          stream_options: stream_options
         )
       end
 
       # Streams order changes as server-sent events
       # @param options [WatchOrdersOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
-      # @return [Order]
+      # @param stream_options [StreamOptions, nil] the stream settings (idle timeout, reconnects, event size), or nil for the defaults
+      # @return [SseStream] the open stream; close it when you stop early
       # @raise [ApiError] if fails to make API call
-      def watch_orders(options = nil)
-        result = watch_orders_with_http_info(options)
-        # This operation declares a non-void return type. When the server
-        # responds with an empty/undecodable body (204, empty 200), the
-        # unwrapped convenience method has no value to return. Surface this
-        # loudly as a typed ApiError instead of handing back a silent nil,
-        # so callers see the same catchable error across all SDKs.
-        if result.data.nil?
-          raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a response body for watch_orders but received none',
-            status_code: result.status_code,
-            response_headers: result.headers,
-            response_body: result.raw_body
-          )
-        end
-        result.data
-      end
-
-      # @return [ApiResult]
-      # @raise [ApiError] if fails to make API call
-      def watch_orders_with_http_info(options = nil)
+      def watch_orders_stream(options = nil, stream_options = nil)
         path = '/store/orders/events'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -1137,16 +1083,18 @@ module Petstore::Client
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-        invoke_api_for_result(
+        invoke_api_for_sse(
           :GET, path, query_params, header_params, request_body,
           ['text/event-stream'],
           'application/json',
-          'Order',
           ::Petstore::Client::Api::BaseApi::NO_AUTH,
           operation_id: 'StoreApi.watch_orders',
           spec_operation_id: 'watchOrders',
           url_template: '/store/orders/events',
-          request_options: options
+          request_options: options,
+          item_type: 'Order',
+          terminator: nil,
+          stream_options: stream_options
         )
       end
     end

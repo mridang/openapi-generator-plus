@@ -183,6 +183,7 @@
     attr_reader bytes_delivered: Integer
     def initialize: (status_code: Integer, headers: Hash[String, String], source: _StreamSource) -> void
     def read: (?Integer? length, ?String? outbuf) -> String?
+    def read_partial: (?Integer) -> String?
     def each: (?Integer) ?{ (String) -> void } -> (Enumerator[String, ByteStream] | ByteStream)
     def read_all: () -> String
     def close: () -> void
@@ -195,6 +196,119 @@
     def take_all: () -> String
     def fill: (Integer?) -> void
     def finish_read: (String?, String?) -> String?
+  end
+
+  class ServerSentEvent < Data
+    attr_reader id: String?
+    attr_reader event: String
+    attr_reader data: untyped
+    attr_reader retry: Integer?
+    attr_reader raw: String
+    def self.new: (id: String?, event: String, data: untyped, retry: Integer?, raw: String) -> ServerSentEvent
+                | (String?, String, untyped, Integer?, String) -> ServerSentEvent
+    def inspect: () -> String
+    def to_s: () -> String
+  end
+
+  class StreamOptions
+    attr_reader idle_timeout: (Integer | Float)?
+    attr_reader max_reconnects: Integer?
+    attr_reader reconnect_delay: Integer?
+    attr_reader last_event_id: String?
+    attr_reader max_event_bytes: Integer?
+    def initialize: (?idle_timeout: (Integer | Float)?, ?max_reconnects: Integer?, ?reconnect_delay: Integer?, ?last_event_id: String?, ?max_event_bytes: Integer?) -> void
+    def inspect: () -> String
+    def to_s: () -> String
+    private
+    def non_negative!: (Symbol, untyped) -> Integer?
+  end
+
+  module EventStream
+    class TooLongError < StandardError
+    end
+
+    class RawEvent < Data
+      attr_reader id: String?
+      attr_reader event: String
+      attr_reader data: String
+      attr_reader retry: Integer?
+      def self.new: (id: String?, event: String, data: String, retry: Integer?) -> RawEvent
+                  | (String?, String, String, Integer?) -> RawEvent
+    end
+
+    interface _PartialReader
+      def read_partial: (?Integer) -> String?
+    end
+
+    class LineReader
+      CHUNK_SIZE: Integer
+      def initialize: (_PartialReader, Integer) -> void
+      def terminated?: () -> bool
+      def read_line: () -> String?
+      private
+      def drop_line_feed: () -> void
+      def take_line: (Integer) -> String
+      def take_unterminated: () -> String?
+      def decode: (String) -> String
+    end
+
+    class SseParser
+      attr_reader last_event_id: String
+      attr_reader server_retry: Integer?
+      def initialize: (_PartialReader, Integer, String?) -> void
+      def next_event: () -> RawEvent?
+      private
+      def dispatch: (String, String) -> RawEvent
+    end
+  end
+
+  class JsonLinesStream
+    include Enumerable[untyped]
+    def initialize: (source: ByteStream, decoder: (^(String) -> untyped)?, max_line_bytes: Integer, method: String, path: String) -> void
+    def status_code: () -> Integer
+    def headers: () -> Hash[String, String]
+    def each: () { (untyped) -> void } -> self
+            | () -> Enumerator[untyped, self]
+    def close: () -> void
+    def inspect: () -> String
+    def to_s: () -> String
+    private
+    def read_item: () -> Array[untyped]?
+    def decode: (String) -> untyped
+    def failure: (String, Exception) -> Errors::SerializationError
+  end
+
+  interface _Opener
+    def call: (String) -> ByteStream
+  end
+
+  class SseStream
+    include Enumerable[ServerSentEvent]
+    MAX_RECONNECT_DELAY_MS: Integer
+    RETRY_AFTER_CAP_MS: Integer
+    RECONNECTABLE_STATUSES: Array[Integer]
+    def self.open: (opener: _Opener, decoder: (^(String) -> untyped)?, terminator: String?, options: StreamOptions?, has_body: bool, method: String, path: String) -> SseStream
+    def self.connect_to: (_Opener, String, String, String) -> ByteStream
+    def self.reconnect_wait_ms: (Integer, Integer, Integer?, Integer?, Float) -> Integer
+    def status_code: () -> Integer
+    def headers: () -> Hash[String, String]
+    def each: () { (ServerSentEvent) -> void } -> self
+            | () -> Enumerator[ServerSentEvent, self]
+    def close: () -> void
+    def inspect: () -> String
+    def to_s: () -> String
+    private
+    def initialize: (_Opener, (^(String) -> untyped)?, String?, StreamOptions, bool, String, String, ByteStream, String) -> void
+    def read_next: () -> ServerSentEvent?
+    def advance: () -> ServerSentEvent?
+    def deliver: (EventStream::RawEvent) -> ServerSentEvent?
+    def decode: (String) -> untyped
+    def reconnect: (Errors::NetworkError?) -> bool
+    def exhausted: (Errors::ApiError?) -> Errors::ApiError
+    def retry_after_of: (untyped) -> Integer?
+    def pause: (Integer) -> void
+    def finish: () -> void
+    def serialization_error: (String, Exception) -> Errors::SerializationError
   end
 
   class StreamBody
@@ -787,7 +901,9 @@
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?, ?Hash[String, Auth::Authenticator]) -> void
       def scheme_authenticator: (*String) -> Auth::Authenticator?
       def requirement_authenticator: (*Array[String]) -> Auth::Authenticator?
-      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?, ?stream: bool) -> ApiResult[untyped]
+      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?, ?stream: bool, ?idle_timeout: Numeric?) -> ApiResult[untyped]
+      def invoke_api_for_json_lines: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, ?(Auth::Authenticator | Object)?, ?item_type: String?, ?stream_options: StreamOptions?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> JsonLinesStream
+      def invoke_api_for_sse: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, ?(Auth::Authenticator | Object)?, ?item_type: String?, ?terminator: String?, ?stream_options: StreamOptions?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> SseStream
       def invoke_api_for_stream: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> ApiResult[ByteStream]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
@@ -803,6 +919,7 @@
       def finish_call: (_CallObserver, CallOutcome) -> void
       def dispatch_request: (Symbol, String, Hash[String, String], untyped, ^(?bool) -> Hash[String, String], ?Hash[Symbol, untyped]) -> ApiHttpResponse
       def dispatch_stream: (Symbol, String, Hash[String, String], untyped, ^(?bool) -> Hash[String, String], ?Hash[Symbol, untyped]) -> ApiStreamResponse
+      def stream_decoder: (String?) -> (^(String) -> untyped)?
       def send_call: (bool, Symbol, String, Hash[String, String], untyped, ^(?bool) -> Hash[String, String], Hash[Symbol, untyped]) -> untyped
       def replayable_body?: (untyped) -> bool
       def decode_success_body: (ApiHttpResponse, String, String?) -> untyped
