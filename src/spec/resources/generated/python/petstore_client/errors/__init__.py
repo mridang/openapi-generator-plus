@@ -418,6 +418,7 @@ from petstore_client.errors.internal_server_error_exception import (
 )
 from petstore_client.errors.network_exception import NetworkException
 from petstore_client.errors.network_timeout_exception import NetworkTimeoutException
+from petstore_client.errors.stream_exception import StreamException
 from petstore_client.errors.serialization_exception import SerializationException
 from petstore_client.errors.oauth2_server_exception import OAuth2ServerException
 from petstore_client.errors.oauth2_token_exception import OAuth2TokenException
@@ -456,6 +457,7 @@ __all__ = [
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",
+    "StreamException",
     "SerializationException",
     "OAuth2ServerException",
     "OAuth2TokenException",
