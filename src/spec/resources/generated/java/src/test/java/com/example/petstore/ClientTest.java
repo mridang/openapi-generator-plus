@@ -484,6 +484,18 @@ class ClientTest {
     assertTrue(petListed.contains("getPetTagWithHttpInfo"));
     assertTrue(petListed.contains("getStagingPetInfo"));
     assertTrue(petListed.contains("getStagingPetInfoWithHttpInfo"));
+    assertTrue(petListed.contains("listPetArchive"));
+    assertTrue(petListed.contains("listPetArchiveWithHttpInfo"));
+    assertTrue(petListed.contains("listPetCatalog"));
+    assertTrue(petListed.contains("listPetCatalogWithHttpInfo"));
+    assertTrue(petListed.contains("listPetEvents"));
+    assertTrue(petListed.contains("listPetEventsWithHttpInfo"));
+    assertTrue(petListed.contains("listPetFeed"));
+    assertTrue(petListed.contains("listPetFeedWithHttpInfo"));
+    assertTrue(petListed.contains("listPetMatches"));
+    assertTrue(petListed.contains("listPetMatchesWithHttpInfo"));
+    assertTrue(petListed.contains("listPetNotes"));
+    assertTrue(petListed.contains("listPetNotesWithHttpInfo"));
     assertTrue(petListed.contains("setPetAvatar"));
     assertTrue(petListed.contains("setPetAvatarWithHttpInfo"));
     assertTrue(petListed.contains("setPetAvatarThumbnail"));

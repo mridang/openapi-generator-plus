@@ -12,6 +12,7 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.ApiResult;
 import com.example.petstore.ApiStreamResponse;
+import com.example.petstore.BodySource;
 import com.example.petstore.ByteStream;
 import com.example.petstore.CallHook;
 import com.example.petstore.CallInfo;
@@ -739,7 +740,14 @@ public abstract class BaseApi {
     Function<String, T> decoder =
         itemType == null ? null : data -> objectSerializer.<T>deserialize(data, itemType);
     return SseStream.open(
-        opener, decoder, terminator, options, body != null, method, requestPathOf(path));
+        opener,
+        decoder,
+        terminator,
+        options,
+        body != null,
+        body instanceof BodySource source && !source.isReplayable(),
+        method,
+        requestPathOf(path));
   }
 
   private <T> ApiResult<T> invokeCall(
@@ -792,7 +800,7 @@ public abstract class BaseApi {
     final String urlWithoutQuery = url;
     String query = buildQueryString(queryParams);
     if (!query.isEmpty()) {
-      url += "?" + query;
+      url += (url.contains("?") ? "&" : "?") + query;
     }
 
     boolean isMultipart = "multipart/form-data".equals(contentType);
@@ -1009,6 +1017,7 @@ public abstract class BaseApi {
          * transport see a Map and emit multipart/form-data instead. */
         requestBody = extractBinaryPart(binaryForm);
       } else if (body instanceof byte[]
+          || body instanceof BodySource
           || body instanceof InputStream
           || body instanceof java.io.File
           || contentType.startsWith("image/")
@@ -1265,7 +1274,10 @@ public abstract class BaseApi {
     }
     tokenAuth.invalidateAccessToken();
     boolean replayable =
-        requestBody == null || requestBody instanceof String || requestBody instanceof byte[];
+        requestBody == null
+            || requestBody instanceof String
+            || requestBody instanceof byte[]
+            || (requestBody instanceof BodySource source && source.isReplayable());
     if (!replayable) {
       return response;
     }
@@ -1314,6 +1326,7 @@ public abstract class BaseApi {
   private static Object extractBinaryPart(Map<?, ?> formBody) {
     for (Object value : formBody.values()) {
       if (value instanceof InputStream
+          || value instanceof BodySource
           || value instanceof byte[]
           || value instanceof java.io.File) {
         return value;
@@ -1349,7 +1362,10 @@ public abstract class BaseApi {
     }
     tokenAuth.invalidateAccessToken();
     boolean replayable =
-        requestBody == null || requestBody instanceof String || requestBody instanceof byte[];
+        requestBody == null
+            || requestBody instanceof String
+            || requestBody instanceof byte[]
+            || (requestBody instanceof BodySource source && source.isReplayable());
     if (!replayable) {
       return response;
     }

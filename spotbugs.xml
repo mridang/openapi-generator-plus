@@ -25,4 +25,17 @@
     <Class name="io.github.mridang.codegen.rules.IgnoreReservedHeadersRule"/>
     <Bug pattern="IMPROPER_UNICODE"/>
   </Match>
+  <!-- Pagination option values, style names, the HTTP method and the Link header name are ASCII tokens:
+       comparing them without case is safe. -->
+  <Match>
+    <Class name="io.github.mridang.codegen.generators.AbstractBetterCodegen"/>
+    <Or>
+      <Method name="processPaginationOptions"/>
+      <Method name="populatePaginationDecorators"/>
+      <Method name="planPagination"/>
+      <Method name="resolvePagination"/>
+      <Method name="declaresLink"/>
+    </Or>
+    <Bug pattern="IMPROPER_UNICODE"/>
+  </Match>
 </FindBugsFilter>

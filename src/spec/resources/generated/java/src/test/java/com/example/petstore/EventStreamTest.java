@@ -307,6 +307,20 @@ class EventStreamTest {
             "POST",
             "/events");
     assertEquals(List.of("a", "b"), dataOf(reconnect));
+
+    Script onceBody = new Script("data: a\n\n", "data: b\n\n", noContent());
+    SseStream<String> singleUse =
+        SseStream.open(
+            onceBody,
+            null,
+            null,
+            new StreamOptions().reconnectDelay(1).maxReconnects(5),
+            true,
+            true,
+            "POST",
+            "/events");
+    assertEquals(List.of("a"), dataOf(singleUse));
+    assertEquals(1, onceBody.lastIds.size(), "a single use body is never sent again");
   }
 
   @Test

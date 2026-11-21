@@ -468,9 +468,9 @@ public final class DefaultApiClient implements ApiClient {
       @Nullable Integer idleTimeoutMillis) {
     beginRequest();
     boolean handedOver = false;
+    PreparedCall call = null;
     try {
-      final PreparedCall call =
-          prepare(method, url, headers, body, false, false, timeoutMillis, maxRetries);
+      call = prepare(method, url, headers, body, false, false, timeoutMillis, maxRetries);
       HttpResponse<InputStream> response =
           sendHeaderPhase(
               call, HttpResponse.BodyHandlers.ofInputStream(), DefaultApiClient::closeQuietly);
@@ -492,6 +492,9 @@ public final class DefaultApiClient implements ApiClient {
       cancelled.initCause(e);
       throw cancelled;
     } finally {
+      if (call != null) {
+        call.closeOpenedBody();
+      }
       if (!handedOver) {
         endRequest();
       }
@@ -1055,6 +1058,8 @@ public final class DefaultApiClient implements ApiClient {
           new java.util.concurrent.CancellationException("request interrupted");
       cancelled.initCause(e);
       throw cancelled;
+    } finally {
+      call.closeOpenedBody();
     }
   }
 
@@ -1073,7 +1078,11 @@ public final class DefaultApiClient implements ApiClient {
     @Nullable final Integer timeoutMillis;
     final long deadlineNanos;
     final boolean replayable;
+    final boolean singleUseBody;
     final int maxRetries;
+
+    /** Streams the SDK opened for a body source; closed when the call is over. */
+    final List<InputStream> openedBody;
 
     PreparedCall(
         String method,
@@ -1085,7 +1094,9 @@ public final class DefaultApiClient implements ApiClient {
         @Nullable Integer timeoutMillis,
         long deadlineNanos,
         boolean replayable,
-        int maxRetries) {
+        boolean singleUseBody,
+        int maxRetries,
+        List<InputStream> openedBody) {
       this.method = method;
       this.url = url;
       this.noRedirect = noRedirect;
@@ -1095,7 +1106,19 @@ public final class DefaultApiClient implements ApiClient {
       this.timeoutMillis = timeoutMillis;
       this.deadlineNanos = deadlineNanos;
       this.replayable = replayable;
+      this.singleUseBody = singleUseBody;
       this.maxRetries = maxRetries;
+      this.openedBody = openedBody;
+    }
+
+    /** Closes the streams the SDK opened for the body; the caller's own stream is never one. */
+    void closeOpenedBody() {
+      synchronized (openedBody) {
+        for (InputStream opened : openedBody) {
+          closeStream(opened);
+        }
+        openedBody.clear();
+      }
     }
   }
 
@@ -1137,9 +1160,15 @@ public final class DefaultApiClient implements ApiClient {
     /* A stream body is single-use and a multipart handle may wrap one, so
      * such a request is sent once and never retried. */
     final boolean replayable = isReplayableBody(body);
+    final boolean singleUseBody = body instanceof BodySource source && !source.isReplayable();
+    final List<InputStream> openedBody = new java.util.ArrayList<>();
 
     HttpRequest.BodyPublisher bodyPublisher;
-    if (body == null) {
+    if (body instanceof BodySource source) {
+      /* Sent as it is read, never buffered: a known length is a Content-Length, an
+       * unknown one is chunked. A replayable source is opened again for every send. */
+      bodyPublisher = publisherOf(source, openedBody);
+    } else if (body == null) {
       /* HttpRequest.BodyPublishers.noBody() reports contentLength == 0,
        * which causes java.net.http to emit `Content-Length: 0` on the
        * wire for body-bearing methods (POST/PUT/PATCH) — matching
@@ -1230,7 +1259,9 @@ public final class DefaultApiClient implements ApiClient {
         timeoutMillis,
         deadlineNanos,
         replayable,
-        maxRetries);
+        singleUseBody,
+        maxRetries,
+        openedBody);
   }
 
   /**
@@ -1342,6 +1373,15 @@ public final class DefaultApiClient implements ApiClient {
         } else {
           nextMethod = currentMethod;
           nextBody = currentBody;
+        }
+
+        if (call.singleUseBody && !rewriteToGet) {
+          /* The one stream was read to its end by the first request, so there is
+           * nothing to send again, and it is never buffered to make that possible. */
+          Map<String, String> failedHeaders = copyResponseHeaders(response.headers());
+          discard.accept(response);
+          throw new ApiException(
+              statusCode, "Refusing to replay a streamed request body", failedHeaders, null);
         }
 
         Map<String, String> redirectHeaders = new HashMap<>(currentHeaders);
@@ -1575,8 +1615,63 @@ public final class DefaultApiClient implements ApiClient {
     }
   }
 
+  /**
+   * The publisher of a body source. The JDK subscribes to it once per send, so a retry or a
+   * redirect opens the source again; every stream the SDK opened is recorded in {@code opened} and
+   * closed when the call ends, and a stream the caller passed is never closed.
+   */
+  private static HttpRequest.BodyPublisher publisherOf(
+      BodySource source, List<InputStream> opened) {
+    final java.util.OptionalLong length;
+    try {
+      length = source.length();
+    } catch (java.io.UncheckedIOException e) {
+      throw new IllegalArgumentException("Failed to read request body file", e.getCause());
+    }
+    final byte[] inMemory = source.bytesOrNull();
+    if (inMemory != null) {
+      return HttpRequest.BodyPublishers.ofByteArray(inMemory);
+    }
+    if (length.isPresent() && length.getAsLong() == 0L) {
+      return NO_BODY;
+    }
+    HttpRequest.BodyPublisher publisher =
+        HttpRequest.BodyPublishers.ofInputStream(
+            () -> {
+              synchronized (opened) {
+                for (InputStream previous : opened) {
+                  closeStream(previous);
+                }
+                opened.clear();
+                try {
+                  InputStream stream = source.open();
+                  /* closing what a single use body hands out does nothing,
+                   * because the stream is the caller's */
+                  opened.add(stream);
+                  return stream;
+                } catch (IOException e) {
+                  throw new java.io.UncheckedIOException(e);
+                }
+              }
+            });
+    return length.isPresent()
+        ? HttpRequest.BodyPublishers.fromPublisher(publisher, length.getAsLong())
+        : publisher;
+  }
+
+  private static void closeStream(InputStream stream) {
+    try {
+      stream.close();
+    } catch (IOException ignored) {
+      /* the content was already sent or abandoned: nothing is left to release */
+    }
+  }
+
   /** A body that can be sent again: not a stream, and not a multipart map holding one. */
   static boolean isReplayableBody(@Nullable Object body) {
+    if (body instanceof BodySource source) {
+      return source.isReplayable();
+    }
     if (body instanceof InputStream) {
       return false;
     }

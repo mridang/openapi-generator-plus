@@ -3,8 +3,10 @@
 package {{package}};
 
 import {{invokerPackage}}.ApiResult;
+import {{invokerPackage}}.BodySource;
 import {{invokerPackage}}.ByteStream;
 import {{invokerPackage}}.JsonLinesStream;
+import {{invokerPackage}}.Paginator;
 import {{invokerPackage}}.SseStream;
 import {{invokerPackage}}.StreamOptions;
 import {{invokerPackage}}.errors.ApiException;
@@ -216,6 +218,9 @@ public interface {{classname}}Interface {
 {{/isDeprecated}}
     ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}});
 {{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/operation}}
 }
 {{/operations}}

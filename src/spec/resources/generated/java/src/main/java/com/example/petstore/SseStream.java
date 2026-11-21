@@ -74,6 +74,7 @@ public final class SseStream<T> implements Iterator<ServerSentEvent<T>>, AutoClo
       @Nullable String terminator,
       StreamOptions given,
       boolean hasBody,
+      boolean singleUseBody,
       String method,
       String path,
       ByteStream first,
@@ -82,7 +83,8 @@ public final class SseStream<T> implements Iterator<ServerSentEvent<T>>, AutoClo
     this.decoder = decoder;
     this.terminator = terminator;
     Integer reconnects = given.getMaxReconnects();
-    this.maxReconnects = reconnects != null ? reconnects : (hasBody ? 0 : 5);
+    /* A single use body has been read to its end, so a reconnect has nothing to send. */
+    this.maxReconnects = singleUseBody ? 0 : (reconnects != null ? reconnects : (hasBody ? 0 : 5));
     Integer delay = given.getReconnectDelay();
     this.reconnectDelay = delay != null ? delay : 1000L;
     Integer limit = given.getMaxEventBytes();
@@ -117,12 +119,50 @@ public final class SseStream<T> implements Iterator<ServerSentEvent<T>>, AutoClo
       boolean hasBody,
       String method,
       String path) {
+    return open(opener, decoder, terminator, options, hasBody, false, method, path);
+  }
+
+  /**
+   * Opens the first connection of an event stream whose request body may be single use.
+   *
+   * @param <T> the data type
+   * @param opener sends one request with the given last event id ({@code ""} for none) and returns
+   *     its open body, or raises the typed error of a failed status
+   * @param decoder decodes the {@code data} field, or {@code null} to hand it over as a string
+   * @param terminator a {@code data} value that ends the stream and is not delivered, or {@code
+   *     null}
+   * @param options the call's settings, or {@code null}
+   * @param hasBody whether the request has a body, which turns reconnecting off by default
+   * @param singleUseBody whether the body can be sent only once, which turns reconnecting off
+   *     whatever the options say
+   * @param method the HTTP method, for errors
+   * @param path the request path, for errors
+   * @return the open stream
+   */
+  public static <T> SseStream<T> open(
+      Function<String, ByteStream> opener,
+      @Nullable Function<String, T> decoder,
+      @Nullable String terminator,
+      @Nullable StreamOptions options,
+      boolean hasBody,
+      boolean singleUseBody,
+      String method,
+      String path) {
     StreamOptions given = options == null ? new StreamOptions() : options;
     String initial = given.getLastEventId();
     String lastEventId = initial == null ? "" : initial;
     ByteStream first = connectTo(opener, lastEventId, method, path);
     return new SseStream<>(
-        opener, decoder, terminator, given, hasBody, method, path, first, lastEventId);
+        opener,
+        decoder,
+        terminator,
+        given,
+        hasBody,
+        singleUseBody,
+        method,
+        path,
+        first,
+        lastEventId);
   }
 
   /**

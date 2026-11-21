@@ -9,6 +9,7 @@ import {{invokerPackage}}.errors.SerializationException;
 import {{invokerPackage}}.ApiHttpResponse;
 import {{invokerPackage}}.ApiResult;
 import {{invokerPackage}}.ApiStreamResponse;
+import {{invokerPackage}}.BodySource;
 import {{invokerPackage}}.ByteStream;
 import {{invokerPackage}}.JsonLinesStream;
 import {{invokerPackage}}.SseStream;
@@ -677,7 +678,9 @@ public abstract class BaseApi {
         @Nullable Function<String, T> decoder =
                 itemType == null ? null : data -> objectSerializer.<T>deserialize(data, itemType);
         return SseStream.open(
-                opener, decoder, terminator, options, body != null, method, requestPathOf(path));
+                opener, decoder, terminator, options, body != null,
+                body instanceof BodySource source && !source.isReplayable(),
+                method, requestPathOf(path));
     }
 
     private <T> ApiResult<T> invokeCall(
@@ -739,7 +742,7 @@ public abstract class BaseApi {
         final String urlWithoutQuery = url;
         String query = buildQueryString(queryParams);
         if (!query.isEmpty()) {
-            url += "?" + query;
+            url += (url.contains("?") ? "&" : "?") + query;
         }
 
         boolean isMultipart = "multipart/form-data".equals(contentType);
@@ -929,6 +932,7 @@ public abstract class BaseApi {
                  * transport see a Map and emit multipart/form-data instead. */
                 requestBody = extractBinaryPart(binaryForm);
             } else if (body instanceof byte[]
+                    || body instanceof BodySource
                     || body instanceof InputStream
                     || body instanceof java.io.File
                     || contentType.startsWith("image/")
@@ -1168,7 +1172,10 @@ public abstract class BaseApi {
         }
         tokenAuth.invalidateAccessToken();
         boolean replayable =
-                requestBody == null || requestBody instanceof String || requestBody instanceof byte[];
+                requestBody == null
+                        || requestBody instanceof String
+                        || requestBody instanceof byte[]
+                        || (requestBody instanceof BodySource source && source.isReplayable());
         if (!replayable) {
             return response;
         }
@@ -1219,6 +1226,7 @@ public abstract class BaseApi {
     private static Object extractBinaryPart(Map<?, ?> formBody) {
         for (Object value : formBody.values()) {
             if (value instanceof InputStream
+                    || value instanceof BodySource
                     || value instanceof byte[]
                     || value instanceof java.io.File) {
                 return value;
@@ -1255,7 +1263,10 @@ public abstract class BaseApi {
         }
         tokenAuth.invalidateAccessToken();
         boolean replayable =
-                requestBody == null || requestBody instanceof String || requestBody instanceof byte[];
+                requestBody == null
+                        || requestBody instanceof String
+                        || requestBody instanceof byte[]
+                        || (requestBody instanceof BodySource source && source.isReplayable());
         if (!replayable) {
             return response;
         }
