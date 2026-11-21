@@ -1,0 +1,15 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+/**
+ * Exception for a response body that failed after its headers arrived: the
+ * connection was reset, or the body ended before its declared length. A
+ * {@see NetworkException}, so the status code is always 0; the headers had
+ * arrived, but the body the caller was promised did not. The underlying
+ * failure is kept as the previous exception. An idle stall is a
+ * {@see NetworkTimeoutException} and a body that cannot be decoded is a
+ * {@see SerializationException}, not this.
+ */
+class StreamException extends NetworkException
+{
+}

@@ -11,6 +11,7 @@ use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Auth\HttpAwareAuthenticator;
 use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
+use PetstoreClient\Test\RawServer;
 use PetstoreClient\Test\RecordingCallHook;
 use PetstoreClient\Test\StubPsr18Client;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -232,6 +233,30 @@ test('bhv lifecycle 035 a request after close fails with the one closed client e
     expect(fn () => $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null))
         ->toThrow(\LogicException::class, 'client closed');
     expect($counts->sent)->toBe(0);
+});
+
+test('bhv streaming 021 closing the client cancels the open streams, the next read of each raises the closed client error and new calls are refused', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        chunk($socket, 'tick');
+        awaitRelease();
+        PHP);
+    $client = new Client(new BearerAuthenticator($server->url(''), 'test-token'));
+    $api = $client->pet;
+    $open = new \ReflectionMethod($api, 'invokeApiForStream');
+    /** @var \PetstoreClient\ApiResult<\PetstoreClient\ByteStream> $result */
+    $result = $open->invoke($api, 'GET', '/items/events', [], [], null, ['application/octet-stream'], null);
+    $stream = $result->data;
+    assert($stream instanceof \PetstoreClient\ByteStream);
+    expect($stream->read(4))->toBe('tick');
+
+    $started = microtime(true);
+    $client->close();
+
+    expect(microtime(true) - $started)->toBeLessThan(5.0);
+    expect(fn (): string => $stream->read(1))->toThrow(\LogicException::class, 'client closed');
+    expect(fn (): mixed => $open->invoke($api, 'GET', '/items/events', [], [], null, ['application/octet-stream'], null))
+        ->toThrow(\LogicException::class, 'client closed');
 });
 
 test('bhv lifecycle 009 closing a client never closes a transport the caller supplied', function (): void {

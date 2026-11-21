@@ -1,0 +1,55 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * Optional second interface of an HTTP transport: the one that can hand back a
+ * response whose body has not been read yet.
+ *
+ * {@see ApiClient} stays the buffered contract, so a transport written before
+ * streaming keeps compiling and keeps working for every buffered call. A call
+ * that needs a stream (an operation whose success response is binary) checks at
+ * call time that the transport implements this interface and fails with a
+ * {@see \BadMethodCallException} that names the transport when it does not; it
+ * never falls back to buffering.
+ *
+ * @category Interface
+ * @package  {{invokerPackage}}
+ */
+interface StreamingApiClient
+{
+    /**
+     * Send an HTTP request and return as soon as the response headers are
+     * accepted, with the body not read yet.
+     *
+     * The retry, redirect, authentication and header rules are those of
+     * {@see ApiClient::sendRequest()}, up to the headers; `$timeoutMs` stops at
+     * the headers, and `$idleTimeoutMs` bounds the gap between two reads of the
+     * body. A request is never retried after the first body byte has been
+     * handed to the caller. A non-2xx response is returned like any other, with
+     * its body open.
+     *
+     * @param string                $method        HTTP method
+     * @param string                $url           fully qualified URL
+     * @param array<string, string> $headers       HTTP headers
+     * @param mixed                 $body          request body (may be null)
+     * @param int|null              $timeoutMs     timeout in milliseconds up to the response headers, or null
+     *                                             for the transport's setting
+     * @param int|null              $maxRetries    retry count for this call (0 disables retries), or null for
+     *                                             the transport's setting
+     * @param int|null              $idleTimeoutMs the longest silence in the body in milliseconds, 0 to disable
+     *                                             it, or null for the transport's setting
+     *
+     * @return ByteStream the status, the lower-cased headers and the open body
+     *
+     * @throws \{{invokerPackage}}\Errors\ApiException if the request fails before the headers arrive
+     */
+    public function sendStreaming(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        ?int $timeoutMs = null,
+        ?int $maxRetries = null,
+        ?int $idleTimeoutMs = null,
+    ): ByteStream;
+}
