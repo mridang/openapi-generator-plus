@@ -1,0 +1,37 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Errors.PaginationError do
+  @moduledoc """
+  Exception for a paged list that cannot be followed: the server returned the cursor that was just
+  sent, or a `Link` header whose next page is the page just read, is not a valid URI or leaves the
+  origin of the client.
+
+  It is raised after the items of the page that caused it were delivered, and ends the iteration. It
+  is a direct member of the SDK error family (see `{{moduleName}}.Errors.{{errorPrefix}}Error`): it is neither a
+  network error nor an API error, because the server answered and nothing was wrong with the
+  transport. `request_path` is the path of the operation, without its query.
+  """
+
+  defexception [:message, :request_path]
+
+  @type t :: %__MODULE__{
+          message: String.t(),
+          request_path: String.t() | nil
+        }
+
+  @impl true
+  def exception(opts) when is_list(opts), do: exception(Map.new(opts))
+
+  def exception(opts) when is_map(opts) do
+    %__MODULE__{
+      message: Map.get(opts, :message, "The paged list cannot be followed"),
+      request_path: Map.get(opts, :request_path)
+    }
+  end
+
+  def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg}
+
+  @impl true
+  def message(%__MODULE__{message: message, request_path: nil}), do: message
+  def message(%__MODULE__{message: message, request_path: path}), do: "#{message} (#{path})"
+end

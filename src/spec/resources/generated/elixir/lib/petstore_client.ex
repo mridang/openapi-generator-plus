@@ -51,6 +51,7 @@ defmodule PetstoreClient do
       PetstoreClient.Errors.NetworkError   # no response at all
       PetstoreClient.Errors.NetworkTimeoutError
       PetstoreClient.Errors.StreamError
+      PetstoreClient.Errors.PaginationError   # a paged list that cannot be followed
       PetstoreClient.Errors.SerializationError
       PetstoreClient.Errors.OAuth2ServerError
       PetstoreClient.Errors.OAuth2TokenError

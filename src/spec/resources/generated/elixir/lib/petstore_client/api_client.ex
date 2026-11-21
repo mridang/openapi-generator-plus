@@ -44,7 +44,10 @@ defmodule PetstoreClient.ApiClient do
     * `method` - HTTP method atom (e.g. `:get`, `:post`, `:put`, `:delete`).
     * `url` - Fully qualified URL string.
     * `headers` - Map of header names to values.
-    * `body` - Request body (serialized JSON string, binary, map for multipart form data, or `nil`).
+    * `body` - Request body (serialized JSON string, binary, map for multipart form data, a
+      `#{inspect(PetstoreClient.BodySource)}` for a raw binary upload, or `nil`). Read a `BodySource`
+      with `#{inspect(PetstoreClient.BodySource)}.open/1`; send it as it is read, with its length as
+      `Content-Length` when that is known and chunked when it is not.
 
   ## Returns
 

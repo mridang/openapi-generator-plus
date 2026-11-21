@@ -3295,7 +3295,8 @@ defmodule PetstoreClient.Api.StoreApi do
       opts,
       decoder: nil,
       terminator: nil,
-      has_body: false
+      has_body: false,
+      single_use_body: false
     )
   end
 
@@ -3424,7 +3425,8 @@ defmodule PetstoreClient.Api.StoreApi do
       opts,
       decoder: fn data -> PetstoreClient.ObjectSerializer.deserialize(data, "Order") end,
       terminator: nil,
-      has_body: false
+      has_body: false,
+      single_use_body: false
     )
   end
 

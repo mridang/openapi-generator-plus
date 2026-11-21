@@ -408,7 +408,7 @@ defmodule {{moduleName}}.Api.BaseApi do
       end
 
     query_string = build_query_string(query_params)
-    url = if query_string != "", do: "#{url}?#{query_string}", else: url
+    url = if query_string != "", do: "#{url}#{if String.contains?(url, "?"), do: "&", else: "?"}#{query_string}", else: url
 
     is_multipart = content_type == "multipart/form-data"
     selected = {{moduleName}}.HeaderSelector.select_headers(accepts, content_type || "", is_multipart)
@@ -655,7 +655,7 @@ defmodule {{moduleName}}.Api.BaseApi do
   # returned as it is. Independently, a network error that happened before any
   # response, and the statuses 408, 409, 429 and 500 to 599 (not 501), are
   # retried up to `TransportOptions.max_retries` times with backoff. Neither
-  # happens for a body that cannot be sent twice (a stream), and a retry never
+  # happens for a body that cannot be sent twice (a single use stream), and a retry never
   # waits past the end-to-end timeout.
   @spec send_with_retries(state(), atom(), term(), (:attempt | :replay -> {String.t(), map(), term()}), keyword()) ::
           {:ok, term()} | {:error, Exception.t()}
@@ -797,7 +797,9 @@ defmodule {{moduleName}}.Api.BaseApi do
   defp deadline(timeout) when is_integer(timeout), do: System.monotonic_time(:millisecond) + timeout
   defp deadline(nil), do: nil
 
-  # A stream body is consumed by the first send; every other body is bytes.
+  # A single use stream body is consumed by the first send; a BodySource that is replayable is
+  # opened again for each send, and every other body is bytes.
+  defp replayable?(%{{moduleName}}.BodySource{replayable: replayable}), do: replayable
   defp replayable?(body) when is_function(body), do: false
   defp replayable?(%_{}), do: false
   defp replayable?(_body), do: true

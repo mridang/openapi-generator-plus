@@ -21,8 +21,8 @@ defmodule {{moduleName}}.SseStream do
   data as its body.
 
   The settings are the keys of the `opts` of the operation: `:max_reconnects` (default 5; 0 for
-  a request that has a body, which ends the stream quietly when the connection ends; `-1` is
-  unlimited), `:reconnect_delay` (milliseconds, default 1000), `:last_event_id`,
+  a request that has a body, which ends the stream quietly when the connection ends, and always 0
+  for a single use body; `-1` is unlimited), `:reconnect_delay` (milliseconds, default 1000), `:last_event_id`,
   `:max_event_bytes` (default 1 MiB) and `:idle_timeout`.
 
   `inspect/1` shows the status code, the events delivered and the last event id, never the data.
@@ -55,7 +55,8 @@ defmodule {{moduleName}}.SseStream do
   `opener` sends one request with the per-call settings it is given and returns what the operation
   returns (`{:ok, %ApiResult{data: byte_stream}}` or `{:error, exception}`); `opts` are the
   settings of the call; `settings` holds `:decoder` (a function over the `data` text, or `nil`),
-  `:terminator` (a `data` value that ends the stream, or `nil`) and `:has_body`.
+  `:terminator` (a `data` value that ends the stream, or `nil`), `:has_body` and `:single_use_body` (a body
+  that can be sent only once, which turns reconnecting off whatever `:max_reconnects` says).
   """
   @spec open((keyword() -> {:ok, map()} | {:error, Exception.t()}), keyword(), keyword()) ::
           {:ok, t()} | {:error, Exception.t()}
@@ -65,7 +66,7 @@ defmodule {{moduleName}}.SseStream do
       opts: opts,
       decoder: Keyword.get(settings, :decoder),
       terminator: Keyword.get(settings, :terminator),
-      max_reconnects: Keyword.get(opts, :max_reconnects) || if(Keyword.get(settings, :has_body, false), do: 0, else: 5),
+      max_reconnects: max_reconnects(opts, settings),
       delay: Keyword.get(opts, :reconnect_delay) || 1000,
       max_bytes: Keyword.get(opts, :max_event_bytes) || 1_048_576
     }
@@ -84,6 +85,16 @@ defmodule {{moduleName}}.SseStream do
          counters: :atomics.new(1, signed: false),
          config: config
        }}
+    end
+  end
+
+  # A single use body has been read to its end, so a reconnect has nothing to send: it is never
+  # reconnected, whatever the settings say.
+  defp max_reconnects(opts, settings) do
+    if Keyword.get(settings, :single_use_body, false) do
+      0
+    else
+      Keyword.get(opts, :max_reconnects) || if(Keyword.get(settings, :has_body, false), do: 0, else: 5)
     end
   end
 

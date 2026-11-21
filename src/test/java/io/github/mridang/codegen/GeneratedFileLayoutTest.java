@@ -200,6 +200,14 @@ class GeneratedFileLayoutTest {
     allow(ALLOWED_EXTRA, "node", "paginator", "the lazy sequence a paged operation returns, with the page it yields, a class of its own in TypeScript (D123)");
     allow(ALLOWED_EXTRA, "node", "error:pagination", "the error of a list that cannot be followed, a direct child of the root error (D123)");
     allow(ALLOWED_EXTRA, "node", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a module of its own in TypeScript (D124)");
+    allow(
+        ALLOWED_EXTRA,
+        "elixir",
+        "bodysource",
+        "the body of a raw binary upload, replayable or single use, a struct of its own in Elixir");
+    allow(ALLOWED_EXTRA, "elixir", "paginator", "the lazy Enumerable a paged operation returns, a struct of its own in Elixir (D123)");
+    allow(ALLOWED_EXTRA, "elixir", "page", "the struct one page of a paged list is, a module of its own in Elixir (D123)");
+    allow(ALLOWED_EXTRA, "elixir", "error:pagination", "the error of a list that cannot be followed, a direct member of the root error family (D123)");
     allow(ALLOWED_EXTRA, "swift", "streamtransfer", "the URLSession delegate that feeds the AsyncThrowingStream, because AsyncBytes is absent on Linux");
     allow(ALLOWED_EXTRA, "dart", "retryafter", "the Retry-After parser shared by the retry loop and the server-sent events reconnect");
     allow(ALLOWED_EXTRA, "go", "doc", "a go package description can only live in a package comment file");

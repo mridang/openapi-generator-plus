@@ -252,6 +252,15 @@ defmodule PetstoreClient.EventStreamTest do
       )
 
     assert data_of(on) == ["a", "b"]
+
+    {single_use, once_agent} =
+      sse(["data: a\n\n", "data: b\n\n", no_content()], [reconnect_delay: 1, max_reconnects: 5],
+        has_body: true,
+        single_use_body: true
+      )
+
+    assert data_of(single_use) == ["a"]
+    assert length(ids(once_agent)) == 1, "a single use body is never sent again"
   end
 
   test "bhv sse017 an SSE event with an id and no data is not dispatched but updates the last event id and a reconnect resumes from it" do
