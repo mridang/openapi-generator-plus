@@ -35,6 +35,9 @@ module {{moduleName}}
       # construct or see this value.
       NO_AUTH = ::Object.new.freeze
 
+      # The most of an error body a stream call reads before it raises the error.
+      STREAM_ERROR_BODY_LIMIT = 64 * 1024
+
       # @return [Configuration]
       attr_reader :config
 
@@ -118,6 +121,8 @@ module {{moduleName}}
       #   call hook gets as +operation_id+ (defaults to +operation_id+)
       # @param url_template [String, nil] the spec path template of the operation, which the call hook
       #   gets as +url_template+ (defaults to the path of the request)
+      # @param stream [Boolean] true for an operation whose success response is binary: the
+      #   data is then the open {ByteStream} and the raw body is empty (see {#invoke_api_for_stream})
       # @return [ApiResult] ApiResult containing deserialized data, status code, raw body, and headers
       # @raise [Errors::ApiError] if the API call fails
       # @raise [Errors::SerializationError] if the response body cannot be decoded; the error
@@ -125,7 +130,7 @@ module {{moduleName}}
       def invoke_api_for_result(
         method, path, query_params, header_params, body,
         accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil,
-        error_schemas: nil, spec_operation_id: nil, url_template: nil
+        error_schemas: nil, spec_operation_id: nil, url_template: nil, stream: false
       )
         started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         url = if path.start_with?('http://', 'https://')
@@ -203,7 +208,7 @@ module {{moduleName}}
           end
           call_options = transport_call_options(request_options)
           call_options = remaining_deadline(call_options, started_at)
-          response = dispatch_request(method, url, request_headers, serialized_body, fresh_headers, call_options)
+          response = send_call(stream, method, url, request_headers, serialized_body, fresh_headers, call_options)
           if response.status_code == 401 && effective_auth.respond_to?(:invalidate_access_token) && replayable_body?(serialized_body)
             # A revoked or rotated token keeps failing while it is cached. Drop it,
             # obtain a new one (a refresh grant first) and replay the request
@@ -215,12 +220,25 @@ module {{moduleName}}
             rescue {{apiErrorParent}}
               nil
             end
-            response = dispatch_request(method, url, renewed, serialized_body, fresh_headers, call_options) if renewed
+            if renewed
+              # The refused response is closed unread before the replay.
+              response.close if stream
+              response = send_call(stream, method, url, renewed, serialized_body, fresh_headers, call_options)
+            end
           end
-          throw_api_error(response, method, url, error_schemas) if response.status_code < 200 || response.status_code >= 300
+          if response.status_code < 200 || response.status_code >= 300
+            # A stream never reaches the caller on an error: a bounded part of its
+            # body is read and the typed error of a buffered call is raised.
+            response = response.read_bounded(STREAM_ERROR_BODY_LIMIT) if stream
+            throw_api_error(response, method, url, error_schemas)
+          end
 
           data = nil
-          if response.body && !response.body.empty?
+          if stream
+            data = ::{{moduleName}}::ByteStream.new(
+              status_code: response.status_code, headers: response.headers, source: response.body
+            )
+          elsif response.body && !response.body.empty?
             begin
               data = decode_success_data(response, return_type, operation_id)
             rescue ::{{moduleName}}::Errors::SerializationError => e
@@ -235,7 +253,7 @@ module {{moduleName}}
           result = ::{{moduleName}}::ApiResult.new(
             status_code: response.status_code,
             data: data,
-            raw_body: response.body,
+            raw_body: stream ? '' : response.body,
             headers: response.headers
           )
           outcome = ::{{moduleName}}::CallOutcome.new(
@@ -247,6 +265,41 @@ module {{moduleName}}
           # error, or an interruption raised into the thread.
           finish_call(observer, outcome || error_outcome($ERROR_INFO)) if observer
         end
+      end
+
+      # Invoke an operation whose success response is binary and return its body
+      # as a stream, unread. Everything up to the response headers is the
+      # buffered call (the same retries, redirects, authentication, 401 replay,
+      # headers and call hook); a non-2xx status raises the same typed error as
+      # a buffered call, its body read up to 64 KiB, and no stream is returned.
+      #
+      # @param method [String] HTTP method (GET, POST, PUT, DELETE, etc.)
+      # @param path [String] URL path (with path params already substituted)
+      # @param query_params [Hash] query parameters
+      # @param header_params [Hash] custom header parameters
+      # @param body [Object, nil] request body (model object or nil)
+      # @param accepts [Array<String>] acceptable response content types
+      # @param content_type [String, nil] request content type
+      # @param auth [Object, nil] operation-specific auth resolution, as for {#invoke_api_for_result}
+      # @param operation_id [String, nil] the calling operation as +Class.operation+
+      # @param request_options [Object, nil] the per-call options of the operation: its +timeout+
+      #   (milliseconds, up to the response headers), +headers+ and +max_retries+
+      # @param error_schemas [Hash{String => Class}, nil] the error classes the operation declares
+      # @param spec_operation_id [String, nil] the operation id exactly as the spec writes it
+      # @param url_template [String, nil] the spec path template of the operation
+      # @return [ApiResult] the result whose data is the open {ByteStream}; its raw body is empty
+      # @raise [Errors::ApiError] if the API call fails
+      def invoke_api_for_stream(
+        method, path, query_params, header_params, body,
+        accepts, content_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil,
+        error_schemas: nil, spec_operation_id: nil, url_template: nil
+      )
+        invoke_api_for_result(
+          method, path, query_params, header_params, body,
+          accepts, content_type, nil, auth, raw_body: raw_body, operation_id: operation_id,
+          request_options: request_options, error_schemas: error_schemas,
+          spec_operation_id: spec_operation_id, url_template: url_template, stream: true
+        )
       end
 
       # Invoke an API operation.
@@ -398,6 +451,37 @@ module {{moduleName}}
       rescue ::{{moduleName}}::Errors::ApiError => e
         # A failure that carries no request yet (the network, a refused redirect,
         # an undecodable body) learns which request it belongs to.
+        e.instance_variable_set(:@request_method, method.to_s.upcase) if e.request_method.nil?
+        e.instance_variable_set(:@request_path, request_path_of(url)) if e.request_path.nil?
+        raise
+      end
+
+      # Sends one request: buffered, or for a stream call through the transport's
+      # +send_streaming+.
+      def send_call(stream, method, url, headers, body, fresh_headers, call_options)
+        if stream
+          dispatch_stream(method, url, headers, body, fresh_headers, call_options)
+        else
+          dispatch_request(method, url, headers, body, fresh_headers, call_options)
+        end
+      end
+
+      # Send one request for a stream call. The SDK's own transport gets the same
+      # +fresh_headers+ as a buffered call, so a retry before the headers
+      # rebuilds them. A transport that cannot stream fails the call, naming
+      # itself, and never falls back to buffering.
+      def dispatch_stream(method, url, headers, body, fresh_headers, call_options = {})
+        unless @api_client.respond_to?(:send_streaming)
+          raise ::NotImplementedError,
+                "#{@api_client.class} cannot stream: it does not implement send_streaming, so an operation " \
+                'that returns a stream cannot be called through it'
+        end
+        unless @api_client.is_a?(::{{moduleName}}::DefaultApiClient)
+          return @api_client.send_streaming(method, url, headers, body)
+        end
+
+        @api_client.send_streaming(method, url, headers, body, retry_headers: fresh_headers, **call_options)
+      rescue ::{{moduleName}}::Errors::ApiError => e
         e.instance_variable_set(:@request_method, method.to_s.upcase) if e.request_method.nil?
         e.instance_variable_set(:@request_path, request_path_of(url)) if e.request_path.nil?
         raise

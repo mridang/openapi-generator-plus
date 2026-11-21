@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+{{> api_info}}
+module {{moduleName}}
+  module Errors
+    # Exception for a response body that failed after its headers arrived: the
+    # connection was reset, or the body ended before its declared
+    # +Content-Length+. A {NetworkError}, so the status code is always 0; the
+    # headers had arrived, but the body the caller was promised did not. The
+    # underlying failure is kept as +cause+. An idle stall is a
+    # {NetworkTimeoutError} and a body that cannot be decoded is an
+    # {ApiError} carrying the real status, not this.
+    class StreamError < NetworkError
+    end
+  end
+end

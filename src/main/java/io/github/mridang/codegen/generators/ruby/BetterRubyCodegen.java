@@ -342,6 +342,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsPath, "internal_server_error.rb"),
             new SupportingFileSpec("errors/network_error.mustache", errorsPath, "network_error.rb"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsPath, "network_timeout_error.rb"),
+            new SupportingFileSpec("errors/stream_error.mustache", errorsPath, "stream_error.rb"),
             new SupportingFileSpec("errors/serialization_error.mustache", errorsPath, "serialization_error.rb"),
             new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsPath, "oauth2_server_error.rb"),
             new SupportingFileSpec("errors/oauth2_token_error.mustache", errorsPath, "oauth2_token_error.rb"),
@@ -356,6 +357,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("call_hook.mustache", libPath, "call_hook.rb"),
             new SupportingFileSpec("api_response.mustache", libPath, "api_http_response.rb"),
             new SupportingFileSpec("api_result.mustache", libPath, "api_result.rb"),
+            new SupportingFileSpec("api_stream_response.mustache", libPath, "api_stream_response.rb"),
+            new SupportingFileSpec("byte_stream.mustache", libPath, "byte_stream.rb"),
+            new SupportingFileSpec("stream_body.mustache", libPath, "stream_body.rb"),
             new SupportingFileSpec("api_client.mustache", libPath, "api_client.rb"),
             new SupportingFileSpec("default_api_client.mustache", libPath, "default_api_client.rb"),
             new SupportingFileSpec("base_api.mustache", Path.of(libPath, "api").toString(), "base_api.rb"),
@@ -788,6 +792,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             return objs;
         }
         for (final CodegenOperation op : ops) {
+            markBinaryStream(op);
             // A top-level byte response: the return schema itself is
             // `format: byte` (not a byte *field* of a model, which decodes via
             // OPENAPI_FORMATS, and not `binary`, which streams as a File).
@@ -818,6 +823,73 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             }
         }
         return objs;
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119): the return type becomes {@code ByteStream}, and the decorator {@code streamsBinary}
+     * tells the API template to call {@code invoke_api_for_stream}.
+     */
+    @SuppressWarnings("unchecked")
+    static void markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final boolean binary = "binary".equals(d.get("streamKind"));
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+            op.isResponseFile = false;
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(final Map<String, Object> objs) {
+        CodegenOperation found = null;
+        Object group = null;
+        final Object apiInfo = objs.get("apiInfo");
+        if (apiInfo instanceof Map) {
+            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+            if (apis instanceof List) {
+                for (final Object api : (List<Object>) apis) {
+                    final Object operations = ((Map<String, Object>) api).get("operations");
+                    if (!(operations instanceof Map)) {
+                        continue;
+                    }
+                    final Object list = ((Map<String, Object>) operations).get("operation");
+                    if (!(list instanceof List)) {
+                        continue;
+                    }
+                    for (final Object candidate : (List<Object>) list) {
+                        final CodegenOperation op = (CodegenOperation) candidate;
+                        final Object decorators =
+                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                        if (found == null
+                                && decorators instanceof Map
+                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
+                            found = op;
+                            group = operations;
+                        }
+                    }
+                }
+            }
+        }
+        objs.put("hasBinaryStreamOperation", found != null);
+        if (found != null) {
+            objs.put("binaryStreamOperation", found);
+            objs.put("binaryStreamGroup", group);
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**

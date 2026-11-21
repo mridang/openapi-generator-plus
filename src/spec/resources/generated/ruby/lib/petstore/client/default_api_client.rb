@@ -76,7 +76,40 @@ module Petstore::Client
     # The longest wait a +Retry-After+ header may ask for, in seconds.
     RETRY_AFTER_CAP_S = 60.0
 
-    private_constant :RETRYABLE_STATUS_CODES, :RETRY_BASE_DELAY_S, :RETRY_MAX_DELAY_S, :RETRY_JITTER, :RETRY_AFTER_CAP_S
+    # The Content-Encoding values a streamed body is decoded from as it
+    # arrives; a stream call advertises only these.
+    STREAM_ENCODINGS = 'gzip, deflate'
+
+    # The read timeout handed to the HTTP library for a streamed body, in
+    # seconds: effectively none, since the wait for the headers and the gap
+    # between two reads are bounded by the SDK itself.
+    STREAM_READ_TIMEOUT_S = 31_536_000
+
+    private_constant :RETRYABLE_STATUS_CODES, :RETRY_BASE_DELAY_S, :RETRY_MAX_DELAY_S, :RETRY_JITTER, :RETRY_AFTER_CAP_S,
+                     :STREAM_ENCODINGS, :STREAM_READ_TIMEOUT_S
+
+    # What a streamed call needs beyond a buffered one: the longest silence in
+    # the body, in milliseconds, or nil for none.
+    StreamSpec = Struct.new(:idle_ms)
+    private_constant :StreamSpec
+
+    # Mixed into the +Net::HTTP+ object of a streamed call. It reports the
+    # response head to the producer thread's {StreamBody} the moment the
+    # headers are read, so the call returns at the headers even when the first
+    # body byte is still to come.
+    module HeadSignal
+      def request(req, body = nil, &block)
+        sink = Thread.current[StreamBody::SINK_KEY]
+        return super unless sink && block
+
+        reporting = proc do |response|
+          sink.push_head(response.code.to_i, response.each_header.to_h)
+          block.call(response)
+        end
+        super(req, body, &reporting)
+      end
+    end
+    private_constant :HeadSignal
 
     EXTRA_SENSITIVE_HEADER_NAMES = %w[x-api-key x-internal-key].freeze
 
@@ -120,6 +153,7 @@ module Petstore::Client
       @transport_options = transport_options || TransportOptions.builder.build
       @closed = false
       @in_flight = 0
+      @streams = [] # : Array[StreamBody]
       @lock = Mutex.new
       validate_ca_cert_path(@transport_options.ca_cert_path)
     end
@@ -169,6 +203,49 @@ module Petstore::Client
       end
     end
 
+    # Send an HTTP request and return as soon as the response headers are
+    # accepted, with the body not read yet.
+    #
+    # Everything up to the headers is {#send_request}: the same header merge,
+    # retries, redirects, token replay and timeout budget, which stops at the
+    # headers. The body is then read as the caller consumes it, bounded by
+    # +idle_timeout+ alone, and a request is never retried after the first body
+    # byte. A compressed body (gzip or deflate) is decoded as it arrives. A
+    # non-2xx response is returned like any other, with its body open. The
+    # caller owns the returned body and must close it; closing aborts the
+    # connection, and {#close} cancels a body that is still open.
+    #
+    # @param method [Symbol, String] HTTP method
+    # @param url [String] fully qualified URL
+    # @param headers [Hash{String => String}] caller-provided headers
+    # @param body [Object, nil] request body
+    # @param no_redirect [Boolean] when true, do not follow redirects
+    # @param retry_headers [Proc, nil] returns the complete headers of a retry
+    # @param no_default_headers [Boolean] when true, the transport's default headers are not added
+    # @param timeout [Numeric, false, nil] the timeout in milliseconds up to the
+    #   response headers of this call alone; nil keeps the transport's, false lifts it
+    # @param max_retries [Integer, nil] the retry count of this call alone
+    # @param idle_timeout [Numeric, nil] the longest silence in the body in
+    #   milliseconds, 0 to disable it, or nil for the transport's setting
+    # @return [ApiStreamResponse] the status, the lower-cased headers and the open body
+    # @raise [Errors::NetworkError] if the request fails before the headers
+    def send_streaming(method, url, headers, body, no_redirect: false, retry_headers: nil, no_default_headers: false,
+                       timeout: nil, max_retries: nil, idle_timeout: nil)
+      validate_header_values!(headers)
+      validate_header_values!(@transport_options.default_headers) unless no_default_headers
+      idle_ms = idle_timeout.nil? ? @transport_options.idle_timeout : TransportOptions.validate_idle_timeout!(idle_timeout)
+      enter_request
+      handed_over = false
+      begin
+        response = perform_stream(method, url, headers, body, no_redirect, retry_headers, no_default_headers, timeout,
+                                  max_retries, idle_ms)
+        handed_over = true
+        response
+      ensure
+        leave_request unless handed_over
+      end
+    end
+
     # Closes the client gracefully. It is marked closed at once, so a request
     # started afterwards raises a RuntimeError; a request already in flight
     # finishes, and the Faraday connection the SDK built is released when the
@@ -177,13 +254,19 @@ module Petstore::Client
     # socket to release. It is safe to call this method repeatedly
     # (idempotent): a second call changes nothing.
     #
+    # Streams that are still open are cancelled, not waited for: their next
+    # read raises the RuntimeError of a closed client.
+    #
     # A connection supplied through {TransportOptions::Builder#connection}
     # belongs to the caller and is never closed here.
     def close
+      open_streams = [] # : Array[StreamBody]
       release = @lock.synchronize do
         @closed = true
+        open_streams.concat(@streams)
         @in_flight.zero?
       end
+      open_streams.each(&:cancel)
       release_connection if release
     end
 
@@ -260,6 +343,61 @@ module Petstore::Client
       )
     end
 
+    # The body of {#send_streaming}: the header phase of a call, then the open
+    # stream.
+    def perform_stream(method, url, headers, body, no_redirect, retry_headers, no_default_headers, timeout, max_retries,
+                       idle_ms)
+      timeout_ms = timeout == false ? nil : (timeout || @transport_options.timeout)
+      seconds = timeout_ms ? timeout_ms.to_f / 1000.0 : nil
+      deadline = seconds ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + seconds.to_f).to_f : nil
+
+      hop = transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers,
+                                  timeout_ms, max_retries || @transport_options.max_retries, StreamSpec.new(idle_ms))
+      open_stream(hop)
+    end
+
+    # Turns the response head of the last hop into the stream the caller gets.
+    # The client keeps track of it, so {#close} can cancel it.
+    def open_stream(hop)
+      response_headers = hop.headers || {} # : Hash[String, String]
+      encoding = response_headers['content-encoding'].to_s.strip.downcase
+      unless ['', 'identity'].include?(encoding)
+        raise unusable_response(hop, "Failed to decompress #{encoding} response body: Unsupported Content-Encoding '#{encoding}'") unless %w[gzip x-gzip deflate].include?(encoding)
+
+        # D92: once the body is decoded, Content-Encoding and Content-Length
+        # describe bytes the caller no longer holds, so they are not returned.
+        hop.decode_with(encoding)
+        response_headers = response_headers.except('content-encoding', 'content-length')
+      end
+      register_stream(hop)
+      ApiStreamResponse.new(status_code: hop.status.to_i, headers: response_headers, body: hop)
+    end
+
+    # Starts tracking an open stream, or refuses it when the client was closed
+    # while the request was in flight.
+    def register_stream(hop)
+      registered = @lock.synchronize do
+        @streams << hop unless @closed
+        !@closed
+      end
+      unless registered
+        hop.close
+        raise StreamBody::CLOSED_MESSAGE
+      end
+
+      hop.on_release do |body|
+        @lock.synchronize { @streams.delete(body) }
+        leave_request
+      end
+    end
+
+    # Aborts the connection of a hop whose response is not going to be used (a
+    # redirect, a retried failure, a refused response). A buffered response has
+    # nothing left to release.
+    def abort_hop(response)
+      response.close if response.is_a?(StreamBody)
+    end
+
     # Counts a request as in flight, or refuses it when the client is closed.
     #
     # Using the client after #close is a caller error. Surface it loudly as a
@@ -298,7 +436,7 @@ module Petstore::Client
 
     # One attempt: merge the headers, send the request (following redirects)
     # and return the Faraday response, or raise the SDK's network error.
-    def transmit(method, url, headers, body, no_redirect, deadline, no_default_headers, timeout_ms)
+    def transmit(method, url, headers, body, no_redirect, deadline, no_default_headers, timeout_ms, stream = nil)
       # Field names are case-insensitive (RFC 9110 section 5.1): a caller's
       # header replaces a default of the same name whatever its casing.
       # @type var defaults: Hash[String, String]
@@ -341,10 +479,10 @@ module Petstore::Client
 
       # Field names are case-insensitive: a caller's accept-encoding in any casing
       # suppresses the SDK's own, so the two never go out as duplicate headers.
-      merged['Accept-Encoding'] = self.class.supported_encodings unless header?(merged, 'Accept-Encoding')
+      merged['Accept-Encoding'] = (stream ? STREAM_ENCODINGS : self.class.supported_encodings) unless header?(merged, 'Accept-Encoding')
 
       begin
-        response = run_hop(method.downcase.to_sym, url, serialized_body, merged, deadline, timeout_ms)
+        response = run_hop(method.downcase.to_sym, url, serialized_body, merged, deadline, timeout_ms, stream)
         # Gap BH: Faraday's follow_redirects middleware re-sends Authorization /
         # Cookie / Proxy-Authorization across cross-origin 3xx redirects by
         # default, which leaks bearer tokens to attacker-controlled hosts via
@@ -451,7 +589,9 @@ module Petstore::Client
             current_method = next_method
             current_body = next_body
             current_headers = redirect_headers
-            response = run_hop(next_method.to_s.downcase.to_sym, next_url, next_body, redirect_headers, deadline, timeout_ms)
+            abort_hop(response)
+            response = run_hop(next_method.to_s.downcase.to_sym, next_url, next_body, redirect_headers, deadline, timeout_ms,
+                               stream)
             hops += 1
           end
           # Bucket 3: if we exhausted the redirect budget while the server is
@@ -474,7 +614,8 @@ module Petstore::Client
     # Send the request, and send it again after a failure that is worth
     # another try, as far as +max_retries+, the body and the deadline allow.
     # The last failure is what the caller gets.
-    def transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers, timeout_ms, call_max_retries)
+    def transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers, timeout_ms, call_max_retries,
+                              stream = nil)
       max_retries = replayable_body?(body) ? call_max_retries : 0
       attempt = 0
       current_headers = headers
@@ -484,7 +625,7 @@ module Petstore::Client
         # @type var response: untyped
         response = nil
         begin
-          response = transmit(method, url, current_headers, body, no_redirect, deadline, no_default_headers, timeout_ms)
+          response = transmit(method, url, current_headers, body, no_redirect, deadline, no_default_headers, timeout_ms, stream)
           return response unless attempt < max_retries && RETRYABLE_STATUS_CODES.include?(response.status.to_i)
         rescue Errors::NetworkError => e
           raise unless attempt < max_retries && retryable_network_error?(e) &&
@@ -503,6 +644,7 @@ module Petstore::Client
 
           current_headers = renewed
         end
+        abort_hop(response)
         pause(delay)
         attempt += 1
       end
@@ -594,7 +736,9 @@ module Petstore::Client
     # Send one hop of a call. With a +deadline+ (a monotonic clock reading)
     # the hop's connect, write and read timeouts are what remains of the
     # call's budget, and a hop is never started once the budget is spent.
-    def run_hop(method, url, body, headers, deadline, timeout_ms)
+    def run_hop(method, url, body, headers, deadline, timeout_ms, stream = nil)
+      return open_hop(method, url, body, headers, deadline, timeout_ms, stream) if stream
+
       if deadline.nil?
         return dispatch(method, url, body, headers) unless @transport_options.connection
 
@@ -614,6 +758,34 @@ module Petstore::Client
         request.options.open_timeout = remaining
         request.options.write_timeout = remaining
       end
+    end
+
+    # Send one hop of a streamed call: the request runs on a producer thread
+    # and this returns, with the status and headers, as soon as they arrive.
+    # Only the wait for them is bounded by the call's budget.
+    def open_hop(method, url, body, headers, deadline, timeout_ms, stream)
+      remaining = deadline ? deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC) : nil
+      raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{timeout_ms} ms") if remaining && remaining <= 0
+
+      hop = StreamBody.new(method: method.to_s.upcase, url: url, idle_ms: stream.idle_ms)
+      hop.start do |sink|
+        response = dispatch(method, url, body, headers) do |request|
+          request.options.params_encoder = QueryParamsEncoder if @transport_options.connection
+          request.options.timeout = STREAM_READ_TIMEOUT_S
+          if remaining
+            request.options.open_timeout = remaining
+            request.options.write_timeout = remaining
+          end
+          request.options.on_data = proc do |chunk, _size, env|
+            sink.push_head(env.status, env.response_headers)
+            sink.push_data(chunk)
+          end
+        end
+        # A connection that does not stream hands the whole response back here.
+        sink.push_head(response.status, response.headers)
+        sink.push_data(response.body) if response.body.is_a?(String)
+      end
+      hop.await_head(remaining) || raise(Errors::NetworkTimeoutError.new(message: "Request timed out after #{timeout_ms} ms"))
     end
 
     # Faraday's +run_request+ refuses any verb outside its eight fixed ones,
@@ -762,6 +934,7 @@ module Petstore::Client
     #
     # @return [Errors::ApiError]
     def unusable_response(response, message)
+      abort_hop(response)
       Errors::ApiError.new(
         status_code: response.status.to_i,
         message: message,
@@ -836,6 +1009,7 @@ module Petstore::Client
         # short 200: Net::HTTP ignores the early EOF unless told otherwise.
         f.adapter :net_http do |http|
           http.ignore_eof = false
+          http.extend(HeadSignal)
         end
 
         # Gap BH: do not register the Faraday follow_redirects middleware
