@@ -2487,6 +2487,10 @@ impl FakePetApi {
     }
 
     fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+        Self::fresh_failure()
+    }
+
+    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
         let api_error =
             petstore::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = petstore::errors::client_error::ClientError::try_from(api_error)
@@ -3129,6 +3133,19 @@ impl PetApiTrait for FakePetApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+
+    fn list_pet_catalog_pages(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Paginator<Pet, String, PetCatalogPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_catalog_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
     fn list_pet_events(
         &self,
         options: Option<&ListPetEventsOptions>,
@@ -3153,6 +3170,19 @@ impl PetApiTrait for FakePetApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+
+    fn list_pet_events_pages(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Paginator<String, String, PetEventPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_events_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
     fn list_pet_feed(
         &self,
         options: Option<&ListPetFeedOptions>,
@@ -3176,6 +3206,19 @@ impl PetApiTrait for FakePetApi {
         ));
         let failure = self.failure();
         async move { Err(failure) }
+    }
+
+    fn list_pet_feed_pages(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Paginator<Pet, (), Vec<Pet>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_feed_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
     }
     fn list_pet_matches(
         &self,
@@ -3224,6 +3267,19 @@ impl PetApiTrait for FakePetApi {
         ));
         let failure = self.failure();
         async move { Err(failure) }
+    }
+
+    fn list_pet_notes_pages(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Paginator<String, String, PetNotePage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_notes_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
     }
     fn set_pet_avatar(
         &self,

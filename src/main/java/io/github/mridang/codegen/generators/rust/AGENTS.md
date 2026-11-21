@@ -512,6 +512,24 @@ Why: reqwest's `stream` feature (a pure feature of a dependency already used) an
 Where: `BetterRustCodegen`, `api/api.mustache`, `base_api.mustache`, `default_api_client.mustache`, `sse_stream.mustache`, `cargo_toml.mustache`.
 Test: `test/base_api_test.mustache` (`streaming023` to `027`, a raw server that reads the body), `test/default_api_client_unit_test.mustache` (`streaming022`), `sse_stream.rs` (`sse016`), and the exceptions `misc163`, `retries032` and `transport061` are covered by tests, not excepted.
 
+## Pagination (#163, D123, D124)
+
+### The detector is shared, the Rust templates render it
+Rule: `AbstractBetterCodegen.populatePaginationDecorators` computes `vendorExtensions.op.pagination` and `hasPagesMethod`/`pagesMethodName`; `BetterRustCodegen.markPagination` adds `rustPaginatorType` (`Paginator<Item, Cursor, Body>`, `()` for a `Link` list, the body being `returnType`) after the shared pass and `postProcessOperationsWithModels` hands the API template `hasPagedOps` and `hasTokenPagedOps` (the imports are emitted only where used, because an unused import fails `-D warnings`); `postProcessSupportingFileData` hands the README, SKILLS and the facade test the first paged operation (`pagedOperation`, `pagedGroup`, `hasPagedOperation`). The Options struct is already `Clone`, so there is no `copy()`.
+Where: `BetterRustCodegen`, `api/api.mustache`.
+Test: `OperationDecoratorTest` (shared).
+
+### `Paginator<T, C, B>`, `Page<T, C, B>`, `PaginationError`
+Rule: `paginator.mustache` holds `Paginator` (an `Arc` of a function that opens a fresh `Pin<Box<dyn Stream>>` of pages, so `items(&self)` and `pages(&self)` restart, and both return `impl Stream + Send + Unpin + 'static`), `Page` and the two constructors the generated `_pages` methods call: `of_cursor(start, fetch, items, next, path)` and `of_link(base_url, fetch, items, path)`, written as `futures_util::stream::unfold` state machines (no `async-stream` crate), so nothing is read before the first poll and the next request is sent only when the previous page's items are used up. An end is an absent, `None` or empty cursor, or no `rel="next"`. A cursor equal to the one just sent (or a `Link` to the page just read, or a foreign origin) is held back: the page it arrived with is delivered and the next poll yields `PaginationError`. Any failure of a fetch ends the stream. `ItemsOf` and `CursorOf` are hidden traits that read the items and the next cursor of the decoded page whether the property is `Option` or not (a model's field type depends on `required` and `nullable`, which the decorator does not carry). `PaginationError` (`errors/pagination_error.mustache`) implements the root trait directly and carries the path without the query. `link_header.mustache` is the crate-private RFC 8288 parser.
+Why: `B` is a third type parameter because Rust has no wildcard for `Page::result()`, which is the `ApiResult` of the page; the generated method names all three, so a caller rarely does.
+Where: `paginator.mustache`, `link_header.mustache`, `errors/pagination_error.mustache`, `errors/root_error.mustache`, `lib.mustache`.
+Test: `test/base_api_test.mustache` (`pagination001` to `032`, a raw server that answers per cursor).
+
+### Each page is an ordinary call; a `Link` page replaces the path
+Rule: the `_pages` method clones the group struct (`#[derive(Clone)]`, it holds `Arc`s) and the options into a `Fn` closure that returns a boxed future of one `_with_http_info` call (a token page, with `options.<cursor>` set to the cursor of the page) or of one `_invoke` call (a `Link` page, whose `page_url: Option<&str>` replaces the path and clears the query). Retries, timeouts, redirects, authentication, redaction and per-call options therefore apply to every page. The origin of a next URL is checked against `BaseApi::base_url()` with `same_origin`; an operation with a server of its own is not paged. The `ApiClient` facade trait and the fake of the facade test gain the `_pages` method too.
+Where: `api/api.mustache`, `base_api.mustache`, `test/fake_group.mustache`.
+Test: `test/base_api_test.mustache` (`pagination007`, `008`, `023`, `027`).
+
 ## Streaming: JSON Lines and server-sent events (capability 2 of #114, D120 to D122, D125)
 
 ### The stream method and the types

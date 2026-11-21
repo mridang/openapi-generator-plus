@@ -141,6 +141,9 @@ class GeneratedFileLayoutTest {
         "java",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a class of its own in Java");
+    allow(ALLOWED_EXTRA, "rust", "paginator", "the lazy items and pages of a paged list, and the page they hold, a module of its own in Rust (D123)");
+    allow(ALLOWED_EXTRA, "rust", "error:pagination", "the error of a list that cannot be followed, a direct child of the root error (D123)");
+    allow(ALLOWED_EXTRA, "rust", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a module of its own in Rust (D124)");
     allow(
         ALLOWED_EXTRA,
         "rust",

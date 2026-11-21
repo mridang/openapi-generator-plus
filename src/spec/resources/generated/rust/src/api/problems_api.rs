@@ -27,6 +27,7 @@ use crate::value_serializer::SerializedValue;
 
 /// ProblemsApi provides methods for the Problems API group.
 /// Operations that declare typed error responses
+#[derive(Clone)]
 pub struct ProblemsApi {
     base: BaseApi,
 }

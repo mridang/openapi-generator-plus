@@ -424,6 +424,11 @@ impl BaseApi {
         format!("{}{}", base_trimmed, path)
     }
 
+    /// The base URL of the client, which a paged list checks a next link against.
+    pub(crate) fn base_url(&self) -> &str {
+        self.config.base_url()
+    }
+
     /// Creates an API instance with a custom API client, configuration, and
     /// default authenticator (used for operations without explicit auth).
     pub fn new(
@@ -592,7 +597,10 @@ impl BaseApi {
         /* Build query string */
         let query_string = build_query_string(&query_params);
         if !query_string.is_empty() {
-            request_url = format!("{}?{}", request_url, query_string);
+            /* A next URL of a paged list already carries a query, so an
+             * authentication query parameter is joined to it with `&`. */
+            let joiner = if request_url.contains('?') { '&' } else { '?' };
+            request_url = format!("{}{}{}", request_url, joiner, query_string);
         }
 
         /* Select headers */

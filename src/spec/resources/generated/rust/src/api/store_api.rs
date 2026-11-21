@@ -30,6 +30,7 @@ use crate::value_serializer::SerializedValue;
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
+#[derive(Clone)]
 pub struct StoreApi {
     base: BaseApi,
 }

@@ -8,6 +8,9 @@ use {{packageName}}::ApiResult;
 {{#hasBodySourceOperation}}
 use {{packageName}}::BodySource;
 {{/hasBodySourceOperation}}
+{{#hasPagedOperation}}
+use {{packageName}}::Paginator;
+{{/hasPagedOperation}}
 {{#hasBinaryStreamOperation}}
 use {{packageName}}::ByteStream;
 {{/hasBinaryStreamOperation}}
@@ -439,7 +442,11 @@ fn read_group(file: &str, trait_name: &str) -> (Vec<String>, Vec<String>) {
         .collect();
     let declared = source
         .lines()
-        .filter_map(|line| line.trim().strip_prefix("pub async fn "))
+        .filter_map(|line| {
+            let line = line.trim();
+            line.strip_prefix("pub async fn ")
+                .or_else(|| line.strip_prefix("pub fn ").filter(|rest| rest.contains("_pages(")))
+        })
         .filter_map(|rest| rest.split('(').next())
         .map(str::to_string)
         .collect();

@@ -18,10 +18,13 @@ pub mod byte_stream;
  * event streams. Crate-private: the carriers below are the public surface. */
 pub(crate) mod event_stream;
 /* The carriers of a JSON Lines response and of a server-sent events response. */
+pub mod json_lines_stream;
+/* The lazy items and pages of a paged list, and the parser of the Link header it follows. */
 pub mod api_http_response;
 pub mod api_result;
 pub mod api_stream_response;
-pub mod json_lines_stream;
+pub(crate) mod link_header;
+pub mod paginator;
 pub mod server_sent_event;
 pub mod sse_stream;
 pub mod stream_options;
@@ -81,6 +84,7 @@ pub use configuration::{Configuration, ConfigurationBuilder};
 pub use credentials::Credentials;
 pub use default_api_client::DefaultApiClient;
 pub use json_lines_stream::JsonLinesStream;
+pub use paginator::{Page, Paginator};
 pub use server_sent_event::ServerSentEvent;
 pub use sse_stream::SseStream;
 pub use stream_options::StreamOptions;

@@ -24,6 +24,8 @@ use crate::configuration::Configuration;
 use crate::errors::api_error::ApiError;
 use crate::models::*;
 use crate::object_serializer;
+use crate::paginator::CursorOf;
+use crate::paginator::{ItemsOf, PageFuture, Paginator};
 use crate::value_serializer;
 use crate::value_serializer::SerializedValue;
 
@@ -221,6 +223,7 @@ impl GetStagingPetInfoServer for GetStagingPetInfoServerStagingServer {
 /// (globs like /pets/* and /pets/**/ and an id of #{petId})
 /// See <https://example.com/docs/pets> Find out more about pets (it's */ here)
 /// on two lines
+#[derive(Clone)]
 pub struct PetApi {
     base: BaseApi,
 }
@@ -3537,6 +3540,43 @@ impl PetApi {
             .await
     }
 
+    /// Lists the items of list_pet_catalog as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_catalog_with_http_info`](Self::list_pet_catalog_with_http_info),
+    /// with the same options on each page.
+    /// The `cursor` of the options is where the list starts, and
+    /// the page after each one is requested with the `next_cursor` it returned.
+    pub fn list_pet_catalog_pages(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Paginator<Pet, String, PetCatalogPage> {
+        let api = self.clone();
+        let base_options: Option<ListPetCatalogOptions> = options.cloned();
+        Paginator::of_cursor(
+            base_options
+                .as_ref()
+                .and_then(|options| options.cursor.clone()),
+            move |cursor: Option<String>| -> PageFuture<PetCatalogPage> {
+                let api = api.clone();
+                let mut page_options = base_options.clone();
+                if page_options.is_some() || cursor.is_some() {
+                    page_options
+                        .get_or_insert_with(ListPetCatalogOptions::new)
+                        .cursor = cursor;
+                }
+                Box::pin(async move {
+                    api.list_pet_catalog_with_http_info(page_options.as_ref())
+                        .await
+                })
+            },
+            |page: &PetCatalogPage| page.items.items_of(),
+            |page: &PetCatalogPage| page.next_cursor.cursor_of(),
+            "/pet/catalog".to_string(),
+        )
+    }
+
     /// Lists pet events; only the generator option says it is paged
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn list_pet_events(
@@ -3659,6 +3699,43 @@ impl PetApi {
             .await
     }
 
+    /// Lists the items of list_pet_events as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_events_with_http_info`](Self::list_pet_events_with_http_info),
+    /// with the same options on each page.
+    /// The `since` of the options is where the list starts, and
+    /// the page after each one is requested with the `upto` it returned.
+    pub fn list_pet_events_pages(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Paginator<String, String, PetEventPage> {
+        let api = self.clone();
+        let base_options: Option<ListPetEventsOptions> = options.cloned();
+        Paginator::of_cursor(
+            base_options
+                .as_ref()
+                .and_then(|options| options.since.clone()),
+            move |cursor: Option<String>| -> PageFuture<PetEventPage> {
+                let api = api.clone();
+                let mut page_options = base_options.clone();
+                if page_options.is_some() || cursor.is_some() {
+                    page_options
+                        .get_or_insert_with(ListPetEventsOptions::new)
+                        .since = cursor;
+                }
+                Box::pin(async move {
+                    api.list_pet_events_with_http_info(page_options.as_ref())
+                        .await
+                })
+            },
+            |page: &PetEventPage| page.events.items_of(),
+            |page: &PetEventPage| page.upto.cursor_of(),
+            "/pet/events".to_string(),
+        )
+    }
+
     /// Lists the pet feed one page at a time with a Link header
     /// * `limit`: The number of pets on a page
     /// * `options`: Options for query, header, form, and cookie parameters.
@@ -3693,7 +3770,8 @@ impl PetApi {
          * argument. The first declared request content-type,
          * application/json, is the default
          * and this operation declares no alternative to select. */
-        self.list_pet_feed_invoke(options, "application/json").await
+        self.list_pet_feed_invoke(options, "application/json", None)
+            .await
     }
 
     /// Shared implementation for the list_pet_feed operation. The resolved
@@ -3705,6 +3783,7 @@ impl PetApi {
         options: Option<&ListPetFeedOptions>,
 
         request_content_type: &str,
+        page_url: Option<&str>,
     ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
         /* The credential of the first security alternative this operation lists
          * whose schemes the client all holds (an alternative that names two
@@ -3754,6 +3833,12 @@ impl PetApi {
         let request_body: Option<Vec<u8>> = None;
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
+        /* A page after the first is the URL the Link header named: it replaces
+         * the path, and its own query replaces the query of the operation. */
+        if let Some(url) = page_url {
+            path = url.to_string();
+            query_params.clear();
+        }
         let params = InvokeApiParams {
             operation: "PetApi.list_pet_feed",
             method: "GET",
@@ -3777,6 +3862,39 @@ impl PetApi {
         };
 
         self.base.invoke_api_for_result::<Vec<Pet>>(params).await
+    }
+
+    /// Lists the items of list_pet_feed as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_feed_with_http_info`](Self::list_pet_feed_with_http_info),
+    /// with the same options on each page.
+    /// The page after each one is the `rel="next"` link of its `Link` header,
+    /// followed only within the origin of the client.
+    pub fn list_pet_feed_pages(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Paginator<Pet, (), Vec<Pet>> {
+        let api = self.clone();
+        let base_options: Option<ListPetFeedOptions> = options.cloned();
+        Paginator::of_link(
+            self.base.base_url().to_string(),
+            move |page_url: Option<String>| -> PageFuture<Vec<Pet>> {
+                let api = api.clone();
+                let page_options = base_options.clone();
+                Box::pin(async move {
+                    api.list_pet_feed_invoke(
+                        page_options.as_ref(),
+                        "application/json",
+                        page_url.as_deref(),
+                    )
+                    .await
+                })
+            },
+            |page: &Vec<Pet>| page.items_of(),
+            "/pet/feed".to_string(),
+        )
     }
 
     /// Finds pets and their owners; two lists make it ambiguous, so it is not paged
@@ -4019,6 +4137,43 @@ impl PetApi {
         };
 
         self.base.invoke_api_for_result::<PetNotePage>(params).await
+    }
+
+    /// Lists the items of list_pet_notes as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_notes_with_http_info`](Self::list_pet_notes_with_http_info),
+    /// with the same options on each page.
+    /// The `pos` of the options is where the list starts, and
+    /// the page after each one is requested with the `following` it returned.
+    pub fn list_pet_notes_pages(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Paginator<String, String, PetNotePage> {
+        let api = self.clone();
+        let base_options: Option<ListPetNotesOptions> = options.cloned();
+        Paginator::of_cursor(
+            base_options
+                .as_ref()
+                .and_then(|options| options.pos.clone()),
+            move |cursor: Option<String>| -> PageFuture<PetNotePage> {
+                let api = api.clone();
+                let mut page_options = base_options.clone();
+                if page_options.is_some() || cursor.is_some() {
+                    page_options
+                        .get_or_insert_with(ListPetNotesOptions::new)
+                        .pos = cursor;
+                }
+                Box::pin(async move {
+                    api.list_pet_notes_with_http_info(page_options.as_ref())
+                        .await
+                })
+            },
+            |page: &PetNotePage| page.rows.items_of(),
+            |page: &PetNotePage| page.following.cursor_of(),
+            "/pet/notes".to_string(),
+        )
     }
 
     /// Set the pet's profile photo
@@ -5096,6 +5251,10 @@ pub trait PetApiTrait {
         &self,
         options: Option<&ListPetCatalogOptions>,
     ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_catalog_pages(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Paginator<Pet, String, PetCatalogPage>;
     fn list_pet_events(
         &self,
         options: Option<&ListPetEventsOptions>,
@@ -5104,6 +5263,10 @@ pub trait PetApiTrait {
         &self,
         options: Option<&ListPetEventsOptions>,
     ) -> impl Future<Output = Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_events_pages(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Paginator<String, String, PetEventPage>;
     fn list_pet_feed(
         &self,
         options: Option<&ListPetFeedOptions>,
@@ -5112,6 +5275,10 @@ pub trait PetApiTrait {
         &self,
         options: Option<&ListPetFeedOptions>,
     ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_feed_pages(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Paginator<Pet, (), Vec<Pet>>;
     fn list_pet_matches(
         &self,
         options: Option<&ListPetMatchesOptions>,
@@ -5128,6 +5295,10 @@ pub trait PetApiTrait {
         &self,
         options: Option<&ListPetNotesOptions>,
     ) -> impl Future<Output = Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_notes_pages(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Paginator<String, String, PetNotePage>;
     fn set_pet_avatar(
         &self,
         pet_id: i64,
@@ -5572,6 +5743,13 @@ impl PetApiTrait for PetApi {
     {
         PetApi::list_pet_catalog_with_http_info(self, options)
     }
+
+    fn list_pet_catalog_pages(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Paginator<Pet, String, PetCatalogPage> {
+        PetApi::list_pet_catalog_pages(self, options)
+    }
     fn list_pet_events(
         &self,
         options: Option<&ListPetEventsOptions>,
@@ -5586,6 +5764,13 @@ impl PetApiTrait for PetApi {
     {
         PetApi::list_pet_events_with_http_info(self, options)
     }
+
+    fn list_pet_events_pages(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Paginator<String, String, PetEventPage> {
+        PetApi::list_pet_events_pages(self, options)
+    }
     fn list_pet_feed(
         &self,
         options: Option<&ListPetFeedOptions>,
@@ -5599,6 +5784,13 @@ impl PetApiTrait for PetApi {
     ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::list_pet_feed_with_http_info(self, options)
+    }
+
+    fn list_pet_feed_pages(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Paginator<Pet, (), Vec<Pet>> {
+        PetApi::list_pet_feed_pages(self, options)
     }
     fn list_pet_matches(
         &self,
@@ -5627,6 +5819,13 @@ impl PetApiTrait for PetApi {
     ) -> impl Future<Output = Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::list_pet_notes_with_http_info(self, options)
+    }
+
+    fn list_pet_notes_pages(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Paginator<String, String, PetNotePage> {
+        PetApi::list_pet_notes_pages(self, options)
     }
     fn set_pet_avatar(
         &self,

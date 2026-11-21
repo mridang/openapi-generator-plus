@@ -11,6 +11,12 @@ use crate::api_client::MultipartValue;
 {{#hasBodySource}}
 use crate::body_source::BodySource;
 {{/hasBodySource}}
+{{#hasPagedOps}}
+{{#hasTokenPagedOps}}
+use crate::paginator::CursorOf;
+{{/hasTokenPagedOps}}
+use crate::paginator::{ItemsOf, PageFuture, Paginator};
+{{/hasPagedOps}}
 use crate::errors::api_error::ApiError;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
@@ -101,6 +107,7 @@ impl {{serverTypeName}} for {{serverTypeName}}{{variantName}} {
 {{#tagExternalDocs}}
 /// See <{{url}}> {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
 {{/tagExternalDocs}}
+#[derive(Clone)]
 pub struct {{classname}} {
     base: BaseApi,
 }
@@ -325,6 +332,9 @@ impl {{classname}} {
 {{^consumes.1}}
             "{{vendorExtensions.op.effectiveConsumes}}",
 {{/consumes.1}}
+{{#vendorExtensions.op.pagination.isLink}}
+            None,
+{{/vendorExtensions.op.pagination.isLink}}
         )
         .await
     }
@@ -344,6 +354,9 @@ impl {{classname}} {
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
 {{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
         request_content_type: &str,
+{{#vendorExtensions.op.pagination.isLink}}
+        page_url: Option<&str>,
+{{/vendorExtensions.op.pagination.isLink}}
 {{#vendorExtensions.op.streamOnly}}
         stream_options: Option<&StreamOptions>,
     ) -> Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>> {
@@ -1050,6 +1063,14 @@ impl {{classname}} {
 {{/bodyParam}}
 {{/hasFormParams}}
 
+{{#vendorExtensions.op.pagination.isLink}}
+        /* A page after the first is the URL the Link header named: it replaces
+         * the path, and its own query replaces the query of the operation. */
+        if let Some(url) = page_url {
+            path = url.to_string();
+            query_params.clear();
+        }
+{{/vendorExtensions.op.pagination.isLink}}
         let params = InvokeApiParams {
             operation: "{{classname}}.{{operationId}}",
             method: "{{httpMethod}}",
@@ -1158,6 +1179,145 @@ impl {{classname}} {
 {{/vendorExtensions.op.streamsBinary}}
 {{/vendorExtensions.op.streamOnly}}
     }
+
+{{#vendorExtensions.op.hasPagesMethod}}
+    /// Lists the items of {{operationId}} as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`{{operationId}}_with_http_info`](Self::{{operationId}}_with_http_info),
+    /// with the same options on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+    /// The `{{vendorExtensions.op.pagination.requestParamName}}` of the options is where the list starts, and
+    /// the page after each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}` it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+    /// The page after each one is the `rel="next"` link of its `Link` header,
+    /// followed only within the origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
+    pub fn {{vendorExtensions.op.pagesMethodName}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> {{{vendorExtensions.op.pagination.rustPaginatorType}}} {
+        let api = self.clone();
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        let base_options: Option<{{{dataType}}}> = options.cloned();
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        let request_content_type: Option<String> = request_content_type.map(str::to_string);
+{{/consumes.1}}
+{{#vendorExtensions.op.pagination.isToken}}
+        Paginator::of_cursor(
+            base_options.as_ref().and_then(|options| options.{{vendorExtensions.op.pagination.requestParamName}}.clone()),
+            move |cursor: Option<{{{vendorExtensions.op.pagination.cursorType}}}>| -> PageFuture<{{{returnType}}}> {
+                let api = api.clone();
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+                let {{paramName}} = Clone::clone(&{{paramName}});
+{{/isPath}}
+{{#isBody}}
+                let {{paramName}} = Clone::clone(&{{paramName}});
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+                let request_content_type = request_content_type.clone();
+{{/consumes.1}}
+                let mut page_options = base_options.clone();
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+{{^vendorExtensions.op.optionsParamRequired}}
+                if page_options.is_some() || cursor.is_some() {
+                    page_options.get_or_insert_with({{{dataType}}}::new).{{vendorExtensions.op.pagination.requestParamName}} = cursor;
+                }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.optionsParamRequired}}
+                if let Some(page_options) = page_options.as_mut() {
+                    page_options.{{vendorExtensions.op.pagination.requestParamName}} = cursor;
+                }
+{{/vendorExtensions.op.optionsParamRequired}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+                Box::pin(async move {
+                    api.{{operationId}}_with_http_info(
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}                        {{paramName}},
+{{/isPath}}{{#isBody}}                        {{paramName}},
+{{/isBody}}{{#isOptions}}                        page_options.as_ref(),
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+                        request_content_type.as_deref(),
+{{/consumes.1}}
+                    )
+                    .await
+                })
+            },
+            |page: &{{{returnType}}}| page.{{vendorExtensions.op.pagination.itemsPropertyName}}.items_of(),
+            |page: &{{{returnType}}}| page.{{vendorExtensions.op.pagination.responsePropertyName}}.cursor_of(),
+            "{{#lambda.rustString}}{{{path}}}{{/lambda.rustString}}".to_string(),
+        )
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+        Paginator::of_link(
+            self.base.base_url().to_string(),
+            move |page_url: Option<String>| -> PageFuture<{{{returnType}}}> {
+                let api = api.clone();
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+                let {{paramName}} = Clone::clone(&{{paramName}});
+{{/isPath}}
+{{#isBody}}
+                let {{paramName}} = Clone::clone(&{{paramName}});
+{{/isBody}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+                let request_content_type = request_content_type.clone();
+{{/consumes.1}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+                let page_options = base_options.clone();
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+                Box::pin(async move {
+                    api.{{operationId}}_invoke(
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}                        {{paramName}},
+{{/isPath}}{{#isBody}}                        {{paramName}},
+{{/isBody}}{{#isOptions}}                        page_options.as_ref(),
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+                        request_content_type.as_deref().unwrap_or("{{vendorExtensions.op.effectiveConsumes}}"),
+{{/consumes.1}}
+{{^consumes.1}}
+                        "{{vendorExtensions.op.effectiveConsumes}}",
+{{/consumes.1}}
+                        page_url.as_deref(),
+                    )
+                    .await
+                })
+            },
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+            |page: &{{{returnType}}}| page.items_of(),
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+            |page: &{{{returnType}}}| page.{{vendorExtensions.op.pagination.itemsPropertyName}}.items_of(),
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+            "{{#lambda.rustString}}{{{path}}}{{/lambda.rustString}}".to_string(),
+        )
+{{/vendorExtensions.op.pagination.isLink}}
+    }
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/operation}}
 }
 
@@ -1216,6 +1376,22 @@ pub trait {{classname}}Trait {
         request_content_type: Option<&str>,
 {{/consumes.1}}
     ) -> impl Future<Output = Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>>>;
+{{#vendorExtensions.op.hasPagesMethod}}
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
+    fn {{vendorExtensions.op.pagesMethodName}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> {{{vendorExtensions.op.pagination.rustPaginatorType}}};
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
@@ -1309,6 +1485,34 @@ impl {{classname}}Trait for {{classname}} {
 {{/consumes.1}}
         )
     }
+{{#vendorExtensions.op.hasPagesMethod}}
+
+{{#isDeprecated}}
+    #[allow(deprecated)]
+{{/isDeprecated}}
+    fn {{vendorExtensions.op.pagesMethodName}}(
+        &self,
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}        {{paramName}}: {{{dataType}}},
+{{/isPath}}{{#isBody}}        {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
+{{/isBody}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+        request_content_type: Option<&str>,
+{{/consumes.1}}
+    ) -> {{{vendorExtensions.op.pagination.rustPaginatorType}}} {
+        {{classname}}::{{vendorExtensions.op.pagesMethodName}}(
+            self,
+{{#vendorExtensions.op.signatureArgs}}
+{{^isServer}}{{^isOptions}}            {{paramName}},
+{{/isOptions}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}            options,
+{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#consumes.1}}
+            request_content_type,
+{{/consumes.1}}
+        )
+    }
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }

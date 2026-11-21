@@ -21,6 +21,9 @@ pub mod byte_stream;
 pub(crate) mod event_stream;
 /* The carriers of a JSON Lines response and of a server-sent events response. */
 pub mod json_lines_stream;
+/* The lazy items and pages of a paged list, and the parser of the Link header it follows. */
+pub(crate) mod link_header;
+pub mod paginator;
 pub mod server_sent_event;
 pub mod sse_stream;
 pub mod stream_options;
@@ -81,6 +84,7 @@ pub use auth::Authenticator;
 pub use body_source::BodySource;
 pub use byte_stream::ByteStream;
 pub use json_lines_stream::JsonLinesStream;
+pub use paginator::{Page, Paginator};
 pub use server_sent_event::ServerSentEvent;
 pub use sse_stream::SseStream;
 pub use stream_options::StreamOptions;

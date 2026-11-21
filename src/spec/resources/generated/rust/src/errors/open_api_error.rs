@@ -25,6 +25,7 @@ use crate::errors::not_found_error::NotFoundError;
 use crate::errors::not_implemented_error::NotImplementedError;
 use crate::errors::oauth2_server_error::OAuth2ServerError;
 use crate::errors::oauth2_token_error::OAuth2TokenError;
+use crate::errors::pagination_error::PaginationError;
 use crate::errors::payload_too_large_error::PayloadTooLargeError;
 use crate::errors::payment_required_error::PaymentRequiredError;
 use crate::errors::project_not_found_error::ProjectNotFoundError;
@@ -51,7 +52,7 @@ use crate::errors::upstream_failure_error::UpstreamFailureError;
 /// ([`ClientError`]/[`ServerError`] and the concrete 4xx/5xx types,
 /// [`NetworkError`]/[`NetworkTimeoutError`]/[`StreamError`] for failures with no response), the
 /// pattern-matching [`ApiErrorKind`] view, the (de)serialization
-/// [`SerializationError`], and the token-endpoint [`OAuth2ServerError`] and
+/// [`SerializationError`], the [`PaginationError`] of a list that cannot be followed, and the token-endpoint [`OAuth2ServerError`] and
 /// [`OAuth2TokenError`] — has an explicit `impl OpenAPIError`, so a single
 /// `&dyn OpenAPIError` / `Box<dyn OpenAPIError>` can hold any of them.
 ///
@@ -106,6 +107,7 @@ impl OpenAPIError for NetworkError {}
 impl OpenAPIError for NetworkTimeoutError {}
 impl OpenAPIError for StreamError {}
 impl OpenAPIError for SerializationError {}
+impl OpenAPIError for PaginationError {}
 impl OpenAPIError for OAuth2ServerError {}
 impl OpenAPIError for OAuth2TokenError {}
 impl OpenAPIError for UnexpectedFailureError {}

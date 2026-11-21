@@ -701,6 +701,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec("sse_stream.mustache", "src", "sse_stream.rs"),
                 new SupportingFileSpec(
                         "errors/stream_error.mustache", "src/errors", "stream_error.rs"),
+                new SupportingFileSpec(
+                        "errors/pagination_error.mustache", "src/errors", "pagination_error.rs"),
+                new SupportingFileSpec("paginator.mustache", "src", "paginator.rs"),
+                new SupportingFileSpec("link_header.mustache", "src", "link_header.rs"),
                 new SupportingFileSpec("api_client.mustache", "src", "api_client.rs"),
                 new SupportingFileSpec(
                         "default_api_client.mustache", "src", "default_api_client.rs"),
@@ -1226,6 +1230,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
         boolean anyBinaryStream = false;
         boolean anyBodySource = false;
+        boolean anyPaged = false;
+        boolean anyTokenPaged = false;
         boolean anyEventStream = false;
         boolean anyJsonLines = false;
         if (operations != null) {
@@ -1264,6 +1270,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     op.vendorExtensions.put("op", opDecorators);
                     reorderAuthMethodsToSpecOrder(op);
                     anyBinaryStream |= markBinaryStream(op);
+                    final boolean paged = markPagination(op);
+                    anyPaged |= paged;
+                    anyTokenPaged |= paged && isTokenPaged(op);
                     final Object marked = op.vendorExtensions.get("op");
                     anyEventStream |=
                             marked instanceof Map
@@ -1276,6 +1285,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             }
             result.put("hasBinaryStream", anyBinaryStream);
             result.put("hasBodySource", anyBodySource);
+            result.put("hasPagedOps", anyPaged);
+            result.put("hasTokenPagedOps", anyTokenPaged);
             result.put("hasSseStream", anyEventStream);
             result.put("hasJsonLinesStream", anyJsonLines);
             result.put("hasEventStream", anyEventStream || anyJsonLines);
@@ -1910,6 +1921,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
         putFirstStreamOperation(objs, "streamsBinary", "binaryStream");
         putFirstStreamOperation(objs, "uploadsBodySource", "bodySource");
+        putFirstStreamOperation(objs, "hasPagesMethod", "paged");
         putFirstStreamOperation(objs, "streamsSse", "sseStream");
         putFirstStreamOperation(objs, "streamsJsonLines", "jsonLinesStream");
         objs.put(
@@ -1956,6 +1968,47 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 }
             }
         }
+    }
+
+    /**
+     * Gives a paged operation the type its {@code _pages} method returns:
+     * {@code Paginator<Item, Cursor, Body>}, with {@code ()} for the cursor of a {@code Link}
+     * list.
+     *
+     * @return whether the operation has a paged method
+     */
+    @SuppressWarnings("unchecked")
+    static boolean markPagination(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return false;
+        }
+        final Object pagination = ((Map<String, Object>) decorators).get("pagination");
+        if (!(pagination instanceof Map)) {
+            return false;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        p.put(
+                "rustPaginatorType",
+                "Paginator<"
+                        + p.get("itemType")
+                        + ", "
+                        + (Boolean.TRUE.equals(p.get("isLink")) ? "()" : p.get("cursorType"))
+                        + ", "
+                        + op.returnType
+                        + ">");
+        return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean isTokenPaged(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return false;
+        }
+        final Object pagination = ((Map<String, Object>) decorators).get("pagination");
+        return pagination instanceof Map
+                && Boolean.TRUE.equals(((Map<String, Object>) pagination).get("isToken"));
     }
 
     /**
