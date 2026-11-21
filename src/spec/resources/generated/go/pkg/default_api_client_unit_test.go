@@ -4596,6 +4596,24 @@ func TestBhvStreaming011_DefaultApiClientUnit_TheIdleTimeoutRaisesANetworkTimeou
 	if got := server.hits.Load(); got != 1 {
 		t.Errorf("expected a stalled body not to be retried, got %d requests", got)
 	}
+
+	defaults, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := defaults.IdleTimeout(); got == nil || *got != 60000 {
+		t.Errorf("expected an idle timeout of 60000 ms by default, got %v", got)
+	}
+	zero, negative := 0, -1
+	for name, value := range map[string]*int{"zero": &zero, "nil": nil} {
+		built, err := NewTransportOptionsBuilder().IdleTimeout(value).Build()
+		if err != nil || built.IdleTimeout() != nil {
+			t.Errorf("expected %s to disable the idle timeout, got %v (%v)", name, built, err)
+		}
+	}
+	if _, err := NewTransportOptionsBuilder().IdleTimeout(&negative).Build(); !errors.Is(err, ErrInvalidTimeout) {
+		t.Errorf("expected ErrInvalidTimeout for a negative idle timeout, got %v", err)
+	}
 }
 
 func TestBhvStreaming013_DefaultApiClientUnit_ABodyShorterThanItsContentLengthRaisesANetworkErrorAndNeverAShortSuccess(t *testing.T) {
