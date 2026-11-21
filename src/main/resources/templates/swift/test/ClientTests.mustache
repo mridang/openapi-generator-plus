@@ -1017,6 +1017,9 @@ private func environmentClient(
 {{^vendorExtensions.op.streamOnly}}
         #expect({{clientPropertyName}}Listed.contains("{{operationId}}"))
         #expect({{clientPropertyName}}Listed.contains("{{operationId}}WithHTTPInfo"))
+{{#vendorExtensions.op.hasPagesMethod}}
+        #expect({{clientPropertyName}}Listed.contains("{{vendorExtensions.op.pagesMethodName}}"))
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}

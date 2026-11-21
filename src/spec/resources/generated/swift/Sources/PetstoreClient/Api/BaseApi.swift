@@ -252,7 +252,7 @@ public class BaseApi: @unchecked Sendable {
   /// also retries it and re-applies the authentication headers; a transport
   /// supplied by the caller sees exactly one call.
   private func send(
-    method: String, url: String, headers: [String: String], body: Data?,
+    method: String, url: String, headers: [String: String], body: Any?,
     refresh: (@Sendable () async throws -> [String: String])?,
     timeout: Int? = nil, maxRetries: Int? = nil
   ) async throws -> ApiHttpResponse {
@@ -309,7 +309,6 @@ public class BaseApi: @unchecked Sendable {
     let requestURL = call.url
     let effectiveAuth = call.effectiveAuth
     let serializedBody = call.body
-    let isMultipart = call.isMultipart
     let refresh = call.refresh
     /* Send request. The SDK transport retries transient failures; each retry
      * asks the authenticator for its headers again, so a token that expired
@@ -328,7 +327,7 @@ public class BaseApi: @unchecked Sendable {
        * so the next call fetches a new one, but the 401 is surfaced. A
        * failed re-authentication returns no headers, and then the request
        * is not replayed with the token the server just refused. */
-      if !isMultipart, let fresh = try? await invalidating.authHeaders(), !fresh.isEmpty {
+      if call.isReplayable, let fresh = try? await invalidating.authHeaders(), !fresh.isEmpty {
         headers = Self.mergeHeaders(headers, overriding: fresh)
         response = try await send(
           method: params.method, url: requestURL, headers: headers, body: serializedBody,
@@ -375,10 +374,16 @@ public class BaseApi: @unchecked Sendable {
     var method: String
     var url: String
     var headers: [String: String]
-    var body: Data?
+    var body: Any?
     var refresh: (@Sendable () async throws -> [String: String])?
     var effectiveAuth: Authenticator?
     var isMultipart: Bool
+
+    /// Whether the request can be sent a second time: a multipart body is
+    /// never sent twice, and neither is a single-use ``BodySource``.
+    var isReplayable: Bool {
+      return !isMultipart && DefaultApiClient.isReplayable(body)
+    }
   }
 
   /// Resolves the URL, the authentication, the headers and the body of a call,
@@ -477,8 +482,11 @@ public class BaseApi: @unchecked Sendable {
 
     /* Serialize body -- multipart/form-data is handled separately so that
      * the boundary can be injected into the Content-Type header. */
-    let serializedBody: Data?
-    if params.contentType.lowercased().hasPrefix("multipart/"),
+    let serializedBody: Any?
+    if let source = params.body as? BodySource {
+      /* A body source is sent as it is read, never serialized or buffered. */
+      serializedBody = source
+    } else if params.contentType.lowercased().hasPrefix("multipart/"),
       let formFields = Self.formFields(params.body)
     {
       let boundary = UUID().uuidString
@@ -536,7 +544,7 @@ public class BaseApi: @unchecked Sendable {
     if response.statusCode == 401, let invalidating = call.effectiveAuth as? AccessTokenInvalidating
     {
       invalidating.invalidateAccessToken()
-      if !call.isMultipart, let fresh = try? await invalidating.authHeaders(), !fresh.isEmpty {
+      if call.isReplayable, let fresh = try? await invalidating.authHeaders(), !fresh.isEmpty {
         response.close()
         headers = Self.mergeHeaders(headers, overriding: fresh)
         response = try await sendStream(call, headers: headers, params: params)
@@ -696,7 +704,9 @@ public class BaseApi: @unchecked Sendable {
     }
     return try await SseStream<T>.open(
       opener: opener, decode: decode, terminator: terminator, options: streamOptions,
-      hasBody: params.body != nil, method: params.method,
+      hasBody: params.body != nil,
+      singleUseBody: (params.body as? BodySource).map { !$0.isReplayable } ?? false,
+      method: params.method,
       path: ApiError.pathOfRequestURL(resolveURL(params.path)))
   }
 

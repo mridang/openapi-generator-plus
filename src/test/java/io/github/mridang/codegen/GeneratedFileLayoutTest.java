@@ -110,6 +110,21 @@ class GeneratedFileLayoutTest {
         "the stream settings are RequestOption values (WithIdleTimeout and friends), as for every other Go call setting");
     allow(
         ALLOWED_MISSING,
+        "elixir",
+        "linkheader",
+        "the RFC 8288 Link header parser is private to the Paginator module in Elixir");
+    allow(
+        ALLOWED_MISSING,
+        "node",
+        "page",
+        "the Page type lives in paginator.ts beside the Paginator that yields it");
+    allow(
+        ALLOWED_MISSING,
+        "rust",
+        "page",
+        "the Page type lives in paginator.rs beside the Paginator that yields it");
+    allow(
+        ALLOWED_MISSING,
         "rust",
         "baseauthenticator",
         "rust has no class inheritance, so the shared authenticator behaviour is a trait default"
@@ -129,11 +144,6 @@ class GeneratedFileLayoutTest {
 
     allow(ALLOWED_EXTRA, "elixir", "streambody", "the process that owns an open response body, because Req can be read only by the process that sent the request");
     allow(ALLOWED_EXTRA, "ruby", "streambody", "the open response body fed by the producer thread that runs the Faraday request");
-    allow(ALLOWED_EXTRA, "ruby", "bodysource", "the body of a raw binary upload, replayable or single use, a class of its own in Ruby");
-    allow(ALLOWED_EXTRA, "ruby", "paginator", "the lazy sequence a paged operation returns, a class of its own in Ruby (D123)");
-    allow(ALLOWED_EXTRA, "ruby", "page", "the value one page of a paged list is, a class of its own in Ruby (D123)");
-    allow(ALLOWED_EXTRA, "ruby", "error:pagination", "the error of a list that cannot be followed, a direct child of the root error (D123)");
-    allow(ALLOWED_EXTRA, "ruby", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a module of its own in Ruby (D124)");
     allow(
         ALLOWED_EXTRA,
         "php",
@@ -141,95 +151,8 @@ class GeneratedFileLayoutTest {
         "PHP 8.3 interfaces cannot carry a default method, so the transport that can stream is a"
             + " second interface that the SDK checks at call time (D118)");
     allow(ALLOWED_EXTRA, "php", "rawstreamresponse", "the internal pair of status, headers and open body that a PHP transport hands to the ByteStream");
-    allow(
-        ALLOWED_EXTRA,
-        "java",
-        "bodysource",
-        "the body of a raw binary upload, replayable or single use, a class of its own in Java");
-    allow(
-        ALLOWED_EXTRA,
-        "kotlin",
-        "bodysource",
-        "the body of a raw binary upload, replayable or single use, a class of its own in Kotlin");
-    allow(
-        ALLOWED_EXTRA,
-        "csharp",
-        "bodysource",
-        "the body of a raw binary upload, replayable or single use, a class of its own in C#");
-    allow(ALLOWED_EXTRA, "csharp", "paginator", "the lazy sequence a paged operation returns, a class of its own in C# (D123)");
-    allow(ALLOWED_EXTRA, "csharp", "page", "the class one page of a paged list is, a class of its own in C# (D123)");
-    allow(ALLOWED_EXTRA, "csharp", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
-    allow(ALLOWED_EXTRA, "csharp", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a class of its own in C# (D124)");
-    allow(
-        ALLOWED_EXTRA,
-        "python",
-        "bodysource",
-        "the body of a raw binary upload, replayable or single use, a class of its own in Python");
-    allow(ALLOWED_EXTRA, "python", "paginator", "the lazy async sequence a paged operation returns, a class of its own in Python (D123)");
-    allow(ALLOWED_EXTRA, "python", "page", "the dataclass one page of a paged list is, a class of its own in Python (D123)");
-    allow(ALLOWED_EXTRA, "python", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
-    allow(ALLOWED_EXTRA, "python", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a module of its own in Python (D124)");
-    allow(
-        ALLOWED_EXTRA,
-        "node",
-        "bodysource",
-        "the body of a raw binary upload, replayable or single use, a class of its own in TypeScript");
-    allow(ALLOWED_EXTRA, "go", "bodysource", "the body of a raw binary upload, replayable or single use, a type of its own in Go");
-    allow(ALLOWED_EXTRA, "go", "paginator", "the lazy sequence a paged operation returns, a type of its own in Go (D123)");
-    allow(ALLOWED_EXTRA, "go", "page", "the struct one page of a paged list is, a type of its own in Go (D123)");
-    allow(ALLOWED_EXTRA, "go", "error:pagination", "the error of a list that cannot be followed, satisfying the root error directly (D123)");
-    allow(ALLOWED_EXTRA, "go", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a file of its own in Go (D124)");
-    allow(ALLOWED_EXTRA, "rust", "paginator", "the lazy items and pages of a paged list, and the page they hold, a module of its own in Rust (D123)");
-    allow(ALLOWED_EXTRA, "rust", "error:pagination", "the error of a list that cannot be followed, a direct child of the root error (D123)");
-    allow(ALLOWED_EXTRA, "rust", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a module of its own in Rust (D124)");
-    allow(
-        ALLOWED_EXTRA,
-        "rust",
-        "bodysource",
-        "the body of a raw binary upload, replayable or single use, a type of its own in Rust");
-    allow(
-        ALLOWED_EXTRA,
-        "dart",
-        "bodysource",
-        "the body of a raw binary upload, replayable or single use, a class of its own in Dart");
     allow(ALLOWED_EXTRA, "dart", "bodysourcefilesio", "dart:io file reading of a body source, chosen by conditional import");
     allow(ALLOWED_EXTRA, "dart", "bodysourcefilesweb", "the browser stand-in for file reading of a body source, chosen by conditional import");
-    allow(ALLOWED_EXTRA, "dart", "paginator", "the lazy streams a paged operation returns, a class of its own in Dart (D123)");
-    allow(ALLOWED_EXTRA, "dart", "page", "the value one page of a paged list is, a class of its own in Dart (D123)");
-    allow(ALLOWED_EXTRA, "dart", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
-    allow(ALLOWED_EXTRA, "dart", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a class of its own in Dart (D124)");
-    allow(ALLOWED_EXTRA, "java", "paginator", "the lazy sequence a paged operation returns, a class of its own in Java (D123)");
-    allow(ALLOWED_EXTRA, "java", "page", "the record one page of a paged list is, a class of its own in Java (D123)");
-    allow(ALLOWED_EXTRA, "java", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
-    allow(ALLOWED_EXTRA, "java", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a class of its own in Java (D124)");
-    allow(ALLOWED_EXTRA, "kotlin", "paginator", "the lazy sequence a paged operation returns, a class of its own in Kotlin (D123)");
-    allow(ALLOWED_EXTRA, "kotlin", "page", "the class one page of a paged list is, a class of its own in Kotlin (D123)");
-    allow(ALLOWED_EXTRA, "kotlin", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
-    allow(ALLOWED_EXTRA, "kotlin", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, an object of its own in Kotlin (D124)");
-    for (String language : Arrays.asList("java", "php")) {
-      allow(
-          ALLOWED_EXTRA,
-          language,
-          "bodysource",
-          "the body of a raw binary upload, replayable or single use, a class of its own in " + language);
-    }
-    for (String language : Arrays.asList("java", "php")) {
-      allow(ALLOWED_EXTRA, language, "paginator", "the lazy sequence a paged operation returns, a class of its own in " + language + " (D123)");
-      allow(ALLOWED_EXTRA, language, "page", "the value one page of a paged list is, a class of its own in " + language + " (D123)");
-      allow(ALLOWED_EXTRA, language, "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
-      allow(ALLOWED_EXTRA, language, "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a class of its own in " + language + " (D124)");
-    }
-    allow(ALLOWED_EXTRA, "node", "paginator", "the lazy sequence a paged operation returns, with the page it yields, a class of its own in TypeScript (D123)");
-    allow(ALLOWED_EXTRA, "node", "error:pagination", "the error of a list that cannot be followed, a direct child of the root error (D123)");
-    allow(ALLOWED_EXTRA, "node", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a module of its own in TypeScript (D124)");
-    allow(
-        ALLOWED_EXTRA,
-        "elixir",
-        "bodysource",
-        "the body of a raw binary upload, replayable or single use, a struct of its own in Elixir");
-    allow(ALLOWED_EXTRA, "elixir", "paginator", "the lazy Enumerable a paged operation returns, a struct of its own in Elixir (D123)");
-    allow(ALLOWED_EXTRA, "elixir", "page", "the struct one page of a paged list is, a module of its own in Elixir (D123)");
-    allow(ALLOWED_EXTRA, "elixir", "error:pagination", "the error of a list that cannot be followed, a direct member of the root error family (D123)");
     allow(ALLOWED_EXTRA, "swift", "streamtransfer", "the URLSession delegate that feeds the AsyncThrowingStream, because AsyncBytes is absent on Linux");
     allow(ALLOWED_EXTRA, "dart", "retryafter", "the Retry-After parser shared by the retry loop and the server-sent events reconnect");
     allow(ALLOWED_EXTRA, "go", "doc", "a go package description can only live in a package comment file");

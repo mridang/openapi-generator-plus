@@ -479,7 +479,7 @@ import Testing
     }
     let response = try await client.sendRequest(
       method: "POST", url: "https://example.com/upload", headers: [:],
-      body: InputStream(data: Data("payload".utf8)))
+      body: BodySource.once(InputStream(data: Data("payload".utf8))))
 
     #expect(response.statusCode == 401)
     #expect(hops.increment() == 2)
@@ -620,7 +620,8 @@ import Testing
       return (Data("{}".utf8), 200, [:])
     }
     _ = try await client.sendRequest(
-      method: "POST", url: "https://example.com/upload", headers: [:], body: stream)
+      method: "POST", url: "https://example.com/upload", headers: [:], body: BodySource.once(stream)
+    )
 
     #expect(stream.streamStatus != .closed)
   }
