@@ -187,6 +187,15 @@ class GeneratedFileLayoutTest {
         "rust",
         "bodysource",
         "the body of a raw binary upload, replayable or single use, a type of its own in Rust");
+        "dart",
+        "bodysource",
+        "the body of a raw binary upload, replayable or single use, a class of its own in Dart");
+    allow(ALLOWED_EXTRA, "dart", "bodysourcefilesio", "dart:io file reading of a body source, chosen by conditional import");
+    allow(ALLOWED_EXTRA, "dart", "bodysourcefilesweb", "the browser stand-in for file reading of a body source, chosen by conditional import");
+    allow(ALLOWED_EXTRA, "dart", "paginator", "the lazy streams a paged operation returns, a class of its own in Dart (D123)");
+    allow(ALLOWED_EXTRA, "dart", "page", "the value one page of a paged list is, a class of its own in Dart (D123)");
+    allow(ALLOWED_EXTRA, "dart", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");
+    allow(ALLOWED_EXTRA, "dart", "linkheader", "the RFC 8288 Link header parser of a Link-driven list, a class of its own in Dart (D124)");
     allow(ALLOWED_EXTRA, "java", "paginator", "the lazy sequence a paged operation returns, a class of its own in Java (D123)");
     allow(ALLOWED_EXTRA, "java", "page", "the record one page of a paged list is, a class of its own in Java (D123)");
     allow(ALLOWED_EXTRA, "java", "error:pagination", "the error of a list that cannot be followed, a direct child of the root exception (D123)");

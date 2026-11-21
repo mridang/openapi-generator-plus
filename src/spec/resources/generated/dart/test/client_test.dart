@@ -897,6 +897,18 @@ void main() {
         expect(petInterface, contains(' getPetTagWithHttpInfo('));
         expect(petInterface, contains(' getStagingPetInfo('));
         expect(petInterface, contains(' getStagingPetInfoWithHttpInfo('));
+        expect(petInterface, contains(' listPetArchive('));
+        expect(petInterface, contains(' listPetArchiveWithHttpInfo('));
+        expect(petInterface, contains(' listPetCatalog('));
+        expect(petInterface, contains(' listPetCatalogWithHttpInfo('));
+        expect(petInterface, contains(' listPetEvents('));
+        expect(petInterface, contains(' listPetEventsWithHttpInfo('));
+        expect(petInterface, contains(' listPetFeed('));
+        expect(petInterface, contains(' listPetFeedWithHttpInfo('));
+        expect(petInterface, contains(' listPetMatches('));
+        expect(petInterface, contains(' listPetMatchesWithHttpInfo('));
+        expect(petInterface, contains(' listPetNotes('));
+        expect(petInterface, contains(' listPetNotesWithHttpInfo('));
         expect(petInterface, contains(' setPetAvatar('));
         expect(petInterface, contains(' setPetAvatarWithHttpInfo('));
         expect(petInterface, contains(' setPetAvatarThumbnail('));

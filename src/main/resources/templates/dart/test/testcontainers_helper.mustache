@@ -144,6 +144,7 @@ class RawServer {
 
   final ServerSocket _server;
   final List<Socket> _sockets = [];
+  final List<StringBuffer> _wires = [];
   final Completer<void> _release = Completer<void>();
   final Completer<void> _gone = Completer<void>();
 
@@ -166,6 +167,7 @@ class RawServer {
       final hit = ++raw.hits;
       raw._sockets.add(socket);
       final received = StringBuffer();
+      raw._wires.add(received);
       var started = false;
       socket.listen(
         (data) {
@@ -276,4 +278,78 @@ Future<void> oneChunkThenHold(
   await rawChunk(socket, 'tick');
   await server.awaitRelease();
 }
+
+/// The body of one request as the server received it.
+class RawUpload {
+  RawUpload(this.bytes, this.chunked);
+
+  /// Every body byte, in order, with the chunk framing removed.
+  final List<int> bytes;
+
+  /// Whether the body arrived with `Transfer-Encoding: chunked`.
+  final bool chunked;
+}
+
+/// Reads the body that follows the head of connection [hit]: a chunked one
+/// chunk by chunk and one with a `Content-Length` to its end. [onFirst] runs
+/// once the first body bytes have arrived, while the rest is still to come.
+Future<RawUpload> rawUpload(
+  RawServer server,
+  int hit, {
+  void Function()? onFirst,
+}) async {
+  final wire = server._wires[hit - 1];
+  final deadline = DateTime.now().add(const Duration(seconds: 20));
+  var announced = false;
+  while (true) {
+    final text = wire.toString();
+    final split = text.indexOf('\r\n\r\n');
+    if (split >= 0) {
+      final head = text.substring(0, split).toLowerCase();
+      final body = text.substring(split + 4);
+      if (!announced && body.isNotEmpty) {
+        announced = true;
+        onFirst?.call();
+      }
+      if (head.contains('transfer-encoding: chunked')) {
+        final bytes = <int>[];
+        var position = 0;
+        var complete = false;
+        while (true) {
+          final eol = body.indexOf('\r\n', position);
+          if (eol < 0) break;
+          final size = int.parse(body.substring(position, eol).trim(), radix: 16);
+          if (size == 0) {
+            complete = body.length >= eol + 4;
+            break;
+          }
+          if (body.length < eol + 2 + size + 2) break;
+          bytes.addAll(latin1.encode(body.substring(eol + 2, eol + 2 + size)));
+          position = eol + 2 + size + 2;
+        }
+        if (complete) {
+          return RawUpload(bytes, true);
+        }
+      } else {
+        final declared = RegExp(r'content-length: (\d+)').firstMatch(head);
+        final size = declared == null ? 0 : int.parse(declared.group(1)!);
+        if (body.length >= size) {
+          return RawUpload(latin1.encode(body.substring(0, size)), false);
+        }
+      }
+    }
+    if (DateTime.now().isAfter(deadline)) {
+      throw TimeoutException('the request body never arrived in full');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
+
+/// An empty response with [status] and the extra [headers].
+Future<void> rawReply(Socket socket, int status, [List<String> headers = const []]) =>
+    rawHead(socket, status, [...headers, 'Content-Length: 0']);
+
+/// Deterministic bytes of the given [size] that no two neighbours share.
+List<int> patterned(int size) =>
+    List<int>.generate(size, (index) => (index * 31 + 7) & 0xff);
 {{/generateTests}}

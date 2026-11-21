@@ -78,6 +78,7 @@ Future<SseStream<T>> _sse<T>(
   _Script script,
   StreamOptions options, {
   bool hasBody = false,
+  bool singleUseBody = false,
   T Function(String)? decoder,
   String? terminator,
   String method = 'GET',
@@ -87,6 +88,7 @@ Future<SseStream<T>> _sse<T>(
   terminator: terminator,
   options: options,
   hasBody: hasBody,
+  singleUseBody: singleUseBody,
   method: method,
   path: '/events',
 );
@@ -426,6 +428,21 @@ void main() {
           method: 'POST',
         );
         expect(await _dataOf(reconnect), equals(['a', 'b']));
+
+        final onceBody = _Script(['data: a\n\n', 'data: b\n\n', _noContent()]);
+        final singleUse = await _sse<String>(
+          onceBody,
+          const StreamOptions(reconnectDelay: 1, maxReconnects: 5),
+          hasBody: true,
+          singleUseBody: true,
+          method: 'POST',
+        );
+        expect(await _dataOf(singleUse), equals(['a']));
+        expect(
+          onceBody.lastIds,
+          hasLength(1),
+          reason: 'a single use body is never sent again',
+        );
       },
     );
 

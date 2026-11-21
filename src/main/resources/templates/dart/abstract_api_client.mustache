@@ -11,6 +11,7 @@ import 'dart:math';
 import 'api_client.dart';
 import 'api_http_response.dart';
 import 'api_stream_response.dart';
+import 'body_source.dart';
 import 'errors/api_exception.dart';
 import 'errors/network_exception.dart';
 import 'errors/network_timeout_exception.dart';
@@ -571,7 +572,9 @@ abstract class AbstractApiClient
      * auto-redirect on the underlying request and follow Location headers
      * manually below, stripping sensitive headers when the next URL's origin
      * differs from the original. */
-    if (body is Map<String, Object?>) {
+    if (body is BodySource) {
+      request = _sourceRequest(method, uri, merged, body);
+    } else if (body is Map<String, Object?>) {
       request = _buildMultipartRequest(method, uri, merged, body);
     } else {
       final standardRequest = http.Request(method, uri);
@@ -746,30 +749,47 @@ abstract class AbstractApiClient
               (k, _) => k.toLowerCase() == 'proxy-authorization');
           redirectHeaders['Proxy-Authorization'] = proxyAuth;
         }
-        final next = http.Request(nextMethod, nextUri);
-        next.headers.addAll(redirectHeaders);
-        next.followRedirects = false;
+        if (nextBody is BodySource && !nextBody.isReplayable) {
+          /* The one stream was read to its end by the first request, so there
+           * is nothing to send again, and it is never buffered to make that
+           * possible. */
+          throw ApiException(
+            statusCode: statusCode,
+            message: 'Refusing to replay a streamed request body',
+            responseHeaders: _lowerHeaders(streamedResponse.headers),
+          );
+        }
+        final http.BaseRequest next;
+        if (nextBody is BodySource) {
+          /* A replayable source is opened again for the hop. */
+          next = _sourceRequest(nextMethod, nextUri, redirectHeaders, nextBody);
+        } else {
+        final plain = http.Request(nextMethod, nextUri);
+        plain.headers.addAll(redirectHeaders);
+        plain.followRedirects = false;
+        next = plain;
         if (nextBody is Uint8List) {
-          next.bodyBytes = nextBody;
+          plain.bodyBytes = nextBody;
         } else if (nextBody is String) {
           /* RFC 7231 §6.4.7 / RFC 7538: 307/308 must replay the
            * original method and body. A String body (e.g. a
            * pre-built multipart envelope) is re-encoded as UTF-8
            * bytes on each hop so the form parts arrive intact. */
-          next.bodyBytes = Uint8List.fromList(utf8.encode(nextBody));
+          plain.bodyBytes = Uint8List.fromList(utf8.encode(nextBody));
         } else if (nextBody is Map<String, Object?>) {
           /* A multipart form body can be finalized only once, so the
            * parts are rebuilt and serialized to bytes for the replay. The
            * rebuilt request owns the boundary, so its Content-Type
            * replaces the one carried from the previous hop. */
           final replay = _buildMultipartRequest(nextMethod, nextUri, {}, nextBody);
-          next.bodyBytes = await replay.finalize().toBytes();
-          next.headers['content-type'] = replay.headers['content-type']!;
+          plain.bodyBytes = await replay.finalize().toBytes();
+          plain.headers['content-type'] = replay.headers['content-type']!;
         } else if (const {'POST', 'PUT', 'PATCH'}.contains(nextMethod.toUpperCase())) {
           /* A bodyless POST/PUT/PATCH replays with an explicit empty body, as the
            * first send does, so the hop carries Content-Length: 0. */
-          next.bodyBytes = Uint8List(0);
-          next.headers['content-length'] = '0';
+          plain.bodyBytes = Uint8List(0);
+          plain.headers['content-length'] = '0';
+        }
         }
         currentUri = nextUri;
         currentMethod = nextMethod;
@@ -803,6 +823,26 @@ abstract class AbstractApiClient
   Duration _remaining(_Deadline clock) {
     final left = clock.limit! - clock.elapsedMilliseconds;
     return Duration(milliseconds: left < 0 ? 0 : left);
+  }
+
+  /// A request whose body is [source], sent as it is read: the transport
+  /// opens the source when it starts to send, so a request that is retried or
+  /// replayed on a redirect opens a replayable source again. A known length is
+  /// declared as `Content-Length`; an unknown one is sent chunked.
+  http.BaseRequest _sourceRequest(
+    String method,
+    Uri uri,
+    Map<String, String> headers,
+    BodySource source,
+  ) {
+    final length = source.length;
+    final request = _SourceRequest(method, uri, source);
+    request.headers.addAll(headers);
+    request.followRedirects = false;
+    if (length != null) {
+      request.contentLength = length;
+    }
+    return request;
   }
 
   /// Sends [request] within the end-to-end timeout. A response that arrives
@@ -1379,5 +1419,19 @@ class _OpenBody {
     _controller.addError(error);
     unawaited(_controller.close());
     _end();
+  }
+}
+
+/// A request whose body is a [BodySource], opened when the transport starts to
+/// read it and never held in memory.
+final class _SourceRequest extends http.BaseRequest {
+  _SourceRequest(super.method, super.url, this._source);
+
+  final BodySource _source;
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return http.ByteStream(_source.open());
   }
 }

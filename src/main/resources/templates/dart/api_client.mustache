@@ -16,8 +16,8 @@ abstract class ApiClient {
   ///   - [url]: fully qualified URL
   ///   - [headers]: HTTP headers
   ///   - [body]: request body (serialized JSON string, [Uint8List] for
-  ///     binary, or [Map<String, Object>] for multipart form data; may be
-  ///     null)
+  ///     binary, a `BodySource` for a binary body that is sent as it is read,
+  ///     or [Map<String, Object>] for multipart form data; may be null)
   ///   - [noRedirect]: when true, any 3xx response (including 307/308) is
   ///     returned to the caller as-is rather than being replayed to the
   ///     `Location` target. OAuth2 token/revoke/authorize endpoint POSTs use
