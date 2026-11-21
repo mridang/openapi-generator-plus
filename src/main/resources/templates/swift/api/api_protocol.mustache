@@ -8,6 +8,13 @@ import Foundation
 /// the optional parameters are provided by the extension below.
 public protocol {{classname}}Protocol: Sendable {
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    func {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.signatureArgs.0}}, {{/vendorExtensions.op.signatureArgs.0}}streamOptions: StreamOptions?) async throws -> {{{returnType}}}
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 {{#isDeprecated}}
     @available(*, deprecated, message: "This operation is deprecated.")
 {{/isDeprecated}}
@@ -16,11 +23,23 @@ public protocol {{classname}}Protocol: Sendable {
     @available(*, deprecated, message: "This operation is deprecated.")
 {{/isDeprecated}}
     func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}>
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
 
 extension {{classname}}Protocol {
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+    /// The `{{vendorExtensions.op.streamMethodName}}` operation with every optional parameter left out.
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgsRequired}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{/vendorExtensions.op.signatureArgsRequired}}) async throws -> {{{returnType}}} {
+        try await {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#nullable}}nil{{/nullable}}{{^nullable}}{{paramName}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: nil{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.signatureArgs.0}}, {{/vendorExtensions.op.signatureArgs.0}}streamOptions: nil)
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 
     /// The `{{operationId}}` operation with every optional parameter left out.
 {{#isDeprecated}}
@@ -37,6 +56,7 @@ extension {{classname}}Protocol {
     public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgsRequired}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{/vendorExtensions.op.signatureArgsRequired}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
         try await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{#nullable}}nil{{/nullable}}{{^nullable}}{{paramName}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: nil{{/-first}}{{/-last}}{{/consumes}})
     }
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
 {{/operations}}

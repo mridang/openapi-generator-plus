@@ -134,7 +134,7 @@ public class BaseApi: @unchecked Sendable {
     let method: String
     let path: String
     let queryParams: OrderedParams<Any?>
-    let headerParams: [String: String]
+    var headerParams: [String: String]
     let body: Any?
     let accepts: [String]
     let contentType: String
@@ -163,6 +163,13 @@ public class BaseApi: @unchecked Sendable {
     /// declared status (`404`, `4XX`, `default`); nil for an operation that
     /// declares none, which then gets the plain status error.
     var errorSchemas: [String: ErrorFactory]? = nil
+    /// The longest silence in a streamed body, in milliseconds, from the
+    /// ``StreamOptions`` of a JSON Lines or server-sent events call; nil
+    /// keeps the transport's.
+    var idleTimeout: Int? = nil
+    /// True for a JSON Lines call: the request leaves `Accept-Encoding` to
+    /// URLSession, so a compressed body is decoded as it arrives.
+    var acceptCompression: Bool = false
   }
 
   /// The state of one operation call as far as the ``CallHook`` is
@@ -344,6 +351,24 @@ public class BaseApi: @unchecked Sendable {
     return (response, ApiError.pathOfRequestURL(requestURL))
   }
 
+  /// The absolute URL of a call path: the path itself when it is absolute, else
+  /// the base URL followed by the path.
+  private func resolveURL(_ path: String) -> String {
+    if path.hasPrefix("http://") || path.hasPrefix("https://") {
+      return path
+    }
+    /* Strip trailing slash from baseUrl when path starts with `/` so
+     * baseUrl='https://x/' + path='/y' produces 'https://x/y', not
+     * 'https://x//y' which most servers route to 404. */
+    var base = config.baseURL
+    if path.hasPrefix("/") {
+      while base.hasSuffix("/") {
+        base.removeLast()
+      }
+    }
+    return base + path
+  }
+
   /// One prepared call: the request as it will be sent, and what the send
   /// needs to authenticate again and to raise an error.
   private struct PreparedCall {
@@ -360,19 +385,7 @@ public class BaseApi: @unchecked Sendable {
   /// runs the hook's `start` and returns the request, ready to send. Shared by
   /// the buffered and the stream calls, so both send the same request.
   private func prepareCall(_ params: InvokeAPIParams, run: CallRun) async throws -> PreparedCall {
-    var requestURL = params.path
-    if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
-      /* Strip trailing slash from baseUrl when path starts with `/` so
-       * baseUrl='https://x/' + path='/y' produces 'https://x/y', not
-       * 'https://x//y' which most servers route to 404. */
-      var base = config.baseURL
-      if params.path.hasPrefix("/") {
-        while base.hasSuffix("/") {
-          base.removeLast()
-        }
-      }
-      requestURL = base + params.path
-    }
+    var requestURL = resolveURL(params.path)
 
     /* Resolve authentication into three distinct states (the sentinel
      * disambiguates an explicitly-unauthenticated op from a secured op
@@ -554,19 +567,137 @@ public class BaseApi: @unchecked Sendable {
   ) async throws -> ApiStreamResponse {
     do {
       if let client = apiClient as? DefaultApiClient {
-        return try await client.sendStreaming(
+        return try await client.openStreaming(
           method: call.method, url: call.url, headers: headers, body: call.body,
-          timeout: params.timeout, maxRetries: params.maxRetries, idleTimeout: nil,
-          refreshHeaders: call.refresh)
+          timeout: params.timeout, maxRetries: params.maxRetries,
+          idleTimeout: params.idleTimeout, refreshHeaders: call.refresh,
+          acceptCompression: params.acceptCompression)
       }
       return try await apiClient.sendStreaming(
         method: call.method, url: call.url, headers: headers, body: call.body,
-        timeout: params.timeout, maxRetries: params.maxRetries, idleTimeout: nil)
+        timeout: params.timeout, maxRetries: params.maxRetries,
+        idleTimeout: params.idleTimeout)
     } catch let error as ApiError {
       /* A failure that arrived without a response carries the request too. */
       error.attachRequest(method: call.method, path: ApiError.pathOfRequestURL(call.url))
       throw error
     }
+  }
+
+  /// The longest a JSON Lines line or an event may be unless the call says otherwise.
+  private static let defaultMaxEventBytes = 1_048_576
+
+  /// Checks the settings of a stream call before any request is built.
+  private static func validate(_ options: StreamOptions?) throws {
+    guard let options = options else { return }
+    if let idle = options.idleTimeout, idle < 0 {
+      throw ConfigurationError.invalidArgument("idleTimeout must not be negative: \(idle)")
+    }
+    if let reconnects = options.maxReconnects, reconnects < -1 {
+      throw ConfigurationError.invalidArgument(
+        "maxReconnects must be -1 (unlimited) or more: \(reconnects)")
+    }
+    if let delay = options.reconnectDelay, delay < 0 {
+      throw ConfigurationError.invalidArgument("reconnectDelay must not be negative: \(delay)")
+    }
+    if let limit = options.maxEventBytes, limit <= 0 {
+      throw ConfigurationError.invalidArgument("maxEventBytes must be positive: \(limit)")
+    }
+  }
+
+  /// Decodes the text of one JSON Lines line or one event payload as the
+  /// schema type `T`; an empty or malformed text is a ``SerializationError``.
+  static func decodeStreamItem<T: Decodable>(_ text: String, as type: T.Type) throws -> T {
+    guard let value = try ObjectSerializer.deserialize(text, as: type) else {
+      throw SerializationError(message: "The item is empty")
+    }
+    return value
+  }
+
+  private func openedStream(_ params: InvokeAPIParams) async throws -> ByteStream {
+    guard let stream = try await invokeAPIForStream(params).data else {
+      throw ApiError(message: "A stream call returned no stream for \(params.operation)")
+    }
+    return stream
+  }
+
+  /// Invoke an operation whose success response is JSON Lines and return the
+  /// items as a stream. Everything up to the response headers is the stream
+  /// call of ``invokeAPIForStream(_:)``; the body is decoded line by line as
+  /// it arrives, a compressed body as it is decompressed.
+  ///
+  /// - Parameters:
+  ///   - params: The invocation parameters.
+  ///   - streamOptions: The stream settings, or nil for the defaults.
+  ///   - decode: Decodes one non-blank line.
+  /// - Returns: The open ``JsonLinesStream``.
+  /// - Throws: ``ApiError`` if the API call fails.
+  func invokeAPIForJsonLines<T: Sendable>(
+    _ params: InvokeAPIParams, streamOptions: StreamOptions?,
+    decode: @escaping @Sendable (String) throws -> T
+  ) async throws -> JsonLinesStream<T> {
+    try Self.validate(streamOptions)
+    var call = params
+    call.idleTimeout = streamOptions?.idleTimeout
+    call.acceptCompression = true
+    let stream = try await openedStream(call)
+    return JsonLinesStream(
+      source: stream, decode: decode,
+      maxLineBytes: streamOptions?.maxEventBytes ?? Self.defaultMaxEventBytes,
+      method: params.method, path: ApiError.pathOfRequestURL(resolveURL(params.path)))
+  }
+
+  /// Whether a header of this name is set by any layer a stream call merges.
+  private func hasHeader(_ name: String, in params: InvokeAPIParams) -> Bool {
+    let layers: [[String: String]] = [
+      config.defaultHeaders, params.headerParams, params.requestHeaders ?? [:],
+    ]
+    return layers.contains { layer in
+      layer.keys.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+    }
+  }
+
+  /// Invoke an operation whose success response is server-sent events and
+  /// return the events as a stream that reconnects. The request asks for
+  /// `text/event-stream`, `Cache-Control: no-cache` and an uncompressed body
+  /// unless the caller or the configuration set those headers; each
+  /// connection, the first and every reconnect, runs the whole call of
+  /// ``invokeAPIForStream(_:)`` again, so the hook, the headers and the
+  /// credential are rebuilt, and carries `Last-Event-ID` when there is one.
+  ///
+  /// - Parameters:
+  ///   - params: The invocation parameters.
+  ///   - streamOptions: The stream settings, or nil for the defaults.
+  ///   - terminator: A `data` value that ends the stream and is not delivered.
+  ///   - decode: Decodes the `data` field, or nil to hand it over as a string.
+  /// - Returns: The open ``SseStream``.
+  /// - Throws: ``ApiError`` if the API call fails.
+  func invokeAPIForSse<T: Sendable>(
+    _ params: InvokeAPIParams, streamOptions: StreamOptions?, terminator: String? = nil,
+    decode: (@Sendable (String) throws -> T)?
+  ) async throws -> SseStream<T> {
+    try Self.validate(streamOptions)
+    var base = params
+    base.idleTimeout = streamOptions?.idleTimeout
+    if !hasHeader("Cache-Control", in: params) {
+      base.headerParams["Cache-Control"] = "no-cache"
+    }
+    if !hasHeader("Accept-Encoding", in: params) {
+      base.headerParams["Accept-Encoding"] = "identity"
+    }
+    let template = base
+    let opener: SseStream<T>.Opener = { [self] lastEventId in
+      var call = template
+      if !lastEventId.isEmpty {
+        call.requestHeaders = Self.mergeHeaders(
+          template.requestHeaders ?? [:], overriding: ["Last-Event-ID": lastEventId])
+      }
+      return try await openedStream(call)
+    }
+    return try await SseStream<T>.open(
+      opener: opener, decode: decode, terminator: terminator, options: streamOptions,
+      hasBody: params.body != nil, method: params.method,
+      path: ApiError.pathOfRequestURL(resolveURL(params.path)))
   }
 
   /// Invoke an API operation and return the full result including status code,

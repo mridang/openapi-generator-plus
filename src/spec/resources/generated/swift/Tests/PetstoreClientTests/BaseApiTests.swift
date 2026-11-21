@@ -3019,6 +3019,144 @@ import Testing
     #expect(refused.streamHeaders.count == 2, "a second 401 is not replayed again")
   }
 
+  // MARK: - Event streams
+
+  /// Answers each event stream call with the next scripted body (an empty body is a 204,
+  /// the last one repeats) and keeps the headers it was sent.
+  private final class ScriptedEventClient: ApiClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private var sentHeaders: [[String: String]] = []
+    private let bodies: [String]
+
+    init(_ bodies: [String]) {
+      self.bodies = bodies
+    }
+
+    var headersSent: [[String: String]] { lock.withLock { sentHeaders } }
+
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+      async throws -> ApiHttpResponse
+    {
+      return ApiHttpResponse(
+        statusCode: 200, body: "{}", headers: ["content-type": "application/json"])
+    }
+
+    func sendStreaming(
+      method: String, url: String, headers: [String: String], body: Any?,
+      timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+    ) async throws -> ApiStreamResponse {
+      let text: String = lock.withLock {
+        sentHeaders.append(headers)
+        return bodies[min(sentHeaders.count, bodies.count) - 1]
+      }
+      if text.isEmpty {
+        return stubStreamResponse(status: 204, headers: [:], body: Data())
+      }
+      return stubStreamResponse(
+        status: 200, headers: ["content-type": "text/event-stream"], body: Data(text.utf8))
+    }
+  }
+
+  /// An authenticator that hands out a new token every time it is asked.
+  private final class CountingAuth: BaseAuthenticator, @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    override func host() -> String { return "" }
+    override func authHeaders() async -> [String: String] {
+      let number = lock.withLock { () -> Int in
+        count += 1
+        return count
+      }
+      return ["Authorization": "Bearer n\(number)"]
+    }
+  }
+
+  /// Drains the event stream an event stream call returns.
+  private func drainEvents(
+    _ client: ApiClient, headers: [String: String] = [:], defaultHeaders: [String: String] = [:],
+    streamOptions: StreamOptions? = StreamOptions(reconnectDelay: 1),
+    auth: Authenticator = BaseApi.noAuthSentinel
+  ) async throws {
+    var configuration = ConfigurationBuilder().baseURL("https://example.com")
+    for (name, value) in defaultHeaders {
+      configuration = configuration.defaultHeader(name: name, value: value)
+    }
+    let params = BaseApi.InvokeAPIParams(
+      method: "GET", path: "/items/events", queryParams: [:], headerParams: headers, body: nil,
+      accepts: ["text/event-stream"], contentType: "application/json", returnType: "String",
+      auth: auth, operationId: "watchItems", urlTemplate: "/items/events")
+    let stream = try await BaseApi(apiClient: client, config: configuration.build())
+      .invokeAPIForSse(
+        params, streamOptions: streamOptions, decode: { (text: String) -> String in text })
+    for try await _ in stream {}
+  }
+
+  private func header(_ name: String, in headers: [String: String]) -> String? {
+    return headers.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
+  }
+
+  private func headerCount(_ name: String, in headers: [String: String]) -> Int {
+    return headers.keys.filter { $0.caseInsensitiveCompare(name) == .orderedSame }.count
+  }
+
+  /* An SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them. */
+  @Test
+  func
+    testBhvSse006AnSseRequestSendsAcceptTextEventStreamCacheControlNoCacheAndIdentityEncodingUnlessTheCallerSetThem()
+    async throws
+  {
+    let client = ScriptedEventClient(["data: a\n\n", ""])
+    try await drainEvents(client)
+    let sent = try #require(client.headersSent.first)
+    #expect(header("Accept", in: sent) == "text/event-stream")
+    #expect(header("Cache-Control", in: sent) == "no-cache")
+    #expect(header("Accept-Encoding", in: sent) == "identity")
+
+    let own = ScriptedEventClient(["data: a\n\n", ""])
+    try await drainEvents(
+      own, headers: ["cache-control": "max-age=0"], defaultHeaders: ["accept-encoding": "gzip"])
+    let chosen = try #require(own.headersSent.first)
+    #expect(header("Cache-Control", in: chosen) == "max-age=0")
+    #expect(headerCount("Cache-Control", in: chosen) == 1)
+    #expect(header("Accept-Encoding", in: chosen) == "gzip", "the caller's own encoding is kept")
+    #expect(headerCount("Accept-Encoding", in: chosen) == 1)
+  }
+
+  /* An SSE stream sends the initial last event id of the call on its first request. */
+  @Test func testBhvSse012AnSseStreamSendsTheInitialLastEventIdOfTheCallOnItsFirstRequest()
+    async throws
+  {
+    let client = ScriptedEventClient(["data: a\n\n", ""])
+    try await drainEvents(
+      client, streamOptions: StreamOptions(reconnectDelay: 1, lastEventId: "42"))
+    #expect(header("Last-Event-ID", in: try #require(client.headersSent.first)) == "42")
+  }
+
+  /* An SSE reconnect rebuilds the headers so a refreshed token is the one sent. */
+  @Test func testBhvSse013AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent()
+    async throws
+  {
+    let client = ScriptedEventClient(["data: a\n\n", ""])
+    try await drainEvents(client, auth: CountingAuth())
+    #expect(client.headersSent.count == 2)
+    #expect(header("Authorization", in: client.headersSent[0]) == "Bearer n1")
+    #expect(header("Authorization", in: client.headersSent[1]) == "Bearer n2")
+  }
+
+  /* An SSE reconnect sends Last-Event-ID only when the last event id is not empty. */
+  @Test func testBhvSse020AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty()
+    async throws
+  {
+    let client = ScriptedEventClient(["data: a\n\n", "id: 5\ndata: b\n\n", ""])
+    try await drainEvents(client)
+    let sent = client.headersSent
+    #expect(sent.count == 3)
+    #expect(header("Last-Event-ID", in: sent[0]) == nil)
+    #expect(header("Last-Event-ID", in: sent[1]) == nil, "no id yet, so none is sent")
+    #expect(header("Last-Event-ID", in: sent[2]) == "5")
+  }
+
   /* A transport that does not implement sendStreaming fails a stream call naming itself, and its buffered calls keep working. */
   @Test
   func testBhvStreaming030ATransportThatCannotStreamFailsAStreamCallAndStillServesBufferedCalls()

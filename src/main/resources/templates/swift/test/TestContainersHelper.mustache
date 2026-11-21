@@ -264,6 +264,12 @@ final class RawConnection: @unchecked Sendable {
         return send(Data((String(bytes.count, radix: 16) + "\r\n").utf8) + bytes + Data("\r\n".utf8))
     }
 
+    /// Writes bytes as one chunk of a chunked body; false when the client is gone.
+    @discardableResult
+    func chunk(_ bytes: Data) -> Bool {
+        return send(Data((String(bytes.count, radix: 16) + "\r\n").utf8) + bytes + Data("\r\n".utf8))
+    }
+
     /// Ends a chunked body.
     func end() {
         send("0\r\n\r\n")

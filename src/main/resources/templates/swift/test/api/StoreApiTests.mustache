@@ -79,6 +79,33 @@ import Testing
         #expect(result.statusCode == 200)
     }
 
+    /* An operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method. */
+    @Test func testBhvStreaming028AnOperationWithAStreamingMediaTypeGetsAStreamMethodAndAnSseOrJsonLinesOnlyOperationGetsNoBufferedMethod() throws {
+        let api = storeApiForIntegration()
+        let _: (ExportOrdersOptions?, StreamOptions?) async throws -> JsonLinesStream<Order> =
+            api.exportOrdersStream(options:streamOptions:)
+        let _: (WatchOrdersOptions?, StreamOptions?) async throws -> SseStream<Order> =
+            api.watchOrdersStream(options:streamOptions:)
+        let _: (WatchNoticesOptions?, StreamOptions?) async throws -> SseStream<String> =
+            api.watchNoticesStream(options:streamOptions:)
+
+        let source = try String(
+            contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("Sources/{{packageName}}/Api/StoreApi.swift"),
+            encoding: .utf8)
+        let declared = Set(
+            source.components(separatedBy: "\n").compactMap { line -> String? in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard trimmed.hasPrefix("public func ") else { return nil }
+                return trimmed.dropFirst("public func ".count).split(separator: "(").first.map(String.init)
+            })
+        for name in ["exportOrders", "watchOrders", "watchNotices"] {
+            #expect(declared.contains(name + "Stream"), "\(name)Stream")
+            #expect(!declared.contains(name), "no buffered \(name)")
+            #expect(!declared.contains(name + "WithHTTPInfo"), "no \(name)WithHTTPInfo")
+        }
+    }
+
     // MARK: - Mock Helpers
 
     private func storeApiForMock(

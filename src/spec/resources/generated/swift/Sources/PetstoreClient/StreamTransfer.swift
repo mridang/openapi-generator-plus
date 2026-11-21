@@ -79,6 +79,7 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
   private var headerOutcome: Result<HTTPURLResponse, Error>?
   private var headersDelivered = false
   private var expectedLength: Int?
+  private var responseHead: HTTPURLResponse?
   private var received = 0
   private var committed = false
   private var ended = false
@@ -142,6 +143,7 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
       headersDelivered = false
       received = 0
       expectedLength = nil
+      responseHead = nil
       headerOutcome = nil
       return ended
     }
@@ -294,6 +296,20 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
     action?()
   }
 
+  /// Whether a failure after the headers is the decoder's: Apple reports
+  /// `cannotDecodeContentData` or `cannotDecodeRawData`, and libcurl on Linux an
+  /// unnamed error whose text names the unencoding of the content.
+  private static func isUndecodable(_ error: URLError) -> Bool {
+    switch error.code {
+    case .cannotDecodeContentData, .cannotDecodeRawData:
+      return true
+    case .unknown:
+      return error.localizedDescription.contains("content unencoding")
+    default:
+      return false
+    }
+  }
+
   private func isCurrent(_ candidate: URLSessionTask) -> Bool {
     return lock.withLock { task === candidate }
   }
@@ -385,6 +401,7 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
     let encoded = !(http.value(forHTTPHeaderField: "Content-Encoding") ?? "").isEmpty
     lock.withLock {
       headersDelivered = true
+      responseHead = http
       /* A body is only checked against its length when the length can be
          told: an identity body of a method and status that carry one. */
       let bodiless =
@@ -431,6 +448,20 @@ final class StreamTransfer: NSObject, URLSessionDataDelegate, StreamFlowControl,
         .failed(
           NetworkTimeoutError(
             statusCode: 0, message: urlError.localizedDescription, underlyingError: urlError)))
+      return
+    }
+    if let urlError = error as? URLError, StreamTransfer.isUndecodable(urlError),
+      let head = lock.withLock({ responseHead })
+    {
+      /* The server answered but its compressed body cannot be decoded: an
+         ApiError with the real status, never a NetworkError. */
+      finish(
+        .failed(
+          ApiError(
+            statusCode: head.statusCode,
+            message: "Failed to decode response body: \(urlError.localizedDescription)",
+            responseHeaders: DefaultApiClient.lowercasedHeaders(of: head),
+            underlyingError: urlError)))
       return
     }
     if let error = error {

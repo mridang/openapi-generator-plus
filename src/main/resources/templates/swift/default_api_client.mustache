@@ -421,6 +421,22 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         timeout: Int?, maxRetries callRetries: Int?, idleTimeout: Int?,
         refreshHeaders: (@Sendable () async throws -> [String: String])?
     ) async throws -> ApiStreamResponse {
+        return try await openStreaming(
+            method: method, url: url, headers: headers, body: body, timeout: timeout,
+            maxRetries: callRetries, idleTimeout: idleTimeout, refreshHeaders: refreshHeaders,
+            acceptCompression: false)
+    }
+
+    /// As ``sendStreaming(method:url:headers:body:timeout:maxRetries:idleTimeout:refreshHeaders:)``,
+    /// and with `acceptCompression` true leaves `Accept-Encoding` to URLSession
+    /// (unless the caller set one), so a compressed body is decoded as it
+    /// arrives; the JSON Lines calls use it.
+    func openStreaming(
+        method: String, url: String, headers: [String: String], body: Any?,
+        timeout: Int?, maxRetries callRetries: Int?, idleTimeout: Int?,
+        refreshHeaders: (@Sendable () async throws -> [String: String])?,
+        acceptCompression: Bool
+    ) async throws -> ApiStreamResponse {
         /* A line break in a header value would start a header line of its own. */
         for (name, value) in headers where value.unicodeScalars.contains(where: { $0 == "\r" || $0 == "\n" }) {
             throw ConfigurationError.invalidArgument(
@@ -453,7 +469,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             send: { current, remaining in
                 try await self.openStreamOnce(
                     method: method, url: url, headers: current, body: body, budget: remaining,
-                    idle: idle)
+                    idle: idle, acceptCompression: acceptCompression)
             })
     }
 
@@ -461,11 +477,12 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// returns once the final response headers are in.
     private func openStreamOnce(
         method: String, url: String, headers: [String: String], body: Any?,
-        budget: TimeInterval?, idle: TimeInterval?
+        budget: TimeInterval?, idle: TimeInterval?, acceptCompression: Bool
     ) async throws -> ApiStreamResponse {
         let (request, _) = try buildRequest(
             method: method, url: url, headers: headers, body: body, noRedirect: false,
-            sendDefaultHeaders: true, streaming: true, requestTimeout: StreamTransfer.noDeadline)
+            sendDefaultHeaders: true, streaming: true, acceptCompression: acceptCompression,
+            requestTimeout: StreamTransfer.noDeadline)
 
         /* A session the SDK built is copied for the stream, with no deadline of
            its own and the SDK's redirect rules, and is released when the stream
@@ -664,20 +681,30 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         attempt: Int, retryAfter: String?, now: Date = Date(),
         jitter: Double = Double.random(in: 0..<1)
     ) -> TimeInterval {
-        if let header = retryAfter?.trimmingCharacters(in: .whitespaces), !header.isEmpty {
-            if let seconds = Double(header), seconds >= 0 {
-                return min(seconds, 60)
-            }
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.timeZone = TimeZone(identifier: "GMT")
-            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-            if let date = formatter.date(from: header) {
-                return min(max(date.timeIntervalSince(now), 0), 60)
-            }
+        if let wait = parseRetryAfter(retryAfter, now: now) {
+            return wait
         }
         let base = min(0.5 * pow(2.0, Double(min(attempt, 10))), 8.0)
         return base * (1.0 - 0.25 * jitter)
+    }
+
+    /// The wait a `Retry-After` header asks for, in seconds and capped at 60:
+    /// delta seconds or an HTTP date. Nil when the header is absent or unusable.
+    static func parseRetryAfter(_ value: String?, now: Date = Date()) -> TimeInterval? {
+        guard let header = value?.trimmingCharacters(in: .whitespaces), !header.isEmpty else {
+            return nil
+        }
+        if let seconds = Double(header), seconds >= 0 {
+            return min(seconds, 60)
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        if let date = formatter.date(from: header) {
+            return min(max(date.timeIntervalSince(now), 0), 60)
+        }
+        return nil
     }
 
     private func sendOnce(
@@ -894,11 +921,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     ///     uncompressed (`Accept-Encoding: identity`) so that a body the server
     ///     cuts short is told by its length, unless the caller set an
     ///     `Accept-Encoding` of its own.
+    ///   - acceptCompression: With `streaming`, leaves `Accept-Encoding` to URLSession,
+    ///     which then asks for a compressed body and decodes it as it arrives (JSON Lines).
     ///   - requestTimeout: The `timeoutInterval` of the request, or nil to leave it.
     /// - Returns: The request, and whether the caller manages the encoding itself.
     private func buildRequest(
         method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool,
-        sendDefaultHeaders: Bool, streaming: Bool, requestTimeout: TimeInterval?
+        sendDefaultHeaders: Bool, streaming: Bool, acceptCompression: Bool = false,
+        requestTimeout: TimeInterval?
     ) throws -> (request: URLRequest, callerManagedEncoding: Bool) {
         guard let requestURL = URL(string: url),
               let scheme = requestURL.scheme?.lowercased(),
@@ -932,7 +962,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
          * own Accept-Encoding, in any case, is kept and the caller decodes. */
         let advertisedEncoding = streaming ? "identity" : "gzip, deflate"
         let callerManagedEncoding = hasHeader("Accept-Encoding")
-        if !callerManagedEncoding {
+        if !callerManagedEncoding && !(streaming && acceptCompression) {
             merged["Accept-Encoding"] = advertisedEncoding
         }
 

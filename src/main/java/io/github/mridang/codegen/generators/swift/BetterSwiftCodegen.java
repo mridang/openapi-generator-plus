@@ -331,56 +331,78 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
      * @param d the operation's decorator map
      */
     static void markBinaryStream(final CodegenOperation op, final Map<String, Object> d) {
-        final boolean binary = "binary".equals(d.get("streamKind"));
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
         d.put("streamsBinary", binary);
         if (binary) {
             op.returnType = "ByteStream";
             op.returnBaseType = "ByteStream";
         }
+        final boolean streamOnly = Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && streamOnly;
+        final boolean jsonLines = "jsonlines".equals(kind) && streamOnly;
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            d.put("streamTyped", !"String".equals(item));
+            d.put("streamItemSwift", item);
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
     }
 
     /**
-     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
-     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
-     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
-     * spec under generation. Nothing is rendered when the spec has none.
+     * Hands the README and SKILLS the first operation of each streaming kind: the one that returns
+     * a {@code ByteStream} ({@code binaryStreamOperation}), a {@code JsonLinesStream}
+     * ({@code jsonLinesStreamOperation}) and an {@code SseStream} ({@code sseStreamOperation}),
+     * each with its operations map ({@code ...Group}) and a {@code has...Operation} flag, so the
+     * Streaming examples call a real operation of the spec under generation. Nothing is rendered
+     * for a kind the spec has no operation of.
      */
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        CodegenOperation found = null;
-        Object group = null;
-        final Object apiInfo = objs.get("apiInfo");
-        if (apiInfo instanceof Map) {
-            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
-            if (apis instanceof List) {
-                for (final Object api : (List<Object>) apis) {
-                    final Object operations = ((Map<String, Object>) api).get("operations");
-                    if (!(operations instanceof Map)) {
-                        continue;
-                    }
-                    final Object list = ((Map<String, Object>) operations).get("operation");
-                    if (!(list instanceof List)) {
-                        continue;
-                    }
-                    for (final Object candidate : (List<Object>) list) {
-                        final CodegenOperation op = (CodegenOperation) candidate;
-                        final Object decorators =
-                                op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
-                        if (found == null
-                                && decorators instanceof Map
-                                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamsBinary"))) {
-                            found = op;
-                            group = operations;
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
                         }
                     }
                 }
             }
-        }
-        objs.put("hasBinaryStreamOperation", found != null);
-        if (found != null) {
-            objs.put("binaryStreamOperation", found);
-            objs.put("binaryStreamGroup", group);
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
         }
         return super.postProcessSupportingFileData(objs);
     }
@@ -754,6 +776,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_stream_response.mustache", srcDir, "ApiStreamResponse.swift"),
             new SupportingFileSpec("byte_stream.mustache", srcDir, "ByteStream.swift"),
             new SupportingFileSpec("stream_transfer.mustache", srcDir, "StreamTransfer.swift"),
+            new SupportingFileSpec("event_stream.mustache", srcDir, "EventStream.swift"),
+            new SupportingFileSpec("server_sent_event.mustache", srcDir, "ServerSentEvent.swift"),
+            new SupportingFileSpec("stream_options.mustache", srcDir, "StreamOptions.swift"),
+            new SupportingFileSpec("json_lines_stream.mustache", srcDir, "JsonLinesStream.swift"),
+            new SupportingFileSpec("sse_stream.mustache", srcDir, "SseStream.swift"),
             new SupportingFileSpec("api_client.mustache", srcDir, "ApiClient.swift"),
             new SupportingFileSpec("default_api_client.mustache", srcDir, "DefaultApiClient.swift"),
             new SupportingFileSpec("base_api.mustache", Path.of(srcDir, "Api").toString(), "BaseApi.swift"),
@@ -802,6 +829,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "test/DefaultApiClientUnitTests.mustache",
                             testDir,
                             "DefaultApiClientUnitTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/EventStreamTests.mustache", testDir, "EventStreamTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/TransportOptionsTests.mustache",

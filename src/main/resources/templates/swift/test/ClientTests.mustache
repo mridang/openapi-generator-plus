@@ -1011,8 +1011,13 @@ private func environmentClient(
         let {{clientPropertyName}}Listed = try operationNames(
             file: "{{classname}}Protocol.swift", from: "public protocol {{classname}}Protocol", to: "extension {{classname}}Protocol", prefix: "func ")
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        #expect({{clientPropertyName}}Listed.contains("{{vendorExtensions.op.streamMethodName}}"))
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
         #expect({{clientPropertyName}}Listed.contains("{{operationId}}"))
         #expect({{clientPropertyName}}Listed.contains("{{operationId}}WithHTTPInfo"))
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

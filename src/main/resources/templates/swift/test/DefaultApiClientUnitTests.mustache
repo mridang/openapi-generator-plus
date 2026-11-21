@@ -1419,6 +1419,183 @@ import FoundationNetworking
 
     // MARK: - Automatic retries
 
+    // MARK: - JSON Lines and server-sent events
+
+    /// Opens the event stream of the server with the transport's own settings, one request
+    /// for every call, carrying the last event id it is given.
+    private func eventOpener(_ server: RawServer, idleTimeout: Int? = nil) -> SseStream<String>.Opener {
+        let client = DefaultApiClient()
+        return { lastEventId in
+            let response = try await client.sendStreaming(
+                method: "GET", url: server.url("/items/events"),
+                headers: lastEventId.isEmpty ? [:] : ["Last-Event-ID": lastEventId], body: nil,
+                timeout: nil, maxRetries: nil, idleTimeout: idleTimeout)
+            return ByteStream(response: response)
+        }
+    }
+
+    private static func eventsHead(_ connection: RawConnection) {
+        connection.head(200, "Content-Type: text/event-stream", "Transfer-Encoding: chunked")
+    }
+
+    /// Opens the JSON Lines stream of the server through the call a generated operation makes.
+    private func jsonLines(_ server: RawServer) async throws -> JsonLinesStream<String> {
+        let api = BaseApi(
+            apiClient: DefaultApiClient(), config: ConfigurationBuilder().baseURL(server.origin).build())
+        let params = BaseApi.InvokeAPIParams(
+            method: "GET", path: "/items/export", queryParams: [:], headerParams: [:], body: nil,
+            accepts: ["application/x-ndjson"], contentType: "application/json",
+            returnType: "String", auth: BaseApi.noAuthSentinel, operation: "ItemsApi.exportItems",
+            operationId: "exportItems", urlTemplate: "/items/export")
+        return try await api.invokeAPIForJsonLines(
+            params, streamOptions: nil, decode: { (line: String) -> String in line })
+    }
+
+    private func crc32(_ bytes: [UInt8]) -> UInt32 {
+        var crc: UInt32 = 0xFFFF_FFFF
+        for byte in bytes {
+            crc ^= UInt32(byte)
+            for _ in 0..<8 {
+                crc = crc & 1 == 1 ? (crc >> 1) ^ 0xEDB8_8320 : crc >> 1
+            }
+        }
+        return ~crc
+    }
+
+    /// A gzip stream of stored (uncompressed) deflate blocks: the header and the first
+    /// block, then the second block, the final block and the trailer. zlib needs no
+    /// module here, and every block can be inflated as soon as it has arrived.
+    private func gzipInTwoParts(_ first: String, _ second: String) -> (head: Data, rest: Data) {
+        func stored(_ text: String, last: Bool) -> [UInt8] {
+            let body = Array(text.utf8)
+            let length = UInt16(body.count)
+            return [last ? 1 : 0, UInt8(length & 0xFF), UInt8(length >> 8), UInt8(~length & 0xFF), UInt8(~length >> 8)]
+                + body
+        }
+        func le(_ value: UInt32) -> [UInt8] {
+            return (0..<4).map { UInt8((value >> (8 * UInt32($0))) & 0xFF) }
+        }
+        let header: [UInt8] = [0x1F, 0x8B, 8, 0, 0, 0, 0, 0, 0, 0xFF]
+        let all = Array((first + second).utf8)
+        let rest = stored(second, last: false) + stored("", last: true) + le(crc32(all)) + le(UInt32(all.count))
+        return (Data(header + stored(first, last: false)), Data(rest))
+    }
+
+    /* A gzip encoded stream is decoded incrementally, so the first item arrives before the body ends. */
+    @Test func testBhvStreaming006AGzipEncodedStreamIsDecodedIncrementallySoTheFirstItemArrivesBeforeTheBodyEnds() async throws {
+        let parts = gzipInTwoParts("first\n", "second\n")
+        let server = try RawServer { connection, _, _ in
+            connection.head(200, "Content-Type: application/x-ndjson", "Content-Encoding: gzip", "Transfer-Encoding: chunked")
+            connection.chunk(parts.head)
+            connection.server.awaitRelease()
+            connection.chunk(parts.rest)
+            connection.end()
+        }
+        defer { server.stop() }
+        let items = try await jsonLines(server)
+        defer { items.close() }
+        var iterator = items.makeAsyncIterator()
+        #expect(try await iterator.next() == "first", "the first item arrived while the body was unfinished")
+        #expect(!server.isReleased)
+        server.release()
+        #expect(try await iterator.next() == "second")
+        #expect(try await iterator.next() == nil)
+        #expect(!(try #require(server.heads.first)).lowercased().contains("accept-encoding: identity"))
+    }
+
+#if os(Linux)
+    /* Apple's URLSession hands a body it cannot decode over as it arrived, so only libcurl reports the failure that this test reads. */
+    /* A corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried. */
+    @Test func testBhvStreaming007ACorruptCompressedStreamRaisesAnApiErrorWithTheRealStatusAndTheDecoderErrorAsItsCauseAndIsNotRetried() async throws {
+        let server = try RawServer { connection, _, _ in
+            connection.head(200, "Content-Type: application/x-ndjson", "Content-Encoding: gzip", "Content-Length: 8")
+            connection.send("notgzip!")
+        }
+        defer { server.stop() }
+        let items = try await jsonLines(server)
+        defer { items.close() }
+        let failure = await #expect(throws: ApiError.self) {
+            for try await _ in items {}
+        }
+        #expect(!(failure is NetworkError))
+        #expect(failure?.statusCode == 200)
+        #expect(failure?.underlyingError != nil)
+        #expect(server.hits == 1, "a corrupt body is not retried")
+    }
+#endif
+
+    /* An SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID. */
+    @Test func testBhvSse007AnSseStreamReconnectsAfterTheConnectionDropsAndSendsTheLastEventIdInLastEventId() async throws {
+        let server = try RawServer { connection, hit, _ in
+            if hit >= 3 {
+                connection.head(204, "Content-Length: 0")
+                return
+            }
+            DefaultApiClientUnitTests.eventsHead(connection)
+            connection.chunk(hit == 1 ? "id: 1\ndata: a\n\nid: 2\ndata: b\n\n" : "id: 3\ndata: c\n\n")
+            connection.end()
+        }
+        defer { server.stop() }
+        let stream = try await SseStream<String>.open(
+            opener: eventOpener(server), options: StreamOptions(reconnectDelay: 1), method: "GET",
+            path: "/items/events")
+        var seen: [String] = []
+        for try await event in stream {
+            seen.append(event.data)
+        }
+        #expect(seen == ["a", "b", "c"])
+        #expect(!server.heads[0].lowercased().contains("last-event-id"))
+        #expect(server.heads[1].lowercased().contains("last-event-id: 2"))
+        #expect(server.heads[2].lowercased().contains("last-event-id: 3"))
+    }
+
+    /* An idle timeout on an SSE stream counts as a lost connection and reconnects. */
+    @Test func testBhvSse015AnIdleTimeoutOnAnSseStreamCountsAsALostConnectionAndReconnects() async throws {
+        let server = try RawServer { connection, hit, _ in
+            DefaultApiClientUnitTests.eventsHead(connection)
+            if hit == 1 {
+                connection.chunk("id: 1\ndata: a\n\n")
+                connection.server.awaitRelease()
+                return
+            }
+            connection.chunk("id: 2\ndata: b\n\n")
+            connection.end()
+        }
+        defer { server.stop() }
+        let stream = try await SseStream<String>.open(
+            opener: eventOpener(server, idleTimeout: 300),
+            options: StreamOptions(maxReconnects: 1, reconnectDelay: 1), method: "GET",
+            path: "/items/events")
+        defer { stream.close() }
+        var iterator = stream.makeAsyncIterator()
+        #expect(try await iterator.next()?.data == "a")
+        #expect(try await iterator.next()?.data == "b", "the stalled connection was replaced")
+        #expect(server.heads[1].lowercased().contains("last-event-id: 1"))
+    }
+
+    /* An SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout. */
+    @Test func testBhvSse018AnSseCommentLineSuchAsAHeartbeatIsSkippedAndCountsAsActivityForTheIdleTimeout() async throws {
+        let server = try RawServer { connection, _, _ in
+            DefaultApiClientUnitTests.eventsHead(connection)
+            for _ in 0..<8 {
+                connection.chunk(": heartbeat\n\n")
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+            connection.chunk("data: late\n\n")
+            connection.end()
+        }
+        defer { server.stop() }
+        let stream = try await SseStream<String>.open(
+            opener: eventOpener(server, idleTimeout: 400),
+            options: StreamOptions(maxReconnects: 0, reconnectDelay: 1), method: "GET",
+            path: "/items/events")
+        defer { stream.close() }
+        var iterator = stream.makeAsyncIterator()
+        let event = try await iterator.next()
+        #expect(event?.data == "late", "the quiet feed outlived the idle timeout")
+        #expect(server.hits == 1, "no reconnect was needed")
+    }
+
     private func retryClient(
         maxRetries: Int = 2, timeout: Int? = 10000,
         handler: @escaping (URLRequest) -> (Data, Int, [String: String])

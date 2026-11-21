@@ -133,23 +133,10 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
-  public func exportOrders(options: ExportOrdersOptions? = nil) async throws -> Order {
-    let result = try await exportOrdersWithHTTPInfo(options: options)
-    guard let data = result.data else {
-      throw ApiError(
-        statusCode: result.statusCode,
-        message: "Expected a response body for exportOrders but received none",
-        responseBody: result.rawBody,
-        responseHeaders: result.headers
-      )
-    }
-    return data
-  }
-
-  /// Performs the exportOrders operation and returns the full API result.
-  public func exportOrdersWithHTTPInfo(options: ExportOrdersOptions? = nil) async throws
-    -> ApiResult<Order>
-  {
+  ///   - streamOptions: The stream settings (`idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId` and `maxEventBytes`), or nil for the defaults.
+  public func exportOrdersStream(
+    options: ExportOrdersOptions? = nil, streamOptions: StreamOptions? = nil
+  ) async throws -> JsonLinesStream<Order> {
 
     let path = "/store/orders/export"
 
@@ -166,7 +153,7 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
       body: requestBody,
       accepts: ["application/x-ndjson"],
       contentType: "application/json",
-      returnType: "Order",
+      returnType: "JsonLinesStream<Order>",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.exportOrders",
       operationId: "exportOrders",
@@ -176,7 +163,9 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
       maxRetries: options?.maxRetries
     )
 
-    return try await invokeAPIForResult(params, as: Order.self)
+    return try await invokeAPIForJsonLines(
+      params, streamOptions: streamOptions,
+      decode: { try BaseApi.decodeStreamItem($0, as: Order.self) })
   }
 
   /// Read the audit trail, which needs a bearer token and an API key together
@@ -1240,23 +1229,10 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
-  public func watchNotices(options: WatchNoticesOptions? = nil) async throws -> String {
-    let result = try await watchNoticesWithHTTPInfo(options: options)
-    guard let data = result.data else {
-      throw ApiError(
-        statusCode: result.statusCode,
-        message: "Expected a response body for watchNotices but received none",
-        responseBody: result.rawBody,
-        responseHeaders: result.headers
-      )
-    }
-    return data
-  }
-
-  /// Performs the watchNotices operation and returns the full API result.
-  public func watchNoticesWithHTTPInfo(options: WatchNoticesOptions? = nil) async throws
-    -> ApiResult<String>
-  {
+  ///   - streamOptions: The stream settings (`idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId` and `maxEventBytes`), or nil for the defaults.
+  public func watchNoticesStream(
+    options: WatchNoticesOptions? = nil, streamOptions: StreamOptions? = nil
+  ) async throws -> SseStream<String> {
 
     let path = "/store/notices"
 
@@ -1273,7 +1249,7 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
       body: requestBody,
       accepts: ["text/event-stream"],
       contentType: "application/json",
-      returnType: "String",
+      returnType: "SseStream<String>",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.watchNotices",
       operationId: "watchNotices",
@@ -1283,30 +1259,19 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
       maxRetries: options?.maxRetries
     )
 
-    return try await invokeAPIForResult(params, as: String.self)
+    return try await invokeAPIForSse(
+      params, streamOptions: streamOptions,
+      decode: { (text: String) -> String in text })
   }
 
   /// Streams order changes as server-sent events
   ///
   /// - Parameters:
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
-  public func watchOrders(options: WatchOrdersOptions? = nil) async throws -> Order {
-    let result = try await watchOrdersWithHTTPInfo(options: options)
-    guard let data = result.data else {
-      throw ApiError(
-        statusCode: result.statusCode,
-        message: "Expected a response body for watchOrders but received none",
-        responseBody: result.rawBody,
-        responseHeaders: result.headers
-      )
-    }
-    return data
-  }
-
-  /// Performs the watchOrders operation and returns the full API result.
-  public func watchOrdersWithHTTPInfo(options: WatchOrdersOptions? = nil) async throws -> ApiResult<
-    Order
-  > {
+  ///   - streamOptions: The stream settings (`idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId` and `maxEventBytes`), or nil for the defaults.
+  public func watchOrdersStream(
+    options: WatchOrdersOptions? = nil, streamOptions: StreamOptions? = nil
+  ) async throws -> SseStream<Order> {
 
     let path = "/store/orders/events"
 
@@ -1329,7 +1294,7 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
       body: requestBody,
       accepts: ["text/event-stream"],
       contentType: "application/json",
-      returnType: "Order",
+      returnType: "SseStream<Order>",
       auth: BaseApi.noAuthSentinel,
       operation: "StoreApi.watchOrders",
       operationId: "watchOrders",
@@ -1339,6 +1304,8 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
       maxRetries: options?.maxRetries
     )
 
-    return try await invokeAPIForResult(params, as: Order.self)
+    return try await invokeAPIForSse(
+      params, streamOptions: streamOptions,
+      decode: { try BaseApi.decodeStreamItem($0, as: Order.self) })
   }
 }
