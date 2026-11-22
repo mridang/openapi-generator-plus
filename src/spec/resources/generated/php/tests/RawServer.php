@@ -216,10 +216,13 @@ final class RawServer
             throw new \RuntimeException('could not start the raw test server');
         }
         $until = microtime(true) + 10.0;
-        while (!file_exists($dir . '/port') && microtime(true) < $until) {
-            usleep(10_000);
+        $port = 0;
+        while ($port === 0 && microtime(true) < $until) {
+            $port = (int) @file_get_contents($dir . '/port');
+            if ($port === 0) {
+                usleep(10_000);
+            }
         }
-        $port = (int) @file_get_contents($dir . '/port');
         if ($port === 0) {
             throw new \RuntimeException('the raw test server did not start: ' . @file_get_contents($dir . '/stderr'));
         }
