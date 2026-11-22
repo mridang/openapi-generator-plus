@@ -466,7 +466,20 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.cs"),
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.cs"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.cs"),
+            new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.cs"),
+            new SupportingFileSpec("errors/PaginationException.mustache", errorsFolder, "PaginationException.cs"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.cs"),
+            new SupportingFileSpec("api_stream_response.mustache", invokerFolder, "ApiStreamResponse.cs"),
+            new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.cs"),
+            new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.cs"),
+            new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.cs"),
+            new SupportingFileSpec("server_sent_event.mustache", invokerFolder, "ServerSentEvent.cs"),
+            new SupportingFileSpec("stream_options.mustache", invokerFolder, "StreamOptions.cs"),
+            new SupportingFileSpec("json_lines_stream.mustache", invokerFolder, "JsonLinesStream.cs"),
+            new SupportingFileSpec("sse_stream.mustache", invokerFolder, "SseStream.cs"),
+            new SupportingFileSpec("paginator.mustache", invokerFolder, "Paginator.cs"),
+            new SupportingFileSpec("page.mustache", invokerFolder, "Page.cs"),
+            new SupportingFileSpec("link_header.mustache", invokerFolder, "LinkHeader.cs"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.cs"),
             new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "Api").toString(), "BaseApi.cs"),
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.cs"),
@@ -556,6 +569,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/DefaultApiClientUnitTest.mustache",
                             "Test",
                             "DefaultApiClientUnitTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/EventStreamTest.mustache",
+                            "Test",
+                            "EventStreamTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/TransportOptionsTest.mustache",
@@ -1175,6 +1193,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
             param.put("paramName", p.paramName);
+            param.put("baseName", p.baseName);
             param.put("pascalParamName", NamingConvention.PASCAL_CASE.apply(p.paramName));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
@@ -1222,6 +1241,19 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         context.put("packageName", packageName);
         context.put("className", className);
         context.put("operationId", op.operationId);
+        /* A paged operation's Options object can copy itself with another cursor, so every page is
+         * sent with its own cursor. */
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        final Object pagination =
+                opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
+        if (pagination instanceof Map && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"))) {
+            final Object cursor = ((Map<?, ?>) pagination).get("requestParam");
+            context.put("hasCopy", true);
+            context.put("cursorType", ((Map<?, ?>) pagination).get("cursorType") + "?");
+            for (final Map<String, Object> param : params) {
+                param.put("isCursor", java.util.Objects.equals(param.get("baseName"), cursor));
+            }
+        }
         context.put("params", params);
         context.put("hasModelImports", hasAnyModelImports);
         return renderOptionsTemplate("api/options.mustache", context);
@@ -1280,6 +1312,12 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> early = (Map<String, Object>) objs.get("operations");
+        if (early != null && early.get("operation") instanceof List) {
+            for (final CodegenOperation op : (List<CodegenOperation>) early.get("operation")) {
+                markBinaryUpload(op);
+            }
+        }
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
         final Map<String, Object> operations = (Map<String, Object>) result.get("operations");
         if (operations == null) {
@@ -1307,12 +1345,145 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             final boolean multiConsume = op.consumes != null && op.consumes.size() > 1;
             deco.put("cancellationLeadComma", hasArgs || multiConsume);
             op.vendorExtensions.put("op", deco);
+            markBinaryStream(op, deco);
+            markPaginator(deco);
             reorderAuthMethodsToSpecOrder(op, deco);
             flagJsonContent(op.pathParams);
             flagJsonContent(op.headerParams);
             flagJsonContent(op.cookieParams);
         }
         return result;
+    }
+
+    /**
+     * A paged operation returns a {@code Paginator<Item, Cursor?>}: the cursor type argument is the
+     * type of the cursor parameter made nullable, and {@code string?} for a {@code Link} list, whose
+     * pages carry no cursor. The shared detector computes the rest.
+     */
+    @SuppressWarnings("unchecked")
+    static void markPaginator(final Map<String, Object> deco) {
+        final Object pagination = deco.get("pagination");
+        if (!(pagination instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        final String cursor = Boolean.TRUE.equals(p.get("isLink")) ? "string" : String.valueOf(p.get("cursorType"));
+        p.put("csCursorType", cursor + "?");
+        if (p.get("requestParamName") != null) {
+            p.put("csRequestParamPascal", NamingConvention.PASCAL_CASE.apply(String.valueOf(p.get("requestParamName"))));
+        }
+        p.put("csPaginatorType", "Paginator<" + p.get("itemType") + ", " + cursor + "?>");
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every signature,
+     * instead of a {@code Stream}. It runs before the shared pass, which copies the body type into
+     * the signature arguments. Multipart and every other body kind keep the type the spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator
+     * {@code streamsBinary} tells the template to call {@code InvokeApiForStreamAsync}.
+     */
+    static void markBinaryStream(final CodegenOperation op, final Map<String, Object> deco) {
+        final Object kind = deco.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        final boolean streamOnly = Boolean.TRUE.equals(deco.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && streamOnly;
+        final boolean jsonLines = "jsonlines".equals(kind) && streamOnly;
+        deco.put("streamsBinary", binary);
+        deco.put("streamsSse", sse);
+        deco.put("streamsJsonLines", jsonLines);
+        deco.put("isStreamCall", binary || sse || jsonLines);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(deco.get("streamEventIsText"));
+            final Object declared = deco.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "string";
+            deco.put("streamTyped", !"string".equals(item));
+            deco.put("streamItemCs", item);
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            objs.put(
+                    "has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation",
+                    found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**

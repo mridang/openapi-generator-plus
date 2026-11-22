@@ -7,6 +7,9 @@
 
 import '../api_result.dart';
 import '../auth/authenticator.dart';
+import '../json_lines_stream.dart';
+import '../sse_stream.dart';
+import '../stream_options.dart';
 import 'base_api.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
@@ -66,11 +69,10 @@ abstract interface class StoreApiInterface {
     int orderId,
     DeleteOrderOptions? options,
   );
-  Future<Order> exportOrders(ExportOrdersOptions? options);
-
-  Future<ApiResult<Order>> exportOrdersWithHttpInfo(
-    ExportOrdersOptions? options,
-  );
+  Future<JsonLinesStream<Order>> exportOrdersStream(
+    ExportOrdersOptions? options, [
+    StreamOptions? streamOptions,
+  ]);
   Future<ApiResponse> getAuditTrail(GetAuditTrailOptions? options);
 
   Future<ApiResult<ApiResponse>> getAuditTrailWithHttpInfo(
@@ -169,14 +171,14 @@ abstract interface class StoreApiInterface {
   Future<ApiResult<List<Order>>> searchStoreWithHttpInfo(
     SearchStoreOptions? options,
   );
-  Future<String> watchNotices(WatchNoticesOptions? options);
-
-  Future<ApiResult<String>> watchNoticesWithHttpInfo(
-    WatchNoticesOptions? options,
-  );
-  Future<Order> watchOrders(WatchOrdersOptions? options);
-
-  Future<ApiResult<Order>> watchOrdersWithHttpInfo(WatchOrdersOptions? options);
+  Future<SseStream<String>> watchNoticesStream(
+    WatchNoticesOptions? options, [
+    StreamOptions? streamOptions,
+  ]);
+  Future<SseStream<Order>> watchOrdersStream(
+    WatchOrdersOptions? options, [
+    StreamOptions? streamOptions,
+  ]);
 }
 
 class StoreApi extends BaseApi implements StoreApiInterface {
@@ -315,31 +317,13 @@ class StoreApi extends BaseApi implements StoreApiInterface {
 
   /// Exports every order as JSON Lines
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// `streamOptions` the stream settings, or null for the defaults
+  /// Returns the open stream once the response headers arrive; close it when you stop early.
   @override
-  Future<Order> exportOrders(ExportOrdersOptions? options) async {
-    final result = await exportOrdersWithHttpInfo(options);
-    final data = result.data;
-    if (data == null) {
-      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
-       * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiException (matching C#/Swift) instead of the Dart runtime
-       * TypeError that `null as Order` would otherwise throw, so
-       * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiException(
-        statusCode: result.statusCode,
-        message: 'Expected a response body for exportOrders but received none',
-        responseBody: result.rawBody,
-        responseHeaders: result.headers,
-      );
-    }
-    return data;
-  }
-
-  /// Performs the exportOrders operation and returns the full API result.
-  @override
-  Future<ApiResult<Order>> exportOrdersWithHttpInfo(
-    ExportOrdersOptions? options,
-  ) async {
+  Future<JsonLinesStream<Order>> exportOrdersStream(
+    ExportOrdersOptions? options, [
+    StreamOptions? streamOptions,
+  ]) async {
     var path = '/store/orders/export';
 
     final queryParams = <String, Object?>{};
@@ -347,8 +331,7 @@ class StoreApi extends BaseApi implements StoreApiInterface {
     final headerParams = <String, String>{};
 
     final Object? requestBody = null;
-
-    return invokeApiForResult<Order>(
+    return invokeApiForJsonLines<Order>(
       method: 'GET',
       operation: 'StoreApi.exportOrders',
       operationId: 'exportOrders',
@@ -359,13 +342,12 @@ class StoreApi extends BaseApi implements StoreApiInterface {
       body: requestBody,
       accepts: ['application/x-ndjson'],
       contentType: 'application/json',
-      returnType: 'Order',
       auth: noAuth,
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
-
-      deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+      decoder: (data) => deserialize(data, Order.fromJson) as Order,
+      streamOptions: streamOptions,
     );
   }
 
@@ -1641,31 +1623,13 @@ class StoreApi extends BaseApi implements StoreApiInterface {
 
   /// Streams plain text notices as server-sent events
   /// `options` options carrying the per-call timeout, headers and retry budget
+  /// `streamOptions` the stream settings, or null for the defaults
+  /// Returns the open stream once the response headers arrive; close it when you stop early.
   @override
-  Future<String> watchNotices(WatchNoticesOptions? options) async {
-    final result = await watchNoticesWithHttpInfo(options);
-    final data = result.data;
-    if (data == null) {
-      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
-       * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiException (matching C#/Swift) instead of the Dart runtime
-       * TypeError that `null as String` would otherwise throw, so
-       * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiException(
-        statusCode: result.statusCode,
-        message: 'Expected a response body for watchNotices but received none',
-        responseBody: result.rawBody,
-        responseHeaders: result.headers,
-      );
-    }
-    return data;
-  }
-
-  /// Performs the watchNotices operation and returns the full API result.
-  @override
-  Future<ApiResult<String>> watchNoticesWithHttpInfo(
-    WatchNoticesOptions? options,
-  ) async {
+  Future<SseStream<String>> watchNoticesStream(
+    WatchNoticesOptions? options, [
+    StreamOptions? streamOptions,
+  ]) async {
     var path = '/store/notices';
 
     final queryParams = <String, Object?>{};
@@ -1673,8 +1637,7 @@ class StoreApi extends BaseApi implements StoreApiInterface {
     final headerParams = <String, String>{};
 
     final Object? requestBody = null;
-
-    return invokeApiForResult<String>(
+    return invokeApiForSse<String>(
       method: 'GET',
       operation: 'StoreApi.watchNotices',
       operationId: 'watchNotices',
@@ -1685,42 +1648,23 @@ class StoreApi extends BaseApi implements StoreApiInterface {
       body: requestBody,
       accepts: ['text/event-stream'],
       contentType: 'application/json',
-      returnType: 'String',
       auth: noAuth,
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
-      deserialize: (body) => deserializeRaw(body) as String,
+      streamOptions: streamOptions,
     );
   }
 
   /// Streams order changes as server-sent events
   /// `options` options for query, header, form, and cookie parameters
+  /// `streamOptions` the stream settings, or null for the defaults
+  /// Returns the open stream once the response headers arrive; close it when you stop early.
   @override
-  Future<Order> watchOrders(WatchOrdersOptions? options) async {
-    final result = await watchOrdersWithHttpInfo(options);
-    final data = result.data;
-    if (data == null) {
-      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
-       * operation received an empty/undecodable body. Surface the uniform
-       * typed ApiException (matching C#/Swift) instead of the Dart runtime
-       * TypeError that `null as Order` would otherwise throw, so
-       * callers can catch the empty-body condition the same way across SDKs. */
-      throw ApiException(
-        statusCode: result.statusCode,
-        message: 'Expected a response body for watchOrders but received none',
-        responseBody: result.rawBody,
-        responseHeaders: result.headers,
-      );
-    }
-    return data;
-  }
-
-  /// Performs the watchOrders operation and returns the full API result.
-  @override
-  Future<ApiResult<Order>> watchOrdersWithHttpInfo(
-    WatchOrdersOptions? options,
-  ) async {
+  Future<SseStream<Order>> watchOrdersStream(
+    WatchOrdersOptions? options, [
+    StreamOptions? streamOptions,
+  ]) async {
     var path = '/store/orders/events';
 
     final queryParams = <String, Object?>{};
@@ -1742,8 +1686,7 @@ class StoreApi extends BaseApi implements StoreApiInterface {
     final headerParams = <String, String>{};
 
     final Object? requestBody = null;
-
-    return invokeApiForResult<Order>(
+    return invokeApiForSse<Order>(
       method: 'GET',
       operation: 'StoreApi.watchOrders',
       operationId: 'watchOrders',
@@ -1754,13 +1697,12 @@ class StoreApi extends BaseApi implements StoreApiInterface {
       body: requestBody,
       accepts: ['text/event-stream'],
       contentType: 'application/json',
-      returnType: 'Order',
       auth: noAuth,
       timeout: options?.timeout,
       callHeaders: options?.headers,
       maxRetries: options?.maxRetries,
-
-      deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+      decoder: (data) => deserialize(data, Order.fromJson) as Order,
+      streamOptions: streamOptions,
     );
   }
 }

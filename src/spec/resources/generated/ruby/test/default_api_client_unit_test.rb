@@ -8,6 +8,7 @@ require 'stringio'
 require 'tempfile'
 require 'tmpdir'
 require 'zlib'
+require 'test_helper'
 require 'petstore_client'
 
 # A stand-in model part for the multipart serialisation test below. It is
@@ -2840,7 +2841,7 @@ describe 'DefaultApiClientUnit' do
   end
 
   it 'bhv_misc_163 a one-shot stream body is not replayed on retry, while text, bytes and an absent body are' do
-    _outcome, envs, = run_retry_probe(verb: :put, body: StringIO.new('payload')) { [503, {}, 'busy'] }
+    _outcome, envs, = run_retry_probe(verb: :put, body: Petstore::Client::BodySource.once(StringIO.new('payload'))) { [503, {}, 'busy'] }
     _(envs.length).must_equal 1
 
     [nil, 'payload', 'payload'.b].each do |body|
@@ -3364,7 +3365,7 @@ describe 'DefaultApiClientUnit' do
   end
 
   it 'bhv_retries_032 never retries a stream body' do
-    outcome, envs, delays = run_retry_probe(verb: :post, body: StringIO.new('payload')) { [503, {}, 'busy'] }
+    outcome, envs, delays = run_retry_probe(verb: :post, body: Petstore::Client::BodySource.once(StringIO.new('payload'))) { [503, {}, 'busy'] }
 
     _(outcome.status_code).must_equal 503
     _(envs.length).must_equal 1
@@ -3925,5 +3926,542 @@ describe 'DefaultApiClientUnit' do
       resp = client.send_request(:GET, 'http://localhost/multi', {}, nil)
       _(resp.status_code).must_equal 300
     end
+  end
+
+  # The tests below run the transport against a RawServer, so a body can stall,
+  # stop short or be reset.
+  def streaming_client
+    Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.build)
+  end
+
+  def stream_of(server, path, client = streaming_client)
+    client.send_streaming(:GET, server.url(path), {}, nil)
+  end
+
+  # Every byte of a stream body, read to its end.
+  def drain(body)
+    all = ''.b
+    while (chunk = body.read(16_384))
+      all << chunk
+    end
+    all
+  end
+
+  def byte_stream_of(response)
+    Petstore::Client::ByteStream.new(status_code: response.status_code, headers: response.headers, source: response.body)
+  end
+
+  # A body that never ends: 4 KiB chunks until the client drops the connection.
+  def endless_body(server, socket)
+    RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+    loop do
+      RawHttp.chunk(socket, 'x' * 4096)
+      sleep 0.005
+    end
+  rescue IOError, SystemCallError
+    server.client_gone!
+  end
+
+  it 'bhv_streaming_001 a binary stream delivers the bytes in order and returns before the body has ended' do
+    server = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Type: application/octet-stream', 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'first-')
+      self_server.await_release
+      RawHttp.chunk(socket, 'second')
+      RawHttp.finish(socket)
+    end
+    response = stream_of(server, '/items/blob')
+    _(response.status_code).must_equal 200
+    _(server.released?).must_equal false
+    _(response.body.read(6)).must_equal 'first-'
+    server.release!
+    _(drain(response.body)).must_equal 'second'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_010 the call timeout bounds only the wait for the response headers, not the body' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      sleep 1.2
+      RawHttp.chunk(socket, 'cd')
+      RawHttp.finish(socket)
+    end
+    response = streaming_client.send_streaming(:GET, server.url('/items/blob'), {}, nil, timeout: 400, max_retries: 0,
+                                                                                         idle_timeout: 0)
+    _(drain(response.body)).must_equal 'abcd'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_011 the idle timeout raises a network timeout error when the server stalls in the middle of the body' do
+    server = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      self_server.await_release
+    end
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.idle_timeout(300).build)
+    response = stream_of(server, '/items/blob', client)
+    _(response.body.read(2)).must_equal 'ab'
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    error = assert_raises(Petstore::Client::Errors::NetworkTimeoutError) { response.body.read(1) }
+    _(error.status_code).must_equal 0
+    _(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).must_be :<, 5
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_012 a connection reset in the middle of the body raises a network error and is not retried' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      sleep 0.1
+      RawHttp.reset(socket)
+    end
+    response = stream_of(server, '/items/blob')
+    assert_raises(Petstore::Client::Errors::NetworkError) { drain(response.body) }
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_013 a body shorter than its Content-Length raises a network error and never a short success' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Length: 10')
+      socket.write('abcd')
+    end
+    response = stream_of(server, '/items/blob')
+    assert_raises(Petstore::Client::Errors::NetworkError) { drain(response.body) }
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_014 a streaming call retries a 503 before the headers and then streams the retried response' do
+    server = RawServer.serve do |_self_server, socket, hit, _head|
+      if hit == 1
+        RawHttp.head(socket, 503, 'Retry-After: 0', 'Content-Length: 4')
+        socket.write('nope')
+      else
+        RawHttp.head(socket, 200, 'Content-Length: 5')
+        socket.write('hello')
+      end
+    end
+    response = stream_of(server, '/items/blob')
+    _(response.status_code).must_equal 200
+    _(drain(response.body)).must_equal 'hello'
+    _(server.hits).must_equal 2
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_015 a streaming call never retries after the first body byte was delivered' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'part')
+      sleep 0.1
+      RawHttp.reset(socket)
+    end
+    response = stream_of(server, '/items/blob')
+    _(response.body.read(4)).must_equal 'part'
+    assert_raises(Petstore::Client::Errors::NetworkError) { drain(response.body) }
+    sleep 0.3
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_016 a streaming call follows a redirect before the body and strips credentials across origins' do
+    target = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Length: 6')
+      socket.write('landed')
+    end
+    origin = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 302, "Location: #{target.url('/items/final')}", 'Content-Length: 0')
+    end
+    headers = { 'Authorization' => 'Bearer secret-token', 'Cookie' => 'session=abc', 'X-Trace' => 'kept' }
+    response = streaming_client.send_streaming(:GET, origin.url('/items/blob'), headers, nil)
+    _(drain(response.body)).must_equal 'landed'
+    sent_to_origin = origin.heads.first.downcase
+    sent_to_target = target.heads.first.downcase
+    _(sent_to_origin).must_include 'authorization: bearer secret-token'
+    _(sent_to_target).wont_include 'authorization'
+    _(sent_to_target).wont_include 'cookie'
+    _(sent_to_target).must_include 'x-trace: kept'
+  ensure
+    origin&.close
+    target&.close
+  end
+
+  it 'bhv_streaming_019 closing a stream twice is safe and aborts the connection' do
+    server = RawServer.serve { |self_server, socket, _hit, _head| endless_body(self_server, socket) }
+    response = stream_of(server, '/items/blob')
+    stream = byte_stream_of(response)
+    _(stream.read(4).bytesize).must_equal 4
+    stream.close
+    stream.close
+    response.close
+    _(server.client_gone?).must_equal true
+    assert_raises(IOError) { stream.read(1) }
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_020 cancelling the call aborts the stream and is never raised as a timeout' do
+    cancelled = Class.new(StandardError)
+    silent = RawServer.serve { |self_server, _socket, _hit, _head| self_server.await_release }
+    stalled = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      self_server.await_release
+    end
+    before_headers = nil
+    waiting = Thread.new do
+      stream_of(silent, '/items/blob')
+    rescue StandardError => e
+      before_headers = e
+    end
+    sleep 0.01 while silent.hits.zero?
+    waiting.raise(cancelled.new)
+    waiting.join(10)
+    _(before_headers).must_be_instance_of cancelled
+
+    response = stream_of(stalled, '/items/blob')
+    in_body = nil
+    reading = Thread.new do
+      response.body.read(100)
+      response.body.read(100)
+    rescue StandardError => e
+      in_body = e
+    end
+    sleep 0.3
+    reading.raise(cancelled.new)
+    reading.join(10)
+    _(in_body).must_be_instance_of cancelled
+    _(in_body).wont_be_kind_of Petstore::Client::Errors::NetworkTimeoutError
+  ensure
+    silent&.close
+    stalled&.close
+  end
+
+  it 'bhv_streaming_022 the string form of a stream hides credentials, the query and the data' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Length: 7', 'Set-Cookie: sid=secret-cookie')
+      socket.write('payload')
+    end
+    response = streaming_client.send_streaming(:GET, server.url('/items/blob?token=secret-query'),
+                                               { 'Authorization' => 'Bearer secret-token' }, nil)
+    stream = byte_stream_of(response)
+    _(stream.read(7)).must_equal 'payload'
+    [stream.to_s, stream.inspect, response.to_s, response.inspect].each_case do |shown|
+      %w[secret payload token items].each { |word| _(shown).wont_include word }
+    end
+    _(stream.to_s).must_equal '#<Petstore::Client::ByteStream status_code=200 bytes_delivered=7>'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_031 closing a live endless stream returns promptly and does not wait for the server' do
+    server = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.one_chunk_then_hold(self_server, socket, 1, '')
+    end
+    response = stream_of(server, '/items/events')
+    _(response.body.read(4)).must_equal 'tick'
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    response.close
+    _(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).must_be :<, 2
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_032 a reset or truncation after the headers raises a stream error that is a network error' do
+    reset = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, 'ab')
+      sleep 0.1
+      RawHttp.reset(socket)
+    end
+    cut = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Length: 10')
+      socket.write('abcd')
+    end
+    [reset, cut].each_case do |server|
+      stream = byte_stream_of(stream_of(server, '/items/blob'))
+      failure = assert_raises(Petstore::Client::Errors::StreamError) { stream.read_all }
+      _(failure).must_be_kind_of Petstore::Client::Errors::NetworkError
+      _(failure.status_code).must_equal 0
+    end
+  ensure
+    reset&.close
+    cut&.close
+  end
+
+  it 'bhv_streaming_033 stopping a stream early without reading it to the end releases the connection' do
+    server = RawServer.serve { |self_server, socket, _hit, _head| endless_body(self_server, socket) }
+    body = stream_of(server, '/items/events').body
+    begin
+      _(body.read(10).bytesize).must_equal 10
+    ensure
+      body.close
+    end
+    _(server.client_gone?).must_equal true
+  ensure
+    server&.close
+  end
+
+  # A server that reads every request body, remembers it with the head that framed it, and answers
+  # with the status the +statuses+ list holds for that hit (the last one repeats).
+  def upload_server(*statuses, location: nil)
+    received = []
+    server = RawServer.serve do |_self_server, socket, hit, head|
+      received << [head, RawHttp.read_body(socket, head)]
+      status = statuses[[hit, statuses.length].min - 1]
+      extra = location ? ["Location: #{location}"] : []
+      RawHttp.head(socket, status, 'Content-Length: 0', *extra)
+    end
+    [server, received]
+  end
+
+  def uploading_client(follow_redirects: false)
+    client = Petstore::Client::DefaultApiClient.new(
+      Petstore::Client::TransportOptions.builder.follow_redirects(follow_redirects).build
+    )
+    client.define_singleton_method(:pause) { |_seconds| nil }
+    client
+  end
+
+  def upload(client, server, source, path = '/items/blob')
+    client.send_request(:PUT, server.url(path), { 'Content-Type' => 'application/octet-stream' }, source)
+  end
+
+  it 'bhv_streaming_023 a streamed upload of unknown length is sent chunked and arrives intact' do
+    payload = (0...200_000).map { |i| ((i * 7) % 256).chr }.join.b
+    server, received = upload_server(204)
+    upload(uploading_client, server, Petstore::Client::BodySource.once(StringIO.new(payload)))
+    head, body = received.first
+    _(head.downcase).must_include 'transfer-encoding: chunked'
+    _(head.downcase).wont_include 'content-length'
+    _(body).must_equal payload
+
+    received.clear
+    factory = Petstore::Client::BodySource.from_factory { StringIO.new(payload) }
+    upload(uploading_client, server, factory)
+    _(received.first.first.downcase).must_include 'transfer-encoding: chunked'
+    _(received.first.last).must_equal payload
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_024 a streamed upload with a known length sends Content-Length' do
+    payload = (0...150_000).map { |i| ((i * 13) % 256).chr }.join.b
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, 'payload.bin')
+      File.binwrite(path, payload)
+      sources = [
+        Petstore::Client::BodySource.of(payload),
+        Petstore::Client::BodySource.of_file(path),
+        Petstore::Client::BodySource.once(StringIO.new(payload), length: payload.bytesize),
+        Petstore::Client::BodySource.from_factory(length: payload.bytesize) { StringIO.new(payload) }
+      ]
+      sources.each_case do |source|
+        server, received = upload_server(204)
+        begin
+          upload(uploading_client, server, source)
+          head, body = received.first
+          _(head.downcase).must_include "content-length: #{payload.bytesize}"
+          _(head.downcase).wont_include 'transfer-encoding'
+          _(body).must_equal payload
+        ensure
+          server.close
+        end
+      end
+    end
+  end
+
+  it 'bhv_streaming_025 a caller supplied upload stream is never closed by the SDK' do
+    server, = upload_server(204, 204)
+    mine = StringIO.new('caller bytes')
+    upload(uploading_client, server, Petstore::Client::BodySource.once(mine))
+    _(mine.closed?).must_equal false
+
+    opened = []
+    factory = Petstore::Client::BodySource.from_factory { StringIO.new('factory bytes').tap { |io| opened << io } }
+    upload(uploading_client, server, factory)
+    _(opened.length).must_equal 1
+    _(opened.first.closed?).must_equal true
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_026 a replayable upload is rewound and retried after a 503 and a single use upload is not retried' do
+    payload = 'replayed bytes'
+    server, received = upload_server(503, 204)
+    factory = Petstore::Client::BodySource.from_factory(length: payload.bytesize) { StringIO.new(payload) }
+    _(upload(uploading_client, server, factory).status_code).must_equal 204
+    _(received.map(&:last)).must_equal [payload.b, payload.b]
+    server.close
+
+    server, received = upload_server(503, 204)
+    refused = upload(uploading_client, server, Petstore::Client::BodySource.once(StringIO.new(payload)))
+    _(refused.status_code).must_equal 503
+    _(received.length).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_027 a 307 or 308 with a single use upload is refused and the body is never buffered' do
+    [307, 308].each_case do |status|
+      server, received = upload_server(status, 204, location: '/final')
+      begin
+        error = assert_raises(Petstore::Client::Errors::ApiError) do
+          upload(uploading_client(follow_redirects: true), server, Petstore::Client::BodySource.once(StringIO.new('once')))
+        end
+        _(error.message).must_include 'Refusing to replay a streamed request body'
+        _(error.status_code).must_equal status
+        _(received.length).must_equal 1
+
+        server.close
+        server, received = upload_server(status, 204, location: '/final')
+        replayable = Petstore::Client::BodySource.from_factory { StringIO.new('again') }
+        _(upload(uploading_client(follow_redirects: true), server, replayable).status_code).must_equal 204
+        _(received.map(&:last)).must_equal %w[again again].map(&:b)
+      ensure
+        server.close
+      end
+    end
+  end
+
+  it 'bhv_streaming_029 the read-all helper of a byte stream returns every byte in order and leaves it closed' do
+    payload = (0...100_000).map { |i| ((i * 31) % 256).chr }.join.b
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, "Content-Length: #{payload.bytesize}")
+      socket.write(payload)
+    end
+    stream = byte_stream_of(stream_of(server, '/items/blob'))
+    _(stream.read_all).must_equal payload
+    _(stream.to_s).must_equal '#<Petstore::Client::ByteStream status_code=200 bytes_delivered=100000>'
+    _(stream.closed?).must_equal true
+    assert_raises(IOError) { stream.read(1) }
+  ensure
+    server&.close
+  end
+
+  # What an operation does for an event stream: one request per connection,
+  # over the transport.
+  def event_opener(server, options = Petstore::Client::TransportOptions.builder.build)
+    client = Petstore::Client::DefaultApiClient.new(options)
+    lambda do |last_event_id|
+      headers = {}
+      headers['Last-Event-ID'] = last_event_id unless last_event_id.empty?
+      response = client.send_streaming(:GET, server.url('/items/events'), headers, nil, max_retries: 0)
+      byte_stream_of(response)
+    end
+  end
+
+  def events_head(socket)
+    RawHttp.head(socket, 200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked')
+  end
+
+  def open_events(opener, options, has_body: false)
+    Petstore::Client::SseStream.open(opener: opener, decoder: nil, terminator: nil, options: options,
+                                     has_body: has_body, method: 'GET', path: '/items/events')
+  end
+
+  it 'bhv_streaming_006 a gzip encoded stream is decoded incrementally so the first item arrives before the body ends' do
+    deflater = Zlib::Deflate.new(Zlib::DEFAULT_COMPRESSION, Zlib::MAX_WBITS + 16)
+    first = deflater.deflate("first\n", Zlib::SYNC_FLUSH)
+    rest = deflater.deflate("second\n", Zlib::FINISH)
+    server = RawServer.serve do |self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Encoding: gzip', 'Transfer-Encoding: chunked')
+      RawHttp.chunk(socket, first)
+      self_server.await_release
+      RawHttp.chunk(socket, rest)
+      RawHttp.finish(socket)
+    end
+    items = Petstore::Client::JsonLinesStream.new(source: byte_stream_of(stream_of(server, '/items/export')), decoder: nil,
+                                                  max_line_bytes: 1024, method: 'GET', path: '/items/export').each
+    _(items.next).must_equal 'first'
+    _(server.released?).must_equal false
+    server.release!
+    _(items.next).must_equal 'second'
+    assert_raises(StopIteration) { items.next }
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_007 a corrupt compressed stream raises an API error with the status and the decoder error and is not retried' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      RawHttp.head(socket, 200, 'Content-Encoding: gzip', 'Content-Length: 8')
+      socket.write('notgzip!')
+    end
+    items = Petstore::Client::JsonLinesStream.new(source: byte_stream_of(stream_of(server, '/items/export')), decoder: nil,
+                                                  max_line_bytes: 1024, method: 'GET', path: '/items/export')
+    failure = assert_raises(Petstore::Client::Errors::ApiError) { items.to_a }
+    _(failure).wont_be_kind_of Petstore::Client::Errors::NetworkError
+    _(failure.status_code).must_equal 200
+    _(failure.cause).wont_be_nil
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
+  end
+
+  it 'bhv_sse_007 an SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID' do
+    server = RawServer.serve do |_self_server, socket, hit, _head|
+      if hit >= 3
+        RawHttp.head(socket, 204, 'Content-Length: 0')
+      else
+        events_head(socket)
+        RawHttp.chunk(socket, hit == 1 ? "id: 1\ndata: a\n\nid: 2\ndata: b\n\n" : "id: 3\ndata: c\n\n")
+        RawHttp.finish(socket)
+      end
+    end
+    stream = open_events(event_opener(server), Petstore::Client::StreamOptions.new(reconnect_delay: 1))
+    _(stream.map(&:data)).must_equal %w[a b c]
+    heads = server.heads.map(&:downcase)
+    _(heads[0]).wont_include 'last-event-id'
+    _(heads[1]).must_include 'last-event-id: 2'
+    _(heads[2]).must_include 'last-event-id: 3'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_sse_015 an idle timeout on an SSE stream counts as a lost connection and reconnects' do
+    server = RawServer.serve do |self_server, socket, hit, _head|
+      events_head(socket)
+      if hit == 1
+        RawHttp.chunk(socket, "id: 1\ndata: a\n\n")
+        self_server.await_release
+      else
+        RawHttp.chunk(socket, "id: 2\ndata: b\n\n")
+        RawHttp.finish(socket)
+      end
+    end
+    options = Petstore::Client::TransportOptions.builder.idle_timeout(300).build
+    stream = open_events(event_opener(server, options), Petstore::Client::StreamOptions.new(reconnect_delay: 1, max_reconnects: 1))
+    events = stream.each
+    _(events.next.data).must_equal 'a'
+    _(events.next.data).must_equal 'b'
+    _(server.heads[1].downcase).must_include 'last-event-id: 1'
+  ensure
+    server&.close
+  end
+
+  it 'bhv_sse_018 an SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout' do
+    server = RawServer.serve do |_self_server, socket, _hit, _head|
+      events_head(socket)
+      8.times do
+        RawHttp.chunk(socket, ": heartbeat\n\n")
+        sleep 0.1
+      end
+      RawHttp.chunk(socket, "data: late\n\n")
+      RawHttp.finish(socket)
+    end
+    options = Petstore::Client::TransportOptions.builder.idle_timeout(400).build
+    stream = open_events(event_opener(server, options), Petstore::Client::StreamOptions.new(reconnect_delay: 1, max_reconnects: 0))
+    _(stream.first.data).must_equal 'late'
+    _(server.hits).must_equal 1
+  ensure
+    server&.close
   end
 end

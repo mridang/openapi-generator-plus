@@ -86,31 +86,40 @@ module {{moduleName}}
         super
       end
     {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
 
       # {{#lambda.rubyDocComment}}{{{summary}}}{{/lambda.rubyDocComment}}
 {{#notes}}
       # {{#lambda.rubyDocComment}}{{{notes}}}{{/lambda.rubyDocComment}}
 {{/notes}}
-{{#pathParams}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{#vendorExtensions.pluralExamples}}
-      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
-{{/vendorExtensions.pluralExamples}}
-{{/pathParams}}
-{{#bodyParam}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{#vendorExtensions.pluralExamples}}
-      # Example for +{{paramName}}+ — {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
-{{/vendorExtensions.pluralExamples}}
-{{/bodyParam}}
-{{#vendorExtensions.op.signatureArgs}}
-{{#isOptions}}
-      # @param options [{{{dataType}}}] per-call options: the optional timeout, headers and max_retries{{#vendorExtensions.op.hasOptionsParam}}, plus the query, header, form and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}
-{{/isOptions}}
-{{/vendorExtensions.op.signatureArgs}}
-{{#vendorExtensions.hasMultipleConsumes}}
-      # @param request_content_type [String, nil] selects the request Content-Type among the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to '{{vendorExtensions.op.effectiveConsumes}}' when nil
-{{/vendorExtensions.hasMultipleConsumes}}
+{{>api/operation_doc_args}}
+      # @param stream_options [StreamOptions, nil] the stream settings (idle timeout, reconnects, event size), or nil for the defaults
+      # @return [{{{returnType}}}] the open stream; close it when you stop early
+      # @raise [ApiError] if fails to make API call
+{{>api/operation_doc_throws}}
+{{#isDeprecated}}
+      # @deprecated This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+      # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
+{{/externalDocs}}
+      def {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, stream_options = nil{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
+{{>api/operation_prelude}}
+        {{#vendorExtensions.op.streamsSse}}invoke_api_for_sse{{/vendorExtensions.op.streamsSse}}{{^vendorExtensions.op.streamsSse}}invoke_api_for_json_lines{{/vendorExtensions.op.streamsSse}}(
+          :{{httpMethod}}, path, query_params, header_params, request_body,
+          [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+          {{#vendorExtensions.hasMultipleConsumes}}resolved_content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
+{{>api/operation_call_tail}}
+        )
+      end
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
+
+      # {{#lambda.rubyDocComment}}{{{summary}}}{{/lambda.rubyDocComment}}
+{{#notes}}
+      # {{#lambda.rubyDocComment}}{{{notes}}}{{/lambda.rubyDocComment}}
+{{/notes}}
+{{>api/operation_doc_args}}
       # @return [{{#isResponseFile}}StringIO{{/isResponseFile}}{{^isResponseFile}}{{{returnType}}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}]
       # @raise [ApiError] if fails to make API call
 {{>api/operation_doc_throws}}
@@ -149,267 +158,45 @@ module {{moduleName}}
 {{#isDeprecated}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
+{{#vendorExtensions.op.pagination.isLink}}
+      def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}})
+        {{operationId}}_page({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}})
+      end
+
+      # One page of the list: the first when +page_url+ is nil, else the URL the Link header named.
+      #
+      # @api private
+      def {{operationId}}_page({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}}, page_url: nil)
+{{/vendorExtensions.op.pagination.isLink}}
+{{^vendorExtensions.op.pagination.isLink}}
       def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
-{{#pathParams}}
-{{#required}}
-        if {{{paramName}}}.nil?
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+{{/vendorExtensions.op.pagination.isLink}}
+{{>api/operation_prelude}}
+{{#vendorExtensions.op.pagination.isLink}}
+        if page_url
+          path = page_url
+          query_params.clear
         end
-{{#isString}}
-
-        if {{{paramName}}} == ''
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-{{/isString}}
-
-{{/required}}
-{{/pathParams}}
-{{#bodyParam}}
-{{#required}}
-        if {{{paramName}}}.nil?
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-
-{{/required}}
-{{/bodyParam}}
-{{#queryParams}}
-{{#required}}
-        if options.nil?{{^vendorExtensions.param.queryRequiredNullable}} || options.{{paramName}}.nil?{{/vendorExtensions.param.queryRequiredNullable}}
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-{{#isString}}
-
-        if options.{{paramName}} == ''
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-{{/isString}}
-
-{{/required}}
-{{/queryParams}}
-{{#headerParams}}
-{{#required}}
-        if options.nil? || options.{{paramName}}.nil?
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-{{#isString}}
-
-        if options.{{paramName}} == ''
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-{{/isString}}
-
-{{/required}}
-{{/headerParams}}
-{{#formParams}}
-{{#required}}
-        if options.nil? || options.{{paramName}}.nil?
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-{{#isString}}
-
-        if options.{{paramName}} == ''
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-{{/isString}}
-
-{{/required}}
-{{/formParams}}
-{{#cookieParams}}
-{{#required}}
-        if options.nil? || options.{{paramName}}.nil?
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-{{#isString}}
-
-        if options.{{paramName}} == ''
-          raise ArgumentError,
-                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
-        end
-{{/isString}}
-
-{{/required}}
-{{/cookieParams}}
-        path = '{{{path}}}'
-{{#pathParams}}
-{{=<% %>=}}
-<%#vendorExtensions.param.queryContent%>
-        path = path.gsub('{<%baseName%>}', ::<%moduleName%>::ValueSerializer.encode_path_segment(::<%moduleName%>::ObjectSerializer.serialize(<%paramName%>)))
-<%/vendorExtensions.param.queryContent%>
-<%^vendorExtensions.param.queryContent%>
-        path = path.gsub('{<%baseName%>}', ::<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%#isByteArray%>::<%moduleName%>::ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%#isUuid%>::<%moduleName%>::ObjectSerializer.validate_uuid(<%paramName%>)<%/isUuid%><%^isUuid%><%paramName%><%/isUuid%><%/isByteArray%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
-<%/vendorExtensions.param.queryContent%>
-<%={{ }}=%>
-{{/pathParams}}
-{{#servers}}
-{{#-first}}
-        if server
-          server_url = server.url
-          path = server_url + path if server_url.start_with?('http://', 'https://')
-        end
-{{/-first}}
-{{/servers}}
-        # @type var query_params: Hash[String, untyped]
-        query_params = {}
-{{#queryParams}}
-{{#vendorExtensions.param.queryRequiredNullable}}
-        if options.{{paramName}}.nil?
-          query_params['{{baseName}}'] = ''
-        else
-          query_params.merge!(
-            ::{{moduleName}}::ValueSerializer.query_entries(
-              '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}},
-              {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
-            )
-          )
-        end
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{#vendorExtensions.param.queryStyledAllowEmpty}}
-        unless options.nil? || options.{{paramName}}.nil?
-          query_params.merge!(
-            ::{{moduleName}}::ValueSerializer.query_entries(
-              '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}},
-              {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
-            )
-          )
-        end
-{{/vendorExtensions.param.queryStyledAllowEmpty}}
-{{#vendorExtensions.param.queryDeepObject}}
-        query_params.merge!(::{{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}})) unless options.nil? || options.{{paramName}}.nil?
-{{/vendorExtensions.param.queryDeepObject}}
-{{#vendorExtensions.param.queryContent}}
-        query_params['{{baseName}}'] = ::{{moduleName}}::ObjectSerializer.serialize(options.{{paramName}}) unless options.nil? || options.{{paramName}}.nil?
-{{/vendorExtensions.param.queryContent}}
-{{#vendorExtensions.param.queryStyled}}
-        unless options.nil? || options.{{paramName}}.nil?
-          query_params.merge!(
-            ::{{moduleName}}::ValueSerializer.query_entries(
-              '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}},
-              {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
-            )
-          )
-        end
-{{/vendorExtensions.param.queryStyled}}
-{{/queryParams}}
-        # @type var header_params: Hash[String, String]
-        header_params = {}
-{{#headerParams}}
-{{#vendorExtensions.param.queryContent}}
-        header_params['{{baseName}}'] = ::{{moduleName}}::ObjectSerializer.serialize(options.{{paramName}}) unless options.nil? || options.{{paramName}}.nil?
-{{/vendorExtensions.param.queryContent}}
-{{^vendorExtensions.param.queryContent}}
-        header_params['{{baseName}}'] = ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless options.nil? || options.{{paramName}}.nil?
-{{/vendorExtensions.param.queryContent}}
-{{/headerParams}}
-{{#hasCookieParams}}
-        cookie_parts = [] # : Array[String]
-{{#cookieParams}}
-{{=<% %>=}}
-        unless options.nil? || options.<%paramName%>.nil?
-          # RFC 6265 — validate the operation-level cookie value the same way
-          # the auth-provided cookie path does in base_api, so a CR/LF or other
-          # control character fails closed instead of being injected into the
-          # Cookie request header. Pass the raw value through without
-          # URL-encoding, mirroring the auth path.
-<%#vendorExtensions.param.queryContent%>
-          cookie_value = ::<%moduleName%>::ValueSerializer.encode_content_cookie(::<%moduleName%>::ObjectSerializer.serialize(options.<%paramName%>))
-<%/vendorExtensions.param.queryContent%>
-<%^vendorExtensions.param.queryContent%>
-          cookie_value = ::<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', options.<%paramName%>, :cookie, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s
-<%/vendorExtensions.param.queryContent%>
-          unless cookie_value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
-            raise ArgumentError, "Cookie value for '<%baseName%>' contains characters forbidden by RFC 6265"
-          end
-          cookie_parts << "<%baseName%>=#{cookie_value}"
-        end
-<%={{ }}=%>
-{{/cookieParams}}
-        header_params['Cookie'] = cookie_parts.join('; ') unless cookie_parts.empty?
-{{/hasCookieParams}}
-{{#hasFormParams}}
-        # @type var request_body: Hash[String, untyped]
-        request_body = {}
-{{#formParams}}
-{{#required}}
-        request_body['{{baseName}}'] = {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}
-{{/required}}
-{{^required}}
-        request_body['{{baseName}}'] = {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}} unless options.{{paramName}}.nil?
-{{/required}}
-{{/formParams}}
-{{/hasFormParams}}
-{{^hasFormParams}}
-{{#bodyParam}}
-        # A oneOf union body resolves to a bare Ruby value (e.g. a
-        # `format: byte` variant is a plain base64-bearing String), so the
-        # union's own wire-form rules are re-applied here before
-        # serialization. #encode_oneof_body is a no-op for non-union bodies
-        # (primitives, plain models) and for discriminated / model-ref unions,
-        # whose resolved value already serializes correctly.
-        request_body = ::{{moduleName}}::ObjectSerializer.encode_oneof_body({{{paramName}}}, '{{{dataType}}}')
-{{/bodyParam}}
-{{^bodyParam}}
-        request_body = nil
-{{/bodyParam}}
-{{/hasFormParams}}
-{{#vendorExtensions.hasMultipleConsumes}}
-        # This operation declares multiple request content-types. The optional
-        # `request_content_type:` selector lets the caller choose among the declared
-        # types; when nil it defaults to the first declared type. An
-        # unrecognised selector is rejected client-side so a typo never rides
-        # the wire as an undeclared Content-Type (matching java/elixir and the
-        # other SDKs), rather than being silently dropped.
-        # NOTE: this only changes the Content-Type header — the caller must still
-        # supply a body the selected content-type accepts.
-        declared_consumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}]
-        resolved_content_type =
-          if request_content_type.nil?
-            declared_consumes.first
-          elsif declared_consumes.include?(request_content_type)
-            request_content_type
-          else
-            raise ArgumentError,
-                  "Unsupported request content-type '#{request_content_type}' for " \
-                  "{{operationId}}; declared types are [#{declared_consumes.join(', ')}]"
-          end
-
-        invoke_api_for_result(
+{{/vendorExtensions.op.pagination.isLink}}
+        {{#vendorExtensions.op.streamsBinary}}invoke_api_for_stream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invoke_api_for_result{{/vendorExtensions.op.streamsBinary}}(
           :{{httpMethod}}, path, query_params, header_params, request_body,
           [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
-          resolved_content_type,
-{{/vendorExtensions.hasMultipleConsumes}}
-{{^vendorExtensions.hasMultipleConsumes}}
-        invoke_api_for_result(
-          :{{httpMethod}}, path, query_params, header_params, request_body,
-          [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
-          '{{vendorExtensions.op.effectiveConsumes}}',
-{{/vendorExtensions.hasMultipleConsumes}}
+          {{#vendorExtensions.hasMultipleConsumes}}resolved_content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
+{{^vendorExtensions.op.streamsBinary}}
           {{#vendorExtensions.op.hasMultiple2xx}}{ {{#vendorExtensions.op.successResponses}}{{#isRange}}'{{statusCode}}'{{/isRange}}{{^isRange}}{{statusCode}}{{/isRange}} => '{{{returnType}}}'{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}} },
 {{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
-{{/vendorExtensions.op.hasMultiple2xx}}          {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}requirement_authenticator({{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}scheme_authenticator({{#vendorExtensions.op.securitySchemeOrder}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
-          raw_body: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
-{{#vendorExtensions.op.hasErrorSchemaResponses}}
-          error_schemas: {
-{{#vendorExtensions.op.errorSchemaResponses}}
-            '{{{status}}}' => ::{{{moduleName}}}::Errors::{{{schemaClassName}}}{{^isLast}},{{/isLast}}
-{{/vendorExtensions.op.errorSchemaResponses}}
-          },
-{{/vendorExtensions.op.hasErrorSchemaResponses}}
-          operation_id: '{{classname}}.{{operationId}}',
-          spec_operation_id: '{{#lambda.rubyQuoted}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.rubyQuoted}}',
-          url_template: '{{#lambda.rubyQuoted}}{{{path}}}{{/lambda.rubyQuoted}}',
-          request_options: options
+{{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
+{{>api/operation_call_tail}}
         )
       end
+{{#vendorExtensions.op.pagination.isLink}}
+      private :{{operationId}}_page
+{{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages}}
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
     {{/operation}}
     end
 {{/operations}}

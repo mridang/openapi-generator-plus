@@ -1,0 +1,540 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PetstoreClient\Test;
+
+use PetstoreClient\Api\Options\ListPetCatalogOptions;
+use PetstoreClient\Api\Options\ListPetFeedOptions;
+use PetstoreClient\Api\PetApi;
+use PetstoreClient\Api\StoreApi;
+use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\Errors\ApiException;
+use PetstoreClient\Errors\NetworkException;
+use PetstoreClient\Errors\NetworkTimeoutException;
+use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\PaginationException;
+use PetstoreClient\Errors\SerializationException;
+use PetstoreClient\Errors\OpenAPIException;
+use PetstoreClient\Models\Pet;
+use PetstoreClient\Models\PetCatalogPage;
+use PetstoreClient\Page;
+use PetstoreClient\Paginator;
+use PetstoreClient\TransportOptions;
+
+/**
+ * An API on a raw test server with the default transport and the given retries.
+ *
+ * @param array<string, string> $headers default headers of every request
+ */
+function pagedApi(RawServer $server, int $maxRetries = 0, array $headers = [], ?Authenticator $authenticator = null): PetApi
+{
+    $config = Configuration::builder()->baseUrl($server->url(''));
+    foreach ($headers as $name => $value) {
+        $config = $config->defaultHeader($name, $value);
+    }
+
+    return new PetApi(
+        new DefaultApiClient(TransportOptions::builder()->maxRetries($maxRetries)->build()),
+        $config->build(),
+        $authenticator
+    );
+}
+
+/** A catalog of pages of pets: the cursor of page n is "c" followed by n, and the first page has no cursor. */
+function catalogServer(int $pages, int $size): RawServer
+{
+    return RawServer::serve(str_replace(['PAGES', 'SIZE'], [(string) $pages, (string) $size], <<<'PHP'
+        $cursor = queryOf($head)['cursor'] ?? null;
+        $page = $cursor === null ? 0 : (int) substr((string) $cursor, 1);
+        $items = [];
+        for ($i = 0; $i < SIZE; $i++) {
+            $items[] = ['id' => 1, 'name' => 'p' . $page . '-' . $i, 'photoUrls' => []];
+        }
+        $body = ['items' => $items];
+        if ($page + 1 < PAGES) {
+            $body['next_cursor'] = 'c' . ($page + 1);
+        }
+        replyJson($socket, 200, (string) json_encode($body), 'X-Page: ' . $page);
+        PHP));
+}
+
+/** A feed of pages, one pet each, whose Link header names the next page on the same origin. */
+function feedServer(int $pages): RawServer
+{
+    return RawServer::serve(str_replace('PAGES', (string) $pages, <<<'PHP'
+        $page = (int) (queryOf($head)['page'] ?? 0);
+        $headers = [];
+        if ($page + 1 < PAGES) {
+            $headers[] = 'Link: <' . selfUrl() . '/pet/feed?page=' . ($page + 1) . '&secret=s3>; rel="next"';
+        }
+        replyJson($socket, 200, (string) json_encode([['id' => 1, 'name' => 'f' . $page, 'photoUrls' => []]]), ...$headers);
+        PHP));
+}
+
+/**
+ * The names of the pets, in order.
+ *
+ * @param iterable<mixed> $pets
+ *
+ * @return list<string>
+ */
+function petNames(iterable $pets): array
+{
+    $names = [];
+    foreach ($pets as $pet) {
+        expect($pet)->toBeInstanceOf(Pet::class);
+        assert($pet instanceof Pet);
+        $names[] = $pet->name;
+    }
+
+    return $names;
+}
+
+/**
+ * The cursor of every request a server saw, null for a request without one.
+ *
+ * @return list<mixed>
+ */
+function cursorsSeen(RawServer $server, string $name = 'cursor'): array
+{
+    $seen = [];
+    for ($i = 0; $i < $server->hits(); $i++) {
+        $seen[] = $server->query($i)[$name] ?? null;
+    }
+
+    return $seen;
+}
+
+test('bhv pagination 001 a paged operation reads no page until the first item or page is requested', function (): void {
+    $server = catalogServer(2, 2);
+
+    $paginator = pagedApi($server)->listPetCatalogPages();
+    $items = $paginator->items();
+    $pages = $paginator->pages();
+    $iterator = $paginator->getIterator();
+
+    expect($server->hits())->toBe(0);
+    expect($items->current())->toBeInstanceOf(Pet::class);
+    expect($server->hits())->toBe(1);
+    expect($pages)->toBeInstanceOf(\Generator::class);
+    expect($iterator)->toBeInstanceOf(\Generator::class);
+});
+
+test('bhv pagination 002 a token cursor operation yields every item of every page in order and sends the next page cursor', function (): void {
+    $server = catalogServer(3, 2);
+
+    expect(petNames(pagedApi($server)->listPetCatalogPages()))->toBe(['p0-0', 'p0-1', 'p1-0', 'p1-1', 'p2-0', 'p2-1']);
+    expect(cursorsSeen($server))->toBe([null, 'c1', 'c2']);
+});
+
+test('bhv pagination 003 the next request is sent only when the consumer asks for more items', function (): void {
+    $server = catalogServer(3, 2);
+    $items = pagedApi($server)->listPetCatalogPages()->items();
+
+    $items->current();
+    $items->next();
+    expect($server->hits())->toBe(1);
+    $items->next();
+    expect($server->hits())->toBe(2);
+});
+
+test('bhv pagination 007 a link header operation follows rel next and ends when it is absent', function (): void {
+    $server = feedServer(3);
+
+    expect(petNames(pagedApi($server)->listPetFeedPages()))->toBe(['f0', 'f1', 'f2']);
+    expect(cursorsSeen($server, 'page'))->toBe([null, '1', '2']);
+    expect($server->path(2))->toBe('/pet/feed');
+});
+
+test('bhv pagination 008 a link next url on another origin is refused and no credentials are sent to it', function (): void {
+    $elsewhere = RawServer::serve(<<<'PHP'
+        replyJson($socket, 200, (string) json_encode([['id' => 1, 'name' => 'stolen', 'photoUrls' => []]]));
+        PHP);
+    $origin = RawServer::serve(str_replace('ELSEWHERE', $elsewhere->url('/pet/feed?page=1'), <<<'PHP'
+        replyJson($socket, 200, (string) json_encode([['id' => 1, 'name' => 'f0', 'photoUrls' => []]]), 'Link: <ELSEWHERE>; rel="next"');
+        PHP));
+    $items = pagedApi($origin, 0, ['Authorization' => 'Bearer secret'])->listPetFeedPages()->items();
+
+    $first = $items->current();
+    expect($first)->toBeInstanceOf(Pet::class);
+    expect($origin->header('authorization'))->toBe('Bearer secret');
+    try {
+        $items->next();
+        test()->fail('Expected the link to another origin to be refused');
+    } catch (PaginationException $refused) {
+        expect($refused->getMessage())->not->toContain('page=1');
+    }
+
+    expect($elsewhere->hits())->toBe(0);
+    expect($origin->hits())->toBe(1);
+});
+
+test('bhv pagination 009 an empty page with a next cursor continues and an absent, null or empty cursor ends', function (): void {
+    foreach (['', ',"next_cursor":null', ',"next_cursor":""'] as $end) {
+        $server = RawServer::serve(str_replace('END', $end, <<<'PHP'
+            if (!isset(queryOf($head)['cursor'])) {
+                replyJson($socket, 200, '{"items":[],"next_cursor":"c1"}');
+                return;
+            }
+            replyJson($socket, 200, '{"items":[{"id":1,"name":"only","photoUrls":[]}]END}');
+            PHP));
+
+        expect(petNames(pagedApi($server)->listPetCatalogPages()))->toBe(['only']);
+        expect($server->hits())->toBe(2);
+    }
+});
+
+test('bhv pagination 010 pages yields one page per response with its items, status, headers, decoded body and next cursor', function (): void {
+    $server = catalogServer(2, 2);
+
+    $pages = iterator_to_array(pagedApi($server)->listPetCatalogPages()->pages(), false);
+
+    expect($pages)->toHaveCount(2);
+    expect($pages[0])->toBeInstanceOf(Page::class);
+    expect(petNames($pages[0]->items))->toBe(['p0-0', 'p0-1']);
+    expect($pages[0]->result->statusCode)->toBe(200);
+    expect($pages[0]->result->headers['x-page'] ?? null)->toBe('0');
+    expect($pages[1]->result->headers['x-page'] ?? null)->toBe('1');
+    expect($pages[0]->result->data)->toBeInstanceOf(PetCatalogPage::class);
+    expect($pages[0]->nextCursor)->toBe('c1');
+    expect($pages[1]->nextCursor)->toBeNull();
+});
+
+test('bhv pagination 011 the cursor passed to the paged method is the starting position and the first request sends it', function (): void {
+    $server = catalogServer(3, 1);
+
+    expect(petNames(pagedApi($server)->listPetCatalogPages(new ListPetCatalogOptions(cursor: 'c1'))))->toBe(['p1-0', 'p2-0']);
+    expect($server->query(0)['cursor'] ?? null)->toBe('c1');
+});
+
+test('bhv pagination 012 resuming with the next cursor of a page continues with the following page', function (): void {
+    $server = catalogServer(3, 1);
+    $api = pagedApi($server);
+    $resume = null;
+    foreach ($api->listPetCatalogPages()->pages() as $page) {
+        $resume = $page->nextCursor;
+        break;
+    }
+
+    expect($resume)->toBe('c1');
+    expect(petNames($api->listPetCatalogPages(new ListPetCatalogOptions(cursor: $resume))))->toBe(['p1-0', 'p2-0']);
+});
+
+test('bhv pagination 013 every other parameter, including the page size, is repeated unchanged on each page request', function (): void {
+    $server = catalogServer(3, 1);
+
+    petNames(pagedApi($server)->listPetCatalogPages(new ListPetCatalogOptions(limit: 1, headers: ['X-Keep' => 'yes'])));
+
+    expect($server->hits())->toBe(3);
+    for ($i = 0; $i < 3; $i++) {
+        expect($server->query($i)['limit'] ?? null)->toBe('1');
+        expect($server->header('x-keep', $i))->toBe('yes');
+    }
+    expect(cursorsSeen($server))->toBe([null, 'c1', 'c2']);
+});
+
+test('bhv pagination 014 a cursor equal to the one just sent, or an offset that did not advance, raises a pagination error instead of looping', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        replyJson($socket, 200, (string) json_encode(['items' => [['id' => 1, 'name' => 'p' . $hit, 'photoUrls' => []]], 'next_cursor' => 'c1']));
+        PHP);
+    $items = pagedApi($server)->listPetCatalogPages()->items();
+
+    $first = $items->current();
+    expect($first->name)->toBe('p1');
+    $items->next();
+    $second = $items->current();
+    expect($second->name)->toBe('p2');
+    try {
+        $items->next();
+        test()->fail('Expected the repeated cursor to raise');
+    } catch (PaginationException $failure) {
+        expect($failure->getRequestPath())->toBe('/pet/catalog');
+    }
+
+    expect($server->hits())->toBe(2);
+    expect($items->valid())->toBeFalse();
+});
+
+test('bhv pagination 015 an error on a later page is raised after the earlier pages items were delivered and ends iteration', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        if (!isset(queryOf($head)['cursor'])) {
+            replyJson($socket, 200, '{"items":[{"id":1,"name":"p0-0","photoUrls":[]},{"id":1,"name":"p0-1","photoUrls":[]}],"next_cursor":"c1"}');
+            return;
+        }
+        replyJson($socket, 404, '{}');
+        PHP);
+    $items = pagedApi($server)->listPetCatalogPages()->items();
+    $delivered = [];
+
+    try {
+        foreach ($items as $pet) {
+            $delivered[] = $pet->name;
+        }
+        test()->fail('Expected the second page to fail');
+    } catch (NotFoundException $failure) {
+        expect($failure->getStatusCode())->toBe(404);
+    }
+
+    expect($delivered)->toBe(['p0-0', 'p0-1']);
+    expect($items->valid())->toBeFalse();
+    expect($server->hits())->toBe(2);
+});
+
+test('bhv pagination 016 a 503 on the second page is retried under the retry rules and iteration continues', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        if ($hit === 2) {
+            replyJson($socket, 503, '{}', 'Retry-After: 0');
+            return;
+        }
+        $first = !isset(queryOf($head)['cursor']);
+        replyJson($socket, 200, '{"items":[{"id":1,"name":"' . ($first ? 'p0-0' : 'p1-0') . '","photoUrls":[]}]' . ($first ? ',"next_cursor":"c1"' : '') . '}');
+        PHP);
+
+    expect(petNames(pagedApi($server, 2)->listPetCatalogPages()))->toBe(['p0-0', 'p1-0']);
+    expect(cursorsSeen($server))->toBe([null, 'c1', 'c1']);
+});
+
+test('bhv pagination 017 the per call timeout, headers and retry count apply to each page request', function (): void {
+    $flaky = RawServer::serve(<<<'PHP'
+        if ($hit % 2 === 1) {
+            replyJson($socket, 503, '{}', 'Retry-After: 0');
+            return;
+        }
+        $first = !isset(queryOf($head)['cursor']);
+        replyJson($socket, 200, '{"items":[{"id":1,"name":"' . ($first ? 'p0-0' : 'p1-0') . '","photoUrls":[]}]' . ($first ? ',"next_cursor":"c1"' : '') . '}');
+        PHP);
+
+    petNames(pagedApi($flaky, 0)->listPetCatalogPages(new ListPetCatalogOptions(headers: ['X-Trace' => 't1'], maxRetries: 1)));
+
+    expect($flaky->hits())->toBe(4);
+    for ($i = 0; $i < 4; $i++) {
+        expect($flaky->header('x-trace', $i))->toBe('t1');
+    }
+
+    $slow = RawServer::serve(<<<'PHP'
+        if (!isset(queryOf($head)['cursor'])) {
+            replyJson($socket, 200, '{"items":[{"id":1,"name":"p0-0","photoUrls":[]}],"next_cursor":"c1"}');
+            return;
+        }
+        usleep(1_500_000);
+        replyJson($socket, 200, '{"items":[]}');
+        PHP);
+    $items = pagedApi($slow, 0)->listPetCatalogPages(new ListPetCatalogOptions(timeout: 300))->items();
+    $first = $items->current();
+    expect($first->name)->toBe('p0-0');
+    expect(fn () => $items->next())->toThrow(NetworkTimeoutException::class);
+});
+
+test('bhv pagination 018 stopping early sends no further request and leaves nothing to close', function (): void {
+    $server = catalogServer(3, 2);
+    $paginator = pagedApi($server)->listPetCatalogPages();
+
+    $items = $paginator->items();
+    $first = $items->current();
+    expect($first->name)->toBe('p0-0');
+    unset($items);
+    expect($server->hits())->toBe(1);
+
+    $taken = 0;
+    foreach ($paginator as $ignored) {
+        if (++$taken === 3) {
+            break;
+        }
+    }
+    expect($server->hits())->toBe(3);
+    expect(in_array('close', methodsOf(Paginator::class), true))->toBeFalse();
+});
+
+test('bhv pagination 020 iterating a second time starts again from the starting position', function (): void {
+    $server = catalogServer(2, 2);
+    $paginator = pagedApi($server)->listPetCatalogPages();
+
+    $first = petNames($paginator);
+    $second = petNames($paginator);
+
+    expect($second)->toBe($first);
+    expect($server->hits())->toBe(4);
+    expect(cursorsSeen($server))->toBe([null, 'c1', null, 'c1']);
+});
+
+test('bhv pagination 021 a page that does not decode on a later page fails with the serialization error after the earlier items were delivered', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        if (!isset(queryOf($head)['cursor'])) {
+            replyJson($socket, 200, '{"items":[{"id":1,"name":"p0-0","photoUrls":[]}],"next_cursor":"c1"}');
+            return;
+        }
+        replyJson($socket, 200, '{"items":[{"id":"not a number","name":"x","photoUrls":[]}]}');
+        PHP);
+    $items = pagedApi($server)->listPetCatalogPages()->items();
+
+    $first = $items->current();
+    expect($first->name)->toBe('p0-0');
+    expect(fn () => $items->next())->toThrow(SerializationException::class);
+    expect($items->valid())->toBeFalse();
+});
+
+test('bhv pagination 022 a refreshed credential is used for the next page', function (): void {
+    $server = catalogServer(3, 1);
+    $issued = new \stdClass();
+    $issued->count = 0;
+    $rotating = new readonly class ($issued) implements Authenticator {
+        public function __construct(private \stdClass $issued)
+        {
+        }
+
+        public function getHost(): string
+        {
+            return '';
+        }
+
+        public function getAuthHeaders(): array
+        {
+            $this->issued->count++;
+
+            return ['Authorization' => 'Bearer token-' . $this->issued->count];
+        }
+
+        public function getQueryParams(): array
+        {
+            return [];
+        }
+
+        public function getCookieParams(): array
+        {
+            return [];
+        }
+    };
+
+    petNames(pagedApi($server, 0, [], $rotating)->listPetCatalogPages());
+
+    expect($server->header('authorization', 0))->toBe('Bearer token-1');
+    expect($server->header('authorization', 1))->toBe('Bearer token-2');
+    expect($server->header('authorization', 2))->toBe('Bearer token-3');
+});
+
+test('bhv pagination 023 an error from a link driven page request carries the path without the query', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        if (isset(queryOf($head)['page'])) {
+            replyJson($socket, 500, '{}');
+            return;
+        }
+        replyJson($socket, 200, '[{"id":1,"name":"f0","photoUrls":[]}]', 'Link: </pet/feed?page=1&secret=s3>; rel="next"');
+        PHP);
+    $items = pagedApi($server)->listPetFeedPages()->items();
+
+    $first = $items->current();
+    expect($first->name)->toBe('f0');
+    try {
+        $items->next();
+        test()->fail('Expected the second page to fail');
+    } catch (ApiException $failure) {
+        expect($failure->getStatusCode())->toBe(500);
+        expect($failure->getRequestPath())->toBe('/pet/feed');
+        expect($failure->getMessage())->not->toContain('s3');
+    }
+});
+
+/**
+ * The names of the public methods of a class.
+ *
+ * @param class-string $class
+ *
+ * @return list<string>
+ */
+function methodsOf(string $class): array
+{
+    return array_map(
+        static fn (\ReflectionMethod $method): string => $method->getName(),
+        (new \ReflectionClass($class))->getMethods(\ReflectionMethod::IS_PUBLIC)
+    );
+}
+
+test('bhv pagination 024 an operation with two candidate cursors, two array properties, a non get method or several 2xx bodies gets no paged method', function (): void {
+    $paged = array_values(array_filter(methodsOf(PetApi::class), static fn (string $name): bool => str_ends_with($name, 'Pages')));
+    sort($paged);
+
+    expect($paged)->toBe(['listPetCatalogPages', 'listPetEventsPages', 'listPetFeedPages', 'listPetNotesPages']);
+    expect(methodsOf(PetApi::class))->toContain('listPetMatches');
+});
+
+test('bhv pagination 025 a paged method has the same parameters in the same order as the base method and the base method is unchanged', function (): void {
+    foreach (methodsOf(PetApi::class) as $name) {
+        if (!str_ends_with($name, 'Pages')) {
+            continue;
+        }
+        $pages = new \ReflectionMethod(PetApi::class, $name);
+        $base = new \ReflectionMethod(PetApi::class, substr($name, 0, -strlen('Pages')));
+        $describe = static fn (\ReflectionMethod $method): array => array_map(
+            static fn (\ReflectionParameter $parameter): string => $parameter->getName() . ':' . $parameter->getType() . ':' . ($parameter->isOptional() ? 'optional' : 'required'),
+            $method->getParameters()
+        );
+
+        expect($describe($pages))->toBe($describe($base));
+        expect((string) $pages->getReturnType())->toBe(Paginator::class);
+        expect((string) $base->getReturnType())->not->toBe(Paginator::class);
+    }
+});
+
+test('bhv pagination 026 the generator option overrides inference and can switch an operation or the whole feature off', function (): void {
+    $methods = methodsOf(PetApi::class);
+
+    expect($methods)->toContain('listPetEventsPages');
+    expect($methods)->not->toContain('listPetArchivePages');
+    expect($methods)->toContain('listPetArchive');
+});
+
+test('bhv pagination 027 headers and options given to the paged method are sent on every page request', function (): void {
+    $server = feedServer(3);
+
+    petNames(pagedApi($server)->listPetFeedPages(new ListPetFeedOptions(limit: 1, headers: ['X-Keep' => 'yes'])));
+
+    expect($server->hits())->toBe(3);
+    for ($i = 0; $i < 3; $i++) {
+        expect($server->header('x-keep', $i))->toBe('yes');
+    }
+    expect($server->query(0)['limit'] ?? null)->toBe('1');
+});
+
+test('bhv pagination 028 the cursor for the next page is taken from the accepted response, never from a retried attempt', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        if ($hit === 1) {
+            replyJson($socket, 503, '{"items":[],"next_cursor":"WRONG"}', 'Retry-After: 0');
+            return;
+        }
+        $first = !isset(queryOf($head)['cursor']);
+        replyJson($socket, 200, '{"items":[{"id":1,"name":"' . ($first ? 'p0-0' : 'p1-0') . '","photoUrls":[]}]' . ($first ? ',"next_cursor":"c1"' : '') . '}');
+        PHP);
+
+    expect(petNames(pagedApi($server, 2)->listPetCatalogPages()))->toBe(['p0-0', 'p1-0']);
+    expect(cursorsSeen($server))->toBe([null, null, 'c1']);
+});
+
+test('bhv pagination 030 a vendor extension on an operation is read as a hint, and the override option wins over it', function (): void {
+    expect(methodsOf(PetApi::class))->toContain('listPetNotesPages');
+});
+
+test('bhv pagination 031 the repeated cursor failure is a pagination error and is not a network error or an api error', function (): void {
+    expect(get_parent_class(PaginationException::class))->toBe(OpenAPIException::class);
+    $server = RawServer::serve(<<<'PHP'
+        replyJson($socket, 200, '{"items":[],"next_cursor":"c1"}');
+        PHP);
+
+    try {
+        petNames(pagedApi($server)->listPetCatalogPages(new ListPetCatalogOptions(cursor: 'c1')));
+        test()->fail('Expected the repeated cursor to raise');
+    } catch (OpenAPIException $failure) {
+        expect($failure)->toBeInstanceOf(PaginationException::class);
+        expect($failure)->not->toBeInstanceOf(ApiException::class);
+        expect($failure)->not->toBeInstanceOf(NetworkException::class);
+    }
+});
+
+test('bhv pagination 032 an operation that is streamed is never also given a paged method', function (): void {
+    foreach (methodsOf(StoreApi::class) as $name) {
+        expect(str_ends_with($name, 'Pages'))->toBeFalse();
+    }
+    expect(methodsOf(StoreApi::class))->toContain('exportOrdersStream');
+});

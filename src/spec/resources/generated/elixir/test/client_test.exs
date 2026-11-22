@@ -74,6 +74,42 @@ defmodule PetstoreClient.ClientTest do
     assert err.message == "ApiClient has been closed and can no longer send requests"
   end
 
+  test "bhv streaming 021 closing the client cancels the open streams, the next read of each raises the closed-client error, and new calls are refused" do
+    {:ok, listen} = :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen)
+
+    spawn_link(fn ->
+      {:ok, socket} = :gen_tcp.accept(listen, 10_000)
+      {:ok, _head} = :gen_tcp.recv(socket, 0, 5_000)
+
+      :gen_tcp.send(
+        socket,
+        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n4\r\ntick\r\n"
+      )
+
+      Process.sleep(20_000)
+    end)
+
+    authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
+    client = PetstoreClient.Client.new(authenticator)
+    url = "http://127.0.0.1:#{port}/items/events"
+    open = PetstoreClient.DefaultApiClient.send_streaming(client.api_client, :get, url, %{}, nil)
+    assert Enum.take(open.body, 1) == ["tick"]
+
+    started = System.monotonic_time(:millisecond)
+    assert PetstoreClient.Client.close(client) == :ok
+
+    assert System.monotonic_time(:millisecond) - started < 5_000,
+           "closing did not wait for the endless stream"
+
+    cancelled = assert_raise RuntimeError, fn -> Enum.to_list(open.body) end
+    assert cancelled.message == "ApiClient has been closed and can no longer send requests"
+
+    assert_raise RuntimeError, fn ->
+      PetstoreClient.DefaultApiClient.send_streaming(client.api_client, :get, url, %{}, nil)
+    end
+  end
+
   test "bhv langelixir 021 close works for an authenticator that starts nothing" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
     client = PetstoreClient.Client.new(authenticator)
@@ -803,6 +839,24 @@ defmodule PetstoreClient.ClientTest do
     assert :get_staging_pet_info in pet_listed
     assert :get_staging_pet_info! in pet_listed
     assert :get_staging_pet_info_with_http_info in pet_listed
+    assert :list_pet_archive in pet_listed
+    assert :list_pet_archive! in pet_listed
+    assert :list_pet_archive_with_http_info in pet_listed
+    assert :list_pet_catalog in pet_listed
+    assert :list_pet_catalog! in pet_listed
+    assert :list_pet_catalog_with_http_info in pet_listed
+    assert :list_pet_events in pet_listed
+    assert :list_pet_events! in pet_listed
+    assert :list_pet_events_with_http_info in pet_listed
+    assert :list_pet_feed in pet_listed
+    assert :list_pet_feed! in pet_listed
+    assert :list_pet_feed_with_http_info in pet_listed
+    assert :list_pet_matches in pet_listed
+    assert :list_pet_matches! in pet_listed
+    assert :list_pet_matches_with_http_info in pet_listed
+    assert :list_pet_notes in pet_listed
+    assert :list_pet_notes! in pet_listed
+    assert :list_pet_notes_with_http_info in pet_listed
     assert :set_pet_avatar in pet_listed
     assert :set_pet_avatar! in pet_listed
     assert :set_pet_avatar_with_http_info in pet_listed
@@ -867,9 +921,8 @@ defmodule PetstoreClient.ClientTest do
     assert :delete_order in store_listed
     assert :delete_order! in store_listed
     assert :delete_order_with_http_info in store_listed
-    assert :export_orders in store_listed
-    assert :export_orders! in store_listed
-    assert :export_orders_with_http_info in store_listed
+    assert :export_orders_stream in store_listed
+    assert :export_orders_stream! in store_listed
     assert :get_audit_trail in store_listed
     assert :get_audit_trail! in store_listed
     assert :get_audit_trail_with_http_info in store_listed
@@ -924,12 +977,10 @@ defmodule PetstoreClient.ClientTest do
     assert :search_store in store_listed
     assert :search_store! in store_listed
     assert :search_store_with_http_info in store_listed
-    assert :watch_notices in store_listed
-    assert :watch_notices! in store_listed
-    assert :watch_notices_with_http_info in store_listed
-    assert :watch_orders in store_listed
-    assert :watch_orders! in store_listed
-    assert :watch_orders_with_http_info in store_listed
+    assert :watch_notices_stream in store_listed
+    assert :watch_notices_stream! in store_listed
+    assert :watch_orders_stream in store_listed
+    assert :watch_orders_stream! in store_listed
   end
 
   test "bhv mocking 002 the group behaviour lists exactly the public operations of the module" do

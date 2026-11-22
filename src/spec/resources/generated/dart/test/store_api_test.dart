@@ -54,6 +54,35 @@ void main() {
 
   group('StoreApi', () {
     test(
+      'bhv streaming 028 an operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method',
+      () {
+        final api = _newStoreApiForIntegration();
+        final dynamic untyped = api;
+        expect(
+          api.exportOrdersStream,
+          isA<
+            Future<JsonLinesStream<Order>> Function(
+              ExportOrdersOptions?, [
+              StreamOptions?,
+            ])
+          >(),
+        );
+        expect(api.watchOrdersStream, isA<Function>());
+        expect(api.watchNoticesStream, isA<Function>());
+        for (final buffered in <Function>[
+          () => untyped.exportOrders(null),
+          () => untyped.exportOrdersWithHttpInfo(null),
+          () => untyped.watchOrders(null),
+          () => untyped.watchOrdersWithHttpInfo(null),
+          () => untyped.watchNotices(null),
+          () => untyped.watchNoticesWithHttpInfo(null),
+        ]) {
+          expect(buffered, throwsA(isA<NoSuchMethodError>()));
+        }
+      },
+    );
+
+    test(
       'bhv misc 074 an alternative that names two schemes sends the credentials of both',
       () async {
         final received = <String, String>{};

@@ -1,0 +1,26 @@
+{{>api_info}}
+package {{packageName}}
+
+// NoCursor is the cursor type of a list that is followed by the Link header: such
+// a list has no cursor parameter, so its pages never carry a next cursor.
+type NoCursor struct{}
+
+// Page is one page of a paged list: the items it holds, the cursor of the page
+// after it and the result of the request that returned it.
+//
+// The type parameter T is the item type and C is the type of the cursor request
+// parameter (NoCursor for a list that is followed by the Link header).
+type Page[T any, C comparable] struct {
+	/* Items are the items of this page, in order. */
+	Items []T
+
+	/* NextCursor is the cursor of the next page, or nil on the last page; it is
+	 * always nil for a list that is followed by the Link header. Pass it as the
+	 * cursor of a new call to resume the list. */
+	NextCursor *C
+
+	/* Result is what the matching WithHTTPInfo method returns for this page: the
+	 * status code, the headers, the raw body and the decoded body, which Data
+	 * points to as the model the operation returns. */
+	Result *ApiResult[any]
+}

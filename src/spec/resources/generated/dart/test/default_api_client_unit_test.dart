@@ -8,6 +8,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -15,6 +16,8 @@ import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
 import 'package:petstore_client/src/api/base_api.dart';
+
+import 'testcontainers_helper.dart';
 
 /* A transport-free client that holds a proxy credential, so the headers the
  * SDK builds can be read from a stub instead of a real proxy tunnel. */
@@ -6362,6 +6365,968 @@ void main() {
           ),
         );
         expect(calls, equals(1));
+      },
+    );
+  });
+  group('Streaming transport', () {
+    DefaultApiClient newClient({int? idleTimeout}) => DefaultApiClient(
+      transportOptions: TransportOptionsBuilder()
+          .maxRetries(0)
+          .idleTimeout(idleTimeout ?? 60000)
+          .build(),
+    );
+
+    Future<ApiStreamResponse> open(
+      RawServer server,
+      String path, {
+      DefaultApiClient? client,
+      Map<String, String> headers = const {},
+      int? timeout,
+      int? idleTimeout,
+    }) => (client ?? newClient()).sendStreaming(
+      'GET',
+      server.url(path),
+      headers,
+      null,
+      timeout: timeout,
+      idleTimeout: idleTimeout,
+    );
+
+    ByteStream wrap(ApiStreamResponse response) => ByteStream(
+      statusCode: response.statusCode,
+      headers: response.headers,
+      source: response.body,
+    );
+
+    Future<List<int>> take(StreamIterator<List<int>> reader, int count) async {
+      final bytes = <int>[];
+      while (bytes.length < count && await reader.moveNext()) {
+        bytes.addAll(reader.current);
+      }
+      return bytes;
+    }
+
+    Future<void> endlessChunks(RawServer self, Socket socket) async {
+      await rawHead(socket, 200, ['Transfer-Encoding: chunked']);
+      try {
+        while (true) {
+          await rawChunk(socket, 'x' * 4096);
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+      } catch (_) {
+        self.markGone();
+      }
+    }
+
+    test(
+      'bhv streaming 001 a binary stream delivers the bytes in order and returns before the body has ended',
+      () async {
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, [
+            'Content-Type: application/octet-stream',
+            'Transfer-Encoding: chunked',
+          ]);
+          await rawChunk(socket, 'first-');
+          await self.awaitRelease();
+          await rawChunk(socket, 'second');
+          await rawEnd(socket);
+        });
+        try {
+          final response = await open(server, '/items/blob');
+          expect(response.statusCode, equals(200));
+          expect(
+            server.released,
+            isFalse,
+            reason: 'the call returned while the body was unfinished',
+          );
+          final reader = StreamIterator(response.body);
+          expect(utf8.decode(await take(reader, 6)), equals('first-'));
+          server.release();
+          expect(utf8.decode(await take(reader, 6)), equals('second'));
+          expect(await reader.moveNext(), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 010 the call timeout bounds only the wait for the headers, not the body',
+      () async {
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, ['Transfer-Encoding: chunked']);
+          await rawChunk(socket, 'ab');
+          await Future<void>.delayed(const Duration(milliseconds: 1200));
+          await rawChunk(socket, 'cd');
+          await rawEnd(socket);
+        });
+        try {
+          final response = await open(
+            server,
+            '/items/blob',
+            timeout: 400,
+            idleTimeout: 0,
+          );
+          expect(
+            utf8.decode(await wrap(response).readAll()),
+            equals('abcd'),
+            reason: 'the body outlived the 400 ms timeout',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 011 the idle timeout raises a network timeout error when the server stalls in the middle of the body',
+      () async {
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, ['Transfer-Encoding: chunked']);
+          await rawChunk(socket, 'ab');
+          await self.awaitRelease();
+        });
+        try {
+          final response = await open(
+            server,
+            '/items/blob',
+            client: newClient(idleTimeout: 300),
+          );
+          final reader = StreamIterator(response.body);
+          expect(utf8.decode(await take(reader, 2)), equals('ab'));
+          final clock = Stopwatch()..start();
+          await expectLater(
+            reader.moveNext(),
+            throwsA(
+              isA<NetworkTimeoutException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                0,
+              ),
+            ),
+          );
+          expect(
+            clock.elapsed,
+            lessThan(const Duration(seconds: 5)),
+            reason: 'the stall ended by the idle timeout and not by the server',
+          );
+          expect(
+            server.hits,
+            equals(1),
+            reason: 'a stalled body is not retried',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 013 a body shorter than its Content-Length raises a network error and is never a silent short success',
+      () async {
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, ['Content-Length: 10']);
+          await rawBytes(socket, utf8.encode('abcd'));
+        });
+        try {
+          final response = await open(server, '/items/blob');
+          await expectLater(
+            wrap(response).readAll(),
+            throwsA(isA<NetworkException>()),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 016 a streaming call follows a redirect before the body and strips credentials across origins',
+      () async {
+        final target = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, ['Content-Length: 6']);
+          await rawBytes(socket, utf8.encode('landed'));
+        });
+        final origin = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 302, [
+            'Location: ${target.url('/items/final')}',
+            'Content-Length: 0',
+          ]);
+        });
+        try {
+          final response = await open(
+            origin,
+            '/items/blob',
+            headers: {
+              'Authorization': 'Bearer secret-token',
+              'Cookie': 'session=abc',
+              'X-Trace': 'kept',
+            },
+          );
+          expect(utf8.decode(await wrap(response).readAll()), equals('landed'));
+          final sentToOrigin = origin.heads.first.toLowerCase();
+          final sentToTarget = target.heads.first.toLowerCase();
+          expect(sentToOrigin, contains('authorization: bearer secret-token'));
+          expect(
+            sentToTarget,
+            isNot(contains('authorization')),
+            reason: 'the credential stays on its origin',
+          );
+          expect(
+            sentToTarget,
+            isNot(contains('cookie')),
+            reason: 'the cookie stays on its origin',
+          );
+          expect(
+            sentToTarget,
+            contains('x-trace: kept'),
+            reason: 'other headers go with the redirect',
+          );
+        } finally {
+          await origin.close();
+          await target.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 019 closing a stream twice is safe and aborts the connection',
+      () async {
+        final server = await RawServer.serve(
+          (self, socket, hit, head) => endlessChunks(self, socket),
+        );
+        try {
+          final stream = wrap(await open(server, '/items/blob'));
+          final reader = StreamIterator(stream);
+          expect((await take(reader, 4)).length, greaterThanOrEqualTo(4));
+          await stream.close();
+          await stream.close();
+          await server.clientGone.timeout(
+            const Duration(seconds: 10),
+            onTimeout: () =>
+                fail('the server never saw the connection dropped'),
+          );
+          expect(() => stream.listen(null), throwsStateError);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 020 cancelling the call aborts the stream and is never raised as a timeout',
+      () async {
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, ['Transfer-Encoding: chunked']);
+          await rawChunk(socket, 'ab');
+          await self.awaitRelease();
+        });
+        try {
+          final response = await open(
+            server,
+            '/items/blob',
+            client: newClient(idleTimeout: 300),
+          );
+          final events = <Object>[];
+          final first = Completer<void>();
+          final subscription = response.body.listen((chunk) {
+            events.add(chunk);
+            if (!first.isCompleted) first.complete();
+          }, onError: events.add);
+          await first.future;
+          await subscription.cancel();
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          expect(
+            events.whereType<Exception>(),
+            isEmpty,
+            reason: 'a cancelled stream raises nothing, a timeout included',
+          );
+          await server.clientGone.timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => fail('cancelling did not drop the connection'),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 022 the string form of a stream hides credentials, the query and the data',
+      () async {
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, [
+            'Content-Length: 7',
+            'Set-Cookie: sid=secret-cookie',
+          ]);
+          await rawBytes(socket, utf8.encode('payload'));
+        });
+        try {
+          final response = await open(
+            server,
+            '/items/blob?token=secret-query',
+            headers: {'Authorization': 'Bearer secret-token'},
+          );
+          final stream = wrap(response);
+          final reader = StreamIterator(stream);
+          expect(utf8.decode(await take(reader, 7)), equals('payload'));
+          for (final shown in [stream.toString(), response.toString()]) {
+            expect(shown, isNot(contains('secret')), reason: shown);
+            expect(shown, isNot(contains('payload')), reason: shown);
+            expect(shown, isNot(contains('token')), reason: shown);
+            expect(shown, isNot(contains('items')), reason: shown);
+          }
+          expect(
+            stream.toString(),
+            equals('ByteStream(statusCode: 200, bytesDelivered: 7)'),
+          );
+          await stream.close();
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 031 closing a live endless stream returns promptly and does not wait for the server',
+      () async {
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, ['Transfer-Encoding: chunked']);
+          await rawChunk(socket, 'tick');
+          await self.awaitRelease();
+        });
+        try {
+          final stream = wrap(await open(server, '/items/events'));
+          final reader = StreamIterator(stream);
+          expect(utf8.decode(await take(reader, 4)), equals('tick'));
+          final clock = Stopwatch()..start();
+          await stream.close();
+          expect(
+            clock.elapsed,
+            lessThan(const Duration(seconds: 2)),
+            reason:
+                'close aborted the connection instead of waiting for the endless body',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 032 a reset or truncation after the headers raises a stream error that is a network error',
+      () async {
+        final reset = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, ['Transfer-Encoding: chunked']);
+          await rawChunk(socket, 'ab');
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          socket.destroy();
+        });
+        final cut = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, ['Content-Length: 10']);
+          await rawBytes(socket, utf8.encode('abcd'));
+        });
+        try {
+          for (final server in [reset, cut]) {
+            final stream = wrap(await open(server, '/items/blob'));
+            await expectLater(
+              stream.readAll(),
+              throwsA(
+                allOf(
+                  isA<StreamException>(),
+                  isA<NetworkException>(),
+                  predicate<ApiException>((e) => e.statusCode == 0, 'status 0'),
+                ),
+              ),
+            );
+          }
+        } finally {
+          await reset.close();
+          await cut.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 033 stopping a stream early without reading it to the end releases the connection',
+      () async {
+        final server = await RawServer.serve(
+          (self, socket, hit, head) => endlessChunks(self, socket),
+        );
+        try {
+          final stream = wrap(await open(server, '/items/events'));
+          var received = 0;
+          await for (final chunk in stream) {
+            received += chunk.length;
+            if (received >= 10) break;
+          }
+          await server.clientGone.timeout(
+            const Duration(seconds: 10),
+            onTimeout: () =>
+                fail('leaving the loop never dropped the connection'),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    Future<ByteStream> Function(String) eventOpener(
+      RawServer server, {
+      int? idleTimeout,
+    }) {
+      final client = newClient(idleTimeout: idleTimeout);
+      return (lastEventId) async => wrap(
+        await client.sendStreaming('GET', server.url('/items/events'), {
+          if (lastEventId.isNotEmpty) 'Last-Event-ID': lastEventId,
+        }, null),
+      );
+    }
+
+    Future<void> eventsHead(Socket socket) => rawHead(socket, 200, [
+      'Content-Type: text/event-stream',
+      'Transfer-Encoding: chunked',
+    ]);
+
+    List<int> drained(RawZLibFilter filter, {bool end = false}) {
+      final out = <int>[];
+      while (true) {
+        final piece = filter.processed(flush: !end, end: end);
+        if (piece == null || piece.isEmpty) break;
+        out.addAll(piece);
+      }
+      return out;
+    }
+
+    test(
+      'bhv streaming 006 a gzip encoded stream is decoded incrementally, so the first item arrives before the body ends',
+      () async {
+        final filter = RawZLibFilter.deflateFilter(gzip: true);
+        filter.process(utf8.encode('first\n'), 0, 6);
+        final head = drained(filter);
+        filter.process(utf8.encode('second\n'), 0, 7);
+        final rest = drained(filter, end: true);
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          await rawHead(socket, 200, [
+            'Content-Encoding: gzip',
+            'Transfer-Encoding: chunked',
+          ]);
+          await rawChunkBytes(socket, head);
+          await self.awaitRelease();
+          await rawChunkBytes(socket, rest);
+          await rawEnd(socket);
+        });
+        try {
+          final response = await open(server, '/items/export');
+          final items = JsonLinesStream<String>(
+            wrap(response),
+            (line) => line,
+            1024,
+            'GET',
+            '/items/export',
+          );
+          final reader = StreamIterator(items);
+          expect(await reader.moveNext(), isTrue);
+          expect(
+            reader.current,
+            equals('first'),
+            reason: 'the first item arrived while the body was unfinished',
+          );
+          server.release();
+          expect(await reader.moveNext(), isTrue);
+          expect(reader.current, equals('second'));
+          expect(await reader.moveNext(), isFalse);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 007 a corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried',
+      () async {
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          await rawHead(socket, 200, [
+            'Content-Encoding: gzip',
+            'Content-Length: 8',
+          ]);
+          await rawBytes(socket, utf8.encode('notgzip!'));
+        });
+        try {
+          final response = await open(server, '/items/export');
+          final items = JsonLinesStream<String>(
+            wrap(response),
+            (line) => line,
+            1024,
+            'GET',
+            '/items/export',
+          );
+          await expectLater(
+            StreamIterator(items).moveNext(),
+            throwsA(
+              allOf(
+                isA<ApiException>(),
+                isNot(isA<NetworkException>()),
+                predicate<ApiException>(
+                  (e) => e.statusCode == 200,
+                  'status 200',
+                ),
+                predicate<ApiException>((e) => e.cause != null, 'has a cause'),
+              ),
+            ),
+          );
+          expect(server.hits, equals(1));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv sse 007 an SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID',
+      () async {
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          if (hit >= 3) {
+            await rawHead(socket, 204, ['Content-Length: 0']);
+            return;
+          }
+          await eventsHead(socket);
+          await rawChunk(
+            socket,
+            hit == 1
+                ? 'id: 1\ndata: a\n\nid: 2\ndata: b\n\n'
+                : 'id: 3\ndata: c\n\n',
+          );
+          await rawEnd(socket);
+        });
+        try {
+          final stream = await SseStream.open<String>(
+            opener: eventOpener(server),
+            options: const StreamOptions(reconnectDelay: 1),
+            method: 'GET',
+            path: '/items/events',
+          );
+          final data = <String>[];
+          await for (final event in stream) {
+            data.add(event.data);
+          }
+          expect(data, equals(['a', 'b', 'c']));
+          expect(
+            server.heads[0].toLowerCase(),
+            isNot(contains('last-event-id')),
+          );
+          expect(server.heads[1].toLowerCase(), contains('last-event-id: 2'));
+          expect(server.heads[2].toLowerCase(), contains('last-event-id: 3'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv sse 015 an idle timeout on an SSE stream counts as a lost connection and reconnects',
+      () async {
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          await eventsHead(socket);
+          if (hit == 1) {
+            await rawChunk(socket, 'id: 1\ndata: a\n\n');
+            await self.awaitRelease();
+            return;
+          }
+          await rawChunk(socket, 'id: 2\ndata: b\n\n');
+          await rawEnd(socket);
+        });
+        try {
+          final stream = await SseStream.open<String>(
+            opener: eventOpener(server, idleTimeout: 300),
+            options: const StreamOptions(reconnectDelay: 1, maxReconnects: 1),
+            method: 'GET',
+            path: '/items/events',
+          );
+          final reader = StreamIterator(stream);
+          expect(await reader.moveNext(), isTrue);
+          expect(reader.current.data, equals('a'));
+          expect(await reader.moveNext(), isTrue);
+          expect(
+            reader.current.data,
+            equals('b'),
+            reason: 'the stalled connection was replaced',
+          );
+          expect(server.heads[1].toLowerCase(), contains('last-event-id: 1'));
+          await stream.close();
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv sse 018 an SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout',
+      () async {
+        final server = await RawServer.serve((
+          self,
+          socket,
+          hit,
+          request,
+        ) async {
+          await eventsHead(socket);
+          for (var beat = 0; beat < 8; beat++) {
+            await rawChunk(socket, ': heartbeat\n\n');
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          }
+          await rawChunk(socket, 'data: late\n\n');
+          await rawEnd(socket);
+        });
+        try {
+          final stream = await SseStream.open<String>(
+            opener: eventOpener(server, idleTimeout: 400),
+            options: const StreamOptions(reconnectDelay: 1, maxReconnects: 0),
+            method: 'GET',
+            path: '/items/events',
+          );
+          final event = await stream.first;
+          expect(
+            event.data,
+            equals('late'),
+            reason: 'the quiet feed outlived the idle timeout',
+          );
+          expect(server.hits, equals(1), reason: 'no reconnect was needed');
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 029 the read-all helper of a byte stream returns every byte in order and leaves the stream closed',
+      () async {
+        final payload = Uint8List.fromList(
+          List<int>.generate(100000, (i) => (i * 31) & 0xFF),
+        );
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          await rawHead(socket, 200, ['Content-Length: ${payload.length}']);
+          await rawBytes(socket, payload);
+        });
+        try {
+          final stream = wrap(await open(server, '/items/blob'));
+          expect(
+            await stream.readAll(),
+            equals(payload),
+            reason: 'every byte, in order',
+          );
+          expect(
+            stream.toString(),
+            equals('ByteStream(statusCode: 200, bytesDelivered: 100000)'),
+          );
+          expect(stream.isClosed, isTrue);
+          expect(
+            () => stream.listen(null),
+            throwsStateError,
+            reason: 'the helper left the stream closed',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+  });
+  group('Streaming uploads', () {
+    DefaultApiClient newClient() => DefaultApiClient(
+      transportOptions: TransportOptionsBuilder().maxRetries(0).build(),
+    );
+
+    Future<ApiHttpResponse> put(
+      RawServer server,
+      BodySource source, {
+      String path = '/items/blob',
+    }) => newClient().sendRequest('PUT', server.url(path), {}, source);
+
+    /// A caller stream that records whether it was read to its end or dropped.
+    ({
+      Stream<List<int>> stream,
+      bool Function() finished,
+      int Function() listens,
+    })
+    tracked(List<int> data) {
+      var finished = false;
+      var listens = 0;
+      Stream<List<int>> generate() async* {
+        listens++;
+        for (var start = 0; start < data.length; start += 4096) {
+          yield data.sublist(start, math.min(start + 4096, data.length));
+        }
+        finished = true;
+      }
+
+      return (
+        stream: generate(),
+        finished: () => finished,
+        listens: () => listens,
+      );
+    }
+
+    test(
+      'bhv streaming 023 a streamed upload of unknown length is sent chunked and arrives intact',
+      () async {
+        final data = patterned(300000);
+        final firstSeen = Completer<void>();
+        final seen = <RawUpload>[];
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          seen.add(
+            await rawUpload(
+              self,
+              hit,
+              onFirst: () {
+                if (!firstSeen.isCompleted) firstSeen.complete();
+              },
+            ),
+          );
+          await rawReply(socket, 200);
+        });
+        try {
+          /* The second half is not readable until the server has the first, so a
+         * client that buffered the stream before sending would wait here for
+         * good. */
+          Stream<List<int>> gated() async* {
+            final half = data.length ~/ 2;
+            for (var start = 0; start < half; start += 4096) {
+              yield data.sublist(start, math.min(start + 4096, half));
+            }
+            await firstSeen.future.timeout(
+              const Duration(seconds: 15),
+              onTimeout: () =>
+                  throw StateError('the first half never reached the server'),
+            );
+            for (var start = half; start < data.length; start += 4096) {
+              yield data.sublist(start, math.min(start + 4096, data.length));
+            }
+          }
+
+          final response = await put(server, BodySource.once(gated()));
+          expect(response.statusCode, equals(200));
+          final head = server.heads.single.toLowerCase();
+          expect(head, contains('transfer-encoding: chunked'));
+          expect(head, isNot(contains('content-length')));
+          expect(seen.single.chunked, isTrue);
+          expect(
+            seen.single.bytes,
+            equals(data),
+            reason: 'every byte arrived in order',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 024 a streamed upload with a known length sends Content-Length',
+      () async {
+        final data = patterned(100000);
+        final directory = await Directory.systemTemp.createTemp('upload');
+        final file = File('${directory.path}/body.bin');
+        await file.writeAsBytes(data);
+        final seen = <RawUpload>[];
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          seen.add(await rawUpload(self, hit));
+          await rawReply(socket, 200);
+        });
+        try {
+          final sources = [
+            BodySource.of(data),
+            BodySource.ofFile(file.path),
+            BodySource.fromFactory(
+              () => Stream<List<int>>.value(data),
+              length: data.length,
+            ),
+            BodySource.once(Stream<List<int>>.value(data), length: data.length),
+          ];
+          for (final source in sources) {
+            expect((await put(server, source)).statusCode, equals(200));
+          }
+          expect(server.heads, hasLength(sources.length));
+          for (var index = 0; index < sources.length; index++) {
+            final head = server.heads[index].toLowerCase();
+            expect(
+              head,
+              contains('content-length: ${data.length}'),
+              reason: 'source $index',
+            );
+            expect(
+              head,
+              isNot(contains('transfer-encoding')),
+              reason: 'source $index',
+            );
+            expect(seen[index].chunked, isFalse, reason: 'source $index');
+            expect(seen[index].bytes, equals(data), reason: 'source $index');
+          }
+          expect(
+            sources[0].toString(),
+            equals('BodySource[bytes, 100000 bytes]'),
+          );
+          expect(
+            sources[1].toString(),
+            equals('BodySource[file, 100000 bytes]'),
+          );
+          expect(
+            sources[3].toString(),
+            equals('BodySource[single use, 100000 bytes]'),
+          );
+          expect(
+            BodySource.fromFactory(
+              () => const Stream<List<int>>.empty(),
+            ).toString(),
+            equals('BodySource[factory, length unknown]'),
+          );
+          expect(sources[1].toString(), isNot(contains('body.bin')));
+        } finally {
+          await server.close();
+          await directory.delete(recursive: true);
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 025 a caller supplied upload stream is never closed by the SDK',
+      () async {
+        final server = await RawServer.serve((self, socket, hit, head) async {
+          await rawUpload(self, hit);
+          await rawReply(socket, hit == 2 ? 503 : 200, ['Retry-After: 0']);
+        });
+        try {
+          final callers = tracked(patterned(5000));
+          expect(
+            (await put(server, BodySource.once(callers.stream))).statusCode,
+            equals(200),
+          );
+          expect(callers.listens(), equals(1));
+          expect(
+            callers.finished(),
+            isTrue,
+            reason: 'the stream was read to its end, not dropped',
+          );
+
+          final refused = tracked(patterned(5000));
+          expect(
+            (await put(server, BodySource.once(refused.stream))).statusCode,
+            equals(503),
+          );
+          expect(
+            refused.finished(),
+            isTrue,
+            reason: 'an error does not cancel it either',
+          );
+
+          final opened =
+              <
+                ({
+                  Stream<List<int>> stream,
+                  bool Function() finished,
+                  int Function() listens,
+                })
+              >[];
+          final factory = BodySource.fromFactory(() {
+            final made = tracked(patterned(5000));
+            opened.add(made);
+            return made.stream;
+          });
+          expect((await put(server, factory)).statusCode, equals(200));
+          expect(opened, hasLength(1));
+          expect(
+            opened.single.finished(),
+            isTrue,
+            reason: 'what the SDK opened is read and released by it',
+          );
+          expect(() {
+            final once = BodySource.once(const Stream<List<int>>.empty());
+            once.open();
+            once.open();
+          }, throwsStateError);
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv streaming 027 a 307 or 308 with a single use upload is refused and the body is never buffered',
+      () async {
+        final data = patterned(20000);
+        for (final status in [307, 308]) {
+          final landed = <RawUpload>[];
+          final target = await RawServer.serve((self, socket, hit, head) async {
+            landed.add(await rawUpload(self, hit));
+            await rawReply(socket, 200);
+          });
+          final origin = await RawServer.serve((self, socket, hit, head) async {
+            await rawUpload(self, hit);
+            await rawReply(socket, status, [
+              'Location: ${target.url('/items/final')}',
+            ]);
+          });
+          try {
+            final once = tracked(data);
+            await expectLater(
+              put(origin, BodySource.once(once.stream)),
+              throwsA(
+                isA<ApiException>()
+                    .having((e) => e.statusCode, 'statusCode', status)
+                    .having(
+                      (e) => e.message,
+                      'message',
+                      contains('Refusing to replay a streamed request body'),
+                    ),
+              ),
+            );
+            expect(
+              target.hits,
+              equals(0),
+              reason: '$status: nothing was sent to the new location',
+            );
+            expect(origin.hits, equals(1));
+            expect(
+              once.listens(),
+              equals(1),
+              reason: 'the stream was read once, as it was sent',
+            );
+            expect(once.finished(), isTrue);
+
+            final followed = await put(
+              origin,
+              BodySource.fromFactory(() => Stream<List<int>>.value(data)),
+            );
+            expect(
+              followed.statusCode,
+              equals(200),
+              reason: '$status: a replayable body follows it',
+            );
+            expect(landed, hasLength(1));
+            expect(landed.single.bytes, equals(data));
+          } finally {
+            await origin.close();
+            await target.close();
+          }
+        }
       },
     );
   });

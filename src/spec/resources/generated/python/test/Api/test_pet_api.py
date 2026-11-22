@@ -47,6 +47,7 @@ from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
 from petstore_client.api_client import ApiClient
 from petstore_client.api_http_response import ApiHttpResponse
+from petstore_client.body_source import BodySource
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
@@ -273,7 +274,7 @@ class TestPetApi:
         assert True
 
     async def test_bhv_operations_070_set_pet_avatar(self) -> None:
-        await self.api.set_pet_avatar(1, b"\xff\xd8\xff")
+        await self.api.set_pet_avatar(1, BodySource.of(b"\xff\xd8\xff"))
 
         assert True
 
@@ -284,7 +285,9 @@ class TestPetApi:
         # not passed onto the wire as an undeclared Content-Type.
         with pytest.raises(ValueError) as excinfo:
             await self.api.set_pet_avatar(
-                1, b"\xff\xd8\xff", request_content_type="application/unknown-type"
+                1,
+                BodySource.of(b"\xff\xd8\xff"),
+                request_content_type="application/unknown-type",
             )
         assert str(excinfo.value) == (
             "Unsupported request content-type 'application/unknown-type' for "
@@ -324,7 +327,7 @@ class TestPetApi:
         config = Configuration.builder().base_url(f"http://127.0.0.1:{port}").build()
         api = PetApi(config=config)
 
-        await api.set_pet_avatar(1, payload)
+        await api.set_pet_avatar(1, BodySource.of(payload))
 
         assert captured.get("body") == payload
         assert captured.get("content_type") == "image/jpeg"
@@ -372,9 +375,11 @@ class TestPetApi:
         api = PetApi(config=config)
 
         # (1) No selector — defaults to the first declared content type.
-        await api.set_pet_avatar(1, payload)
+        await api.set_pet_avatar(1, BodySource.of(payload))
         # (2) Selector set to image/png — overrides the Content-Type header.
-        await api.set_pet_avatar(1, payload, request_content_type="image/png")
+        await api.set_pet_avatar(
+            1, BodySource.of(payload), request_content_type="image/png"
+        )
 
         assert len(captured) == 2
         assert captured[0]["body"] == payload
@@ -386,6 +391,23 @@ class TestPetApi:
         result = await self.api.get_pet_avatar(1)
 
         assert result is not None
+        result.close()
+
+    async def test_bhv_streaming_009_a_binary_stream_exposes_the_status_and_the_lower_cased_response_headers(
+        self,
+    ) -> None:
+        stream = await self.api.get_pet_avatar(1)
+        async with stream:
+            assert stream.status_code == 200
+            assert "content-type" in stream.headers
+            assert all(name == name.lower() for name in stream.headers)
+
+        info = await self.api.get_pet_avatar_with_http_info(1)
+        assert info.data is not None
+        async with info.data as streamed:
+            assert info.status_code == streamed.status_code
+            assert dict(info.headers) == dict(streamed.headers)
+            assert info.raw_body == ""
 
     async def test_bhv_operations_046_get_pet_avatar_thumbnail(self) -> None:
         result = await self.api.get_pet_avatar_thumbnail(1)
@@ -648,11 +670,13 @@ class TestPetApi:
         result = await self.api.download_pet_document(1, 1)
 
         assert result is not None
+        result.close()
 
     async def test_bhv_operations_055_get_pet_photo(self) -> None:
         result = await self.api.get_pet_photo(1, 1)
 
         assert result is not None
+        result.close()
 
     async def test_bhv_operations_053_get_pet_passport(self) -> None:
         result = await self.api.get_pet_passport(1)
@@ -903,9 +927,12 @@ class TestPetApi:
             config=Configuration.builder().base_url("http://localhost").build(),
         )
         await api.set_pet_avatar(
-            1, b"\xff\xd8\xff\xe0", request_content_type="application/json"
+            1,
+            BodySource.of(b"\xff\xd8\xff\xe0"),
+            request_content_type="application/json",
         )
-        assert client.body == b"\xff\xd8\xff\xe0"
+        assert isinstance(client.body, BodySource)
+        assert b"".join(client.body.open()) == b"\xff\xd8\xff\xe0"
         assert client.headers.get("Content-Type") == "application/json"
 
     async def test_bhv_operations_077_set_pet_avatar_thumbnail_byte_body_stays_base64(
@@ -1412,7 +1439,7 @@ class TestPetApiErrorHandling:
             200, "application/octet-stream", "FAKE_BINARY_DATA"
         )
         result = await api.get_pet_avatar(1)
-        assert result is not None
+        assert await result.read_all() == b"FAKE_BINARY_DATA"
 
     async def test_bhv_operations_089_upload_multipart_mock(self) -> None:
         api, server = _create_mock_server(

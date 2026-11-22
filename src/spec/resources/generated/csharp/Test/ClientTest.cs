@@ -54,6 +54,43 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public async Task BhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "tick");
+                _ = await self.AwaitReleaseAsync();
+            }
+        );
+        var client = new Client(new BearerAuthenticator(server.Url(""), "test-token"));
+        await using ByteStream open = await client.Pet.GetPetAvatarAsync(1L);
+        byte[] first = new byte[4];
+        await open.ReadExactlyAsync(first);
+        Assert.Equal("tick", System.Text.Encoding.UTF8.GetString(first));
+
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        client.Dispose();
+
+        Assert.True(
+            System.Diagnostics.Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5),
+            "closing did not wait for the endless stream"
+        );
+        var cancelled = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            _ = await open.ReadAsync(new byte[1]);
+        });
+        Assert.Equal(
+            "ApiClient has been closed and can no longer send requests",
+            cancelled.Message
+        );
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.Pet.GetPetAvatarAsync(1L)
+        );
+    }
+
+    [Fact]
     public async Task BhvLifecycle007CloseOnAClientWithASuppliedTransportLeavesThatTransportUsable()
     {
         using var handler = new RecordingHandler();
@@ -636,6 +673,18 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("GetPetTagWithHttpInfoAsync", PetListed);
         Assert.Contains("GetStagingPetInfoAsync", PetListed);
         Assert.Contains("GetStagingPetInfoWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetArchiveAsync", PetListed);
+        Assert.Contains("ListPetArchiveWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetCatalogAsync", PetListed);
+        Assert.Contains("ListPetCatalogWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetEventsAsync", PetListed);
+        Assert.Contains("ListPetEventsWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetFeedAsync", PetListed);
+        Assert.Contains("ListPetFeedWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetMatchesAsync", PetListed);
+        Assert.Contains("ListPetMatchesWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetNotesAsync", PetListed);
+        Assert.Contains("ListPetNotesWithHttpInfoAsync", PetListed);
         Assert.Contains("SetPetAvatarAsync", PetListed);
         Assert.Contains("SetPetAvatarWithHttpInfoAsync", PetListed);
         Assert.Contains("SetPetAvatarThumbnailAsync", PetListed);
@@ -668,8 +717,7 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("CreateAccountWithHttpInfoAsync", StoreListed);
         Assert.Contains("DeleteOrderAsync", StoreListed);
         Assert.Contains("DeleteOrderWithHttpInfoAsync", StoreListed);
-        Assert.Contains("ExportOrdersAsync", StoreListed);
-        Assert.Contains("ExportOrdersWithHttpInfoAsync", StoreListed);
+        Assert.Contains("ExportOrdersStreamAsync", StoreListed);
         Assert.Contains("GetAuditTrailAsync", StoreListed);
         Assert.Contains("GetAuditTrailWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetBySwatchAsync", StoreListed);
@@ -706,10 +754,8 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("ReserveStockWithHttpInfoAsync", StoreListed);
         Assert.Contains("SearchStoreAsync", StoreListed);
         Assert.Contains("SearchStoreWithHttpInfoAsync", StoreListed);
-        Assert.Contains("WatchNoticesAsync", StoreListed);
-        Assert.Contains("WatchNoticesWithHttpInfoAsync", StoreListed);
-        Assert.Contains("WatchOrdersAsync", StoreListed);
-        Assert.Contains("WatchOrdersWithHttpInfoAsync", StoreListed);
+        Assert.Contains("WatchNoticesStreamAsync", StoreListed);
+        Assert.Contains("WatchOrdersStreamAsync", StoreListed);
     }
 
     private static SortedSet<string> PublicMethodNames(

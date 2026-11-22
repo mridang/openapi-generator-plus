@@ -24,6 +24,7 @@ The java generator (`java-plus`) emits a Maven project for Java 21 or newer (the
 | `templates/java/api/*.mustache` | per-tag API classes, per-operation `*Options` classes, server variants | operation surface |
 | `templates/java/test/**` | the emitted JUnit tests (extend these; never add a test file) | generated tests |
 | `templates/java/pom.mustache`, `checkstyle_suppressions.mustache`, `dev_dependencies.mustache`, `editorconfig.mustache`, `makefile.mustache`, `reflect_config.mustache` | build file, named Checkstyle suppressions, dev-dependency list, GraalVM reflection config | dependencies, compiler and lint flags |
+| `templates/java/byte_stream.mustache`, `api_stream_response.mustache`, `errors/StreamException.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), `StreamException` | streaming types |
 | `templates/java/call_hook.mustache`, `call_info.mustache`, `call_observer.mustache`, `call_outcome.mustache`, `open_telemetry_call_hook.mustache` | the call hook types (one public type per file) and the OpenTelemetry adapter; `base_api.mustache` calls the hook, `configuration.mustache` and `client.mustache` carry it | hook and telemetry behaviour |
 | `templates/java/readme.mustache`, `skills.mustache`, `usage_statements.mustache`, `credentials_per_scheme.mustache`, `examples/Quickstart.mustache` | README, SKILLS.md and the shipped quickstart | docs and examples || `src/main/resources/reserved-words/java.txt`, `src/test/resources/scripts/JavaKeywords.java` | reserved words, pinned by `JavaReservedWordsSpec` | escaped identifiers |
 
@@ -47,7 +48,7 @@ The java generator (`java-plus`) emits a Maven project for Java 21 or newer (the
 | Model named `Error` | generated as `ModelError` | would shadow `java.lang.Error` (Error Prone `JavaLangClash`) |
 | Reserved words | `true`, `false`, `null` and `_` are escaped too | they are illegal identifiers though not keywords (D44) |
 | `format: number`, `decimal` | `BigDecimal` | precision-preserving, like kotlin and csharp |
-| `format: binary` | `InputStream` (request and response) | stream-typed; changing to `byte[]` is a public API change (parked) |
+| `format: binary` | `BodySource` for a raw request body, `ByteStream extends InputStream` for a success response (D119, D121) | the response is read as consumed and the request is sent as it is read |
 | Doc comments | `///` markdown doc-comments allowed; `//` line comments rejected in `src/main` | Java 23+ markdown doc-comments and `JavaFormattingSpec` |
 
 ## Settled decisions (do not re-open in review)
@@ -254,7 +255,7 @@ These java gaps are known:
 - An optional request body can be omitted only on an operation that takes nothing else (`placeOrder()`), because an overload that drops the body from a longer signature makes a literal `null` ambiguous (D26, wave 2). With path, options, server or content-type arguments the body stays `@Nullable`.
 - A model with required properties has no no-argument constructor: it is built with its required-argument constructor or `builder()`, and a missing required property fails in `build()` (D68, wave 2).
 - `refreshUrl` keeps its position in the public OAuth2 constructors; moving it breaks positional callers.
-- `format: binary` stays `InputStream` rather than `byte[]`.
+- A raw `format: binary` request body is a `BodySource`, not `InputStream` or `byte[]`; a multipart file part stays `InputStream`; a binary response is `ByteStream` (see "Streaming: binary responses" and "Streaming: uploads").
 - Only a model named `Error` is prefixed (`ModelError`); other collisions with `java.lang` or SDK type names are unguarded (D45, open).
 - Object-valued query and header parameters are unsupported (D47, parked); `Set` order is unspecified (S6).
 - `BigDecimal` is written with `toString`, so a value such as `1E+3` may appear in exponent notation; `WRITE_BIGDECIMAL_AS_PLAIN` is not enabled (D83 proposed it).
@@ -375,7 +376,7 @@ F901 (`proxyPasswordKeepsALiteralPlusSign`), F926 (`unusableTokenResponseHasTheC
 F215 (`ObjectSerializerTest` `requiredNullableKeepsExplicitNull`, `requiredNullableRejectsMissingKey`), F855 and F858 (batch 9), F1124 (the `o'neil` server, `ZZZZZZZZZZ` nickname and the slug rows are in the java tests), F1080 (batch 9).
 
 ### Not done in java, with the reason
-- Binary response type: the stream-versus-bytes question for all twelve is settled together with streaming in #114.
+- Binary response type: settled by D119 and built as `ByteStream` (see "Streaming: binary responses").
 - A vulnerability and unused-dependency audit is #105.
 - F1140: java reads each redirect body whole (`BodyHandlers.ofByteArray`), so a hop holds no connection to release and there is nothing to count.
 
@@ -448,7 +449,7 @@ Rule: batch 10 rendered the examples in `options.mustache` but the shared pass c
 Where: `BetterJavaCodegen`. Test: the generated Options javadoc in the golden (`JavaFormattingSpec.pluralExamplesShouldBeAttributedToParameter` covers the required ones).
 
 ### README notes
-Rule: the README Caveats say that optional and nullable are one `null` (except required plus nullable), that an unknown enum or discriminator value fails, that repeated response headers are joined with `, `, which compression is negotiated, that the SDK has no logging hook, that streaming is not supported, that `Configuration` and `TransportOptions` stay separate, and what the version means; a Usage section covers per-call options, error context, immutable models and unions.
+Rule: the README Caveats say that optional and nullable are one `null` (except required plus nullable), that an unknown enum or discriminator value fails, that repeated response headers are joined with `, `, which compression is negotiated, that the SDK has no logging hook, that a binary response is a stream (see the Streaming section), that `Configuration` and `TransportOptions` stay separate, and what the version means; a Usage section covers per-call options, error context, immutable models and unions.
 Where: `readme.mustache`, `skills.mustache`.
 
 ### Recorded, not implemented in wave 2
@@ -513,3 +514,80 @@ F1085 (generated TLS test material) is shared and out of scope for java.
 - The pom adds `src/examples/java` as a second build-helper test source root, includes it in Spotless and pins `exec-maven-plugin` (main class and the test class path), all under `{{#generateExamples}}`, so a real client's pom does not change until it opts in. `make examples` is `mvn test-compile` (Error Prone and NullAway at error, `-Xlint:all`, `failOnWarning`); Checkstyle reads every test source root, so the example passes `google_checks.xml` with no suppression; SpotBugs analyses only main classes. `make examples-run` maps `API_BASE_URL` to `{PREFIX}_BASE_URL`, passes a placeholder `{PREFIX}_ACCESS_TOKEN` and runs `mvn exec:java`.
 - `JavaExamplesSpec` writes every fence to `.out/fences/<file>_<nn>/Fence.java` in its own package `fences.<file>_<nn>`, so package-private class names never clash: a `file` fence is the file after the package clause (its classes are package-private, so the file name does not matter), a `statements` fence has its `import` lines hoisted and the rest placed in `static void fence() throws Exception` of a class `Fence`. It compiles them with `javac -Xlint:all -Werror` against `target/classes` and the class path from a pinned `maven-dependency-plugin:3.8.1:build-classpath`; nothing is run.
 - A fence that calls an operation is a method taking the client and the operation's own arguments (`signatureArgsNoServer`: path, body, options) as typed parameters (`addPetOrReport(Client client, Pet pet, AddPetOptions options)`), never a model built with `new Model()` (the old `skills_example_arg.mustache` is gone, since a model with required properties has no public no-argument constructor). Behaviours `langjava068` to `langjava073` are in `test/ReadmeTest.mustache`, under `{{#generateExamples}}`; use `split(regex, -1)` there, since Error Prone's `StringSplitter` warning fails the test compile.
+
+## Streaming: binary responses (capability 1 of #114, D118 to D122)
+
+### The transport returns an unread body
+Rule: `ApiClient.sendStreaming(method, url, headers, body, timeoutMillis, maxRetries, idleTimeoutMillis)` returns an `ApiStreamResponse` record (status, lower-cased headers, the open body, `readBounded(maxBytes)`, `close()`, a `toString()` of the status only). The default implementation throws `UnsupportedOperationException` whose message is `<transport class name> cannot stream: it does not implement sendStreaming, ...`, so an injected `ApiClient` keeps working for buffered calls and never falls back to buffering. A non-2xx response is returned like any other (open body), as `sendRequest` returns it; `BaseApi` reads up to 64 KiB of it, closes it and raises the typed error with the operation's error schemas, because the schemas live there.
+Where: `api_client.mustache`, `api_stream_response.mustache`, `base_api.mustache` (`invokeApiForStream`, shares the one `invokeCall` with `invokeApiForResult`, so the hook, the headers, the authentication and the 401 replay are the buffered code), `default_api_client.mustache`.
+Test: `DefaultApiClientUnitTest` (`bhvStreaming001` and the rest), `BaseApiTest$BinaryStreams` (008, 017, 018, 030), `ClientTest` (021), golden `PetApiTest` (009).
+
+### One header phase for both paths
+Rule: `DefaultApiClient.prepare` merges the headers and builds the first request, and `sendHeaderPhase` runs the retries (`sendWithBackoff`), the redirect loop and the end-to-end deadline for a `BodyHandler<T>`; the buffered call passes `ofByteArray()`, the stream call `ofInputStream()`. A response that is retried or followed is handed to a `discard` consumer (a no-op for bytes, `close` for a stream). `HttpRequest.timeout` and the existing whole-future wait both end when the headers arrive with `ofInputStream`, so `timeout` bounds the header phase and never the body. The buffered path is behaviourally unchanged.
+Where: `default_api_client.mustache`.
+Test: every existing `DefaultApiClientUnitTest` row, `bhvStreaming010`, `014`, `016`.
+
+### The body: idle timeout, truncation, decoding, cancellation
+Rule: the body is a private `StreamBody` over a `WireGuard` (counts the wire bytes, remembers a connection failure, and raises when the body ends before its declared `Content-Length`) and, for an encoded body, a `LazyDecoder` (gzip, deflate, and br or zstd when the codec is on the class path) that opens the decoder on the first byte, so the call returns before the body starts. A read arms a timer on one shared daemon scheduler for `idleTimeout` and disarms it on return; expiry aborts the connection and the blocked read raises `NetworkTimeoutException`. A failed read is raised as `StreamException` (reset or truncation, status 0), `ApiException` with the real status and the cause (a decode failure), `CancellationException` (an interrupt, never a timeout), or `IllegalStateException` with the closed-client message (the client was closed). `close()` aborts instead of draining and is idempotent; end of body releases the connection. `TransportOptions.idleTimeout` is `Integer` milliseconds, default 60000, `0` or `null` disables it and `getIdleTimeout()` returns `null` when disabled.
+Where: `default_api_client.mustache`, `transport_options.mustache`, `errors/StreamException.mustache`.
+Test: `DefaultApiClientUnitTest` (`bhvStreaming011`, `012`, `013`, `015`, `019`, `020`, `031`, `032`, `033`), `TransportOptionsTest` (constructor rows).
+
+### Closing the client cancels open streams
+Rule: `DefaultApiClient` counts an open stream as an in-flight request until it is closed or ends, and tracks it. `close()` marks the client closed, cancels every open stream (each frees its count, the last one releases the `HttpClient`), and returns; requests in flight that are not streams finish as before. A stream whose headers arrive after `close()` is closed and raises the closed-client error. The next read of a cancelled stream raises `IllegalStateException("ApiClient has been closed and can no longer send requests")`.
+Where: `default_api_client.mustache`, `client.mustache`.
+Test: `ClientTest` (`bhvStreaming021`).
+
+### Binary operations return `ByteStream`
+Rule: `BetterJavaCodegen.markBinaryStream` sets `streamsBinary` on `vendorExtensions.op` and rewrites `returnType` to `ByteStream` for an operation whose `streamKind` is `binary`, so every template (operation, interface, docs, `WithHttpInfo`) says `ByteStream` and `api.mustache` calls `invokeApiForStream`. The type reference field is not emitted for it. `ByteStream` is a `final` class extending `InputStream` (`getStatusCode()`, `getHeaders()`, `readAllBytes()` that reads everything and closes, an idempotent `close()` with no `throws`, a `toString()` of status and bytes delivered); `ApiResult<ByteStream>` has an empty `rawBody`. `postProcessSupportingFileData` hands the README and SKILLS the first such operation (`binaryStreamOperation`) for the Streaming example. An injected transport without `sendStreaming` makes a binary operation fail with the unsupported error: this is the accepted breaking edge of D119.
+Where: `BetterJavaCodegen`, `api/api.mustache`, `api/api_interface.mustache`, `byte_stream.mustache`, `readme.mustache`, `skills.mustache`.
+Test: golden `PetApiTest` (`bhvStreaming009`, the existing avatar, document and photo rows now close their stream), `DefaultApiClientUnitTest` (`bhvStreaming029`).
+
+## Streaming: JSON Lines and server-sent events (capability 2 of #114, D120 to D122, D125)
+
+### The stream method and the types
+Rule: an operation with `streamOnly` (decorators `streamsSse` or `streamsJsonLines`, set by `BetterJavaCodegen.markBinaryStream`) has no buffered method and no `WithHttpInfo` variant in the class or the interface; `api.mustache` and `api_interface.mustache` emit `<op>Stream(...signatureArgs, @Nullable StreamOptions)` (the `operation_prelude` partial builds the path, query, headers and options exactly as the buffered method does) and an interface default overload without the `StreamOptions`. The return type is `JsonLinesStream<T>` or `SseStream<T>` (`T` is `streamItemJava`: the schema type, or `String` for a plain payload); a `{{operationId}}ItemType` field replaces the `TypeRef` field. `ServerSentEvent<T>` is a record, `StreamOptions` a fluent class with `Integer` milliseconds and bytes (`null` keeps the default), `EventStream` (package-private) holds `LineReader` (CRLF, LF, CR without a blocking look-ahead, a cut-off last line reported through `wasTerminated`, UTF-8, BOM dropped, `TooLongException` past the limit) and `SseParser` (`RawEvent`, `lastEventId()`, `retry()`).
+Where: `event_stream.mustache`, `server_sent_event.mustache`, `stream_options.mustache`, `json_lines_stream.mustache`, `sse_stream.mustache`, `base_api.mustache` (`invokeApiForJsonLines`, `invokeApiForSse`), `api/*.mustache`, `BetterJavaCodegen`.
+Test: `EventStreamTest` (the one mirror file, `streaming002` to `005` and `sse001` to `sse023` parser and engine rows), `DefaultApiClientUnitTest` (`streaming006`, `007`, `sse007`, `015`, `018` over the raw server), `BaseApiTest$EventStreams` (`streaming028`, `sse006`, `012`, `013`, `020`), `ClientTest` (`bhvMocking001` lists the stream method of a stream-only operation).
+
+### The engine
+Rule: `SseStream.open` sends the first request (its failure is raised from the operation method) and checks the answer; each reconnect is `opener.apply(lastEventId)`, which `BaseApi` implements as a fresh `invokeCall` (so the headers and the credential are built again, and the call hook runs again) with `Last-Event-ID` added only when the id is not empty. `Cache-Control: no-cache` and `Accept-Encoding: identity` are added unless the caller or the default headers set them. A lost connection is a clean end, a `NetworkException` (a `StreamException`, an idle `NetworkTimeoutException`) or, on a reconnect, a 408, 429 or 5xx status; it counts one consecutive failure, reset by an event; a clean end that exhausts the budget raises a `StreamException`. `reconnectWaitMillis` (package-private, tested) is the server `retry` value, else `Retry-After`, else the delay doubling to 30 s less up to 25% jitter. An event named `error` raises `ApiException` with the real status and the data as the body; the terminator comes from the generator option `sseTerminator`; the SSE content type is checked on every connection and a mismatch is a `SerializationException`.
+Where: `sse_stream.mustache`, `base_api.mustache`.
+Test: `EventStreamTest`, `BaseApiTest$EventStreams`.
+
+## Streaming: uploads (capability 3 of #114, D121 item 6)
+
+### `BodySource` is the body type of a raw binary request
+Rule: `BodySource` (`body_source.mustache`, a `final` class in the SDK package) has the replayable constructors `of(byte[])` (copied, length known), `ofFile(Path)` (length is the file size, reopened per send) and `fromSupplier(Supplier<? extends InputStream>[, long length])`, and the single-use `once(InputStream[, long length])`; `isReplayable()`, `length()` (`OptionalLong`), `open()` (public, for a custom transport; a single-use body opens once and its stream ignores `close()`) and a `toString()` of kind and length only. `BetterJavaCodegen.markBinaryUpload` runs before the shared pass and sets the body parameter type to `BodySource` when the operation's request body is binary and not multipart or form, so the operation, `WithHttpInfo`, the interface and the signature arguments all say `BodySource`; a multipart `InputStream` part is unchanged. `BaseApi` passes the `BodySource` to the transport as the body under any selected request content type and treats it as replayable for the 401 replay only when `isReplayable()`.
+Where: `BetterJavaCodegen`, `body_source.mustache`, `api/api.mustache`, `api/api_interface.mustache`, `base_api.mustache`.
+Test: golden `PetApiTest` (the avatar rows `bhvOperations070`, `071`, `072`, `076`), `BaseApiTest` (`bhvMisc217`).
+
+### The transport sends it as it is read
+Rule: `DefaultApiClient.prepare` turns a `BodySource` into a publisher: in-memory bytes use `ofByteArray`, anything else `BodyPublishers.ofInputStream(supplier)` wrapped by `fromPublisher(publisher, length)` when the length is known (Content-Length) and left alone when it is not (chunked); a known length of 0 is `NO_BODY`. The JDK subscribes once per send, so a retry (`sendWithBackoff`) and a 307 or 308 follow-up open the source again. Every stream the supplier opens is recorded on the `PreparedCall` and closed when the next one opens and when the call ends (`closeOpenedBody`, in the `finally` of both send paths); a single-use body hands out a stream whose `close()` does nothing, so the JDK's own close at the end of the data never closes the caller's stream. `isReplayableBody` is `isReplayable()`, so a single-use body gets no retry. A redirect that would keep the body (not a 303, and not the 301 or 302 that turn a POST into a GET) with a single-use body raises `ApiException` with the redirect status and `Refusing to replay a streamed request body`; the body is never buffered. The `InputStream`, `File` and multipart branches are unchanged and still buffer.
+Where: `default_api_client.mustache`.
+Test: `DefaultApiClientUnitTest` (`bhvStreaming023` to `027`, `bhvRetries032`, `bhvMisc163`).
+
+### An event stream request with a single-use body never reconnects
+Rule: `SseStream.open` has an overload with `singleUseBody`; when it is true `maxReconnects` is 0 whatever the options say. `invokeApiForSse` passes `body instanceof BodySource source && !source.isReplayable()`.
+Where: `sse_stream.mustache`, `base_api.mustache`.
+Test: `EventStreamTest` (`bhvSse016`).
+
+## Pagination (#163, D123, D124)
+
+### The detector is shared, the Java templates only render it
+Rule: `AbstractBetterCodegen.populatePaginationDecorators` computes `vendorExtensions.op.pagination` (`style`, `isToken`, `isLink`, `source`, `requestParam`, `requestParamName`, `cursorType`, `responseProperty`, `responsePropertyName`, `itemsProperty`, `itemsPropertyName`, `itemsFromBody`, `itemType`, `itemModel`) and `hasPagesMethod`/`pagesMethodName`; Java adds `javaPaginatorType` (`Paginator<Item, Cursor>`, `Void` for a `Link` list). Model properties are public fields in Java, so the templates read `page.<propertyName>`, never a getter. It runs twice, once before the Options file is written (so a paged operation's Options object gets `copy()`) and once in the decorator pass; both agree because it is a pure function of the operation.
+Where: `AbstractBetterCodegen`, `BetterJavaCodegen.populateOperationDecorators` and `generateOptionsFileContent`.
+Test: `OperationDecoratorTest`.
+
+### `Paginator<T, C>`, `Page<T, C>`, `PaginationException`
+Rule: `Paginator` (`paginator.mustache`) is a `final` class implementing `Iterable<T>` with `stream()` and `pages()`; `ofCursor(start, fetch, items, next, path)` and `ofLink(baseUrl, fetch, items, path)` are the two factories the generated `...Pages` methods call. Each iteration gets a new page iterator, so nothing is read before the first `hasNext`/`next`, one request is made per page and there is no read-ahead. An end is an absent, `null` or empty cursor, or no `rel="next"`. A cursor equal to the one just sent (or a `Link` to the page just read, or a foreign origin) is held back: the page it arrived with is delivered and the next read raises `PaginationException`. Any failure of a fetch ends the iteration. `Page` is a record (`items` copied unmodifiable, `nextCursor`, `result`). `PaginationException` (`errors/PaginationException.mustache`) extends the root exception directly and carries the path without the query.
+Where: `paginator.mustache`, `page.mustache`, `errors/PaginationException.mustache`, `api/operation_pages.mustache`, `api/operation_pages_interface.mustache`.
+Test: `BaseApiTest$PagedLists` (`bhvPagination001` to `032`).
+
+### Each page is an ordinary call; a `Link` page replaces the path
+Rule: a token page calls `<op>WithHttpInfo` with `pageOptions.copy().<cursor>(token)`, so retries, timeouts, redirects, authentication, redaction and per-call options apply to every page. A `Link` operation's `WithHttpInfo` delegates to a private `<op>Page(...args, @Nullable String pageUrl)` whose body is the buffered call; when `pageUrl` is set it replaces `path` and clears the query, and `invokeCall` joins an authentication query to a URL that already has one with `&`. The origin of a next URL is checked against `config.getBaseUrl()`; an operation with a server of its own is not paged.
+Where: `api/api.mustache`, `base_api.mustache`, `paginator.mustache`, `link_header.mustache`.
+Test: `BaseApiTest$PagedLists` (`bhvPagination007`, `008`, `023`, `027`).
+
+### Build lesson: the JDK 25 Unsafe notice
+Rule: NullAway runs data-flow analysis for some constructs (a local assigned `null`, a nullable field read after a check), which loads Guava's cache and makes the forked javac print a `sun.misc.Unsafe` notice that `failOnWarning` counts. The generated pom passes `-J--sun-misc-unsafe-memory-access=allow` to the forked compiler, so such code no longer fails the build; a real warning hidden behind that notice (an unused field, for example) shows once the flag is set.
+Where: `pom.mustache`.

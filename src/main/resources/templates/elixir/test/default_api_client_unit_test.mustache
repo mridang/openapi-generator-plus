@@ -2875,5 +2875,439 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert IO.iodata_to_binary(request.body) == ~s({"key":"value"})
   end
 
+  # ── Streaming: binary responses read as they arrive ─────────────────────────
+
+  # An in-process HTTP/1.1 server on a raw socket, so a test can stall a body,
+  # cut it short or reset the connection, which neither the shared mock server
+  # nor a plain HTTP server can do. `script` runs once per connection with the
+  # server, the socket, the number of the connection (1 for the first) and the
+  # request head.
+  defmodule RawServer do
+    @moduledoc false
+
+    defstruct [:port, :state, :owner]
+
+    def start(script) do
+      owner = self()
+      {:ok, state} = Agent.start_link(fn -> %{hits: 0, heads: [], handlers: []} end)
+
+      pid =
+        spawn_link(fn ->
+          {:ok, listen} =
+            :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true, backlog: 50])
+
+          {:ok, port} = :inet.port(listen)
+          send(owner, {:listening, self(), port})
+          accept_loop(listen, script, %__MODULE__{port: port, state: state, owner: owner})
+        end)
+
+      receive do
+        {:listening, ^pid, port} -> %__MODULE__{port: port, state: state, owner: owner}
+      end
+    end
+
+    defp accept_loop(listen, script, server) do
+      case :gen_tcp.accept(listen) do
+        {:ok, socket} ->
+          handler = spawn(fn -> handle(socket, script, server) end)
+          :ok = :gen_tcp.controlling_process(socket, handler)
+          Agent.update(server.state, fn state -> %{state | handlers: [handler | state.handlers]} end)
+          accept_loop(listen, script, server)
+
+        {:error, _closed} ->
+          :ok
+      end
+    end
+
+    defp handle(socket, script, server) do
+      head = read_head(socket, "")
+
+      hit =
+        Agent.get_and_update(server.state, fn state ->
+          {state.hits + 1, %{state | hits: state.hits + 1, heads: state.heads ++ [head]}}
+        end)
+
+      script.(server, socket, hit, head)
+      :gen_tcp.close(socket)
+    end
+
+    defp read_head(socket, acc) do
+      if String.ends_with?(acc, "\r\n\r\n") do
+        acc
+      else
+        case :gen_tcp.recv(socket, 0, 5_000) do
+          {:ok, data} -> read_head(socket, acc <> data)
+          {:error, _reason} -> acc
+        end
+      end
+    end
+
+    def url(%__MODULE__{port: port}, path), do: "http://127.0.0.1:#{port}#{path}"
+
+    def hits(%__MODULE__{state: state}), do: Agent.get(state, & &1.hits)
+
+    def heads(%__MODULE__{state: state}), do: Agent.get(state, & &1.heads)
+
+    # Lets every script that is waiting in `hold/1` carry on.
+    def release(%__MODULE__{state: state}) do
+      for handler <- Agent.get(state, & &1.handlers), do: send(handler, :go)
+      :ok
+    end
+
+    # Waits in a script until the test releases the server.
+    def hold(_server) do
+      receive do
+        :go -> :ok
+      after
+        20_000 -> :ok
+      end
+    end
+
+    # Waits in a script until the client drops the connection, and tells the test.
+    def watch(%__MODULE__{owner: owner}, socket) do
+      case :gen_tcp.recv(socket, 0, 20_000) do
+        {:error, :closed} -> send(owner, :client_gone)
+        _other -> :ok
+      end
+    end
+
+    def head(socket, status, headers) do
+      lines = Enum.map_join(headers, "", fn header -> header <> "\r\n" end)
+      :ok = :gen_tcp.send(socket, "HTTP/1.1 #{status} Test\r\n" <> lines <> "Connection: close\r\n\r\n")
+    end
+
+    def chunk(socket, data) do
+      :ok = :gen_tcp.send(socket, [Integer.to_string(byte_size(data), 16), "\r\n", data, "\r\n"])
+    end
+
+    def finish(socket), do: :gen_tcp.send(socket, "0\r\n\r\n")
+
+    def body(socket, data), do: :gen_tcp.send(socket, data)
+
+    # The next close of the socket resets the connection instead of ending it cleanly.
+    def reset(socket), do: :inet.setopts(socket, linger: {true, 0})
+
+    # Sends chunks until the client drops the connection, and tells the test.
+    def endless(%__MODULE__{owner: owner} = server, socket) do
+      case :gen_tcp.send(socket, ["1000\r\n", String.duplicate("x", 4096), "\r\n"]) do
+        :ok ->
+          Process.sleep(5)
+          endless(server, socket)
+
+        {:error, _closed} ->
+          send(owner, :client_gone)
+      end
+    end
+  end
+
+  defp stream_client(transport_options \\ []) do
+    DefaultApiClient.new({{moduleName}}.TransportOptions.new(Keyword.merge([max_retries: 0], transport_options)))
+  end
+
+  defp stream_from(server, path, headers \\ %{}, opts \\ [], transport_options \\ []) do
+    DefaultApiClient.send_streaming(stream_client(transport_options), :get, RawServer.url(server, path), headers, nil, opts)
+  end
+
+  defp byte_stream(response) do
+    {{moduleName}}.ByteStream.new(response.status_code, response.headers, response.body, response.close)
+  end
+
+  test "bhv streaming 001 a binary stream delivers the bytes in order and returns before the body has ended" do
+    server =
+      RawServer.start(fn server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Type: application/octet-stream", "Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, "first-")
+        RawServer.hold(server)
+        RawServer.chunk(socket, "second")
+        RawServer.finish(socket)
+      end)
+
+    response = stream_from(server, "/items/blob")
+
+    assert response.status_code == 200
+    assert Enum.take(response.body, 1) == ["first-"], "the call returned while the body was unfinished"
+
+    RawServer.release(server)
+
+    assert Enum.to_list(response.body) == ["second"], "then the rest, in order"
+  end
+
+  test "bhv streaming 010 the call timeout bounds only the wait for the headers, not the body" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, "ab")
+        Process.sleep(1_200)
+        RawServer.chunk(socket, "cd")
+        RawServer.finish(socket)
+      end)
+
+    response = stream_from(server, "/items/blob", %{}, timeout: 400, idle_timeout: nil)
+
+    assert Enum.join(response.body) == "abcd", "the body outlived the 400 ms timeout"
+  end
+
+  test "bhv streaming 011 the idle timeout raises a network timeout error when the server stalls in the middle of the body" do
+    assert {{moduleName}}.TransportOptions.new().idle_timeout == 60_000, "the default is 60 seconds"
+    assert {{moduleName}}.TransportOptions.new(idle_timeout: 0).idle_timeout == nil, "0 disables it"
+    assert {{moduleName}}.TransportOptions.new(idle_timeout: nil).idle_timeout == nil, "nil disables it"
+
+    error = assert_raise ArgumentError, fn -> {{moduleName}}.TransportOptions.new(idle_timeout: -1) end
+    assert error.message =~ "Invalid idle_timeout"
+
+    server =
+      RawServer.start(fn server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, "ab")
+        RawServer.hold(server)
+      end)
+
+    response = stream_from(server, "/items/blob", %{}, [], idle_timeout: 300)
+
+    assert Enum.take(response.body, 1) == ["ab"]
+    started = System.monotonic_time(:millisecond)
+
+    error = assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn -> Enum.to_list(response.body) end
+
+    assert error.status_code == 0
+    assert System.monotonic_time(:millisecond) - started < 5_000, "the stall ended by the idle timeout and not by the server"
+    assert RawServer.hits(server) == 1, "a stalled body is not retried"
+  end
+
+  test "bhv streaming 013 a body shorter than its Content-Length raises a network error and is never a silent short success" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Length: 10"])
+        RawServer.body(socket, "abcd")
+      end)
+
+    stream = server |> stream_from("/items/blob") |> byte_stream()
+
+    assert {:error, error} = {{moduleName}}.ByteStream.read_all(stream)
+    assert {{moduleName}}.Errors.NetworkError.network_error?(error)
+    assert error.status_code == 0
+  end
+
+  test "bhv streaming 016 a streaming call follows a redirect before the body and strips credentials across origins" do
+    target =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Length: 6"])
+        RawServer.body(socket, "landed")
+      end)
+
+    origin =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 302, ["Location: #{RawServer.url(target, "/items/final")}", "Content-Length: 0"])
+      end)
+
+    headers = %{"Authorization" => "Bearer secret-token", "Cookie" => "session=abc", "X-Trace" => "kept"}
+    response = stream_from(origin, "/items/blob", headers)
+
+    assert Enum.join(response.body) == "landed"
+    [sent_to_origin] = origin |> RawServer.heads() |> Enum.map(&String.downcase/1)
+    [sent_to_target] = target |> RawServer.heads() |> Enum.map(&String.downcase/1)
+    assert sent_to_origin =~ "authorization: bearer secret-token"
+    refute sent_to_target =~ "authorization", "the credential stays on its origin"
+    refute sent_to_target =~ "cookie", "the cookie stays on its origin"
+    assert sent_to_target =~ "x-trace: kept", "other headers go with the redirect"
+  end
+
+  test "bhv streaming 019 closing a stream twice is safe and aborts the connection" do
+    server =
+      RawServer.start(fn server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Transfer-Encoding: chunked"])
+        RawServer.endless(server, socket)
+      end)
+
+    response = stream_from(server, "/items/blob")
+    stream = byte_stream(response)
+
+    assert [<<_::binary-size(4096)>>] = Enum.take(stream, 1)
+
+    assert {{moduleName}}.ByteStream.close(stream) == :ok
+    assert {{moduleName}}.ByteStream.close(stream) == :ok
+    assert response.close.() == :ok
+    assert_receive :client_gone, 10_000, "the server saw the connection dropped and was not made to finish the body"
+
+    assert_raise RuntimeError, fn -> Enum.to_list(stream) end
+  end
+
+  test "bhv streaming 020 cancelling the call aborts the stream and is never raised as a timeout" do
+    silent = RawServer.start(fn server, socket, _hit, _head -> RawServer.watch(server, socket) end)
+
+    stalled =
+      RawServer.start(fn server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, "ab")
+        RawServer.watch(server, socket)
+      end)
+
+    before_headers = spawn_monitor(fn -> stream_from(silent, "/items/blob", %{}, [], idle_timeout: 60_000) end)
+    wait_for_hits(silent)
+    {pid, monitor} = before_headers
+    Process.exit(pid, :shutdown)
+    assert_receive {:DOWN, ^monitor, :process, ^pid, :shutdown}, 5_000
+    assert_receive :client_gone, 10_000, "the request that waited for headers was dropped"
+
+    reader =
+      spawn_monitor(fn ->
+        response = stream_from(stalled, "/items/blob")
+        Enum.to_list(response.body)
+      end)
+
+    wait_for_hits(stalled)
+    Process.sleep(300)
+    {pid, monitor} = reader
+    Process.exit(pid, :shutdown)
+    assert_receive {:DOWN, ^monitor, :process, ^pid, :shutdown}, 5_000
+    assert_receive :client_gone, 10_000, "the stalled body was dropped"
+  end
+
+  defp wait_for_hits(server, tries \\ 200) do
+    cond do
+      RawServer.hits(server) > 0 ->
+        :ok
+
+      tries == 0 ->
+        flunk("the server was never reached")
+
+      true ->
+        Process.sleep(10)
+        wait_for_hits(server, tries - 1)
+    end
+  end
+
+  test "bhv streaming 022 the string form of a stream hides credentials, the query and the data" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Length: 7", "Set-Cookie: sid=secret-cookie"])
+        RawServer.body(socket, "payload")
+      end)
+
+    response = stream_from(server, "/items/blob?token=secret-query", %{"Authorization" => "Bearer secret-token"})
+    stream = byte_stream(response)
+
+    assert Enum.join(stream) == "payload"
+
+    for shown <- [inspect(stream), inspect(response)] do
+      refute shown =~ "secret", shown
+      refute shown =~ "payload", shown
+      refute shown =~ "token", shown
+      refute shown =~ "items", shown
+    end
+
+    assert inspect(stream) == "#{{moduleName}}.ByteStream<status_code: 200, bytes_delivered: 7>"
+  end
+
+  test "bhv streaming 029 the read-all helper of a byte stream returns every byte in order and leaves it closed" do
+    payload = for i <- 0..99_999, into: <<>>, do: <<rem(i * 31, 256)>>
+
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Length: #{byte_size(payload)}"])
+        RawServer.body(socket, payload)
+      end)
+
+    stream = server |> stream_from("/items/blob") |> byte_stream()
+
+    assert {:ok, ^payload} = {{moduleName}}.ByteStream.read_all(stream)
+    assert inspect(stream) == "#{{moduleName}}.ByteStream<status_code: 200, bytes_delivered: 100000>"
+    assert_raise RuntimeError, fn -> Enum.to_list(stream) end
+  end
+
+  test "bhv streaming 031 closing a live endless stream returns promptly and does not wait for the server" do
+    server =
+      RawServer.start(fn server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, "tick")
+        RawServer.hold(server)
+      end)
+
+    response = stream_from(server, "/items/events")
+
+    assert Enum.take(response.body, 1) == ["tick"]
+    started = System.monotonic_time(:millisecond)
+    assert response.close.() == :ok
+    assert System.monotonic_time(:millisecond) - started < 2_000, "close aborted the connection instead of waiting for the endless body"
+  end
+
+  test "bhv streaming 032 a reset or truncation after the headers raises a StreamError that is a network error" do
+    reset =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, "ab")
+        Process.sleep(100)
+        RawServer.reset(socket)
+      end)
+
+    cut =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Length: 10"])
+        RawServer.body(socket, "abcd")
+      end)
+
+    for server <- [reset, cut] do
+      stream = server |> stream_from("/items/blob") |> byte_stream()
+
+      failure = assert_raise {{moduleName}}.Errors.StreamError, fn -> {{moduleName}}.ByteStream.read_all!(stream) end
+
+      assert {{moduleName}}.Errors.NetworkError.network_error?(failure)
+      assert failure.status_code == 0
+    end
+  end
+
+  test "bhv streaming 033 stopping a stream early without reading it to the end releases the connection" do
+    server =
+      RawServer.start(fn server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Transfer-Encoding: chunked"])
+        RawServer.endless(server, socket)
+      end)
+
+    stream = server |> stream_from("/items/events") |> byte_stream()
+
+    assert [_first] = Enum.take(stream, 1)
+    assert_receive :client_gone, 10_000, "leaving the scope dropped the connection"
+  end
+  test "bhv streaming 006 a gzip encoded stream is decoded incrementally so the first item arrives before the body ends" do
+    zstream = :zlib.open()
+    :ok = :zlib.deflateInit(zstream, :default, :deflated, 31, 8, :default)
+    first = zstream |> :zlib.deflate("line1\n", :sync) |> IO.iodata_to_binary()
+    last = zstream |> :zlib.deflate("line2\n", :finish) |> IO.iodata_to_binary()
+    :ok = :zlib.close(zstream)
+
+    server =
+      RawServer.start(fn server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Encoding: gzip", "Transfer-Encoding: chunked"])
+        RawServer.chunk(socket, first)
+        RawServer.hold(server)
+        RawServer.chunk(socket, last)
+        RawServer.finish(socket)
+      end)
+
+    response = stream_from(server, "/items/export")
+    refute Map.has_key?(response.headers, "content-encoding"), "the headers describe the decoded body"
+    lines = response |> byte_stream() |> {{moduleName}}.JsonLinesStream.from_source(& &1, 1024)
+
+    assert Enum.take(lines, 1) == ["line1"], "the first item arrived while the server still held the body"
+    RawServer.release(server)
+  end
+
+  test "bhv streaming 007 a corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried" do
+    server =
+      RawServer.start(fn _server, socket, _hit, _head ->
+        RawServer.head(socket, 200, ["Content-Encoding: gzip", "Content-Length: 19"])
+        RawServer.body(socket, "this is not gzip!!")
+      end)
+
+    lines = server |> stream_from("/items/export") |> byte_stream() |> {{moduleName}}.JsonLinesStream.from_source(& &1, 1024)
+
+    error = assert_raise {{moduleName}}.Errors.ApiError, fn -> Enum.to_list(lines) end
+
+    assert error.status_code == 200
+    assert error.cause != nil
+    Process.sleep(200)
+    assert RawServer.hits(server) == 1
+  end
+
 end
 {{/generateTests}}

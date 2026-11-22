@@ -8,10 +8,26 @@
 
 pub mod api;
 pub mod api_client;
-pub mod api_http_response;
-pub mod api_result;
 pub mod auth;
 pub mod client;
+/* The body of a raw binary request, sent as it is read. */
+pub mod body_source;
+/* The carrier of a binary response, read as it arrives. */
+pub mod byte_stream;
+/* The line splitter and the server-sent events parser behind the JSON Lines and
+ * event streams. Crate-private: the carriers below are the public surface. */
+pub(crate) mod event_stream;
+/* The carriers of a JSON Lines response and of a server-sent events response. */
+pub mod json_lines_stream;
+/* The lazy items and pages of a paged list, and the parser of the Link header it follows. */
+pub mod api_http_response;
+pub mod api_result;
+pub mod api_stream_response;
+pub(crate) mod link_header;
+pub mod paginator;
+pub mod server_sent_event;
+pub mod sse_stream;
+pub mod stream_options;
 /* The call hook that runs around every operation call. It names no
  * OpenTelemetry type: the adapter is its own module. */
 pub mod call_hook;
@@ -57,13 +73,21 @@ pub(crate) mod value_serializer;
 pub use api_client::ApiClient;
 pub use api_http_response::ApiHttpResponse;
 pub use api_result::ApiResult;
+pub use api_stream_response::{ApiStreamResponse, BodyStream};
 pub use auth::Authenticator;
+pub use body_source::BodySource;
+pub use byte_stream::ByteStream;
 pub use call_hook::{CallCancelled, CallHook, CallInfo, CallObserver, CallOutcome};
 pub use client::Client;
 pub use client::ClientTrait;
 pub use configuration::{Configuration, ConfigurationBuilder};
 pub use credentials::Credentials;
 pub use default_api_client::DefaultApiClient;
+pub use json_lines_stream::JsonLinesStream;
+pub use paginator::{Page, Paginator};
+pub use server_sent_event::ServerSentEvent;
+pub use sse_stream::SseStream;
+pub use stream_options::StreamOptions;
 /* The whole SDK error tree, from the root trait down to the OAuth2 and
  * configuration errors, is declared in `errors` and re-exported here. */
 pub use errors::*;

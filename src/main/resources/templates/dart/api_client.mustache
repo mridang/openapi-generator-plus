@@ -2,6 +2,7 @@
 import 'dart:typed_data';
 
 import 'api_http_response.dart';
+import 'api_stream_response.dart';
 
 /// Interface for API HTTP transport.
 ///
@@ -15,8 +16,8 @@ abstract class ApiClient {
   ///   - [url]: fully qualified URL
   ///   - [headers]: HTTP headers
   ///   - [body]: request body (serialized JSON string, [Uint8List] for
-  ///     binary, or [Map<String, Object>] for multipart form data; may be
-  ///     null)
+  ///     binary, a `BodySource` for a binary body that is sent as it is read,
+  ///     or [Map<String, Object>] for multipart form data; may be null)
   ///   - [noRedirect]: when true, any 3xx response (including 307/308) is
   ///     returned to the caller as-is rather than being replayed to the
   ///     `Location` target. OAuth2 token/revoke/authorize endpoint POSTs use
@@ -39,6 +40,59 @@ abstract class ApiClient {
     bool noRedirect = false,
     int? timeout,
     bool noDefaultHeaders = false,
+  });
+}
+
+/// Optional capability of an [ApiClient]: sending a request and returning as
+/// soon as the response headers are accepted, with the body not read yet.
+///
+/// An [ApiClient] that does not implement it keeps working for every buffered
+/// call; a call that needs a stream (an operation whose success response is
+/// binary) fails with an [UnsupportedError] naming the transport, instead of
+/// falling back to buffering, which would never end on an endless body.
+/// [DefaultApiClient] implements it.
+abstract class StreamingApiClient implements ApiClient {
+  /// Sends a request and returns the status, the lower-cased headers and the
+  /// open body.
+  ///
+  /// The redirect, header and authentication rules are those of
+  /// [ApiClient.sendRequest], up to the headers. [timeout] (milliseconds)
+  /// stops at the headers; [idleTimeout] bounds the gap between two reads of
+  /// the body in milliseconds (0 disables it, null keeps the transport's own
+  /// setting). A non-2xx response is returned like any other, with its body
+  /// open, and is never thrown. A failure after the headers surfaces from the
+  /// body as a `StreamException`.
+  ///
+  /// Throws an [UnsupportedError] when the transport cannot stream.
+  Future<ApiStreamResponse> sendStreaming(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+    int? idleTimeout,
+  });
+}
+
+/// Optional capability of a [StreamingApiClient] that is also an
+/// [AdmittingApiClient]: [sendAdmittedStreaming] sends a stream request
+/// admitted by [AdmittingApiClient.beginRequest].
+abstract class AdmittingStreamingApiClient
+    implements AdmittingApiClient, StreamingApiClient {
+  /// Sends a stream request admitted by [beginRequest]. Takes the same
+  /// parameters as [sendStreaming] and does not check whether the client is
+  /// closed.
+  Future<ApiStreamResponse> sendAdmittedStreaming(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+    int? idleTimeout,
   });
 }
 

@@ -1,0 +1,472 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"context"
+	"errors"
+	"io"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	pkgerrors "{{packageName}}/pkg/errors"
+)
+
+// eventsResponse is a 200 event stream response over canned bytes.
+func eventsResponse(text string) *ApiStreamResponse {
+	return NewApiStreamResponse(200, map[string]string{"content-type": "text/event-stream"}, io.NopCloser(strings.NewReader(text)))
+}
+
+// noContentResponse is a 204 response.
+func noContentResponse() *ApiStreamResponse {
+	return NewApiStreamResponse(204, map[string]string{}, io.NopCloser(strings.NewReader("")))
+}
+
+// parseEvents reads every event of text with the parser.
+func parseEvents(t *testing.T, text string) []*rawEvent {
+	t.Helper()
+	parser := newSseParser(strings.NewReader(text), 1024, "")
+	var events []*rawEvent
+	for {
+		event, err := parser.next()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if event == nil {
+			return events
+		}
+		events = append(events, event)
+	}
+}
+
+// linesOf reads every line of text as a JSON Lines stream of strings.
+func linesOf(t *testing.T, text string) []string {
+	t.Helper()
+	stream := newJsonLinesStream(eventsResponse(text), decodeText, 1024, "GET", "/items")
+	var items []string
+	for item, err := range stream.All() {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+// connectionScript opens an event stream whose n-th connection (from 1) is the
+// n-th entry: a string is the body of a 200 response, an error fails the
+// connection and a *ApiStreamResponse is used as it is. The last entry repeats.
+type connectionScript struct {
+	connections []any
+	lastIDs     []string
+}
+
+func scripted(connections ...any) *connectionScript {
+	return &connectionScript{connections: connections}
+}
+
+func (s *connectionScript) open(lastEventID string) (*ApiStreamResponse, error) {
+	s.lastIDs = append(s.lastIDs, lastEventID)
+	next := s.connections[min(len(s.lastIDs), len(s.connections))-1]
+	switch value := next.(type) {
+	case error:
+		return nil, value
+	case *ApiStreamResponse:
+		return value, nil
+	}
+	return eventsResponse(next.(string)), nil
+}
+
+// fast makes the reconnect wait one millisecond.
+func fast() *callSettings {
+	delay := time.Millisecond
+	return &callSettings{reconnectDelay: &delay}
+}
+
+func withReconnects(settings *callSettings, maxReconnects int) *callSettings {
+	settings.maxReconnects = &maxReconnects
+	return settings
+}
+
+func sseOf(t *testing.T, opener func(string) (*ApiStreamResponse, error), settings *callSettings) *SseStream[string] {
+	t.Helper()
+	stream, err := openSse(context.Background(), opener, decodeText, nil, settings, false, false, "GET", "/events")
+	if err != nil {
+		t.Fatalf("unexpected error opening the stream: %v", err)
+	}
+	return stream
+}
+
+// dataOf collects the data of every event, and the error that ended the stream.
+func dataOf(stream *SseStream[string]) ([]string, error) {
+	var data []string
+	for event, err := range stream.All() {
+		if err != nil {
+			return data, err
+		}
+		data = append(data, event.Data)
+	}
+	return data, nil
+}
+
+func wantStrings(t *testing.T, got []string, want ...string) {
+	t.Helper()
+	if strings.Join(got, "|") != strings.Join(want, "|") || len(got) != len(want) {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+func TestBhvStreaming002_EventStream_AJsonLinesStreamYieldsOneDecodedItemPerLineAndSkipsBlankLines(t *testing.T) {
+	t.Parallel()
+	wantStrings(t, linesOf(t, "a\n\n  \nb\nc\n"), "a", "b", "c")
+}
+
+func TestBhvStreaming003_EventStream_AJsonLinesStreamAcceptsCrlfLineEndsAndALastLineWithoutANewline(t *testing.T) {
+	t.Parallel()
+	wantStrings(t, linesOf(t, "a\r\nb\r\nc"), "a", "b", "c")
+}
+
+func TestBhvStreaming004_EventStream_AJsonLinesLineThatDoesNotDecodeNamesItsLineAndEndsTheStream(t *testing.T) {
+	t.Parallel()
+	decode := func(line string) (int, error) {
+		number, err := strconv.Atoi(line)
+		if err != nil {
+			return 0, newSerializationError("not a number", err)
+		}
+		return number, nil
+	}
+	stream := newJsonLinesStream(eventsResponse("1\n2\nnope\n4\n"), decode, 1024, "GET", "/items")
+
+	var items []int
+	var failure error
+	for item, err := range stream.All() {
+		if err != nil {
+			failure = err
+			continue
+		}
+		items = append(items, item)
+	}
+
+	if len(items) != 2 || items[0] != 1 || items[1] != 2 {
+		t.Errorf("expected the items before the bad line, got %v", items)
+	}
+	var serialization *pkgerrors.SerializationError
+	if !errors.As(failure, &serialization) || !strings.Contains(failure.Error(), "line 3") {
+		t.Errorf("expected a *SerializationError naming line 3, got %v", failure)
+	}
+}
+
+func TestBhvStreaming005_EventStream_ALineOrEventLongerThanTheLimitRaisesASerializationErrorAndEndsTheStream(t *testing.T) {
+	t.Parallel()
+	lineStream := newJsonLinesStream(eventsResponse("ok\n"+strings.Repeat("x", 50)+"\nlater\n"), decodeText, 10, "GET", "/items")
+	var items []string
+	var lineFailure error
+	for item, err := range lineStream.All() {
+		if err != nil {
+			lineFailure = err
+			continue
+		}
+		items = append(items, item)
+	}
+	var serialization *pkgerrors.SerializationError
+	if !errors.As(lineFailure, &serialization) {
+		t.Errorf("expected a *SerializationError for a long line, got %v", lineFailure)
+	}
+	wantStrings(t, items, "ok")
+
+	limit := 10
+	events := sseOf(t, scripted("data: "+strings.Repeat("y", 50)+"\n\n").open, &callSettings{maxEventBytes: &limit})
+	data, eventFailure := dataOf(events)
+	if !errors.As(eventFailure, &serialization) || len(data) != 0 {
+		t.Errorf("expected a *SerializationError for a long event, got %v (%q)", eventFailure, data)
+	}
+}
+
+func TestBhvSse001_EventStream_AnSseStreamYieldsTheIdEventDataAndRetryFieldsOfEachEventWithMessageAsTheDefault(t *testing.T) {
+	t.Parallel()
+	events := parseEvents(t, "id: 7\nevent: tick\nretry: 250\ndata: one\n\ndata: two\n\n")
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+	if first := events[0]; first.id != "7" || first.event != "tick" || first.data != "one" || first.retry == nil || *first.retry != 250 {
+		t.Errorf("unexpected first event %+v", first)
+	}
+	if events[1].event != "message" || events[1].data != "two" || events[1].id != "7" {
+		t.Errorf("expected the default event name and the persistent id, got %+v", events[1])
+	}
+
+	stream := sseOf(t, scripted("id: 7\nevent: tick\nretry: 250\ndata: one\n\n").open, fast())
+	for event, err := range stream.All() {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if event.ID != "7" || event.Event != "tick" || event.Data != "one" || event.Retry == nil || *event.Retry != 250 || event.Raw != "one" {
+			t.Errorf("unexpected event %+v", event)
+		}
+		break
+	}
+}
+
+func TestBhvSse002_EventStream_AnSseStreamJoinsConsecutiveDataLinesWithANewlineAndSkipsCommentLines(t *testing.T) {
+	t.Parallel()
+	events := parseEvents(t, ": a comment\ndata: one\n: another\ndata: two\n\n")
+	if len(events) != 1 || events[0].data != "one\ntwo" {
+		t.Errorf("expected one event with joined data, got %+v", events)
+	}
+}
+
+func TestBhvSse003_EventStream_AnSseStreamDropsAByteOrderMarkAcceptsEveryLineEndAndRemovesOneSpaceAfterTheColon(t *testing.T) {
+	t.Parallel()
+	for name, end := range map[string]string{"LF": "\n", "CR": "\r", "CRLF": "\r\n"} {
+		events := parseEvents(t, "\xef\xbb\xbfdata: a"+end+"data:  b"+end+end)
+		if len(events) != 1 || events[0].data != "a\n b" {
+			t.Errorf("line end %s: expected one event with data %q, got %+v", name, "a\n b", events)
+		}
+	}
+	if events := parseEvents(t, "data:x\n\n"); len(events) != 1 || events[0].data != "x" {
+		t.Errorf("expected no space to remove, got %+v", events)
+	}
+}
+
+func TestBhvSse004_EventStream_AnSseEventWithAnEmptyDataBufferIsNotDeliveredButItsIdIsKept(t *testing.T) {
+	t.Parallel()
+	parser := newSseParser(strings.NewReader("id: 9\n\n"), 1024, "")
+
+	event, err := parser.next()
+
+	if err != nil || event != nil {
+		t.Errorf("expected no event, got %+v (%v)", event, err)
+	}
+	if parser.lastEventID != "9" {
+		t.Errorf("expected the id to be kept, got %q", parser.lastEventID)
+	}
+}
+
+func TestBhvSse005_EventStream_AnSseDataPayloadIsDecodedAndAPayloadThatDoesNotDecodeRaisesASerializationErrorAndEndsTheStream(t *testing.T) {
+	t.Parallel()
+	number := func(data string) (int, error) {
+		parsed, err := strconv.Atoi(data)
+		if err != nil {
+			return 0, newSerializationError("not a number", err)
+		}
+		return parsed, nil
+	}
+	stream, err := openSse(context.Background(), scripted("data: 1\n\ndata: oops\n\ndata: 3\n\n").open, number, nil, fast(), false, false, "GET", "/events")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var items []int
+	var failure error
+	for event, err := range stream.All() {
+		if err != nil {
+			failure = err
+			continue
+		}
+		items = append(items, event.Data)
+	}
+
+	if len(items) != 1 || items[0] != 1 {
+		t.Errorf("expected only the first payload, got %v", items)
+	}
+	var serialization *pkgerrors.SerializationError
+	if !errors.As(failure, &serialization) {
+		t.Errorf("expected a *SerializationError, got %v", failure)
+	}
+}
+
+func TestBhvSse008_EventStream_AnSseReconnectWaitsTheServerRetryValueElseTheReconnectDelayDoublingToACap(t *testing.T) {
+	t.Parallel()
+	retry, retryAfter := int64(250), 5*time.Second
+	for _, row := range []struct {
+		attempt    int
+		serverRetry *int64
+		retryAfter *time.Duration
+		jitter     float64
+		want       time.Duration
+	}{
+		{3, &retry, nil, 0, 250 * time.Millisecond},
+		{1, nil, nil, 0, time.Second},
+		{2, nil, nil, 0, 2 * time.Second},
+		{3, nil, nil, 0, 4 * time.Second},
+		{10, nil, nil, 0, 30 * time.Second},
+		{1, nil, nil, 1, 750 * time.Millisecond},
+		{1, nil, &retryAfter, 0, 5 * time.Second},
+	} {
+		if got := reconnectWait(row.attempt, time.Second, row.serverRetry, row.retryAfter, row.jitter); got != row.want {
+			t.Errorf("attempt %d: expected %v, got %v", row.attempt, row.want, got)
+		}
+	}
+}
+
+func TestBhvSse009_EventStream_AnSseGetStreamStopsAfterFiveFailedReconnectsByDefaultAndRaisesTheLastFailure(t *testing.T) {
+	t.Parallel()
+	script := scripted("")
+	stream := sseOf(t, script.open, fast())
+
+	_, err := dataOf(stream)
+
+	var network *pkgerrors.NetworkError
+	if !errors.As(err, &network) {
+		t.Errorf("expected a *NetworkError, got %v", err)
+	}
+	if len(script.lastIDs) != 6 {
+		t.Errorf("expected one request and five reconnects, got %d requests", len(script.lastIDs))
+	}
+}
+
+func TestBhvSse010_EventStream_AnSseReconnectCounterResetsAfterAnEventIsReceived(t *testing.T) {
+	t.Parallel()
+	script := scripted("data: a\n\n", "data: b\n\n", "data: c\n\n", "")
+	stream := sseOf(t, script.open, withReconnects(fast(), 1))
+
+	data, err := dataOf(stream)
+
+	var network *pkgerrors.NetworkError
+	if !errors.As(err, &network) {
+		t.Errorf("expected the end to be raised after the last event, got %v", err)
+	}
+	wantStrings(t, data, "a", "b", "c")
+}
+
+func TestBhvSse011_EventStream_AnSseStreamDoesNotReconnectAfterA204A4xxStatusOrAResponseThatIsNotAnEventStream(t *testing.T) {
+	t.Parallel()
+	none := scripted(noContentResponse())
+	if data, err := dataOf(sseOf(t, none.open, fast())); err != nil || len(data) != 0 || len(none.lastIDs) != 1 {
+		t.Errorf("expected an empty end after one request, got %q (%v) after %d", data, err, len(none.lastIDs))
+	}
+
+	refused := scripted("data: a\n\n", pkgerrors.NewApiError(404, "missing", "{}", nil, nil, nil))
+	_, err := dataOf(sseOf(t, refused.open, fast()))
+	var api *pkgerrors.ApiError
+	if !errors.As(err, &api) || api.StatusCode() != 404 {
+		t.Errorf("expected the 404 to be raised, got %v", err)
+	}
+
+	wrongType := scripted("data: a\n\n", NewApiStreamResponse(200, map[string]string{"content-type": "text/html"}, io.NopCloser(strings.NewReader(""))))
+	_, err = dataOf(sseOf(t, wrongType.open, fast()))
+	var serialization *pkgerrors.SerializationError
+	if !errors.As(err, &serialization) || len(wrongType.lastIDs) != 2 {
+		t.Errorf("expected a *SerializationError after one more request, got %v after %d", err, len(wrongType.lastIDs))
+	}
+}
+
+func TestBhvSse014_EventStream_AnSseRetryFieldThatIsNotDigitsAndAnIdContainingNulAreIgnored(t *testing.T) {
+	t.Parallel()
+	parser := newSseParser(strings.NewReader("retry: 12x\nid: a\x00b\ndata: x\n\n"), 1024, "")
+
+	event, err := parser.next()
+
+	if err != nil || event == nil || event.data != "x" || event.id != "" || parser.retry != nil {
+		t.Errorf("expected the retry and the id to be ignored, got %+v retry %v (%v)", event, parser.retry, err)
+	}
+}
+
+func TestBhvSse016_EventStream_AnSseRequestWithABodyIsNotReconnectedUnlessTheCallerTurnsReconnectOn(t *testing.T) {
+	t.Parallel()
+	off := scripted("data: a\n\n", "data: b\n\n")
+	stream, err := openSse(context.Background(), off.open, decodeText, nil, fast(), true, false, "POST", "/events")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := dataOf(stream)
+	wantStrings(t, data, "a")
+	if err != nil || len(off.lastIDs) != 1 {
+		t.Errorf("expected no reconnect for a request with a body, got %v after %d requests", err, len(off.lastIDs))
+	}
+
+	on := scripted("data: a\n\n", "data: b\n\n", noContentResponse())
+	stream, err = openSse(context.Background(), on.open, decodeText, nil, withReconnects(fast(), 2), true, false, "POST", "/events")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err = dataOf(stream)
+	wantStrings(t, data, "a", "b")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	single := scripted("data: a\n\n", "data: b\n\n", noContentResponse())
+	stream, err = openSse(context.Background(), single.open, decodeText, nil, withReconnects(fast(), 5), true, true, "POST", "/events")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err = dataOf(stream)
+	wantStrings(t, data, "a")
+	if err != nil || len(single.lastIDs) != 1 {
+		t.Errorf("expected a single use body never to be sent again, got %v after %d requests", err, len(single.lastIDs))
+	}
+}
+
+func TestBhvSse017_EventStream_AnSseEventWithAnIdAndNoDataIsNotDispatchedButUpdatesTheLastEventIdAndAReconnectResumesFromIt(t *testing.T) {
+	t.Parallel()
+	script := scripted("data: a\nid: 1\n\nid: 2\n\n", "data: b\nid: 3\n\n", noContentResponse())
+
+	data, err := dataOf(sseOf(t, script.open, fast()))
+
+	wantStrings(t, data, "a", "b")
+	if err != nil || len(script.lastIDs) < 2 || script.lastIDs[0] != "" || script.lastIDs[1] != "2" {
+		t.Errorf("expected the reconnect to resume from id 2, got %v (%v)", script.lastIDs, err)
+	}
+}
+
+func TestBhvSse019_EventStream_AnSseEventCutOffByTheEndOfTheConnectionIsDiscarded(t *testing.T) {
+	t.Parallel()
+	events := parseEvents(t, "data: whole\n\ndata: cut off\n")
+	if len(events) != 1 || events[0].data != "whole" {
+		t.Errorf("expected only the whole event, got %+v", events)
+	}
+	if events := parseEvents(t, "data: no newline at all"); len(events) != 0 {
+		t.Errorf("expected a line without a line end to be discarded, got %+v", events)
+	}
+}
+
+func TestBhvSse021_EventStream_TheConfiguredSseTerminatorEndsTheStreamAndIsNotDelivered(t *testing.T) {
+	t.Parallel()
+	terminator := "[DONE]"
+	stream, err := openSse(context.Background(), scripted("data: a\n\ndata: [DONE]\n\ndata: b\n\n").open, decodeText, &terminator, fast(), false, false, "GET", "/events")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := dataOf(stream)
+
+	wantStrings(t, data, "a")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestBhvSse022_EventStream_AnSseEventNamedErrorRaisesTheApiErrorWithTheStatusAndDataAndAnyOtherNameIsAnItem(t *testing.T) {
+	t.Parallel()
+	script := scripted("event: update\ndata: fine\n\nevent: error\ndata: {\"why\":\"bad\"}\n\n", "data: again\n\n")
+	stream := sseOf(t, script.open, fast())
+
+	var names []string
+	var failure error
+	for event, err := range stream.All() {
+		if err != nil {
+			failure = err
+			continue
+		}
+		names = append(names, event.Event)
+	}
+
+	wantStrings(t, names, "update")
+	var api *pkgerrors.ApiError
+	if !errors.As(failure, &api) || api.StatusCode() != 200 || api.ResponseBody() != "{\"why\":\"bad\"}" {
+		t.Fatalf("expected the API error with the status and the data, got %v", failure)
+	}
+	if len(script.lastIDs) != 1 {
+		t.Errorf("expected an error event not to be reconnected, got %d requests", len(script.lastIDs))
+	}
+}
+
+func TestBhvSse023_EventStream_AnUnknownSseFieldIsIgnored(t *testing.T) {
+	t.Parallel()
+	events := parseEvents(t, "mystery: 1\ndata: x\nanother\n\n")
+	if len(events) != 1 || events[0].data != "x" {
+		t.Errorf("expected the unknown fields to be ignored, got %+v", events)
+	}
+}

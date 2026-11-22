@@ -5,8 +5,16 @@ declare(strict_types=1);
 namespace {{invokerPackage}}\Test;
 
 use {{invokerPackage}}\Auth\ApiKeyLocation;
+use {{invokerPackage}}\BodySource;
+use {{invokerPackage}}\ByteStream;
 use {{invokerPackage}}\Errors\ApiException;
+use {{invokerPackage}}\Errors\NetworkException;
+use {{invokerPackage}}\Errors\NetworkTimeoutException;
+use {{invokerPackage}}\Errors\StreamException;
 use {{invokerPackage}}\DefaultApiClient;
+use {{invokerPackage}}\EventStream;
+use {{invokerPackage}}\SseStream;
+use {{invokerPackage}}\StreamOptions;
 use {{invokerPackage}}\TransportOptions;
 use {{invokerPackage}}\TransportOptionsBuilder;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -4112,3 +4120,718 @@ test('bhv misc 133 a 300 or 305 response is returned as it is, even with a locat
     '300' => [300],
     '305' => [305],
 ]);
+
+/**
+ * A PSR-18 transport that answers one canned 200 response.
+ *
+ * @param array<string, string> $headers
+ */
+function inlinePsr18Client(string $body, array $headers): \{{invokerPackage}}\Psr18ApiClient
+{
+    $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
+    $response = $factory->createResponse(200)->withBody($factory->createStream($body));
+    foreach ($headers as $name => $value) {
+        $response = $response->withHeader($name, $value);
+    }
+
+    return new \{{invokerPackage}}\Psr18ApiClient(new StubPsr18Client($response), $factory, $factory);
+}
+
+/** Opens a stream on a path of a raw test server with the default transport options. */
+function rawStreamOf(RawServer $server, string $path): ByteStream
+{
+    return (new DefaultApiClient(TransportOptions::builder()->build()))->sendStreaming('GET', $server->url($path), [], null);
+}
+
+test('bhv streaming 001 a binary stream delivers the bytes in order and returns before the body has ended', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Type: application/octet-stream', 'Transfer-Encoding: chunked');
+        chunk($socket, 'first-');
+        awaitRelease();
+        chunk($socket, 'second');
+        endChunks($socket);
+        PHP);
+
+    $stream = rawStreamOf($server, '/items/blob');
+
+    expect($stream->statusCode)->toBe(200);
+    expect($stream->read(6))->toBe('first-');
+    $server->release();
+    expect($stream->readAll())->toBe('second');
+
+    $psr = inlinePsr18Client('payload', ['X-Mixed-Case' => 'kept'])
+        ->sendStreaming('GET', 'http://example.com/items/blob', [], null);
+    expect($psr->headers)->toHaveKey('x-mixed-case');
+    expect($psr->read(3))->toBe('pay');
+    expect($psr->readAll())->toBe('load');
+});
+
+test('bhv streaming 010 the call timeout bounds only the wait for the response headers, not the body', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        chunk($socket, 'ab');
+        usleep(1_200_000);
+        chunk($socket, 'cd');
+        endChunks($socket);
+        PHP);
+    $client = new DefaultApiClient(TransportOptions::builder()->timeout(400)->maxRetries(0)->idleTimeout(0)->build());
+
+    $stream = $client->sendStreaming('GET', $server->url('/items/blob'), [], null);
+
+    expect($stream->readAll())->toBe('abcd');
+});
+
+test('bhv streaming 011 the idle timeout raises a network timeout error when the server stalls in the middle of the body', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        chunk($socket, 'ab');
+        awaitRelease();
+        PHP);
+    $client = new DefaultApiClient(TransportOptions::builder()->idleTimeout(300)->build());
+    $stream = $client->sendStreaming('GET', $server->url('/items/blob'), [], null);
+    expect($stream->read(2))->toBe('ab');
+
+    $started = microtime(true);
+    try {
+        $stream->read(1);
+        test()->fail('Expected the stalled body to raise');
+    } catch (NetworkTimeoutException $e) {
+        expect($e->getStatusCode())->toBe(0);
+    }
+
+    expect(microtime(true) - $started)->toBeLessThan(5.0);
+    expect($server->hits())->toBe(1);
+});
+
+test('bhv streaming 012 a connection dropped in the middle of the body raises a network error and is not retried', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        chunk($socket, 'ab');
+        usleep(100_000);
+        PHP);
+    $stream = rawStreamOf($server, '/items/blob');
+
+    expect(fn (): string => $stream->readAll())->toThrow(NetworkException::class);
+    expect($server->hits())->toBe(1);
+});
+
+test('bhv streaming 013 a body shorter than its content length raises a network error and is never a short success', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Length: 10');
+        fwrite($socket, 'abcd');
+        PHP);
+    $stream = rawStreamOf($server, '/items/blob');
+
+    expect(fn (): string => $stream->readAll())->toThrow(NetworkException::class);
+
+    $psr = inlinePsr18Client('abcd', ['Content-Length' => '10'])
+        ->sendStreaming('GET', 'http://example.com/items/blob', [], null);
+    expect(fn (): string => $psr->readAll())->toThrow(StreamException::class);
+});
+
+test('bhv streaming 014 a streaming call retries a 503 before the headers and then streams the retried response', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        if ($hit === 1) {
+            reply($socket, 503, 'Retry-After: 0', 'Content-Length: 4');
+            fwrite($socket, 'nope');
+            return;
+        }
+        reply($socket, 200, 'Content-Length: 5');
+        fwrite($socket, 'hello');
+        PHP);
+
+    $stream = rawStreamOf($server, '/items/blob');
+
+    expect($stream->statusCode)->toBe(200);
+    expect($stream->readAll())->toBe('hello');
+    expect($server->hits())->toBe(2);
+});
+
+test('bhv streaming 015 a streaming call never retries after the first body byte was delivered', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        chunk($socket, 'part');
+        usleep(100_000);
+        PHP);
+    $stream = rawStreamOf($server, '/items/blob');
+    expect($stream->read(4))->toBe('part');
+
+    expect(fn (): string => $stream->readAll())->toThrow(NetworkException::class);
+
+    usleep(300_000);
+    expect($server->hits())->toBe(1);
+});
+
+test('bhv streaming 016 a streaming call follows a redirect before the body and strips credentials across origins', function (): void {
+    $target = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Length: 6');
+        fwrite($socket, 'landed');
+        PHP);
+    $origin = RawServer::serve(str_replace('TARGET', $target->url('/items/final'), <<<'PHP'
+        reply($socket, 302, 'Location: TARGET', 'Content-Length: 0');
+        PHP));
+    $client = new DefaultApiClient(TransportOptions::builder()->build());
+
+    $stream = $client->sendStreaming(
+        'GET',
+        $origin->url('/items/blob'),
+        ['Authorization' => 'Bearer secret-token', 'Cookie' => 'session=abc', 'X-Trace' => 'kept'],
+        null
+    );
+
+    expect($stream->readAll())->toBe('landed');
+    $sentToOrigin = strtolower($origin->heads()[0]);
+    $sentToTarget = strtolower($target->heads()[0]);
+    expect($sentToOrigin)->toContain('authorization: bearer secret-token');
+    expect($sentToTarget)->not->toContain('authorization');
+    expect($sentToTarget)->not->toContain('cookie');
+    expect($sentToTarget)->toContain('x-trace: kept');
+});
+
+test('bhv streaming 019 closing a stream twice is safe and aborts the connection', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        while (chunk($socket, str_repeat('x', 4096))) {
+            usleep(5_000);
+        }
+        gone();
+        PHP);
+    $stream = rawStreamOf($server, '/items/blob');
+    expect(strlen($stream->read(4)))->toBe(4);
+
+    $stream->close();
+    $stream->close();
+
+    expect($server->awaitClientGone())->toBeTrue();
+    expect(fn (): string => $stream->read(1))->toThrow(\RuntimeException::class);
+});
+
+test('bhv streaming 022 the string form of a stream hides credentials, the query and the data', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Length: 7', 'Set-Cookie: sid=secret-cookie');
+        fwrite($socket, 'payload');
+        PHP);
+    $client = new DefaultApiClient(TransportOptions::builder()->build());
+    $stream = $client->sendStreaming(
+        'GET',
+        $server->url('/items/blob?token=secret-query'),
+        ['Authorization' => 'Bearer secret-token'],
+        null
+    );
+    expect($stream->read(7))->toBe('payload');
+
+    $shown = (string) $stream;
+
+    expect($shown)->toBe('ByteStream{statusCode=200, bytesDelivered=7}');
+    foreach (['secret', 'payload', 'token', 'items'] as $hidden) {
+        expect($shown)->not->toContain($hidden);
+    }
+});
+
+test('bhv streaming 031 closing a live endless stream returns promptly and does not wait for the server', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        chunk($socket, 'tick');
+        awaitRelease();
+        PHP);
+    $stream = rawStreamOf($server, '/items/events');
+    expect($stream->read(4))->toBe('tick');
+
+    $started = microtime(true);
+    $stream->close();
+
+    expect(microtime(true) - $started)->toBeLessThan(2.0);
+});
+
+test('bhv streaming 032 a reset or truncation after the headers raises a stream error that is a network error', function (string $script): void {
+    $server = RawServer::serve($script);
+    $stream = rawStreamOf($server, '/items/blob');
+
+    try {
+        $stream->readAll();
+        test()->fail('Expected the body to fail');
+    } catch (StreamException $failure) {
+        expect($failure)->toBeInstanceOf(NetworkException::class);
+        expect($failure->getStatusCode())->toBe(0);
+    }
+})->with([
+    'dropped in the middle of a chunked body' => [<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        chunk($socket, 'ab');
+        usleep(100_000);
+        PHP],
+    'ended before the content length' => [<<<'PHP'
+        reply($socket, 200, 'Content-Length: 10');
+        fwrite($socket, 'abcd');
+        PHP],
+]);
+
+test('bhv streaming 033 stopping a stream early without reading it to the end releases the connection', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        while (chunk($socket, str_repeat('x', 4096))) {
+            usleep(5_000);
+        }
+        gone();
+        PHP);
+    $stream = rawStreamOf($server, '/items/events');
+    expect(strlen($stream->read(10)))->toBe(10);
+
+    unset($stream);
+
+    expect($server->awaitClientGone())->toBeTrue();
+});
+
+test('bhv streaming 029 the read all helper of a byte stream returns every byte in order and leaves it closed', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        $payload = '';
+        for ($i = 0; $i < 100000; $i++) {
+            $payload .= chr(($i * 31) % 256);
+        }
+        reply($socket, 200, 'Content-Length: 100000');
+        fwrite($socket, $payload);
+        PHP);
+    $expected = '';
+    for ($i = 0; $i < 100000; $i++) {
+        $expected .= chr(($i * 31) % 256);
+    }
+    $stream = rawStreamOf($server, '/items/blob');
+
+    expect($stream->readAll())->toBe($expected);
+
+    expect((string) $stream)->toBe('ByteStream{statusCode=200, bytesDelivered=100000}');
+    expect($stream->isReadable())->toBeFalse();
+    expect(fn (): string => $stream->read(1))->toThrow(\RuntimeException::class);
+});
+
+/**
+ * What an operation does for an event stream: one request per connection, over the transport.
+ *
+ * @return \Closure(string): ByteStream
+ */
+function rawEventOpener(RawServer $server, TransportOptions $options): \Closure
+{
+    $client = new DefaultApiClient($options);
+
+    return static function (string $lastEventId) use ($client, $server): ByteStream {
+        $headers = $lastEventId === '' ? [] : ['Last-Event-ID' => $lastEventId];
+
+        return $client->sendStreaming('GET', $server->url('/items/events'), $headers, null, null, 0);
+    };
+}
+
+test('bhv streaming 006 a gzip encoded stream is decoded incrementally so the first item arrives before the body ends', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        $gzip = deflate_init(ZLIB_ENCODING_GZIP);
+        reply($socket, 200, 'Content-Encoding: gzip', 'Transfer-Encoding: chunked');
+        chunk($socket, deflate_add($gzip, "first\n", ZLIB_SYNC_FLUSH));
+        awaitRelease();
+        chunk($socket, deflate_add($gzip, "second\n", ZLIB_FINISH));
+        endChunks($socket);
+        PHP);
+    $items = EventStream::jsonLines(rawStreamOf($server, '/items/export'), null, 1024, 'GET', '/items/export');
+
+    expect($items->current())->toBe('first');
+
+    $server->release();
+    $items->next();
+    expect($items->current())->toBe('second');
+    $items->next();
+    expect($items->valid())->toBeFalse();
+});
+
+test('bhv streaming 007 a corrupt compressed stream raises an api error with the status and the decoder error and is not retried', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Encoding: gzip', 'Content-Length: 8');
+        fwrite($socket, 'notgzip!');
+        PHP);
+    $items = EventStream::jsonLines(rawStreamOf($server, '/items/export'), null, 1024, 'GET', '/items/export');
+
+    try {
+        $items->current();
+        test()->fail('Expected the corrupt body to raise');
+    } catch (ApiException $failure) {
+        expect($failure)->not->toBeInstanceOf(NetworkException::class);
+        expect($failure->getStatusCode())->toBe(200);
+        expect($failure->getPrevious())->not->toBeNull();
+    }
+
+    expect($server->hits())->toBe(1);
+});
+
+test('bhv sse 007 an sse stream reconnects after the connection drops and sends the last event id in last event id', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        if ($hit >= 3) {
+            reply($socket, 204, 'Content-Length: 0');
+            return;
+        }
+        reply($socket, 200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked');
+        chunk($socket, $hit === 1 ? "id: 1\ndata: a\n\nid: 2\ndata: b\n\n" : "id: 3\ndata: c\n\n");
+        endChunks($socket);
+        PHP);
+    $stream = SseStream::open(
+        rawEventOpener($server, TransportOptions::builder()->build()),
+        null,
+        null,
+        new StreamOptions(reconnectDelay: 1),
+        false,
+        'GET',
+        '/items/events'
+    );
+
+    $data = [];
+    foreach ($stream as $event) {
+        $data[] = $event->data;
+    }
+
+    expect($data)->toBe(['a', 'b', 'c']);
+    $heads = array_map('strtolower', $server->heads());
+    expect($heads[0])->not->toContain('last-event-id');
+    expect($heads[1])->toContain('last-event-id: 2');
+    expect($heads[2])->toContain('last-event-id: 3');
+});
+
+test('bhv sse 015 an idle timeout on an sse stream counts as a lost connection and reconnects', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked');
+        if ($hit === 1) {
+            chunk($socket, "id: 1\ndata: a\n\n");
+            holdUntilGone($socket);
+            return;
+        }
+        chunk($socket, "id: 2\ndata: b\n\n");
+        endChunks($socket);
+        PHP);
+    $stream = SseStream::open(
+        rawEventOpener($server, TransportOptions::builder()->idleTimeout(300)->build()),
+        null,
+        null,
+        new StreamOptions(reconnectDelay: 1, maxReconnects: 1),
+        false,
+        'GET',
+        '/items/events'
+    );
+    $events = $stream->getIterator();
+
+    expect($events->current()->data)->toBe('a');
+    $events->next();
+    expect($events->current()->data)->toBe('b');
+    expect(strtolower($server->heads()[1]))->toContain('last-event-id: 1');
+});
+
+test('bhv sse 018 an sse comment line such as a heartbeat is skipped and counts as activity for the idle timeout', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Content-Type: text/event-stream', 'Transfer-Encoding: chunked');
+        for ($beat = 0; $beat < 8; $beat++) {
+            chunk($socket, ": heartbeat\n\n");
+            usleep(100_000);
+        }
+        chunk($socket, "data: late\n\n");
+        endChunks($socket);
+        PHP);
+    $stream = SseStream::open(
+        rawEventOpener($server, TransportOptions::builder()->idleTimeout(400)->build()),
+        null,
+        null,
+        new StreamOptions(reconnectDelay: 1, maxReconnects: 0),
+        false,
+        'GET',
+        '/items/events'
+    );
+
+    expect($stream->getIterator()->current()->data)->toBe('late');
+    expect($server->hits())->toBe(1);
+});
+
+/**
+ * Both bundled transports, each on the default options with no waiting between retries.
+ *
+ * @return array<string, \{{invokerPackage}}\AbstractApiClient>
+ */
+function uploadTransports(): array
+{
+    $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
+    $options = TransportOptions::builder()->maxRedirects(5)->build();
+
+    return [
+        'symfony' => new DefaultApiClient($options),
+        'psr18' => new \{{invokerPackage}}\Psr18ApiClient(new \Symfony\Component\HttpClient\Psr18Client(\Symfony\Component\HttpClient\HttpClient::create(['max_redirects' => 0])), $factory, $factory, $options),
+    ];
+}
+
+/**
+ * A stream resource over the given bytes, read from the start.
+ *
+ * @return resource
+ */
+function streamOver(string $bytes)
+{
+    $stream = fopen('php://temp', 'w+');
+    expect($stream)->toBeResource();
+    assert(is_resource($stream));
+    fwrite($stream, $bytes);
+    rewind($stream);
+
+    return $stream;
+}
+
+/** The sentence a server head holds in lower case, for matching the headers that were sent. */
+function sentHead(RawServer $server, int $hit = 0): string
+{
+    return strtolower($server->heads()[$hit]);
+}
+
+test('bhv streaming 023 a streamed upload of unknown length is sent chunked and arrives intact', function (): void {
+    $payload = random_bytes(200_000);
+    foreach (uploadTransports() as $name => $client) {
+        $server = RawServer::serve(<<<'PHP'
+            recordBody($socket, $head, $hit);
+            reply($socket, 204, 'Content-Length: 0');
+            PHP);
+
+        $response = $client->sendRequest(
+            'PUT',
+            $server->url('/items/blob'),
+            ['Content-Type' => 'application/octet-stream'],
+            BodySource::fromFactory(static fn () => streamOver($payload))
+        );
+
+        expect($response->statusCode)->toBe(204);
+        expect(sentHead($server))->toContain('transfer-encoding: chunked');
+        expect(sentHead($server))->not->toContain('content-length');
+        expect($server->body())->toBe($payload);
+    }
+});
+
+test('bhv streaming 024 a streamed upload with a known length sends content length', function (): void {
+    $payload = random_bytes(150_000);
+    $path = (string) tempnam(sys_get_temp_dir(), 'upload');
+    file_put_contents($path, $payload);
+    $sources = [
+        'bytes' => static fn (): BodySource => BodySource::of($payload),
+        'file' => static fn (): BodySource => BodySource::ofFile($path),
+        'single use' => static fn (): BodySource => BodySource::once(streamOver($payload), strlen($payload)),
+        'factory' => static fn (): BodySource => BodySource::fromFactory(static fn () => streamOver($payload), strlen($payload)),
+    ];
+    foreach (uploadTransports() as $client) {
+        foreach ($sources as $kind => $make) {
+            $source = $make();
+            $server = RawServer::serve(<<<'PHP'
+                recordBody($socket, $head, $hit);
+                reply($socket, 204, 'Content-Length: 0');
+                PHP);
+
+            $client->sendRequest('PUT', $server->url('/items/blob'), ['Content-Type' => 'application/octet-stream'], $source);
+
+            expect(sentHead($server))->toContain('content-length: ' . strlen($payload));
+            expect(sentHead($server))->not->toContain('transfer-encoding');
+            expect($server->body())->toBe($payload);
+            expect((string) $source)->toBe('BodySource[' . $kind . ', ' . strlen($payload) . ' bytes]');
+        }
+    }
+    unlink($path);
+});
+
+/**
+ * A PSR-7 stream over bytes that counts how often it is closed.
+ *
+ * @param int $closes receives the number of close() calls
+ */
+function closeCountingStream(string $bytes, int &$closes): \Psr\Http\Message\StreamInterface
+{
+    $inner = (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream($bytes);
+
+    return new class ($inner, $closes) implements \Psr\Http\Message\StreamInterface {
+        public function __construct(private readonly \Psr\Http\Message\StreamInterface $inner, private int &$closes)
+        {
+        }
+
+        public function __toString(): string
+        {
+            return (string) $this->inner;
+        }
+
+        public function close(): void
+        {
+            $this->closes++;
+        }
+
+        public function detach()
+        {
+            return $this->inner->detach();
+        }
+
+        public function getSize(): ?int
+        {
+            return $this->inner->getSize();
+        }
+
+        public function tell(): int
+        {
+            return $this->inner->tell();
+        }
+
+        public function eof(): bool
+        {
+            return $this->inner->eof();
+        }
+
+        public function isSeekable(): bool
+        {
+            return $this->inner->isSeekable();
+        }
+
+        public function seek(int $offset, int $whence = SEEK_SET): void
+        {
+            $this->inner->seek($offset, $whence);
+        }
+
+        public function rewind(): void
+        {
+            $this->inner->rewind();
+        }
+
+        public function isWritable(): bool
+        {
+            return false;
+        }
+
+        public function write(string $string): int
+        {
+            return $this->inner->write($string);
+        }
+
+        public function isReadable(): bool
+        {
+            return $this->inner->isReadable();
+        }
+
+        public function read(int $length): string
+        {
+            return $this->inner->read($length);
+        }
+
+        public function getContents(): string
+        {
+            return $this->inner->getContents();
+        }
+
+        public function getMetadata(?string $key = null)
+        {
+            return $this->inner->getMetadata($key);
+        }
+    };
+}
+
+test('bhv streaming 025 a caller supplied upload stream is never closed by the sdk', function (): void {
+    $payload = 'caller-owned-bytes';
+    foreach (uploadTransports() as $client) {
+        $server = RawServer::serve(<<<'PHP'
+            recordBody($socket, $head, $hit);
+            reply($socket, 204, 'Content-Length: 0');
+            PHP);
+        $resource = streamOver($payload);
+        $closes = 0;
+        $psr = closeCountingStream($payload, $closes);
+
+        $client->sendRequest('PUT', $server->url('/items/blob'), [], BodySource::once($resource, strlen($payload)));
+        $client->sendRequest('PUT', $server->url('/items/blob'), [], BodySource::once($psr, strlen($payload)));
+
+        expect(is_resource($resource))->toBeTrue();
+        expect($closes)->toBe(0);
+        expect($server->body(1))->toBe($payload);
+        expect($server->body(2))->toBe($payload);
+    }
+
+    $opened = [];
+    $factory = static function () use (&$opened, $payload) {
+        $stream = streamOver($payload);
+        $opened[] = $stream;
+
+        return $stream;
+    };
+    $server = RawServer::serve(<<<'PHP'
+        recordBody($socket, $head, $hit);
+        reply($socket, 204, 'Content-Length: 0');
+        PHP);
+    (new DefaultApiClient(TransportOptions::builder()->build()))
+        ->sendRequest('PUT', $server->url('/items/blob'), [], BodySource::fromFactory($factory, strlen($payload)));
+    expect($opened)->toHaveCount(1);
+    expect(is_resource($opened[0]))->toBeFalse();
+});
+
+test('bhv streaming 026 a replayable upload is rewound and retried after a 503, and a single use upload is not retried and surfaces the original error', function (): void {
+    $payload = random_bytes(70_000);
+    $script = <<<'PHP'
+        recordBody($socket, $head, $hit);
+        if ($hit === 1) {
+            reply($socket, 503, 'Retry-After: 0', 'Content-Length: 0');
+            return;
+        }
+        reply($socket, 204, 'Content-Length: 0');
+        PHP;
+    foreach (uploadTransports() as $client) {
+        $server = RawServer::serve($script);
+        $retried = $client->sendWithRetries('PUT', $server->url('/items/blob'), static fn (): array => [], BodySource::fromFactory(static fn () => streamOver($payload), strlen($payload)), null, 2);
+        expect($retried->statusCode)->toBe(204);
+        expect($server->hits())->toBe(2);
+        expect($server->body(1))->toBe($payload);
+        expect($server->body(2))->toBe($payload);
+
+        $single = RawServer::serve($script);
+        $failed = $client->sendWithRetries('PUT', $single->url('/items/blob'), static fn (): array => [], BodySource::once(streamOver($payload), strlen($payload)), null, 2);
+        expect($failed->statusCode)->toBe(503);
+        expect($single->hits())->toBe(1);
+    }
+
+    $dropping = RawServer::serve(<<<'PHP'
+        recordBody($socket, $head, $hit);
+        if ($hit === 1) {
+            return;
+        }
+        reply($socket, 204, 'Content-Length: 0');
+        PHP);
+    $client = new DefaultApiClient(TransportOptions::builder()->maxRetries(2)->build());
+    $client->sendWithRetries('PUT', $dropping->url('/items/blob'), static fn (): array => [], BodySource::of($payload));
+    expect($dropping->hits())->toBe(2);
+    expect($dropping->body(2))->toBe($payload);
+
+    $lost = RawServer::serve(<<<'PHP'
+        recordBody($socket, $head, $hit);
+        PHP);
+    expect(fn () => $client->sendWithRetries('PUT', $lost->url('/items/blob'), static fn (): array => [], BodySource::once(streamOver($payload), strlen($payload))))
+        ->toThrow(NetworkException::class);
+    expect($lost->hits())->toBe(1);
+});
+
+test('bhv streaming 027 a 307 or 308 with a single use upload is refused and the body is never buffered', function (): void {
+    $payload = random_bytes(40_000);
+    foreach ([307, 308] as $status) {
+        foreach (uploadTransports() as $client) {
+            $target = RawServer::serve(<<<'PHP'
+                recordBody($socket, $head, $hit);
+                reply($socket, 204, 'Content-Length: 0');
+                PHP);
+            $script = str_replace(['TARGET', 'STATUS'], [$target->url('/items/final'), (string) $status], <<<'PHP'
+                recordBody($socket, $head, $hit);
+                reply($socket, STATUS, 'Location: TARGET', 'Content-Length: 0');
+                PHP);
+
+            $replayed = RawServer::serve($script);
+            expect($client->sendRequest('PUT', $replayed->url('/items/blob'), [], BodySource::of($payload))->statusCode)->toBe(204);
+            expect($target->body())->toBe($payload);
+
+            $refusing = RawServer::serve($script);
+            $before = $target->hits();
+            try {
+                $client->sendRequest('PUT', $refusing->url('/items/blob'), [], BodySource::once(streamOver($payload), strlen($payload)));
+                test()->fail('Expected the redirect to be refused');
+            } catch (ApiException $refused) {
+                expect($refused->getStatusCode())->toBe($status);
+                expect($refused->getMessage())->toContain('Refusing to replay a streamed request body');
+            }
+            expect($target->hits())->toBe($before);
+            expect($refusing->hits())->toBe(1);
+        }
+    }
+});

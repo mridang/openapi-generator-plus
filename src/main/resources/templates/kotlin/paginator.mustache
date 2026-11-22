@@ -1,0 +1,195 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.errors.PaginationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import java.net.URI
+import java.util.Locale
+
+/**
+ * The items of a paged list, read lazily. The method that returns it sends no request; the first
+ * request goes out when you first collect [items] or [pages], and each next request goes out only
+ * when you ask for more. Every page is an ordinary call, so the retries, timeouts, redirects,
+ * authentication, redaction, headers and per-call options of the method apply to each one.
+ *
+ * Both views are cold [Flow]s: collect [items] for the items, or [pages] for the pages with their
+ * cursor and result. Each collection starts again from the starting position, so two collections
+ * read the list twice. Stopping early (`take`, `first`, cancelling the collector) sends nothing
+ * further and leaves nothing to close; cancelling the collector aborts the page request in flight
+ * and is never reported as a timeout. A failed page request raises its SDK error from the
+ * collection, after the items of the earlier pages were delivered, and ends that collection; a
+ * cursor equal to the one just sent raises a [PaginationException] after the items of the page that
+ * repeated it.
+ *
+ * @param T the item type
+ * @param C the cursor type, which is the type of the cursor request parameter; [Unit] for a list
+ *   that is followed by `Link` header
+ */
+class Paginator<T, C> private constructor(
+    private val source: Flow<Page<T, C>>,
+) {
+    /**
+     * Returns the items as a cold [Flow], starting at the starting position.
+     *
+     * @return the items of every page, in order
+     */
+    fun items(): Flow<T> =
+        flow {
+            source.collect { page ->
+                for (item in page.items) {
+                    emit(item)
+                }
+            }
+        }
+
+    /**
+     * Returns the pages as a cold [Flow], each with its items, next cursor and result, starting at
+     * the starting position.
+     *
+     * @return the pages, in order
+     */
+    fun pages(): Flow<Page<T, C>> = source
+
+    internal companion object {
+        /**
+         * Creates a paginator that follows a token cursor. Used by the generated `...Pages` methods.
+         *
+         * @param start the cursor of the first request, or `null` to start at the beginning
+         * @param fetch sends the request for a cursor (`null` for none) and returns its result
+         * @param items reads the items of a decoded page
+         * @param next reads the cursor of the next page from a decoded page; absent, `null` or empty ends the list
+         * @param requestPath the path of the operation, for errors
+         * @return the paginator
+         */
+        fun <T, C : Any, B> ofCursor(
+            start: C?,
+            fetch: suspend (C?) -> ApiResult<B>,
+            items: (B) -> List<T>?,
+            next: (B) -> C?,
+            requestPath: String,
+        ): Paginator<T, C> =
+            Paginator(
+                flow {
+                    var sent = start
+                    var done = false
+                    while (!done) {
+                        val result = fetch(sent)
+                        val body = result.data
+                        val list = body?.let(items).orEmpty()
+                        val following = body?.let(next)
+                        if (following == null || (following is CharSequence && following.isEmpty())) {
+                            done = true
+                            emit(Page(list, null, result))
+                        } else {
+                            emit(Page(list, following, result))
+                            /* The page itself is good: it was delivered, and the next read raises. */
+                            if (following == sent) {
+                                throw PaginationException(
+                                    "The server returned the cursor that was just sent, so the list cannot advance",
+                                    requestPath,
+                                )
+                            }
+                            sent = following
+                        }
+                    }
+                },
+            )
+
+        /**
+         * Creates a paginator that follows the `rel="next"` link of the `Link` header. Used by the
+         * generated `...Pages` methods.
+         *
+         * @param baseUrl the base URL of the client; a next URL that leaves its scheme, host or port is refused
+         * @param fetch sends the request for a URL (`null` for the first page) and returns its result
+         * @param items reads the items of a decoded page
+         * @param requestPath the path of the operation, for errors
+         * @return the paginator
+         */
+        fun <T, B> ofLink(
+            baseUrl: String,
+            fetch: suspend (String?) -> ApiResult<B>,
+            items: (B) -> List<T>?,
+            requestPath: String,
+        ): Paginator<T, Unit> =
+            Paginator(
+                flow {
+                    var url: String? = null
+                    var done = false
+                    while (!done) {
+                        val result = fetch(url)
+                        val list = result.data?.let(items).orEmpty()
+                        val link = LinkHeader.next(result.headers.entries.firstOrNull { it.key.equals("link", ignoreCase = true) }?.value)
+                        var target: String? = null
+                        var refusal: PaginationException? = null
+                        if (link != null) {
+                            try {
+                                target = resolve(baseUrl, url, link, requestPath)
+                            } catch (refused: PaginationException) {
+                                refusal = refused
+                            }
+                        }
+                        emit(Page(list, null, result))
+                        /* The page itself is good: it was delivered, and the next read raises. */
+                        if (refusal != null) {
+                            throw refusal
+                        }
+                        if (target == null) {
+                            done = true
+                        } else {
+                            if (target == url) {
+                                throw PaginationException(
+                                    "The server returned a next link to the page that was just read, so the list cannot advance",
+                                    requestPath,
+                                )
+                            }
+                            url = target
+                        }
+                    }
+                },
+            )
+
+        /** Resolves a link against the page just read and refuses a scheme, host or port other than the client's. */
+        private fun resolve(
+            baseUrl: String,
+            current: String?,
+            link: String,
+            requestPath: String,
+        ): String {
+            val base: URI
+            val target: URI
+            try {
+                base = URI.create(baseUrl)
+                target = (current?.let { URI.create(it) } ?: base).resolve(URI.create(link.trim()))
+            } catch (_: IllegalArgumentException) {
+                throw PaginationException("The next link is not a valid URI", requestPath)
+            }
+            if (!sameOrigin(base, target)) {
+                throw PaginationException("The next link leaves the origin of the request and was not followed", requestPath)
+            }
+            return target.toString()
+        }
+
+        private fun sameOrigin(
+            a: URI,
+            b: URI,
+        ): Boolean {
+            val schemeA = a.scheme?.lowercase(Locale.ROOT).orEmpty()
+            val schemeB = b.scheme?.lowercase(Locale.ROOT).orEmpty()
+            val web = schemeB == "http" || schemeB == "https"
+            return schemeA == schemeB && web && a.host != null && b.host != null &&
+                a.host.equals(b.host, ignoreCase = true) && portOf(a) == portOf(b)
+        }
+
+        private fun portOf(uri: URI): Int =
+            when {
+                uri.port >= 0 -> uri.port
+                "https".equals(uri.scheme, ignoreCase = true) -> HTTPS_PORT
+                else -> HTTP_PORT
+            }
+
+        private const val HTTP_PORT = 80
+        private const val HTTPS_PORT = 443
+    }
+}

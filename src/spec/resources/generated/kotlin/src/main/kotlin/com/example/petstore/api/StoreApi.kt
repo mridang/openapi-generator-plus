@@ -12,6 +12,9 @@ package com.example.petstore.api
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
+import com.example.petstore.JsonLinesStream
+import com.example.petstore.SseStream
+import com.example.petstore.StreamOptions
 import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.CreateAccountOptions
 import com.example.petstore.api.options.DeleteOrderOptions
@@ -189,21 +192,14 @@ class StoreApi :
      * Exports every order as JSON Lines
      * @param options the per-call timeout, headers and maxRetries
 
-     * @return Order
+     * @param streamOptions the stream settings, or null for the defaults
+     * @return the open stream; close it when you stop early
      * @throws ApiException if fails to make API call
      */
-    override suspend fun exportOrders(options: ExportOrdersOptions?): Order =
-        exportOrdersWithHttpInfo(options).let { result ->
-            result.data ?: throw ApiException(
-                result.statusCode,
-                "Expected a response body for exportOrders but received none",
-                result.headers,
-                result.rawBody,
-            )
-        }
-
-    /** Same as [exportOrders] but returns the full [ApiResult] (status code, headers and body). */
-    override suspend fun exportOrdersWithHttpInfo(options: ExportOrdersOptions?): ApiResult<Order> {
+    override suspend fun exportOrdersStream(
+        options: ExportOrdersOptions?,
+        streamOptions: StreamOptions?,
+    ): JsonLinesStream<Order> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -211,7 +207,7 @@ class StoreApi :
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
 
-        return invokeApiForResult<Order>(
+        return invokeApiForJsonLines<Order>(
             "GET",
             path,
             queryParams,
@@ -220,12 +216,13 @@ class StoreApi :
             arrayOf("application/x-ndjson"),
             "application/json",
             NoAuth,
-            "StoreApi.exportOrders",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
             operationId = "exportOrders",
             urlTemplate = "/store/orders/export",
+            decoder = { objectSerializer.deserialize<Order>(it) },
+            streamOptions = streamOptions,
         )
     }
 
@@ -1170,21 +1167,14 @@ class StoreApi :
      * Streams plain text notices as server-sent events
      * @param options the per-call timeout, headers and maxRetries
 
-     * @return String
+     * @param streamOptions the stream settings, or null for the defaults
+     * @return the open stream; close it when you stop early
      * @throws ApiException if fails to make API call
      */
-    override suspend fun watchNotices(options: WatchNoticesOptions?): String =
-        watchNoticesWithHttpInfo(options).let { result ->
-            result.data ?: throw ApiException(
-                result.statusCode,
-                "Expected a response body for watchNotices but received none",
-                result.headers,
-                result.rawBody,
-            )
-        }
-
-    /** Same as [watchNotices] but returns the full [ApiResult] (status code, headers and body). */
-    override suspend fun watchNoticesWithHttpInfo(options: WatchNoticesOptions?): ApiResult<String> {
+    override suspend fun watchNoticesStream(
+        options: WatchNoticesOptions?,
+        streamOptions: StreamOptions?,
+    ): SseStream<String> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -1192,7 +1182,7 @@ class StoreApi :
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
 
-        return invokeApiForResult<String>(
+        return invokeApiForSse<String>(
             "GET",
             path,
             queryParams,
@@ -1201,12 +1191,14 @@ class StoreApi :
             arrayOf("text/event-stream"),
             "application/json",
             NoAuth,
-            "StoreApi.watchNotices",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
             operationId = "watchNotices",
             urlTemplate = "/store/notices",
+            decoder = null,
+            terminator = null,
+            streamOptions = streamOptions,
         )
     }
 
@@ -1214,21 +1206,14 @@ class StoreApi :
      * Streams order changes as server-sent events
      * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
-     * @return Order
+     * @param streamOptions the stream settings, or null for the defaults
+     * @return the open stream; close it when you stop early
      * @throws ApiException if fails to make API call
      */
-    override suspend fun watchOrders(options: WatchOrdersOptions?): Order =
-        watchOrdersWithHttpInfo(options).let { result ->
-            result.data ?: throw ApiException(
-                result.statusCode,
-                "Expected a response body for watchOrders but received none",
-                result.headers,
-                result.rawBody,
-            )
-        }
-
-    /** Same as [watchOrders] but returns the full [ApiResult] (status code, headers and body). */
-    override suspend fun watchOrdersWithHttpInfo(options: WatchOrdersOptions?): ApiResult<Order> {
+    override suspend fun watchOrdersStream(
+        options: WatchOrdersOptions?,
+        streamOptions: StreamOptions?,
+    ): SseStream<Order> {
         val callTimeout: Long? = options?.timeout
         val callHeaders: Map<String, String>? = options?.headers
         val callMaxRetries: Int? = options?.maxRetries
@@ -1244,7 +1229,7 @@ class StoreApi :
         }
         val headerParams = mutableMapOf<String, String>()
 
-        return invokeApiForResult<Order>(
+        return invokeApiForSse<Order>(
             "GET",
             path,
             queryParams,
@@ -1253,12 +1238,14 @@ class StoreApi :
             arrayOf("text/event-stream"),
             "application/json",
             NoAuth,
-            "StoreApi.watchOrders",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
             operationId = "watchOrders",
             urlTemplate = "/store/orders/events",
+            decoder = { objectSerializer.deserialize<Order>(it) },
+            terminator = null,
+            streamOptions = streamOptions,
         )
     }
 }

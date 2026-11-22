@@ -1,0 +1,163 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.ByteStream do
+  @moduledoc """
+  The body of a binary response, read as it arrives. An operation whose success
+  response is binary returns one instead of buffering the bytes, so a large
+  download never has to fit in memory.
+
+  It is an `Enumerable` of binaries: read it with the `Enum` and `Stream`
+  functions, copy it with `Enum.into/2`, or take every byte with `read_all/1`.
+  It also carries the `status_code` and the lower-cased `headers` of the
+  response. Enumerating a stream to its end, or stopping early, closes it.
+
+  `close/1` is idempotent and aborts the connection instead of draining the rest
+  of the body, so close the stream (in an `after` clause) when you stop without
+  enumerating it. A failure after the headers raises
+  `#{inspect({{moduleName}}.Errors.StreamError)}` from a read; a stall longer than the
+  transport's `idle_timeout` raises `#{inspect({{moduleName}}.Errors.NetworkTimeoutError)}`.
+  Closing the client cancels the streams still open: their next read raises
+  `RuntimeError` ("ApiClient has been closed and can no longer send requests").
+
+  `inspect/1` shows the status code and the number of bytes delivered, never the
+  headers, the URL or the content.
+  """
+
+  @typedoc """
+  * `status_code` - The HTTP status code of the response.
+  * `headers` - The response headers, with lower-cased names and repeated values joined by `", "`.
+  """
+  @type t :: %__MODULE__{
+          status_code: integer(),
+          headers: %{optional(String.t()) => String.t()},
+          source: Enumerable.t(),
+          closer: (-> :ok),
+          counters: :atomics.atomics_ref()
+        }
+
+  # `counters` holds the bytes delivered (slot 1) and the closed flag (slot 2)
+  # in an `:atomics` reference, so a struct that is itself immutable can count
+  # and close from any process.
+  defstruct [:status_code, :headers, :source, :closer, :counters]
+
+  @doc """
+  Wraps an open response body.
+
+  `source` is an `Enumerable` of binaries and `closer` a zero-arity function
+  that aborts the connection; this stream calls it once, when it is closed.
+  """
+  @spec new(integer(), %{optional(String.t()) => String.t()}, Enumerable.t(), (-> :ok)) :: t()
+  def new(status_code, headers, source, closer \\ &{{moduleName}}.ApiStreamResponse.no_close/0) do
+    %__MODULE__{
+      status_code: status_code,
+      headers: headers,
+      source: source,
+      closer: closer,
+      counters: :atomics.new(2, signed: false)
+    }
+  end
+
+  @doc """
+  Reads every remaining byte, closes the stream and returns the bytes, so the
+  call leaves nothing open.
+
+  Returns `{:error, exception}` when the read fails (see `read_all!/1`).
+  """
+  @spec read_all(t()) :: {:ok, binary()} | {:error, Exception.t()}
+  def read_all(%__MODULE__{} = stream) do
+    {:ok, read_all!(stream)}
+  rescue
+    error in [
+      {{moduleName}}.Errors.ApiError,
+      {{moduleName}}.Errors.NetworkError,
+      {{moduleName}}.Errors.NetworkTimeoutError,
+      {{moduleName}}.Errors.StreamError
+    ] ->
+      {:error, error}
+
+    error in [RuntimeError] ->
+      if error.message == {{moduleName}}.DefaultApiClient.closed_message() do
+        {:error, error}
+      else
+        reraise error, __STACKTRACE__
+      end
+  end
+
+  @doc """
+  Same as `read_all/1` but returns the bytes and raises on failure.
+  """
+  @spec read_all!(t()) :: binary()
+  def read_all!(%__MODULE__{} = stream) do
+    stream |> Enum.to_list() |> IO.iodata_to_binary()
+  end
+
+  @doc """
+  Closes the stream and aborts the connection. Idempotent: later calls do
+  nothing.
+  """
+  @spec close(t()) :: :ok
+  def close(%__MODULE__{counters: counters, closer: closer}) do
+    if :atomics.compare_exchange(counters, 2, 0, 1) == :ok, do: closer.()
+
+    :ok
+  end
+
+  @doc "The number of bytes handed to the caller so far."
+  @spec bytes_delivered(t()) :: non_neg_integer()
+  def bytes_delivered(%__MODULE__{counters: counters}), do: :atomics.get(counters, 1)
+
+  @doc false
+  # The chunks of the body as a lazy stream: starting it checks that the stream
+  # is open, and it closes the stream when it ends, when the consumer stops
+  # early and when a read raises.
+  @spec chunks(t()) :: Enumerable.t()
+  def chunks(%__MODULE__{} = stream) do
+    Stream.resource(
+      fn -> open!(stream) end,
+      fn
+        :done -> {:halt, :done}
+        continuation -> next_chunk(stream, continuation)
+      end,
+      fn _state -> close(stream) end
+    )
+  end
+
+  defp open!(%__MODULE__{counters: counters, source: source}) do
+    if :atomics.get(counters, 2) == 1 do
+      raise RuntimeError, "ByteStream has been closed and can no longer be read"
+    end
+
+    &Enumerable.reduce(source, &1, fn chunk, _acc -> {:suspend, chunk} end)
+  end
+
+  defp next_chunk(%__MODULE__{counters: counters}, continuation) do
+    case continuation.({:cont, nil}) do
+      {:suspended, <<>>, next} ->
+        {[], next}
+
+      {:suspended, chunk, next} ->
+        :atomics.add(counters, 1, byte_size(chunk))
+        {[chunk], next}
+
+      _finished ->
+        {:halt, :done}
+    end
+  end
+
+  defimpl Enumerable do
+    def reduce(stream, acc, fun), do: Enumerable.reduce({{moduleName}}.ByteStream.chunks(stream), acc, fun)
+
+    def count(_stream), do: {:error, __MODULE__}
+
+    def member?(_stream, _value), do: {:error, __MODULE__}
+
+    def slice(_stream), do: {:error, __MODULE__}
+  end
+
+  # The status and the bytes delivered: the headers, the URL and the data never show.
+  defimpl Inspect do
+    def inspect(%{status_code: status_code, counters: counters}, _opts) do
+      "#{{moduleName}}.ByteStream<status_code: #{status_code}, bytes_delivered: #{:atomics.get(counters, 1)}>"
+    end
+  end
+end

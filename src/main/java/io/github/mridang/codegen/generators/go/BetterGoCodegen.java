@@ -517,6 +517,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/pet_api_test.mustache", "test", "pet_api_test.go"));
+            /* Golden only: it is written against the fixture's own operations. */
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/paginator_test.mustache", "pkg", "paginator_test.go"));
             supportingFiles.add(
                     new SupportingFile("test/model_test.mustache", "test", "model_test.go"));
             supportingFiles.add(
@@ -617,6 +621,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/call_hook_test.mustache", "pkg", "call_hook_test.go"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/event_stream_test.mustache", "pkg", "event_stream_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/default_api_client_unit_test.mustache",
                             "pkg",
                             "default_api_client_unit_test.go"));
@@ -708,6 +715,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "pkg/errors",
                         "network_timeout_error.go"),
                 new SupportingFileSpec(
+                        "errors/stream_error.mustache", "pkg/errors", "stream_error.go"),
+                new SupportingFileSpec(
+                        "errors/pagination_error.mustache", "pkg/errors", "pagination_error.go"),
+                new SupportingFileSpec(
                         "errors/serialization_error.mustache",
                         "pkg/errors",
                         "serialization_error.go"),
@@ -731,6 +742,19 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("otelhook.mustache", "pkg/otelhook", "otelhook.go"),
                 new SupportingFileSpec("api_response.mustache", "pkg", "api_http_response.go"),
                 new SupportingFileSpec("api_result.mustache", "pkg", "api_result.go"),
+                new SupportingFileSpec(
+                        "api_stream_response.mustache", "pkg", "api_stream_response.go"),
+                new SupportingFileSpec("body_source.mustache", "pkg", "body_source.go"),
+                new SupportingFileSpec("page.mustache", "pkg", "page.go"),
+                new SupportingFileSpec("paginator.mustache", "pkg", "paginator.go"),
+                new SupportingFileSpec("link_header.mustache", "pkg", "link_header.go"),
+                new SupportingFileSpec("byte_stream.mustache", "pkg", "byte_stream.go"),
+                new SupportingFileSpec("event_stream.mustache", "pkg", "event_stream.go"),
+                new SupportingFileSpec(
+                        "server_sent_event.mustache", "pkg", "server_sent_event.go"),
+                new SupportingFileSpec(
+                        "json_lines_stream.mustache", "pkg", "json_lines_stream.go"),
+                new SupportingFileSpec("sse_stream.mustache", "pkg", "sse_stream.go"),
                 new SupportingFileSpec("api_client.mustache", "pkg", "api_client.go"),
                 new SupportingFileSpec(
                         "default_api_client.mustache", "pkg", "default_api_client.go"),
@@ -1645,12 +1669,220 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     op.vendorExtensions.put(
                             "hasMultipleConsumes", hasMultipleConsumes);
                     stampContentParams(op);
+                    markBinaryUpload(op);
                 }
             }
         }
         final OperationsMap processed = super.postProcessOperationsWithModels(objs, allModels);
         reorderServerBeforeOptions(processed);
+        markBinaryStreams(processed);
+        markPagination(processed);
         return processed;
+    }
+
+    /**
+     * Gives a paged operation the Go names the templates need: the paginator type, the cursor type
+     * ({@code NoCursor} for a list that is followed by {@code Link} header) and the field of the
+     * options struct that holds the cursor. The shared detector has already decided which operations
+     * are paged.
+     *
+     * @param objs the processed operations map
+     */
+    @SuppressWarnings("unchecked")
+    private static void markPagination(final OperationsMap objs) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null) {
+            return;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        for (final CodegenOperation op : ops) {
+            markPaged(op);
+        }
+    }
+
+    /**
+     * Stamps the Go names of one paged operation.
+     *
+     * @param op the operation
+     */
+    @SuppressWarnings("unchecked")
+    static void markPaged(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Object pagination = ((Map<String, Object>) decorators).get("pagination");
+        if (!(pagination instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        final boolean link = Boolean.TRUE.equals(p.get("isLink"));
+        final String cursorType = link ? "NoCursor" : String.valueOf(p.get("cursorType"));
+        p.put("goCursorType", cursorType);
+        p.put("goPaginatorType", "*Paginator[" + p.get("itemType") + ", " + cursorType + "]");
+        if (!link) {
+            p.put("goCursorField", optionsFieldName(String.valueOf(p.get("requestParamName"))));
+        }
+    }
+
+    /**
+     * A raw binary request body is a {@code *BodySource}: the operation takes it, in every
+     * signature, instead of an {@code io.Reader}. It runs before the shared pass, which copies
+     * the body type into the signature arguments. Multipart and every other body kind keep the
+     * type the spec maps.
+     *
+     * @param op the operation
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "*BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "*BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "*BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "*BodySource";
+                }
+            }
+        }
+    }
+
+    /**
+     * A binary success response is returned as a {@code *ByteStream} by the one operation method
+     * (D119), so after the shared pass has computed {@code streamKind} the return type becomes
+     * {@code ByteStream} and the decorator {@code streamsBinary} tells the api template to call
+     * {@code invokeApiForStream}.
+     *
+     * @param objs the processed operations map
+     */
+    @SuppressWarnings("unchecked")
+    private static void markBinaryStreams(final OperationsMap objs) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null) {
+            return;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        for (final CodegenOperation op : ops) {
+            markBinaryStream(op);
+        }
+    }
+
+    /**
+     * Rewrites one operation whose {@code streamKind} is {@code binary}.
+     *
+     * @param op the operation
+     */
+    @SuppressWarnings("unchecked")
+    static void markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        final boolean sse = "sse".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean jsonLines =
+                "jsonlines".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        d.put("streamsBinary", binary);
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+            op.returnContainer = null;
+            op.isArray = false;
+            op.vendorExtensions.put("returnByValue", false);
+        }
+        if (sse || jsonLines) {
+            /* An event stream whose data is text hands it over raw; every other
+             * stream decodes each line or data field as the declared schema. */
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String declaredType = declared == null ? null : declared.toString();
+            final boolean typed = !text && declaredType != null;
+            final String item = typed && declaredType != null ? declaredType : "string";
+            d.put("streamTyped", typed);
+            d.put("streamData", item);
+            op.returnType = (sse ? "SseStream[" : "JsonLinesStream[") + item + "]";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+            op.returnContainer = null;
+            op.isArray = false;
+            op.vendorExtensions.put("returnByValue", false);
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. Nothing is rendered when the spec has none.
+     *
+     * @param objs the supporting file data
+     * @return the data with the stream operation added
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(final Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null
+                                            ? null
+                                            : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            objs.put(
+                    "has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation",
+                    found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**

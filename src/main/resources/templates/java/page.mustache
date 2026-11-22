@@ -1,0 +1,29 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import javax.annotation.Nullable;
+
+/**
+ * One page of a paged list: the items it holds, the cursor of the page after it, and the result of
+ * the request that returned it.
+ *
+ * @param <T> the item type
+ * @param <C> the cursor type, which is the type of the cursor request parameter; {@link Void} for a
+ *     list that is followed by {@code Link} header
+ * @param items the items of this page, in order (an unmodifiable list)
+ * @param nextCursor the cursor of the next page, or {@code null} on the last page; always
+ *     {@code null} for a list that is followed by {@code Link} header
+ * @param result what the matching {@code ...WithHttpInfo} method returns for this page: the status,
+ *     the headers, the raw body and the decoded body
+ */
+public record Page<T, C>(List<T> items, @Nullable C nextCursor, ApiResult<?> result) {
+
+    /** Copies the items so the page cannot be changed after it was built. */
+    public Page {
+        items = Collections.unmodifiableList(new ArrayList<>(items));
+    }
+}

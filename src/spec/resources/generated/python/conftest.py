@@ -1,5 +1,8 @@
 import importlib.util
 import os
+import socket
+import struct
+import threading
 import time
 
 import pytest
@@ -215,3 +218,166 @@ def system_root_pem():
         )
     assert block is not None, "the system trust bundle holds no certificate"
     return block.group(0) + "\n"
+
+
+class RawConnection:
+    """One accepted connection of a :class:`RawServer`, handed to the script.
+
+    The script writes the response by hand, so a test can stall a body, cut it
+    short or reset the connection, which neither the shared mock server nor a
+    plain HTTP server can do.
+    """
+
+    def __init__(self, server, sock, hit, request_head):
+        self.server = server
+        self.sock = sock
+        self.hit = hit
+        self.request_head = request_head
+
+    def upload(self, on_first=None):
+        """Read the request body that follows the head and return ``(data, chunked)``.
+
+        A chunked body is read chunk by chunk and one with a Content-Length to its end.
+        ``on_first`` runs once the first bytes have arrived, while the rest is still to come.
+        """
+        lower = self.request_head.lower()
+        reader = self.sock.makefile("rb")
+        received = b""
+        if "transfer-encoding: chunked" in lower:
+            while True:
+                size = reader.readline().strip()
+                if not size:
+                    return received, True
+                length = int(size, 16)
+                if length == 0:
+                    reader.readline()
+                    return received, True
+                received += reader.read(length)
+                reader.readline()
+                if on_first is not None:
+                    on_first()
+        for line in lower.split("\r\n"):
+            if line.startswith("content-length:"):
+                received = reader.read(int(line.split(":", 1)[1]))
+        if on_first is not None:
+            on_first()
+        return received, False
+
+    def head(self, status, *headers):
+        lines = [f"HTTP/1.1 {status} Test", *headers, "Connection: close", "", ""]
+        self.sock.sendall("\r\n".join(lines).encode("latin-1"))
+
+    def chunk(self, data):
+        if isinstance(data, str):
+            data = data.encode()
+        self.sock.sendall(f"{len(data):x}\r\n".encode() + data + b"\r\n")
+
+    def end(self):
+        self.sock.sendall(b"0\r\n\r\n")
+
+    def send(self, data):
+        self.sock.sendall(data.encode() if isinstance(data, str) else data)
+
+    def reset(self):
+        """Make the close of the socket reset the connection instead of ending it cleanly."""
+        self.sock.setsockopt(
+            socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0)
+        )
+
+    def hold(self):
+        """Wait until the test releases the server; False when that took too long."""
+        return self.server.release.wait(20)
+
+    def stream_forever(self, data=b"x" * 4096, pause=0.005):
+        """Send chunks until the client drops the connection, which sets ``client_gone``."""
+        try:
+            while True:
+                self.chunk(data)
+                time.sleep(pause)
+        except OSError:
+            self.server.client_gone.set()
+
+
+class RawServer:
+    """An in-process HTTP/1.1 server on a raw socket that runs ``script(connection)``
+    for every connection it accepts."""
+
+    def __init__(self, script):
+        self._script = script
+        self._listener = socket.socket()
+        self._listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._listener.bind(("127.0.0.1", 0))
+        self._listener.listen(50)
+        self._lock = threading.Lock()
+        self._sockets = []
+        self.hits = 0
+        self.heads = []
+        self.release = threading.Event()
+        self.client_gone = threading.Event()
+        threading.Thread(target=self._accept_loop, daemon=True).start()
+
+    @property
+    def port(self):
+        return self._listener.getsockname()[1]
+
+    @property
+    def base_url(self):
+        return f"http://127.0.0.1:{self.port}"
+
+    def url(self, path):
+        return self.base_url + path
+
+    def _accept_loop(self):
+        while True:
+            try:
+                sock, _ = self._listener.accept()
+            except OSError:
+                return
+            with self._lock:
+                self._sockets.append(sock)
+            threading.Thread(target=self._handle, args=(sock,), daemon=True).start()
+
+    def _handle(self, sock):
+        try:
+            head = b""
+            while not head.endswith(b"\r\n\r\n"):
+                data = sock.recv(1)
+                if not data:
+                    return
+                head += data
+            text = head.decode("latin-1")
+            with self._lock:
+                self.hits += 1
+                hit = self.hits
+                self.heads.append(text)
+            self._script(RawConnection(self, sock, hit, text))
+        except OSError:
+            pass
+        finally:
+            sock.close()
+
+    def close(self):
+        self.release.set()
+        self._listener.close()
+        with self._lock:
+            sockets = list(self._sockets)
+        for sock in sockets:
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+
+@pytest.fixture
+def raw_server():
+    """Starts a :class:`RawServer` for a script and closes every one at teardown."""
+    servers = []
+
+    def start(script):
+        server = RawServer(script)
+        servers.append(server)
+        return server
+
+    yield start
+    for server in servers:
+        server.close()

@@ -250,7 +250,7 @@ final class PetApiTests {
     let api = petApiForIntegration()
     let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
 
-    try await api.setPetAvatar(petId: 1, body: imageData)
+    try await api.setPetAvatar(petId: 1, body: BodySource.of(imageData))
   }
 
   @Test func testBhvOperations076SetPetAvatarRejectsUnknownContentType() async throws {
@@ -260,7 +260,7 @@ final class PetApiTests {
     // onto the wire as an undeclared Content-Type.
     await #expect(throws: ConfigurationError.self) {
       try await api.setPetAvatar(
-        petId: 1, body: imageData, requestContentType: "application/unknown-type")
+        petId: 1, body: BodySource.of(imageData), requestContentType: "application/unknown-type")
     }
   }
 
@@ -272,7 +272,7 @@ final class PetApiTests {
 
     let error = await #expect(throws: ConfigurationError.self) {
       try await api.setPetAvatar(
-        petId: 1, body: Data([0xFF]), requestContentType: "application/unknown-type")
+        petId: 1, body: BodySource.of(Data([0xFF])), requestContentType: "application/unknown-type")
     }
     guard case .invalidArgument(let message)? = error else {
       Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
@@ -305,7 +305,7 @@ final class PetApiTests {
 
     // setPetAvatar is a convenience method that parses the (empty) response;
     // capture-only, mirroring the neighbouring request-capture tests.
-    try? await api.setPetAvatar(petId: 1, body: imageData)
+    try? await api.setPetAvatar(petId: 1, body: BodySource.of(imageData))
 
     #expect(
       mockClient.lastBody == imageData,
@@ -334,7 +334,7 @@ final class PetApiTests {
     let defaultConfig = ConfigurationBuilder().baseURL("https://example.com").build()
     let defaultApi = PetApi(apiClient: defaultClient, config: defaultConfig)
 
-    try? await defaultApi.setPetAvatar(petId: 1, body: imageData)
+    try? await defaultApi.setPetAvatar(petId: 1, body: BodySource.of(imageData))
 
     #expect(
       defaultClient.lastHeaders["Content-Type"] == "image/jpeg",
@@ -349,7 +349,8 @@ final class PetApiTests {
     let pngConfig = ConfigurationBuilder().baseURL("https://example.com").build()
     let pngApi = PetApi(apiClient: pngClient, config: pngConfig)
 
-    try? await pngApi.setPetAvatar(petId: 1, body: imageData, requestContentType: "image/png")
+    try? await pngApi.setPetAvatar(
+      petId: 1, body: BodySource.of(imageData), requestContentType: "image/png")
 
     #expect(
       pngClient.lastBody == imageData,
@@ -371,7 +372,8 @@ final class PetApiTests {
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: client, config: config)
 
-    try? await api.setPetAvatar(petId: 1, body: imageData, requestContentType: "application/json")
+    try? await api.setPetAvatar(
+      petId: 1, body: BodySource.of(imageData), requestContentType: "application/json")
 
     #expect(client.lastBody == imageData)
     #expect(client.lastHeaders["Content-Type"] == "application/json")
@@ -497,11 +499,11 @@ final class PetApiTests {
     let api = petApiForIntegration()
 
     let r = try await api.getPetAvatarWithHTTPInfo(petId: 1)
-    #expect(r.data != nil)
-    /* The returned bytes must be the decoded binary payload, not the
-       utf8 bytes of the base64 string the transport delivers. Re-encoding
-       the decoded Data as base64 must round-trip back to the raw body. */
-    #expect(r.data?.base64EncodedString() == r.rawBody)
+    let stream = try #require(r.data)
+    /* The bytes are read from the stream as they arrive, and the raw body
+       of a stream result is empty. */
+    #expect(try await stream.readAll().isEmpty == false)
+    #expect(r.rawBody.isEmpty)
   }
 
   @Test func testBhvOperations046GetPetAvatarThumbnail() async throws {
@@ -552,12 +554,12 @@ final class PetApiTests {
     let api = petApiForIntegration()
 
     let result = try await api.downloadPetDocument(petId: 1, documentId: 1)
-    _ = result
+    _ = try await result.readAll()
   }
 
   @Test func testBhvOperations055GetPetPhoto() async throws {
     let api = petApiForIntegration()
-    _ = try await api.getPetPhoto(petId: 1, photoId: 1)
+    _ = try await api.getPetPhoto(petId: 1, photoId: 1).readAll()
   }
 
   @Test func testBhvOperations058GetPetTag() async throws {
@@ -720,7 +722,26 @@ final class PetApiTests {
     let mockApi = petApiForMock(
       statusCode: 200, body: "FAKE_BINARY_DATA", contentType: "application/octet-stream")
     let result = try await mockApi.getPetAvatar(petId: 1)
-    _ = result
+    #expect(try await result.readAll() == Data("FAKE_BINARY_DATA".utf8))
+  }
+
+  /* A binary stream exposes the status and the lower-cased response headers, and its info result carries the same with an empty raw body. */
+  @Test func testBhvStreaming009ABinaryStreamExposesTheStatusAndTheLowerCasedResponseHeaders()
+    async throws
+  {
+    let api = petApiForIntegration()
+    let stream = try await api.getPetAvatar(petId: 1)
+    defer { stream.close() }
+    #expect(stream.statusCode == 200)
+    #expect(stream.headers.keys.contains("content-type"))
+    #expect(stream.headers.keys.allSatisfy { $0 == $0.lowercased() })
+
+    let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
+    let info = try #require(result.data)
+    defer { info.close() }
+    #expect(result.statusCode == info.statusCode)
+    #expect(result.headers == info.headers)
+    #expect(result.rawBody.isEmpty)
   }
 
   // byte-over-json: `format: byte` returned as application/json arrives as a JSON
@@ -1996,14 +2017,15 @@ final class PetApiTests {
     #expect(mockClient.lastURL.contains("colors=blue%7Cblack"))
   }
 
-  /* A binary response is returned as decoded bytes, while the raw body keeps the encoded text. */
-  @Test func testBhvMisc216ABinaryResponseIsReturnedDecodedWhileTheRawBodyKeepsTheEncodedText()
+  /* A binary response is returned as a stream of its decoded bytes, while the raw body of the result stays empty. */
+  @Test
+  func testBhvMisc216ABinaryResponseIsReturnedAsAStreamOfDecodedBytesWhileTheRawBodyStaysEmpty()
     async throws
   {
     let mockApi = petApiForMock(statusCode: 200, body: "aGVsbG8=", contentType: "image/png")
     let result = try await mockApi.getPetAvatarWithHTTPInfo(petId: 1)
-    #expect(result.data == Data("hello".utf8))
-    #expect(result.rawBody == "aGVsbG8=")
+    #expect(try await #require(result.data).readAll() == Data("hello".utf8))
+    #expect(result.rawBody.isEmpty)
   }
 
   /* A binary upload sends the in-memory bytes it is given. */
@@ -2169,12 +2191,26 @@ private final class MockApiClient: ApiClient, @unchecked Sendable {
     lastMethod = method
     lastURL = url
     lastHeaders = headers
-    lastBody = body as? Data
+    lastBody = body as? Data ?? (body as? BodySource).flatMap { try? $0.open().data }
     return ApiHttpResponse(
       statusCode: responseStatusCode,
       body: responseBody,
       headers: responseHeaders
     )
+  }
+
+  func sendStreaming(
+    method: String, url: String, headers: [String: String], body: Any?,
+    timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+  ) async throws -> ApiStreamResponse {
+    lastMethod = method
+    lastURL = url
+    lastHeaders = headers
+    lastBody = body as? Data ?? (body as? BodySource).flatMap { try? $0.open().data }
+    let contentType = responseHeaders.first { $0.key.lowercased() == "content-type" }?.value
+    return stubStreamResponse(
+      status: responseStatusCode, headers: responseHeaders,
+      body: stubBodyBytes(responseBody, contentType: contentType))
   }
 }
 
@@ -2309,7 +2345,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func downloadPetDocument(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
-  ) async throws -> Data {
+  ) async throws -> ByteStream {
     var parts: [String] = []
     parts.append(String(describing: petId))
     parts.append(String(describing: documentId))
@@ -2321,7 +2357,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func downloadPetDocumentWithHTTPInfo(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
-  ) async throws -> ApiResult<Data> {
+  ) async throws -> ApiResult<ByteStream> {
     var parts: [String] = []
     parts.append(String(describing: petId))
     parts.append(String(describing: documentId))
@@ -2416,7 +2452,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
-  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> Data {
+  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> ByteStream {
     var parts: [String] = []
     parts.append(String(describing: petId))
     var call = "getPetAvatar(" + parts.joined(separator: ",") + ")"
@@ -2426,7 +2462,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions?) async throws
-    -> ApiResult<Data>
+    -> ApiResult<ByteStream>
   {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -2542,7 +2578,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws
-    -> Data
+    -> ByteStream
   {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -2554,7 +2590,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?)
-    async throws -> ApiResult<Data>
+    async throws -> ApiResult<ByteStream>
   {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -2635,8 +2671,155 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func listPetArchive(options: ListPetArchiveOptions?) async throws -> PetArchivePage {
+    var parts: [String] = []
+    var call = "listPetArchive(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetArchiveWithHTTPInfo(options: ListPetArchiveOptions?) async throws -> ApiResult<
+    PetArchivePage
+  > {
+    var parts: [String] = []
+    var call = "listPetArchiveWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetCatalog(options: ListPetCatalogOptions?) async throws -> PetCatalogPage {
+    var parts: [String] = []
+    var call = "listPetCatalog(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetCatalogWithHTTPInfo(options: ListPetCatalogOptions?) async throws -> ApiResult<
+    PetCatalogPage
+  > {
+    var parts: [String] = []
+    var call = "listPetCatalogWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetCatalogPages(options: ListPetCatalogOptions?) -> Paginator<Pet, String> {
+    record("listPetCatalogPages")
+    return Paginator<Pet, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetCatalogPage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
+  public func listPetEvents(options: ListPetEventsOptions?) async throws -> PetEventPage {
+    var parts: [String] = []
+    var call = "listPetEvents(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetEventsWithHTTPInfo(options: ListPetEventsOptions?) async throws -> ApiResult<
+    PetEventPage
+  > {
+    var parts: [String] = []
+    var call = "listPetEventsWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetEventsPages(options: ListPetEventsOptions?) -> Paginator<String, String> {
+    record("listPetEventsPages")
+    return Paginator<String, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetEventPage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
+  public func listPetFeed(options: ListPetFeedOptions?) async throws -> [Pet] {
+    var parts: [String] = []
+    var call = "listPetFeed(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetFeedWithHTTPInfo(options: ListPetFeedOptions?) async throws -> ApiResult<[Pet]>
+  {
+    var parts: [String] = []
+    var call = "listPetFeedWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetFeedPages(options: ListPetFeedOptions?) -> Paginator<Pet, Void> {
+    record("listPetFeedPages")
+    return Paginator<Pet, Void>.ofLink(
+      baseURL: "", requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<[Pet]> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil })
+  }
+
+  public func listPetMatches(options: ListPetMatchesOptions?) async throws -> PetMatchPage {
+    var parts: [String] = []
+    var call = "listPetMatches(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetMatchesWithHTTPInfo(options: ListPetMatchesOptions?) async throws -> ApiResult<
+    PetMatchPage
+  > {
+    var parts: [String] = []
+    var call = "listPetMatchesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetNotes(options: ListPetNotesOptions?) async throws -> PetNotePage {
+    var parts: [String] = []
+    var call = "listPetNotes(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetNotesWithHTTPInfo(options: ListPetNotesOptions?) async throws -> ApiResult<
+    PetNotePage
+  > {
+    var parts: [String] = []
+    var call = "listPetNotesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetNotesPages(options: ListPetNotesOptions?) -> Paginator<String, String> {
+    record("listPetNotesPages")
+    return Paginator<String, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetNotePage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
   public func setPetAvatar(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -2647,7 +2830,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func setPetAvatarWithHTTPInfo(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws -> ApiResult<Void> {
     var parts: [String] = []
     parts.append(String(describing: petId))

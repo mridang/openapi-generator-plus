@@ -35,6 +35,7 @@ import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -280,6 +281,52 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Marks the raw binary request bodies before the shared pass copies the body type into the
+     * signature arguments, so every signature of such an operation takes a {@code BodySource}.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null && operations.get("operation") instanceof List) {
+            for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+                markBinaryUpload(op);
+            }
+        }
+        return super.postProcessOperationsWithModels(objs, allModels);
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of {@code Data}. Multipart and every other body kind keep the type the
+     * spec maps.
+     *
+     * @param op the operation
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
+    }
+
+    /**
      * Builds the operation decorators, then puts the per-operation server
      * ahead of the options object in every signature-argument list. The order
      * of an operation's arguments is required parameters, server, options, so
@@ -312,6 +359,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             }
         }
         d.put("hasOptionsObject", hasOptionsObject);
+        markBinaryStream(op, d);
+        markPaginator(d);
         for (final String key : List.of(
                 "signatureArgs", "signatureArgsNoOptions")) {
             final Object value = d.get(key);
@@ -319,6 +368,111 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 d.put(key, serverBeforeOptions((List<Map<String, Object>>) value));
             }
         }
+    }
+
+    /**
+     * Gives a paged operation the Swift type of its paginator, {@code paginatorType}: the item type
+     * and the type of the cursor parameter, or {@code Void} for a list that is followed by its
+     * {@code Link} header.
+     *
+     * @param decorators the operation's decorator map
+     */
+    @SuppressWarnings("unchecked")
+    static void markPaginator(final Map<String, Object> decorators) {
+        final Object pagination = decorators.get("pagination");
+        if (!(pagination instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        p.put(
+                "paginatorType",
+                "Paginator<" + p.get("itemType") + ", "
+                        + (Boolean.TRUE.equals(p.get("isLink")) ? "Void" : p.get("cursorType")) + ">");
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator
+     * {@code streamsBinary} tells the template to call {@code invokeAPIForStream}.
+     *
+     * @param op the operation
+     * @param d the operation's decorator map
+     */
+    static void markBinaryStream(final CodegenOperation op, final Map<String, Object> d) {
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+        final boolean streamOnly = Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && streamOnly;
+        final boolean jsonLines = "jsonlines".equals(kind) && streamOnly;
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            d.put("streamTyped", !"String".equals(item));
+            d.put("streamItemSwift", item);
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation of each streaming kind: the one that returns
+     * a {@code ByteStream} ({@code binaryStreamOperation}), a {@code JsonLinesStream}
+     * ({@code jsonLinesStreamOperation}) and an {@code SseStream} ({@code sseStreamOperation}),
+     * each with its operations map ({@code ...Group}) and a {@code has...Operation} flag, so the
+     * Streaming examples call a real operation of the spec under generation. Nothing is rendered
+     * for a kind the spec has no operation of.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**
@@ -671,6 +825,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "InternalServerError.swift"),
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "NetworkError.swift"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "NetworkTimeoutError.swift"),
+            new SupportingFileSpec("errors/stream_error.mustache", errorsDir, "StreamError.swift"),
             new SupportingFileSpec("errors/serialization_error.mustache", errorsDir, "SerializationError.swift"),
             new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsDir, "OAuth2ServerError.swift"),
             new SupportingFileSpec("errors/oauth2_token_error.mustache", errorsDir, "OAuth2TokenError.swift"),
@@ -686,6 +841,19 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("call_outcome.mustache", srcDir, "CallOutcome.swift"),
             new SupportingFileSpec("api_response.mustache", srcDir, "ApiHttpResponse.swift"),
             new SupportingFileSpec("api_result.mustache", srcDir, "ApiResult.swift"),
+            new SupportingFileSpec("api_stream_response.mustache", srcDir, "ApiStreamResponse.swift"),
+            new SupportingFileSpec("body_source.mustache", srcDir, "BodySource.swift"),
+            new SupportingFileSpec("paginator.mustache", srcDir, "Paginator.swift"),
+            new SupportingFileSpec("page.mustache", srcDir, "Page.swift"),
+            new SupportingFileSpec("link_header.mustache", srcDir, "LinkHeader.swift"),
+            new SupportingFileSpec("errors/pagination_error.mustache", errorsDir, "PaginationError.swift"),
+            new SupportingFileSpec("byte_stream.mustache", srcDir, "ByteStream.swift"),
+            new SupportingFileSpec("stream_transfer.mustache", srcDir, "StreamTransfer.swift"),
+            new SupportingFileSpec("event_stream.mustache", srcDir, "EventStream.swift"),
+            new SupportingFileSpec("server_sent_event.mustache", srcDir, "ServerSentEvent.swift"),
+            new SupportingFileSpec("stream_options.mustache", srcDir, "StreamOptions.swift"),
+            new SupportingFileSpec("json_lines_stream.mustache", srcDir, "JsonLinesStream.swift"),
+            new SupportingFileSpec("sse_stream.mustache", srcDir, "SseStream.swift"),
             new SupportingFileSpec("api_client.mustache", srcDir, "ApiClient.swift"),
             new SupportingFileSpec("default_api_client.mustache", srcDir, "DefaultApiClient.swift"),
             new SupportingFileSpec("base_api.mustache", Path.of(srcDir, "Api").toString(), "BaseApi.swift"),
@@ -734,6 +902,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "test/DefaultApiClientUnitTests.mustache",
                             testDir,
                             "DefaultApiClientUnitTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/EventStreamTests.mustache", testDir, "EventStreamTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/TransportOptionsTests.mustache",
@@ -1363,6 +1534,23 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         context.put("className", className);
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
+        // A paged operation that follows a token cursor can copy its Options with the next cursor,
+        // so every page is sent with its own cursor and everything else unchanged.
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        final Object pagination =
+                opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
+        final boolean cursorCopy =
+                pagination instanceof Map
+                        && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"));
+        context.put("hasCursorCopy", cursorCopy);
+        if (cursorCopy && pagination instanceof Map) {
+            final Map<?, ?> plan = (Map<?, ?>) pagination;
+            final Object cursorName = plan.get("requestParamName");
+            context.put("cursorType", plan.get("cursorType"));
+            for (final Map<String, Object> param : params) {
+                param.put("isCursor", Objects.equals(param.get("name"), cursorName));
+            }
+        }
         context.put("params", params);
         /* F857: no per-operation authenticator. An operation uses the credential the client
          * holds for the scheme its spec names, so the Options object has no `auth` field. */

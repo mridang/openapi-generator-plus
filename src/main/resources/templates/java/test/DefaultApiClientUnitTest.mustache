@@ -3420,7 +3420,7 @@ class DefaultApiClientUnitTest {
                   "PUT",
                   urlOf(scripted),
                   Map.of(),
-                  new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
+                  BodySource.once(new java.io.ByteArrayInputStream(new byte[] {1, 2, 3})));
       assertEquals(503, response.statusCode());
       assertEquals(1, hits.get());
     } finally {
@@ -3469,6 +3469,11 @@ class DefaultApiClientUnitTest {
     assertTrue(DefaultApiClient.isReplayableBody("text"));
     assertTrue(DefaultApiClient.isReplayableBody(new byte[] {1}));
     assertTrue(DefaultApiClient.isReplayableBody(Map.of("field", "value")));
+    assertTrue(DefaultApiClient.isReplayableBody(BodySource.of(new byte[] {1})));
+    assertTrue(DefaultApiClient.isReplayableBody(BodySource.fromSupplier(() -> null)));
+    assertFalse(
+        DefaultApiClient.isReplayableBody(
+            BodySource.once(new java.io.ByteArrayInputStream(new byte[0]))));
     assertFalse(DefaultApiClient.isReplayableBody(new java.io.ByteArrayInputStream(new byte[0])));
     assertFalse(
         DefaultApiClient.isReplayableBody(
@@ -4812,5 +4817,1028 @@ class DefaultApiClientUnitTest {
             () -> client.sendRequest("GET", "http://localhost/start", Map.of(), null));
     assertFalse(ex instanceof {{invokerPackage}}.errors.NetworkException);
     assertEquals(302, ex.getStatusCode());
+  }
+
+  /** What a scripted raw server does with one connection: the hit number and the request head. */
+  interface RawScript {
+    void run(RawServer server, java.net.Socket socket, int hit, String head) throws Exception;
+  }
+
+  /**
+   * An in-process HTTP/1.1 server on a raw socket, so a test can stall a body, cut it short or
+   * reset the connection, which neither the shared mock server nor a plain HTTP server can do.
+   */
+  static final class RawServer implements AutoCloseable {
+    private final java.net.ServerSocket listener;
+    final java.util.concurrent.atomic.AtomicInteger hits =
+        new java.util.concurrent.atomic.AtomicInteger();
+    final List<String> heads = new java.util.concurrent.CopyOnWriteArrayList<>();
+    /** Opened by a test, or by closing the server, to let a script that waits on it carry on. */
+    final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+    /** Counted down by a script whose write failed because the client dropped the connection. */
+    final java.util.concurrent.CountDownLatch clientGone =
+        new java.util.concurrent.CountDownLatch(1);
+
+    private RawServer(java.net.ServerSocket listener) {
+      this.listener = listener;
+    }
+
+    /** Starts a server that runs {@code script} for every connection it accepts. */
+    static RawServer serve(RawScript script) throws IOException {
+      RawServer server =
+          new RawServer(new java.net.ServerSocket(0, 50, java.net.InetAddress.getLoopbackAddress()));
+      Thread.ofVirtual().start(() -> server.acceptLoop(script));
+      return server;
+    }
+
+    String url(String path) {
+      return "http://127.0.0.1:" + listener.getLocalPort() + path;
+    }
+
+    int port() {
+      return listener.getLocalPort();
+    }
+
+    /** Waits until the test releases the script; true when it did, false when it timed out. */
+    boolean awaitRelease() throws InterruptedException {
+      return release.await(20, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    private void acceptLoop(RawScript script) {
+      while (!listener.isClosed()) {
+        try {
+          java.net.Socket socket = listener.accept();
+          Thread.ofVirtual().start(() -> handle(socket, script));
+        } catch (IOException closed) {
+          return;
+        }
+      }
+    }
+
+    private void handle(java.net.Socket socket, RawScript script) {
+      try (socket) {
+        String head = readHead(socket.getInputStream());
+        int hit = hits.incrementAndGet();
+        heads.add(head);
+        script.run(this, socket, hit, head);
+      } catch (Exception ended) {
+        /* a script that drops the connection ends here, which is what it wanted */
+      }
+    }
+
+    private static String readHead(java.io.InputStream in) throws IOException {
+      StringBuilder head = new StringBuilder();
+      int value;
+      while ((value = in.read()) >= 0) {
+        head.append((char) value);
+        if (head.length() >= 4 && head.substring(head.length() - 4).equals("\r\n\r\n")) {
+          break;
+        }
+      }
+      return head.toString();
+    }
+
+    @Override
+    public void close() throws IOException {
+      release.countDown();
+      listener.close();
+    }
+  }
+
+  private static void rawHead(java.net.Socket socket, int status, String... headers)
+      throws IOException {
+    StringBuilder head = new StringBuilder("HTTP/1.1 " + status + " Test\r\n");
+    for (String header : headers) {
+      head.append(header).append("\r\n");
+    }
+    head.append("Connection: close\r\n\r\n");
+    OutputStream out = socket.getOutputStream();
+    out.write(head.toString().getBytes(StandardCharsets.ISO_8859_1));
+    out.flush();
+  }
+
+  private static void rawChunk(java.net.Socket socket, String data) throws IOException {
+    byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
+    OutputStream out = socket.getOutputStream();
+    out.write((Integer.toHexString(bytes.length) + "\r\n").getBytes(StandardCharsets.ISO_8859_1));
+    out.write(bytes);
+    out.write("\r\n".getBytes(StandardCharsets.ISO_8859_1));
+    out.flush();
+  }
+
+  private static void rawEnd(java.net.Socket socket) throws IOException {
+    socket.getOutputStream().write("0\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1));
+    socket.getOutputStream().flush();
+  }
+
+  /** Makes the next close of the socket reset the connection instead of ending it cleanly. */
+  private static void rawReset(java.net.Socket socket) throws IOException {
+    socket.setSoLinger(true, 0);
+  }
+
+  /** A script for other test classes: one chunk, then silence until the test releases the server. */
+  static void oneChunkThenHold(RawServer server, java.net.Socket socket, int hit, String head)
+      throws Exception {
+    rawHead(socket, 200, "Transfer-Encoding: chunked");
+    rawChunk(socket, "tick");
+    server.awaitRelease();
+  }
+
+  /** A script for other test classes: a complete two byte text response. */
+  static void replyOk(RawServer server, java.net.Socket socket, int hit, String head)
+      throws Exception {
+    rawHead(socket, 200, "Content-Type: text/plain", "Content-Length: 2");
+    socket.getOutputStream().write("ok".getBytes(StandardCharsets.ISO_8859_1));
+  }
+
+  private static DefaultApiClient streamingClient() {
+    return new DefaultApiClient(TransportOptions.builder().build());
+  }
+
+  private static ApiStreamResponse streamOf(RawServer server, String path) {
+    return streamingClient().sendStreaming("GET", server.url(path), Map.of(), null, null, null, null);
+  }
+
+  private static String text(byte[] bytes) {
+    return new String(bytes, StandardCharsets.UTF_8);
+  }
+
+  @Test
+  void bhvStreaming001ABinaryStreamDeliversTheBytesInOrderAndReturnsBeforeTheBodyHasEnded()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(
+                  socket, 200, "Content-Type: application/octet-stream", "Transfer-Encoding: chunked");
+              rawChunk(socket, "first-");
+              self.awaitRelease();
+              rawChunk(socket, "second");
+              rawEnd(socket);
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/blob");
+      assertEquals(200, response.statusCode());
+      assertEquals(1, server.release.getCount(), "the call returned while the body was unfinished");
+      assertEquals("first-", text(response.body().readNBytes(6)), "the first chunk arrives first");
+      server.release.countDown();
+      assertEquals("second", text(response.body().readAllBytes()), "then the rest, in order");
+    }
+  }
+
+  @Test
+  void bhvStreaming010TheCallTimeoutBoundsOnlyTheWaitForTheHeadersNotTheBody() throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Transfer-Encoding: chunked");
+              rawChunk(socket, "ab");
+              Thread.sleep(1200);
+              rawChunk(socket, "cd");
+              rawEnd(socket);
+            })) {
+      ApiStreamResponse response =
+          streamingClient()
+              .sendStreaming("GET", server.url("/items/blob"), Map.of(), null, 400, 0, 0);
+      assertEquals("abcd", text(response.body().readAllBytes()), "the body outlived the 400 ms timeout");
+    }
+  }
+
+  @Test
+  void bhvStreaming011TheIdleTimeoutRaisesANetworkTimeoutErrorWhenTheServerStallsInTheBody()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Transfer-Encoding: chunked");
+              rawChunk(socket, "ab");
+              self.awaitRelease();
+            })) {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().idleTimeout(300).build());
+      ApiStreamResponse response =
+          client.sendStreaming("GET", server.url("/items/blob"), Map.of(), null, null, null, null);
+      assertEquals("ab", text(response.body().readNBytes(2)));
+      long started = System.nanoTime();
+      {{invokerPackage}}.errors.NetworkTimeoutException timeout =
+          assertThrows(
+              {{invokerPackage}}.errors.NetworkTimeoutException.class,
+              () -> response.body().read());
+      assertEquals(0, timeout.getStatusCode());
+      assertTrue(
+          System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(5),
+          "the stall ended by the idle timeout and not by the server");
+      assertEquals(1, server.hits.get(), "a stalled body is not retried");
+    }
+  }
+
+  @Test
+  void bhvStreaming012AConnectionResetInTheMiddleOfTheBodyRaisesANetworkErrorAndIsNotRetried()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Transfer-Encoding: chunked");
+              rawChunk(socket, "ab");
+              Thread.sleep(100);
+              rawReset(socket);
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/blob");
+      assertThrows({{invokerPackage}}.errors.NetworkException.class, () -> response.body().readAllBytes());
+      assertEquals(1, server.hits.get(), "the default of two retries does not apply to a body");
+    }
+  }
+
+  @Test
+  void bhvStreaming013ABodyShorterThanItsContentLengthRaisesANetworkErrorAndNeverAShortSuccess()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Content-Length: 10");
+              socket.getOutputStream().write("abcd".getBytes(StandardCharsets.UTF_8));
+              socket.getOutputStream().flush();
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/blob");
+      assertThrows({{invokerPackage}}.errors.NetworkException.class, () -> response.body().readAllBytes());
+    }
+  }
+
+  @Test
+  void bhvStreaming014AStreamingCallRetriesA503BeforeTheHeadersAndThenStreamsTheRetriedResponse()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              if (hit == 1) {
+                rawHead(socket, 503, "Retry-After: 0", "Content-Length: 4");
+                socket.getOutputStream().write("nope".getBytes(StandardCharsets.UTF_8));
+                return;
+              }
+              rawHead(socket, 200, "Content-Length: 5");
+              socket.getOutputStream().write("hello".getBytes(StandardCharsets.UTF_8));
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/blob");
+      assertEquals(200, response.statusCode());
+      assertEquals("hello", text(response.body().readAllBytes()));
+      assertEquals(2, server.hits.get());
+    }
+  }
+
+  @Test
+  void bhvStreaming015AStreamingCallNeverRetriesAfterTheFirstBodyByteWasDelivered()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Transfer-Encoding: chunked");
+              rawChunk(socket, "part");
+              Thread.sleep(100);
+              rawReset(socket);
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/blob");
+      assertEquals("part", text(response.body().readNBytes(4)));
+      assertThrows({{invokerPackage}}.errors.NetworkException.class, () -> response.body().readAllBytes());
+      Thread.sleep(300);
+      assertEquals(1, server.hits.get(), "no second request after the first body byte");
+    }
+  }
+
+  @Test
+  void bhvStreaming016AStreamingCallFollowsARedirectBeforeTheBodyAndStripsCredentialsAcrossOrigins()
+      throws Exception {
+    try (RawServer target =
+            RawServer.serve(
+                (self, socket, hit, head) -> {
+                  rawHead(socket, 200, "Content-Length: 6");
+                  socket.getOutputStream().write("landed".getBytes(StandardCharsets.UTF_8));
+                });
+        RawServer origin =
+            RawServer.serve(
+                (self, socket, hit, head) ->
+                    rawHead(socket, 302, "Location: " + target.url("/items/final"), "Content-Length: 0"))) {
+      ApiStreamResponse response =
+          streamingClient()
+              .sendStreaming(
+                  "GET",
+                  origin.url("/items/blob"),
+                  Map.of(
+                      "Authorization", "Bearer secret-token",
+                      "Cookie", "session=abc",
+                      "X-Trace", "kept"),
+                  null,
+                  null,
+                  null,
+                  null);
+      assertEquals("landed", text(response.body().readAllBytes()));
+      String sentToOrigin = origin.heads.get(0).toLowerCase(java.util.Locale.ROOT);
+      String sentToTarget = target.heads.get(0).toLowerCase(java.util.Locale.ROOT);
+      assertTrue(sentToOrigin.contains("authorization: bearer secret-token"));
+      assertFalse(sentToTarget.contains("authorization"), "the credential stays on its origin");
+      assertFalse(sentToTarget.contains("cookie"), "the cookie stays on its origin");
+      assertTrue(sentToTarget.contains("x-trace: kept"), "other headers go with the redirect");
+    }
+  }
+
+  @Test
+  void bhvStreaming019ClosingAStreamTwiceIsSafeAndAbortsTheConnection() throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Transfer-Encoding: chunked");
+              try {
+                while (true) {
+                  rawChunk(socket, "x".repeat(4096));
+                  Thread.sleep(5);
+                }
+              } catch (IOException dropped) {
+                self.clientGone.countDown();
+              }
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/blob");
+      ByteStream stream = new ByteStream(response.statusCode(), response.headers(), response.body());
+      assertEquals(4, stream.readNBytes(4).length);
+      stream.close();
+      stream.close();
+      response.close();
+      assertTrue(
+          server.clientGone.await(10, java.util.concurrent.TimeUnit.SECONDS),
+          "the server saw the connection dropped and was not made to finish the body");
+      assertThrows(IOException.class, stream::read);
+    }
+  }
+
+  @Test
+  void bhvStreaming020CancellingTheCallAbortsTheStreamAndIsNeverRaisedAsATimeout()
+      throws Exception {
+    try (RawServer silent = RawServer.serve((self, socket, hit, head) -> self.awaitRelease());
+        RawServer stalled =
+            RawServer.serve(
+                (self, socket, hit, head) -> {
+                  rawHead(socket, 200, "Transfer-Encoding: chunked");
+                  rawChunk(socket, "ab");
+                  self.awaitRelease();
+                })) {
+      java.util.concurrent.atomic.AtomicReference<Throwable> beforeHeaders =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      Thread waiting =
+          Thread.ofPlatform()
+              .start(
+                  () -> {
+                    try {
+                      streamOf(silent, "/items/blob");
+                    } catch (Throwable failure) {
+                      beforeHeaders.set(failure);
+                    }
+                  });
+      while (silent.hits.get() == 0) {
+        Thread.sleep(10);
+      }
+      waiting.interrupt();
+      waiting.join(10_000);
+      assertInstanceOf(java.util.concurrent.CancellationException.class, beforeHeaders.get());
+
+      ApiStreamResponse response = streamOf(stalled, "/items/blob");
+      java.util.concurrent.atomic.AtomicReference<Throwable> inBody =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      Thread reading =
+          Thread.ofPlatform()
+              .start(
+                  () -> {
+                    try {
+                      response.body().readNBytes(100);
+                    } catch (Throwable failure) {
+                      inBody.set(failure);
+                    }
+                  });
+      Thread.sleep(300);
+      reading.interrupt();
+      reading.join(10_000);
+      assertInstanceOf(java.util.concurrent.CancellationException.class, inBody.get());
+      assertFalse(inBody.get() instanceof {{invokerPackage}}.errors.NetworkTimeoutException);
+    }
+  }
+
+  @Test
+  void bhvStreaming022TheStringFormOfAStreamHidesCredentialsTheQueryAndTheData() throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Content-Length: 7", "Set-Cookie: sid=secret-cookie");
+              socket.getOutputStream().write("payload".getBytes(StandardCharsets.UTF_8));
+            })) {
+      ApiStreamResponse response =
+          streamingClient()
+              .sendStreaming(
+                  "GET",
+                  server.url("/items/blob?token=secret-query"),
+                  Map.of("Authorization", "Bearer secret-token"),
+                  null,
+                  null,
+                  null,
+                  null);
+      ByteStream stream = new ByteStream(response.statusCode(), response.headers(), response.body());
+      assertEquals("payload", text(stream.readNBytes(7)));
+      for (String shown : List.of(stream.toString(), response.toString())) {
+        assertFalse(shown.contains("secret"), shown);
+        assertFalse(shown.contains("payload"), shown);
+        assertFalse(shown.contains("token"), shown);
+        assertFalse(shown.contains("items"), shown);
+      }
+      assertEquals("ByteStream{statusCode=200, bytesDelivered=7}", stream.toString());
+    }
+  }
+
+  @Test
+  void bhvStreaming031ClosingALiveEndlessStreamReturnsPromptlyAndDoesNotWaitForTheServer()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Transfer-Encoding: chunked");
+              rawChunk(socket, "tick");
+              self.awaitRelease();
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/events");
+      assertEquals("tick", text(response.body().readNBytes(4)));
+      long started = System.nanoTime();
+      response.close();
+      assertTrue(
+          System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(2),
+          "close aborted the connection instead of waiting for the endless body");
+    }
+  }
+
+  @Test
+  void bhvStreaming032AResetOrTruncationAfterTheHeadersRaisesAStreamErrorThatIsANetworkError()
+      throws Exception {
+    try (RawServer reset =
+            RawServer.serve(
+                (self, socket, hit, head) -> {
+                  rawHead(socket, 200, "Transfer-Encoding: chunked");
+                  rawChunk(socket, "ab");
+                  Thread.sleep(100);
+                  rawReset(socket);
+                });
+        RawServer cut =
+            RawServer.serve(
+                (self, socket, hit, head) -> {
+                  rawHead(socket, 200, "Content-Length: 10");
+                  socket.getOutputStream().write("abcd".getBytes(StandardCharsets.UTF_8));
+                })) {
+      for (RawServer server : List.of(reset, cut)) {
+        ApiStreamResponse response = streamOf(server, "/items/blob");
+        ByteStream stream = new ByteStream(response.statusCode(), response.headers(), response.body());
+        {{invokerPackage}}.errors.StreamException failure =
+            assertThrows({{invokerPackage}}.errors.StreamException.class, stream::readAllBytes);
+        assertInstanceOf({{invokerPackage}}.errors.NetworkException.class, failure);
+        assertEquals(0, failure.getStatusCode());
+      }
+    }
+  }
+
+  @Test
+  void bhvStreaming033StoppingAStreamEarlyWithoutReadingItToTheEndReleasesTheConnection()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Transfer-Encoding: chunked");
+              try {
+                while (true) {
+                  rawChunk(socket, "x".repeat(4096));
+                  Thread.sleep(5);
+                }
+              } catch (IOException dropped) {
+                self.clientGone.countDown();
+              }
+            })) {
+      try (java.io.InputStream body = streamOf(server, "/items/events").body()) {
+        assertEquals(10, body.readNBytes(10).length);
+      }
+      assertTrue(
+          server.clientGone.await(10, java.util.concurrent.TimeUnit.SECONDS),
+          "leaving the scope dropped the connection");
+    }
+  }
+
+  @Test
+  void bhvStreaming029TheReadAllHelperOfAByteStreamReturnsEveryByteInOrderAndLeavesItClosed()
+      throws Exception {
+    byte[] payload = new byte[100_000];
+    for (int i = 0; i < payload.length; i++) {
+      payload[i] = (byte) (i * 31);
+    }
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              rawHead(socket, 200, "Content-Length: " + payload.length);
+              socket.getOutputStream().write(payload);
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/blob");
+      ByteStream stream = new ByteStream(response.statusCode(), response.headers(), response.body());
+      assertTrue(java.util.Arrays.equals(payload, stream.readAllBytes()), "every byte, in order");
+      assertEquals("ByteStream{statusCode=200, bytesDelivered=100000}", stream.toString());
+      assertThrows(IOException.class, stream::read, "the helper left the stream closed");
+    }
+  }
+
+  private static void rawChunkBytes(java.net.Socket socket, byte[] bytes) throws IOException {
+    OutputStream out = socket.getOutputStream();
+    out.write((Integer.toHexString(bytes.length) + "\r\n").getBytes(StandardCharsets.ISO_8859_1));
+    out.write(bytes);
+    out.write("\r\n".getBytes(StandardCharsets.ISO_8859_1));
+    out.flush();
+  }
+
+  /** What an operation does for an event stream: one request per connection, over the transport. */
+  private static java.util.function.Function<String, ByteStream> eventOpener(
+      RawServer server, TransportOptions options) {
+    DefaultApiClient client = new DefaultApiClient(options);
+    return lastEventId -> {
+      Map<String, String> headers = new HashMap<>();
+      if (!lastEventId.isEmpty()) {
+        headers.put("Last-Event-ID", lastEventId);
+      }
+      ApiStreamResponse response =
+          client.sendStreaming("GET", server.url("/items/events"), headers, null, null, 0, null);
+      return new ByteStream(response.statusCode(), response.headers(), response.body());
+    };
+  }
+
+  private static void eventsHead(java.net.Socket socket) throws IOException {
+    rawHead(socket, 200, "Content-Type: text/event-stream", "Transfer-Encoding: chunked");
+  }
+
+  @Test
+  void bhvStreaming006AGzipEncodedStreamIsDecodedIncrementallySoTheFirstItemArrivesBeforeTheBodyEnds()
+      throws Exception {
+    java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+    java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(sink, true);
+    gzip.write("first\n".getBytes(StandardCharsets.UTF_8));
+    gzip.flush();
+    byte[] head = sink.toByteArray();
+    sink.reset();
+    gzip.write("second\n".getBytes(StandardCharsets.UTF_8));
+    gzip.close();
+    byte[] rest = sink.toByteArray();
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              rawHead(socket, 200, "Content-Encoding: gzip", "Transfer-Encoding: chunked");
+              rawChunkBytes(socket, head);
+              self.awaitRelease();
+              rawChunkBytes(socket, rest);
+              rawEnd(socket);
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/export");
+      JsonLinesStream<String> items =
+          new JsonLinesStream<>(
+              new ByteStream(response.statusCode(), response.headers(), response.body()),
+              line -> line,
+              1024,
+              "GET",
+              "/items/export");
+      assertEquals("first", items.next(), "the first item arrived while the body was unfinished");
+      server.release.countDown();
+      assertEquals("second", items.next());
+      assertFalse(items.hasNext());
+    }
+  }
+
+  @Test
+  void bhvStreaming007ACorruptCompressedStreamRaisesAnApiErrorWithTheStatusAndTheDecoderErrorAndIsNotRetried()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              rawHead(socket, 200, "Content-Encoding: gzip", "Content-Length: 8");
+              socket.getOutputStream().write("notgzip!".getBytes(StandardCharsets.UTF_8));
+            })) {
+      ApiStreamResponse response = streamOf(server, "/items/export");
+      JsonLinesStream<String> items =
+          new JsonLinesStream<>(
+              new ByteStream(response.statusCode(), response.headers(), response.body()),
+              line -> line,
+              1024,
+              "GET",
+              "/items/export");
+      ApiException failure = assertThrows(ApiException.class, items::hasNext);
+      assertFalse(failure instanceof {{invokerPackage}}.errors.NetworkException);
+      assertEquals(200, failure.getStatusCode());
+      assertNotNull(failure.getCause());
+      assertEquals(1, server.hits.get());
+    }
+  }
+
+  @Test
+  void bhvSse007AnSseStreamReconnectsAfterTheConnectionDropsAndSendsTheLastEventIdInLastEventId()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              if (hit >= 3) {
+                rawHead(socket, 204, "Content-Length: 0");
+                return;
+              }
+              eventsHead(socket);
+              rawChunk(socket, hit == 1 ? "id: 1\ndata: a\n\nid: 2\ndata: b\n\n" : "id: 3\ndata: c\n\n");
+              rawEnd(socket);
+            })) {
+      SseStream<String> stream =
+          SseStream.open(
+              eventOpener(server, TransportOptions.builder().build()),
+              null,
+              null,
+              new StreamOptions().reconnectDelay(1),
+              false,
+              "GET",
+              "/items/events");
+      List<String> data = new java.util.ArrayList<>();
+      stream.forEachRemaining(event -> data.add(event.data()));
+      assertEquals(List.of("a", "b", "c"), data);
+      assertFalse(server.heads.get(0).toLowerCase(java.util.Locale.ROOT).contains("last-event-id"));
+      assertTrue(server.heads.get(1).toLowerCase(java.util.Locale.ROOT).contains("last-event-id: 2"));
+      assertTrue(server.heads.get(2).toLowerCase(java.util.Locale.ROOT).contains("last-event-id: 3"));
+    }
+  }
+
+  @Test
+  void bhvSse015AnIdleTimeoutOnAnSseStreamCountsAsALostConnectionAndReconnects() throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              eventsHead(socket);
+              if (hit == 1) {
+                rawChunk(socket, "id: 1\ndata: a\n\n");
+                self.awaitRelease();
+                return;
+              }
+              rawChunk(socket, "id: 2\ndata: b\n\n");
+              rawEnd(socket);
+            })) {
+      SseStream<String> stream =
+          SseStream.open(
+              eventOpener(server, TransportOptions.builder().idleTimeout(300).build()),
+              null,
+              null,
+              new StreamOptions().reconnectDelay(1).maxReconnects(1),
+              false,
+              "GET",
+              "/items/events");
+      assertEquals("a", stream.next().data());
+      assertEquals("b", stream.next().data(), "the stalled connection was replaced");
+      assertTrue(server.heads.get(1).toLowerCase(java.util.Locale.ROOT).contains("last-event-id: 1"));
+    }
+  }
+
+  @Test
+  void bhvSse018AnSseCommentLineSuchAsAHeartbeatIsSkippedAndCountsAsActivityForTheIdleTimeout()
+      throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, request) -> {
+              eventsHead(socket);
+              for (int beat = 0; beat < 8; beat++) {
+                rawChunk(socket, ": heartbeat\n\n");
+                Thread.sleep(100);
+              }
+              rawChunk(socket, "data: late\n\n");
+              rawEnd(socket);
+            })) {
+      SseStream<String> stream =
+          SseStream.open(
+              eventOpener(server, TransportOptions.builder().idleTimeout(400).build()),
+              null,
+              null,
+              new StreamOptions().reconnectDelay(1).maxReconnects(0),
+              false,
+              "GET",
+              "/items/events");
+      assertEquals("late", stream.next().data(), "the quiet feed outlived the idle timeout");
+      assertEquals(1, server.hits.get(), "no reconnect was needed");
+    }
+  }
+
+  /** What a scripted server received as the body of one request. */
+  private static final class Upload {
+    private final byte[] bytes;
+    private final boolean chunked;
+
+    Upload(byte[] bytes, boolean chunked) {
+      this.bytes = bytes;
+      this.chunked = chunked;
+    }
+
+    byte[] bytes() {
+      return bytes;
+    }
+
+    boolean chunked() {
+      return chunked;
+    }
+  }
+
+  /**
+   * Reads the body that follows {@code head}: a chunked one chunk by chunk and one with a
+   * Content-Length to its end. {@code onFirst} runs once the first bytes have arrived, while the
+   * rest is still to come.
+   */
+  private static Upload readUpload(java.net.Socket socket, String head, Runnable onFirst)
+      throws IOException {
+    java.io.InputStream in = socket.getInputStream();
+    String lower = head.toLowerCase(java.util.Locale.ROOT);
+    java.io.ByteArrayOutputStream received = new java.io.ByteArrayOutputStream();
+    boolean chunked = lower.contains("transfer-encoding: chunked");
+    if (chunked) {
+      while (true) {
+        StringBuilder size = new StringBuilder();
+        int value;
+        while ((value = in.read()) != '\n') {
+          if (value < 0) {
+            return new Upload(received.toByteArray(), true);
+          }
+          if (value != '\r') {
+            size.append((char) value);
+          }
+        }
+        int length = Integer.parseInt(size.toString().trim(), 16);
+        if (length == 0) {
+          in.readNBytes(2);
+          return new Upload(received.toByteArray(), true);
+        }
+        received.write(in.readNBytes(length));
+        in.readNBytes(2);
+        onFirst.run();
+      }
+    }
+    java.util.regex.Matcher declared =
+        java.util.regex.Pattern.compile("content-length: (\\d+)").matcher(lower);
+    if (declared.find()) {
+      received.write(in.readNBytes(Integer.parseInt(declared.group(1))));
+    }
+    onFirst.run();
+    return new Upload(received.toByteArray(), false);
+  }
+
+  private static void rawReply(java.net.Socket socket, int status, String... headers)
+      throws IOException {
+    String[] withLength = new String[headers.length + 1];
+    System.arraycopy(headers, 0, withLength, 0, headers.length);
+    withLength[headers.length] = "Content-Length: 0";
+    rawHead(socket, status, withLength);
+  }
+
+  private static byte[] patterned(int size) {
+    byte[] data = new byte[size];
+    for (int index = 0; index < size; index++) {
+      data[index] = (byte) (index * 31 + 7);
+    }
+    return data;
+  }
+
+  /** A stream that counts its closes. */
+  private static final class CountingStream extends java.io.ByteArrayInputStream {
+    final java.util.concurrent.atomic.AtomicInteger closes =
+        new java.util.concurrent.atomic.AtomicInteger();
+
+    CountingStream(byte[] data) {
+      super(data);
+    }
+
+    @Override
+    public void close() throws IOException {
+      closes.incrementAndGet();
+      super.close();
+    }
+  }
+
+  @Test
+  void bhvStreaming023AStreamedUploadOfUnknownLengthIsSentChunkedAndArrivesIntact()
+      throws Exception {
+    byte[] data = patterned(300_000);
+    java.util.concurrent.CountDownLatch firstSeen = new java.util.concurrent.CountDownLatch(1);
+    java.util.concurrent.atomic.AtomicReference<Upload> seen =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              seen.set(readUpload(socket, head, firstSeen::countDown));
+              rawReply(socket, 200);
+            })) {
+      /* The second half is not readable until the server has the first, so a client that
+       * buffered the stream before sending would wait here for good. */
+      java.io.InputStream gated =
+          new java.io.InputStream() {
+            int position;
+
+            @Override
+            public int read() {
+              byte[] one = new byte[1];
+              return read(one, 0, 1) < 0 ? -1 : one[0] & 0xff;
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int length) {
+              if (position >= data.length) {
+                return -1;
+              }
+              if (position >= data.length / 2) {
+                try {
+                  if (!firstSeen.await(15, java.util.concurrent.TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("the first half never reached the server");
+                  }
+                } catch (InterruptedException e) {
+                  throw new IllegalStateException(e);
+                }
+              }
+              int limit = position < data.length / 2 ? data.length / 2 : data.length;
+              int count = Math.min(Math.min(length, 4096), limit - position);
+              System.arraycopy(data, position, buffer, offset, count);
+              position += count;
+              return count;
+            }
+          };
+      ApiHttpResponse response =
+          new DefaultApiClient()
+              .sendRequest("PUT", server.url("/items/blob"), Map.of(), BodySource.once(gated));
+      assertEquals(200, response.statusCode());
+      String head = server.heads.get(0).toLowerCase(java.util.Locale.ROOT);
+      assertTrue(head.contains("transfer-encoding: chunked"), "an unknown length is chunked");
+      assertFalse(head.contains("content-length"), "and carries no Content-Length");
+      assertTrue(seen.get().chunked());
+      assertTrue(java.util.Arrays.equals(data, seen.get().bytes()), "every byte arrived in order");
+    }
+  }
+
+  @Test
+  void bhvStreaming024AStreamedUploadWithAKnownLengthSendsContentLength() throws Exception {
+    byte[] data = patterned(100_000);
+    java.nio.file.Path file = java.nio.file.Files.createTempFile("upload", ".bin");
+    java.nio.file.Files.write(file, data);
+    java.util.List<Upload> seen = new java.util.concurrent.CopyOnWriteArrayList<>();
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              seen.add(readUpload(socket, head, () -> {}));
+              rawReply(socket, 200);
+            })) {
+      DefaultApiClient client = new DefaultApiClient();
+      BodySource[] sources = {
+        BodySource.of(data),
+        BodySource.ofFile(file),
+        BodySource.fromSupplier(() -> new java.io.ByteArrayInputStream(data), data.length),
+        BodySource.once(new java.io.ByteArrayInputStream(data), data.length)
+      };
+      for (BodySource source : sources) {
+        assertEquals(200, client.sendRequest("PUT", server.url("/items/blob"), Map.of(), source).statusCode());
+      }
+      assertEquals(sources.length, seen.size());
+      for (int index = 0; index < sources.length; index++) {
+        String head = server.heads.get(index).toLowerCase(java.util.Locale.ROOT);
+        assertTrue(head.contains("content-length: " + data.length), "source " + index);
+        assertFalse(head.contains("transfer-encoding"), "source " + index + " is not chunked");
+        assertFalse(seen.get(index).chunked());
+        assertTrue(java.util.Arrays.equals(data, seen.get(index).bytes()), "source " + index);
+      }
+      assertEquals("BodySource[bytes, 100000 bytes]", sources[0].toString());
+      assertEquals("BodySource[single use, 100000 bytes]", sources[3].toString());
+      assertEquals(
+          "BodySource[factory, length unknown]",
+          BodySource.fromSupplier(() -> new java.io.ByteArrayInputStream(data)).toString());
+    } finally {
+      java.nio.file.Files.deleteIfExists(file);
+    }
+  }
+
+  @Test
+  void bhvStreaming025ACallerSuppliedUploadStreamIsNeverClosedBySdk() throws Exception {
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              readUpload(socket, head, () -> {});
+              rawReply(socket, hit == 2 ? 503 : 200, "Retry-After: 0");
+            })) {
+      DefaultApiClient client = new DefaultApiClient();
+      CountingStream callers = new CountingStream(patterned(5000));
+      assertEquals(
+          200,
+          client.sendRequest("PUT", server.url("/items/blob"), Map.of(), BodySource.once(callers)).statusCode());
+      assertEquals(0, callers.closes.get(), "the stream is read to its end and left open");
+      CountingStream refused = new CountingStream(patterned(5000));
+      assertEquals(
+          503,
+          client.sendRequest("PUT", server.url("/items/blob"), Map.of(), BodySource.once(refused)).statusCode());
+      assertEquals(0, refused.closes.get(), "an error does not close it either");
+
+      java.util.List<CountingStream> opened = new java.util.concurrent.CopyOnWriteArrayList<>();
+      BodySource factory =
+          BodySource.fromSupplier(
+              () -> {
+                CountingStream stream = new CountingStream(patterned(5000));
+                opened.add(stream);
+                return stream;
+              });
+      client.sendRequest("PUT", server.url("/items/blob"), Map.of(), factory);
+      assertFalse(opened.isEmpty());
+      for (CountingStream stream : opened) {
+        assertTrue(stream.closes.get() >= 1, "what the SDK opened itself is closed by it");
+      }
+    }
+  }
+
+  @Test
+  void bhvStreaming026AReplayableUploadIsRewoundAndRetriedAfterA503AndASingleUseUploadIsNotRetriedAndSurfacesTheOriginalError()
+      throws Exception {
+    byte[] data = patterned(20_000);
+    java.util.List<Upload> seen = new java.util.concurrent.CopyOnWriteArrayList<>();
+    try (RawServer server =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              seen.add(readUpload(socket, head, () -> {}));
+              if (hit == 1) {
+                rawReply(socket, 503, "Retry-After: 0");
+                return;
+              }
+              rawReply(socket, 200);
+            })) {
+      java.util.concurrent.atomic.AtomicInteger opens =
+          new java.util.concurrent.atomic.AtomicInteger();
+      BodySource replayable =
+          BodySource.fromSupplier(
+              () -> {
+                opens.incrementAndGet();
+                return new java.io.ByteArrayInputStream(data);
+              });
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("PUT", server.url("/items/blob"), Map.of(), replayable);
+      assertEquals(200, response.statusCode());
+      assertEquals(2, server.hits.get(), "the 503 was retried");
+      assertEquals(2, opens.get(), "the source was opened again for the retry");
+      assertTrue(java.util.Arrays.equals(data, seen.get(0).bytes()));
+      assertTrue(java.util.Arrays.equals(data, seen.get(1).bytes()), "the retry carries the whole body");
+    }
+    try (RawServer failing =
+        RawServer.serve(
+            (self, socket, hit, head) -> {
+              readUpload(socket, head, () -> {});
+              rawReply(socket, 503, "Retry-After: 0");
+            })) {
+      ApiHttpResponse response =
+          new DefaultApiClient()
+              .sendRequest(
+                  "PUT",
+                  failing.url("/items/blob"),
+                  Map.of(),
+                  BodySource.once(new java.io.ByteArrayInputStream(data)));
+      assertEquals(503, response.statusCode(), "the original answer is returned unchanged");
+      assertEquals(1, failing.hits.get(), "a single use body is sent once");
+    }
+  }
+
+  @Test
+  void bhvStreaming027A307Or308WithASingleUseUploadIsRefusedAndTheBodyIsNeverBuffered()
+      throws Exception {
+    byte[] data = patterned(20_000);
+    for (int status : new int[] {307, 308}) {
+      java.util.List<Upload> landed = new java.util.concurrent.CopyOnWriteArrayList<>();
+      try (RawServer target =
+              RawServer.serve(
+                  (self, socket, hit, head) -> {
+                    landed.add(readUpload(socket, head, () -> {}));
+                    rawReply(socket, 200);
+                  });
+          RawServer origin =
+              RawServer.serve(
+                  (self, socket, hit, head) -> {
+                    readUpload(socket, head, () -> {});
+                    rawReply(socket, status, "Location: " + target.url("/items/final"));
+                  })) {
+        CountingStream once = new CountingStream(data);
+        ApiException refused =
+            assertThrows(
+                ApiException.class,
+                () ->
+                    new DefaultApiClient()
+                        .sendRequest(
+                            "PUT", origin.url("/items/blob"), Map.of(), BodySource.once(once)));
+        assertTrue(refused.getMessage().contains("Refusing to replay a streamed request body"));
+        assertEquals(status, refused.getStatusCode());
+        assertEquals(0, target.hits.get(), status + ": nothing was sent to the new location");
+        assertEquals(1, origin.hits.get());
+        assertEquals(0, once.available(), "the stream was read once, as it was sent");
+        assertEquals(0, once.closes.get());
+
+        ApiHttpResponse followed =
+            new DefaultApiClient()
+                .sendRequest(
+                    "PUT",
+                    origin.url("/items/blob"),
+                    Map.of(),
+                    BodySource.fromSupplier(() -> new java.io.ByteArrayInputStream(data)));
+        assertEquals(200, followed.statusCode(), status + ": a replayable body follows it");
+        assertEquals(1, landed.size());
+        assertTrue(java.util.Arrays.equals(data, landed.get(0).bytes()));
+      }
+    }
   }
 }

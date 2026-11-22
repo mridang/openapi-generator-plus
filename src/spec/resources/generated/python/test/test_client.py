@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import threading
+import time
 from typing import Any, Optional, cast
 
 import pytest
@@ -15,6 +16,7 @@ from petstore_client.api.pet_api import PetApi, PetApiProtocol
 from petstore_client.api.problems_api import ProblemsApi, ProblemsApiProtocol
 from petstore_client.api.store_api import StoreApi, StoreApiProtocol
 from petstore_client.client import Client, ClientProtocol
+from petstore_client.byte_stream import ByteStream
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.call_hook import CallInfo, CallObserver
 from petstore_client.transport_options import TransportOptions
@@ -805,6 +807,18 @@ class TestMocking:
         assert "get_pet_tag_with_http_info" in pet_listed
         assert "get_staging_pet_info" in pet_listed
         assert "get_staging_pet_info_with_http_info" in pet_listed
+        assert "list_pet_archive" in pet_listed
+        assert "list_pet_archive_with_http_info" in pet_listed
+        assert "list_pet_catalog" in pet_listed
+        assert "list_pet_catalog_with_http_info" in pet_listed
+        assert "list_pet_events" in pet_listed
+        assert "list_pet_events_with_http_info" in pet_listed
+        assert "list_pet_feed" in pet_listed
+        assert "list_pet_feed_with_http_info" in pet_listed
+        assert "list_pet_matches" in pet_listed
+        assert "list_pet_matches_with_http_info" in pet_listed
+        assert "list_pet_notes" in pet_listed
+        assert "list_pet_notes_with_http_info" in pet_listed
         assert "set_pet_avatar" in pet_listed
         assert "set_pet_avatar_with_http_info" in pet_listed
         assert "set_pet_avatar_thumbnail" in pet_listed
@@ -839,8 +853,7 @@ class TestMocking:
         assert "create_account_with_http_info" in store_listed
         assert "delete_order" in store_listed
         assert "delete_order_with_http_info" in store_listed
-        assert "export_orders" in store_listed
-        assert "export_orders_with_http_info" in store_listed
+        assert "export_orders_stream" in store_listed
         assert "get_audit_trail" in store_listed
         assert "get_audit_trail_with_http_info" in store_listed
         assert "get_by_swatch" in store_listed
@@ -877,10 +890,8 @@ class TestMocking:
         assert "reserve_stock_with_http_info" in store_listed
         assert "search_store" in store_listed
         assert "search_store_with_http_info" in store_listed
-        assert "watch_notices" in store_listed
-        assert "watch_notices_with_http_info" in store_listed
-        assert "watch_orders" in store_listed
-        assert "watch_orders_with_http_info" in store_listed
+        assert "watch_notices_stream" in store_listed
+        assert "watch_orders_stream" in store_listed
         client.close()
 
     def test_bhv_mocking_002_group_protocol_lists_exactly_the_public_operations_of_the_class(
@@ -941,3 +952,39 @@ class TestClientCloseState:
         client.close()
 
         client.close()
+
+
+class TestClientCloseCancelsStreams:
+    async def test_bhv_streaming_021_closing_the_client_cancels_the_open_streams_and_refuses_new_calls(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, "Transfer-Encoding: chunked")
+            connection.chunk("tick")
+            connection.hold()
+
+        server = raw_server(script)
+        client = Client(BearerAuthenticator("/api/v3", "test-token"))
+        url = server.url("/items/events")
+        response = await asyncio.to_thread(
+            client._api_client.send_streaming, "GET", url, {}, None
+        )
+        stream = ByteStream(response.status_code, response.headers, response.body)
+        assert await stream.read(4) == b"tick"
+
+        started = time.monotonic()
+        client.close()
+        assert time.monotonic() - started < 5, (
+            "closing did not wait for the endless stream"
+        )
+
+        with pytest.raises(RuntimeError) as cancelled:
+            await stream.read()
+        assert (
+            str(cancelled.value)
+            == "ApiClient has been closed and can no longer send requests"
+        )
+        with pytest.raises(RuntimeError):
+            await asyncio.to_thread(
+                client._api_client.send_streaming, "GET", url, {}, None
+            )

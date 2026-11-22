@@ -40,6 +40,9 @@ module Petstore::Client
       # construct or see this value.
       NO_AUTH = ::Object.new.freeze
 
+      # The most of an error body a stream call reads before it raises the error.
+      STREAM_ERROR_BODY_LIMIT = 64 * 1024
+
       # @return [Configuration]
       attr_reader :config
 
@@ -123,6 +126,10 @@ module Petstore::Client
       #   call hook gets as +operation_id+ (defaults to +operation_id+)
       # @param url_template [String, nil] the spec path template of the operation, which the call hook
       #   gets as +url_template+ (defaults to the path of the request)
+      # @param stream [Boolean] true for an operation whose success response is binary: the
+      #   data is then the open {ByteStream} and the raw body is empty (see {#invoke_api_for_stream})
+      # @param idle_timeout [Numeric, nil] for a stream call, the longest silence in the body in
+      #   milliseconds (+0+ disables it); nil keeps the transport's
       # @return [ApiResult] ApiResult containing deserialized data, status code, raw body, and headers
       # @raise [Errors::ApiError] if the API call fails
       # @raise [Errors::SerializationError] if the response body cannot be decoded; the error
@@ -130,7 +137,7 @@ module Petstore::Client
       def invoke_api_for_result(
         method, path, query_params, header_params, body,
         accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil,
-        error_schemas: nil, spec_operation_id: nil, url_template: nil
+        error_schemas: nil, spec_operation_id: nil, url_template: nil, stream: false, idle_timeout: nil
       )
         started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         url = if path.start_with?('http://', 'https://')
@@ -167,7 +174,7 @@ module Petstore::Client
         effective_auth&.query_params&.each { |k, v| query_params[k] = v }
 
         query_string = build_query_string(query_params)
-        url = "#{url}?#{query_string}" unless query_string.empty?
+        url = "#{url}#{url.include?('?') ? '&' : '?'}#{query_string}" unless query_string.empty?
 
         is_multipart = content_type == 'multipart/form-data'
         selected = @header_selector.select_headers(accepts, content_type || '', is_multipart)
@@ -208,7 +215,8 @@ module Petstore::Client
           end
           call_options = transport_call_options(request_options)
           call_options = remaining_deadline(call_options, started_at)
-          response = dispatch_request(method, url, request_headers, serialized_body, fresh_headers, call_options)
+          call_options = call_options.merge(idle_timeout: idle_timeout) if stream && !idle_timeout.nil?
+          response = send_call(stream, method, url, request_headers, serialized_body, fresh_headers, call_options)
           if response.status_code == 401 && effective_auth.respond_to?(:invalidate_access_token) && replayable_body?(serialized_body)
             # A revoked or rotated token keeps failing while it is cached. Drop it,
             # obtain a new one (a refresh grant first) and replay the request
@@ -220,12 +228,25 @@ module Petstore::Client
             rescue ::Petstore::Client::Errors::OpenAPIError
               nil
             end
-            response = dispatch_request(method, url, renewed, serialized_body, fresh_headers, call_options) if renewed
+            if renewed
+              # The refused response is closed unread before the replay.
+              response.close if stream
+              response = send_call(stream, method, url, renewed, serialized_body, fresh_headers, call_options)
+            end
           end
-          throw_api_error(response, method, url, error_schemas) if response.status_code < 200 || response.status_code >= 300
+          if response.status_code < 200 || response.status_code >= 300
+            # A stream never reaches the caller on an error: a bounded part of its
+            # body is read and the typed error of a buffered call is raised.
+            response = response.read_bounded(STREAM_ERROR_BODY_LIMIT) if stream
+            throw_api_error(response, method, url, error_schemas)
+          end
 
           data = nil
-          if response.body && !response.body.empty?
+          if stream
+            data = ::Petstore::Client::ByteStream.new(
+              status_code: response.status_code, headers: response.headers, source: response.body
+            )
+          elsif response.body && !response.body.empty?
             begin
               data = decode_success_data(response, return_type, operation_id)
             rescue ::Petstore::Client::Errors::SerializationError => e
@@ -240,7 +261,7 @@ module Petstore::Client
           result = ::Petstore::Client::ApiResult.new(
             status_code: response.status_code,
             data: data,
-            raw_body: response.body,
+            raw_body: stream ? '' : response.body,
             headers: response.headers
           )
           outcome = ::Petstore::Client::CallOutcome.new(
@@ -252,6 +273,138 @@ module Petstore::Client
           # error, or an interruption raised into the thread.
           finish_call(observer, outcome || error_outcome($ERROR_INFO)) if observer
         end
+      end
+
+      # Invoke an operation whose success response is binary and return its body
+      # as a stream, unread. Everything up to the response headers is the
+      # buffered call (the same retries, redirects, authentication, 401 replay,
+      # headers and call hook); a non-2xx status raises the same typed error as
+      # a buffered call, its body read up to 64 KiB, and no stream is returned.
+      #
+      # @param method [String] HTTP method (GET, POST, PUT, DELETE, etc.)
+      # @param path [String] URL path (with path params already substituted)
+      # @param query_params [Hash] query parameters
+      # @param header_params [Hash] custom header parameters
+      # @param body [Object, nil] request body (model object or nil)
+      # @param accepts [Array<String>] acceptable response content types
+      # @param content_type [String, nil] request content type
+      # @param auth [Object, nil] operation-specific auth resolution, as for {#invoke_api_for_result}
+      # @param operation_id [String, nil] the calling operation as +Class.operation+
+      # @param request_options [Object, nil] the per-call options of the operation: its +timeout+
+      #   (milliseconds, up to the response headers), +headers+ and +max_retries+
+      # @param error_schemas [Hash{String => Class}, nil] the error classes the operation declares
+      # @param spec_operation_id [String, nil] the operation id exactly as the spec writes it
+      # @param url_template [String, nil] the spec path template of the operation
+      # @return [ApiResult] the result whose data is the open {ByteStream}; its raw body is empty
+      # @raise [Errors::ApiError] if the API call fails
+      def invoke_api_for_stream(
+        method, path, query_params, header_params, body,
+        accepts, content_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil,
+        error_schemas: nil, spec_operation_id: nil, url_template: nil
+      )
+        invoke_api_for_result(
+          method, path, query_params, header_params, body,
+          accepts, content_type, nil, auth, raw_body: raw_body, operation_id: operation_id,
+                                            request_options: request_options, error_schemas: error_schemas,
+                                            spec_operation_id: spec_operation_id, url_template: url_template, stream: true
+        )
+      end
+
+      # Invoke an operation whose success response is JSON Lines and return its
+      # items as a lazy stream. Everything up to the headers is the buffered
+      # call; a non-2xx status raises the typed error and no stream is returned.
+      #
+      # @param method [String] HTTP method (GET, POST, PUT, DELETE, etc.)
+      # @param path [String] URL path (with path params already substituted)
+      # @param query_params [Hash] query parameters
+      # @param header_params [Hash] custom header parameters
+      # @param body [Object, nil] request body (model object or nil)
+      # @param accepts [Array<String>] acceptable response content types
+      # @param content_type [String, nil] request content type
+      # @param auth [Object, nil] operation-specific auth resolution, as for {#invoke_api_for_result}
+      # @param item_type [String, nil] the type of each line, or nil to hand each line over as a string
+      # @param stream_options [StreamOptions, nil] the stream settings
+      # @param operation_id [String, nil] the calling operation as +Class.operation+
+      # @param request_options [Object, nil] the per-call options of the operation
+      # @param error_schemas [Hash{String => Class}, nil] the error classes the operation declares
+      # @param spec_operation_id [String, nil] the operation id exactly as the spec writes it
+      # @param url_template [String, nil] the spec path template of the operation
+      # @return [JsonLinesStream] the open stream of items
+      # @raise [Errors::ApiError] if the call fails
+      def invoke_api_for_json_lines(
+        method, path, query_params, header_params, body,
+        accepts, content_type, auth = nil, item_type: nil, stream_options: nil, raw_body: false, operation_id: nil,
+        request_options: nil, error_schemas: nil, spec_operation_id: nil, url_template: nil
+      )
+        options = stream_options || ::Petstore::Client::StreamOptions.new
+        source = invoke_api_for_result(
+          method, path, query_params, header_params, body,
+          accepts, content_type, nil, auth, raw_body: raw_body, operation_id: operation_id,
+                                            request_options: request_options, error_schemas: error_schemas,
+                                            spec_operation_id: spec_operation_id, url_template: url_template, stream: true,
+                                            idle_timeout: options.idle_timeout
+        ).data
+        ::Petstore::Client::JsonLinesStream.new(
+          source: source, decoder: stream_decoder(item_type), max_line_bytes: options.max_event_bytes || (1024 * 1024),
+          method: method.to_s.upcase, path: request_path_of(path)
+        )
+      end
+
+      # Invoke an operation whose success response is server-sent events and
+      # return its events as a lazy stream that reconnects. Each connection is a
+      # fresh call through the same pipeline (hook, headers, authentication), so
+      # a refreshed token is the one sent; the stream adds +Accept:
+      # text/event-stream+ (from the operation), +Cache-Control: no-cache+ and
+      # +Accept-Encoding: identity+ unless the caller set them, and
+      # +Last-Event-ID+ once it has an id.
+      #
+      # @param method [String] HTTP method (GET, POST, PUT, DELETE, etc.)
+      # @param path [String] URL path (with path params already substituted)
+      # @param query_params [Hash] query parameters
+      # @param header_params [Hash] custom header parameters
+      # @param body [Object, nil] request body (model object or nil)
+      # @param accepts [Array<String>] acceptable response content types
+      # @param content_type [String, nil] request content type
+      # @param auth [Object, nil] operation-specific auth resolution, as for {#invoke_api_for_result}
+      # @param item_type [String, nil] the type of the +data+ field, or nil to hand it over as a string
+      # @param terminator [String, nil] a +data+ value that ends the stream and is not delivered
+      # @param stream_options [StreamOptions, nil] the stream settings
+      # @param operation_id [String, nil] the calling operation as +Class.operation+
+      # @param request_options [Object, nil] the per-call options of the operation
+      # @param error_schemas [Hash{String => Class}, nil] the error classes the operation declares
+      # @param spec_operation_id [String, nil] the operation id exactly as the spec writes it
+      # @param url_template [String, nil] the spec path template of the operation
+      # @return [SseStream] the open stream of events
+      # @raise [Errors::ApiError] if the first request fails
+      def invoke_api_for_sse(
+        method, path, query_params, header_params, body,
+        accepts, content_type, auth = nil, item_type: nil, terminator: nil, stream_options: nil, raw_body: false,
+        operation_id: nil, request_options: nil, error_schemas: nil, spec_operation_id: nil, url_template: nil
+      )
+        options = stream_options || ::Petstore::Client::StreamOptions.new
+        event_headers = header_params.dup
+        { 'Cache-Control' => 'no-cache', 'Accept-Encoding' => 'identity' }.each do |name, value|
+          set = [event_headers, @config.default_headers, request_options&.headers || {}].any? do |known|
+            known.keys.any? { |key| key.to_s.casecmp?(name) }
+          end
+          event_headers[name] = value unless set
+        end
+        opener = lambda do |last_event_id|
+          headers = event_headers.dup
+          headers['Last-Event-ID'] = last_event_id unless last_event_id.empty?
+          invoke_api_for_result(
+            method, path, query_params.dup, headers, body,
+            accepts, content_type, nil, auth, raw_body: raw_body, operation_id: operation_id,
+                                              request_options: request_options, error_schemas: error_schemas,
+                                              spec_operation_id: spec_operation_id, url_template: url_template, stream: true,
+                                              idle_timeout: options.idle_timeout
+          ).data
+        end
+        ::Petstore::Client::SseStream.open(
+          opener: opener, decoder: stream_decoder(item_type), terminator: terminator, options: options,
+          has_body: !body.nil?, single_use_body: body.is_a?(::Petstore::Client::BodySource) && !body.replayable?,
+          method: method.to_s.upcase, path: request_path_of(path)
+        )
       end
 
       # Invoke an API operation.
@@ -403,9 +556,49 @@ module Petstore::Client
         raise
       end
 
-      # Whether a request body can be sent a second time: none, or a string. A
+      # The decoder of one line or one event payload as +item_type+, or nil when the
+      # text is handed over as it is (no type, or a plain string).
+      def stream_decoder(item_type)
+        return nil if item_type.nil? || item_type == 'String'
+
+        ->(text) { ::Petstore::Client::ObjectSerializer.deserialize(text, item_type) }
+      end
+
+      # Sends one request: buffered, or for a stream call through the transport's
+      # +send_streaming+.
+      def send_call(stream, method, url, headers, body, fresh_headers, call_options)
+        if stream
+          dispatch_stream(method, url, headers, body, fresh_headers, call_options)
+        else
+          dispatch_request(method, url, headers, body, fresh_headers, call_options)
+        end
+      end
+
+      # Send one request for a stream call. The SDK's own transport gets the same
+      # +fresh_headers+ as a buffered call, so a retry before the headers
+      # rebuilds them. A transport that cannot stream fails the call, naming
+      # itself, and never falls back to buffering.
+      def dispatch_stream(method, url, headers, body, fresh_headers, call_options = {})
+        unless @api_client.respond_to?(:send_streaming)
+          raise ::NotImplementedError,
+                "#{@api_client.class} cannot stream: it does not implement send_streaming, so an operation " \
+                'that returns a stream cannot be called through it'
+        end
+        return @api_client.send_streaming(method, url, headers, body) unless @api_client.is_a?(::Petstore::Client::DefaultApiClient)
+
+        @api_client.send_streaming(method, url, headers, body, retry_headers: fresh_headers, **call_options)
+      rescue ::Petstore::Client::Errors::ApiError => e
+        e.instance_variable_set(:@request_method, method.to_s.upcase) if e.request_method.nil?
+        e.instance_variable_set(:@request_path, request_path_of(url)) if e.request_path.nil?
+        raise
+      end
+
+      # Whether a request body can be sent a second time: none, a string, or a
+      # replayable body source. A
       # multipart form or a stream handle is consumed by the first send.
       def replayable_body?(body)
+        return body.replayable? if body.is_a?(::Petstore::Client::BodySource)
+
         body.nil? || body.is_a?(String)
       end
 
@@ -541,6 +734,8 @@ module Petstore::Client
 
       def serialize_body(body, content_type, raw_body: false)
         return nil if body.nil?
+        # A body source is sent as it is read, never buffered.
+        return body if body.is_a?(::Petstore::Client::BodySource)
 
         if content_type == 'multipart/form-data'
           body

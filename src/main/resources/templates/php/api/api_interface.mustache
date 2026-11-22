@@ -2,6 +2,18 @@
 namespace {{apiPackage}};
 
 use {{invokerPackage}}\ApiResult;
+{{#hasBinaryStream}}
+use {{invokerPackage}}\ByteStream;
+{{/hasBinaryStream}}
+{{#hasPagedOperation}}
+use {{invokerPackage}}\Paginator;
+{{/hasPagedOperation}}
+{{#hasSseStream}}
+use {{invokerPackage}}\SseStream;
+{{/hasSseStream}}
+{{#hasStreamMethod}}
+use {{invokerPackage}}\StreamOptions;
+{{/hasStreamMethod}}
 {{#optionsImports}}
 use {{invokerPackage}}\Api\Options\{{optionsClassName}};
 {{/optionsImports}}
@@ -65,6 +77,9 @@ interface {{classname}}Interface
 {{#vendorExtensions.op.hasMultipleConsumes}}
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
 {{/vendorExtensions.op.hasMultipleConsumes}}
+{{#vendorExtensions.op.streamOnly}}
+     * @param StreamOptions|null $streamOptions The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults
+{{/vendorExtensions.op.streamOnly}}
 {{#returnType}}
      * @return {{{vendorExtensions.phpDocReturnType}}}
 {{/returnType}}
@@ -78,13 +93,14 @@ interface {{classname}}Interface
 {{/externalDocs}}
      */
 {{#returnType}}
-    public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}){{#vendorExtensions.phpNativeReturnType}}: {{{vendorExtensions.phpNativeReturnType}}}{{/vendorExtensions.phpNativeReturnType}};
+    public function {{#vendorExtensions.op.streamOnly}}{{vendorExtensions.op.streamMethodName}}{{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}{{operationId}}{{/vendorExtensions.op.streamOnly}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}{{#vendorExtensions.op.streamOnly}}, ?StreamOptions $streamOptions = null{{/vendorExtensions.op.streamOnly}}){{#vendorExtensions.phpNativeReturnType}}: {{{vendorExtensions.phpNativeReturnType}}}{{/vendorExtensions.phpNativeReturnType}};
 {{/returnType}}
 {{^returnType}}
     public function {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): void;
 {{/returnType}}
 
 {{#returnType}}
+{{^vendorExtensions.op.streamOnly}}
     /**
 {{#pathParams}}
 {{#description}}
@@ -130,6 +146,11 @@ interface {{classname}}Interface
 {{/isDeprecated}}
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult;
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/returnType}}
 {{^returnType}}
     /**

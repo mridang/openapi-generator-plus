@@ -389,7 +389,9 @@ async fn test_bhv_operations_054_pet_api_get_pet_passport_with_http_info() {
 async fn test_bhv_operations_070_pet_api_set_pet_avatar() {
     let api = new_pet_api_for_integration();
     let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
-    let result = api.set_pet_avatar(1, image_bytes, None, None).await;
+    let result = api
+        .set_pet_avatar(1, BodySource::from(image_bytes), None, None)
+        .await;
     assert!(result.is_ok(), "set_pet_avatar failed: {:?}", result.err());
 }
 
@@ -403,7 +405,12 @@ async fn test_bhv_operations_076_pet_api_set_pet_avatar_rejects_unknown_content_
     // An unknown request content-type must be rejected client-side (a typed Err),
     // not passed onto the wire as an undeclared Content-Type.
     let err = api
-        .set_pet_avatar(1, image_bytes, None, Some("application/unknown-type"))
+        .set_pet_avatar(
+            1,
+            BodySource::from(image_bytes),
+            None,
+            Some("application/unknown-type"),
+        )
         .await
         .expect_err("an undeclared request content-type must be rejected");
     assert_eq!(
@@ -546,6 +553,26 @@ async fn test_bhv_operations_023_pet_api_add_pet_photos() {
 }
 
 #[tokio::test]
+async fn test_bhv_streaming_009_a_binary_stream_exposes_the_status_and_the_lower_cased_response_headers(
+) {
+    let api = new_pet_api_for_integration();
+    let result = api
+        .get_pet_avatar_with_http_info(1, None)
+        .await
+        .expect("get_pet_avatar_with_http_info failed");
+    let stream = result.data().expect("the stream");
+    assert_eq!(200, stream.status_code());
+    assert!(stream.headers().contains_key("content-type"));
+    assert!(stream
+        .headers()
+        .keys()
+        .all(|name| *name == name.to_lowercase()));
+    assert_eq!(stream.status_code(), result.status_code());
+    assert_eq!(stream.headers(), result.headers());
+    assert_eq!("", result.raw_body());
+}
+
+#[tokio::test]
 async fn test_bhv_operations_035_pet_api_download_pet_document() {
     let api = new_pet_api_for_integration();
     let result = api.download_pet_document(1, 1, None).await;
@@ -559,21 +586,27 @@ async fn test_bhv_operations_035_pet_api_download_pet_document() {
 #[tokio::test]
 async fn test_bhv_serializationwire_060_a_binary_return_type_gets_the_raw_bytes_of_a_json_body() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", r#"{"a":1}"#);
-    let bytes = api
+    let mut stream = api
         .download_pet_document(1, 1, None)
         .await
         .expect("download failed");
-    assert_eq!(bytes, br#"{"a":1}"#.to_vec());
+    assert_eq!(
+        stream.read_all().await.expect("the body"),
+        br#"{"a":1}"#.to_vec()
+    );
 }
 
 #[tokio::test]
 async fn test_bhv_operations_055_pet_api_get_pet_photo() {
     let (api, _) = new_pet_api_for_mock(200, "image/jpeg", "FAKE_JPEG_BYTES");
-    let photo = api
+    let mut photo = api
         .get_pet_photo(1, 1, None)
         .await
         .expect("get_pet_photo failed");
-    assert_eq!(photo, b"FAKE_JPEG_BYTES".to_vec());
+    assert_eq!(
+        photo.read_all().await.expect("the body"),
+        b"FAKE_JPEG_BYTES".to_vec()
+    );
 }
 
 #[tokio::test]
@@ -991,7 +1024,9 @@ async fn test_bhv_operations_073_pet_api_set_pet_avatar_streams_raw_bytes_with_d
     // set_pet_avatar returns `()` and never deserializes the response body, so
     // it cannot fail on the capture mock's JSON 200 — but ignore the result
     // regardless: this is a request-capture test, not a response test.
-    let _ = api.set_pet_avatar(1, image_bytes.clone(), None, None).await;
+    let _ = api
+        .set_pet_avatar(1, BodySource::from(image_bytes.clone()), None, None)
+        .await;
 
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
@@ -1046,7 +1081,9 @@ async fn test_bhv_operations_071_pet_api_set_pet_avatar_honours_selected_request
 
     // (1) Default path: no content-type selector -> first declared type.
     let (api, rx, _) = new_pet_api_for_byte_capture();
-    let _ = api.set_pet_avatar(1, image_bytes.clone(), None, None).await;
+    let _ = api
+        .set_pet_avatar(1, BodySource::from(image_bytes.clone()), None, None)
+        .await;
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
     let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
@@ -1065,7 +1102,12 @@ async fn test_bhv_operations_071_pet_api_set_pet_avatar_honours_selected_request
     // (2) Selector set to "image/png" with the SAME bytes -> image/png on the wire.
     let (api, rx, _) = new_pet_api_for_byte_capture();
     let _ = api
-        .set_pet_avatar(1, image_bytes.clone(), None, Some("image/png"))
+        .set_pet_avatar(
+            1,
+            BodySource::from(image_bytes.clone()),
+            None,
+            Some("image/png"),
+        )
         .await;
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
@@ -1096,7 +1138,12 @@ async fn test_bhv_operations_072_pet_api_set_pet_avatar_sends_the_bytes_verbatim
     let (api, rx, _) = new_pet_api_for_byte_capture();
     let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
     let _ = api
-        .set_pet_avatar(1, image_bytes.clone(), None, Some("application/json"))
+        .set_pet_avatar(
+            1,
+            BodySource::from(image_bytes.clone()),
+            None,
+            Some("application/json"),
+        )
         .await;
     let raw = rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
@@ -1351,7 +1398,12 @@ async fn test_bhv_operations_157_a_null_required_nullable_query_parameter_is_sen
     let (byte_api, byte_rx, _) = new_pet_api_for_byte_capture();
     let image_bytes: Vec<u8> = vec![0x00, 0xFF, 0xD8, 0x0D, 0x0A, 0x2D, 0x2D];
     let _ = byte_api
-        .set_pet_avatar(1, image_bytes.clone(), None, Some("image/jpeg"))
+        .set_pet_avatar(
+            1,
+            BodySource::from(image_bytes.clone()),
+            None,
+            Some("image/jpeg"),
+        )
         .await;
     let raw = byte_rx.recv().expect("expected a captured request");
     let (headers, body) = split_http_request(&raw);
@@ -1800,11 +1852,14 @@ async fn test_bhv_operations_038_pet_api_error_handling_server_error() {
 async fn test_bhv_operations_034_pet_api_download_binary_mock() {
     let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
-    let avatar = api
+    let mut avatar = api
         .get_pet_avatar(1, None)
         .await
         .expect("get_pet_avatar failed");
-    assert_eq!(avatar, b"FAKE_BINARY_DATA".to_vec());
+    assert_eq!(
+        avatar.read_all().await.expect("the body"),
+        b"FAKE_BINARY_DATA".to_vec()
+    );
 }
 
 #[tokio::test]
@@ -2432,6 +2487,10 @@ impl FakePetApi {
     }
 
     fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+        Self::fresh_failure()
+    }
+
+    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
         let api_error =
             petstore::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = petstore::errors::client_error::ClientError::try_from(api_error)
@@ -2589,7 +2648,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document({:?},{:?}, options={})",
             pet_id,
@@ -2605,7 +2664,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document_with_http_info({:?},{:?}, options={})",
@@ -2734,7 +2793,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar({:?}, options={})",
             pet_id,
@@ -2748,7 +2807,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar_with_http_info({:?}, options={})",
@@ -2903,7 +2962,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo({:?},{:?}, options={})",
             pet_id,
@@ -2919,7 +2978,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo_with_http_info({:?},{:?}, options={})",
@@ -3024,10 +3083,208 @@ impl PetApiTrait for FakePetApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn list_pet_archive(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> impl Future<Output = Result<PetArchivePage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_archive( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_archive_with_http_info(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_archive_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn list_pet_catalog(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> impl Future<Output = Result<PetCatalogPage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_catalog( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_catalog_with_http_info(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_catalog_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_catalog_pages(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Paginator<Pet, String, PetCatalogPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_catalog_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
+    fn list_pet_events(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> impl Future<Output = Result<PetEventPage, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_events( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_events_with_http_info(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_events_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_events_pages(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Paginator<String, String, PetEventPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_events_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
+    fn list_pet_feed(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_feed( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_feed_with_http_info(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_feed_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_feed_pages(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Paginator<Pet, (), Vec<Pet>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_feed_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
+    fn list_pet_matches(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> impl Future<Output = Result<PetMatchPage, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_matches( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_matches_with_http_info(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_matches_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn list_pet_notes(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> impl Future<Output = Result<PetNotePage, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_notes( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_notes_with_http_info(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_notes_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_notes_pages(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Paginator<String, String, PetNotePage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_notes_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
     fn set_pet_avatar(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
@@ -3044,7 +3301,7 @@ impl PetApiTrait for FakePetApi {
     fn set_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
@@ -3637,16 +3894,16 @@ async fn test_bhv_misc_220_a_full_response_call_keeps_the_status_code_and_the_de
 }
 
 #[tokio::test]
-async fn test_bhv_misc_216_a_binary_response_is_returned_as_bytes_and_the_raw_body_keeps_its_text()
-{
+async fn test_bhv_misc_216_a_binary_response_is_returned_as_a_stream_and_the_raw_body_is_empty() {
     let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "hello");
     let result = api
         .get_pet_avatar_with_http_info(1, None)
         .await
-        .expect("the binary response decodes");
+        .expect("the binary response opens a stream");
+    assert_eq!(result.raw_body(), "", "a stream result has no raw body");
+    let mut stream = result.into_data().expect("the stream");
     assert_eq!(
-        result.data().map(|bytes| bytes.as_slice()),
-        Some(&b"hello"[..])
+        stream.read_all().await.expect("the body"),
+        b"hello".to_vec()
     );
-    assert_eq!(result.raw_body(), "aGVsbG8=");
 }

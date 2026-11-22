@@ -44,6 +44,7 @@ public final class TransportOptions {
   private final boolean injectRequestId;
   @Nullable private final java.net.http.HttpClient httpClient;
   private final int maxRetries;
+  @Nullable private final Integer idleTimeout;
 
   TransportOptions(
       boolean verifySsl,
@@ -56,7 +57,8 @@ public final class TransportOptions {
       Map<String, String> defaultHeaders,
       boolean injectRequestId,
       @Nullable java.net.http.HttpClient httpClient,
-      int maxRetries) {
+      int maxRetries,
+      @Nullable Integer idleTimeout) {
     Builder.validateProxy(proxy);
     this.verifySsl = verifySsl;
     this.caCertPath = caCertPath;
@@ -69,6 +71,7 @@ public final class TransportOptions {
     this.injectRequestId = injectRequestId;
     this.httpClient = httpClient;
     this.maxRetries = maxRetries;
+    this.idleTimeout = idleTimeout == null || idleTimeout == 0 ? null : idleTimeout;
   }
 
   /**
@@ -103,6 +106,8 @@ public final class TransportOptions {
         + injectRequestId
         + ", maxRetries="
         + maxRetries
+        + ", idleTimeout="
+        + idleTimeout
         + "}";
   }
 
@@ -264,6 +269,22 @@ public final class TransportOptions {
   }
 
   /**
+   * The longest a streamed response body may stay silent, in milliseconds.
+   *
+   * <p>Applies only to a call that returns a stream (a binary operation): the {@link #getTimeout()
+   * timeout} stops at the response headers, and this value bounds the gap between two reads of the
+   * body. A stalled body raises {@link com.example.petstore.errors.NetworkTimeoutException}. A
+   * buffered call is unaffected.
+   *
+   * @return the idle timeout in milliseconds, or {@code null} when it is disabled (default {@code
+   *     60000})
+   */
+  @Nullable
+  public Integer getIdleTimeout() {
+    return idleTimeout;
+  }
+
+  /**
    * Builder for creating immutable {@link TransportOptions} instances.
    *
    * <p>All fields have sensible defaults:
@@ -274,6 +295,7 @@ public final class TransportOptions {
    *   <li>{@code injectRequestId} — {@code false}
    *   <li>{@code timeout} — {@code 10000} (10 seconds)
    *   <li>{@code maxRetries} — {@code 2}
+   *   <li>{@code idleTimeout} — {@code 60000} (60 seconds)
    *   <li>{@code userAgent} — a package-specific default string
    *   <li>All other fields — {@code null} or empty
    * </ul>
@@ -291,6 +313,7 @@ public final class TransportOptions {
     private boolean injectRequestId = false;
     @Nullable private java.net.http.HttpClient httpClient = null;
     private int maxRetries = 2;
+    @Nullable private Integer idleTimeout = 60000;
 
     Builder() {}
 
@@ -396,6 +419,22 @@ public final class TransportOptions {
             "Invalid timeout: must be a positive number of milliseconds (got " + timeout + ")");
       }
       this.timeout = timeout;
+      return this;
+    }
+
+    /**
+     * Set the longest a streamed response body may stay silent, in milliseconds.
+     *
+     * @param idleTimeout the gap in milliseconds (positive), or {@code 0} or {@code null} to
+     *     disable it; the default is {@code 60000}
+     * @return this builder
+     */
+    public Builder idleTimeout(@Nullable Integer idleTimeout) {
+      if (idleTimeout != null && idleTimeout < 0) {
+        throw new IllegalArgumentException(
+            "Invalid idleTimeout: must not be negative (got " + idleTimeout + ")");
+      }
+      this.idleTimeout = idleTimeout == null || idleTimeout == 0 ? null : idleTimeout;
       return this;
     }
 
@@ -517,7 +556,8 @@ public final class TransportOptions {
           new HashMap<>(defaultHeaders),
           injectRequestId,
           httpClient,
-          maxRetries);
+          maxRetries,
+          idleTimeout);
     }
   }
 }

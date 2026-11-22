@@ -1,0 +1,18 @@
+          {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}requirement_authenticator({{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}scheme_authenticator({{#vendorExtensions.op.securitySchemeOrder}}'{{#lambda.rubyQuoted}}{{{schemeId}}}{{/lambda.rubyQuoted}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
+          raw_body: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+          error_schemas: {
+{{#vendorExtensions.op.errorSchemaResponses}}
+            '{{{status}}}' => ::{{{moduleName}}}::Errors::{{{schemaClassName}}}{{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+          },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+          operation_id: '{{classname}}.{{operationId}}',
+          spec_operation_id: '{{#lambda.rubyQuoted}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.rubyQuoted}}',
+          url_template: '{{#lambda.rubyQuoted}}{{{path}}}{{/lambda.rubyQuoted}}',
+          request_options: options{{#vendorExtensions.op.streamOnly}},
+          item_type: {{#vendorExtensions.op.streamTyped}}'{{{vendorExtensions.op.streamItemRuby}}}'{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}nil{{/vendorExtensions.op.streamTyped}},
+{{#vendorExtensions.op.streamsSse}}
+          terminator: {{#hasSseTerminator}}'{{{sseTerminator}}}'{{/hasSseTerminator}}{{^hasSseTerminator}}nil{{/hasSseTerminator}},
+{{/vendorExtensions.op.streamsSse}}
+          stream_options: stream_options{{/vendorExtensions.op.streamOnly}}

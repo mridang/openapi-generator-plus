@@ -58,6 +58,44 @@ class ClientTest {
   }
 
   @Test
+  void bhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls() throws Exception {
+    try (DefaultApiClientUnitTest.RawServer server =
+        DefaultApiClientUnitTest.RawServer.serve(DefaultApiClientUnitTest::oneChunkThenHold)) {
+      Client client = new Client(authenticator);
+      ApiStreamResponse open =
+          client
+              .transport()
+              .sendStreaming(
+                  "GET", server.url("/items/events"), java.util.Map.of(), null, null, null, null);
+      assertEquals("tick", new String(open.body().readNBytes(4), StandardCharsets.UTF_8));
+
+      long started = System.nanoTime();
+      client.close();
+      assertTrue(
+          System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(5),
+          "closing did not wait for the endless stream");
+
+      IllegalStateException cancelled =
+          assertThrows(IllegalStateException.class, () -> open.body().read());
+      assertEquals(
+          "ApiClient has been closed and can no longer send requests", cancelled.getMessage());
+      assertThrows(
+          IllegalStateException.class,
+          () ->
+              client
+                  .transport()
+                  .sendStreaming(
+                      "GET",
+                      server.url("/items/events"),
+                      java.util.Map.of(),
+                      null,
+                      null,
+                      null,
+                      null));
+    }
+  }
+
+  @Test
   void bhvLifecycle007ClosingTheClientLeavesASuppliedHttpClientOpen() {
     java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
     Client client =
@@ -446,6 +484,18 @@ class ClientTest {
     assertTrue(petListed.contains("getPetTagWithHttpInfo"));
     assertTrue(petListed.contains("getStagingPetInfo"));
     assertTrue(petListed.contains("getStagingPetInfoWithHttpInfo"));
+    assertTrue(petListed.contains("listPetArchive"));
+    assertTrue(petListed.contains("listPetArchiveWithHttpInfo"));
+    assertTrue(petListed.contains("listPetCatalog"));
+    assertTrue(petListed.contains("listPetCatalogWithHttpInfo"));
+    assertTrue(petListed.contains("listPetEvents"));
+    assertTrue(petListed.contains("listPetEventsWithHttpInfo"));
+    assertTrue(petListed.contains("listPetFeed"));
+    assertTrue(petListed.contains("listPetFeedWithHttpInfo"));
+    assertTrue(petListed.contains("listPetMatches"));
+    assertTrue(petListed.contains("listPetMatchesWithHttpInfo"));
+    assertTrue(petListed.contains("listPetNotes"));
+    assertTrue(petListed.contains("listPetNotesWithHttpInfo"));
     assertTrue(petListed.contains("setPetAvatar"));
     assertTrue(petListed.contains("setPetAvatarWithHttpInfo"));
     assertTrue(petListed.contains("setPetAvatarThumbnail"));
@@ -490,8 +540,7 @@ class ClientTest {
     assertTrue(storeListed.contains("createAccountWithHttpInfo"));
     assertTrue(storeListed.contains("deleteOrder"));
     assertTrue(storeListed.contains("deleteOrderWithHttpInfo"));
-    assertTrue(storeListed.contains("exportOrders"));
-    assertTrue(storeListed.contains("exportOrdersWithHttpInfo"));
+    assertTrue(storeListed.contains("exportOrdersStream"));
     assertTrue(storeListed.contains("getAuditTrail"));
     assertTrue(storeListed.contains("getAuditTrailWithHttpInfo"));
     assertTrue(storeListed.contains("getBySwatch"));
@@ -528,10 +577,8 @@ class ClientTest {
     assertTrue(storeListed.contains("reserveStockWithHttpInfo"));
     assertTrue(storeListed.contains("searchStore"));
     assertTrue(storeListed.contains("searchStoreWithHttpInfo"));
-    assertTrue(storeListed.contains("watchNotices"));
-    assertTrue(storeListed.contains("watchNoticesWithHttpInfo"));
-    assertTrue(storeListed.contains("watchOrders"));
-    assertTrue(storeListed.contains("watchOrdersWithHttpInfo"));
+    assertTrue(storeListed.contains("watchNoticesStream"));
+    assertTrue(storeListed.contains("watchOrdersStream"));
   }
 
   @Test

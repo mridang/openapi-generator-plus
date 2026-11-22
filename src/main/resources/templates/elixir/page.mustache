@@ -1,0 +1,23 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Page do
+  @moduledoc """
+  One page of a paged list: the items it holds, the cursor of the page after it, and the result of
+  the request that returned it.
+
+    * `items` - the items of this page, in order.
+    * `next_cursor` - the cursor of the next page, typed like the cursor request parameter, or `nil`
+      on the last page; always `nil` for a list that is followed by `Link` header.
+    * `result` - what the matching `_with_http_info` function returns for this page: the status,
+      the headers, the raw body and the decoded body.
+  """
+
+  @enforce_keys [:items, :result]
+  defstruct [:items, :next_cursor, :result]
+
+  @type t :: %__MODULE__{
+          items: [term()],
+          next_cursor: String.t() | integer() | nil,
+          result: {{moduleName}}.ApiResult.t()
+        }
+end

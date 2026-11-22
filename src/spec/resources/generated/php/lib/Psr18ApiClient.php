@@ -15,6 +15,7 @@ namespace PetstoreClient;
 
 use PetstoreClient\Errors\NetworkException;
 use PetstoreClient\Errors\NetworkTimeoutException;
+use PetstoreClient\Errors\StreamException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -70,6 +71,176 @@ class Psr18ApiClient extends AbstractApiClient
     }
 
     /**
+     * Builds the PSR-7 request of one exchange: the headers and the body, with multipart/form-data
+     * encoding when $body is an array, in which case the boundary-bearing `Content-Type` header is
+     * owned here.
+     *
+     * @param array<string, string> $headers
+     */
+    private function buildRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+    ): \Psr\Http\Message\RequestInterface {
+        $request = $this->requestFactory->createRequest($method, $url);
+        foreach ($headers as $name => $value) {
+            $request = $request->withHeader($name, $value);
+        }
+
+        if (is_array($body)) {
+            [$contentType, $raw] = $this->encodeMultipart($body);
+            $request = $request
+                ->withHeader('Content-Type', $contentType)
+                ->withBody($this->streamFactory->createStream($raw));
+        } elseif (is_string($body)) {
+            $request = $request->withBody($this->streamFactory->createStream($body));
+        } elseif ($body instanceof BodySource) {
+            /* Sent as it is read, never buffered: the PSR-7 stream pulls the chunks while the client
+             * sends them. Its size is the Content-Length the base class set, or unknown. */
+            $request = $request->withBody($this->streamOf($body));
+        } else {
+            /* A null body on a body-bearing verb is sent as an explicit empty
+             * body (the base class already injected Content-Length: 0);
+             * GET/HEAD send nothing. */
+            $upperMethod = strtoupper($method);
+            if (in_array($upperMethod, ['POST', 'PUT', 'PATCH'], true)) {
+                $request = $request->withBody($this->streamFactory->createStream(''));
+            }
+        }
+
+        return $request;
+    }
+
+    /**
+     * A read-only, forward-only PSR-7 stream over a body source: the content is pulled from the
+     * source as the client reads it and is never held in memory as a whole.
+     */
+    private function streamOf(BodySource $source): \Psr\Http\Message\StreamInterface
+    {
+        return new class ($source) implements \Psr\Http\Message\StreamInterface {
+            /** @var \Generator<int, string>|null */
+            private ?\Generator $chunks = null;
+
+            private bool $started = false;
+
+            private string $pending = '';
+
+            private bool $ended = false;
+
+            private int $position = 0;
+
+            public function __construct(private readonly BodySource $source)
+            {
+            }
+
+            public function __toString(): string
+            {
+                try {
+                    return $this->getContents();
+                } catch (\Throwable) {
+                    return '';
+                }
+            }
+
+            public function close(): void
+            {
+                $this->chunks = null;
+                $this->pending = '';
+                $this->ended = true;
+            }
+
+            public function detach()
+            {
+                $this->close();
+
+                return null;
+            }
+
+            public function getSize(): ?int
+            {
+                return $this->source->length();
+            }
+
+            public function tell(): int
+            {
+                return $this->position;
+            }
+
+            public function eof(): bool
+            {
+                return $this->ended && $this->pending === '';
+            }
+
+            public function isSeekable(): bool
+            {
+                return false;
+            }
+
+            public function seek(int $offset, int $whence = SEEK_SET): void
+            {
+                throw new \RuntimeException('A request body that is read as it is sent cannot seek');
+            }
+
+            public function rewind(): void
+            {
+                throw new \RuntimeException('A request body that is read as it is sent cannot be rewound');
+            }
+
+            public function isWritable(): bool
+            {
+                return false;
+            }
+
+            public function write(string $string): int
+            {
+                throw new \RuntimeException('A request body is read only');
+            }
+
+            public function isReadable(): bool
+            {
+                return true;
+            }
+
+            public function read(int $length): string
+            {
+                while (strlen($this->pending) < $length && !$this->ended) {
+                    $this->chunks ??= $this->source->chunks();
+                    if ($this->started) {
+                        $this->chunks->next();
+                    }
+                    $this->started = true;
+                    if ($this->chunks->valid()) {
+                        $this->pending .= $this->chunks->current();
+                    } else {
+                        $this->ended = true;
+                    }
+                }
+                $data = substr($this->pending, 0, $length);
+                $this->pending = substr($this->pending, strlen($data));
+                $this->position += strlen($data);
+
+                return $data;
+            }
+
+            public function getContents(): string
+            {
+                $all = '';
+                while (!$this->eof()) {
+                    $all .= $this->read(65536);
+                }
+
+                return $all;
+            }
+
+            public function getMetadata(?string $key = null)
+            {
+                return $key === null ? [] : null;
+            }
+        };
+    }
+
+    /**
      * Perform a single PSR-18 request with no automatic redirect following,
      * returning the raw status, body, and multi-value headers.
      *
@@ -85,27 +256,7 @@ class Psr18ApiClient extends AbstractApiClient
         array $headers,
         mixed $body,
     ): RawHttpResponse {
-        $request = $this->requestFactory->createRequest($method, $url);
-        foreach ($headers as $name => $value) {
-            $request = $request->withHeader($name, $value);
-        }
-
-        if (is_array($body)) {
-            [$contentType, $raw] = $this->encodeMultipart($body);
-            $request = $request
-                ->withHeader('Content-Type', $contentType)
-                ->withBody($this->streamFactory->createStream($raw));
-        } elseif (is_string($body)) {
-            $request = $request->withBody($this->streamFactory->createStream($body));
-        } else {
-            /* A null body on a body-bearing verb is sent as an explicit empty
-             * body (the base class already injected Content-Length: 0);
-             * GET/HEAD send nothing. */
-            $upperMethod = strtoupper($method);
-            if (in_array($upperMethod, ['POST', 'PUT', 'PATCH'], true)) {
-                $request = $request->withBody($this->streamFactory->createStream(''));
-            }
-        }
+        $request = $this->buildRequest($method, $url, $headers, $body);
 
         try {
             $response = $this->httpClient->sendRequest($request);
@@ -115,10 +266,10 @@ class Psr18ApiClient extends AbstractApiClient
              * wraps it); anything else is a failure with no HTTP response. */
             for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
                 if ($cause instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface) {
-                    throw new NetworkTimeoutException("API Request timed out: " . $this->redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+                    throw new NetworkTimeoutException("API Request timed out: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
                 }
             }
-            throw new NetworkException("API Request failed: " . $this->redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+            throw new NetworkException("API Request failed: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
         }
 
         $rawHeaders = [];
@@ -134,6 +285,83 @@ class Psr18ApiClient extends AbstractApiClient
     }
 
     /**
+     * Perform the header phase of a single streaming PSR-18 request with no automatic redirect
+     * following: the request is built as {@see execute()} builds it and the body is left unread,
+     * read lazily from the PSR-7 stream of the response.
+     *
+     * A PSR-18 client may buffer the whole body before it returns, in which case the stream
+     * delivers it all at once, never a hang. PSR-18 carries no timeouts, so the idle timeout
+     * is not applied here: configure it on your own client.
+     *
+     * @param array<string, string> $headers
+     * @param float|null            $idleSeconds not applied, see above
+     * @throws NetworkException if the request fails at the transport level
+     */
+    protected function executeStreaming(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        ?float $idleSeconds,
+    ): RawStreamResponse {
+        $request = $this->buildRequest($method, $url, $headers, $body);
+        try {
+            $response = $this->httpClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
+                if ($cause instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface) {
+                    throw new NetworkTimeoutException("API Request timed out: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+                }
+            }
+            throw new NetworkException("API Request failed: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+        }
+
+        $rawHeaders = [];
+        foreach ($response->getHeaders() as $name => $values) {
+            $rawHeaders[strtolower($name)] = array_values($values);
+        }
+        $source = $response->getBody();
+        $path = self::redactUrlQuery($url, $url);
+        $finished = false;
+
+        return new RawStreamResponse(
+            $response->getStatusCode(),
+            $rawHeaders,
+            static function () use ($source, $method, $url, $path, &$finished): ?string {
+                if ($finished) {
+                    return null;
+                }
+                try {
+                    while (!$source->eof()) {
+                        $data = $source->read(65536);
+                        if ($data !== '') {
+                            return $data;
+                        }
+                    }
+                } catch (\RuntimeException $e) {
+                    $finished = true;
+                    throw new StreamException(
+                        'The response body failed after the headers: ' . self::redactUrlQuery($e->getMessage(), $url),
+                        $e,
+                        $method,
+                        $path
+                    );
+                }
+                $finished = true;
+
+                return null;
+            },
+            static function () use ($source): void {
+                try {
+                    $source->close();
+                } catch (\Throwable) {
+                    /* the connection is being dropped either way */
+                }
+            }
+        );
+    }
+
+    /**
      * Marks the client closed so a subsequent {@see sendRequest()} raises an
      * SDK-typed {@see \PetstoreClient\Errors\ApiException}, matching the use-after-close contract of
      * the other transports. The injected PSR-18 client is owned by the caller
@@ -141,6 +369,7 @@ class Psr18ApiClient extends AbstractApiClient
      */
     public function close(): void
     {
+        $this->cancelOpenStreams();
         $this->closed = true;
     }
 
@@ -234,7 +463,7 @@ class Psr18ApiClient extends AbstractApiClient
      * with the same URL minus its query string and fragment, so a secret carried
      * in the query never reaches an error message.
      */
-    private function redactUrlQuery(string $message, string $url): string
+    private static function redactUrlQuery(string $message, string $url): string
     {
         $withoutQuery = explode('?', explode('#', $url, 2)[0], 2)[0];
 

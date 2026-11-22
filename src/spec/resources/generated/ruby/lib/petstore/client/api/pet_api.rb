@@ -481,7 +481,7 @@ module Petstore::Client
       # @param pet_id [Integer]
       # @param document_id [Integer]
       # @param options [DownloadPetDocumentOptions] per-call options: the optional timeout, headers and max_retries
-      # @return [StringIO]
+      # @return [ByteStream]
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def download_pet_document(pet_id, document_id, options = nil)
@@ -524,11 +524,10 @@ module Petstore::Client
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-        invoke_api_for_result(
+        invoke_api_for_stream(
           :GET, path, query_params, header_params, request_body,
           ['application/octet-stream'],
           'application/json',
-          'File',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.download_pet_document',
           spec_operation_id: 'downloadPetDocument',
@@ -777,7 +776,7 @@ module Petstore::Client
       # Returns the raw image bytes of the pet's current avatar.
       # @param pet_id [Integer]
       # @param options [GetPetAvatarOptions] per-call options: the optional timeout, headers and max_retries
-      # @return [StringIO]
+      # @return [ByteStream]
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_avatar(pet_id, options = nil)
@@ -814,11 +813,10 @@ module Petstore::Client
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-        invoke_api_for_result(
+        invoke_api_for_stream(
           :GET, path, query_params, header_params, request_body,
           ['image/jpeg', 'image/png'],
           'application/json',
-          'File',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_avatar',
           spec_operation_id: 'getPetAvatar',
@@ -1168,7 +1166,7 @@ module Petstore::Client
       # @param pet_id [Integer]
       # @param photo_id [Integer]
       # @param options [GetPetPhotoOptions] per-call options: the optional timeout, headers and max_retries
-      # @return [StringIO]
+      # @return [ByteStream]
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_pet_photo(pet_id, photo_id, options = nil)
@@ -1211,11 +1209,10 @@ module Petstore::Client
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
-        invoke_api_for_result(
+        invoke_api_for_stream(
           :GET, path, query_params, header_params, request_body,
           ['image/jpeg', 'image/png', 'application/json'],
           'application/json',
-          'File',
           scheme_authenticator('petStoreBasic', 'petStoreBearer'),
           operation_id: 'PetApi.get_pet_photo',
           spec_operation_id: 'getPetPhoto',
@@ -1493,10 +1490,424 @@ module Petstore::Client
         )
       end
 
+      # Lists archived pets; it looks paged, and the generator option says it is not
+      # @param options [ListPetArchiveOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [PetArchivePage]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_archive(options = nil)
+        result = list_pet_archive_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for list_pet_archive but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_archive_with_http_info(options = nil)
+        path = '/pet/archive'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        unless options.nil? || options.cursor.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'cursor', options.cursor, 'String', nil, 'form', true,
+              false
+            )
+          )
+        end
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'PetArchivePage',
+          scheme_authenticator('petStoreBearer'),
+          operation_id: 'PetApi.list_pet_archive',
+          spec_operation_id: 'listPetArchive',
+          url_template: '/pet/archive',
+          request_options: options
+        )
+      end
+
+      # Lists the pet catalog one page at a time with a next-cursor token
+      # @param options [ListPetCatalogOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [PetCatalogPage]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_catalog(options = nil)
+        result = list_pet_catalog_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for list_pet_catalog but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_catalog_with_http_info(options = nil)
+        path = '/pet/catalog'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        unless options.nil? || options.limit.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'limit', options.limit, 'Integer', nil, 'form', true,
+              false
+            )
+          )
+        end
+        unless options.nil? || options.cursor.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'cursor', options.cursor, 'String', nil, 'form', true,
+              false
+            )
+          )
+        end
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'PetCatalogPage',
+          scheme_authenticator('petStoreBearer'),
+          operation_id: 'PetApi.list_pet_catalog',
+          spec_operation_id: 'listPetCatalog',
+          url_template: '/pet/catalog',
+          request_options: options
+        )
+      end
+
+      # Lists the pet catalog one page at a time with a next-cursor token
+      #
+      # Returns the items as a lazy {Paginator}: no request is sent until you first read an
+      # item or a page, and each next page is requested only when you ask for more. Every page is an
+      # ordinary call of +list_pet_catalog_with_http_info+, with the same options on each page.
+      # The value of the +cursor+ option is where the
+      # list starts, and the page after each one is requested with the +next_cursor+
+      # it returned.
+      # @param options [ListPetCatalogOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [Paginator] the paginator over the items
+      def list_pet_catalog_pages(options = nil)
+        paged_options = options || Options::ListPetCatalogOptions.new
+        ::Petstore::Client::Paginator.of_cursor(
+          start: paged_options.cursor,
+          fetch: ->(page_cursor) { list_pet_catalog_with_http_info(paged_options.copy_with(cursor: page_cursor)) },
+          items: :items.to_proc,
+          next_cursor: :next_cursor.to_proc,
+          request_path: '/pet/catalog'
+        )
+      end
+
+      # Lists pet events; only the generator option says it is paged
+      # @param options [ListPetEventsOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [PetEventPage]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_events(options = nil)
+        result = list_pet_events_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for list_pet_events but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_events_with_http_info(options = nil)
+        path = '/pet/events'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        unless options.nil? || options.since.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'since', options.since, 'String', nil, 'form', true,
+              false
+            )
+          )
+        end
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'PetEventPage',
+          scheme_authenticator('petStoreBearer'),
+          operation_id: 'PetApi.list_pet_events',
+          spec_operation_id: 'listPetEvents',
+          url_template: '/pet/events',
+          request_options: options
+        )
+      end
+
+      # Lists pet events; only the generator option says it is paged
+      #
+      # Returns the items as a lazy {Paginator}: no request is sent until you first read an
+      # item or a page, and each next page is requested only when you ask for more. Every page is an
+      # ordinary call of +list_pet_events_with_http_info+, with the same options on each page.
+      # The value of the +since+ option is where the
+      # list starts, and the page after each one is requested with the +upto+
+      # it returned.
+      # @param options [ListPetEventsOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [Paginator] the paginator over the items
+      def list_pet_events_pages(options = nil)
+        paged_options = options || Options::ListPetEventsOptions.new
+        ::Petstore::Client::Paginator.of_cursor(
+          start: paged_options.since,
+          fetch: ->(page_cursor) { list_pet_events_with_http_info(paged_options.copy_with(since: page_cursor)) },
+          items: :events.to_proc,
+          next_cursor: :upto.to_proc,
+          request_path: '/pet/events'
+        )
+      end
+
+      # Lists the pet feed one page at a time with a Link header
+      # @param options [ListPetFeedOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [Array<Pet>]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_feed(options = nil)
+        result = list_pet_feed_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for list_pet_feed but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_feed_with_http_info(options = nil)
+        list_pet_feed_page(options)
+      end
+
+      # One page of the list: the first when +page_url+ is nil, else the URL the Link header named.
+      #
+      # @api private
+      def list_pet_feed_page(options = nil, page_url: nil)
+        path = '/pet/feed'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        unless options.nil? || options.limit.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'limit', options.limit, 'Integer', nil, 'form', true,
+              false
+            )
+          )
+        end
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        if page_url
+          path = page_url
+          query_params.clear
+        end
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Array<Pet>',
+          scheme_authenticator('petStoreBearer'),
+          operation_id: 'PetApi.list_pet_feed',
+          spec_operation_id: 'listPetFeed',
+          url_template: '/pet/feed',
+          request_options: options
+        )
+      end
+      private :list_pet_feed_page
+
+      # Lists the pet feed one page at a time with a Link header
+      #
+      # Returns the items as a lazy {Paginator}: no request is sent until you first read an
+      # item or a page, and each next page is requested only when you ask for more. Every page is an
+      # ordinary call of +list_pet_feed_with_http_info+, with the same options on each page.
+      # The page after each one is the +rel="next"+ link of its +Link+ header, followed
+      # only within the origin of the client.
+      # @param options [ListPetFeedOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [Paginator] the paginator over the items
+      def list_pet_feed_pages(options = nil)
+        paged_options = options || Options::ListPetFeedOptions.new
+        ::Petstore::Client::Paginator.of_link(
+          base_url: config.base_url,
+          fetch: ->(page_url) { list_pet_feed_page(paged_options, page_url: page_url) },
+          items: ->(page) { page },
+          request_path: '/pet/feed'
+        )
+      end
+
+      # Finds pets and their owners; two lists make it ambiguous, so it is not paged
+      # @param options [ListPetMatchesOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [PetMatchPage]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_matches(options = nil)
+        result = list_pet_matches_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for list_pet_matches but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_matches_with_http_info(options = nil)
+        path = '/pet/matches'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        unless options.nil? || options.cursor.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'cursor', options.cursor, 'String', nil, 'form', true,
+              false
+            )
+          )
+        end
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'PetMatchPage',
+          scheme_authenticator('petStoreBearer'),
+          operation_id: 'PetApi.list_pet_matches',
+          spec_operation_id: 'listPetMatches',
+          url_template: '/pet/matches',
+          request_options: options
+        )
+      end
+
+      # Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+      # @param options [ListPetNotesOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [PetNotePage]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_notes(options = nil)
+        result = list_pet_notes_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for list_pet_notes but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def list_pet_notes_with_http_info(options = nil)
+        path = '/pet/notes'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        unless options.nil? || options.pos.nil?
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'pos', options.pos, 'String', nil, 'form', true,
+              false
+            )
+          )
+        end
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'PetNotePage',
+          scheme_authenticator('petStoreBearer'),
+          operation_id: 'PetApi.list_pet_notes',
+          spec_operation_id: 'listPetNotes',
+          url_template: '/pet/notes',
+          request_options: options
+        )
+      end
+
+      # Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+      #
+      # Returns the items as a lazy {Paginator}: no request is sent until you first read an
+      # item or a page, and each next page is requested only when you ask for more. Every page is an
+      # ordinary call of +list_pet_notes_with_http_info+, with the same options on each page.
+      # The value of the +pos+ option is where the
+      # list starts, and the page after each one is requested with the +following+
+      # it returned.
+      # @param options [ListPetNotesOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [Paginator] the paginator over the items
+      def list_pet_notes_pages(options = nil)
+        paged_options = options || Options::ListPetNotesOptions.new
+        ::Petstore::Client::Paginator.of_cursor(
+          start: paged_options.pos,
+          fetch: ->(page_cursor) { list_pet_notes_with_http_info(paged_options.copy_with(pos: page_cursor)) },
+          items: :rows.to_proc,
+          next_cursor: :following.to_proc,
+          request_path: '/pet/notes'
+        )
+      end
+
       # Set the pet's profile photo
       # Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
       # @param pet_id [Integer]
-      # @param body [File]
+      # @param body [BodySource]
       # @param options [SetPetAvatarOptions] per-call options: the optional timeout, headers and max_retries
       # @param request_content_type [String, nil] selects the request Content-Type among the declared types (image/jpeg, image/png, application/json); defaults to 'image/jpeg' when nil
       # @return [nil]
@@ -1532,7 +1943,7 @@ module Petstore::Client
         # serialization. #encode_oneof_body is a no-op for non-union bodies
         # (primitives, plain models) and for discriminated / model-ref unions,
         # whose resolved value already serializes correctly.
-        request_body = ::Petstore::Client::ObjectSerializer.encode_oneof_body(body, 'File')
+        request_body = ::Petstore::Client::ObjectSerializer.encode_oneof_body(body, 'BodySource')
         # This operation declares multiple request content-types. The optional
         # `request_content_type:` selector lets the caller choose among the declared
         # types; when nil it defaults to the first declared type. An
@@ -1552,7 +1963,6 @@ module Petstore::Client
                   "Unsupported request content-type '#{request_content_type}' for " \
                   "set_pet_avatar; declared types are [#{declared_consumes.join(', ')}]"
           end
-
         invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
           [],
@@ -1895,7 +2305,6 @@ module Petstore::Client
                   "Unsupported request content-type '#{request_content_type}' for " \
                   "upload_pet_document; declared types are [#{declared_consumes.join(', ')}]"
           end
-
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],

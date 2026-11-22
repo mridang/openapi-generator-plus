@@ -108,6 +108,7 @@ defmodule PetstoreClient.CallHookRecipeTest do
     defp error_type(%{error: nil}), do: nil
     defp error_type(%{error: %PetstoreClient.Errors.NetworkTimeoutError{}}), do: "timeout"
     defp error_type(%{error: %PetstoreClient.Errors.NetworkError{}}), do: "network_error"
+    defp error_type(%{error: %PetstoreClient.Errors.StreamError{}}), do: "network_error"
 
     defp error_type(%{error: %PetstoreClient.Errors.SerializationError{}}),
       do: "serialization_error"

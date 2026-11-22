@@ -103,17 +103,31 @@ defmodule {{moduleName}}.Api.PetApiTest do
 
   test "bhv operations 070 set_pet_avatar", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
-    assert {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(api, pet_id, <<0xFF, 0xD8, 0xFF>>)
+    assert {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(api, pet_id, {{moduleName}}.BodySource.of(<<0xFF, 0xD8, 0xFF>>))
   end
 
   test "bhv operations 045 get_pet_avatar", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_avatar_with_http_info(api, pet_id)
-    assert is_binary(result.data)
-    # The transport base64-encodes the binary body into `raw_body`; the
-    # decoded `data` must round-trip back to it. This fails if the client
-    # returns the base64 string instead of the decoded bytes.
-    assert Base.encode64(result.data) == result.raw_body
+    assert %{{moduleName}}.ByteStream{} = result.data
+    # A binary response is read as it arrives, so there is no raw body to carry.
+    assert result.raw_body == ""
+    assert {:ok, bytes} = {{moduleName}}.ByteStream.read_all(result.data)
+    assert is_binary(bytes)
+  end
+
+  test "bhv streaming 009 a binary stream exposes the status and the lower-cased response headers", %{api: api} do
+    assert {:ok, %{{moduleName}}.ByteStream{} = stream} = {{moduleName}}.Api.PetApi.get_pet_avatar(api, 1)
+    assert stream.status_code == 200
+    assert Map.has_key?(stream.headers, "content-type")
+    assert Enum.all?(Map.keys(stream.headers), &(&1 == String.downcase(&1)))
+    assert {{moduleName}}.ByteStream.close(stream) == :ok
+
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_avatar_with_http_info(api, 1)
+    assert result.status_code == result.data.status_code
+    assert result.headers == result.data.headers
+    assert result.raw_body == ""
+    assert {{moduleName}}.ByteStream.close(result.data) == :ok
   end
 
   test "bhv operations 046 get_pet_avatar_thumbnail", %{api: api} do
@@ -168,14 +182,14 @@ defmodule {{moduleName}}.Api.PetApiTest do
     pet_id = :rand.uniform(1_000_000_000)
     doc_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = {{moduleName}}.Api.PetApi.download_pet_document(api, pet_id, doc_id)
-    assert result != nil
+    assert {:ok, _bytes} = {{moduleName}}.ByteStream.read_all(result)
   end
 
   test "bhv operations 055 get_pet_photo", %{api: api} do
     pet_id = :rand.uniform(1_000_000_000)
     photo_id = :rand.uniform(1_000_000_000)
     assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_photo(api, pet_id, photo_id)
-    assert result != nil
+    assert {:ok, _bytes} = {{moduleName}}.ByteStream.read_all(result)
   end
 
   test "bhv operations 053 get_pet_passport", %{api: api} do
@@ -294,7 +308,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
     assert_raise ArgumentError,
                  ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries, :content_type\]/,
                  fn ->
-                   {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>, nil, contnet_type: "image/png")
+                   {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, {{moduleName}}.BodySource.of(<<1, 2, 3>>), nil, contnet_type: "image/png")
                  end
   end
 
@@ -797,7 +811,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
   test "bhv operations 034 download binary mock" do
     api = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA")
     assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_avatar(api, :rand.uniform(1_000_000_000))
-    assert result != nil
+    assert {:ok, "FAKE_BINARY_DATA"} = {{moduleName}}.ByteStream.read_all(result)
   end
 
   test "bhv operations 089 upload multipart mock" do
@@ -1226,7 +1240,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
                  ~s(Unsupported request content-type 'application/unknown-type' for set_pet_avatar; ) <>
                    ~s(declared types are [image/jpeg, image/png, application/json]),
                  fn ->
-                   {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>, nil,
+                   {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, {{moduleName}}.BodySource.of(<<1, 2, 3>>), nil,
                      content_type: "application/unknown-type"
                    )
                  end
@@ -1423,13 +1437,14 @@ defmodule {{moduleName}}.Api.PetApiTest do
     # JPEG SOI marker — a known, non-trivial byte payload.
     payload = <<0xFF, 0xD8, 0xFF, 0xE0>>
 
-    {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, payload)
+    {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, {{moduleName}}.BodySource.of(payload))
 
     captured = BodyCapturingApiClient.captured(name)
 
-    # (1) the body must be the EXACT raw bytes — not a JSON int-array, not "{}",
-    # not base64, not JSON-marshaled in any way.
-    assert captured.body == payload
+    # (1) the transport is handed the body source unchanged, and it reads back the EXACT raw
+    # bytes — not a JSON int-array, not "{}", not base64, not JSON-marshaled in any way.
+    assert %{{moduleName}}.BodySource{} = captured.body
+    assert {^payload, 4} = {{moduleName}}.BodySource.open(captured.body)
     refute captured.body == "{}"
     refute captured.body == Base.encode64(payload)
     refute captured.body == Jason.encode!(:binary.bin_to_list(payload))
@@ -1457,11 +1472,11 @@ defmodule {{moduleName}}.Api.PetApiTest do
     default_config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     default_api = {{moduleName}}.Api.PetApi.new(BodyCapturingApiClient, default_config)
 
-    {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(default_api, 5, payload)
+    {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(default_api, 5, {{moduleName}}.BodySource.of(payload))
 
     default_captured = BodyCapturingApiClient.captured(default_name)
     assert default_captured.headers["Content-Type"] == "image/jpeg"
-    assert default_captured.body == payload
+    assert {^payload, 4} = {{moduleName}}.BodySource.open(default_captured.body)
     Agent.stop(default_name)
 
     # (2) Selector set to image/png with the SAME raw bytes -> image/png.
@@ -1470,13 +1485,13 @@ defmodule {{moduleName}}.Api.PetApiTest do
     png_api = {{moduleName}}.Api.PetApi.new(BodyCapturingApiClient, png_config)
 
     {:ok, _result} =
-      {{moduleName}}.Api.PetApi.set_pet_avatar(png_api, 5, payload, nil, content_type: "image/png")
+      {{moduleName}}.Api.PetApi.set_pet_avatar(png_api, 5, {{moduleName}}.BodySource.of(payload), nil, content_type: "image/png")
 
     png_captured = BodyCapturingApiClient.captured(png_name)
     assert png_captured.headers["Content-Type"] == "image/png"
     refute png_captured.headers["Content-Type"] == "image/jpeg"
     # The selector only swaps the header; the raw bytes are unchanged.
-    assert png_captured.body == payload
+    assert {^payload, 4} = {{moduleName}}.BodySource.open(png_captured.body)
     Agent.stop(png_name)
   end
 
@@ -1489,10 +1504,10 @@ defmodule {{moduleName}}.Api.PetApiTest do
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     api = {{moduleName}}.Api.PetApi.new(BodyCapturingApiClient, config)
 
-    {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, payload, nil, content_type: "application/json")
+    {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(api, 5, {{moduleName}}.BodySource.of(payload), nil, content_type: "application/json")
 
     captured = BodyCapturingApiClient.captured(name)
-    assert captured.body == payload
+    assert {^payload, 4} = {{moduleName}}.BodySource.open(captured.body)
     assert captured.headers["Content-Type"] == "application/json"
     Agent.stop(name)
 

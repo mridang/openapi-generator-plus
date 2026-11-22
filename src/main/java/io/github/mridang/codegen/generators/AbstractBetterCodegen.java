@@ -49,6 +49,7 @@ import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
+import org.openapitools.codegen.CodegenResponse;
 import org.openapitools.codegen.CodegenSecurity;
 import org.openapitools.codegen.CodegenServer;
 import org.openapitools.codegen.CodegenServerVariable;
@@ -255,6 +256,22 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         + "built by the SDK's own Makefile target. A real client opts in "
                         + "when it is ready to keep the directory (default: false).")
                 .defaultValue("false"));
+
+        cliOptions.add(CliOption.newString("sseTerminator",
+                "The data value that ends a server-sent event stream when it arrives and "
+                        + "is not delivered, such as [DONE]. Printable ASCII without quotes, "
+                        + "backslashes or braces (default: none).")
+                .defaultValue(""));
+
+        cliOptions.add(CliOption.newString("pagination",
+                "Whether to detect paged list operations and generate a <operation>Pages method for each: "
+                        + "auto or off (default: auto).")
+                .defaultValue("auto"));
+        cliOptions.add(CliOption.newString("paginationOverrides",
+                "A JSON object that maps an operation id to none, or to {style, requestParam, "
+                        + "responseProperty, itemsProperty} with the style token or link. It beats a vendor "
+                        + "hint and inference for that operation (default: none).")
+                .defaultValue(""));
 
         modifyFeatureSet(features -> features
 
@@ -566,6 +583,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     Boolean.parseBoolean(additionalProperties.get("generateExamples").toString());
         }
         additionalProperties.put("generateExamples", generateExamples);
+
+        final Object terminator = additionalProperties.get("sseTerminator");
+        final String sseTerminator = terminator == null ? "" : terminator.toString();
+        if (!sseTerminator.matches("[ -~&&[^\"'\\\\{}$#]]*")) {
+            throw new IllegalArgumentException("sseTerminator must be printable ASCII without"
+                    + " quotes, backslashes, braces, $ or #: " + sseTerminator);
+        }
+        additionalProperties.put("sseTerminator", sseTerminator);
+        additionalProperties.put("hasSseTerminator", !sseTerminator.isEmpty());
+        processPaginationOptions();
 
         getPropertyOrDefault("clientClassName", "Client");
 
@@ -4090,6 +4117,481 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put("streamMethodName", streamMethodName(op));
     }
 
+    /** Request parameter names of a token cursor, compared without case, {@code _} and {@code -}. */
+    private static final Set<String> PAGINATION_TOKEN_REQUEST = Set.of(
+            "cursor", "after", "pagetoken", "nexttoken", "continuationtoken", "marker");
+
+    /** Response property names of a next-page token, compared without case, {@code _} and {@code -}. */
+    private static final Set<String> PAGINATION_TOKEN_RESPONSE = Set.of(
+            "nextcursor", "nextpagetoken", "nexttoken", "nextmarker", "nextcontinuationtoken",
+            "continuationtoken", "next");
+
+    /** The global switch of the {@code pagination} option: {@code auto} (the default) or {@code off}. */
+    private boolean paginationEnabled = true;
+
+    /** The {@code paginationOverrides} option: operation id to an explicit model, or {@code none}. */
+    private Map<String, Object> paginationOverrides = Map.of();
+
+    /** The skip reasons already logged, so the two passes over an operation log each one once. */
+    private final Set<String> paginationLogged = new HashSet<>();
+
+    /** The component models by class name, so a response that is a reference can be read. */
+    private final Map<String, CodegenModel> paginationModels = new HashMap<>();
+
+    /** Reads the {@code pagination} and {@code paginationOverrides} options. */
+    @SuppressWarnings("unchecked")
+    private void processPaginationOptions() {
+        final Object switchValue = additionalProperties.get("pagination");
+        final String mode = switchValue == null ? "auto" : switchValue.toString().trim().toLowerCase(Locale.ROOT);
+        if (!mode.equals("auto") && !mode.equals("off")) {
+            throw new IllegalArgumentException("pagination must be auto or off: " + switchValue);
+        }
+        paginationEnabled = mode.equals("auto");
+        additionalProperties.put("pagination", mode);
+        final Object raw = additionalProperties.get("paginationOverrides");
+        if (raw == null || raw.toString().isBlank()) {
+            paginationOverrides = Map.of();
+            return;
+        }
+        try {
+            final Object parsed = raw instanceof Map
+                    ? raw
+                    : new com.fasterxml.jackson.databind.ObjectMapper().readValue(raw.toString(), Map.class);
+            paginationOverrides = new HashMap<>((Map<String, Object>) parsed);
+        } catch (IOException | ClassCastException e) {
+            throw new IllegalArgumentException(
+                    "paginationOverrides must be a JSON object that maps an operation id to none or to"
+                            + " {style, requestParam, responseProperty, itemsProperty}: " + raw, e);
+        }
+    }
+
+    /** Remembers the component models so the pagination detector can read a response that is a reference. */
+    private void capturePaginationModels(List<ModelMap> allModels) {
+        if (allModels == null) {
+            return;
+        }
+        for (final ModelMap m : allModels) {
+            final CodegenModel model = m == null ? null : m.getModel();
+            if (model != null && model.classname != null) {
+                paginationModels.put(model.classname, model);
+            }
+        }
+    }
+
+    /** What the detector settled on for one operation: a style and the names it reads. */
+    private static final class PaginationPlan {
+        private final String style;
+        @Nullable private final String requestParam;
+        @Nullable private final String responseProperty;
+        @Nullable private final String itemsProperty;
+        private final String source;
+
+        PaginationPlan(String style, @Nullable String requestParam, @Nullable String responseProperty,
+                @Nullable String itemsProperty, String source) {
+            this.style = style;
+            this.requestParam = requestParam;
+            this.responseProperty = responseProperty;
+            this.itemsProperty = itemsProperty;
+            this.source = source;
+        }
+
+        String style() { return style; }
+        @Nullable String requestParam() { return requestParam; }
+        @Nullable String responseProperty() { return responseProperty; }
+        @Nullable String itemsProperty() { return itemsProperty; }
+        String source() { return source; }
+    }
+
+    /** Why an operation is not paged, thrown inside the detector and logged once by its caller. */
+    private static final class NotPaged extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        NotPaged(String reason) {
+            super(reason, null, false, false);
+        }
+    }
+
+    /**
+     * Computes the pagination decorators of an operation (design 4.2, D124): {@code hasPagesMethod},
+     * {@code pagesMethodName} and, when the operation is paged, {@code pagination} with {@code style}
+     * ({@code token | link}), {@code isToken}, {@code isLink}, {@code source}
+     * ({@code inference | hint | override}), {@code requestParam} and {@code requestParamName}
+     * (the cursor query parameter, wire and language name), {@code cursorType} (its data type, which
+     * the next cursor follows), {@code responseProperty}, {@code responsePropertyName} and
+     * {@code responsePropertyGetter} (the next-cursor property), {@code itemsProperty},
+     * {@code itemsPropertyName} and {@code itemsPropertyGetter} (the array property, absent when the
+     * body is the array), {@code itemsFromBody} and {@code itemType}. The precedence is the
+     * {@code paginationOverrides} option, then a vendor hint, then inference; an operation that is
+     * not eligible gets no paged method and one log line that names it and says why.
+     */
+    private void populatePaginationDecorators(CodegenOperation op, Map<String, Object> d) {
+        d.remove("pagination");
+        d.put("hasPagesMethod", false);
+        d.put("pagesMethodName", pagesMethodName(op));
+        if (!paginationEnabled) {
+            return;
+        }
+        final String id = op.operationId;
+        final Object override = paginationOverrides.containsKey(id)
+                ? paginationOverrides.get(id)
+                : op.operationIdOriginal == null ? null : paginationOverrides.get(op.operationIdOriginal);
+        if (override instanceof String && ((String) override).equalsIgnoreCase("none")) {
+            return;
+        }
+        try {
+            final PaginationPlan plan = planPagination(op, override);
+            if (plan == null) {
+                return;
+            }
+            final Map<String, Object> pagination = resolvePagination(op, plan);
+            d.put("pagination", pagination);
+            d.put("hasPagesMethod", true);
+        } catch (NotPaged skipped) {
+            if (paginationLogged.add(id + ": " + skipped.getMessage())) {
+                LOGGER.info("Operation {} gets no paged method: {}", id, skipped.getMessage());
+            }
+        }
+    }
+
+    /** The plan for an operation: the override, else a vendor hint, else inference; null when no signal. */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    private PaginationPlan planPagination(CodegenOperation op, @Nullable Object override) {
+        if (override != null) {
+            if (!(override instanceof Map)) {
+                throw new NotPaged("its override is neither none nor an object");
+            }
+            final Map<String, Object> o = (Map<String, Object>) override;
+            final String style = String.valueOf(o.get("style")).toLowerCase(Locale.ROOT);
+            if (!style.equals("token") && !style.equals("link")) {
+                throw new NotPaged("its override names the style " + o.get("style")
+                        + ", and only token and link are supported");
+            }
+            return new PaginationPlan(style, text(o.get("requestParam")), text(o.get("responseProperty")),
+                    text(o.get("itemsProperty")), "override");
+        }
+        final PaginationPlan hint = paginationHint(op);
+        if (hint != null) {
+            return hint;
+        }
+        return inferPagination(op);
+    }
+
+    @Nullable
+    private static String text(@Nullable Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    /** Strips the path prefix a vendor hint puts before a name; a nested path is not supported. */
+    @Nullable
+    private static String hintName(@Nullable Object value) {
+        if (value == null) {
+            return null;
+        }
+        String s = value.toString().trim();
+        for (final String prefix : new String[] {"$request.query.", "$request.", "$response.body.", "$response.", "$."}) {
+            if (s.startsWith(prefix)) {
+                s = s.substring(prefix.length());
+                break;
+            }
+        }
+        return s.isEmpty() || s.contains(".") || s.contains("[") ? null : s;
+    }
+
+    /**
+     * Reads {@code x-fern-pagination} and {@code x-speakeasy-pagination} (the cursor type only) into a
+     * plan. A hint of another style is left for the tier that ships it and has no effect now.
+     */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    private PaginationPlan paginationHint(CodegenOperation op) {
+        if (op.vendorExtensions == null) {
+            return null;
+        }
+        final Object fern = op.vendorExtensions.get("x-fern-pagination");
+        if (fern instanceof Map) {
+            final Map<String, Object> f = (Map<String, Object>) fern;
+            if (f.containsKey("cursor") && f.containsKey("next_cursor")) {
+                final String results = hintName(f.get("results"));
+                return new PaginationPlan("token", hintName(f.get("cursor")), hintName(f.get("next_cursor")),
+                        results, "hint");
+            }
+            LOGGER.info("Operation {} carries an x-fern-pagination hint of a style that is not supported yet;"
+                    + " it is ignored", op.operationId);
+        }
+        final Object speakeasy = op.vendorExtensions.get("x-speakeasy-pagination");
+        if (speakeasy instanceof Map) {
+            final Map<String, Object> s = (Map<String, Object>) speakeasy;
+            if ("cursor".equals(s.get("type")) && s.get("outputs") instanceof Map) {
+                final Map<String, Object> outputs = (Map<String, Object>) s.get("outputs");
+                String request = null;
+                if (s.get("inputs") instanceof List) {
+                    for (final Object input : (List<Object>) s.get("inputs")) {
+                        if (input instanceof Map && "cursor".equals(((Map<String, Object>) input).get("type"))) {
+                            request = text(((Map<String, Object>) input).get("name"));
+                        }
+                    }
+                }
+                return new PaginationPlan("token", request, hintName(outputs.get("nextCursor")),
+                        hintName(outputs.get("results")), "hint");
+            }
+            LOGGER.info("Operation {} carries an x-speakeasy-pagination hint of a style that is not supported"
+                    + " yet; it is ignored", op.operationId);
+        }
+        return null;
+    }
+
+    private static String pagingKey(@Nullable String name) {
+        return name == null ? "" : name.toLowerCase(Locale.ROOT).replace("_", "").replace("-", "");
+    }
+
+    /**
+     * Infers the style from names alone: tier 1 (a token cursor) and tier 3 (a declared {@code Link}
+     * header). Returns null when the operation shows no signal of either; throws when it shows one
+     * that cannot be followed, so the log says why.
+     */
+    @Nullable
+    private PaginationPlan inferPagination(CodegenOperation op) {
+        final List<CodegenParameter> requestCandidates = new ArrayList<>();
+        if (op.queryParams != null) {
+            for (final CodegenParameter p : op.queryParams) {
+                if (PAGINATION_TOKEN_REQUEST.contains(pagingKey(p.baseName))) {
+                    requestCandidates.add(p);
+                }
+            }
+        }
+        final CodegenResponse success = successResponse(op);
+        final CodegenProperty schema = jsonSchema(success);
+        final List<CodegenProperty> responseCandidates = new ArrayList<>();
+        if (schema != null && !schema.isArray) {
+            for (final CodegenProperty p : propertiesOf(schema)) {
+                if (PAGINATION_TOKEN_RESPONSE.contains(pagingKey(p.baseName))) {
+                    responseCandidates.add(p);
+                }
+            }
+        }
+        final boolean link = success != null && declaresLink(success);
+        final boolean token = !requestCandidates.isEmpty() && !responseCandidates.isEmpty();
+        if (!token && !link) {
+            if (!requestCandidates.isEmpty() || !responseCandidates.isEmpty()) {
+                throw new NotPaged(requestCandidates.isEmpty()
+                        ? "it returns a next-cursor property but takes no cursor query parameter"
+                        : "it takes a cursor query parameter but its response has no next-cursor property");
+            }
+            return null;
+        }
+        if (token && link) {
+            throw new NotPaged("it matches more than one style (a token cursor and a Link header)");
+        }
+        if (link) {
+            return new PaginationPlan("link", null, null, null, "inference");
+        }
+        if (requestCandidates.size() > 1) {
+            throw new NotPaged("it has more than one cursor query parameter candidate");
+        }
+        if (responseCandidates.size() > 1) {
+            throw new NotPaged("its response has more than one next-cursor property candidate");
+        }
+        return new PaginationPlan("token", requestCandidates.get(0).baseName,
+                responseCandidates.get(0).baseName, null, "inference");
+    }
+
+    /**
+     * Checks a plan against the operation (design 4.2 rules 1 to 5) and returns the map the templates
+     * read; throws {@link NotPaged} with the reason when the operation cannot be paged.
+     */
+    private Map<String, Object> resolvePagination(CodegenOperation op, PaginationPlan plan) {
+        if (!"GET".equalsIgnoreCase(op.httpMethod)) {
+            throw new NotPaged("it is not a GET operation");
+        }
+        if (op.servers != null && !op.servers.isEmpty()) {
+            throw new NotPaged("it declares servers of its own");
+        }
+        if (isStreamed(op)) {
+            throw new NotPaged("it is streamed");
+        }
+        final CodegenResponse success = successResponse(op);
+        final CodegenProperty schema = jsonSchema(success);
+        if (schema == null) {
+            throw new NotPaged("it does not have exactly one 2xx response with a JSON body");
+        }
+        final boolean link = plan.style().equals("link");
+        final Map<String, Object> m = new LinkedHashMap<>();
+        m.put("style", plan.style());
+        m.put("isToken", !link);
+        m.put("isLink", link);
+        m.put("source", plan.source());
+        CodegenProperty items = null;
+        if (schema.isArray) {
+            if (!link) {
+                throw new NotPaged("its response body is an array and a token cursor needs an object");
+            }
+            items = schema;
+            m.put("itemsFromBody", true);
+        } else {
+            final List<CodegenProperty> arrays = new ArrayList<>();
+            for (final CodegenProperty p : propertiesOf(schema)) {
+                if (p.isArray) {
+                    arrays.add(p);
+                }
+            }
+            if (plan.itemsProperty() != null) {
+                for (final CodegenProperty p : arrays) {
+                    if (p.baseName.equals(plan.itemsProperty())) {
+                        items = p;
+                    }
+                }
+                if (items == null) {
+                    throw new NotPaged("its response has no array property " + plan.itemsProperty());
+                }
+            } else if (arrays.size() == 1) {
+                items = arrays.get(0);
+            } else {
+                throw new NotPaged(arrays.isEmpty()
+                        ? "its response has no array property"
+                        : "its response has more than one array property");
+            }
+            m.put("itemsFromBody", false);
+            m.put("itemsProperty", items.baseName);
+            m.put("itemsPropertyName", items.name);
+            m.put("itemsPropertyGetter", items.getter);
+        }
+        if (items.items == null) {
+            throw new NotPaged("its item list has no item type");
+        }
+        m.put("itemType", items.items.dataType);
+        m.put("itemModel", items.items.isModel || items.items.isEnumRef ? items.items.complexType : null);
+        if (link) {
+            return m;
+        }
+        CodegenParameter cursor = null;
+        if (op.queryParams != null) {
+            for (final CodegenParameter p : op.queryParams) {
+                if (p.baseName.equals(plan.requestParam())) {
+                    cursor = p;
+                }
+            }
+        }
+        if (cursor == null) {
+            throw new NotPaged("it has no query parameter " + plan.requestParam());
+        }
+        if (cursor.required) {
+            throw new NotPaged("its cursor parameter " + cursor.baseName + " is required");
+        }
+        CodegenProperty next = null;
+        for (final CodegenProperty p : propertiesOf(schema)) {
+            if (p.baseName.equals(plan.responseProperty())) {
+                next = p;
+            }
+        }
+        if (next == null) {
+            throw new NotPaged("its response has no property " + plan.responseProperty());
+        }
+        final boolean strings = cursor.isString && next.isString;
+        final boolean integers = (cursor.isInteger || cursor.isLong) && (next.isInteger || next.isLong);
+        if (!strings && !integers) {
+            throw new NotPaged("its cursor parameter " + cursor.baseName + " and its response property "
+                    + next.baseName + " are not both strings or both integers");
+        }
+        m.put("requestParam", cursor.baseName);
+        m.put("requestParamName", cursor.paramName);
+        m.put("cursorType", cursor.dataType);
+        m.put("cursorIsString", strings);
+        m.put("responseProperty", next.baseName);
+        m.put("responsePropertyName", next.name);
+        m.put("responsePropertyGetter", next.getter);
+        return m;
+    }
+
+    /** The one 2xx response, or null when the operation has none or several. */
+    @Nullable
+    private static CodegenResponse successResponse(CodegenOperation op) {
+        CodegenResponse found = null;
+        if (op.responses != null) {
+            for (final CodegenResponse r : op.responses) {
+                if (r != null && r.code != null && r.code.startsWith("2")) {
+                    if (found != null) {
+                        return null;
+                    }
+                    found = r;
+                }
+            }
+        }
+        return found;
+    }
+
+    /** The schema of the one JSON body of a response, or null when there is none or several. */
+    @Nullable
+    private static CodegenProperty jsonSchema(@Nullable CodegenResponse r) {
+        if (r == null || r.getContent() == null) {
+            return null;
+        }
+        CodegenProperty found = null;
+        for (final Map.Entry<String, org.openapitools.codegen.CodegenMediaType> e : r.getContent().entrySet()) {
+            final String mt = baseMediaType(e.getKey());
+            if (mt.equals("application/json") || mt.endsWith("+json")) {
+                if (found != null || e.getValue() == null) {
+                    return null;
+                }
+                found = e.getValue().getSchema();
+            }
+        }
+        return found;
+    }
+
+    private static boolean declaresLink(CodegenResponse r) {
+        if (r.headers != null) {
+            for (final CodegenProperty h : r.headers) {
+                if (h != null && "link".equalsIgnoreCase(h.baseName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** The properties of an object schema, read from the schema itself or from its component model. */
+    private List<CodegenProperty> propertiesOf(CodegenProperty schema) {
+        if (schema.vars != null && !schema.vars.isEmpty()) {
+            return schema.vars;
+        }
+        final CodegenModel model = paginationModels.get(schema.complexType != null ? schema.complexType : schema.dataType);
+        if (model == null) {
+            return List.of();
+        }
+        return model.allVars != null && !model.allVars.isEmpty()
+                ? model.allVars
+                : model.vars == null ? List.of() : model.vars;
+    }
+
+    /** Whether the operation is streamed, so it is never paged (D123). */
+    private static boolean isStreamed(CodegenOperation op) {
+        if (op.responses != null) {
+            for (final CodegenResponse r : op.responses) {
+                if (r == null || r.getContent() == null) {
+                    continue;
+                }
+                for (final Map.Entry<String, org.openapitools.codegen.CodegenMediaType> e : r.getContent().entrySet()) {
+                    final String mt = baseMediaType(e.getKey());
+                    if (SSE_MEDIA_TYPES.contains(mt) || JSON_LINES_MEDIA_TYPES.contains(mt)
+                            || mt.equals("application/octet-stream")) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return "binary".equals(deriveRequestBodyKind(op));
+    }
+
+    /** The paged method name: the method name of the operation plus the language's Pages suffix. */
+    private static String pagesMethodName(CodegenOperation op) {
+        final String base = op.nickname == null ? op.operationId : op.nickname;
+        if (base == null || base.isEmpty()) {
+            return "";
+        }
+        return base.contains("_") ? base + "_pages" : base + "Pages";
+    }
+
     private static String baseMediaType(String mediaType) {
         if (mediaType == null) {
             return "";
@@ -4318,6 +4820,35 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Adds the import of the item model of every paged operation to the imports of the API class: the
+     * item type appears in the paged method only, so no other pass has imported it. A language whose
+     * templates do not use the shared {@code imports} list ignores this.
+     */
+    @SuppressWarnings("unchecked")
+    private void putPaginationImports(Map<String, Object> objs, @Nullable List<CodegenOperation> ops) {
+        final List<Map<String, String>> imports = (List<Map<String, String>>) objs.get("imports");
+        if (ops == null || imports == null) {
+            return;
+        }
+        for (final CodegenOperation op : ops) {
+            final Object d = op.vendorExtensions == null ? null : op.vendorExtensions.get(OP_DECORATOR_NS);
+            final Object pagination = d instanceof Map ? ((Map<?, ?>) d).get("pagination") : null;
+            final Object model = pagination instanceof Map ? ((Map<?, ?>) pagination).get("itemModel") : null;
+            if (model == null) {
+                continue;
+            }
+            final String name = model.toString();
+            final String path = toModelImport(name);
+            if (imports.stream().noneMatch(i -> path.equals(i.get("import")))) {
+                final Map<String, String> entry = new HashMap<>();
+                entry.put("import", path);
+                entry.put("classname", name);
+                imports.add(entry);
+            }
+        }
+    }
+
+    /**
      * Exposes {@code errorSchemaImports} on the operations object: the distinct error schema
      * classes the operations of this API group pass to the transport, so a template imports
      * exactly the ones it uses. Runs after the operation decorators are populated.
@@ -4449,6 +4980,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
         // Streaming (#114): which stream method, if any, the operation gets.
         populateStreamDecorators(op, d);
+
+        // Pagination (#163): which paged method, if any, the operation gets. The Options pass computes it
+        // too, before its file is written; it is a pure function of the operation, so both agree.
+        populatePaginationDecorators(op, d);
 
         // Declared error responses: the status class and schema of each non-2xx response.
         populateErrorResponses(op, d);
@@ -5631,6 +6166,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
         objs = super.postProcessOperationsWithModels(objs, allModels);
+        capturePaginationModels(allModels);
         final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
         if (operations != null) {
             final String classname = (String) operations.get("classname");
@@ -5726,6 +6262,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
             }
             putErrorSchemaImports(objs, ops);
+            putPaginationImports(objs, ops);
         }
         cleanupBadImports(objs);
 
@@ -5901,6 +6438,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             List<CodegenOperation> ops, Map<String, Object> objs) {
         final List<Map<String, String>> optionsImports = new ArrayList<>();
         for (final CodegenOperation op : ops) {
+            // A paged operation's Options object can copy itself, so the detector runs before the file is
+            // written (it needs the stream decorators, so those are computed here too).
+            if (op.vendorExtensions == null) {
+                op.vendorExtensions = new HashMap<>();
+            }
+            final Map<String, Object> early = decoratorMap(op.vendorExtensions, OP_DECORATOR_NS);
+            populateStreamDecorators(op, early);
+            populatePaginationDecorators(op, early);
             // The Options template of a language reads the parameter decorators
             // (a required nullable parameter is typed as nullable), so they are
             // attached to the location lists before the file is rendered.

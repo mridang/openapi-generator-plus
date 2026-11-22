@@ -18,8 +18,8 @@ public protocol StoreApiProtocol: Sendable {
   func deleteOrder(orderId: Int64, options: DeleteOrderOptions?) async throws
   func deleteOrderWithHTTPInfo(orderId: Int64, options: DeleteOrderOptions?) async throws
     -> ApiResult<Void>
-  func exportOrders(options: ExportOrdersOptions?) async throws -> Order
-  func exportOrdersWithHTTPInfo(options: ExportOrdersOptions?) async throws -> ApiResult<Order>
+  func exportOrdersStream(options: ExportOrdersOptions?, streamOptions: StreamOptions?) async throws
+    -> JsonLinesStream<Order>
   func getAuditTrail(options: GetAuditTrailOptions?) async throws -> ApiResponse
   func getAuditTrailWithHTTPInfo(options: GetAuditTrailOptions?) async throws -> ApiResult<
     ApiResponse
@@ -77,10 +77,10 @@ public protocol StoreApiProtocol: Sendable {
   >
   func searchStore(options: SearchStoreOptions?) async throws -> [Order]
   func searchStoreWithHTTPInfo(options: SearchStoreOptions?) async throws -> ApiResult<[Order]>
-  func watchNotices(options: WatchNoticesOptions?) async throws -> String
-  func watchNoticesWithHTTPInfo(options: WatchNoticesOptions?) async throws -> ApiResult<String>
-  func watchOrders(options: WatchOrdersOptions?) async throws -> Order
-  func watchOrdersWithHTTPInfo(options: WatchOrdersOptions?) async throws -> ApiResult<Order>
+  func watchNoticesStream(options: WatchNoticesOptions?, streamOptions: StreamOptions?) async throws
+    -> SseStream<String>
+  func watchOrdersStream(options: WatchOrdersOptions?, streamOptions: StreamOptions?) async throws
+    -> SseStream<Order>
 }
 
 extension StoreApiProtocol {
@@ -105,14 +105,9 @@ extension StoreApiProtocol {
     try await deleteOrderWithHTTPInfo(orderId: orderId, options: nil)
   }
 
-  /// The `exportOrders` operation with every optional parameter left out.
-  public func exportOrders() async throws -> Order {
-    try await exportOrders(options: nil)
-  }
-
-  /// The `exportOrdersWithHTTPInfo` operation with every optional parameter left out.
-  public func exportOrdersWithHTTPInfo() async throws -> ApiResult<Order> {
-    try await exportOrdersWithHTTPInfo(options: nil)
+  /// The `exportOrdersStream` operation with every optional parameter left out.
+  public func exportOrdersStream() async throws -> JsonLinesStream<Order> {
+    try await exportOrdersStream(options: nil, streamOptions: nil)
   }
 
   /// The `getAuditTrail` operation with every optional parameter left out.
@@ -295,23 +290,13 @@ extension StoreApiProtocol {
     try await searchStoreWithHTTPInfo(options: nil)
   }
 
-  /// The `watchNotices` operation with every optional parameter left out.
-  public func watchNotices() async throws -> String {
-    try await watchNotices(options: nil)
+  /// The `watchNoticesStream` operation with every optional parameter left out.
+  public func watchNoticesStream() async throws -> SseStream<String> {
+    try await watchNoticesStream(options: nil, streamOptions: nil)
   }
 
-  /// The `watchNoticesWithHTTPInfo` operation with every optional parameter left out.
-  public func watchNoticesWithHTTPInfo() async throws -> ApiResult<String> {
-    try await watchNoticesWithHTTPInfo(options: nil)
-  }
-
-  /// The `watchOrders` operation with every optional parameter left out.
-  public func watchOrders() async throws -> Order {
-    try await watchOrders(options: nil)
-  }
-
-  /// The `watchOrdersWithHTTPInfo` operation with every optional parameter left out.
-  public func watchOrdersWithHTTPInfo() async throws -> ApiResult<Order> {
-    try await watchOrdersWithHTTPInfo(options: nil)
+  /// The `watchOrdersStream` operation with every optional parameter left out.
+  public func watchOrdersStream() async throws -> SseStream<Order> {
+    try await watchOrdersStream(options: nil, streamOptions: nil)
   }
 }

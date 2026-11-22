@@ -14,6 +14,8 @@ declare(strict_types=1);
 namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiResult;
+use PetstoreClient\SseStream;
+use PetstoreClient\StreamOptions;
 use PetstoreClient\Api\Options\CreateAccountOptions;
 use PetstoreClient\Api\Options\DeleteOrderOptions;
 use PetstoreClient\Api\Options\ExportOrdersOptions;
@@ -83,16 +85,11 @@ interface StoreApiInterface
     /**
      * Exports every order as JSON Lines
      * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @param StreamOptions|null $streamOptions The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults
+     * @return \Generator<int, \PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function exportOrders(?ExportOrdersOptions $options = null): \PetstoreClient\Models\Order;
-
-    /**
-     * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<\PetstoreClient\Models\Order>
-     * @throws \PetstoreClient\Errors\ApiException
-     */
-    public function exportOrdersWithHttpInfo(?ExportOrdersOptions $options = null): ApiResult;
+    public function exportOrdersStream(?ExportOrdersOptions $options = null, ?StreamOptions $streamOptions = null): \Generator;
 
     /**
      * Read the audit trail, which needs a bearer token and an API key together
@@ -367,28 +364,18 @@ interface StoreApiInterface
     /**
      * Streams plain text notices as server-sent events
      * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @param StreamOptions|null $streamOptions The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults
+     * @return SseStream<string>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function watchNotices(?WatchNoticesOptions $options = null): string;
-
-    /**
-     * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ApiResult<string>
-     * @throws \PetstoreClient\Errors\ApiException
-     */
-    public function watchNoticesWithHttpInfo(?WatchNoticesOptions $options = null): ApiResult;
+    public function watchNoticesStream(?WatchNoticesOptions $options = null, ?StreamOptions $streamOptions = null): SseStream;
 
     /**
      * Streams order changes as server-sent events
      * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
+     * @param StreamOptions|null $streamOptions The stream settings (idle timeout, reconnects, last event id, size limit), or null for the defaults
+     * @return SseStream<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function watchOrders(?WatchOrdersOptions $options = null): \PetstoreClient\Models\Order;
-
-    /**
-     * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
-     * @return ApiResult<\PetstoreClient\Models\Order>
-     * @throws \PetstoreClient\Errors\ApiException
-     */
-    public function watchOrdersWithHttpInfo(?WatchOrdersOptions $options = null): ApiResult;
+    public function watchOrdersStream(?WatchOrdersOptions $options = null, ?StreamOptions $streamOptions = null): SseStream;
 }

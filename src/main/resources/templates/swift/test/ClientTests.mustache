@@ -100,6 +100,36 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(ClientStubProtocol.lastRequest(host: "supplied-042.example.com") != nil)
     }
 
+    /* Closing the client cancels the streams that are open: the next read of each throws the closed-client error, and new calls are refused. */
+    @Test func testBhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls() async throws {
+        let server = try RawServer { connection, _, _ in
+            connection.head(200, "Content-Type: application/octet-stream", "Transfer-Encoding: chunked")
+            connection.chunk("tick")
+            connection.server.awaitRelease()
+        }
+        defer { server.stop() }
+        let client = try {{clientClassName}}(
+            authenticator: try BearerAuthenticator(host: server.origin, token: "t"))
+        let stream = try await client.pet.getPetAvatar(petId: 1)
+        var iterator = stream.makeAsyncIterator()
+        let first = try #require(try await iterator.next())
+        #expect(String(decoding: first, as: UTF8.self) == "tick")
+
+        let started = Date()
+        client.close()
+        #expect(Date().timeIntervalSince(started) < 5, "closing did not wait for the endless stream")
+
+        let closed = ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests")
+        let cancelled = await #expect(throws: ConfigurationError.self) {
+            _ = try await iterator.next()
+        }
+        #expect(cancelled == closed)
+        let refused = await #expect(throws: ConfigurationError.self) {
+            _ = try await client.pet.getPetAvatar(petId: 1)
+        }
+        #expect(refused == closed)
+    }
+
     /* A request after close never reaches the network. */
     @Test func testBhvLifecycle043ARequestAfterCloseNeverReachesTheNetwork() async throws {
         let host = "https://closed-043.example.com"
@@ -981,8 +1011,16 @@ private func environmentClient(
         let {{clientPropertyName}}Listed = try operationNames(
             file: "{{classname}}Protocol.swift", from: "public protocol {{classname}}Protocol", to: "extension {{classname}}Protocol", prefix: "func ")
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        #expect({{clientPropertyName}}Listed.contains("{{vendorExtensions.op.streamMethodName}}"))
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
         #expect({{clientPropertyName}}Listed.contains("{{operationId}}"))
         #expect({{clientPropertyName}}Listed.contains("{{operationId}}WithHTTPInfo"))
+{{#vendorExtensions.op.hasPagesMethod}}
+        #expect({{clientPropertyName}}Listed.contains("{{vendorExtensions.op.pagesMethodName}}"))
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

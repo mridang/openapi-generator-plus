@@ -11,6 +11,7 @@ use {{invokerPackage}}\Auth\BearerAuthenticator;
 use {{invokerPackage}}\Auth\HttpAwareAuthenticator;
 use {{invokerPackage}}\Psr18ApiClient;
 use {{invokerPackage}}\TransportOptions;
+use {{invokerPackage}}\Test\RawServer;
 use {{invokerPackage}}\Test\RecordingCallHook;
 use {{invokerPackage}}\Test\StubPsr18Client;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -242,6 +243,38 @@ test('bhv lifecycle 035 a request after close fails with the one closed client e
 {{/apis}}
 {{/apiInfo}}
     expect($counts->sent)->toBe(0);
+});
+
+test('bhv streaming 021 closing the client cancels the open streams, the next read of each raises the closed client error and new calls are refused', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        chunk($socket, 'tick');
+        awaitRelease();
+        PHP);
+    $client = new {{clientClassName}}(new BearerAuthenticator($server->url(''), 'test-token'));
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+    $api = $client->{{clientPropertyName}};
+    $open = new \ReflectionMethod($api, 'invokeApiForStream');
+    /** @var \{{invokerPackage}}\ApiResult<\{{invokerPackage}}\ByteStream> $result */
+    $result = $open->invoke($api, 'GET', '/items/events', [], [], null, ['application/octet-stream'], null);
+    $stream = $result->data;
+    assert($stream instanceof \{{invokerPackage}}\ByteStream);
+    expect($stream->read(4))->toBe('tick');
+
+    $started = microtime(true);
+    $client->close();
+
+    expect(microtime(true) - $started)->toBeLessThan(5.0);
+    expect(fn (): string => $stream->read(1))->toThrow(\LogicException::class, 'client closed');
+    expect(fn (): mixed => $open->invoke($api, 'GET', '/items/events', [], [], null, ['application/octet-stream'], null))
+        ->toThrow(\LogicException::class, 'client closed');
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
 });
 
 test('bhv lifecycle 009 closing a client never closes a transport the caller supplied', function (): void {
@@ -586,7 +619,12 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect((new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))->implementsInterface(\{{apiPackage}}\{{classname}}Interface::class))->toBeTrue();
     ${{clientPropertyName}}Listed = get_class_methods(\{{apiPackage}}\{{classname}}Interface::class);
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+    expect(${{clientPropertyName}}Listed)->toContain('{{vendorExtensions.op.streamMethodName}}');
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
     expect(${{clientPropertyName}}Listed)->toContain('{{operationId}}')->toContain('{{operationId}}WithHttpInfo');
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

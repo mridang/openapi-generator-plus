@@ -220,6 +220,119 @@ type errorFactory = errors_pkg.ErrorFactory
 // Returns the response, or an error if the API call fails (a non-2xx status is
 // returned as the matching *ApiError subclass).
 func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, error) {
+	response, _, err := b.invokeCall(params, false)
+	return response, err
+}
+
+// streamErrorBodyLimit is the most of an error body a stream call reads before
+// it raises the error.
+const streamErrorBodyLimit = 64 * 1024
+
+// invokeApiForStream invokes an operation whose success response is binary and
+// returns its body as an open stream, unread. Everything up to the response
+// headers is the buffered call (the same retries, redirects, authentication, 401
+// replay, headers and call hook); a non-2xx status raises the same typed error
+// as a buffered call, its body read up to 64 KiB and closed, and no stream is
+// returned. The caller owns the returned body and must close it.
+//
+// It returns ErrStreamingUnsupported, naming the transport, when the ApiClient
+// does not implement StreamingApiClient.
+func (b *baseApi) invokeApiForStream(params invokeApiParams) (*ApiStreamResponse, error) {
+	_, streamed, err := b.invokeCall(params, true)
+	return streamed, err
+}
+
+// invokeJsonLines invokes an operation whose success response is JSON Lines
+// and returns its items as a lazy stream. Everything up to the response headers
+// is the buffered call (see invokeApiForStream); decode turns one line into an
+// item.
+func invokeJsonLines[T any](b *baseApi, params invokeApiParams, decode func(string) (T, error)) (*JsonLinesStream[T], error) {
+	response, err := b.invokeApiForStream(params)
+	if err != nil {
+		return nil, err
+	}
+	limit := defaultMaxEventBytes
+	if params.settings != nil && params.settings.maxEventBytes != nil {
+		limit = *params.settings.maxEventBytes
+	}
+	return newJsonLinesStream(response, decode, limit, params.method, requestPathOf(params.path)), nil
+}
+
+// invokeSse invokes an operation whose success response is server-sent events
+// and returns its events as a lazy stream that reconnects. Each connection is a
+// fresh call of the pipeline of invokeApiForStream, so the call hook, the
+// headers and the authentication are built again; the stream adds Accept
+// (from the operation), Cache-Control: no-cache and Accept-Encoding: identity
+// unless the caller set them, and Last-Event-ID once it has an id. terminator,
+// when not nil, is a data value that ends the stream and is not delivered.
+func invokeSse[T any](b *baseApi, params invokeApiParams, decode func(string) (T, error), terminator *string) (*SseStream[T], error) {
+	ctx := params.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	settings := params.settings
+	if settings == nil {
+		settings = &callSettings{}
+	}
+	base := make(map[string]string, len(params.headerParams)+2)
+	for name, value := range params.headerParams {
+		base[name] = value
+	}
+	for name, value := range map[string]string{"Cache-Control": "no-cache", "Accept-Encoding": "identity"} {
+		if !hasHeader(base, name) && !hasHeader(settings.headers, name) && !hasHeader(b.config.DefaultHeaders(), name) {
+			base[name] = value
+		}
+	}
+	attempt := 0
+	opener := func(lastEventID string) (*ApiStreamResponse, error) {
+		attempted := params
+		attempted.headerParams = make(map[string]string, len(base)+1)
+		for name, value := range base {
+			attempted.headerParams[name] = value
+		}
+		if lastEventID != "" {
+			attempted.headerParams["Last-Event-ID"] = lastEventID
+		}
+		attempt++
+		if attempt == 1 {
+			return b.invokeApiForStream(attempted)
+		}
+		call := &callState{}
+		attempted.call = call
+		response, err := b.invokeApiForStream(attempted)
+		call.end(&err)
+		return response, err
+	}
+	return openSse(ctx, opener, decode, terminator, settings, params.body != nil, singleUseBody(params.body), params.method, requestPathOf(params.path))
+}
+
+// singleUseBody reports whether a request body can be sent only once, so an
+// event stream that carries it cannot reconnect.
+func singleUseBody(body any) bool {
+	source, ok := body.(*BodySource)
+	return ok && source != nil && !source.Replayable()
+}
+
+// decodeItem decodes one line or one data field as JSON into a T.
+func decodeItem[T any](text string) (T, error) {
+	var item T
+	err := deserialize([]byte(text), &item)
+	return item, err
+}
+
+// decodeText hands a data field over as it is.
+func decodeText(text string) (string, error) { return text, nil }
+
+// invokeCall is the one call loop of invokeApiForResult and invokeApiForStream.
+// A stream call returns the open response and no buffered one.
+func (b *baseApi) invokeCall(params invokeApiParams, stream bool) (*ApiHttpResponse, *ApiStreamResponse, error) {
+	var streamer StreamingApiClient
+	if stream {
+		var ok bool
+		if streamer, ok = b.apiClient.(StreamingApiClient); !ok {
+			return nil, nil, fmt.Errorf("%w: %T does not implement SendStreaming, so an operation that returns a stream cannot be called through it", ErrStreamingUnsupported, b.apiClient)
+		}
+	}
 	requestURL := params.path
 	if !strings.HasPrefix(requestURL, "http://") && !strings.HasPrefix(requestURL, "https://") {
 		// Strip trailing slash from baseUrl when path starts with `/` so
@@ -282,6 +395,11 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	/* A stream is read after this call returns, so the transport gets the call
+	 * context itself and its own header-phase timer; the budget below only bounds
+	 * the work of this loop (authentication, the waits between retries). */
+	streamCtx := ctx
+	var budgetDeadline time.Time
 	var callTimeout *time.Duration
 	var callMaxRetries *int
 	var callHeaders map[string]string
@@ -298,6 +416,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	 * is built once, because a body read from a reader can be read once; every
 	 * body is held in memory, so each attempt sends the same bytes. */
 	var serializedBody []byte
+	var bodySource *BodySource
 	var bodyContentType string
 	bodyBuilt := false
 	hook := b.config.CallHook()
@@ -331,7 +450,12 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		/* Build query string */
 		queryString := buildQueryStringOrdered(queryParams, params.order)
 		if queryString != "" {
-			attemptURL = attemptURL + "?" + queryString
+			/* A URL named by a Link header may carry a query of its own. */
+			separator := "?"
+			if strings.Contains(attemptURL, "?") {
+				separator = "&"
+			}
+			attemptURL = attemptURL + separator + queryString
 		}
 
 		/* Select headers */
@@ -445,7 +569,11 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		/* Serialize body -- multipart/form-data is handled here so that
 		 * the boundary can be injected into the Content-Type header. */
 		if !bodyBuilt {
-			if mediaType, isMultipartBody := multipartMediaType(params.contentType); isMultipartBody && params.body != nil {
+			if source, isSource := params.body.(*BodySource); isSource {
+				/* A BodySource is sent as it is read, under whichever content type
+				 * was selected, and is never serialized or buffered. */
+				bodySource = source
+			} else if mediaType, isMultipartBody := multipartMediaType(params.contentType); isMultipartBody && params.body != nil {
 				formFields, ok := params.body.(map[string]any)
 				if !ok {
 					return "", nil, fmt.Errorf("multipart body must be map[string]any")
@@ -472,7 +600,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 
 		/* Drop Content-Type when there is no body (sending Content-Type without a
 		 * body is semantically wrong and rejected by some servers). */
-		if serializedBody == nil {
+		if serializedBody == nil && bodySource == nil {
 			delete(headers, "Content-Type")
 		}
 		return attemptURL, headers, nil
@@ -498,12 +626,18 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
+		budgetDeadline, _ = ctx.Deadline()
 	}
 	invalidator, canReplay := effectiveAuth.(auth.AccessTokenInvalidator)
 	/* A multipart body is never replayed after a 401 and never retried after a
 	 * transient failure: its file parts are streams that the first attempt may
 	 * already have consumed, so it is sent once. */
 	_, streamBody := multipartMediaType(params.contentType)
+	/* A BodySource that can be read once only is no more replayable than a
+	 * multipart stream: the original error is returned unchanged. */
+	if source, isSource := params.body.(*BodySource); isSource && source != nil && !source.Replayable() {
+		streamBody = true
+	}
 	canReplay = canReplay && !streamBody
 	replayed := false
 	retries := 0
@@ -514,11 +648,44 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			/* Failing to authenticate a second time leaves the failure that
 			 * made it necessary as the answer. */
 			if lastFailure != nil {
-				return nil, lastFailure
+				return nil, nil, lastFailure
 			}
-			return nil, buildErr
+			return nil, nil, buildErr
 		}
-		response, err := b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: ctx, Timeout: callTimeout})
+		var response *ApiHttpResponse
+		var streamed *ApiStreamResponse
+		var err error
+		var sendBody any = serializedBody
+		if bodySource != nil {
+			sendBody = bodySource
+		}
+		if stream {
+			/* One budget across the attempts: what is left of it is the header
+			 * deadline of this one. The timeout stops at the headers. */
+			attemptTimeout := callTimeout
+			if !budgetDeadline.IsZero() {
+				remaining := max(time.Until(budgetDeadline), time.Nanosecond)
+				attemptTimeout = &remaining
+			}
+			var idleTimeout *time.Duration
+			if params.settings != nil {
+				idleTimeout = params.settings.idleTimeout
+			}
+			streamed, err = streamer.SendStreaming(params.method, attemptURL, headers, sendBody, &RequestOptions{Context: streamCtx, Timeout: attemptTimeout, IdleTimeout: idleTimeout})
+			if err == nil {
+				if streamed.StatusCode >= 200 && streamed.StatusCode < 300 {
+					response = &ApiHttpResponse{StatusCode: streamed.StatusCode, Headers: streamed.Headers}
+				} else {
+					/* Never a stream for a non-2xx: a bounded part of the error
+					 * body is read and the connection closed, and the typed error
+					 * is raised from it as for a buffered call. */
+					response = streamed.ReadBounded(streamErrorBodyLimit)
+					streamed = nil
+				}
+			}
+		} else {
+			response, err = b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, sendBody, &RequestOptions{Context: ctx, Timeout: callTimeout})
+		}
 		if params.call != nil {
 			params.call.record(response)
 		}
@@ -527,7 +694,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			if !streamBody && retries < maxRetries && isIdempotentMethod(params.method) && isRetryableTransportError(err) {
 				proceed, cancelErr := waitBeforeRetry(ctx, retries, nil)
 				if cancelErr != nil {
-					return nil, cancelErr
+					return nil, nil, cancelErr
 				}
 				if proceed {
 					retries++
@@ -535,12 +702,15 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 					continue
 				}
 			}
-			return nil, err
+			return nil, nil, err
 		}
 
 		/* Check for errors */
-		if response.StatusCode >= 200 && response.StatusCode < 400 {
-			return response, nil
+		if streamed != nil {
+			return response, streamed, nil
+		}
+		if !stream && response.StatusCode >= 200 && response.StatusCode < 400 {
+			return response, nil, nil
 		}
 		failure := throwAPIError(response, params.method, requestPath, params.errorFactories)
 		if response.StatusCode == http.StatusUnauthorized && canReplay && !replayed {
@@ -552,7 +722,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		if !streamBody && retries < maxRetries && isRetryableStatus(response.StatusCode) {
 			proceed, cancelErr := waitBeforeRetry(ctx, retries, response.Headers)
 			if cancelErr != nil {
-				return nil, cancelErr
+				return nil, nil, cancelErr
 			}
 			if proceed {
 				retries++
@@ -560,7 +730,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 				continue
 			}
 		}
-		return nil, failure
+		return nil, nil, failure
 	}
 }
 

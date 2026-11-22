@@ -553,10 +553,23 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.kt"),
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.kt"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.kt"),
+            new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.kt"),
+            new SupportingFileSpec("errors/PaginationException.mustache", errorsFolder, "PaginationException.kt"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.kt"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.kt"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.kt"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.kt"),
+            new SupportingFileSpec("api_stream_response.mustache", invokerFolder, "ApiStreamResponse.kt"),
+            new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.kt"),
+            new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.kt"),
+            new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.kt"),
+            new SupportingFileSpec("server_sent_event.mustache", invokerFolder, "ServerSentEvent.kt"),
+            new SupportingFileSpec("stream_options.mustache", invokerFolder, "StreamOptions.kt"),
+            new SupportingFileSpec("json_lines_stream.mustache", invokerFolder, "JsonLinesStream.kt"),
+            new SupportingFileSpec("sse_stream.mustache", invokerFolder, "SseStream.kt"),
+            new SupportingFileSpec("paginator.mustache", invokerFolder, "Paginator.kt"),
+            new SupportingFileSpec("page.mustache", invokerFolder, "Page.kt"),
+            new SupportingFileSpec("link_header.mustache", invokerFolder, "LinkHeader.kt"),
             new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.kt"),
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.kt"),
             new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.kt"),
@@ -694,6 +707,11 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "test/ApiResultTest.mustache",
                             testFolder,
                             "ApiResultTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/EventStreamTest.mustache",
+                            testFolder,
+                            "EventStreamTest.kt"));
         }
 
         if (generateTests) {
@@ -1185,6 +1203,12 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         context.put("modelPackage", modelPackage());
         context.put("className", className);
         context.put("operationId", op.operationId);
+        // A paged operation's Options object can copy itself, so every page is sent with its own cursor.
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        context.put(
+                "hasCopy",
+                opDecorators instanceof Map
+                        && Boolean.TRUE.equals(((Map<?, ?>) opDecorators).get("hasPagesMethod")));
         context.put("params", params);
         context.put("requiredParams", requiredParams);
         context.put("optionalParams", optionalParams);
@@ -1398,13 +1422,30 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
+        if (objs.getOperations() != null) {
+            for (final CodegenOperation op : objs.getOperations().getOperation()) {
+                markBinaryUpload(op);
+            }
+        }
         final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        boolean anyBodySource = false;
+        boolean anyPaginator = false;
+        final List<Map<String, String>> imports = importsOf(result);
+        boolean anyBinaryStream = false;
+        boolean anySseStream = false;
+        boolean anyJsonLinesStream = false;
         if (result.getOperations() != null) {
             for (final CodegenOperation op : result.getOperations().getOperation()) {
                 if (op.vendorExtensions == null) {
                     continue;
                 }
                 final Object deco = op.vendorExtensions.get("op");
+                markBinaryStream(op);
+                anyPaginator |= markPaginator(op, imports);
+                anyBodySource |= op.bodyParam != null && "BodySource".equals(op.bodyParam.dataType);
+                anyBinaryStream |= "ByteStream".equals(op.returnType);
+                anySseStream |= "SseStream".equals(op.returnBaseType);
+                anyJsonLinesStream |= "JsonLinesStream".equals(op.returnBaseType);
                 if (deco instanceof Map) {
                     final Map<String, Object> opDeco = (Map<String, Object>) deco;
                     final Object sigArgs = opDeco.get("signatureArgs");
@@ -1416,7 +1457,189 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 }
             }
         }
+        result.put("hasBodySource", anyBodySource);
+        result.put("hasPaginator", anyPaginator);
+        result.put("hasBinaryStream", anyBinaryStream);
+        result.put("hasSseStream", anySseStream);
+        result.put("hasJsonLinesStream", anyJsonLinesStream);
+        result.put("hasEventStream", anySseStream || anyJsonLinesStream);
         return result;
+    }
+
+    /**
+     * The import entries of an API class, or an empty list when the map holds none.
+     *
+     * @param result the processed operations
+     * @return the live list of import entries
+     */
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, String>> importsOf(final OperationsMap result) {
+        final Object imports = result.get("imports");
+        return imports instanceof List ? (List<Map<String, String>>) imports : new ArrayList<>();
+    }
+
+    /**
+     * A paged operation returns a {@code Paginator<Item, Cursor>} ({@code Unit} as the cursor of a
+     * {@code Link} list) from a plain method named {@code <operation>Pages}. The type is handed to the
+     * templates as {@code kotlinPaginatorType}, and the item model is imported when the API class does
+     * not already import it.
+     *
+     * @param op the operation to mark
+     * @param imports the import entries of the API class
+     * @return whether the operation has a paged method
+     */
+    @SuppressWarnings("unchecked")
+    boolean markPaginator(final CodegenOperation op, final List<Map<String, String>> imports) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return false;
+        }
+        final Object pagination = ((Map<String, Object>) decorators).get("pagination");
+        if (!(pagination instanceof Map)) {
+            return false;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        p.put(
+                "kotlinPaginatorType",
+                "Paginator<" + p.get("itemType") + ", "
+                        + (Boolean.TRUE.equals(p.get("isLink")) ? "Unit" : p.get("cursorType")) + ">");
+        final Object model = p.get("itemModel");
+        if (model != null) {
+            final String name = modelPackage() + "." + model;
+            boolean present = false;
+            for (final Map<String, String> entry : imports) {
+                present |= name.equals(entry.get("import"));
+            }
+            if (!present) {
+                final Map<String, String> entry = new HashMap<>();
+                entry.put("import", name);
+                entry.put("classname", String.valueOf(model));
+                imports.add(entry);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of a {@code ByteArray}. It runs before the shared pass, which copies the
+     * body type into the signature arguments. Multipart and every other body kind keep the type
+     * the spec maps.
+     *
+     * @param op the operation to mark
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator
+     * {@code streamsBinary} tells the templates to call {@code invokeApiForStream}.
+     *
+     * @param op the operation to mark
+     */
+    @SuppressWarnings("unchecked")
+    static void markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+        final boolean sse = "sse".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean jsonLines = "jsonlines".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            d.put("streamTyped", !"String".equals(item));
+            d.put("streamItemKotlin", item);
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation of each stream kind, as
+     * {@code binaryStreamOperation}, {@code sseStreamOperation} and
+     * {@code jsonLinesStreamOperation} (each with a {@code ...Group}, its operations map, and a
+     * {@code has...Operation} flag), so the Streaming examples call a real operation of the spec
+     * under generation. Nothing is rendered for a kind the spec has no operation of.
+     *
+     * @param objs the supporting file data
+     * @return the data with the streaming example operations added
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(final Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**

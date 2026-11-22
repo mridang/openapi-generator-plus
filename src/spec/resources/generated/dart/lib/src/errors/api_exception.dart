@@ -28,6 +28,7 @@ import 'payment_required_exception.dart';
 import 'request_timeout_exception.dart';
 import 'server_exception.dart';
 import 'service_unavailable_exception.dart';
+import 'stream_exception.dart';
 import 'too_many_requests_exception.dart';
 import 'unauthorized_exception.dart';
 import 'unprocessable_entity_exception.dart';
@@ -444,6 +445,14 @@ class ApiException extends OpenAPIException {
     final stripped = stripQuery(path);
     if (this is NetworkTimeoutException) {
       return NetworkTimeoutException(
+        message: message,
+        cause: cause,
+        requestMethod: method,
+        requestPath: stripped,
+      );
+    }
+    if (this is StreamException) {
+      return StreamException(
         message: message,
         cause: cause,
         requestMethod: method,

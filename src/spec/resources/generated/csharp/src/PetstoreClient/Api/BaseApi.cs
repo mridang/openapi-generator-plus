@@ -189,7 +189,7 @@ public abstract class BaseApi
     /// back to <paramref name="path"/>.
     /// </param>
     /// <param name="cancellationToken">Token that cancels the request.</param>
-    protected async Task<ApiResult<T>> InvokeApiForResultAsync<T>(
+    protected Task<ApiResult<T>> InvokeApiForResultAsync<T>(
         string method,
         string path,
         Dictionary<string, object?> queryParams,
@@ -209,6 +209,332 @@ public abstract class BaseApi
         string? operationId = null,
         string? urlTemplate = null,
         CancellationToken cancellationToken = default
+    )
+    {
+        return InvokeCallAsync(
+            false,
+            method,
+            path,
+            queryParams,
+            headerParams,
+            body,
+            accepts,
+            contentType,
+            returnType,
+            auth,
+            rawBody,
+            operationName,
+            decodeByStatus,
+            timeout,
+            extraHeaders,
+            maxRetries,
+            errorSchemas,
+            operationId,
+            urlTemplate,
+            null,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Invoke an operation whose success response is binary and return its body as a
+    /// stream, unread. Everything up to the response headers is the buffered call
+    /// (the same retries, redirects, authentication, 401 replay, headers and call
+    /// hook); a non-2xx status raises the same typed error as a buffered call, its
+    /// body read up to 64 KiB, and no stream is returned.
+    /// </summary>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="path">The request path, or an absolute URL.</param>
+    /// <param name="queryParams">The query parameters.</param>
+    /// <param name="headerParams">The header parameters.</param>
+    /// <param name="body">The request body, or null.</param>
+    /// <param name="accepts">The response media types the operation declares.</param>
+    /// <param name="contentType">The request Content-Type.</param>
+    /// <param name="auth">The per-call authenticator, the no-auth sentinel, or null for the client's.</param>
+    /// <param name="rawBody">True when the request body is <c>format: binary</c>.</param>
+    /// <param name="operationName">The calling operation as <c>Class.operationId</c>.</param>
+    /// <param name="timeout">Timeout in milliseconds up to the response headers, or null for the transport's.</param>
+    /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
+    /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="errorSchemas">The operation's error factories by declared status, or null.</param>
+    /// <param name="operationId">The operation id exactly as the spec writes it, handed to the call hook.</param>
+    /// <param name="urlTemplate">The spec path template of the operation, handed to the call hook.</param>
+    /// <param name="cancellationToken">Token that cancels the request and, later, the open stream.</param>
+    /// <returns>The result whose data is the open <see cref="ByteStream"/>; its raw body is empty.</returns>
+    protected Task<ApiResult<ByteStream>> InvokeApiForStreamAsync(
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        IAuthenticator? auth = null,
+        bool rawBody = false,
+        string? operationName = null,
+        int? timeout = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
+        int? maxRetries = null,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
+        string? operationId = null,
+        string? urlTemplate = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return InvokeCallAsync<ByteStream>(
+            true,
+            method,
+            path,
+            queryParams,
+            headerParams,
+            body,
+            accepts,
+            contentType,
+            null,
+            auth,
+            rawBody,
+            operationName,
+            null,
+            timeout,
+            extraHeaders,
+            maxRetries,
+            errorSchemas,
+            operationId,
+            urlTemplate,
+            null,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Invoke an operation whose success response is JSON Lines and return its items as a
+    /// stream, decoded as they arrive. Everything up to the response headers is the buffered
+    /// call, as for <see cref="InvokeApiForStreamAsync"/>.
+    /// </summary>
+    /// <typeparam name="T">The type each line is decoded into, or a string.</typeparam>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="path">The request path, or an absolute URL.</param>
+    /// <param name="queryParams">The query parameters.</param>
+    /// <param name="headerParams">The header parameters.</param>
+    /// <param name="body">The request body, or null.</param>
+    /// <param name="accepts">The response media types the operation declares.</param>
+    /// <param name="contentType">The request Content-Type.</param>
+    /// <param name="auth">The per-call authenticator, the no-auth sentinel, or null for the client's.</param>
+    /// <param name="rawBody">True when the request body is <c>format: binary</c>.</param>
+    /// <param name="operationName">The calling operation as <c>Class.operationId</c>.</param>
+    /// <param name="timeout">Timeout in milliseconds up to the response headers, or null for the transport's.</param>
+    /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
+    /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="errorSchemas">The operation's error factories by declared status, or null.</param>
+    /// <param name="operationId">The operation id exactly as the spec writes it, handed to the call hook.</param>
+    /// <param name="urlTemplate">The spec path template of the operation, handed to the call hook.</param>
+    /// <param name="text">True when each line is delivered as text and not decoded.</param>
+    /// <param name="streamOptions">The stream settings, or null for the defaults.</param>
+    /// <param name="cancellationToken">Token that cancels the request and, later, the open stream.</param>
+    /// <returns>The open stream of items.</returns>
+    protected async Task<JsonLinesStream<T>> InvokeApiForJsonLinesAsync<T>(
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        IAuthenticator? auth = null,
+        bool rawBody = false,
+        string? operationName = null,
+        int? timeout = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
+        int? maxRetries = null,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
+        string? operationId = null,
+        string? urlTemplate = null,
+        bool text = false,
+        StreamOptions? streamOptions = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        StreamOptions options = streamOptions ?? new StreamOptions();
+        ApiResult<ByteStream> opened = await InvokeCallAsync<ByteStream>(
+                true,
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                null,
+                auth,
+                rawBody,
+                operationName,
+                null,
+                timeout,
+                extraHeaders,
+                maxRetries,
+                errorSchemas,
+                operationId,
+                urlTemplate,
+                options.IdleTimeout,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+        Func<string, T?> decoder = text
+            ? line => (T)(object)line
+            : line => Serializer.Deserialize<T>(line);
+        return new JsonLinesStream<T>(
+            opened.Data!,
+            decoder,
+            options.MaxEventBytes ?? 1024 * 1024,
+            method,
+            RequestPathOf(path)
+        );
+    }
+
+    /// <summary>
+    /// Invoke an operation whose success response is server-sent events and return its events
+    /// as a stream, decoded as they arrive. The first request is opened by this call; the
+    /// stream asks again through the same pipeline (call hook, headers, authentication) when
+    /// the connection ends, fails or stays silent.
+    /// </summary>
+    /// <typeparam name="T">The type the data of each event is decoded into, or a string.</typeparam>
+    /// <param name="method">The HTTP method.</param>
+    /// <param name="path">The request path, or an absolute URL.</param>
+    /// <param name="queryParams">The query parameters.</param>
+    /// <param name="headerParams">The header parameters.</param>
+    /// <param name="body">The request body, or null.</param>
+    /// <param name="accepts">The response media types the operation declares.</param>
+    /// <param name="contentType">The request Content-Type.</param>
+    /// <param name="auth">The per-call authenticator, the no-auth sentinel, or null for the client's.</param>
+    /// <param name="rawBody">True when the request body is <c>format: binary</c>.</param>
+    /// <param name="operationName">The calling operation as <c>Class.operationId</c>.</param>
+    /// <param name="timeout">Timeout in milliseconds up to the response headers, or null for the transport's.</param>
+    /// <param name="extraHeaders">Per-call headers, sent after every other header.</param>
+    /// <param name="maxRetries">Per-call maximum number of retries, or null for the transport's.</param>
+    /// <param name="errorSchemas">The operation's error factories by declared status, or null.</param>
+    /// <param name="operationId">The operation id exactly as the spec writes it, handed to the call hook.</param>
+    /// <param name="urlTemplate">The spec path template of the operation, handed to the call hook.</param>
+    /// <param name="terminator">A data value that ends the stream and is not delivered, or null.</param>
+    /// <param name="text">True when the data is delivered as text and not decoded.</param>
+    /// <param name="streamOptions">The stream settings, or null for the defaults.</param>
+    /// <param name="cancellationToken">Token that cancels the first request and, later, the open stream.</param>
+    /// <returns>The open stream of events.</returns>
+    protected Task<SseStream<T>> InvokeApiForSseAsync<T>(
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        IAuthenticator? auth = null,
+        bool rawBody = false,
+        string? operationName = null,
+        int? timeout = null,
+        IReadOnlyDictionary<string, string>? extraHeaders = null,
+        int? maxRetries = null,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas = null,
+        string? operationId = null,
+        string? urlTemplate = null,
+        string? terminator = null,
+        bool text = false,
+        StreamOptions? streamOptions = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        StreamOptions options = streamOptions ?? new StreamOptions();
+        Dictionary<string, string> sseHeaders = new(headerParams, StringComparer.OrdinalIgnoreCase);
+        foreach (string name in new[] { "Cache-Control", "Accept-Encoding" })
+        {
+            bool set =
+                sseHeaders.ContainsKey(name)
+                || Config.DefaultHeaders.Keys.Any(k =>
+                    string.Equals(k, name, StringComparison.OrdinalIgnoreCase)
+                );
+            if (!set)
+            {
+                sseHeaders[name] = name == "Cache-Control" ? "no-cache" : "identity";
+            }
+        }
+        async Task<ByteStream> OpenAsync(string lastEventId, CancellationToken token)
+        {
+            Dictionary<string, string> headers = new(sseHeaders, StringComparer.OrdinalIgnoreCase);
+            if (lastEventId.Length > 0)
+            {
+                headers["Last-Event-ID"] = lastEventId;
+            }
+            ApiResult<ByteStream> result = await InvokeCallAsync<ByteStream>(
+                    true,
+                    method,
+                    path,
+                    new Dictionary<string, object?>(queryParams),
+                    headers,
+                    body,
+                    accepts,
+                    contentType,
+                    null,
+                    auth,
+                    rawBody,
+                    operationName,
+                    null,
+                    timeout,
+                    extraHeaders,
+                    maxRetries,
+                    errorSchemas,
+                    operationId,
+                    urlTemplate,
+                    options.IdleTimeout,
+                    token
+                )
+                .ConfigureAwait(false);
+            return result.Data!;
+        }
+        Func<string, T?>? decoder = text ? null : data => Serializer.Deserialize<T>(data);
+        return SseStream<T>.OpenAsync(
+            OpenAsync,
+            decoder,
+            terminator,
+            options,
+            body is not null,
+            body is BodySource { IsReplayable: false },
+            method,
+            RequestPathOf(path),
+            cancellationToken
+        );
+    }
+
+    /// <summary>The path of a request URL without its query, named in stream errors.</summary>
+    private static string RequestPathOf(string path)
+    {
+        int cut = path.IndexOfAny(['?', '#']);
+        return cut >= 0 ? path[..cut] : path;
+    }
+
+    /// <summary>The most of an error body a stream call reads before it raises the error.</summary>
+    private const int StreamErrorBodyLimit = 64 * 1024;
+
+    private async Task<ApiResult<T>> InvokeCallAsync<T>(
+        bool stream,
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        Type? returnType,
+        IAuthenticator? auth,
+        bool rawBody,
+        string? operationName,
+        Func<int, string, T?>? decodeByStatus,
+        int? timeout,
+        IReadOnlyDictionary<string, string>? extraHeaders,
+        int? maxRetries,
+        IReadOnlyDictionary<string, ErrorFactory>? errorSchemas,
+        string? operationId,
+        string? urlTemplate,
+        int? idleTimeout,
+        CancellationToken cancellationToken
     )
     {
         ArgumentNullException.ThrowIfNull(queryParams);
@@ -276,7 +602,7 @@ public abstract class BaseApi
         string query = BuildQueryString(queryParams);
         if (!string.IsNullOrEmpty(query))
         {
-            url += "?" + query;
+            url += (url.Contains('?', StringComparison.Ordinal) ? "&" : "?") + query;
         }
 
         bool isMultipart = contentType == "multipart/form-data";
@@ -415,6 +741,7 @@ public abstract class BaseApi
         int callStatus = 0;
         IReadOnlyDictionary<string, string>? callHeaders = null;
         Exception? callError = null;
+        ApiStreamResponse? openStream = null;
         try
         {
             object? requestBody = null;
@@ -545,18 +872,43 @@ public abstract class BaseApi
                 }
                 timeout = (int)remaining;
             }
-            ApiHttpResponse response = await SendRecordingRequestAsync(
-                    ApiClient,
-                    method,
-                    requestUri,
-                    headers,
-                    requestBody,
-                    () => BuildHeadersAsync(false),
-                    timeout,
-                    maxRetries,
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
+            ApiHttpResponse response;
+            if (stream)
+            {
+                openStream = await SendRecordingStreamAsync(
+                        ApiClient,
+                        method,
+                        requestUri,
+                        headers,
+                        requestBody,
+                        () => BuildHeadersAsync(false),
+                        timeout,
+                        maxRetries,
+                        idleTimeout,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+                response = new ApiHttpResponse(
+                    openStream.StatusCode,
+                    string.Empty,
+                    openStream.Headers
+                );
+            }
+            else
+            {
+                response = await SendRecordingRequestAsync(
+                        ApiClient,
+                        method,
+                        requestUri,
+                        headers,
+                        requestBody,
+                        () => BuildHeadersAsync(false),
+                        timeout,
+                        maxRetries,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+            }
             if (observer is not null)
             {
                 callStatus = response.StatusCode;
@@ -572,7 +924,7 @@ public abstract class BaseApi
             if (
                 response.StatusCode == 401
                 && effectiveAuth is IInvalidatableAuthenticator invalidatable
-                && requestBody is null or string or byte[]
+                && requestBody is null or string or byte[] or BodySource { IsReplayable: true }
             )
             {
                 invalidatable.InvalidateAccessToken();
@@ -589,18 +941,44 @@ public abstract class BaseApi
                 if (replayHeaders is not null)
                 {
                     headers = replayHeaders;
-                    response = await SendRecordingRequestAsync(
-                            ApiClient,
-                            method,
-                            requestUri,
-                            headers,
-                            requestBody,
-                            () => BuildHeadersAsync(false),
-                            timeout,
-                            maxRetries,
-                            cancellationToken
-                        )
-                        .ConfigureAwait(false);
+                    if (openStream is not null)
+                    {
+                        /* The refused response is closed unread before the replay. */
+                        await openStream.DisposeAsync().ConfigureAwait(false);
+                        openStream = await SendRecordingStreamAsync(
+                                ApiClient,
+                                method,
+                                requestUri,
+                                headers,
+                                requestBody,
+                                () => BuildHeadersAsync(false),
+                                timeout,
+                                maxRetries,
+                                idleTimeout,
+                                cancellationToken
+                            )
+                            .ConfigureAwait(false);
+                        response = new ApiHttpResponse(
+                            openStream.StatusCode,
+                            string.Empty,
+                            openStream.Headers
+                        );
+                    }
+                    else
+                    {
+                        response = await SendRecordingRequestAsync(
+                                ApiClient,
+                                method,
+                                requestUri,
+                                headers,
+                                requestBody,
+                                () => BuildHeadersAsync(false),
+                                timeout,
+                                maxRetries,
+                                cancellationToken
+                            )
+                            .ConfigureAwait(false);
+                    }
                     if (observer is not null)
                     {
                         callStatus = response.StatusCode;
@@ -611,6 +989,17 @@ public abstract class BaseApi
 
             if (response.StatusCode is < 200 or >= 300)
             {
+                if (openStream is not null)
+                {
+                    /* A failed stream call never returns a stream: a bounded part of the
+                       error body is read, the connection is closed, and the typed error
+                       is the one a buffered call raises. */
+                    ApiStreamResponse failed = openStream;
+                    openStream = null;
+                    response = await failed
+                        .ReadBoundedAsync(StreamErrorBodyLimit, cancellationToken)
+                        .ConfigureAwait(false);
+                }
                 throw ApiException.FromResponse(
                     response.StatusCode,
                     response.Headers,
@@ -618,6 +1007,18 @@ public abstract class BaseApi
                     method,
                     requestUri.AbsolutePath,
                     errorSchemas
+                );
+            }
+
+            if (openStream is not null)
+            {
+                ByteStream bytes = new(openStream.StatusCode, openStream.Headers, openStream.Body);
+                openStream = null;
+                return new ApiResult<T>(
+                    response.StatusCode,
+                    (T)(object)bytes,
+                    string.Empty,
+                    response.Headers
                 );
             }
 
@@ -727,6 +1128,10 @@ public abstract class BaseApi
         catch (Exception e)
         {
             callError = e;
+            if (openStream is not null)
+            {
+                await openStream.DisposeAsync().ConfigureAwait(false);
+            }
             throw;
         }
         finally
@@ -887,6 +1292,47 @@ public abstract class BaseApi
                     refreshHeaders,
                     timeout,
                     maxRetries,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        catch (NetworkException ex)
+        {
+            ex.RecordRequest(method, requestUri.AbsolutePath);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Opens one streaming request through the transport. A transport failure is
+    /// raised without the request it came from, so the method and path that failed
+    /// are recorded on it here.
+    /// </summary>
+    private static async Task<ApiStreamResponse> SendRecordingStreamAsync(
+        IApiClient apiClient,
+        string method,
+        Uri requestUri,
+        Dictionary<string, string> headers,
+        object? requestBody,
+        Func<Task<Dictionary<string, string>>> refreshHeaders,
+        int? timeout,
+        int? maxRetries,
+        int? idleTimeout,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await apiClient
+                .SendStreamingAsync(
+                    method,
+                    requestUri,
+                    headers,
+                    requestBody,
+                    refreshHeaders,
+                    timeout,
+                    maxRetries,
+                    idleTimeout,
                     cancellationToken
                 )
                 .ConfigureAwait(false);
@@ -1119,7 +1565,7 @@ public abstract class BaseApi
     {
         foreach (object value in formBody.Values)
         {
-            if (value is System.IO.Stream || value is byte[])
+            if (value is System.IO.Stream || value is byte[] || value is BodySource)
             {
                 return value;
             }

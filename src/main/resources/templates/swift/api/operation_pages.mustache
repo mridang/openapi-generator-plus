@@ -1,0 +1,46 @@
+
+{{#summary}}
+    /// {{#lambda.singleLine}}{{{summary}}}{{/lambda.singleLine}}
+{{/summary}}
+    ///
+    /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+    /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+    /// call of `{{operationId}}WithHTTPInfo`, with the same options on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+    /// The value of the `{{vendorExtensions.op.pagination.requestParam}}` option is where the list starts, and the
+    /// page after each one is requested with the `{{vendorExtensions.op.pagination.responseProperty}}` it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+    /// The page after each one is the `rel="next"` link of its `Link` header, followed only within
+    /// the origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}) -> {{{vendorExtensions.op.pagination.paginatorType}}} {
+{{#vendorExtensions.op.pagination.isToken}}
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, {{{vendorExtensions.op.pagination.cursorType}}}>.ofCursor(
+            start: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{vendorExtensions.op.pagination.requestParamName}},
+            requestPath: "{{#lambda.swiftString}}{{{path}}}{{/lambda.swiftString}}",
+            fetch: { cursor in
+                let pageOptions = cursor.map { (options{{^vendorExtensions.op.optionsParamRequired}} ?? {{{vendorExtensions.op.optionsClassName}}}(){{/vendorExtensions.op.optionsParamRequired}}).withCursor($0) } ?? options
+                return try await self.{{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isOptions}}pageOptions{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}})
+            },
+            items: { $0.{{vendorExtensions.op.pagination.itemsPropertyName}} },
+            next: { $0.{{vendorExtensions.op.pagination.responsePropertyName}} })
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Void>.ofLink(
+            baseURL: config.baseURL,
+            requestPath: "{{#lambda.swiftString}}{{{path}}}{{/lambda.swiftString}}",
+            fetch: { pageURL in
+                try await self.{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{paramName}}, {{/vendorExtensions.op.signatureArgs}}pageURL: pageURL)
+            },
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+            items: { $0 })
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+            items: { $0.{{vendorExtensions.op.pagination.itemsPropertyName}} })
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{/vendorExtensions.op.pagination.isLink}}
+    }

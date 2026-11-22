@@ -5,6 +5,24 @@ use std::future::Future;
 use {{packageName}}::{{clientClassName}};
 use {{packageName}}::{{clientClassName}}Trait;
 use {{packageName}}::ApiResult;
+{{#hasBodySourceOperation}}
+use {{packageName}}::BodySource;
+{{/hasBodySourceOperation}}
+{{#hasPagedOperation}}
+use {{packageName}}::Paginator;
+{{/hasPagedOperation}}
+{{#hasBinaryStreamOperation}}
+use {{packageName}}::ByteStream;
+{{/hasBinaryStreamOperation}}
+{{#hasJsonLinesStreamOperation}}
+use {{packageName}}::JsonLinesStream;
+{{/hasJsonLinesStreamOperation}}
+{{#hasSseStreamOperation}}
+use {{packageName}}::SseStream;
+{{/hasSseStreamOperation}}
+{{#hasEventStreamOperation}}
+use {{packageName}}::StreamOptions;
+{{/hasEventStreamOperation}}
 use {{packageName}}::api::*;
 use {{packageName}}::api::options::*;
 use {{packageName}}::models::*;
@@ -424,7 +442,11 @@ fn read_group(file: &str, trait_name: &str) -> (Vec<String>, Vec<String>) {
         .collect();
     let declared = source
         .lines()
-        .filter_map(|line| line.trim().strip_prefix("pub async fn "))
+        .filter_map(|line| {
+            let line = line.trim();
+            line.strip_prefix("pub async fn ")
+                .or_else(|| line.strip_prefix("pub fn ").filter(|rest| rest.contains("_pages(")))
+        })
         .filter_map(|rest| rest.split('(').next())
         .map(str::to_string)
         .collect();
@@ -443,8 +465,13 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     is_{{clientPropertyName}}_group(&client.{{clientPropertyName}});
     let ({{clientPropertyName}}_listed, _) = read_group("src/api/{{classFilename}}.rs", "{{classname}}Trait");
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+    assert!({{clientPropertyName}}_listed.contains(&"{{vendorExtensions.op.streamMethodName}}".to_string()));
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
     assert!({{clientPropertyName}}_listed.contains(&"{{operationId}}".to_string()));
     assert!({{clientPropertyName}}_listed.contains(&"{{operationId}}_with_http_info".to_string()));
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}

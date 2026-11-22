@@ -1,0 +1,19 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors
+
+/**
+ * Raised when a paged list cannot be followed safely: the server returned the cursor that was just
+ * sent, so asking again would loop forever, or a `Link` header pointed to another origin, so
+ * following it would send the credentials there. It is not a network error and not an API error:
+ * it is a direct child of [{{errorPrefix}}Exception], and the items already delivered are complete and
+ * correct. A failed page request raises the SDK error of that failure instead.
+ *
+ * @param message what made the list impossible to follow; it never holds a query string
+ * @property requestPath the path of the request whose response could not be followed, without its
+ *   query, or `null` when it is not known
+ */
+class PaginationException(
+    message: String,
+    val requestPath: String? = null,
+) : {{errorPrefix}}Exception(message)

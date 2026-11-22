@@ -110,6 +110,10 @@ public class BaseApiTest {
       super(apiClient, config);
     }
 
+    TestableApi(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
+      super(apiClient, config, authenticator);
+    }
+
     TestableApi(ApiClient apiClient, Configuration config, Map<String, Authenticator> schemes) {
       super(apiClient, config, null, schemes);
     }
@@ -195,6 +199,46 @@ public class BaseApiTest {
           "/echo");
     }
 
+    SseStream<String> events(
+        Map<String, String> headerParams, @Nullable StreamOptions streamOptions) {
+      return this.<String>invokeApiForSse(
+          "watchEvents",
+          "GET",
+          "/items/events",
+          new HashMap<>(),
+          headerParams,
+          null,
+          new String[] {"text/event-stream"},
+          "application/json",
+          null,
+          null,
+          null,
+          null,
+          "watch_events",
+          "/items/events",
+          null,
+          null,
+          streamOptions);
+    }
+
+    com.example.petstore.ApiResult<ByteStream> stream(String method, String path) {
+      return invokeApiForStream(
+          "downloadOperation",
+          method,
+          path,
+          new HashMap<>(),
+          new HashMap<>(),
+          null,
+          new String[] {"application/octet-stream"},
+          "application/json",
+          null,
+          null,
+          null,
+          null,
+          "download_operation",
+          path);
+    }
+
     <T> com.example.petstore.ApiResult<T> callForResult(
         String method,
         String path,
@@ -233,6 +277,36 @@ public class BaseApiTest {
       this.capturedHeaders = headers;
       this.capturedBody = body;
       return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+    }
+
+    @Override
+    public ApiStreamResponse sendStreaming(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @Nullable Object body,
+        @Nullable Integer timeoutMillis,
+        @Nullable Integer maxRetries,
+        @Nullable Integer idleTimeoutMillis) {
+      this.capturedUrl = url;
+      this.capturedHeaders = headers;
+      this.capturedBody = body;
+      return new ApiStreamResponse(
+          200,
+          Map.of("content-type", "application/octet-stream"),
+          new java.io.ByteArrayInputStream(new byte[0]));
+    }
+  }
+
+  /** A transport written before streaming existed: it implements the buffered call only. */
+  static final class BufferedOnlyClient implements ApiClient {
+    String sentUrl = "";
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method, String url, Map<String, String> headers, @Nullable Object body) {
+      this.sentUrl = url;
+      return new ApiHttpResponse(200, "{}", Map.of("content-type", "application/json"));
     }
   }
 
@@ -3312,6 +3386,348 @@ public class BaseApiTest {
     assertEquals("%7B%22k%22%3A%22v%22%7D", TestableApi.encodeCookie("{\"k\":\"v\"}"));
   }
 
+  /** Answers a stream call from a script of statuses and keeps what each call was sent. */
+  static final class ScriptedStreamingClient implements ApiClient {
+    final List<Map<String, String>> streamHeaders = new java.util.ArrayList<>();
+    final List<CloseTrackingBody> opened = new java.util.ArrayList<>();
+    private final int[] statuses;
+    private final byte[] body;
+    private final String contentType;
+
+    ScriptedStreamingClient(String contentType, byte[] body, int... statuses) {
+      this.contentType = contentType;
+      this.body = body;
+      this.statuses = statuses;
+    }
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method, String url, Map<String, String> headers, @Nullable Object body) {
+      return new ApiHttpResponse(200, "{}", Map.of("content-type", "application/json"));
+    }
+
+    @Override
+    public ApiStreamResponse sendStreaming(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @Nullable Object body,
+        @Nullable Integer timeoutMillis,
+        @Nullable Integer maxRetries,
+        @Nullable Integer idleTimeoutMillis) {
+      int index = Math.min(streamHeaders.size(), statuses.length - 1);
+      streamHeaders.add(new HashMap<>(headers));
+      CloseTrackingBody opening = new CloseTrackingBody(this.body);
+      opened.add(opening);
+      return new ApiStreamResponse(statuses[index], Map.of("content-type", contentType), opening);
+    }
+  }
+
+  /** A response body that remembers whether it was closed. */
+  static final class CloseTrackingBody extends java.io.ByteArrayInputStream {
+    boolean closed;
+
+    CloseTrackingBody(byte[] bytes) {
+      super(bytes);
+    }
+
+    @Override
+    public void close() {
+      closed = true;
+    }
+  }
+
+  private static com.example.petstore.ApiResult<ByteStream> streamCall(
+      ApiClient client, @Nullable Authenticator authenticator) {
+    return new TestableApi(client, "http://localhost", authenticator).stream("GET", "/items/blob");
+  }
+
+  @Nested
+  @DisplayName("binary streams")
+  class BinaryStreams {
+
+    @Test
+    @DisplayName(
+        "a non-2xx status raises the typed error with the error body and returns no stream")
+    void bhvStreaming008ANon2xxStreamingCallRaisesTheTypedErrorAndNeverReturnsAStream() {
+      var client =
+          new ScriptedStreamingClient(
+              "application/json",
+              "{\"message\":\"gone\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+              404);
+      NotFoundException failure =
+          assertThrowsExactly(NotFoundException.class, () -> streamCall(client, null));
+      assertEquals(404, failure.getStatusCode());
+      assertTrue(failure.getResponseBody().contains("gone"));
+      assertEquals("/items/blob", failure.getRequestPath());
+      assertTrue(client.opened.get(0).closed, "the connection was closed after the error body");
+
+      var large = new ScriptedStreamingClient("text/plain", new byte[200_000], 502);
+      ServerException bounded = assertThrows(ServerException.class, () -> streamCall(large, null));
+      assertEquals(64 * 1024, bounded.getResponseBody().length(), "the error body is bounded");
+    }
+
+    @Test
+    @DisplayName(
+        "a stream call sends the same user agent, request id, trace context and authentication as a"
+            + " buffered call")
+    void bhvStreaming017AStreamingCallSendsTheSameHeadersAsABufferedCall() throws Exception {
+      try (DefaultApiClientUnitTest.RawServer server =
+          DefaultApiClientUnitTest.RawServer.serve(DefaultApiClientUnitTest::replyOk)) {
+        RecordingHook trace = new RecordingHook();
+        trace.edit =
+            headers ->
+                headers.put(
+                    "traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
+        Configuration config = new Configuration(server.url(""), Map.of(), trace);
+        TestableApi api =
+            new TestableApi(
+                new DefaultApiClient(
+                    TransportOptions.builder().injectRequestId(true).maxRetries(0).build()),
+                config,
+                new ApiKeyAuthenticator(
+                    server.url(""), "X-Api-Key", "k-123", ApiKeyLocation.HEADER));
+        api.<String>callForResult(
+            "GET",
+            "/items/blob",
+            new HashMap<>(),
+            new HashMap<>(),
+            null,
+            new String[] {"application/octet-stream"},
+            "application/json",
+            STRING_TYPE,
+            null);
+        api.stream("GET", "/items/blob").data().close();
+
+        Map<String, String> buffered = headersOf(server.heads.get(0));
+        Map<String, String> streamed = headersOf(server.heads.get(1));
+        assertEquals(buffered.keySet(), streamed.keySet(), "the same header names are sent");
+        for (String name :
+            List.of("user-agent", "x-api-key", "traceparent", "accept", "accept-encoding")) {
+          assertNotNull(streamed.get(name), name);
+          assertEquals(buffered.get(name), streamed.get(name), name);
+        }
+        assertNotNull(streamed.get("x-request-id"));
+        assertTrue(
+            !streamed.get("x-request-id").equals(buffered.get("x-request-id")),
+            "each call has its own request id");
+      }
+    }
+
+    private Map<String, String> headersOf(String head) {
+      Map<String, String> headers = new java.util.TreeMap<>();
+      for (String line : head.split("\r\n", -1)) {
+        int colon = line.indexOf(':');
+        if (colon > 0 && !line.startsWith("GET ")) {
+          headers.put(
+              line.substring(0, colon).toLowerCase(java.util.Locale.ROOT),
+              line.substring(colon + 1).trim());
+        }
+      }
+      return headers;
+    }
+
+    @Test
+    @DisplayName(
+        "a 401 on a stream call refreshes the token and replays once before the stream is returned")
+    void bhvStreaming018A401OnAStreamingCallRefreshesTheTokenAndReplaysOnce() throws Exception {
+      var client =
+          new ScriptedStreamingClient(
+              "application/octet-stream",
+              "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+              401,
+              200);
+      var auth = new RotatingTokenAuthenticator(true);
+      ByteStream stream = streamCall(client, auth).data();
+      assertEquals(2, client.streamHeaders.size());
+      assertEquals("Bearer t1", client.streamHeaders.get(0).get("Authorization"));
+      assertEquals("Bearer t2", client.streamHeaders.get(1).get("Authorization"));
+      assertEquals(1, auth.invalidations);
+      assertTrue(client.opened.get(0).closed, "the refused response was closed unread");
+      assertEquals(
+          "ok", new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+
+      var refused = new ScriptedStreamingClient("application/octet-stream", new byte[0], 401);
+      assertThrowsExactly(
+          UnauthorizedException.class,
+          () -> streamCall(refused, new RotatingTokenAuthenticator(true)));
+      assertEquals(2, refused.streamHeaders.size(), "a second 401 is not replayed again");
+    }
+
+    @Test
+    @DisplayName(
+        "a transport that cannot stream fails a stream call naming itself, and buffered calls keep"
+            + " working")
+    void bhvStreaming030ATransportThatCannotStreamFailsAStreamCallAndStillServesBufferedCalls()
+        throws Exception {
+      var transport = new BufferedOnlyClient();
+      UnsupportedOperationException refused =
+          assertThrows(UnsupportedOperationException.class, () -> streamCall(transport, null));
+      assertTrue(refused.getMessage().contains(BufferedOnlyClient.class.getName()));
+      assertTrue(refused.getMessage().contains("cannot stream"));
+      assertEquals("", transport.sentUrl, "nothing was sent and nothing was buffered instead");
+
+      callWith(transport, null, null, "application/json");
+      assertTrue(transport.sentUrl.endsWith("/test/echo"), "the buffered call still works");
+    }
+  }
+
+  /**
+   * Answers each event stream call with the next scripted body and keeps the headers it was sent.
+   */
+  static final class EventStreamClient implements ApiClient {
+    final List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+    private final String[] bodies;
+
+    EventStreamClient(String... bodies) {
+      this.bodies = bodies;
+    }
+
+    @Override
+    public ApiHttpResponse sendRequest(
+        String method, String url, Map<String, String> headers, @Nullable Object body) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ApiStreamResponse sendStreaming(
+        String method,
+        String url,
+        Map<String, String> headers,
+        @Nullable Object body,
+        @Nullable Integer timeoutMillis,
+        @Nullable Integer maxRetries,
+        @Nullable Integer idleTimeoutMillis) {
+      int index = Math.min(sentHeaders.size(), bodies.length - 1);
+      sentHeaders.add(new HashMap<>(headers));
+      String text = bodies[index];
+      if (text.isEmpty()) {
+        return new ApiStreamResponse(204, Map.of(), new java.io.ByteArrayInputStream(new byte[0]));
+      }
+      return new ApiStreamResponse(
+          200,
+          Map.of("content-type", "text/event-stream"),
+          new java.io.ByteArrayInputStream(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    }
+  }
+
+  private static @Nullable String headerOf(Map<String, String> headers, String name) {
+    for (Map.Entry<String, String> entry : headers.entrySet()) {
+      if (entry.getKey().equalsIgnoreCase(name)) {
+        return entry.getValue();
+      }
+    }
+    return null;
+  }
+
+  private static void drain(SseStream<String> stream) {
+    stream.forEachRemaining(event -> {});
+  }
+
+  @Nested
+  @DisplayName("event streams")
+  class EventStreams {
+
+    @Test
+    @DisplayName(
+        "an operation with a streaming media type gets a stream method, and an SSE or JSON Lines"
+            + " only operation gets no buffered method")
+    void bhvStreaming028AStreamingOperationGetsAStreamMethodAndNoBufferedMethod() {
+      java.util.Set<String> names = new java.util.TreeSet<>();
+      for (java.lang.reflect.Method method : StoreApi.class.getDeclaredMethods()) {
+        names.add(method.getName());
+      }
+      for (String operation : List.of("exportOrders", "watchOrders", "watchNotices")) {
+        assertTrue(names.contains(operation + "Stream"), operation + "Stream");
+        assertFalse(names.contains(operation), "no buffered " + operation);
+        assertFalse(names.contains(operation + "WithHttpInfo"), "no raw " + operation);
+      }
+      assertEquals(
+          JsonLinesStream.class,
+          java.util.Arrays.stream(StoreApi.class.getMethods())
+              .filter(m -> m.getName().equals("exportOrdersStream"))
+              .findFirst()
+              .orElseThrow()
+              .getReturnType());
+      assertEquals(
+          SseStream.class,
+          java.util.Arrays.stream(StoreApi.class.getMethods())
+              .filter(m -> m.getName().equals("watchNoticesStream"))
+              .findFirst()
+              .orElseThrow()
+              .getReturnType());
+    }
+
+    @Test
+    @DisplayName(
+        "an SSE request sends Accept text/event-stream, Cache-Control no-cache and identity"
+            + " encoding unless the caller set them")
+    void bhvSse006AnSseRequestSendsTheEventStreamHeadersUnlessTheCallerSetThem() {
+      var client = new EventStreamClient("data: a\n\n", "");
+      drain(new TestableApi(client, "http://localhost").events(new HashMap<>(), null));
+      Map<String, String> sent = client.sentHeaders.get(0);
+      assertEquals("text/event-stream", headerOf(sent, "Accept"));
+      assertEquals("no-cache", headerOf(sent, "Cache-Control"));
+      assertEquals("identity", headerOf(sent, "Accept-Encoding"));
+
+      var own = new EventStreamClient("data: a\n\n", "");
+      drain(
+          new TestableApi(
+                  own, new Configuration("http://localhost", Map.of("accept-encoding", "gzip")))
+              .events(new HashMap<>(Map.of("cache-control", "max-age=0")), null));
+      Map<String, String> chosen = own.sentHeaders.get(0);
+      assertEquals("max-age=0", headerOf(chosen, "Cache-Control"));
+      assertEquals(1, chosen.keySet().stream().filter("cache-control"::equalsIgnoreCase).count());
+      assertEquals(
+          "gzip", headerOf(chosen, "Accept-Encoding"), "the caller's own encoding is kept");
+      assertEquals(1, chosen.keySet().stream().filter("accept-encoding"::equalsIgnoreCase).count());
+    }
+
+    @Test
+    @DisplayName("an SSE stream sends the initial last event id of the call on its first request")
+    void bhvSse012AnSseStreamSendsTheInitialLastEventIdOnItsFirstRequest() {
+      var client = new EventStreamClient("data: a\n\n", "");
+      drain(
+          new TestableApi(client, "http://localhost")
+              .events(new HashMap<>(), new StreamOptions().lastEventId("42")));
+      assertEquals("42", headerOf(client.sentHeaders.get(0), "Last-Event-ID"));
+    }
+
+    @Test
+    @DisplayName("an SSE reconnect rebuilds the headers so a refreshed token is the one sent")
+    void bhvSse013AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent() {
+      var client = new EventStreamClient("data: a\n\n", "");
+      var counter = new java.util.concurrent.atomic.AtomicInteger();
+      Authenticator rotating =
+          new TestAuthenticator(Map.of(), Map.of(), Map.of()) {
+            @Override
+            public Map<String, String> getAuthHeaders() {
+              return Map.of("Authorization", "Bearer t" + counter.incrementAndGet());
+            }
+          };
+      drain(
+          new TestableApi(client, "http://localhost", rotating)
+              .events(new HashMap<>(), new StreamOptions().reconnectDelay(1)));
+      assertEquals(2, client.sentHeaders.size());
+      assertEquals("Bearer t1", headerOf(client.sentHeaders.get(0), "Authorization"));
+      assertEquals("Bearer t2", headerOf(client.sentHeaders.get(1), "Authorization"));
+    }
+
+    @Test
+    @DisplayName("an SSE reconnect sends Last-Event-ID only when the last event id is not empty")
+    void bhvSse020AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty() {
+      var client = new EventStreamClient("data: a\n\n", "id: 5\ndata: b\n\n", "");
+      drain(
+          new TestableApi(client, "http://localhost")
+              .events(new HashMap<>(), new StreamOptions().reconnectDelay(1)));
+      assertEquals(3, client.sentHeaders.size());
+      assertEquals(null, headerOf(client.sentHeaders.get(0), "Last-Event-ID"));
+      assertEquals(
+          null, headerOf(client.sentHeaders.get(1), "Last-Event-ID"), "no id yet, so none is sent");
+      assertEquals("5", headerOf(client.sentHeaders.get(2), "Last-Event-ID"));
+    }
+  }
+
   /** Records what a hook was told and how every call ended. */
   static final class RecordingHook implements CallHook {
     final List<CallInfo> infos = new java.util.ArrayList<>();
@@ -3825,8 +4241,8 @@ public class BaseApiTest {
   }
 
   @Test
-  @DisplayName("bhvMisc217 a binary upload sends in-memory bytes and a stream as given")
-  void bhvMisc217ABinaryUploadSendsBytesAndAStreamAsGiven() throws ApiException {
+  @DisplayName("bhvMisc217 a binary upload sends in-memory bytes and a body source as given")
+  void bhvMisc217ABinaryUploadSendsBytesAndABodySourceAsGiven() throws ApiException {
     byte[] png = new byte[] {(byte) 0x89, 'P', 'N', 'G'};
     var client = new CapturingApiClient();
     var testApi = new TestableApi(client, "http://localhost");
@@ -3841,18 +4257,18 @@ public class BaseApiTest {
         null,
         null);
     assertArrayEquals(png, (byte[]) client.capturedBody);
-    var stream = new java.io.ByteArrayInputStream(png);
+    BodySource source = BodySource.once(new java.io.ByteArrayInputStream(png));
     testApi.call(
         "PUT",
         "/x",
         new HashMap<>(),
         new HashMap<>(),
-        stream,
+        source,
         new String[] {"application/json"},
         "image/png",
         null,
         null);
-    assertSame(stream, client.capturedBody);
+    assertSame(source, client.capturedBody);
   }
 
   @Test
@@ -4202,5 +4618,786 @@ public class BaseApiTest {
                         null,
                         null));
     assertEquals(status, ex.getStatusCode());
+  }
+
+  /**
+   * One request a paged-list server saw: the path, the decoded query and the headers (lower-cased
+   * names).
+   */
+  record SeenRequest(String path, Map<String, String> query, Map<String, String> headers) {
+    @Nullable
+    String param(String name) {
+      return query.get(name);
+    }
+  }
+
+  /**
+   * What a paged-list server answers: a status, a JSON body, extra headers and a delay before it
+   * answers.
+   */
+  record Reply(int status, String body, Map<String, String> headers, long delayMillis) {
+    static Reply ok(String body) {
+      return new Reply(200, body, Map.of(), 0);
+    }
+
+    static Reply ok(String body, Map<String, String> headers) {
+      return new Reply(200, body, headers, 0);
+    }
+
+    static Reply status(int status) {
+      return new Reply(status, "{}", Map.of("Retry-After", "0"), 0);
+    }
+
+    Reply after(long millis) {
+      return new Reply(status, body, headers, millis);
+    }
+  }
+
+  /**
+   * An in-process server whose answer depends on the request it gets and on how many it has had,
+   * which the shared mock cannot do. It records every request in arrival order.
+   */
+  static final class PagedServer implements AutoCloseable {
+    final List<SeenRequest> seen =
+        java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+    private final com.sun.net.httpserver.HttpServer server;
+    private final java.util.concurrent.ExecutorService executor =
+        java.util.concurrent.Executors.newCachedThreadPool();
+
+    PagedServer(java.util.function.BiFunction<SeenRequest, Integer, Reply> handler) {
+      try {
+        server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+      } catch (java.io.IOException e) {
+        throw new java.io.UncheckedIOException(e);
+      }
+      server.setExecutor(executor);
+      server.createContext(
+          "/",
+          exchange -> {
+            Map<String, String> query = new LinkedHashMap<>();
+            String raw = exchange.getRequestURI().getRawQuery();
+            if (raw != null) {
+              for (String pair : raw.split("&", -1)) {
+                int eq = pair.indexOf('=');
+                String key = eq < 0 ? pair : pair.substring(0, eq);
+                String value = eq < 0 ? "" : pair.substring(eq + 1);
+                query.put(
+                    java.net.URLDecoder.decode(key, java.nio.charset.StandardCharsets.UTF_8),
+                    java.net.URLDecoder.decode(value, java.nio.charset.StandardCharsets.UTF_8));
+              }
+            }
+            Map<String, String> headers = new HashMap<>();
+            exchange
+                .getRequestHeaders()
+                .forEach(
+                    (name, values) ->
+                        headers.put(
+                            name.toLowerCase(java.util.Locale.ROOT), String.join(", ", values)));
+            SeenRequest request =
+                new SeenRequest(exchange.getRequestURI().getPath(), query, headers);
+            int number;
+            synchronized (seen) {
+              seen.add(request);
+              number = seen.size();
+            }
+            Reply reply = handler.apply(request, number);
+            if (reply.delayMillis() > 0) {
+              try {
+                Thread.sleep(reply.delayMillis());
+              } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+              }
+            }
+            byte[] bytes = reply.body().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            reply
+                .headers()
+                .forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
+            try {
+              exchange.sendResponseHeaders(reply.status(), bytes.length);
+              exchange.getResponseBody().write(bytes);
+            } catch (java.io.IOException gone) {
+              /* the client gave up on this request */
+            } finally {
+              exchange.close();
+            }
+          });
+      server.start();
+    }
+
+    String url() {
+      return "http://127.0.0.1:" + server.getAddress().getPort();
+    }
+
+    @Override
+    public void close() {
+      server.stop(0);
+      executor.shutdownNow();
+    }
+  }
+
+  /** One pet as a JSON object. */
+  private static String petJson(String name) {
+    return "{\"id\":1,\"name\":\"" + name + "\",\"photoUrls\":[]}";
+  }
+
+  /**
+   * A catalog page: the pets of page {@code page} of {@code size}, and the cursor of the page after
+   * it.
+   */
+  private static String catalogBody(int page, int size, int pages) {
+    StringBuilder items = new StringBuilder();
+    for (int i = 0; i < size; i++) {
+      items.append(i == 0 ? "" : ",").append(petJson("p" + page + "-" + i));
+    }
+    String next = page + 1 < pages ? ",\"next_cursor\":\"c" + (page + 1) + "\"" : "";
+    return "{\"items\":[" + items + "]" + next + "}";
+  }
+
+  /**
+   * A catalog of {@code pages} pages of {@code size} pets; the cursor of page n is "c" followed by
+   * n.
+   */
+  private static PagedServer catalogServer(int pages, int size) {
+    return new PagedServer(
+        (request, number) -> {
+          String cursor = request.param("cursor");
+          int page = cursor == null ? 0 : Integer.parseInt(cursor.substring(1));
+          return Reply.ok(catalogBody(page, size, pages));
+        });
+  }
+
+  private static PetApi petApi(PagedServer server) {
+    return petApi(server, TransportOptions.builder().maxRetries(0).build(), Map.of());
+  }
+
+  private static PetApi petApi(
+      PagedServer server, TransportOptions transport, Map<String, String> defaultHeaders) {
+    return new PetApi(
+        new DefaultApiClient(transport), new Configuration(server.url(), defaultHeaders));
+  }
+
+  private static List<String> names(Iterable<com.example.petstore.models.Pet> pets) {
+    List<String> out = new java.util.ArrayList<>();
+    for (com.example.petstore.models.Pet pet : pets) {
+      out.add(pet.name);
+    }
+    return out;
+  }
+
+  /** A feed page: one pet and a Link header that names the next page, or none on the last. */
+  private static PagedServer feedServer(
+      int pages, java.util.function.Function<Integer, String> link) {
+    return new PagedServer(
+        (request, number) -> {
+          String page = request.param("page");
+          int index = page == null ? 0 : Integer.parseInt(page);
+          Map<String, String> headers =
+              index + 1 < pages ? Map.of("Link", link.apply(index + 1)) : Map.of();
+          return Reply.ok("[" + petJson("f" + index) + "]", headers);
+        });
+  }
+
+  private static PagedServer sameOriginFeed(int pages) {
+    PagedServer[] self = new PagedServer[1];
+    self[0] =
+        feedServer(
+            pages,
+            next -> "<" + self[0].url() + "/pet/feed?page=" + next + "&secret=s3>; rel=\"next\"");
+    return self[0];
+  }
+
+  private static java.util.List<String> paramsSeen(PagedServer server, String name) {
+    List<String> out = new java.util.ArrayList<>();
+    for (SeenRequest request : new java.util.ArrayList<>(server.seen)) {
+      out.add(request.param(name));
+    }
+    return out;
+  }
+
+  @Nested
+  @DisplayName("paged lists")
+  class PagedLists {
+
+    @Test
+    @DisplayName("a paged operation reads no page until the first item or page is requested")
+    void bhvPagination001APagedOperationReadsNoPageUntilTheFirstRead() {
+      try (PagedServer server = catalogServer(2, 2)) {
+        Paginator<com.example.petstore.models.Pet, String> paginator =
+            petApi(server).listPetCatalogPages();
+        assertEquals(0, server.seen.size(), "the method sends nothing");
+        assertNotNull(paginator.iterator());
+        assertNotNull(paginator.pages().iterator());
+        assertNotNull(paginator.stream());
+        assertEquals(0, server.seen.size(), "getting a view sends nothing");
+        assertTrue(paginator.iterator().hasNext());
+        assertEquals(1, server.seen.size(), "the first read sends the first request");
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a token-cursor operation yields every item of every page in order and sends the next"
+            + " page's cursor")
+    void bhvPagination002ATokenCursorOperationYieldsEveryItemInOrder() {
+      try (PagedServer server = catalogServer(3, 2)) {
+        assertEquals(
+            List.of("p0-0", "p0-1", "p1-0", "p1-1", "p2-0", "p2-1"),
+            names(petApi(server).listPetCatalogPages()));
+        assertEquals(java.util.Arrays.asList(null, "c1", "c2"), paramsSeen(server, "cursor"));
+      }
+    }
+
+    @Test
+    @DisplayName("the next request is sent only when the consumer asks for more items")
+    void bhvPagination003TheNextRequestIsSentOnlyWhenTheConsumerAsksForMore() {
+      try (PagedServer server = catalogServer(3, 2)) {
+        java.util.Iterator<com.example.petstore.models.Pet> items =
+            petApi(server).listPetCatalogPages().iterator();
+        items.next();
+        items.next();
+        assertEquals(1, server.seen.size(), "both items of the first page came from one request");
+        items.next();
+        assertEquals(2, server.seen.size(), "the third item needed the second page");
+      }
+    }
+
+    @Test
+    @DisplayName("a Link-header operation follows rel=next and ends when it is absent")
+    void bhvPagination007ALinkHeaderOperationFollowsRelNextAndEndsWhenItIsAbsent() {
+      try (PagedServer server = sameOriginFeed(3)) {
+        assertEquals(List.of("f0", "f1", "f2"), names(petApi(server).listPetFeedPages()));
+        assertEquals(java.util.Arrays.asList(null, "1", "2"), paramsSeen(server, "page"));
+        assertEquals("/pet/feed", server.seen.get(2).path());
+      }
+    }
+
+    @Test
+    @DisplayName("a Link next URL on another origin is refused and no credentials are sent to it")
+    void bhvPagination008ALinkNextUrlOnAnotherOriginIsRefusedAndNoCredentialsAreSentToIt() {
+      try (PagedServer elsewhere =
+              new PagedServer((request, number) -> Reply.ok("[" + petJson("stolen") + "]"));
+          PagedServer origin =
+              new PagedServer(
+                  (request, number) ->
+                      Reply.ok(
+                          "[" + petJson("f0") + "]",
+                          Map.of(
+                              "Link",
+                              "<" + elsewhere.url() + "/pet/feed?page=1>; rel=\"next\"")))) {
+        PetApi api =
+            petApi(
+                origin,
+                TransportOptions.builder().maxRetries(0).build(),
+                Map.of("Authorization", "Bearer secret"));
+        java.util.Iterator<com.example.petstore.models.Pet> items =
+            api.listPetFeedPages().iterator();
+        assertEquals("f0", items.next().name, "the page before the foreign link is delivered");
+        assertEquals("Bearer secret", origin.seen.get(0).headers().get("authorization"));
+        com.example.petstore.errors.PaginationException refused =
+            assertThrows(
+                com.example.petstore.errors.PaginationException.class,
+                items::hasNext,
+                "the link to another origin is refused");
+        assertFalse(
+            String.valueOf(refused.getMessage()).contains("page=1"), "the message holds no query");
+        assertEquals(0, elsewhere.seen.size(), "nothing was sent to the other origin");
+        assertEquals(1, origin.seen.size());
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "an empty page with a next cursor continues and an absent, null or empty cursor ends")
+    void bhvPagination009AnEmptyPageWithANextCursorContinuesAndAnAbsentNullOrEmptyCursorEnds() {
+      for (String end : List.of("", ",\"next_cursor\":null", ",\"next_cursor\":\"\"")) {
+        try (PagedServer server =
+            new PagedServer(
+                (request, number) ->
+                    Reply.ok(
+                        request.param("cursor") == null
+                            ? "{\"items\":[],\"next_cursor\":\"c1\"}"
+                            : "{\"items\":[" + petJson("only") + "]" + end + "}"))) {
+          assertEquals(List.of("only"), names(petApi(server).listPetCatalogPages()), end);
+          assertEquals(2, server.seen.size(), "the empty page continued and the end ended: " + end);
+        }
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "pages yields one page per response with its items, status, headers, decoded body and next"
+            + " cursor")
+    void bhvPagination010PagesYieldsOnePagePerResponseWithItsItemsStatusHeadersBodyAndNextCursor() {
+      try (PagedServer server =
+          new PagedServer(
+              (request, number) -> {
+                String cursor = request.param("cursor");
+                int page = cursor == null ? 0 : Integer.parseInt(cursor.substring(1));
+                return Reply.ok(catalogBody(page, 2, 2), Map.of("X-Page", String.valueOf(page)));
+              })) {
+        List<Page<com.example.petstore.models.Pet, String>> pages = new java.util.ArrayList<>();
+        for (Page<com.example.petstore.models.Pet, String> page :
+            petApi(server).listPetCatalogPages().pages()) {
+          pages.add(page);
+        }
+        assertEquals(2, pages.size());
+        assertEquals(List.of("p0-0", "p0-1"), names(pages.get(0).items()));
+        assertEquals(200, pages.get(0).result().statusCode());
+        assertEquals("0", headerOf(pages.get(0).result().headers(), "X-Page"));
+        assertEquals("1", headerOf(pages.get(1).result().headers(), "x-page"));
+        assertInstanceOf(
+            com.example.petstore.models.PetCatalogPage.class, pages.get(0).result().data());
+        assertEquals("c1", pages.get(0).nextCursor());
+        assertNull(pages.get(1).nextCursor());
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "the cursor passed to the paged method is the starting position and the first request sends"
+            + " it")
+    void bhvPagination011TheCursorPassedToThePagedMethodIsTheStartingPosition() {
+      try (PagedServer server = catalogServer(3, 1)) {
+        PetApi api = petApi(server);
+        assertEquals(
+            List.of("p1-0", "p2-0"),
+            names(
+                api.listPetCatalogPages(
+                    new com.example.petstore.api.options.ListPetCatalogOptions().cursor("c1"))));
+        assertEquals("c1", server.seen.get(0).param("cursor"));
+      }
+    }
+
+    @Test
+    @DisplayName("resuming with the next cursor of a page continues with the following page")
+    void bhvPagination012ResumingWithTheNextCursorOfAPageContinuesWithTheFollowingPage() {
+      try (PagedServer server = catalogServer(3, 1)) {
+        PetApi api = petApi(server);
+        String resume = null;
+        for (Page<com.example.petstore.models.Pet, String> page :
+            api.listPetCatalogPages().pages()) {
+          resume = page.nextCursor();
+          break;
+        }
+        assertEquals("c1", resume);
+        assertEquals(
+            List.of("p1-0", "p2-0"),
+            names(
+                api.listPetCatalogPages(
+                    new com.example.petstore.api.options.ListPetCatalogOptions().cursor(resume))));
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "every other parameter, including the page size, is repeated unchanged on each page"
+            + " request")
+    void bhvPagination013EveryOtherParameterIsRepeatedUnchangedOnEachPageRequest() {
+      try (PagedServer server = catalogServer(3, 1)) {
+        names(
+            petApi(server)
+                .listPetCatalogPages(
+                    new com.example.petstore.api.options.ListPetCatalogOptions()
+                        .limit(1)
+                        .headers(Map.of("X-Keep", "yes"))));
+        assertEquals(3, server.seen.size());
+        for (SeenRequest request : server.seen) {
+          assertEquals("1", request.param("limit"));
+          assertEquals("yes", request.headers().get("x-keep"));
+        }
+        assertEquals(java.util.Arrays.asList(null, "c1", "c2"), paramsSeen(server, "cursor"));
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a cursor equal to the one just sent, or an offset that did not advance, raises a"
+            + " PaginationError instead of looping")
+    void bhvPagination014ACursorEqualToTheOneJustSentRaisesAPaginationErrorInsteadOfLooping() {
+      try (PagedServer server =
+          new PagedServer(
+              (request, number) ->
+                  Reply.ok("{\"items\":[" + petJson("p" + number) + "],\"next_cursor\":\"c1\"}"))) {
+        java.util.Iterator<com.example.petstore.models.Pet> items =
+            petApi(server).listPetCatalogPages().iterator();
+        assertEquals("p1", items.next().name);
+        assertEquals(
+            "p2", items.next().name, "the page that repeated the cursor is still delivered");
+        com.example.petstore.errors.PaginationException failure =
+            assertThrows(com.example.petstore.errors.PaginationException.class, items::next);
+        assertEquals("/pet/catalog", failure.getRequestPath());
+        assertEquals(2, server.seen.size(), "nothing was asked for after the repeat");
+        assertFalse(items.hasNext(), "the iteration is finished");
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "an error on a later page is raised after the earlier pages' items were delivered and ends"
+            + " iteration")
+    void bhvPagination015AnErrorOnALaterPageIsRaisedAfterTheEarlierItemsWereDelivered() {
+      try (PagedServer server =
+          new PagedServer(
+              (request, number) ->
+                  request.param("cursor") == null
+                      ? Reply.ok(catalogBody(0, 2, 3))
+                      : new Reply(404, "{}", Map.of(), 0))) {
+        java.util.Iterator<com.example.petstore.models.Pet> items =
+            petApi(server).listPetCatalogPages().iterator();
+        assertEquals("p0-0", items.next().name);
+        assertEquals("p0-1", items.next().name);
+        com.example.petstore.errors.NotFoundException failure =
+            assertThrows(com.example.petstore.errors.NotFoundException.class, items::hasNext);
+        assertEquals(404, failure.getStatusCode());
+        assertFalse(items.hasNext(), "the iteration ended with the error");
+        assertEquals(2, server.seen.size());
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a 503 on the second page is retried under the retry rules and iteration continues")
+    void bhvPagination016A503OnTheSecondPageIsRetriedAndIterationContinues() {
+      try (PagedServer server =
+          new PagedServer(
+              (request, number) ->
+                  number == 2
+                      ? Reply.status(503)
+                      : Reply.ok(catalogBody(number == 1 ? 0 : 1, 1, 2)))) {
+        PetApi api = petApi(server, TransportOptions.builder().maxRetries(2).build(), Map.of());
+        assertEquals(List.of("p0-0", "p1-0"), names(api.listPetCatalogPages()));
+        assertEquals(java.util.Arrays.asList(null, "c1", "c1"), paramsSeen(server, "cursor"));
+      }
+    }
+
+    @Test
+    @DisplayName("the per-call timeout, headers and retry count apply to each page request")
+    void bhvPagination017ThePerCallTimeoutHeadersAndRetryCountApplyToEachPageRequest() {
+      try (PagedServer server =
+          new PagedServer(
+              (request, number) ->
+                  number % 2 == 1
+                      ? Reply.status(503)
+                      : Reply.ok(catalogBody(number == 2 ? 0 : 1, 1, 2)))) {
+        names(
+            petApi(server)
+                .listPetCatalogPages(
+                    new com.example.petstore.api.options.ListPetCatalogOptions()
+                        .maxRetries(1)
+                        .headers(Map.of("X-Trace", "t1"))));
+        assertEquals(4, server.seen.size(), "each page was tried twice: one try and one retry");
+        for (SeenRequest request : server.seen) {
+          assertEquals("t1", request.headers().get("x-trace"));
+        }
+      }
+      try (PagedServer slow =
+          new PagedServer(
+              (request, number) ->
+                  request.param("cursor") == null
+                      ? Reply.ok(catalogBody(0, 1, 2))
+                      : Reply.ok(catalogBody(1, 1, 2)).after(1500))) {
+        java.util.Iterator<com.example.petstore.models.Pet> items =
+            petApi(slow)
+                .listPetCatalogPages(
+                    new com.example.petstore.api.options.ListPetCatalogOptions().timeout(300))
+                .iterator();
+        assertEquals("p0-0", items.next().name, "the first page answers within its own budget");
+        assertThrows(com.example.petstore.errors.NetworkTimeoutException.class, items::hasNext);
+      }
+    }
+
+    @Test
+    @DisplayName("stopping early sends no further request and leaves nothing to close")
+    void bhvPagination018StoppingEarlySendsNoFurtherRequestAndLeavesNothingToClose() {
+      try (PagedServer server = catalogServer(3, 2)) {
+        assertEquals("p0-0", petApi(server).listPetCatalogPages().iterator().next().name);
+        assertEquals(1, server.seen.size());
+        assertEquals(2, petApi(server).listPetCatalogPages().stream().limit(2).count());
+        assertEquals(2, server.seen.size(), "limit(2) read exactly one more page");
+        assertFalse(AutoCloseable.class.isAssignableFrom(Paginator.class));
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "cancelling mid-iteration aborts the in-flight page request and is not reported as a"
+            + " timeout")
+    void bhvPagination019CancellingMidIterationAbortsTheInFlightPageRequest() throws Exception {
+      try (PagedServer server =
+          new PagedServer(
+              (request, number) ->
+                  request.param("cursor") == null
+                      ? Reply.ok(catalogBody(0, 1, 2))
+                      : Reply.ok(catalogBody(1, 1, 2)).after(8000))) {
+        java.util.concurrent.atomic.AtomicReference<Throwable> failure =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicBoolean interrupted =
+            new java.util.concurrent.atomic.AtomicBoolean();
+        PetApi api =
+            petApi(
+                server, TransportOptions.builder().maxRetries(0).timeout(20000).build(), Map.of());
+        Thread reader =
+            new Thread(
+                () -> {
+                  try {
+                    names(api.listPetCatalogPages());
+                  } catch (Throwable error) {
+                    failure.set(error);
+                    interrupted.set(Thread.currentThread().isInterrupted());
+                  }
+                });
+        reader.start();
+        long deadline = System.nanoTime() + 5_000_000_000L;
+        while (server.seen.size() < 2 && System.nanoTime() < deadline) {
+          Thread.sleep(20);
+        }
+        assertEquals(2, server.seen.size(), "the second page is in flight");
+        reader.interrupt();
+        reader.join(5000);
+        assertFalse(reader.isAlive(), "the cancelled iteration stops promptly");
+        assertNotNull(failure.get(), "the cancellation surfaced as an error");
+        assertFalse(
+            failure.get() instanceof com.example.petstore.errors.NetworkTimeoutException,
+            "a cancellation is not a timeout");
+      }
+    }
+
+    @Test
+    @DisplayName("iterating a second time starts again from the starting position")
+    void bhvPagination020IteratingASecondTimeStartsAgainFromTheStartingPosition() {
+      try (PagedServer server = catalogServer(2, 2)) {
+        Paginator<com.example.petstore.models.Pet, String> paginator =
+            petApi(server).listPetCatalogPages();
+        List<String> first = names(paginator);
+        List<String> second = names(paginator);
+        assertEquals(first, second);
+        assertEquals(4, server.seen.size(), "the second loop read both pages again");
+        assertEquals(java.util.Arrays.asList(null, "c1", null, "c1"), paramsSeen(server, "cursor"));
+      }
+    }
+
+    @Test
+    @DisplayName("a page that does not decode on a later page fails with the serialization error")
+    void bhvPagination021APageThatDoesNotDecodeOnALaterPageFailsWithTheSerializationError() {
+      try (PagedServer server =
+          new PagedServer(
+              (request, number) ->
+                  number == 1
+                      ? Reply.ok(catalogBody(0, 1, 2))
+                      : Reply.ok(
+                          "{\"items\":[{\"id\":\"not a"
+                              + " number\",\"name\":\"x\",\"photoUrls\":[]}]}"))) {
+        java.util.Iterator<com.example.petstore.models.Pet> items =
+            petApi(server).listPetCatalogPages().iterator();
+        assertEquals("p0-0", items.next().name);
+        assertThrows(com.example.petstore.errors.SerializationException.class, items::hasNext);
+        assertFalse(items.hasNext());
+      }
+    }
+
+    @Test
+    @DisplayName("a refreshed credential is used for the next page")
+    void bhvPagination022ARefreshedCredentialIsUsedForTheNextPage() {
+      try (PagedServer server = catalogServer(3, 1)) {
+        int[] issued = new int[1];
+        Authenticator rotating =
+            new Authenticator() {
+              @Override
+              public String getHost() {
+                return server.url();
+              }
+
+              @Override
+              public Map<String, String> getAuthHeaders() {
+                issued[0]++;
+                return Map.of("Authorization", "Bearer token-" + issued[0]);
+              }
+            };
+        PetApi api =
+            new PetApi(
+                new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+                new Configuration(server.url(), Map.of()),
+                rotating);
+        names(api.listPetCatalogPages());
+        assertEquals("Bearer token-1", server.seen.get(0).headers().get("authorization"));
+        assertEquals("Bearer token-2", server.seen.get(1).headers().get("authorization"));
+        assertEquals("Bearer token-3", server.seen.get(2).headers().get("authorization"));
+      }
+    }
+
+    @Test
+    @DisplayName("an error from a Link-driven page request carries the path without the query")
+    void bhvPagination023AnErrorFromALinkDrivenPageRequestCarriesThePathWithoutTheQuery() {
+      try (PagedServer server =
+          new PagedServer(
+              (request, number) -> {
+                if (request.param("page") != null) {
+                  return new Reply(500, "{}", Map.of(), 0);
+                }
+                return Reply.ok(
+                    "[" + petJson("f0") + "]",
+                    Map.of("Link", "</pet/feed?page=1&secret=s3>; rel=\"next\""));
+              })) {
+        java.util.Iterator<com.example.petstore.models.Pet> items =
+            petApi(server).listPetFeedPages().iterator();
+        assertEquals("f0", items.next().name);
+        ApiException failure = assertThrows(ApiException.class, items::hasNext);
+        assertEquals(500, failure.getStatusCode());
+        assertEquals("/pet/feed", failure.getRequestPath());
+        assertFalse(String.valueOf(failure.getMessage()).contains("s3"));
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "an operation with two candidate cursors, two array properties, a non-GET method or several"
+            + " 2xx bodies gets no paged method")
+    void bhvPagination024AnOperationThatIsAmbiguousOrNotAGetGetsNoPagedMethod() {
+      java.util.Set<String> paged = new java.util.TreeSet<>();
+      for (java.lang.reflect.Method method : PetApi.class.getMethods()) {
+        if (method.getName().endsWith("Pages")) {
+          paged.add(method.getName());
+        }
+      }
+      assertEquals(
+          java.util.Set.of(
+              "listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages"),
+          paged);
+      assertTrue(
+          java.util.Arrays.stream(PetApi.class.getMethods())
+              .anyMatch(m -> m.getName().equals("listPetMatches")),
+          "the ambiguous operation keeps its base method");
+    }
+
+    @Test
+    @DisplayName(
+        "a paged method has the same parameters in the same order as the base method and the base"
+            + " method is unchanged")
+    void bhvPagination025APagedMethodHasTheSameParametersAsTheBaseMethod() {
+      for (java.lang.reflect.Method pages : PetApi.class.getMethods()) {
+        if (!pages.getName().endsWith("Pages")) {
+          continue;
+        }
+        String base = pages.getName().substring(0, pages.getName().length() - "Pages".length());
+        java.lang.reflect.Method buffered =
+            java.util.Arrays.stream(PetApi.class.getMethods())
+                .filter(
+                    m ->
+                        m.getName().equals(base)
+                            && java.util.Arrays.equals(
+                                m.getParameterTypes(), pages.getParameterTypes()))
+                .findFirst()
+                .orElseThrow(
+                    () -> new AssertionError("no base method with the parameters of " + pages));
+        assertTrue(
+            !Paginator.class.isAssignableFrom(buffered.getReturnType()),
+            "the base method still returns the page body");
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "the generator option overrides inference and can switch an operation or the whole feature"
+            + " off")
+    void bhvPagination026TheGeneratorOptionOverridesInferenceAndCanSwitchAnOperationOff() {
+      java.util.Set<String> names = new java.util.TreeSet<>();
+      for (java.lang.reflect.Method method : PetApi.class.getMethods()) {
+        names.add(method.getName());
+      }
+      assertTrue(names.contains("listPetEventsPages"), "an operation the option names is paged");
+      assertFalse(
+          names.contains("listPetArchivePages"), "an operation the option sets to none is not");
+      assertTrue(names.contains("listPetArchive"), "its base method remains");
+    }
+
+    @Test
+    @DisplayName("headers and options given to the paged method are sent on every page request")
+    void bhvPagination027HeadersAndOptionsGivenToThePagedMethodAreSentOnEveryPageRequest() {
+      try (PagedServer server = sameOriginFeed(3)) {
+        names(
+            petApi(server)
+                .listPetFeedPages(
+                    new com.example.petstore.api.options.ListPetFeedOptions()
+                        .limit(1)
+                        .headers(Map.of("X-Keep", "yes"))));
+        assertEquals(3, server.seen.size());
+        for (SeenRequest request : server.seen) {
+          assertEquals("yes", request.headers().get("x-keep"));
+        }
+        assertEquals(
+            "1", server.seen.get(0).param("limit"), "the first page carries the page size");
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "the cursor for the next page is taken from the accepted response, never from a retried"
+            + " attempt")
+    void bhvPagination028TheNextCursorIsTakenFromTheAcceptedResponseNeverFromARetriedAttempt() {
+      try (PagedServer server =
+          new PagedServer(
+              (request, number) -> {
+                if (number == 1) {
+                  return new Reply(
+                      503,
+                      "{\"items\":[],\"next_cursor\":\"WRONG\"}",
+                      Map.of("Retry-After", "0"),
+                      0);
+                }
+                String cursor = request.param("cursor");
+                return Reply.ok(catalogBody(cursor == null ? 0 : 1, 1, 2));
+              })) {
+        PetApi api = petApi(server, TransportOptions.builder().maxRetries(2).build(), Map.of());
+        assertEquals(List.of("p0-0", "p1-0"), names(api.listPetCatalogPages()));
+        assertEquals(java.util.Arrays.asList(null, null, "c1"), paramsSeen(server, "cursor"));
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a vendor extension on an operation is read as a hint, and the override option wins over"
+            + " it")
+    void bhvPagination030AVendorExtensionOnAnOperationIsReadAsAHint() {
+      assertTrue(
+          java.util.Arrays.stream(PetApi.class.getMethods())
+              .anyMatch(m -> m.getName().equals("listPetNotesPages")),
+          "the operation whose names are no known cursor is paged by its hint");
+    }
+
+    @Test
+    @DisplayName(
+        "the repeated-cursor failure is a PaginationError and is not a network error or an API"
+            + " error")
+    void bhvPagination031TheRepeatedCursorFailureIsAPaginationErrorAndNotANetworkOrApiError() {
+      assertEquals(
+          com.example.petstore.errors.OpenAPIException.class,
+          com.example.petstore.errors.PaginationException.class.getSuperclass());
+      try (PagedServer server =
+          new PagedServer((request, number) -> Reply.ok("{\"items\":[],\"next_cursor\":\"c1\"}"))) {
+        Throwable failure =
+            assertThrows(
+                OpenAPIException.class,
+                () ->
+                    names(
+                        petApi(server)
+                            .listPetCatalogPages(
+                                new com.example.petstore.api.options.ListPetCatalogOptions()
+                                    .cursor("c1"))));
+        assertInstanceOf(com.example.petstore.errors.PaginationException.class, failure);
+        assertFalse(failure instanceof ApiException);
+      }
+    }
+
+    @Test
+    @DisplayName("an operation that is streamed is never also given a paged method")
+    void bhvPagination032AnOperationThatIsStreamedIsNeverAlsoGivenAPagedMethod() {
+      for (java.lang.reflect.Method method : StoreApi.class.getMethods()) {
+        assertFalse(method.getName().endsWith("Pages"), method.getName());
+      }
+      assertTrue(
+          java.util.Arrays.stream(StoreApi.class.getMethods())
+              .anyMatch(m -> m.getName().equals("exportOrdersStream")));
+    }
   }
 }

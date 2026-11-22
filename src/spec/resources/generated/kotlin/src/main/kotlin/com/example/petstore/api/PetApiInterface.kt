@@ -10,6 +10,9 @@
 package com.example.petstore.api
 
 import com.example.petstore.ApiResult
+import com.example.petstore.BodySource
+import com.example.petstore.ByteStream
+import com.example.petstore.Paginator
 import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.AddPetTreatmentOptions
@@ -30,6 +33,12 @@ import com.example.petstore.api.options.GetPetPhotoOptions
 import com.example.petstore.api.options.GetPetSummaryOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.GetStagingPetInfoOptions
+import com.example.petstore.api.options.ListPetArchiveOptions
+import com.example.petstore.api.options.ListPetCatalogOptions
+import com.example.petstore.api.options.ListPetEventsOptions
+import com.example.petstore.api.options.ListPetFeedOptions
+import com.example.petstore.api.options.ListPetMatchesOptions
+import com.example.petstore.api.options.ListPetNotesOptions
 import com.example.petstore.api.options.SetPetAvatarOptions
 import com.example.petstore.api.options.SetPetAvatarThumbnailOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
@@ -38,6 +47,11 @@ import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
 import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Pet
+import com.example.petstore.models.PetArchivePage
+import com.example.petstore.models.PetCatalogPage
+import com.example.petstore.models.PetEventPage
+import com.example.petstore.models.PetMatchPage
+import com.example.petstore.models.PetNotePage
 import com.example.petstore.models.PetPassport
 import com.example.petstore.models.PetTreatment
 import com.example.petstore.models.Photo
@@ -119,14 +133,14 @@ interface PetApiInterface {
         petId: Long,
         documentId: Long,
         options: DownloadPetDocumentOptions? = null,
-    ): ByteArray
+    ): ByteStream
 
     /** The `downloadPetDocument` operation with its status code, headers and body. */
     suspend fun downloadPetDocumentWithHttpInfo(
         petId: Long,
         documentId: Long,
         options: DownloadPetDocumentOptions? = null,
-    ): ApiResult<ByteArray>
+    ): ApiResult<ByteStream>
 
     /** The `findPetsBornOn` operation. */
     suspend fun findPetsBornOn(
@@ -204,13 +218,13 @@ interface PetApiInterface {
     suspend fun getPetAvatar(
         petId: Long,
         options: GetPetAvatarOptions? = null,
-    ): ByteArray
+    ): ByteStream
 
     /** The `getPetAvatar` operation with its status code, headers and body. */
     suspend fun getPetAvatarWithHttpInfo(
         petId: Long,
         options: GetPetAvatarOptions? = null,
-    ): ApiResult<ByteArray>
+    ): ApiResult<ByteStream>
 
     /** The `getPetAvatarThumbnail` operation. */
     suspend fun getPetAvatarThumbnail(
@@ -289,14 +303,14 @@ interface PetApiInterface {
         petId: Long,
         photoId: Long,
         options: GetPetPhotoOptions? = null,
-    ): ByteArray
+    ): ByteStream
 
     /** The `getPetPhoto` operation with its status code, headers and body. */
     suspend fun getPetPhotoWithHttpInfo(
         petId: Long,
         photoId: Long,
         options: GetPetPhotoOptions? = null,
-    ): ApiResult<ByteArray>
+    ): ApiResult<ByteStream>
 
     /** The `getPetSummary` operation. */
     suspend fun getPetSummary(
@@ -352,10 +366,70 @@ interface PetApiInterface {
         options: GetStagingPetInfoOptions? = null,
     ): ApiResult<Pet>
 
+    /** The `listPetArchive` operation. */
+    suspend fun listPetArchive(options: ListPetArchiveOptions? = null): PetArchivePage
+
+    /** The `listPetArchive` operation with its status code, headers and body. */
+    suspend fun listPetArchiveWithHttpInfo(options: ListPetArchiveOptions? = null): ApiResult<PetArchivePage>
+
+    /** The `listPetCatalog` operation. */
+    suspend fun listPetCatalog(options: ListPetCatalogOptions? = null): PetCatalogPage
+
+    /** The `listPetCatalog` operation with its status code, headers and body. */
+    suspend fun listPetCatalogWithHttpInfo(options: ListPetCatalogOptions? = null): ApiResult<PetCatalogPage>
+
+    /**
+     * The `listPetCatalog` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetCatalogWithHttpInfo].
+     */
+    fun listPetCatalogPages(options: ListPetCatalogOptions? = null): Paginator<Pet, String>
+
+    /** The `listPetEvents` operation. */
+    suspend fun listPetEvents(options: ListPetEventsOptions? = null): PetEventPage
+
+    /** The `listPetEvents` operation with its status code, headers and body. */
+    suspend fun listPetEventsWithHttpInfo(options: ListPetEventsOptions? = null): ApiResult<PetEventPage>
+
+    /**
+     * The `listPetEvents` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetEventsWithHttpInfo].
+     */
+    fun listPetEventsPages(options: ListPetEventsOptions? = null): Paginator<String, String>
+
+    /** The `listPetFeed` operation. */
+    suspend fun listPetFeed(options: ListPetFeedOptions? = null): List<Pet>
+
+    /** The `listPetFeed` operation with its status code, headers and body. */
+    suspend fun listPetFeedWithHttpInfo(options: ListPetFeedOptions? = null): ApiResult<List<Pet>>
+
+    /**
+     * The `listPetFeed` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetFeedWithHttpInfo].
+     */
+    fun listPetFeedPages(options: ListPetFeedOptions? = null): Paginator<Pet, Unit>
+
+    /** The `listPetMatches` operation. */
+    suspend fun listPetMatches(options: ListPetMatchesOptions? = null): PetMatchPage
+
+    /** The `listPetMatches` operation with its status code, headers and body. */
+    suspend fun listPetMatchesWithHttpInfo(options: ListPetMatchesOptions? = null): ApiResult<PetMatchPage>
+
+    /** The `listPetNotes` operation. */
+    suspend fun listPetNotes(options: ListPetNotesOptions? = null): PetNotePage
+
+    /** The `listPetNotes` operation with its status code, headers and body. */
+    suspend fun listPetNotesWithHttpInfo(options: ListPetNotesOptions? = null): ApiResult<PetNotePage>
+
+    /**
+     * The `listPetNotes` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetNotesWithHttpInfo].
+     */
+    fun listPetNotesPages(options: ListPetNotesOptions? = null): Paginator<String, String>
+
     /** The `setPetAvatar` operation. */
     suspend fun setPetAvatar(
         petId: Long,
-        body: ByteArray,
+        body: BodySource,
         options: SetPetAvatarOptions? = null,
         requestContentType: String? = null,
     ): Unit
@@ -363,7 +437,7 @@ interface PetApiInterface {
     /** The `setPetAvatar` operation with its status code, headers and body. */
     suspend fun setPetAvatarWithHttpInfo(
         petId: Long,
-        body: ByteArray,
+        body: BodySource,
         options: SetPetAvatarOptions? = null,
         requestContentType: String? = null,
     ): ApiResult<Unit>

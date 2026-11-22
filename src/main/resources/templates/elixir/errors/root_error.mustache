@@ -43,7 +43,8 @@ defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
        │   │       (and the {{moduleName}}.Errors.ServerError grouping)
        │   ├─ one error per declared error schema, named from the schema's model
        │   │   and specialising the status error of the status it is declared under
-       │   └─ no response: NetworkError, NetworkTimeoutError (status 0)
+       │   └─ no response: NetworkError, NetworkTimeoutError, StreamError (status 0)
+       ├─ {{moduleName}}.Errors.PaginationError  (a paged list that cannot be followed)
        ├─ {{moduleName}}.Errors.SerializationError  (every encode/decode failure)
        ├─ {{moduleName}}.Errors.OAuth2ServerError  (token endpoint returned 4xx/5xx)
        └─ {{moduleName}}.Errors.OAuth2TokenError   (token endpoint answered unusably)
@@ -78,6 +79,8 @@ defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
     {{moduleName}}.Errors.InternalServerError,
     {{moduleName}}.Errors.NetworkError,
     {{moduleName}}.Errors.NetworkTimeoutError,
+    {{moduleName}}.Errors.StreamError,
+    {{moduleName}}.Errors.PaginationError,
     {{moduleName}}.Errors.SerializationError,
     {{moduleName}}.Errors.OAuth2ServerError,
     {{moduleName}}.Errors.OAuth2TokenError{{#errorSchemas}},
@@ -109,6 +112,8 @@ defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
           | {{moduleName}}.Errors.InternalServerError.t()
           | {{moduleName}}.Errors.NetworkError.t()
           | {{moduleName}}.Errors.NetworkTimeoutError.t()
+          | {{moduleName}}.Errors.StreamError.t()
+          | {{moduleName}}.Errors.PaginationError.t()
           | {{moduleName}}.Errors.SerializationError.t()
           | {{moduleName}}.Errors.OAuth2ServerError.t()
           | {{moduleName}}.Errors.OAuth2TokenError.t(){{#errorSchemas}}

@@ -77,11 +77,77 @@ See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a w
 
 ### Closing the client
 
-`client.close` is graceful and idempotent. The client is marked closed at once and a request started afterwards raises a `RuntimeError` ("ApiClient has been closed and can no longer send requests"); a request already in flight finishes, and the connection the SDK built is released when the last one completes. A second `close` does nothing, and a `Faraday::Connection` you supplied is never closed.
+`client.close` is graceful and idempotent. The client is marked closed at once and a request started afterwards raises a `RuntimeError` ("ApiClient has been closed and can no longer send requests"); a request already in flight finishes, and the connection the SDK built is released when the last one completes. Streams that are still open are cancelled. A second `close` does nothing, and a `Faraday::Connection` you supplied is never closed.
 
 ### Cookie parameters
 
 A cookie parameter is sent as it is, without percent-encoding, when every character of its value is a legal RFC 6265 cookie-octet (printable ASCII except space, double quote, comma, semicolon and backslash). Any other value raises an `ArgumentError` before the request is sent, so encode the value yourself first if it holds one of those characters.
+
+### Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close` that aborts the connection instead of draining it, so close it when you stop early (`ensure`). `read_all` reads the rest into memory and leaves the stream closed.
+
+```ruby file
+require 'petstore_client'
+
+def save_to(client, pet_id, document_id, options, path)
+  stream = client.pet.download_pet_document(pet_id, document_id, options)
+  puts stream.status_code
+  File.open(path, 'wb') { |file| stream.each { |chunk| file.write(chunk) } }
+ensure
+  stream&.close
+end
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idle_timeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `send_streaming` fails a stream call with `NotImplementedError` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(bytes)`, `BodySource.of_file(path)` or `BodySource.from_factory(factory)` (a factory that opens a fresh stream each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>_stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream` of the schema type or an `SseStream` of `ServerSentEvent` (`id`, `event`, `data`, `retry` and the raw `data` text; the `data` is decoded as the schema of the payload, or is a string). Iterate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `max_event_bytes` (1 MiB), raise `SerializationError` and end the stream.
+
+```ruby file
+require 'petstore_client'
+
+def read_feed(client, options)
+  feed = client.store.export_orders_stream(options)
+  feed.each { |item| puts item }
+ensure
+  feed&.close
+end
+```
+
+```ruby file
+require 'petstore_client'
+
+def read_events(client, options)
+  events = client.store.watch_notices_stream(options)
+  events.each { |event| puts event.data }
+ensure
+  events&.close
+end
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnect_delay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `max_reconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close`. An event named `error` raises `ApiError` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idle_timeout` and `last_event_id`.
+
+### Pagination
+
+An operation that returns a list one page at a time has a `<operation>_pages` method next to its plain method. It takes the same parameters in the same order and returns a `Paginator`, an `Enumerable` of the item type. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Iterate the paginator for the items, call `items` for an `Enumerator` of items, or call `pages` for an `Enumerator` of `Page` values with `items`, `next_cursor` and `result`, the same `ApiResult` that the `_with_http_info` variant returns, so the status and headers stay reachable. Iterating again starts again from the starting position.
+
+```ruby file
+require 'petstore_client'
+
+def read_everything(client, options)
+  list = client.pet.list_pet_catalog_pages(options)
+  list.each { |item| puts item }
+  list.pages.each { |page| puts "#{page.items.size} items, status #{page.result.status_code}" }
+end
+```
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `nil` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationError`, a direct child of `OpenAPIError`, after its items were delivered, instead of looping. There is no total limit and no collect-all: use `first(n)`.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationError` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+The generator finds a paged operation by its names: a GET with one JSON 2xx response that has one array property, and either one cursor query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker` paired with one next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type, or a `Link` header declared on the response. An operation that is ambiguous, or is streamed, keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty}`) wins over a hint and over inference, and `pagination=off` switches the feature off.
 
 ### Custom HTTP client
 
@@ -106,7 +172,7 @@ A new operation in the API adds a method to the interface, so a fake that must s
 
 ### Automatic retries
 
-`TransportOptions.builder.max_retries(n)` sets how many times a failed request is sent again (default `2`; `0` turns retries off). A request is retried after a network error that happened before any response, and after a `408`, `409`, `429` or `5xx` (not `501`) response. The wait starts at 0.5 seconds and doubles up to 8 seconds, with up to 25% jitter; a `Retry-After` header (seconds or an HTTP date, at most 60 seconds) is honoured instead. The `timeout` budget is never extended by retries, a TLS failure is not retried, and a multipart or stream body is never sent twice. Every retry is a new request: its headers, authentication included, are built again.
+`TransportOptions.builder.max_retries(n)` sets how many times a failed request is sent again (default `2`; `0` turns retries off). A request is retried after a network error that happened before any response, and after a `408`, `409`, `429` or `5xx` (not `501`) response. The wait starts at 0.5 seconds and doubles up to 8 seconds, with up to 25% jitter; a `Retry-After` header (seconds or an HTTP date, at most 60 seconds) is honoured instead. The `timeout` budget is never extended by retries, a TLS failure is not retried, and a multipart body or a single-use `BodySource` is never sent twice. Every retry is a new request: its headers, authentication included, are built again.
 
 ### Per-call options
 
@@ -241,10 +307,6 @@ end
 ```rb
 client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TelemetryCallHook.new)
 ```
-
-### Streaming
-
-Streaming request and response bodies are not supported: a response is read in full before it is returned and a request body is a string, a model or a file read in full. For a streaming transport, inject your own `Faraday::Connection`.
 
 ### Versioning
 

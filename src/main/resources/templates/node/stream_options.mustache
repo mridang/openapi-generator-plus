@@ -1,0 +1,32 @@
+{{>api_info}}
+
+import type { RequestOptions } from './api-client{{importFileExtension}}';
+
+/**
+ * Settings of one JSON Lines or server-sent events call, passed last to its
+ * `...Stream` method in place of the plain per-call options: it takes
+ * everything {@link RequestOptions} does (`signal`, `timeout`, `maxRetries`,
+ * `headers`) and adds the settings of the stream. A setting left out keeps its
+ * default.
+ *
+ * - `idleTimeout` -- the longest the body may stay silent, in milliseconds, for
+ *   this call; `0` or `null` disables it. The default is the transport's
+ *   `idleTimeout`.
+ * - `maxReconnects` -- how many times a lost server-sent events connection is
+ *   re-established without an event in between; `-1` is unlimited and `0` turns
+ *   reconnecting off. The default is 5 for a request without a body and 0 for a
+ *   request that has a body.
+ * - `reconnectDelay` -- the first wait before a reconnect, in milliseconds; it
+ *   doubles up to 30 seconds and is reduced by up to 25% of jitter. A `retry`
+ *   value from the server replaces it. The default is 1000.
+ * - `lastEventId` -- the event id the first request sends in `Last-Event-ID`.
+ * - `maxEventBytes` -- the most bytes one line or event may have before the
+ *   stream fails with a serialization error. The default is 1 MiB.
+ */
+export interface StreamOptions extends RequestOptions {
+  readonly idleTimeout?: number | null;
+  readonly maxReconnects?: number;
+  readonly reconnectDelay?: number;
+  readonly lastEventId?: string;
+  readonly maxEventBytes?: number;
+}

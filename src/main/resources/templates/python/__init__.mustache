@@ -9,6 +9,14 @@ __all__ = [
     '{{clientClassName}}',
     '{{clientClassName}}Protocol',
     'ApiClient',
+    'BodySource',
+    'ByteStream',
+    'JsonLinesStream',
+    'ServerSentEvent',
+    'SseStream',
+    'StreamOptions',
+    'Paginator',
+    'Page',
     'Configuration',
     'CallHook',
     'CallObserver',
@@ -43,6 +51,8 @@ __all__ = [
     'InternalServerErrorException',
     'NetworkException',
     'NetworkTimeoutException',
+    'StreamException',
+    'PaginationException',
     'SerializationException',
     'OAuth2ServerException',
     'OAuth2TokenException',
@@ -57,6 +67,14 @@ from {{apiPackage}}.{{classFilename}} import {{classname}}Protocol as {{classnam
 {{/apis}}{{/apiInfo}}
 # import ApiClient
 from {{packageName}}.api_client import ApiClient as ApiClient
+from {{packageName}}.body_source import BodySource as BodySource
+from {{packageName}}.byte_stream import ByteStream as ByteStream
+from {{packageName}}.json_lines_stream import JsonLinesStream as JsonLinesStream
+from {{packageName}}.server_sent_event import ServerSentEvent as ServerSentEvent
+from {{packageName}}.sse_stream import SseStream as SseStream
+from {{packageName}}.stream_options import StreamOptions as StreamOptions
+from {{packageName}}.paginator import Paginator as Paginator
+from {{packageName}}.page import Page as Page
 from {{packageName}}.auth.authenticator import Authenticator as Authenticator
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}} as {{clientClassName}}
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}}Protocol as {{clientClassName}}Protocol
@@ -94,6 +112,8 @@ from {{packageName}}.errors import GatewayTimeoutException as GatewayTimeoutExce
 from {{packageName}}.errors import InternalServerErrorException as InternalServerErrorException
 from {{packageName}}.errors import NetworkException as NetworkException
 from {{packageName}}.errors import NetworkTimeoutException as NetworkTimeoutException
+from {{packageName}}.errors import StreamException as StreamException
+from {{packageName}}.errors import PaginationException as PaginationException
 from {{packageName}}.errors import SerializationException as SerializationException
 from {{packageName}}.errors import OAuth2ServerException as OAuth2ServerException
 from {{packageName}}.errors import OAuth2TokenException as OAuth2TokenException

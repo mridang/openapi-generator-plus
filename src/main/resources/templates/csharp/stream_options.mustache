@@ -1,0 +1,44 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>
+/// Settings of one JSON Lines or event stream call. Every value that is left null
+/// keeps its default.
+/// </summary>
+public sealed class StreamOptions
+{
+    /// <summary>
+    /// The longest the stream may stay silent, in milliseconds; <c>0</c> disables it.
+    /// Null uses <see cref="TransportOptions.IdleTimeout"/>. An event stream counts a
+    /// comment line as activity, and on expiry it reconnects.
+    /// </summary>
+    public int? IdleTimeout { get; init; }
+
+    /// <summary>
+    /// How many failures in a row without an event an event stream survives by
+    /// reconnecting before it raises the last failure. Null is <c>5</c> for a request
+    /// without a body and <c>0</c> (off) for a request with one; <c>-1</c> never gives up.
+    /// </summary>
+    public int? MaxReconnects { get; init; }
+
+    /// <summary>
+    /// The first wait before an event stream reconnects, in milliseconds. It doubles up
+    /// to 30 seconds with up to 25% jitter, unless the server sent a <c>retry</c> value
+    /// or a <c>Retry-After</c>. Null is <c>1000</c>.
+    /// </summary>
+    public int? ReconnectDelay { get; init; }
+
+    /// <summary>The <c>Last-Event-ID</c> to send on the first request of an event stream, or null for none.</summary>
+    public string? LastEventId { get; init; }
+
+    /// <summary>The longest line or event the stream accepts, in bytes. Null is 1 MiB.</summary>
+    public int? MaxEventBytes { get; init; }
+
+    /// <summary>Describes the options by their values.</summary>
+    /// <returns>The description.</returns>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(IdleTimeout={IdleTimeout}, MaxReconnects={MaxReconnects}, ReconnectDelay={ReconnectDelay}, LastEventId={LastEventId}, MaxEventBytes={MaxEventBytes})";
+    }
+}

@@ -96,7 +96,10 @@ defmodule {{moduleName}}.Api.BaseApi do
     end)
   end
 
-  @call_keys [:timeout, :headers, :max_retries]
+  @call_keys [:timeout, :headers, :max_retries, :idle_timeout]
+
+  # The most of an error body a streamed call reads before it raises the error.
+  @stream_error_body_limit 64 * 1024
 
   @doc false
   # The per-call settings of one operation call: `:timeout` (milliseconds),
@@ -134,6 +137,12 @@ defmodule {{moduleName}}.Api.BaseApi do
 
   defp validate_call_setting({:max_retries, retries}) do
     raise ArgumentError, "Invalid max_retries: must be a non-negative integer (got #{inspect(retries)})"
+  end
+
+  defp validate_call_setting({:idle_timeout, idle}) when is_integer(idle) and idle >= 0, do: {:idle_timeout, idle}
+
+  defp validate_call_setting({:idle_timeout, idle}) do
+    raise ArgumentError, "Invalid idle_timeout: must be a non-negative number of milliseconds (got #{inspect(idle)})"
   end
 
   defp validate_call_setting({:headers, headers}) when is_map(headers) or is_list(headers) do
@@ -331,15 +340,41 @@ defmodule {{moduleName}}.Api.BaseApi do
         {:error, {{moduleName}}.Errors.ApiError.with_request(error, method, url)}
 
       {:ok, response} ->
-        if response.status_code < 200 or response.status_code >= 300 do
-          {:error,
-           response.status_code
-           |> {{moduleName}}.Errors.ApiError.from_response(response.headers, response.body, errors)
-           |> {{moduleName}}.Errors.ApiError.with_request(method, url)}
-        else
-          decode_with_context(response, return_type, method, url)
+        stream? = Keyword.get(call, :stream, false)
+
+        cond do
+          response.status_code >= 200 and response.status_code < 300 and stream? ->
+            stream_result(response)
+
+          response.status_code >= 200 and response.status_code < 300 ->
+            decode_with_context(response, return_type, method, url)
+
+          true ->
+            # A stream is never returned for a failure: its body is read up to a
+            # bound and the connection closed, then the typed error is raised from it
+            # exactly as for a buffered response.
+            failed = if stream?, do: {{moduleName}}.ApiStreamResponse.read_bounded(response, @stream_error_body_limit), else: response
+
+            {:error,
+             failed.status_code
+             |> {{moduleName}}.Errors.ApiError.from_response(failed.headers, failed.body, errors)
+             |> {{moduleName}}.Errors.ApiError.with_request(method, url)}
         end
     end
+  end
+
+  # A success on a stream call: the open stream is the data, and there is no raw
+  # body to carry.
+  defp stream_result(%{{moduleName}}.ApiStreamResponse{} = response) do
+    data = {{moduleName}}.ByteStream.new(response.status_code, response.headers, response.body, response.close)
+
+    {:ok,
+     %{{moduleName}}.ApiResult{
+       status_code: response.status_code,
+       data: data,
+       raw_body: "",
+       headers: response.headers
+     }}
   end
 
   # A response body that cannot be decoded raises a SerializationError. The error
@@ -373,7 +408,7 @@ defmodule {{moduleName}}.Api.BaseApi do
       end
 
     query_string = build_query_string(query_params)
-    url = if query_string != "", do: "#{url}?#{query_string}", else: url
+    url = if query_string != "", do: "#{url}#{if String.contains?(url, "?"), do: "&", else: "?"}#{query_string}", else: url
 
     is_multipart = content_type == "multipart/form-data"
     selected = {{moduleName}}.HeaderSelector.select_headers(accepts, content_type || "", is_multipart)
@@ -591,7 +626,9 @@ defmodule {{moduleName}}.Api.BaseApi do
            call_timeout: pos_integer() | nil,
            timeout: integer() | nil,
            deadline: integer() | nil | :unset,
-           replayed: boolean()
+           replayed: boolean(),
+           stream: boolean(),
+           idle_timeout: non_neg_integer() | nil
          }
 
   @months %{
@@ -618,7 +655,7 @@ defmodule {{moduleName}}.Api.BaseApi do
   # returned as it is. Independently, a network error that happened before any
   # response, and the statuses 408, 409, 429 and 500 to 599 (not 501), are
   # retried up to `TransportOptions.max_retries` times with backoff. Neither
-  # happens for a body that cannot be sent twice (a stream), and a retry never
+  # happens for a body that cannot be sent twice (a single use stream), and a retry never
   # waits past the end-to-end timeout.
   @spec send_with_retries(state(), atom(), term(), (:attempt | :replay -> {String.t(), map(), term()}), keyword()) ::
           {:ok, term()} | {:error, Exception.t()}
@@ -631,7 +668,9 @@ defmodule {{moduleName}}.Api.BaseApi do
       call_timeout: Keyword.get(call, :timeout),
       timeout: Keyword.get(call, :timeout) || timeout(transport),
       deadline: :unset,
-      replayed: false
+      replayed: false,
+      stream: Keyword.get(call, :stream, false),
+      idle_timeout: Keyword.get(call, :idle_timeout)
     })
   end
 
@@ -640,7 +679,13 @@ defmodule {{moduleName}}.Api.BaseApi do
   defp attempt(state, method, effective_auth, build_request, ctx) do
     {url, headers, serialized_body} = build_request.(:attempt)
     ctx = if ctx.deadline == :unset, do: %{ctx | deadline: deadline(ctx.timeout)}, else: ctx
-    result = send_once(state.api_client, method, url, headers, serialized_body, {ctx.deadline, ctx.call_timeout})
+    result =
+      if ctx.stream do
+        send_stream_once(state.api_client, method, url, headers, serialized_body, {ctx.deadline, ctx.call_timeout, ctx.idle_timeout})
+      else
+        send_once(state.api_client, method, url, headers, serialized_body, {ctx.deadline, ctx.call_timeout})
+      end
+
 
     cond do
       not replayable?(serialized_body) ->
@@ -649,13 +694,18 @@ defmodule {{moduleName}}.Api.BaseApi do
       not ctx.replayed and unauthorized?(result) and invalidate_access_token(effective_auth) == :ok ->
         # A failed re-authentication keeps the 401 it replaces, as in the other SDKs.
         case build_for_replay(build_request) do
-          {:ok, request} -> attempt(state, method, effective_auth, fn _mode -> request end, %{ctx | replayed: true})
-          :error -> result
+          {:ok, request} ->
+            discard(result)
+            attempt(state, method, effective_auth, fn _mode -> request end, %{ctx | replayed: true})
+
+          :error ->
+            result
         end
 
       true ->
         case next_delay(result, method, ctx) do
           {:ok, delay} ->
+            discard(result)
             Process.sleep(delay)
             attempt(state, method, effective_auth, build_request, %{ctx | retries: ctx.retries + 1})
 
@@ -695,6 +745,47 @@ defmodule {{moduleName}}.Api.BaseApi do
     e -> {:error, e}
   end
 
+  # A stream call sends through `send_streaming`, which a transport written
+  # before streaming does not have: such a transport fails the call by name and
+  # never falls back to buffering (a buffered fallback would never end on an
+  # endless body).
+  defp send_stream_once(api_client, method, url, headers, body, {deadline, call_timeout, idle_timeout}) do
+    ensure_streaming!(api_client)
+
+    try do
+      {:ok,
+       case api_client do
+         %{__struct__: mod} = client ->
+           mod.send_streaming(client, method, url, headers, body, Enum.reject([deadline: deadline, timeout: call_timeout, idle_timeout: idle_timeout], fn {_key, value} -> is_nil(value) end))
+
+         mod when is_atom(mod) ->
+           mod.send_streaming(method, url, headers, body)
+       end}
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  defp ensure_streaming!(%{__struct__: mod}), do: ensure_exported!(mod, 6)
+  defp ensure_streaming!(mod) when is_atom(mod), do: ensure_exported!(mod, 4)
+
+  defp ensure_exported!(mod, arity) do
+    _ = Code.ensure_loaded(mod)
+
+    unless function_exported?(mod, :send_streaming, arity) do
+      raise RuntimeError,
+            "#{inspect(mod)} cannot stream: it does not implement send_streaming/#{arity}, " <>
+              "so an operation that returns a stream cannot be called through it"
+    end
+
+    :ok
+  end
+
+  # A response that is retried or replayed is not the one the caller gets, so a
+  # streamed one lets go of its connection first.
+  defp discard({:ok, %{{moduleName}}.ApiStreamResponse{} = response}), do: {{moduleName}}.ApiStreamResponse.close(response)
+  defp discard(_result), do: :ok
+
   # The client's transport settings, or nil for a client that has none (a
   # custom client, a module): such a client is never retried.
   defp transport_options(%{__struct__: _, transport_options: %{{moduleName}}.TransportOptions{} = options}), do: options
@@ -706,7 +797,9 @@ defmodule {{moduleName}}.Api.BaseApi do
   defp deadline(timeout) when is_integer(timeout), do: System.monotonic_time(:millisecond) + timeout
   defp deadline(nil), do: nil
 
-  # A stream body is consumed by the first send; every other body is bytes.
+  # A single use stream body is consumed by the first send; a BodySource that is replayable is
+  # opened again for each send, and every other body is bytes.
+  defp replayable?(%{{moduleName}}.BodySource{replayable: replayable}), do: replayable
   defp replayable?(body) when is_function(body), do: false
   defp replayable?(%_{}), do: false
   defp replayable?(_body), do: true

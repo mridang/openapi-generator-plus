@@ -2,9 +2,15 @@
 package {{packageName}}
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
+
+// ErrInvalidStreamOption is returned by an operation called with a stream
+// option out of range (WithMaxReconnects, WithReconnectDelay,
+// WithMaxEventBytes). Match it with errors.Is.
+var ErrInvalidStreamOption = errors.New("invalid stream option")
 
 // RequestOption changes the behaviour of one operation call. Every operation
 // takes any number of them as its last argument; none given means the client's
@@ -21,6 +27,14 @@ type callSettings struct {
 	maxRetries  *int
 	contentType *string
 	err         error
+
+	/* The stream settings: they apply to an operation that returns a stream and
+	 * are ignored by any other. */
+	idleTimeout    *time.Duration
+	maxReconnects  *int
+	reconnectDelay *time.Duration
+	lastEventID    *string
+	maxEventBytes  *int
 }
 
 // WithTimeout sets the end-to-end timeout of this call, retries included,
@@ -72,6 +86,70 @@ func WithMaxRetries(maxRetries int) RequestOption {
 func WithRequestContentType(contentType string) RequestOption {
 	return func(s *callSettings) {
 		s.contentType = &contentType
+	}
+}
+
+// WithIdleTimeout sets the longest the body of a stream may stay silent between
+// two reads for this call, replacing the transport's IdleTimeout. Zero turns it
+// off; a negative duration makes the call return ErrInvalidTimeout. It applies
+// to a binary, JSON Lines or server-sent events response.
+func WithIdleTimeout(idleTimeout time.Duration) RequestOption {
+	return func(s *callSettings) {
+		if idleTimeout < 0 {
+			s.fail(fmt.Errorf("%w: idle timeout must not be negative (got %v)", ErrInvalidTimeout, idleTimeout))
+			return
+		}
+		s.idleTimeout = &idleTimeout
+	}
+}
+
+// WithMaxReconnects sets how many failures in a row, without an event, an event
+// stream survives before it returns the last failure: 5 by default, 0 for a
+// request with a body, -1 for no limit. Another negative value makes the call
+// return ErrInvalidStreamOption.
+func WithMaxReconnects(maxReconnects int) RequestOption {
+	return func(s *callSettings) {
+		if maxReconnects < -1 {
+			s.fail(fmt.Errorf("%w: max reconnects must be -1 or more (got %d)", ErrInvalidStreamOption, maxReconnects))
+			return
+		}
+		s.maxReconnects = &maxReconnects
+	}
+}
+
+// WithReconnectDelay sets the wait before the first reconnection of an event
+// stream, 1 second by default; it doubles to 30 seconds with up to 25% jitter. A
+// retry value the server sets replaces it. A negative duration makes the call
+// return ErrInvalidStreamOption.
+func WithReconnectDelay(reconnectDelay time.Duration) RequestOption {
+	return func(s *callSettings) {
+		if reconnectDelay < 0 {
+			s.fail(fmt.Errorf("%w: reconnect delay must not be negative (got %v)", ErrInvalidStreamOption, reconnectDelay))
+			return
+		}
+		s.reconnectDelay = &reconnectDelay
+	}
+}
+
+// WithLastEventID sets the event id an event stream sends as Last-Event-ID on
+// its first request, to resume after an event you saw earlier.
+func WithLastEventID(lastEventID string) RequestOption {
+	return func(s *callSettings) {
+		s.lastEventID = &lastEventID
+	}
+}
+
+// WithMaxEventBytes sets the longest line of a JSON Lines response and the
+// longest event of an event stream, 1 MiB by default. A longer one ends the
+// stream with a *SerializationError. A value below 1 makes the call return
+// ErrInvalidStreamOption.
+func WithMaxEventBytes(maxEventBytes int) RequestOption {
+	return func(s *callSettings) {
+		if maxEventBytes < 1 {
+			s.fail(fmt.Errorf("%w: max event bytes must be positive (got %d)", ErrInvalidStreamOption, maxEventBytes))
+			return
+		}
+		s.maxEventBytes = &maxEventBytes
 	}
 }
 

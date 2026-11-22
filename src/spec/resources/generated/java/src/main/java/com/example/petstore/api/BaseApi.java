@@ -11,13 +11,19 @@ package com.example.petstore.api;
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.ApiResult;
+import com.example.petstore.ApiStreamResponse;
+import com.example.petstore.BodySource;
+import com.example.petstore.ByteStream;
 import com.example.petstore.CallHook;
 import com.example.petstore.CallInfo;
 import com.example.petstore.CallObserver;
 import com.example.petstore.CallOutcome;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
+import com.example.petstore.JsonLinesStream;
 import com.example.petstore.ObjectSerializer;
+import com.example.petstore.SseStream;
+import com.example.petstore.StreamOptions;
 import com.example.petstore.TraceContextUtil;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.HttpAwareAuthenticator;
@@ -492,6 +498,277 @@ public abstract class BaseApi {
       @Nullable Map<String, ErrorFactory> errorSchemas,
       String specOperationId,
       String urlTemplate) {
+    return invokeCall(
+        false,
+        operationId,
+        method,
+        path,
+        queryParams,
+        headerParams,
+        body,
+        accepts,
+        contentType,
+        returnType,
+        auth,
+        timeoutMillis,
+        maxRetries,
+        null,
+        successDecoder,
+        errorSchemas,
+        specOperationId,
+        urlTemplate);
+  }
+
+  /**
+   * Invoke an operation whose success response is binary and return its body as a stream, unread.
+   * Everything up to the response headers is the buffered call (the same retries, redirects,
+   * authentication, 401 replay, headers and call hook); a non-2xx status raises the same typed
+   * error as a buffered call, its body read up to 64 KiB, and no stream is returned.
+   *
+   * @param operationId operation id, named in errors
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param path URL path (with path params already substituted)
+   * @param queryParams query parameters
+   * @param headerParams custom header parameters
+   * @param body request body (model object or null)
+   * @param accepts acceptable response content types
+   * @param contentType request content type
+   * @param auth the credential for the scheme the operation requires, or {@code NO_AUTH}
+   * @param timeoutMillis timeout in milliseconds up to the response headers, or {@code null}
+   * @param maxRetries retry count for this call, or {@code null} to use the transport's
+   * @param errorSchemas the operation's error factories by declared status, or {@code null}
+   * @param specOperationId the operation id exactly as written in the spec, given to the hook
+   * @param urlTemplate the spec path template of the operation, given to the hook
+   * @return the result whose data is the open {@link ByteStream}; its raw body is empty
+   * @throws ApiException if the API call fails
+   */
+  protected ApiResult<ByteStream> invokeApiForStream(
+      String operationId,
+      String method,
+      String path,
+      Map<String, Object> queryParams,
+      Map<String, String> headerParams,
+      @Nullable Object body,
+      String[] accepts,
+      String contentType,
+      @Nullable Authenticator auth,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable Map<String, ErrorFactory> errorSchemas,
+      String specOperationId,
+      String urlTemplate) {
+    return invokeCall(
+        true,
+        operationId,
+        method,
+        path,
+        queryParams,
+        headerParams,
+        body,
+        accepts,
+        contentType,
+        null,
+        auth,
+        timeoutMillis,
+        maxRetries,
+        null,
+        null,
+        errorSchemas,
+        specOperationId,
+        urlTemplate);
+  }
+
+  /**
+   * Invoke an operation whose success response is a JSON Lines body and return its items as a lazy
+   * stream. Everything up to the headers is the buffered call; a non-2xx status raises the typed
+   * error and no stream is returned.
+   *
+   * @param <T> the item type
+   * @param operationId operation id, named in errors
+   * @param method HTTP method
+   * @param path URL path (with path params already substituted)
+   * @param queryParams query parameters
+   * @param headerParams custom header parameters
+   * @param body request body or null
+   * @param accepts acceptable response content types
+   * @param contentType request content type
+   * @param auth the credential for the scheme the operation requires, or {@code NO_AUTH}
+   * @param timeoutMillis timeout in milliseconds up to the response headers, or {@code null}
+   * @param maxRetries retry count for this call, or {@code null} to use the transport's
+   * @param errorSchemas the operation's error factories by declared status, or {@code null}
+   * @param specOperationId the operation id exactly as written in the spec, given to the hook
+   * @param urlTemplate the spec path template of the operation, given to the hook
+   * @param itemType the type of each line, or {@code null} to hand each line over as a string
+   * @param streamOptions the stream settings, or {@code null}
+   * @return the open stream of items
+   * @throws ApiException if the API call fails
+   */
+  protected <T> JsonLinesStream<T> invokeApiForJsonLines(
+      String operationId,
+      String method,
+      String path,
+      Map<String, Object> queryParams,
+      Map<String, String> headerParams,
+      @Nullable Object body,
+      String[] accepts,
+      String contentType,
+      @Nullable Authenticator auth,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable Map<String, ErrorFactory> errorSchemas,
+      String specOperationId,
+      String urlTemplate,
+      @Nullable Type itemType,
+      @Nullable StreamOptions streamOptions) {
+    StreamOptions options = streamOptions == null ? new StreamOptions() : streamOptions;
+    ByteStream stream =
+        java.util.Objects.requireNonNull(
+            this.<ByteStream>invokeCall(
+                    true,
+                    operationId,
+                    method,
+                    path,
+                    queryParams,
+                    headerParams,
+                    body,
+                    accepts,
+                    contentType,
+                    null,
+                    auth,
+                    timeoutMillis,
+                    maxRetries,
+                    options.getIdleTimeout(),
+                    null,
+                    errorSchemas,
+                    specOperationId,
+                    urlTemplate)
+                .data());
+    Function<String, T> decoder =
+        itemType == null
+            ? line -> (T) line
+            : line -> objectSerializer.<T>deserialize(line, itemType);
+    Integer limit = options.getMaxEventBytes();
+    return new JsonLinesStream<>(
+        stream, decoder, limit != null ? limit : 1024 * 1024, method, path);
+  }
+
+  /**
+   * Invoke an operation whose success response is a server-sent events body and return its events
+   * as a lazy stream that reconnects. Each connection is a fresh buffered-style call, so the
+   * headers and the credential are built again; the stream adds {@code Accept: text/event-stream},
+   * {@code Cache-Control: no-cache} and {@code Accept-Encoding: identity} unless the caller set
+   * them and {@code Last-Event-ID} once it has an id.
+   *
+   * @param <T> the type of the {@code data} field
+   * @param operationId operation id, named in errors
+   * @param method HTTP method
+   * @param path URL path (with path params already substituted)
+   * @param queryParams query parameters
+   * @param headerParams custom header parameters
+   * @param body request body or null
+   * @param accepts acceptable response content types
+   * @param contentType request content type
+   * @param auth the credential for the scheme the operation requires, or {@code NO_AUTH}
+   * @param timeoutMillis timeout in milliseconds up to the response headers, or {@code null}
+   * @param maxRetries retry count for this call, or {@code null} to use the transport's
+   * @param errorSchemas the operation's error factories by declared status, or {@code null}
+   * @param specOperationId the operation id exactly as written in the spec, given to the hook
+   * @param urlTemplate the spec path template of the operation, given to the hook
+   * @param itemType the type of the data, or {@code null} to hand it over as a string
+   * @param terminator a {@code data} value that ends the stream, or {@code null}
+   * @param streamOptions the stream settings, or {@code null}
+   * @return the open stream of events
+   * @throws ApiException if the first request fails
+   */
+  protected <T> SseStream<T> invokeApiForSse(
+      String operationId,
+      String method,
+      String path,
+      Map<String, Object> queryParams,
+      Map<String, String> headerParams,
+      @Nullable Object body,
+      String[] accepts,
+      String contentType,
+      @Nullable Authenticator auth,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable Map<String, ErrorFactory> errorSchemas,
+      String specOperationId,
+      String urlTemplate,
+      @Nullable Type itemType,
+      @Nullable String terminator,
+      @Nullable StreamOptions streamOptions) {
+    StreamOptions options = streamOptions == null ? new StreamOptions() : streamOptions;
+    Map<String, String> sseHeaders = new java.util.HashMap<>(headerParams);
+    for (String name : new String[] {"Cache-Control", "Accept-Encoding"}) {
+      boolean set =
+          sseHeaders.keySet().stream().anyMatch(name::equalsIgnoreCase)
+              || config.getDefaultHeaders().keySet().stream().anyMatch(name::equalsIgnoreCase);
+      if (!set) {
+        sseHeaders.put(name, "Cache-Control".equals(name) ? "no-cache" : "identity");
+      }
+    }
+    Function<String, ByteStream> opener =
+        lastEventId -> {
+          Map<String, String> headers = new java.util.HashMap<>(sseHeaders);
+          if (!lastEventId.isEmpty()) {
+            headers.put("Last-Event-ID", lastEventId);
+          }
+          return java.util.Objects.requireNonNull(
+              this.<ByteStream>invokeCall(
+                      true,
+                      operationId,
+                      method,
+                      path,
+                      new java.util.LinkedHashMap<>(queryParams),
+                      headers,
+                      body,
+                      accepts,
+                      contentType,
+                      null,
+                      auth,
+                      timeoutMillis,
+                      maxRetries,
+                      options.getIdleTimeout(),
+                      null,
+                      errorSchemas,
+                      specOperationId,
+                      urlTemplate)
+                  .data());
+        };
+    @Nullable
+    Function<String, T> decoder =
+        itemType == null ? null : data -> objectSerializer.<T>deserialize(data, itemType);
+    return SseStream.open(
+        opener,
+        decoder,
+        terminator,
+        options,
+        body != null,
+        body instanceof BodySource source && !source.isReplayable(),
+        method,
+        requestPathOf(path));
+  }
+
+  private <T> ApiResult<T> invokeCall(
+      boolean stream,
+      String operationId,
+      String method,
+      String path,
+      Map<String, Object> queryParams,
+      Map<String, String> headerParams,
+      @Nullable Object body,
+      String[] accepts,
+      String contentType,
+      @Nullable Type returnType,
+      @Nullable Authenticator auth,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable Integer idleTimeoutMillis,
+      @Nullable BiFunction<Integer, String, T> successDecoder,
+      @Nullable Map<String, ErrorFactory> errorSchemas,
+      String specOperationId,
+      String urlTemplate) {
 
     String url;
     if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -523,7 +800,7 @@ public abstract class BaseApi {
     final String urlWithoutQuery = url;
     String query = buildQueryString(queryParams);
     if (!query.isEmpty()) {
-      url += "?" + query;
+      url += (url.contains("?") ? "&" : "?") + query;
     }
 
     boolean isMultipart = "multipart/form-data".equals(contentType);
@@ -598,6 +875,7 @@ public abstract class BaseApi {
     }
     if (observer == null) {
       return sendAndDecode(
+          stream,
           operationId,
           method,
           url,
@@ -609,6 +887,7 @@ public abstract class BaseApi {
           sentAuthHeaders,
           timeoutMillis,
           maxRetries,
+          idleTimeoutMillis,
           successDecoder,
           errorSchemas);
     }
@@ -616,6 +895,7 @@ public abstract class BaseApi {
     try {
       result =
           sendAndDecode(
+              stream,
               operationId,
               method,
               url,
@@ -627,6 +907,7 @@ public abstract class BaseApi {
               sentAuthHeaders,
               timeoutMillis,
               maxRetries,
+              idleTimeoutMillis,
               successDecoder,
               errorSchemas);
     } catch (RuntimeException | Error failure) {
@@ -705,6 +986,7 @@ public abstract class BaseApi {
    * Encode the body, send the request and decode the response; the part of a call the hook wraps.
    */
   private <T> ApiResult<T> sendAndDecode(
+      boolean stream,
       String operationId,
       String method,
       String url,
@@ -716,6 +998,7 @@ public abstract class BaseApi {
       Map<String, String> sentAuthHeaders,
       @Nullable Integer timeoutMillis,
       @Nullable Integer maxRetries,
+      @Nullable Integer idleTimeoutMillis,
       @Nullable BiFunction<Integer, String, T> successDecoder,
       @Nullable Map<String, ErrorFactory> errorSchemas) {
     Object requestBody = null;
@@ -734,6 +1017,7 @@ public abstract class BaseApi {
          * transport see a Map and emit multipart/form-data instead. */
         requestBody = extractBinaryPart(binaryForm);
       } else if (body instanceof byte[]
+          || body instanceof BodySource
           || body instanceof InputStream
           || body instanceof java.io.File
           || contentType.startsWith("image/")
@@ -783,6 +1067,20 @@ public abstract class BaseApi {
     if (requestBody == null) {
       /* A default header may be spelled in any case, so drop every Content-Type name. */
       headers.keySet().removeIf(name -> name.equalsIgnoreCase("Content-Type"));
+    }
+
+    if (stream) {
+      return openStream(
+          method,
+          url,
+          headers,
+          requestBody,
+          effectiveAuth,
+          sentAuthHeaders,
+          timeoutMillis,
+          maxRetries,
+          idleTimeoutMillis,
+          errorSchemas);
     }
 
     ApiHttpResponse response =
@@ -913,6 +1211,87 @@ public abstract class BaseApi {
         response.headers() != null ? response.headers() : Map.of());
   }
 
+  /** The most of an error body a stream call reads before it raises the error. */
+  private static final int STREAM_ERROR_BODY_LIMIT = 64 * 1024;
+
+  /**
+   * Send the request for a stream result: a success hands back the open stream, any other status
+   * reads a bounded part of its body, closes it and raises the typed error of a buffered call.
+   */
+  @SuppressWarnings("unchecked")
+  private <T> ApiResult<T> openStream(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object requestBody,
+      @Nullable Authenticator auth,
+      Map<String, String> sentAuthHeaders,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable Integer idleTimeoutMillis,
+      @Nullable Map<String, ErrorFactory> errorSchemas) {
+    ApiStreamResponse response =
+        sendStreamReplayingOnUnauthorized(
+            method,
+            url,
+            headers,
+            requestBody,
+            auth,
+            sentAuthHeaders,
+            timeoutMillis,
+            maxRetries,
+            idleTimeoutMillis);
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      ApiHttpResponse failed = response.readBounded(STREAM_ERROR_BODY_LIMIT);
+      throw ApiException.fromResponse(
+          method,
+          requestPathOf(url),
+          failed.statusCode(),
+          failed.headers(),
+          failed.body(),
+          errorSchemas);
+    }
+    ByteStream data = new ByteStream(response.statusCode(), response.headers(), response.body());
+    return new ApiResult<>(response.statusCode(), (T) data, "", response.headers());
+  }
+
+  /** {@link #sendReplayingOnUnauthorized} for a stream: the refused response is closed unread. */
+  private ApiStreamResponse sendStreamReplayingOnUnauthorized(
+      String method,
+      String url,
+      Map<String, String> headers,
+      @Nullable Object requestBody,
+      @Nullable Authenticator auth,
+      Map<String, String> sentAuthHeaders,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable Integer idleTimeoutMillis) {
+    ApiStreamResponse response =
+        apiClient.sendStreaming(
+            method, url, headers, requestBody, timeoutMillis, maxRetries, idleTimeoutMillis);
+    if (response.statusCode() != 401 || !(auth instanceof HttpAwareAuthenticator tokenAuth)) {
+      return response;
+    }
+    tokenAuth.invalidateAccessToken();
+    boolean replayable =
+        requestBody == null
+            || requestBody instanceof String
+            || requestBody instanceof byte[]
+            || (requestBody instanceof BodySource source && source.isReplayable());
+    if (!replayable) {
+      return response;
+    }
+    Map<String, String> fresh = tokenAuth.getAuthHeaders();
+    if (fresh.equals(sentAuthHeaders)) {
+      return response;
+    }
+    response.close();
+    headers.keySet().removeIf(name -> fresh.keySet().stream().anyMatch(name::equalsIgnoreCase));
+    headers.putAll(fresh);
+    return apiClient.sendStreaming(
+        method, url, headers, requestBody, timeoutMillis, maxRetries, idleTimeoutMillis);
+  }
+
   /**
    * Decode a success body as one variant of a result union and wrap it.
    *
@@ -947,6 +1326,7 @@ public abstract class BaseApi {
   private static Object extractBinaryPart(Map<?, ?> formBody) {
     for (Object value : formBody.values()) {
       if (value instanceof InputStream
+          || value instanceof BodySource
           || value instanceof byte[]
           || value instanceof java.io.File) {
         return value;
@@ -982,7 +1362,10 @@ public abstract class BaseApi {
     }
     tokenAuth.invalidateAccessToken();
     boolean replayable =
-        requestBody == null || requestBody instanceof String || requestBody instanceof byte[];
+        requestBody == null
+            || requestBody instanceof String
+            || requestBody instanceof byte[]
+            || (requestBody instanceof BodySource source && source.isReplayable());
     if (!replayable) {
       return response;
     }

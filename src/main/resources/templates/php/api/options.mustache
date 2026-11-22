@@ -61,4 +61,28 @@ class {{className}}
             );
         }
     }
+{{#hasPageCursor}}
+
+    /**
+     * Returns a copy of these options with another value for the cursor parameter: the same value for
+     * every other parameter, the same timeout, retry count and headers. A paged list uses it to send each
+     * page with its own cursor.
+     *
+     * @param {{pageCursorType}}|null $cursor the cursor of the page to request, or null for the first
+     */
+    public function withPageCursor(?{{pageCursorType}} $cursor): self
+    {
+        return new self(
+{{#params}}
+            {{paramName}}: {{#isPageCursor}}$cursor{{/isPageCursor}}{{^isPageCursor}}$this->{{paramName}}{{/isPageCursor}},
+{{/params}}
+{{#hasAuthField}}
+            auth: $this->auth,
+{{/hasAuthField}}
+            timeout: $this->timeout,
+            headers: $this->headers,
+            maxRetries: $this->maxRetries,
+        );
+    }
+{{/hasPageCursor}}
 }

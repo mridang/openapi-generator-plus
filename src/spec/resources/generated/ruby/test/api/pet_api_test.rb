@@ -37,6 +37,23 @@ class RecordingPetClient
   end
 end
 
+# A credential that sends a different token every time it is asked.
+class PagedRotatingAuthenticator < Petstore::Client::Auth::Authenticator
+  def initialize
+    super
+    @count = 0
+  end
+
+  def host
+    ''
+  end
+
+  def auth_headers
+    @count += 1
+    { 'Authorization' => "Bearer token-#{@count}" }
+  end
+end
+
 describe Petstore::Client::Api::PetApi do
   parallelize_me!
 
@@ -327,14 +344,14 @@ describe Petstore::Client::Api::PetApi do
 
   describe '#set_pet_avatar' do
     it 'bhv_operations_070 set_pet_avatar' do
-      @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"))
+      @api.set_pet_avatar(1, Petstore::Client::BodySource.of("\xFF\xD8\xFF"))
     end
 
     it 'bhv_operations_076 rejects an unrecognised request content-type' do
       # An unknown content-type selector must be rejected client-side, not
       # silently dropped in favour of the first declared type.
       error = assert_raises(ArgumentError) do
-        @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"), request_content_type: 'application/unknown-type')
+        @api.set_pet_avatar(1, Petstore::Client::BodySource.of("\xFF\xD8\xFF"), request_content_type: 'application/unknown-type')
       end
       _(error.message).must_include "Unsupported request content-type 'application/unknown-type' for "
       _(error.message).must_match(/; declared types are \[[^"'\]]+(, [^"'\]]+)*\]\z/)
@@ -392,7 +409,7 @@ describe Petstore::Client::Api::PetApi do
         # (0xFF) and the non-printable run make every wrong encoding distinct
         # from the raw form.
         raw = "\xFF\xD8\xFF\xE0".b
-        api.set_pet_avatar(1, StringIO.new(raw))
+        api.set_pet_avatar(1, Petstore::Client::BodySource.of(raw))
 
         request_content_type = captured_content_type.pop
         sent = captured_body.pop.b
@@ -419,7 +436,7 @@ describe Petstore::Client::Api::PetApi do
       api, server, thread, captured_body, captured_content_type = capture_avatar_request
       begin
         raw = "\xFF\xD8\xFF\xE0".b
-        api.set_pet_avatar(1, StringIO.new(raw), request_content_type: 'application/json')
+        api.set_pet_avatar(1, Petstore::Client::BodySource.of(raw), request_content_type: 'application/json')
         _(captured_content_type.pop).must_equal 'application/json'
         _(captured_body.pop.b).must_equal raw
       ensure
@@ -439,7 +456,7 @@ describe Petstore::Client::Api::PetApi do
       api, server, thread, _captured_body, captured_content_type = capture_avatar_request
       begin
         raw = "\x89PNG\r\n\x1A\n".b
-        api.set_pet_avatar(1, StringIO.new(raw))
+        api.set_pet_avatar(1, Petstore::Client::BodySource.of(raw))
         _(captured_content_type.pop).must_equal 'image/jpeg'
       ensure
         server.close
@@ -451,7 +468,7 @@ describe Petstore::Client::Api::PetApi do
       api, server, thread, captured_body, captured_content_type = capture_avatar_request
       begin
         raw = "\x89PNG\r\n\x1A\n".b
-        api.set_pet_avatar(1, StringIO.new(raw), request_content_type: 'image/png')
+        api.set_pet_avatar(1, Petstore::Client::BodySource.of(raw), request_content_type: 'image/png')
 
         request_content_type = captured_content_type.pop
         sent = captured_body.pop.b
@@ -473,6 +490,28 @@ describe Petstore::Client::Api::PetApi do
       result = @api.get_pet_avatar(1)
 
       _(result).wont_be_nil
+      result.close
+    end
+
+    it 'bhv_streaming_009 a binary stream exposes the status and the lower-cased response headers' do
+      stream = @api.get_pet_avatar(1)
+      begin
+        _(stream.status_code).must_equal 200
+        _(stream.headers).must_include 'content-type'
+        _(stream.headers.keys).must_equal(stream.headers.keys.map(&:downcase))
+      ensure
+        stream.close
+      end
+
+      result = @api.get_pet_avatar_with_http_info(1)
+      begin
+        _(result.data).must_be_kind_of Petstore::Client::ByteStream
+        _(result.status_code).must_equal result.data.status_code
+        _(result.headers).must_equal result.data.headers
+        _(result.raw_body).must_be_empty
+      ensure
+        result.data.close
+      end
     end
   end
 
@@ -766,6 +805,7 @@ describe Petstore::Client::Api::PetApi do
       result = @api.download_pet_document(1, 1)
 
       _(result).wont_be_nil
+      result.close
     end
   end
 
@@ -774,6 +814,7 @@ describe Petstore::Client::Api::PetApi do
       result = @api.get_pet_photo(1, 1)
 
       _(result).wont_be_nil
+      result.close
     end
   end
 
@@ -1128,7 +1169,7 @@ describe Petstore::Client::Api::PetApi do
       api, server, thread = new_pet_api_for_mock(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
       begin
         result = api.get_pet_avatar(1)
-        _(result).wont_be_nil
+        _(result.read_all).must_equal 'FAKE_BINARY_DATA'
       ensure
         server.close
         thread.join(2)
@@ -1784,20 +1825,21 @@ describe Petstore::Client::Api::PetApi do
       _(doc_block('delete_pet')).wont_include 'authenticator'
     end
 
-    # Binary downloads are returned as the in-memory StringIO that BaseApi
-    # builds, never a File, so the YARD tag and the RBS signature say so.
-    it 'bhv_langruby_008 declares the StringIO a binary download returns in YARD' do
+    # Binary downloads are returned as a ByteStream, never a File, so the YARD
+    # tag and the RBS signature say so.
+    it 'bhv_langruby_008 declares the ByteStream a binary download returns in YARD' do
       %w[get_pet_avatar download_pet_document get_pet_photo].each do |name|
-        _(doc_block(name)).must_include '# @return [StringIO]'
+        _(doc_block(name)).must_include '# @return [ByteStream]'
       end
     end
 
-    it 'bhv_langruby_009 declares the StringIO a binary download returns in RBS' do
+    it 'bhv_langruby_009 declares the ByteStream a binary download returns in RBS' do
       root = File.expand_path('../..', File.dirname(__FILE__))
       rbs = File.read(File.join(root, 'sig', 'petstore/client', 'api', 'pet_api.rbs'))
-      _(rbs).must_include 'def get_pet_avatar: (Integer pet_id, ?Options::GetPetAvatarOptions? options) -> ::StringIO'
+      _(rbs).must_include 'def get_pet_avatar: (Integer pet_id, ?Options::GetPetAvatarOptions? options) ' \
+                          '-> ::Petstore::Client::ByteStream'
       _(rbs).must_include 'def get_pet_avatar_with_http_info: (Integer pet_id, ?Options::GetPetAvatarOptions? options) ' \
-                          '-> ::Petstore::Client::ApiResult[::StringIO]'
+                          '-> ::Petstore::Client::ApiResult[::Petstore::Client::ByteStream]'
       _(rbs).wont_include '-> File'
       _(rbs).wont_include 'ApiResult[File]'
     end
@@ -2011,6 +2053,396 @@ describe Petstore::Client::Api::PetApi do
       api.find_pets_by_status_with_http_info
       _(hook.infos.length).must_equal 2
       _(hook.outcomes.length).must_equal 2
+    end
+  end
+
+  # The lists that come one page at a time, read from an in-process server that answers
+  # by the cursor it is asked for.
+  describe 'paged lists' do
+    def pet_json(name)
+      %({"id":1,"name":"#{name}","photoUrls":[]})
+    end
+
+    # A catalog page: the pets of page +page+ of +size+, and the cursor of the page after it.
+    def catalog_body(page, size, pages)
+      items = (0...size).map { |index| pet_json("p#{page}-#{index}") }.join(',')
+      following = page + 1 < pages ? %(,"next_cursor":"c#{page + 1}") : ''
+      %({"items":[#{items}]#{following}})
+    end
+
+    def page_of(request)
+      cursor = request.param('cursor')
+      cursor.nil? ? 0 : cursor[1..].to_i
+    end
+
+    # A catalog of +pages+ pages of +size+ pets; the cursor of page n is "c" followed by n.
+    def catalog_server(pages, size)
+      PagedServer.new { |request, _number| PagedReply.ok(catalog_body(page_of(request), size, pages)) }
+    end
+
+    # A feed page: one pet and a Link header that names the next page, or none on the last.
+    def feed_server(pages, &link)
+      PagedServer.new do |request, _number|
+        index = request.param('page').to_i
+        headers = index + 1 < pages ? { 'Link' => link.call(index + 1) } : {}
+        PagedReply.ok("[#{pet_json("f#{index}")}]", headers)
+      end
+    end
+
+    def same_origin_feed(pages)
+      origin = [] # : Array[PagedServer]
+      feed_server(pages) { |following| "<#{origin.first.url}/pet/feed?page=#{following}&secret=s3>; rel=\"next\"" }
+        .tap { |server| origin << server }
+    end
+
+    def pet_api_for(server, transport: nil, headers: {}, authenticator: nil)
+      transport ||= Petstore::Client::TransportOptions.builder.max_retries(0).build
+      config = Petstore::Client::Configuration.new(base_url: server.url, default_headers: headers)
+      Petstore::Client::Api::PetApi.new(Petstore::Client::DefaultApiClient.new(transport), config, authenticator)
+    end
+
+    def names(list)
+      list.map(&:name)
+    end
+
+    # What a read delivers before it raises: the names read, and the error.
+    def read_until_error(list, error_class)
+      delivered = []
+      error = assert_raises(error_class) { list.each { |pet| delivered << pet.name } }
+      [delivered, error]
+    end
+
+    def catalog_options(**members)
+      Petstore::Client::Api::Options::ListPetCatalogOptions.new(**members)
+    end
+
+    it 'bhv_pagination_001 a paged operation reads no page until the first item or page is requested' do
+      server = catalog_server(2, 2)
+      list = pet_api_for(server).list_pet_catalog_pages
+      _(server.seen).must_be_empty
+      [list.items, list.pages, list.each].each { |view| _(view).must_be_kind_of Enumerator }
+      _(server.seen).must_be_empty
+      _(list.items.first.name).must_equal 'p0-0'
+      _(server.seen.length).must_equal 1
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_002 a token-cursor operation yields every item of every page in order and sends the next page cursor' do
+      server = catalog_server(3, 2)
+      _(names(pet_api_for(server).list_pet_catalog_pages)).must_equal %w[p0-0 p0-1 p1-0 p1-1 p2-0 p2-1]
+      _(server.params('cursor')).must_equal [nil, 'c1', 'c2']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_003 the next request is sent only when the consumer asks for more items' do
+      server = catalog_server(3, 2)
+      items = pet_api_for(server).list_pet_catalog_pages.items
+      2.times { items.next }
+      _(server.seen.length).must_equal 1
+      items.next
+      _(server.seen.length).must_equal 2
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_007 a Link-header operation follows rel=next and ends when it is absent' do
+      server = same_origin_feed(3)
+      _(names(pet_api_for(server).list_pet_feed_pages)).must_equal %w[f0 f1 f2]
+      _(server.params('page')).must_equal [nil, '1', '2']
+      _(server.seen[2].path).must_equal '/pet/feed'
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_008 a Link next URL on another origin is refused and no credentials are sent to it' do
+      elsewhere = PagedServer.new { |_request, _number| PagedReply.ok("[#{pet_json('stolen')}]") }
+      origin = PagedServer.new do |_request, _number|
+        PagedReply.ok("[#{pet_json('f0')}]", { 'Link' => "<#{elsewhere.url}/pet/feed?page=1>; rel=\"next\"" })
+      end
+      api = pet_api_for(origin, headers: { 'Authorization' => 'Bearer secret' })
+      delivered, refused = read_until_error(api.list_pet_feed_pages, Petstore::Client::Errors::PaginationError)
+      _(delivered).must_equal ['f0']
+      _(origin.seen.first.headers['authorization']).must_equal 'Bearer secret'
+      _(refused.message).wont_include 'page=1'
+      _(elsewhere.seen).must_be_empty
+      _(origin.seen.length).must_equal 1
+    ensure
+      elsewhere&.close
+      origin&.close
+    end
+
+    it 'bhv_pagination_009 an empty page with a next cursor continues and an absent, null or empty cursor ends' do
+      ['', ',"next_cursor":null', ',"next_cursor":""'].each_case do |ending|
+        server = PagedServer.new do |request, _number|
+          PagedReply.ok(
+            request.param('cursor').nil? ? '{"items":[],"next_cursor":"c1"}' : %({"items":[#{pet_json('only')}]#{ending}})
+          )
+        end
+        begin
+          _(names(pet_api_for(server).list_pet_catalog_pages)).must_equal ['only']
+          _(server.seen.length).must_equal 2
+        ensure
+          server.close
+        end
+      end
+    end
+
+    it 'bhv_pagination_010 pages yields one page per response with its items, status, headers, decoded body and next cursor' do
+      server = PagedServer.new do |request, _number|
+        page = page_of(request)
+        PagedReply.ok(catalog_body(page, 2, 2), { 'X-Page' => page.to_s })
+      end
+      pages = pet_api_for(server).list_pet_catalog_pages.pages.to_a
+      _(pages.length).must_equal 2
+      _(names(pages[0].items)).must_equal %w[p0-0 p0-1]
+      _(pages[0].result.status_code).must_equal 200
+      _(pages.map { |page| page.result.headers['x-page'] }).must_equal %w[0 1]
+      _(pages[0].result.data).must_be_kind_of Petstore::Client::Models::PetCatalogPage
+      _(pages[0].next_cursor).must_equal 'c1'
+      _(pages[1].next_cursor).must_be_nil
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_011 the cursor passed to the paged method is the starting position and the first request sends it' do
+      server = catalog_server(3, 1)
+      _(names(pet_api_for(server).list_pet_catalog_pages(catalog_options(cursor: 'c1')))).must_equal %w[p1-0 p2-0]
+      _(server.seen.first.param('cursor')).must_equal 'c1'
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_012 resuming with the next cursor of a page continues with the following page' do
+      server = catalog_server(3, 1)
+      api = pet_api_for(server)
+      resume = api.list_pet_catalog_pages.pages.first.next_cursor
+      _(resume).must_equal 'c1'
+      _(names(api.list_pet_catalog_pages(catalog_options(cursor: resume)))).must_equal %w[p1-0 p2-0]
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_013 every other parameter, including the page size, is repeated unchanged on each page request' do
+      server = catalog_server(3, 1)
+      names(pet_api_for(server).list_pet_catalog_pages(catalog_options(limit: 1, headers: { 'X-Keep' => 'yes' })))
+      _(server.seen.length).must_equal 3
+      server.seen.each do |request|
+        _(request.param('limit')).must_equal '1'
+        _(request.headers['x-keep']).must_equal 'yes'
+      end
+      _(server.params('cursor')).must_equal [nil, 'c1', 'c2']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_014 a cursor equal to the one just sent raises a PaginationError instead of looping' do
+      server = PagedServer.new { |_request, number| PagedReply.ok(%({"items":[#{pet_json("p#{number}")}],"next_cursor":"c1"})) }
+      delivered, failure = read_until_error(pet_api_for(server).list_pet_catalog_pages, Petstore::Client::Errors::PaginationError)
+      _(delivered).must_equal %w[p1 p2]
+      _(failure.request_path).must_equal '/pet/catalog'
+      _(server.seen.length).must_equal 2
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_015 an error on a later page is raised after the earlier pages items were delivered and ends iteration' do
+      server = PagedServer.new do |request, _number|
+        request.param('cursor').nil? ? PagedReply.ok(catalog_body(0, 2, 3)) : PagedReply.new(404, '{}', {}, 0)
+      end
+      delivered, failure = read_until_error(pet_api_for(server).list_pet_catalog_pages, Petstore::Client::Errors::NotFoundError)
+      _(delivered).must_equal %w[p0-0 p0-1]
+      _(failure.status_code).must_equal 404
+      _(server.seen.length).must_equal 2
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_016 a 503 on the second page is retried under the retry rules and iteration continues' do
+      server = PagedServer.new do |_request, number|
+        page = number == 1 ? 0 : 1
+        number == 2 ? PagedReply.status(503) : PagedReply.ok(catalog_body(page, 1, 2))
+      end
+      transport = Petstore::Client::TransportOptions.builder.max_retries(2).build
+      _(names(pet_api_for(server, transport: transport).list_pet_catalog_pages)).must_equal %w[p0-0 p1-0]
+      _(server.params('cursor')).must_equal [nil, 'c1', 'c1']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_017 the per-call timeout, headers and retry count apply to each page request' do
+      server = PagedServer.new do |_request, number|
+        page = number == 2 ? 0 : 1
+        number.odd? ? PagedReply.status(503) : PagedReply.ok(catalog_body(page, 1, 2))
+      end
+      names(pet_api_for(server).list_pet_catalog_pages(catalog_options(max_retries: 1, headers: { 'X-Trace' => 't1' })))
+      _(server.seen.length).must_equal 4
+      server.seen.each { |request| _(request.headers['x-trace']).must_equal 't1' }
+
+      slow = PagedServer.new do |request, _number|
+        reply = PagedReply.ok(catalog_body(page_of(request), 1, 2))
+        request.param('cursor').nil? ? reply : reply.after(1.5)
+      end
+      delivered, = read_until_error(
+        pet_api_for(slow).list_pet_catalog_pages(catalog_options(timeout: 300)), Petstore::Client::Errors::NetworkTimeoutError
+      )
+      _(delivered).must_equal ['p0-0']
+    ensure
+      server&.close
+      slow&.close
+    end
+
+    it 'bhv_pagination_018 stopping early sends no further request and leaves nothing to close' do
+      server = catalog_server(3, 2)
+      _(pet_api_for(server).list_pet_catalog_pages.items.first.name).must_equal 'p0-0'
+      _(server.seen.length).must_equal 1
+      _(pet_api_for(server).list_pet_catalog_pages.first(3).length).must_equal 3
+      _(server.seen.length).must_equal 3
+      _(pet_api_for(server).list_pet_catalog_pages).wont_respond_to :close
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_019 cancelling mid-iteration aborts the in-flight page request and is not reported as a timeout' do
+      cancelled = Class.new(StandardError)
+      server = PagedServer.new do |request, _number|
+        reply = PagedReply.ok(catalog_body(page_of(request), 1, 2))
+        request.param('cursor').nil? ? reply : reply.after(8)
+      end
+      transport = Petstore::Client::TransportOptions.builder.max_retries(0).timeout(20_000).build
+      list = pet_api_for(server, transport: transport).list_pet_catalog_pages
+      failure = nil
+      reader = Thread.new do
+        list.to_a
+      rescue StandardError => e
+        failure = e
+      end
+      sleep 0.02 while server.seen.length < 2
+      reader.raise(cancelled.new)
+      reader.join(5)
+      _(reader.alive?).must_equal false
+      _(failure).must_be_instance_of cancelled
+      _(failure).wont_be_kind_of Petstore::Client::Errors::NetworkTimeoutError
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_020 iterating a second time starts again from the starting position' do
+      server = catalog_server(2, 2)
+      list = pet_api_for(server).list_pet_catalog_pages
+      _(names(list)).must_equal names(list)
+      _(server.seen.length).must_equal 4
+      _(server.params('cursor')).must_equal [nil, 'c1', nil, 'c1']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_021 a page that does not decode on a later page fails with the serialization error after the earlier items' do
+      server = PagedServer.new do |_request, number|
+        PagedReply.ok(number == 1 ? catalog_body(0, 1, 2) : '{"items":[{"id":"not a number","name":"x","photoUrls":[]}]}')
+      end
+      delivered, = read_until_error(pet_api_for(server).list_pet_catalog_pages, Petstore::Client::Errors::SerializationError)
+      _(delivered).must_equal ['p0-0']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_022 a refreshed credential is used for the next page' do
+      server = catalog_server(3, 1)
+      names(pet_api_for(server, authenticator: PagedRotatingAuthenticator.new).list_pet_catalog_pages)
+      _(server.seen.map { |request| request.headers['authorization'] }).must_equal(
+        ['Bearer token-1', 'Bearer token-2', 'Bearer token-3']
+      )
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_023 an error from a Link-driven page request carries the path without the query' do
+      server = PagedServer.new do |request, _number|
+        if request.param('page')
+          PagedReply.new(500, '{}', {}, 0)
+        else
+          PagedReply.ok("[#{pet_json('f0')}]", { 'Link' => '</pet/feed?page=1&secret=s3>; rel="next"' })
+        end
+      end
+      delivered, failure = read_until_error(pet_api_for(server).list_pet_feed_pages, Petstore::Client::Errors::ApiError)
+      _(delivered).must_equal ['f0']
+      _(failure.status_code).must_equal 500
+      _(failure.request_path).must_equal '/pet/feed'
+      _(failure.message).wont_include 's3'
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_024 an operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method' do
+      paged = Petstore::Client::Api::PetApi.public_instance_methods(false).grep(/_pages\z/).sort
+      _(paged).must_equal %i[list_pet_catalog_pages list_pet_events_pages list_pet_feed_pages list_pet_notes_pages]
+      _(Petstore::Client::Api::PetApi.public_method_defined?(:list_pet_matches)).must_equal true
+    end
+
+    it 'bhv_pagination_025 a paged method has the same parameters in the same order as the base method and the base method is unchanged' do
+      server = catalog_server(1, 1)
+      %i[list_pet_catalog list_pet_events list_pet_feed list_pet_notes].each_case do |base|
+        pages = Petstore::Client::Api::PetApi.instance_method(:"#{base}_pages")
+        _(pages.parameters).must_equal Petstore::Client::Api::PetApi.instance_method(base).parameters
+      end
+      _(pet_api_for(server).list_pet_catalog).must_be_kind_of Petstore::Client::Models::PetCatalogPage
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_026 the generator option overrides inference and can switch an operation or the whole feature off' do
+      api = Petstore::Client::Api::PetApi
+      _(api.public_method_defined?(:list_pet_events_pages)).must_equal true
+      _(api.public_method_defined?(:list_pet_archive_pages)).must_equal false
+      _(api.public_method_defined?(:list_pet_archive)).must_equal true
+    end
+
+    it 'bhv_pagination_027 headers and options given to the paged method are sent on every page request' do
+      server = same_origin_feed(3)
+      options = Petstore::Client::Api::Options::ListPetFeedOptions.new(limit: 1, headers: { 'X-Keep' => 'yes' })
+      names(pet_api_for(server).list_pet_feed_pages(options))
+      _(server.seen.length).must_equal 3
+      server.seen.each { |request| _(request.headers['x-keep']).must_equal 'yes' }
+      _(server.seen.first.param('limit')).must_equal '1'
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_028 the cursor for the next page is taken from the accepted response, never from a retried attempt' do
+      server = PagedServer.new do |request, number|
+        if number == 1
+          PagedReply.new(503, '{"items":[],"next_cursor":"WRONG"}', { 'Retry-After' => '0' }, 0)
+        else
+          PagedReply.ok(catalog_body(request.param('cursor').nil? ? 0 : 1, 1, 2))
+        end
+      end
+      transport = Petstore::Client::TransportOptions.builder.max_retries(2).build
+      _(names(pet_api_for(server, transport: transport).list_pet_catalog_pages)).must_equal %w[p0-0 p1-0]
+      _(server.params('cursor')).must_equal [nil, nil, 'c1']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_030 a vendor extension on an operation is read as a hint, and the override option wins over it' do
+      _(Petstore::Client::Api::PetApi.public_method_defined?(:list_pet_notes_pages)).must_equal true
+    end
+
+    it 'bhv_pagination_031 the repeated-cursor failure is a PaginationError and is not a network error or an API error' do
+      error_class = Petstore::Client::Errors::PaginationError
+      _(error_class.superclass).must_equal ::Petstore::Client::Errors::OpenAPIError
+      server = PagedServer.new { |_request, _number| PagedReply.ok('{"items":[],"next_cursor":"c1"}') }
+      failure = assert_raises(error_class) { names(pet_api_for(server).list_pet_catalog_pages(catalog_options(cursor: 'c1'))) }
+      _(failure).wont_be_kind_of Petstore::Client::Errors::ApiError
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_032 an operation that is streamed is never also given a paged method' do
+      store = Petstore::Client::Api::StoreApi
+      _(store.public_instance_methods(false).grep(/_pages\z/)).must_be_empty
+      _(store.public_method_defined?(:export_orders_stream)).must_equal true
     end
   end
 end

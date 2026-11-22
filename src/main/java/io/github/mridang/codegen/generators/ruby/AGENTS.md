@@ -18,6 +18,9 @@ This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an Open
 | `errors/*.mustache`, `errors/error_parent.mustache` | The error hierarchy, one class per file under `lib/<module>/errors/` | Error classes, messages, the `apiErrorParent` root |
 | `auth/*.mustache`, `auth/oauth/*.mustache` | Authenticator base, mixin `HttpAwareAuthenticator`, api-key, bearer, basic, per-scheme wrappers, OAuth2 flows, token manager, OIDC | Auth behaviour; scheme wrappers are rendered by `renderSchemeAuthenticator` in the codegen |
 | `default_api_client.mustache`, `transport_options.mustache` | Faraday transport: TLS, proxy, timeouts, redirects, decompression, injected connection | Transport options and wire behaviour |
+| `event_stream.mustache`, `server_sent_event.mustache`, `stream_options.mustache`, `json_lines_stream.mustache`, `sse_stream.mustache` | The line splitter and SSE parser, `ServerSentEvent`, `StreamOptions`, `JsonLinesStream`, `SseStream` | JSON Lines and SSE streams |
+| `body_source.mustache`, `paginator.mustache`, `page.mustache`, `link_header.mustache`, `errors/pagination_error.mustache` | `BodySource` (the upload carrier), `Paginator`, `Page`, `LinkHeader` (the RFC 8288 parser), `PaginationError` | Uploads and pagination |
+| `byte_stream.mustache`, `api_stream_response.mustache`, `stream_body.mustache`, `errors/stream_error.mustache` | `ByteStream` (the binary response carrier), `ApiStreamResponse` (the transport result with an unread body), `StreamBody` (the open body, internal), `StreamError` | Streaming types |
 | `base_api.mustache`, `object_serializer.mustache`, `value_serializer.mustache`, `header_selector.mustache` | Parameter styles, query/form/multipart encoding, JSON (de)serialization, content negotiation | Anything about bytes on the wire |
 | `api/api.mustache`, `api/api_rbs.mustache`, `api/options*.mustache` | Per-tag API classes, their RBS, per-operation Options objects (also generated in `generateOptionsFileContent`) | Operation signatures and doc comments |
 | `models/model.mustache`, `models/model_rbs.mustache`, `types.mustache` | dry-struct models, enums as constant classes, oneOf/anyOf modules, `Types::Required` | Models and unions |
@@ -44,7 +47,9 @@ This generator emits a gem (`ruby-plus`, class `BetterRubyCodegen`) from an Open
 | Entry class | `Petstore::Client::Client` (a class may share its namespace's name) | Ruby lets a class share its namespace's name |
 | Servers list | `Servers::ALL` | Constant naming |
 | Numbers | `format: number` and `decimal` are `BigDecimal` (exact, plain notation, no trailing zero kept); `ipv4`/`ipv6` are `IPAddr`; `Integer` is arbitrary precision so int64 is exact | typed fields are parsed with `decimal_class: BigDecimal`, an untyped number stays `Float` (D83, D95, D96) |
-| Binary responses | `File`/`StringIO` stream | Matches java/csharp stream typing |
+| Binary responses | `ByteStream` (D119) responding to `read`, `each`, `read_all` and `close` | The response is read as consumed |
+| Binary request bodies | `BodySource` (D121) with `of`, `of_file`, `from_factory`, `once` and `from` | A raw binary body is sent as it is read; a multipart part stays an `IO`/`StringIO` |
+| Paged lists | `<operation>_pages` returning an `Enumerable` `Paginator` with `items` and `pages` (`Enumerator`s) and `Page` values (D123, D124) | Ruby's lazy sequence is an `Enumerator`; the cursor lives in the Options object whose `copy_with` gives each page its own |
 | Case of names | snake_case operations, variables and files; enum constants upper case | Ruby convention |
 | Client credentials | `Client.new(authenticator = nil, transport_options = nil, <scheme>: nil, ...)`, one keyword per security scheme in snake case | Ruby has named arguments, so the credential of each scheme is a keyword named after it |
 | Server argument | `server:` is a keyword argument after `options` | A Ruby keyword argument follows every positional one; the call site names it |
@@ -453,7 +458,7 @@ F926 (token error sentences), F933 (depth and serialize sentences), F1065 (IPv6 
 
 ### Not done in ruby, with the reason
 - F229: keep-alive needs a new adapter dependency (#127); only the false code comment was corrected.
-- F912: Faraday's `net_http` read timeout bounds one read; an end-to-end deadline over a trickled body needs a streaming reader.
+- F912: Faraday's `net_http` read timeout bounds one read; an end-to-end deadline over a trickled body needs a streaming reader (a stream call has one: the idle timeout, see "Streaming: binary responses").
 - F1140: Faraday buffers each hop and `net_http` finishes the exchange, so an intermediate 3xx holds no connection to release.
 - F855 and F1180 are conforming since batch 9 (public `invalidate_access_token`, replay in `base_api.mustache`).
 
@@ -518,3 +523,59 @@ Every item of the wave-2 work list and of the owner decisions of 2026-11-17, wit
 - Trace context from the caller (#136): `OpenTelemetry.propagation.inject` reads `OpenTelemetry::Context.current` on the caller's thread (`Context.with_current`); no thread or fiber is created on the header path (D95).
 
 - **F865 (typed `additionalProperties`, #103), done.** The model gets `ADDITIONAL_PROPERTIES_TYPE`, and `ADDITIONAL_PROPERTIES_FORMAT` (`byte`, `uuid`) and `ADDITIONAL_PROPERTIES_NULLABLE` when the value schema needs them; `ObjectSerializer.deserialize_model` decodes each extra through `convert_to_type`, rejects a null unless nullable, and `sanitize_for_serialization` writes bytes as base64. The RBS is `Hash[String, V]?`.
+
+## Streaming: binary responses (capability 1 of #114, D118 to D122)
+
+### The transport returns an unread body
+Rule: `ApiClient#send_streaming(method, url, headers, body, timeout:, max_retries:, idle_timeout:)` returns an `ApiStreamResponse` (`status_code`, lower-cased `headers`, the open `body` that responds to `read(length)` and `close`, `read_bounded(max_bytes)`, an `inspect` of the status only). The default implementation raises `::NotImplementedError` with `<transport class> cannot stream: it does not implement send_streaming, ...`, and `BaseApi#dispatch_stream` raises the same for a transport object that has no `send_streaming` at all (a duck-typed client), so an injected `ApiClient` keeps working for buffered calls and never falls back to buffering. A non-2xx response is returned like any other (open body), as `send_request` returns it, and `BaseApi` reads at most 64 KiB of it, closes it and raises the typed error of a buffered call.
+Where: `api_client.mustache`, `api_stream_response.mustache`, `base_api.mustache` (`invoke_api_for_stream` is `invoke_api_for_result(stream: true)`, so the hook, the headers, the authentication and the 401 replay are the buffered code), `default_api_client.mustache`.
+Test: `default_api_client_unit_test` (`bhv_streaming_001` and the rest), `base_api_test` (008, 017, 018, 030), `client_test` (021), golden `pet_api_test` (009).
+
+### One header phase for both paths
+Rule: `transmit_with_retries`, `transmit` and `run_hop` take an optional `StreamSpec` (nil for a buffered call). The header merge, the retry loop, the redirect loop and the deadline are shared; only `run_hop` differs: for a stream it calls `open_hop`, which runs the Faraday request on a producer thread (`StreamBody#start`) and returns the `StreamBody` as soon as the status and headers are known, so the response that the retry and redirect code looks at has `status` and `headers` like a Faraday response and a hop that is retried or followed is closed (`abort_hop`). The call `timeout` is the wait for that head, so it stops at the headers. A stream call advertises `gzip, deflate` only. The head is reported by `DefaultApiClient::HeadSignal`, mixed into the SDK's own `Net::HTTP` object through the adapter block; a supplied connection has no such hook, so its head is reported with the first body chunk (or at the end of an empty body).
+Where: `default_api_client.mustache`.
+Test: every existing `default_api_client_unit_test` row, `bhv_streaming_010`, `014`, `016`.
+
+### The body: idle timeout, truncation, decoding, cancellation
+Rule: the producer pushes the head, the chunks (`on_data`) and the end through a `SizedQueue` of 8, so a slow reader makes it wait. A read waits on the queue for at most `idle_timeout` (`Queue#pop(timeout:)`, which is why the floor of Ruby 3.2 matters) and raises `NetworkTimeoutError`; the producer's own read timeout is set to a year, since the SDK bounds the wait itself. A producer failure after the head is raised from the read as `StreamError` (`NetworkTimeoutError` for a Faraday timeout, an `ApiError` with the real status for a gzip or deflate body that does not decode), and `net_http` already raises when a body ends before its `Content-Length` (`ignore_eof = false`). `close` and `cancel` stop the producer thread, which closes the socket without draining the body, and close the queue to wake a blocked reader; an exception raised into a reading thread (a cancel) aborts the stream and propagates as it is, never as a timeout. A stream that is not closed and not read to its end keeps its producer thread and socket until the process ends.
+Where: `stream_body.mustache`, `default_api_client.mustache`, `transport_options.mustache` (`idle_timeout`, milliseconds, default 60000, `0` or `nil` disables), `errors/stream_error.mustache`.
+Test: `default_api_client_unit_test` (`bhv_streaming_011`, `012`, `013`, `015`, `019`, `020`, `031`, `032`, `033`).
+
+### Closing the client cancels open streams
+Rule: `DefaultApiClient` counts an open stream as an in-flight request until it ends, is closed or is cancelled, and tracks it. `close` marks the client closed, cancels every open stream (each frees its count, the last one releases the connection) and returns; requests in flight that are not streams finish as before. A stream whose head arrives after `close` is closed and raises the closed-client error. The next read of a cancelled stream raises `RuntimeError` ("ApiClient has been closed and can no longer send requests").
+Where: `default_api_client.mustache`, `stream_body.mustache`.
+Test: `client_test` (`bhv_streaming_021`).
+
+### Binary operations return `ByteStream`
+Rule: `BetterRubyCodegen.markBinaryStream` sets `streamsBinary` on `vendorExtensions.op` and rewrites `returnType` to `ByteStream` (and clears `isResponseFile`) for an operation whose `streamKind` is `binary`, so the operation, `..._with_http_info`, the YARD tags and the RBS say `ByteStream` and `api.mustache` calls `invoke_api_for_stream`. `ByteStream` has `status_code`, `headers`, `bytes_delivered`, `read(length = nil, outbuf = nil)` (the semantics of `IO#read`), `each(chunk_size)`, an idempotent `close`, `closed?`, a `read_all` that reads everything and closes, and an `inspect` of status and bytes delivered; `ApiResult#raw_body` is empty. The README and SKILLS Streaming fence calls the first binary operation of the spec (`postProcessSupportingFileData`).
+Where: `BetterRubyCodegen`, `api/api.mustache`, `api/api_rbs.mustache`, `byte_stream.mustache`, `readme.mustache`, `skills.mustache`.
+Test: golden `pet_api_test` (`bhv_streaming_009`, the existing avatar, document and photo rows now close their stream), `default_api_client_unit_test` (`bhv_streaming_029`).
+
+## Streaming: JSON Lines and server-sent events (capability 2 of #114, D120 to D122)
+
+### Stream-only operations
+Rule: `BetterRubyCodegen.markBinaryStream` also sets `streamsSse`, `streamsJsonLines`, `streamTyped` and `streamItemRuby` for an operation whose `streamOnly` decorator is true, and rewrites `returnType` to `SseStream` or `JsonLinesStream`. `api.mustache` then emits only `<operation>_stream(<parameters>, options = nil, stream_options = nil)` (no buffered method, no `_with_http_info`), built from the same partials as the buffered method (`api/operation_prelude`, `operation_doc_args`, `operation_call_tail`), and `api_rbs.mustache` lists only the stream method. `sseTerminator` reaches the SSE call as `terminator:`. The README and SKILLS fences call the first JSON Lines and the first SSE operation of the spec (`postProcessSupportingFileData`).
+Where: `BetterRubyCodegen`, `api/api.mustache`, `api/api_rbs.mustache`, `api/operation_*.mustache`, `readme.mustache`, `skills.mustache`.
+Test: golden `store_api_test` (`bhv_streaming_028`), `client_test` (the interface rows).
+
+### The parser and the two carriers
+Rule: `EventStream::LineReader` splits on CRLF, LF and a lone CR with a skip-LF flag (a CR at the end of a chunk followed by an LF in the next one is one line end), drops a BOM, raises `TooLongError` past `max_event_bytes`, and reports an unterminated last line through `terminated?`; `SseParser` follows the WHATWG grammar (a cut-off event is dropped, an empty data buffer keeps the id, a retry value only counts as digits, an id with NUL is ignored). `JsonLinesStream` skips blank lines, decodes each line with `ObjectSerializer.deserialize`, and raises `SerializationError` naming the 1-based line; a plain `String` item type is not decoded. Both are `Enumerable`; a failure ends the stream and closes the connection.
+Where: `event_stream.mustache`, `json_lines_stream.mustache`.
+Test: `event_stream_test` (the one mirror file: `bhv_streaming_002` to `005`, `bhv_sse_001` to `005`, `008` to `011`, `014`, `016`, `017`, `019`, `021` to `023`), `default_api_client_unit_test` (`bhv_streaming_006`, `007`).
+
+### Reconnect
+Rule: `SseStream` opens its first connection in `SseStream.open` (a failure is raised there) and reconnects after a clean end, a `NetworkError` or an idle timeout. A clean end counts against `max_reconnects` like a failure: `StreamError` once it is used up, nothing raised for `0`. The wait is the server `retry`, else `Retry-After` (429, 502, 503, 504, capped at 60 s), else `reconnect_delay` doubling to 30 s with up to 25% jitter (`reconnect_wait_ms`, pure, tested without sleeping). Each connection is a call through `invoke_api_for_result(stream: true)`, so the hook, headers and token are built again, and `Last-Event-ID` is sent only when it is not empty. No reconnect after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream` (`SerializationError`), a cancellation or `client.close`; the counter resets after an event; a request with a body does not reconnect unless `max_reconnects` is set. An event named `error` raises `ApiError` with the real status and the data as its body.
+Where: `sse_stream.mustache`, `base_api.mustache` (`invoke_api_for_sse`, `invoke_api_for_json_lines`).
+Test: `default_api_client_unit_test` (`bhv_sse_007`, `015`, `018`), `base_api_test` (`bhv_sse_006`, `012`, `013`, `020`).
+
+## Uploads and pagination (capabilities 3 and 4 of #114, D121, D123, D124)
+
+### A raw binary request body is a `BodySource`
+Rule: `BetterRubyCodegen.markBinaryUpload` (before the shared pass, so the signature arguments copy it) sets the body type of an operation whose body is `format: binary`, not multipart, to `BodySource`, which `toRbsApiType` qualifies as `::<Module>::BodySource`. `BodySource` (`body_source.mustache`) is replayable (`of`, `of_file`, `from_factory`) or single use (`once`); `BaseApi#serialize_body` hands it through untouched. `DefaultApiClient#dispatch` opens the source for one send, frames it (`Content-Length` for a known length, chunked otherwise, a `String` for bytes) and `release`s what the SDK opened; a retry, a 307 or 308 and a 401 replay open it again when it is replayable, and a single-use source is never retried and refuses a 307 or 308 with `Refusing to replay a streamed request body` (`ApiError`). `HeadSignal#request` turns Net::HTTP's own retry off for a streamed request. `SseStream.open(single_use_body: true)` never reconnects.
+Where: `body_source.mustache`, `default_api_client.mustache`, `base_api.mustache`, `sse_stream.mustache`, `BetterRubyCodegen`.
+Test: `default_api_client_unit_test` (`bhv_streaming_023` to `027`), `event_stream_test` (`bhv_sse_016`), golden `pet_api_test` (the avatar rows).
+
+### `<operation>_pages`, `Paginator`, `Page`, `PaginationError`
+Rule: the shared detector computes `vendorExtensions.op.pagination`; the templates only render it. `api/operation_pages.mustache` emits `<op>_pages` with the base method's parameters, which calls `Paginator.of_cursor(start:, fetch:, items:, next_cursor:, request_path:)` (each page is `<op>_with_http_info(paged_options.copy_with(cursor: token))`) or `Paginator.of_link(base_url:, fetch:, items:, request_path:)` (each page is `<op>_page(..., page_url:)`, whose body is the buffered call with the path replaced by the absolute URL and the query cleared; `invoke_api_for_result` joins an authentication query to a URL that already has one with `&`). `Paginator` is an `Enumerable` whose `items` and `pages` build a fresh walker per call, so nothing is read before the first read, there is one request per page, and a second loop starts again. An end is an absent, nil or empty cursor or no `rel="next"`; a cursor equal to the one just sent (or a `Link` to the page just read, or a foreign origin) is held back: its page is delivered and the next read raises `PaginationError`, a direct child of the root error that carries the path without the query. The Options object of a paged operation gets `copy_with`.
+Where: `paginator.mustache`, `page.mustache`, `link_header.mustache`, `errors/pagination_error.mustache`, `api/api.mustache`, `api/api_rbs.mustache`, `api/operation_pages.mustache`, `api/options*.mustache`, `base_api.mustache`, `BetterRubyCodegen` (`hasPagesMethod`, the `pagedOperation` of the README and SKILLS).
+Test: golden `pet_api_test` (`bhv_pagination_001` to `032`, over `PagedServer` in `test_helper`, an in-process stateful server).

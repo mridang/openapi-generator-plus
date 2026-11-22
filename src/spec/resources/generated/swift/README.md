@@ -124,6 +124,83 @@ func getDefaultsCancelled(client: Client) async {
 }
 ```
 
+## Streaming
+
+An operation whose success response is binary (an octet stream, an image, `type: string, format: binary`) returns a `ByteStream` instead of the whole body in memory, so a large download never has to fit in memory. The call returns as soon as the response headers arrive, and the body is read as you consume it. A `ByteStream` has the status code, the lower-cased headers and an idempotent `close()` that aborts the connection instead of draining it, so close it when you stop early (`defer`). `readAll()` reads the rest into memory and leaves the stream closed.
+
+```swift file
+import Foundation
+import PetstoreClient
+
+func saveDownload(client: Client, petId: Int64, documentId: Int64, to target: URL) async throws {
+    let stream = try await client.pet.downloadPetDocument(petId: petId, documentId: documentId)
+    defer { stream.close() }
+    print(stream.statusCode)
+    _ = FileManager.default.createFile(atPath: target.path, contents: nil)
+    let handle = try FileHandle(forWritingTo: target)
+    defer { try? handle.close() }
+    for try await chunk in stream {
+        try handle.write(contentsOf: chunk)
+    }
+}
+```
+
+The call `timeout` covers the wait for the response headers and stops there. `idleTimeout` (in `TransportOptions`, default 60 seconds, `0` or `nil` disables it) bounds the gap between two reads of the body and raises `NetworkTimeoutError`. Retries, redirects, token refresh and the error contract apply up to the headers exactly as for a buffered call; a request is never retried after the first body byte, and a non-2xx status raises the usual typed error with its body read up to 64 KiB and never returns a stream. A connection reset, or a body that ends before its declared `Content-Length`, raises `StreamError`, a `NetworkError` with status 0. `client.close()` cancels the streams that are still open, and their next read raises the closed-client error. A custom transport that does not implement `sendStreaming` fails a stream call with `ConfigurationError.unsupported` naming it, and its buffered calls keep working.
+
+An operation whose request body is raw binary (`type: string, format: binary`) takes a `BodySource` instead of buffering the bytes, so a large upload never has to fit in memory. A `BodySource` is replayable, made with `BodySource.of(data)`, `BodySource.ofFile(url)` or `BodySource.fromFactory(factory)` (a factory that opens a fresh sequence each time), or single use, made with `BodySource.once(stream)`. The body is sent as it is read: a known length (bytes, a file, or a length you pass) goes out as `Content-Length` and an unknown length is sent chunked. A replayable body is read again for a retry after a 5xx, a 429 or a network error and for a 307 or 308 redirect. A single-use body is never retried, so the original error is raised unchanged, and a 307 or 308 is refused with `Refusing to replay a streamed request body`; it is never buffered to make a replay possible. The SDK never closes a stream you pass to `once` and closes the streams it opens itself from a file or a factory. Multipart bodies stay buffered. A 401 that refreshes the token follows the same rule, and an event stream request with a single-use body is never reconnected.
+
+An operation whose success response is JSON Lines (`application/x-ndjson`, `application/jsonl`, `application/jsonlines`) or server-sent events (`text/event-stream`) has no buffered method. It has a `<operation>Stream` method that takes the operation's parameters, its options object and a trailing `StreamOptions`, and returns a `JsonLinesStream<T>` of the schema type or an `SseStream<T>` of `ServerSentEvent<T>` (`id`, `event`, `data`, `retry` and the raw `data` text; `T` is the schema of the `data`, or a string). Iterate it, and close it when you stop early. A JSON Lines line that does not decode, and a line or event longer than `maxEventBytes` (1 MiB), raise `SerializationError` and end the stream.
+
+```swift file
+import PetstoreClient
+
+func readJsonLinesFeed(client: Client) async throws {
+    let feed = try await client.store.exportOrdersStream()
+    defer { feed.close() }
+    for try await item in feed {
+        print(item)
+    }
+}
+```
+
+```swift file
+import PetstoreClient
+
+func readSseFeed(client: Client) async throws {
+    let feed = try await client.store.watchNoticesStream()
+    defer { feed.close() }
+    for try await event in feed {
+        print(event.data)
+    }
+}
+```
+
+An event stream reconnects when the connection ends, fails or stays silent for the idle timeout: it asks again with fresh headers and `Last-Event-ID`, waits the server's `retry` value or `reconnectDelay` (1 second, doubling to 30 seconds with jitter), and raises the last failure after `maxReconnects` failures in a row without an event (5; 0 for a request with a body; `-1` is unlimited). It never reconnects after a 204, a status other than 408, 429 and 5xx, a response that is not `text/event-stream`, a cancellation or `client.close()`. An event named `error` raises `ApiError` with the response status and the data as its body, and a comment line such as a heartbeat counts as activity for the idle timeout. The generator option `sseTerminator` names a data value (such as `[DONE]`) that ends the stream and is not delivered. `StreamOptions` also takes `idleTimeout` and `lastEventId`.
+
+## Pagination
+
+An operation that returns a list one page at a time has a `<operation>Pages` method next to its plain method. It takes the same parameters in the same order and returns a `Paginator<T, C>`, where `T` is the item type and `C` is the type of the cursor parameter. The method sends no request: the first request goes out when you first read an item or a page, and each next request goes out only when you ask for more, so stopping early sends nothing further and leaves nothing to close. Read the items with `for try await item in paginator`, or the pages with `pages()`, an `AsyncSequence` of `Page<T, C>` whose values have `items`, `nextCursor` and `result`, the same `ApiResult` that the `WithHTTPInfo` variant returns, so the status and headers stay reachable. Reading again starts again from the starting position.
+
+```swift file
+import PetstoreClient
+
+func readEverything(client: Client) async throws {
+    let list = client.pet.listPetCatalogPages()
+    for try await item in list {
+        print(item)
+    }
+    for try await page in list.pages() {
+        print("\(page.items.count) items, status \(page.result.statusCode)")
+    }
+}
+```
+
+The cursor you pass to the method is the starting position, and the next cursor of a page resumes the list: pass it as the starting cursor of a new call. The page size and every other parameter, option and header are repeated unchanged on each page request, and each page is an ordinary call with its own retries, timeout, redirects, authentication and redaction. An error on a later page is raised from the read that needed it, after the items of the earlier pages were delivered, and ends the iteration; the SDK never skips a page. A list ends when the next cursor is absent, `nil` or empty, and an empty page with a next cursor continues. A page that returns the cursor that was just sent raises `PaginationError`, a direct child of `OpenAPIError`, after its items were delivered, instead of looping. There is no total limit and no collect-all: use `break` or `prefix`.
+
+A list that is followed by a `Link` header (`rel="next"`, RFC 8288) takes the next URL from the header of each response. A next URL that leaves the scheme, host or port of the client is refused with `PaginationError` and nothing, no credentials either, is sent to it; such a method has no starting cursor, so it cannot resume.
+
+The generator finds a paged operation by its names: a GET with one JSON 2xx response that has one array property, and either one cursor query parameter among `cursor`, `after`, `page_token`, `next_token`, `continuation_token` and `marker` paired with one next-cursor property among `next_cursor`, `next_page_token`, `next_token`, `next_marker`, `next_continuation_token`, `continuation_token` and `next` of the same type, or a `Link` header declared on the response. An operation that is ambiguous, or is streamed, keeps only its plain method, and the generation log names it and says why. The `x-fern-pagination` and `x-speakeasy-pagination` (cursor type) extensions are read as hints. The generator option `paginationOverrides` (a JSON object that maps an operation id to `none` or to `{style, requestParam, responseProperty, itemsProperty}`) wins over a hint and over inference, and `pagination=off` switches the feature off.
+
 ## Custom HTTP client
 
 `TransportOptionsBuilder.session(_:)` sends every request through your own `URLSession`
@@ -172,7 +249,7 @@ and loses up to 25% to jitter; a `Retry-After` header (seconds or an HTTP date,
 capped at 60 s) is used instead when the server sends one. The request timeout
 is the single end-to-end budget: retries never extend it, and a wait that does
 not fit in what is left is skipped. Every retry is a fresh request that asks the
-authenticator for its headers again. A stream body and the OAuth2 token request
+authenticator for its headers again. A single-use `BodySource` and the OAuth2 token request
 are never retried, and a request that timed out is not retried.
 
 ## Per-call options
@@ -233,7 +310,8 @@ timeout settings.
 request made afterwards throws `ConfigurationError.invalidState` with the text
 `ApiClient has been closed and can no longer send requests`. A request already in
 flight finishes, retries included, and the `URLSession` the SDK built is released when
-the last of them ends (at once when none is running). A second `close()` does nothing,
+the last of them ends (at once when none is running). Streams that are still open are
+cancelled. A second `close()` does nothing,
 and a `URLSession` you supplied is never invalidated.
 
 ## Cookie parameters
@@ -521,12 +599,6 @@ loudly with `SerializationError`.
 lower-cased names. A header the server repeats (`Link`, `Set-Cookie`) is joined
 into one value with `, ` in the order it arrived, so a `Set-Cookie` value is not
 parsed for you.
-
-## Streaming
-
-Request and response bodies are read and sent whole; there is no streaming of a
-response body. Inject your own transport through `TransportOptionsBuilder.session(_:)`
-or `ApiClient` when you need to stream.
 
 ## Configuration and transport options
 

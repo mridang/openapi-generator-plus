@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -62,7 +63,9 @@ class OperationDecoratorTest {
             "streamItemType",
             "streamEventIsText",
             "hasStreamRequestBody",
-            "streamMethodName");
+            "streamMethodName",
+            "hasPagesMethod",
+            "pagesMethodName");
 
     /**
      * Catalog of parameter-level decorator keys this test guards.
@@ -217,6 +220,342 @@ class OperationDecoratorTest {
         op.nickname = "replace_blob";
         ((AbstractBetterCodegen) new BetterJavaCodegen()).populateOperationDecorators(op);
         assertEquals("replace_blob_stream", decorator(op).get("streamMethodName"));
+    }
+
+    // ---- Pagination (#163, D123, D124) ------------------------------------------------------
+
+    private static CodegenParameter queryParam(String name, boolean required, boolean integer) {
+        final CodegenParameter p = new CodegenParameter();
+        p.baseName = name;
+        p.paramName = name.replaceAll("_([a-z])", "$1");
+        p.required = required;
+        p.isString = !integer;
+        p.isInteger = integer;
+        p.dataType = integer ? "Integer" : "String";
+        return p;
+    }
+
+    private static CodegenProperty prop(String name, boolean array, boolean string) {
+        final CodegenProperty p = new CodegenProperty();
+        p.baseName = name;
+        p.name = name;
+        p.isArray = array;
+        p.isString = string;
+        if (array) {
+            p.items = new CodegenProperty();
+            p.items.dataType = "Item";
+        }
+        return p;
+    }
+
+    private static org.openapitools.codegen.CodegenResponse jsonResponse(String code, CodegenProperty schema) {
+        final org.openapitools.codegen.CodegenResponse r = new org.openapitools.codegen.CodegenResponse();
+        r.code = code;
+        final java.util.LinkedHashMap<String, org.openapitools.codegen.CodegenMediaType> content =
+                new java.util.LinkedHashMap<>();
+        content.put("application/json", new org.openapitools.codegen.CodegenMediaType(
+                schema, new java.util.LinkedHashMap<>(), new java.util.HashMap<>()));
+        r.setContent(content);
+        return r;
+    }
+
+    private static CodegenProperty page(CodegenProperty... vars) {
+        final CodegenProperty p = new CodegenProperty();
+        p.dataType = "ItemPage";
+        p.vars = new ArrayList<>(List.of(vars));
+        return p;
+    }
+
+    /** A GET list with an optional limit and cursor and a page of items and a next cursor. */
+    private static CodegenOperation tokenOperation() {
+        final CodegenOperation op = bareOperation();
+        op.httpMethod = "GET";
+        op.queryParams = new ArrayList<>(List.of(queryParam("limit", false, true), queryParam("cursor", false, false)));
+        op.responses = new ArrayList<>(List.of(jsonResponse("200",
+                page(prop("items", true, false), prop("next_cursor", false, true)))));
+        return op;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> pagination(CodegenOperation op) {
+        return Objects.requireNonNull((Map<String, Object>) decorator(op).get("pagination"));
+    }
+
+    private static CodegenOperation populated(CodegenOperation op) {
+        return populated(new BetterJavaCodegen(), op);
+    }
+
+    private static CodegenOperation populated(AbstractBetterCodegen codegen, CodegenOperation op) {
+        codegen.populateOperationDecorators(op);
+        return op;
+    }
+
+    @Test
+    void aTokenCursorListGetsAPagedMethodThatReadsTheNamesOfItsStyle() {
+        final CodegenOperation op = populated(tokenOperation());
+        assertEquals(true, decorator(op).get("hasPagesMethod"));
+        assertEquals("listItemsPages", decorator(op).get("pagesMethodName"));
+        final Map<String, Object> p = pagination(op);
+        assertEquals("token", p.get("style"));
+        assertEquals("inference", p.get("source"));
+        assertEquals("cursor", p.get("requestParam"));
+        assertEquals("String", p.get("cursorType"));
+        assertEquals("next_cursor", p.get("responseProperty"));
+        assertEquals("items", p.get("itemsProperty"));
+        assertEquals("Item", p.get("itemType"));
+        assertEquals(false, p.get("isLink"));
+    }
+
+    @Test
+    void everyTokenNameOfTheDesignTableIsRecognisedWithoutCaseOrSeparators() {
+        for (final String request : List.of("cursor", "after", "page_token", "next-token", "continuationToken", "marker")) {
+            for (final String response : List.of("next_cursor", "nextPageToken", "next_token", "next-marker",
+                    "NextContinuationToken", "continuation_token", "next")) {
+                final CodegenOperation op = tokenOperation();
+                op.queryParams = new ArrayList<>(List.of(queryParam(request, false, false)));
+                op.responses = new ArrayList<>(List.of(jsonResponse("200",
+                        page(prop("items", true, false), prop(response, false, true)))));
+                populated(op);
+                assertEquals(true, decorator(op).get("hasPagesMethod"), request + " / " + response);
+            }
+        }
+    }
+
+    @Test
+    void theNameOfThePagedMethodFollowsTheCasing() {
+        final CodegenOperation op = tokenOperation();
+        op.nickname = "list_items";
+        populated(op);
+        assertEquals("list_items_pages", decorator(op).get("pagesMethodName"));
+    }
+
+    @Test
+    void aDeclaredLinkHeaderOnAnArrayBodyGetsAPagedMethod() {
+        final CodegenOperation op = bareOperation();
+        op.httpMethod = "GET";
+        final CodegenProperty body = prop("body", true, false);
+        final org.openapitools.codegen.CodegenResponse r = jsonResponse("200", body);
+        r.headers.add(prop("Link", false, true));
+        op.responses = new ArrayList<>(List.of(r));
+        populated(op);
+        assertEquals(true, decorator(op).get("hasPagesMethod"));
+        final Map<String, Object> p = pagination(op);
+        assertEquals("link", p.get("style"));
+        assertEquals(true, p.get("isLink"));
+        assertEquals(true, p.get("itemsFromBody"));
+        assertEquals("Item", p.get("itemType"));
+    }
+
+    @Test
+    void aLinkHeaderOnAnObjectBodyReadsTheOneArrayProperty() {
+        final CodegenOperation op = bareOperation();
+        op.httpMethod = "GET";
+        final org.openapitools.codegen.CodegenResponse r =
+                jsonResponse("200", page(prop("rows", true, false), prop("total", false, false)));
+        r.headers.add(prop("link", false, true));
+        op.responses = new ArrayList<>(List.of(r));
+        populated(op);
+        assertEquals("rows", pagination(op).get("itemsProperty"));
+        assertEquals(false, pagination(op).get("itemsFromBody"));
+    }
+
+    @Test
+    void anOperationThatIsNotEligibleGetsNoPagedMethod() {
+        // two array properties make the item list ambiguous
+        CodegenOperation op = tokenOperation();
+        op.responses = new ArrayList<>(List.of(jsonResponse("200",
+                page(prop("items", true, false), prop("owners", true, false), prop("next_cursor", false, true)))));
+        assertNotPaged(op);
+        // two cursor parameter candidates
+        op = tokenOperation();
+        op.queryParams.add(queryParam("marker", false, false));
+        assertNotPaged(op);
+        // two next-cursor candidates
+        op = tokenOperation();
+        op.responses = new ArrayList<>(List.of(jsonResponse("200",
+                page(prop("items", true, false), prop("next_cursor", false, true), prop("next", false, true)))));
+        assertNotPaged(op);
+        // not a GET
+        op = tokenOperation();
+        op.httpMethod = "POST";
+        assertNotPaged(op);
+        // two 2xx responses
+        op = tokenOperation();
+        op.responses.add(jsonResponse("201", page(prop("items", true, false))));
+        assertNotPaged(op);
+        // a required cursor has no first-request value
+        op = tokenOperation();
+        op.queryParams.get(1).required = true;
+        assertNotPaged(op);
+        // a cursor with no next-cursor property, and the other way round
+        op = tokenOperation();
+        op.responses = new ArrayList<>(List.of(jsonResponse("200", page(prop("items", true, false)))));
+        assertNotPaged(op);
+        op = tokenOperation();
+        op.queryParams = new ArrayList<>(List.of(queryParam("limit", false, true)));
+        assertNotPaged(op);
+        // a token cursor needs an object, not an array body
+        op = tokenOperation();
+        op.responses = new ArrayList<>(List.of(jsonResponse("200", prop("body", true, false))));
+        assertNotPaged(op);
+        // a token cursor and a Link header are two styles
+        op = tokenOperation();
+        op.responses.get(0).headers.add(prop("Link", false, true));
+        assertNotPaged(op);
+        // a cursor of another type than the response property cannot be followed
+        op = tokenOperation();
+        op.queryParams.set(1, queryParam("cursor", false, true));
+        assertNotPaged(op);
+        // an operation with a server of its own
+        op = tokenOperation();
+        op.servers = new ArrayList<>(List.of(new org.openapitools.codegen.CodegenServer()));
+        assertNotPaged(op);
+        // an operation that is streamed
+        op = tokenOperation();
+        final org.openapitools.codegen.CodegenResponse sse = new org.openapitools.codegen.CodegenResponse();
+        sse.code = "200";
+        final java.util.LinkedHashMap<String, org.openapitools.codegen.CodegenMediaType> content = new java.util.LinkedHashMap<>();
+        content.put("text/event-stream", media("Event", false));
+        sse.setContent(content);
+        op.responses = new ArrayList<>(List.of(sse));
+        assertNotPaged(op);
+    }
+
+    @Test
+    void anOperationWithNoPaginationSignalGetsNoPagedMethod() {
+        final CodegenOperation op = bareOperation();
+        op.httpMethod = "GET";
+        op.responses = new ArrayList<>(List.of(jsonResponse("200", page(prop("items", true, false)))));
+        assertNotPaged(op);
+    }
+
+    private static void assertNotPaged(CodegenOperation op) {
+        populated(op);
+        assertEquals(false, decorator(op).get("hasPagesMethod"));
+        assertEquals(null, decorator(op).get("pagination"));
+    }
+
+    private static BetterJavaCodegen withPaginationOptions(@javax.annotation.Nullable String mode, @javax.annotation.Nullable Object overrides) {
+        final BetterJavaCodegen codegen = new BetterJavaCodegen();
+        if (mode != null) {
+            codegen.additionalProperties().put("pagination", mode);
+        }
+        if (overrides != null) {
+            codegen.additionalProperties().put("paginationOverrides", overrides);
+        }
+        codegen.processOpts();
+        return codegen;
+    }
+
+    @Test
+    void theOverrideOptionPagesAnOperationThatInferenceLeavesAlone() {
+        final String json = "{\"listItems\":{\"style\":\"token\",\"requestParam\":\"pos\","
+                + "\"responseProperty\":\"following\",\"itemsProperty\":\"rows\"}}";
+        final CodegenOperation op = bareOperation();
+        op.httpMethod = "GET";
+        op.queryParams = new ArrayList<>(List.of(queryParam("pos", false, false)));
+        op.responses = new ArrayList<>(List.of(jsonResponse("200",
+                page(prop("rows", true, false), prop("other", true, false), prop("following", false, true)))));
+        populated(new BetterJavaCodegen(), op);
+        assertEquals(false, decorator(op).get("hasPagesMethod"));
+        populated(withPaginationOptions(null, json), op);
+        assertEquals(true, decorator(op).get("hasPagesMethod"));
+        assertEquals("override", pagination(op).get("source"));
+        assertEquals("pos", pagination(op).get("requestParam"));
+        assertEquals("rows", pagination(op).get("itemsProperty"));
+    }
+
+    @Test
+    void theOverrideOptionAcceptsAMapAndNoneSwitchesOneOperationOff() {
+        final CodegenOperation op = populated(tokenOperation());
+        assertEquals(true, decorator(op).get("hasPagesMethod"));
+        populated(withPaginationOptions(null, Map.of("listItems", "none")), op);
+        assertEquals(false, decorator(op).get("hasPagesMethod"));
+        assertEquals(null, decorator(op).get("pagination"));
+        final CodegenOperation other = tokenOperation();
+        other.operationId = "listOthers";
+        populated(withPaginationOptions(null, Map.of("listItems", "none")), other);
+        assertEquals(true, decorator(other).get("hasPagesMethod"), "another operation is not switched off");
+    }
+
+    @Test
+    void anOverrideThatCannotBeFollowedLeavesTheOperationManual() {
+        final CodegenOperation op = tokenOperation();
+        populated(withPaginationOptions(null, Map.of("listItems", Map.of("style", "offset"))), op);
+        assertEquals(false, decorator(op).get("hasPagesMethod"));
+        populated(withPaginationOptions(null, Map.of("listItems", Map.of("style", "token",
+                "requestParam", "missing", "responseProperty", "next_cursor"))), op);
+        assertEquals(false, decorator(op).get("hasPagesMethod"));
+    }
+
+    @Test
+    void aMalformedOverrideOptionIsRefused() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> withPaginationOptions(null, "not json"));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> withPaginationOptions("sometimes", null));
+    }
+
+    @Test
+    void paginationOffSwitchesTheWholeFeatureOff() {
+        final CodegenOperation op = tokenOperation();
+        populated(withPaginationOptions("off", null), op);
+        assertEquals(false, decorator(op).get("hasPagesMethod"));
+        assertEquals(null, decorator(op).get("pagination"));
+    }
+
+    private static CodegenOperation hintedOperation() {
+        final CodegenOperation op = bareOperation();
+        op.httpMethod = "GET";
+        op.queryParams = new ArrayList<>(List.of(queryParam("pos", false, false)));
+        op.responses = new ArrayList<>(List.of(jsonResponse("200",
+                page(prop("rows", true, false), prop("following", false, true)))));
+        op.vendorExtensions = new HashMap<>();
+        return op;
+    }
+
+    @Test
+    void aFernHintPagesAnOperationAndTheOverrideBeatsIt() {
+        final CodegenOperation op = hintedOperation();
+        op.vendorExtensions.put("x-fern-pagination", Map.of(
+                "cursor", "$request.pos", "next_cursor", "$response.following", "results", "$response.rows"));
+        populated(op);
+        assertEquals(true, decorator(op).get("hasPagesMethod"));
+        assertEquals("hint", pagination(op).get("source"));
+        assertEquals("pos", pagination(op).get("requestParam"));
+        assertEquals("following", pagination(op).get("responseProperty"));
+        assertEquals("rows", pagination(op).get("itemsProperty"));
+        populated(withPaginationOptions(null, Map.of("listItems", "none")), op);
+        assertEquals(false, decorator(op).get("hasPagesMethod"));
+        populated(withPaginationOptions(null, Map.of("listItems", Map.of("style", "token",
+                "requestParam", "pos", "responseProperty", "following", "itemsProperty", "rows"))), op);
+        assertEquals("override", pagination(op).get("source"));
+    }
+
+    @Test
+    void aSpeakeasyCursorHintPagesAnOperationAndAHintOfAnotherStyleIsIgnored() {
+        final CodegenOperation op = hintedOperation();
+        op.vendorExtensions.put("x-speakeasy-pagination", Map.of(
+                "type", "cursor",
+                "inputs", List.of(Map.of("name", "pos", "in", "parameters", "type", "cursor")),
+                "outputs", Map.of("nextCursor", "$.following", "results", "$.rows")));
+        populated(op);
+        assertEquals("hint", pagination(op).get("source"));
+        assertEquals("pos", pagination(op).get("requestParam"));
+        final CodegenOperation offset = hintedOperation();
+        offset.vendorExtensions.put("x-speakeasy-pagination", Map.of("type", "offsetLimit"));
+        populated(offset);
+        assertEquals(false, decorator(offset).get("hasPagesMethod"));
+    }
+
+    @Test
+    void aHintThatNamesAMissingParameterLeavesTheOperationManualWithoutFallingBackToInference() {
+        final CodegenOperation op = tokenOperation();
+        op.vendorExtensions = new HashMap<>();
+        op.vendorExtensions.put("x-fern-pagination", Map.of(
+                "cursor", "$request.nope", "next_cursor", "$response.next_cursor"));
+        populated(op);
+        assertEquals(false, decorator(op).get("hasPagesMethod"));
     }
 
     private static org.openapitools.codegen.CodegenMediaType media(String type, boolean isString) {

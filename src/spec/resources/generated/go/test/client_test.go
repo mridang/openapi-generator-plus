@@ -389,7 +389,7 @@ func TestBhvMocking001_Client_EveryGroupHasAnInterfaceTheClassImplements(t *test
 	t.Parallel()
 	var _ petstore.PetApiInterface = (*petstore.PetApi)(nil)
 	groupPetApi := reflect.TypeOf((*petstore.PetApiInterface)(nil)).Elem()
-	for _, name := range []string{"AddPet", "AddPetWithHTTPInfo", "AddPetPhotos", "AddPetPhotosWithHTTPInfo", "AddPetTreatment", "AddPetTreatmentWithHTTPInfo", "AttachPetFiles", "AttachPetFilesWithHTTPInfo", "DeletePet", "DeletePetWithHTTPInfo", "DownloadPetDocument", "DownloadPetDocumentWithHTTPInfo", "FindPetsBornOn", "FindPetsBornOnWithHTTPInfo", "FindPetsByStatus", "FindPetsByStatusWithHTTPInfo", "GetExternalPetInfo", "GetExternalPetInfoWithHTTPInfo", "GetMultiServerPetInfo", "GetMultiServerPetInfoWithHTTPInfo", "GetPetAvatar", "GetPetAvatarWithHTTPInfo", "GetPetAvatarThumbnail", "GetPetAvatarThumbnailWithHTTPInfo", "GetPetById", "GetPetByIdWithHTTPInfo", "GetPetByName", "GetPetByNameWithHTTPInfo", "GetPetByNote", "GetPetByNoteWithHTTPInfo", "GetPetPassport", "GetPetPassportWithHTTPInfo", "GetPetPhoto", "GetPetPhotoWithHTTPInfo", "GetPetSummary", "GetPetSummaryWithHTTPInfo", "GetPetTag", "GetPetTagWithHTTPInfo", "GetStagingPetInfo", "GetStagingPetInfoWithHTTPInfo", "SetPetAvatar", "SetPetAvatarWithHTTPInfo", "SetPetAvatarThumbnail", "SetPetAvatarThumbnailWithHTTPInfo", "SetPetPreferences", "SetPetPreferencesWithHTTPInfo", "UpdatePet", "UpdatePetWithHTTPInfo", "UploadPetCertificate", "UploadPetCertificateWithHTTPInfo", "UploadPetDocument", "UploadPetDocumentWithHTTPInfo"} {
+	for _, name := range []string{"AddPet", "AddPetWithHTTPInfo", "AddPetPhotos", "AddPetPhotosWithHTTPInfo", "AddPetTreatment", "AddPetTreatmentWithHTTPInfo", "AttachPetFiles", "AttachPetFilesWithHTTPInfo", "DeletePet", "DeletePetWithHTTPInfo", "DownloadPetDocument", "DownloadPetDocumentWithHTTPInfo", "FindPetsBornOn", "FindPetsBornOnWithHTTPInfo", "FindPetsByStatus", "FindPetsByStatusWithHTTPInfo", "GetExternalPetInfo", "GetExternalPetInfoWithHTTPInfo", "GetMultiServerPetInfo", "GetMultiServerPetInfoWithHTTPInfo", "GetPetAvatar", "GetPetAvatarWithHTTPInfo", "GetPetAvatarThumbnail", "GetPetAvatarThumbnailWithHTTPInfo", "GetPetById", "GetPetByIdWithHTTPInfo", "GetPetByName", "GetPetByNameWithHTTPInfo", "GetPetByNote", "GetPetByNoteWithHTTPInfo", "GetPetPassport", "GetPetPassportWithHTTPInfo", "GetPetPhoto", "GetPetPhotoWithHTTPInfo", "GetPetSummary", "GetPetSummaryWithHTTPInfo", "GetPetTag", "GetPetTagWithHTTPInfo", "GetStagingPetInfo", "GetStagingPetInfoWithHTTPInfo", "ListPetArchive", "ListPetArchiveWithHTTPInfo", "ListPetCatalog", "ListPetCatalogWithHTTPInfo", "ListPetEvents", "ListPetEventsWithHTTPInfo", "ListPetFeed", "ListPetFeedWithHTTPInfo", "ListPetMatches", "ListPetMatchesWithHTTPInfo", "ListPetNotes", "ListPetNotesWithHTTPInfo", "SetPetAvatar", "SetPetAvatarWithHTTPInfo", "SetPetAvatarThumbnail", "SetPetAvatarThumbnailWithHTTPInfo", "SetPetPreferences", "SetPetPreferencesWithHTTPInfo", "UpdatePet", "UpdatePetWithHTTPInfo", "UploadPetCertificate", "UploadPetCertificateWithHTTPInfo", "UploadPetDocument", "UploadPetDocumentWithHTTPInfo"} {
 		if _, ok := groupPetApi.MethodByName(name); !ok {
 			t.Errorf("expected PetApiInterface to list %s", name)
 		}
@@ -403,7 +403,7 @@ func TestBhvMocking001_Client_EveryGroupHasAnInterfaceTheClassImplements(t *test
 	}
 	var _ petstore.StoreApiInterface = (*petstore.StoreApi)(nil)
 	groupStoreApi := reflect.TypeOf((*petstore.StoreApiInterface)(nil)).Elem()
-	for _, name := range []string{"CreateAccount", "CreateAccountWithHTTPInfo", "DeleteOrder", "DeleteOrderWithHTTPInfo", "ExportOrders", "ExportOrdersWithHTTPInfo", "GetAuditTrail", "GetAuditTrailWithHTTPInfo", "GetBySwatch", "GetBySwatchWithHTTPInfo", "GetDefaults", "GetDefaultsWithHTTPInfo", "GetDepartment", "GetDepartmentWithHTTPInfo", "GetGroupedCategories", "GetGroupedCategoriesWithHTTPInfo", "GetInventory", "GetInventoryWithHTTPInfo", "GetMatrix", "GetMatrixWithHTTPInfo", "GetNativeValues", "GetNativeValuesWithHTTPInfo", "GetOrderById", "GetOrderByIdWithHTTPInfo", "GetOrderByTrackingId", "GetOrderByTrackingIdWithHTTPInfo", "GetStockItem", "GetStockItemWithHTTPInfo", "GetSwatch", "GetSwatchWithHTTPInfo", "GetSwatchGroups", "GetSwatchGroupsWithHTTPInfo", "GetTimestampGroups", "GetTimestampGroupsWithHTTPInfo", "GetTree", "GetTreeWithHTTPInfo", "PlaceOrder", "PlaceOrderWithHTTPInfo", "ReserveStock", "ReserveStockWithHTTPInfo", "SearchStore", "SearchStoreWithHTTPInfo", "WatchNotices", "WatchNoticesWithHTTPInfo", "WatchOrders", "WatchOrdersWithHTTPInfo"} {
+	for _, name := range []string{"CreateAccount", "CreateAccountWithHTTPInfo", "DeleteOrder", "DeleteOrderWithHTTPInfo", "ExportOrdersStream", "GetAuditTrail", "GetAuditTrailWithHTTPInfo", "GetBySwatch", "GetBySwatchWithHTTPInfo", "GetDefaults", "GetDefaultsWithHTTPInfo", "GetDepartment", "GetDepartmentWithHTTPInfo", "GetGroupedCategories", "GetGroupedCategoriesWithHTTPInfo", "GetInventory", "GetInventoryWithHTTPInfo", "GetMatrix", "GetMatrixWithHTTPInfo", "GetNativeValues", "GetNativeValuesWithHTTPInfo", "GetOrderById", "GetOrderByIdWithHTTPInfo", "GetOrderByTrackingId", "GetOrderByTrackingIdWithHTTPInfo", "GetStockItem", "GetStockItemWithHTTPInfo", "GetSwatch", "GetSwatchWithHTTPInfo", "GetSwatchGroups", "GetSwatchGroupsWithHTTPInfo", "GetTimestampGroups", "GetTimestampGroupsWithHTTPInfo", "GetTree", "GetTreeWithHTTPInfo", "PlaceOrder", "PlaceOrderWithHTTPInfo", "ReserveStock", "ReserveStockWithHTTPInfo", "SearchStore", "SearchStoreWithHTTPInfo", "WatchNoticesStream", "WatchOrdersStream"} {
 		if _, ok := groupStoreApi.MethodByName(name); !ok {
 			t.Errorf("expected StoreApiInterface to list %s", name)
 		}
@@ -1153,5 +1153,48 @@ func TestBhvMisc152_Client_ACallWhoseCancelSignalIsAlreadyAbortedSendsNothing(t 
 	}
 	if got := hits.Load(); got != 0 {
 		t.Errorf("expected no request sent, got %d", got)
+	}
+}
+
+func TestBhvStreaming021_Client_ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("tick"))
+		w.(http.Flusher).Flush()
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	t.Cleanup(func() {
+		close(release)
+		server.Close()
+	})
+	client := petstore.NewClient(mustBearer(t, server.URL, "test-token"), nil)
+	stream, err := client.Pet.GetPetAvatar(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	buffer := make([]byte, 4)
+	if _, err := io.ReadFull(stream, buffer); err != nil || string(buffer) != "tick" {
+		t.Fatalf("expected the first chunk, got %q (%v)", buffer, err)
+	}
+
+	started := time.Now()
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error closing the client: %v", err)
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Errorf("expected closing not to wait for the endless stream, it took %s", elapsed)
+	}
+
+	if _, err := stream.Read(make([]byte, 1)); !errors.Is(err, petstore.ErrClientClosed) {
+		t.Errorf("expected the next read to return ErrClientClosed, got %v", err)
+	}
+	if _, err := client.Pet.GetPetAvatar(context.Background(), int64(1)); !errors.Is(err, petstore.ErrClientClosed) {
+		t.Errorf("expected a new call to return ErrClientClosed, got %v", err)
 	}
 }

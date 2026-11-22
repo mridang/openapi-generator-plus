@@ -27,6 +27,7 @@ use crate::value_serializer::SerializedValue;
 
 /// ProblemsApi provides methods for the Problems API group.
 /// Operations that declare typed error responses
+#[derive(Clone)]
 pub struct ProblemsApi {
     base: BaseApi,
 }
@@ -184,6 +185,7 @@ impl ProblemsApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -314,6 +316,7 @@ impl ProblemsApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -446,6 +449,7 @@ impl ProblemsApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -576,6 +580,7 @@ impl ProblemsApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -710,6 +715,7 @@ impl ProblemsApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -841,6 +847,7 @@ impl ProblemsApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,

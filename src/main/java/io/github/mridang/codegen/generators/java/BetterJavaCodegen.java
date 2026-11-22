@@ -216,6 +216,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                     final boolean hasMultipleConsumes =
                             op.consumes != null && op.consumes.size() > 1;
                     op.vendorExtensions.put("hasMultipleConsumes", hasMultipleConsumes);
+                    markBinaryUpload(op);
                 }
             }
         }
@@ -227,6 +228,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             if (ops != null) {
                 for (final CodegenOperation op : ops) {
                     op.vendorExtensions.put("hasOptionalBodyOnly", hasOptionalBodyOnly(op));
+                    markBinaryStream(op);
                 }
             }
         }
@@ -250,6 +252,121 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 && !op.hasAuthMethods
                 && isEmpty(op.servers)
                 && (op.consumes == null || op.consumes.size() <= 1);
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. The first paged operation is handed over the same way, as
+     * {@code pagedOperation}. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator
+     * {@code streamsBinary} tells the templates to call {@code invokeApiForStream}.
+     */
+    @SuppressWarnings("unchecked")
+    static void markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+        final boolean sse = "sse".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean jsonLines = "jsonlines".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            final boolean typed = !"String".equals(item);
+            d.put("streamTyped", typed);
+            d.put("streamItemJava", item);
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of an {@code InputStream}. It runs before the shared pass, which copies
+     * the body type into the signature arguments. Multipart and every other body kind keep the
+     * type the spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
     }
 
     private static boolean isEmpty(@Nullable List<?> list) {
@@ -277,6 +394,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             return;
         }
         final Map<String, Object> d = (Map<String, Object>) decorators;
+        final Object pagination = d.get("pagination");
+        if (pagination instanceof Map) {
+            final Map<String, Object> p = (Map<String, Object>) pagination;
+            p.put(
+                    "javaPaginatorType",
+                    "Paginator<" + p.get("itemType") + ", "
+                            + (Boolean.TRUE.equals(p.get("isLink")) ? "Void" : p.get("cursorType")) + ">");
+        }
         for (final String key : new String[] {"signatureArgs", "signatureArgsNoOptions"}) {
             final Object list = d.get(key);
             if (list instanceof List) {
@@ -539,10 +664,26 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.java"),
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.java"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.java"),
+            new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.java"),
+            new SupportingFileSpec("errors/PaginationException.mustache", errorsFolder, "PaginationException.java"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.java"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.java"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.java"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.java"),
+            new SupportingFileSpec(
+                "api_stream_response.mustache", invokerFolder, "ApiStreamResponse.java"),
+            new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.java"),
+            new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.java"),
+            new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.java"),
+            new SupportingFileSpec(
+                "server_sent_event.mustache", invokerFolder, "ServerSentEvent.java"),
+            new SupportingFileSpec("stream_options.mustache", invokerFolder, "StreamOptions.java"),
+            new SupportingFileSpec(
+                "json_lines_stream.mustache", invokerFolder, "JsonLinesStream.java"),
+            new SupportingFileSpec("sse_stream.mustache", invokerFolder, "SseStream.java"),
+            new SupportingFileSpec("paginator.mustache", invokerFolder, "Paginator.java"),
+            new SupportingFileSpec("page.mustache", invokerFolder, "Page.java"),
+            new SupportingFileSpec("link_header.mustache", invokerFolder, "LinkHeader.java"),
             new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.java"),
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.java"),
             new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.java"),
@@ -861,6 +1002,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/ApiResultTest.mustache",
                             testFolder,
                             "ApiResultTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/EventStreamTest.mustache",
+                            testFolder,
+                            "EventStreamTest.java"));
         }
 
         if (generateTests) {
@@ -1654,6 +1800,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         context.put("modelPackage", modelPackage());
         context.put("className", className);
         context.put("operationId", op.operationId);
+        // A paged operation's Options object can copy itself, so every page is sent with its own cursor.
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        context.put(
+                "hasCopy",
+                opDecorators instanceof Map
+                        && Boolean.TRUE.equals(((Map<?, ?>) opDecorators).get("hasPagesMethod")));
         context.put("params", params);
         context.put("requiredParams", requiredParams);
         context.put("modelImports", new ArrayList<>(modelTypes));

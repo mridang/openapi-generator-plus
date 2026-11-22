@@ -1,5 +1,8 @@
 {{>api_info}}
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Testing
 @testable import {{packageName}}
 
@@ -115,12 +118,26 @@ import Testing
             lastMethod = method
             lastURL = url
             lastHeaders = headers
-            lastBody = body as? Data
+            lastBody = body as? Data ?? (body as? BodySource).flatMap { try? $0.open().data }
             return ApiHttpResponse(
                 statusCode: responseStatusCode,
                 body: responseBody,
                 headers: responseHeaders
             )
+        }
+
+        func sendStreaming(
+            method: String, url: String, headers: [String: String], body: Any?,
+            timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+        ) async throws -> ApiStreamResponse {
+            lastMethod = method
+            lastURL = url
+            lastHeaders = headers
+            lastBody = body as? Data ?? (body as? BodySource).flatMap { try? $0.open().data }
+            let contentType = responseHeaders.first { $0.key.lowercased() == "content-type" }?.value
+            return stubStreamResponse(
+                status: responseStatusCode, headers: responseHeaders,
+                body: stubBodyBytes(responseBody, contentType: contentType))
         }
     }
 
@@ -297,7 +314,7 @@ import Testing
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
 
-        let photo = try await api.getPetPhoto(petId: 1, photoId: 1)
+        let photo = try await api.getPetPhoto(petId: 1, photoId: 1).readAll()
 
         #expect(String(data: photo, encoding: .utf8) == "{\"id\":7,\"name\":\"photo\"}")
     }
@@ -1533,10 +1550,7 @@ import Testing
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
         let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
-        guard let decoded = Data(base64Encoded: result.rawBody) else {
-            Issue.record("rawBody was not valid base64: \(result.rawBody)")
-            return
-        }
+        let decoded = try await #require(result.data).readAll()
         #expect([UInt8](decoded) == original, "binary roundtrip must preserve bytes exactly")
     }
 
@@ -1550,10 +1564,7 @@ import Testing
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
         let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
-        guard let decoded = Data(base64Encoded: result.rawBody) else {
-            Issue.record("rawBody was not valid base64: \(result.rawBody)")
-            return
-        }
+        let decoded = try await #require(result.data).readAll()
         #expect([UInt8](decoded) == original, "every byte must round-trip exactly")
     }
 
@@ -1594,10 +1605,7 @@ import Testing
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
         let result = try await api.getPetAvatarWithHTTPInfo(petId: 1)
-        guard let decoded = Data(base64Encoded: result.rawBody) else {
-            Issue.record("rawBody was not valid base64: \(result.rawBody)")
-            return
-        }
+        let decoded = try await #require(result.data).readAll()
         #expect([UInt8](decoded) == original, "image/png roundtrip must preserve bytes exactly")
     }
 
@@ -2688,6 +2696,284 @@ import Testing
         #expect(text.contains("\"label\":\"x\""))
         #expect(!text.contains("additionalProperties"))
     }
+
+    // MARK: - Binary streams
+
+    /// Answers a stream call from a script of statuses, and keeps the headers each
+    /// call was sent and whether each response was closed.
+    private final class ScriptedStreamingClient: ApiClient, @unchecked Sendable {
+        private let lock = NSLock()
+        private var sentHeaders: [[String: String]] = []
+        private var closed: [Bool] = []
+        private let statuses: [Int]
+        private let body: Data
+        private let contentType: String
+
+        init(contentType: String, body: Data, statuses: [Int]) {
+            self.contentType = contentType
+            self.body = body
+            self.statuses = statuses
+        }
+
+        var streamHeaders: [[String: String]] { lock.withLock { sentHeaders } }
+
+        func wasClosed(_ index: Int) -> Bool { lock.withLock { closed[index] } }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            return ApiHttpResponse(statusCode: 200, body: "{}", headers: ["content-type": "application/json"])
+        }
+
+        func sendStreaming(
+            method: String, url: String, headers: [String: String], body: Any?,
+            timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+        ) async throws -> ApiStreamResponse {
+            let index: Int = lock.withLock {
+                sentHeaders.append(headers)
+                closed.append(false)
+                return sentHeaders.count - 1
+            }
+            return stubStreamResponse(
+                status: statuses[min(index, statuses.count - 1)], headers: ["content-type": contentType],
+                body: self.body,
+                onClose: { [self] in lock.withLock { closed[index] = true } })
+        }
+    }
+
+    /// A transport written before streaming existed: it implements the buffered call only.
+    private final class BufferedOnlyClient: ApiClient, @unchecked Sendable {
+        private let lock = NSLock()
+        private var url = ""
+
+        var sentURL: String { lock.withLock { url } }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            lock.withLock { self.url = url }
+            return ApiHttpResponse(statusCode: 200, body: "{}", headers: ["content-type": "application/json"])
+        }
+    }
+
+    private func streamParams(auth: Authenticator = BaseApi.noAuthSentinel) -> BaseApi.InvokeAPIParams {
+        return BaseApi.InvokeAPIParams(
+            method: "GET", path: "/items/blob", queryParams: [:], headerParams: [:], body: nil,
+            accepts: ["application/octet-stream"], contentType: "application/json",
+            returnType: "ByteStream", auth: auth, operationId: "downloadItem",
+            urlTemplate: "/items/blob")
+    }
+
+    /* A status that is not 2xx on a stream call raises the typed error with the error body, bounded, and returns no stream. */
+    @Test func testBhvStreaming008ANon2xxStreamingCallRaisesTheTypedErrorAndNeverReturnsAStream() async throws {
+        let client = ScriptedStreamingClient(
+            contentType: "application/json", body: Data("{\"message\":\"gone\"}".utf8), statuses: [404])
+        let failure = await #expect(throws: NotFoundError.self) {
+            _ = try await self.hookedBase(nil, transport: client).invokeAPIForStream(self.streamParams())
+        }
+        #expect(failure?.statusCode == 404)
+        #expect(failure?.responseBody?.contains("gone") == true)
+        #expect(failure?.requestPath == "/items/blob")
+        #expect(client.wasClosed(0), "the connection was closed after the error body")
+
+        let large = ScriptedStreamingClient(contentType: "text/plain", body: Data(count: 200_000), statuses: [502])
+        let bounded = await #expect(throws: BadGatewayError.self) {
+            _ = try await self.hookedBase(nil, transport: large).invokeAPIForStream(self.streamParams())
+        }
+        #expect(bounded?.responseBody?.count == 64 * 1024, "the error body is bounded")
+    }
+
+    /* A stream call sends the user agent, request id, trace context and authentication a buffered call sends. */
+    @Test func testBhvStreaming017AStreamingCallSendsTheSameHeadersAsABufferedCall() async throws {
+        let server = try LoopbackServer { _, _ in .ok("{}") }
+        defer { server.stop() }
+        let hook = RecordingHook()
+        hook.edit = { $0["traceparent"] = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01" }
+        let transport = try DefaultApiClient(
+            transportOptions: try TransportOptionsBuilder().injectRequestID(true).maxRetries(0).build())
+        let auth = try ApiKeyAuthenticator(
+            host: server.origin, keyParamName: "X-Api-Key", apiKey: "k-123", location: .header)
+        let config = ConfigurationBuilder().baseURL(server.origin).callHook(hook).build()
+        let api = BaseApi(apiClient: transport, config: config)
+        _ = try await api.invokeAPI(
+            BaseApi.InvokeAPIParams(
+                method: "GET", path: "/items/blob", queryParams: [:], headerParams: [:], body: nil,
+                accepts: ["application/octet-stream"], contentType: "application/json",
+                returnType: "String", auth: auth))
+        let stream = try await #require(api.invokeAPIForStream(streamParams(auth: auth)).data)
+        stream.close()
+
+        let buffered = try #require(server.requests.first)
+        let streamed = try #require(server.requests.last)
+        #expect(server.requests.count == 2)
+        for name in ["User-Agent", "X-Api-Key", "traceparent", "Accept"] {
+            #expect(streamed.header(name) != nil, "\(name)")
+            #expect(streamed.header(name) == buffered.header(name), "\(name)")
+        }
+        #expect(streamed.header("X-Request-ID") != nil)
+        #expect(streamed.header("X-Request-ID") != buffered.header("X-Request-ID"), "each call has its own request id")
+    }
+
+    /* A 401 on a stream call authenticated by a renewable token drops the token, replays once, and returns the replayed stream. */
+    @Test func testBhvStreaming018A401OnAStreamingCallRefreshesTheTokenAndReplaysOnce() async throws {
+        let client = ScriptedStreamingClient(
+            contentType: "application/octet-stream", body: Data("ok".utf8), statuses: [401, 200])
+        let auth = RotatingAuth()
+        let result = try await hookedBase(nil, transport: client).invokeAPIForStream(streamParams(auth: auth))
+        #expect(client.streamHeaders.count == 2)
+        #expect(client.streamHeaders[0]["Authorization"] == "Bearer t1")
+        #expect(client.streamHeaders[1]["Authorization"] == "Bearer t2")
+        #expect(auth.invalidations == 1)
+        #expect(client.wasClosed(0), "the refused response was closed unread")
+        #expect(String(decoding: try await #require(result.data).readAll(), as: UTF8.self) == "ok")
+
+        let refused = ScriptedStreamingClient(contentType: "application/octet-stream", body: Data(), statuses: [401])
+        await #expect(throws: UnauthorizedError.self) {
+            _ = try await self.hookedBase(nil, transport: refused).invokeAPIForStream(
+                self.streamParams(auth: RotatingAuth()))
+        }
+        #expect(refused.streamHeaders.count == 2, "a second 401 is not replayed again")
+    }
+
+    // MARK: - Event streams
+
+    /// Answers each event stream call with the next scripted body (an empty body is a 204,
+    /// the last one repeats) and keeps the headers it was sent.
+    private final class ScriptedEventClient: ApiClient, @unchecked Sendable {
+        private let lock = NSLock()
+        private var sentHeaders: [[String: String]] = []
+        private let bodies: [String]
+
+        init(_ bodies: [String]) {
+            self.bodies = bodies
+        }
+
+        var headersSent: [[String: String]] { lock.withLock { sentHeaders } }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            return ApiHttpResponse(statusCode: 200, body: "{}", headers: ["content-type": "application/json"])
+        }
+
+        func sendStreaming(
+            method: String, url: String, headers: [String: String], body: Any?,
+            timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+        ) async throws -> ApiStreamResponse {
+            let text: String = lock.withLock {
+                sentHeaders.append(headers)
+                return bodies[min(sentHeaders.count, bodies.count) - 1]
+            }
+            if text.isEmpty {
+                return stubStreamResponse(status: 204, headers: [:], body: Data())
+            }
+            return stubStreamResponse(
+                status: 200, headers: ["content-type": "text/event-stream"], body: Data(text.utf8))
+        }
+    }
+
+    /// An authenticator that hands out a new token every time it is asked.
+    private final class CountingAuth: BaseAuthenticator, @unchecked Sendable {
+        private let lock = NSLock()
+        private var count = 0
+
+        override func host() -> String { return "" }
+        override func authHeaders() async -> [String: String] {
+            let number = lock.withLock { () -> Int in
+                count += 1
+                return count
+            }
+            return ["Authorization": "Bearer n\(number)"]
+        }
+    }
+
+    /// Drains the event stream an event stream call returns.
+    private func drainEvents(
+        _ client: ApiClient, headers: [String: String] = [:], defaultHeaders: [String: String] = [:],
+        streamOptions: StreamOptions? = StreamOptions(reconnectDelay: 1), auth: Authenticator = BaseApi.noAuthSentinel
+    ) async throws {
+        var configuration = ConfigurationBuilder().baseURL("https://example.com")
+        for (name, value) in defaultHeaders {
+            configuration = configuration.defaultHeader(name: name, value: value)
+        }
+        let params = BaseApi.InvokeAPIParams(
+            method: "GET", path: "/items/events", queryParams: [:], headerParams: headers, body: nil,
+            accepts: ["text/event-stream"], contentType: "application/json", returnType: "String",
+            auth: auth, operationId: "watchItems", urlTemplate: "/items/events")
+        let stream = try await BaseApi(apiClient: client, config: configuration.build()).invokeAPIForSse(
+            params, streamOptions: streamOptions, decode: { (text: String) -> String in text })
+        for try await _ in stream {}
+    }
+
+    private func header(_ name: String, in headers: [String: String]) -> String? {
+        return headers.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
+    }
+
+    private func headerCount(_ name: String, in headers: [String: String]) -> Int {
+        return headers.keys.filter { $0.caseInsensitiveCompare(name) == .orderedSame }.count
+    }
+
+    /* An SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them. */
+    @Test func testBhvSse006AnSseRequestSendsAcceptTextEventStreamCacheControlNoCacheAndIdentityEncodingUnlessTheCallerSetThem() async throws {
+        let client = ScriptedEventClient(["data: a\n\n", ""])
+        try await drainEvents(client)
+        let sent = try #require(client.headersSent.first)
+        #expect(header("Accept", in: sent) == "text/event-stream")
+        #expect(header("Cache-Control", in: sent) == "no-cache")
+        #expect(header("Accept-Encoding", in: sent) == "identity")
+
+        let own = ScriptedEventClient(["data: a\n\n", ""])
+        try await drainEvents(
+            own, headers: ["cache-control": "max-age=0"], defaultHeaders: ["accept-encoding": "gzip"])
+        let chosen = try #require(own.headersSent.first)
+        #expect(header("Cache-Control", in: chosen) == "max-age=0")
+        #expect(headerCount("Cache-Control", in: chosen) == 1)
+        #expect(header("Accept-Encoding", in: chosen) == "gzip", "the caller's own encoding is kept")
+        #expect(headerCount("Accept-Encoding", in: chosen) == 1)
+    }
+
+    /* An SSE stream sends the initial last event id of the call on its first request. */
+    @Test func testBhvSse012AnSseStreamSendsTheInitialLastEventIdOfTheCallOnItsFirstRequest() async throws {
+        let client = ScriptedEventClient(["data: a\n\n", ""])
+        try await drainEvents(client, streamOptions: StreamOptions(reconnectDelay: 1, lastEventId: "42"))
+        #expect(header("Last-Event-ID", in: try #require(client.headersSent.first)) == "42")
+    }
+
+    /* An SSE reconnect rebuilds the headers so a refreshed token is the one sent. */
+    @Test func testBhvSse013AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent() async throws {
+        let client = ScriptedEventClient(["data: a\n\n", ""])
+        try await drainEvents(client, auth: CountingAuth())
+        #expect(client.headersSent.count == 2)
+        #expect(header("Authorization", in: client.headersSent[0]) == "Bearer n1")
+        #expect(header("Authorization", in: client.headersSent[1]) == "Bearer n2")
+    }
+
+    /* An SSE reconnect sends Last-Event-ID only when the last event id is not empty. */
+    @Test func testBhvSse020AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty() async throws {
+        let client = ScriptedEventClient(["data: a\n\n", "id: 5\ndata: b\n\n", ""])
+        try await drainEvents(client)
+        let sent = client.headersSent
+        #expect(sent.count == 3)
+        #expect(header("Last-Event-ID", in: sent[0]) == nil)
+        #expect(header("Last-Event-ID", in: sent[1]) == nil, "no id yet, so none is sent")
+        #expect(header("Last-Event-ID", in: sent[2]) == "5")
+    }
+
+    /* A transport that does not implement sendStreaming fails a stream call naming itself, and its buffered calls keep working. */
+    @Test func testBhvStreaming030ATransportThatCannotStreamFailsAStreamCallAndStillServesBufferedCalls() async throws {
+        let transport = BufferedOnlyClient()
+        let refused = await #expect(throws: ConfigurationError.self) {
+            _ = try await self.hookedBase(nil, transport: transport).invokeAPIForStream(self.streamParams())
+        }
+        let message = refused?.errorDescription ?? ""
+        #expect(message.contains("BufferedOnlyClient"))
+        #expect(message.contains("cannot stream"))
+        #expect(transport.sentURL.isEmpty, "nothing was sent and nothing was buffered instead")
+
+        _ = try await hookedBase(nil, transport: transport).invokeAPI(plainParams(path: "/items/1"))
+        #expect(transport.sentURL.hasSuffix("/items/1"), "the buffered call still works")
+    }
+
 }
 
 
@@ -2769,6 +3055,611 @@ extension TraceContextUtilTests {
         let untraced = try await call(under: nil)
         #expect(untraced["traceparent"] == nil)
     }
+
+    // MARK: - Pagination
+
+    private struct PagedReply: Sendable {
+        var status = 200
+        var body = "{}"
+        var headers: [String] = []
+        var delayMillis = 0
+
+        static func ok(_ body: String, _ headers: String...) -> PagedReply {
+            return PagedReply(body: body, headers: headers)
+        }
+
+        static func failed(_ status: Int, _ body: String = "{}", _ headers: String...) -> PagedReply {
+            return PagedReply(status: status, body: body, headers: headers)
+        }
+
+        func after(_ millis: Int) -> PagedReply {
+            var copy = self
+            copy.delayMillis = millis
+            return copy
+        }
+    }
+
+    /// One request a paged server received: the path, the query parameters and the lower-cased headers.
+    private struct PagedRequest: Sendable {
+        let path: String
+        let query: [String: String]
+        let headers: [String: String]
+
+        init(head: String) {
+            let lines = head.components(separatedBy: "\r\n")
+            let target = lines.first?.split(separator: " ").dropFirst().first.map(String.init) ?? "/"
+            let parts = URLComponents(string: "http://host" + target)
+            path = parts?.path ?? target
+            var found: [String: String] = [:]
+            for item in parts?.queryItems ?? [] { found[item.name] = item.value ?? "" }
+            query = found
+            var seenHeaders: [String: String] = [:]
+            for line in lines.dropFirst() {
+                guard let colon = line.firstIndex(of: ":") else { continue }
+                let name = line[..<colon].lowercased()
+                seenHeaders[name] = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+            }
+            headers = seenHeaders
+        }
+
+        func param(_ name: String) -> String? { query[name] }
+    }
+
+    private func pagedServer(
+        _ answer: @escaping @Sendable (PagedRequest, Int) -> PagedReply
+    ) throws -> RawServer {
+        return try RawServer { connection, hit, head in
+            let reply = answer(PagedRequest(head: head), hit)
+            if reply.delayMillis > 0 { Thread.sleep(forTimeInterval: Double(reply.delayMillis) / 1000) }
+            let bytes = Data(reply.body.utf8)
+            var text = "HTTP/1.1 \(reply.status) Test\r\nContent-Type: application/json\r\n"
+            for header in reply.headers { text += header + "\r\n" }
+            text += "Content-Length: \(bytes.count)\r\nConnection: close\r\n\r\n"
+            connection.send(Data(text.utf8) + bytes)
+        }
+    }
+
+    private func pagedPet(_ name: String) -> String {
+        return "{\"id\":1,\"name\":\"\(name)\",\"photoUrls\":[]}"
+    }
+
+    /// A catalog page: the pets of page `page` of `size`, and the cursor of the page after it.
+    private func catalogBody(_ page: Int, _ size: Int, _ pages: Int) -> String {
+        let items = (0..<size).map { pagedPet("p\(page)-\($0)") }.joined(separator: ",")
+        let next = page + 1 < pages ? ",\"next_cursor\":\"c\(page + 1)\"" : ""
+        return "{\"items\":[\(items)]\(next)}"
+    }
+
+    /// A catalog of `pages` pages of `size` pets; the cursor of page n is "c" and n.
+    private func catalogServer(_ pages: Int, _ size: Int) throws -> RawServer {
+        return try pagedServer { request, _ in
+            let page = request.param("cursor").flatMap { Int($0.dropFirst()) } ?? 0
+            return .ok(self.catalogBody(page, size, pages))
+        }
+    }
+
+    /// A feed of `pages` pages of one pet each; every page but the last names the next one in a Link header.
+    private func feedServer(_ pages: Int) throws -> RawServer {
+        let origin = LockedValue<String>("")
+        let server = try pagedServer { request, _ in
+            let index = request.param("page").flatMap { Int($0) } ?? 0
+            let link =
+                "</pet/feed?page=\(index)>; rel=\"prev\", <\(origin.get())/pet/feed?page=\(index + 1)&secret=s3>; title=\"a, b\"; rel=\"next\""
+            return index + 1 < pages ? .ok("[\(self.pagedPet("f\(index)"))]", "Link: \(link)") : .ok("[\(self.pagedPet("f\(index)"))]")
+        }
+        origin.set(server.origin)
+        return server
+    }
+
+    private func pagedPetApi(
+        _ server: RawServer, maxRetries: Int = 0, headers: [String: String] = [:],
+        authenticator: Authenticator? = nil
+    ) throws -> PetApi {
+        var config = ConfigurationBuilder().baseURL(server.origin)
+        for (name, value) in headers { config = config.defaultHeader(name: name, value: value) }
+        let transport = try TransportOptionsBuilder().maxRetries(maxRetries).build()
+        return PetApi(
+            apiClient: try DefaultApiClient(transportOptions: transport), config: config.build(),
+            authenticator: authenticator)
+    }
+
+    private func names<S: AsyncSequence>(_ pets: S) async throws -> [String] where S.Element == Pet {
+        var found: [String] = []
+        for try await pet in pets { found.append(pet.name) }
+        return found
+    }
+
+    private func paramsSeen(_ server: RawServer, _ name: String) -> [String?] {
+        return server.heads.map { PagedRequest(head: $0).param(name) }
+    }
+
+    /// An authenticator whose header differs on every call.
+    private final class CountingAuth: BaseAuthenticator, @unchecked Sendable {
+        private let lock = NSLock()
+        private var calls = 0
+
+        override func host() -> String { return "" }
+        override func authHeaders() async -> [String: String] {
+            let number: Int = lock.withLock {
+                calls += 1
+                return calls
+            }
+            return ["Authorization": "Bearer n\(number)"]
+        }
+    }
+
+    private func apiSource(_ file: String) throws -> String {
+        return try String(
+            contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("Sources/{{packageName}}/Api/\(file)"),
+            encoding: .utf8)
+    }
+
+    /* A paged operation reads no page until the first item or page is requested. */
+    @Test func testBhvPagination001APagedOperationReadsNoPageUntilTheFirstItemOrPageIsRequested() async throws {
+        let server = try catalogServer(2, 2)
+        defer { server.stop() }
+        let paginator = try pagedPetApi(server).listPetCatalogPages()
+        #expect(server.hits == 0, "the method sends nothing")
+        let items = paginator.items()
+        let pages = paginator.pages()
+        #expect(server.hits == 0, "getting a view sends nothing")
+        var itemIterator = items.makeAsyncIterator()
+        #expect(try await itemIterator.next() != nil)
+        #expect(server.hits == 1, "the first read sends the first request")
+        var pageIterator = pages.makeAsyncIterator()
+        #expect(try await pageIterator.next() != nil)
+    }
+
+    /* A token-cursor operation yields every item of every page in order and sends the next page's cursor. */
+    @Test func testBhvPagination002ATokenCursorOperationYieldsEveryItemOfEveryPageInOrderAndSendsTheNextPagesCursor() async throws {
+        let server = try catalogServer(3, 2)
+        defer { server.stop() }
+        #expect(
+            try await names(try pagedPetApi(server).listPetCatalogPages().items())
+                == ["p0-0", "p0-1", "p1-0", "p1-1", "p2-0", "p2-1"])
+        #expect(paramsSeen(server, "cursor") == [nil, "c1", "c2"])
+    }
+
+    /* The next request is sent only when the consumer asks for more items. */
+    @Test func testBhvPagination003TheNextRequestIsSentOnlyWhenTheConsumerAsksForMoreItems() async throws {
+        let server = try catalogServer(3, 2)
+        defer { server.stop() }
+        var items = try pagedPetApi(server).listPetCatalogPages().items().makeAsyncIterator()
+        #expect(try await items.next() != nil)
+        #expect(try await items.next() != nil)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        #expect(server.hits == 1, "both items of the first page came from one request")
+        #expect(try await items.next() != nil)
+        #expect(server.hits == 2, "the third item needed the second page")
+    }
+
+    /* A Link-header operation follows rel=next and ends when it is absent. */
+    @Test func testBhvPagination007ALinkHeaderOperationFollowsRelNextAndEndsWhenItIsAbsent() async throws {
+        let server = try feedServer(3)
+        defer { server.stop() }
+        #expect(try await names(try pagedPetApi(server).listPetFeedPages().items()) == ["f0", "f1", "f2"])
+        #expect(paramsSeen(server, "page") == [nil, "1", "2"])
+        #expect(PagedRequest(head: server.heads[2]).path == "/pet/feed")
+    }
+
+    /* A Link next URL on another origin is refused and no credentials are sent to it. */
+    @Test func testBhvPagination008ALinkNextUrlOnAnotherOriginIsRefusedAndNoCredentialsAreSentToIt() async throws {
+        let elsewhere = try pagedServer { _, _ in .ok("[\(self.pagedPet("stolen"))]") }
+        defer { elsewhere.stop() }
+        let origin = try pagedServer { _, _ in
+            .ok("[\(self.pagedPet("f0"))]", "Link: <\(elsewhere.origin)/pet/feed?page=1>; rel=\"next\"")
+        }
+        defer { origin.stop() }
+        let api = try pagedPetApi(origin, headers: ["Authorization": "Bearer secret"])
+        var items = api.listPetFeedPages().items().makeAsyncIterator()
+        #expect(try await items.next()?.name == "f0", "the page before the foreign link is delivered")
+        #expect(PagedRequest(head: origin.heads[0]).headers["authorization"] == "Bearer secret")
+        let error = await #expect(throws: PaginationError.self) { _ = try await items.next() }
+        #expect(error?.message.contains("page=1") == false)
+        #expect(elsewhere.hits == 0, "nothing was sent to the other origin")
+        #expect(origin.hits == 1)
+    }
+
+    /* An empty page with a next cursor continues and an absent, null or empty cursor ends. */
+    @Test func testBhvPagination009AnEmptyPageWithANextCursorContinuesAndAnAbsentNullOrEmptyCursorEnds() async throws {
+        for end in ["", ",\"next_cursor\":null", ",\"next_cursor\":\"\""] {
+            let server = try pagedServer { request, _ in
+                request.param("cursor") == nil
+                    ? .ok("{\"items\":[],\"next_cursor\":\"c1\"}")
+                    : .ok("{\"items\":[\(self.pagedPet("only"))]\(end)}")
+            }
+            defer { server.stop() }
+            #expect(try await names(try pagedPetApi(server).listPetCatalogPages().items()) == ["only"], "\(end)")
+            #expect(server.hits == 2, "the empty page continued and the end ended: \(end)")
+        }
+    }
+
+    /* Pages yields one page per response with its items, status, headers, decoded body and next cursor. */
+    @Test func testBhvPagination010PagesYieldsOnePagePerResponseWithItsItemsStatusHeadersDecodedBodyAndNextCursor() async throws {
+        let server = try pagedServer { request, _ in
+            let page = request.param("cursor").flatMap { Int($0.dropFirst()) } ?? 0
+            return .ok(self.catalogBody(page, 2, 2), "X-Page: \(page)")
+        }
+        defer { server.stop() }
+        var pages: [Page<Pet, String>] = []
+        for try await page in try pagedPetApi(server).listPetCatalogPages().pages() { pages.append(page) }
+        #expect(pages.count == 2)
+        #expect(pages[0].items.map(\.name) == ["p0-0", "p0-1"])
+        #expect(pages[0].result.statusCode == 200)
+        #expect(pages[0].result.headers["x-page"] == "0")
+        #expect(pages[1].result.headers["x-page"] == "1")
+        #expect(pages[0].result.data is PetCatalogPage)
+        #expect(pages[0].nextCursor == "c1")
+        #expect(pages[1].nextCursor == nil)
+        #expect(pages[0].description == "Page(items: 2, statusCode: 200)")
+    }
+
+    /* The cursor passed to the paged method is the starting position and the first request sends it. */
+    @Test func testBhvPagination011TheCursorPassedToThePagedMethodIsTheStartingPositionAndTheFirstRequestSendsIt() async throws {
+        let server = try catalogServer(3, 1)
+        defer { server.stop() }
+        let api = try pagedPetApi(server)
+        #expect(
+            try await names(api.listPetCatalogPages(options: ListPetCatalogOptions(cursor: "c1")).items())
+                == ["p1-0", "p2-0"])
+        #expect(PagedRequest(head: server.heads[0]).param("cursor") == "c1")
+    }
+
+    /* Resuming with the next cursor of a page continues with the following page. */
+    @Test func testBhvPagination012ResumingWithTheNextCursorOfAPageContinuesWithTheFollowingPage() async throws {
+        let server = try catalogServer(3, 1)
+        defer { server.stop() }
+        let api = try pagedPetApi(server)
+        var pages = api.listPetCatalogPages().pages().makeAsyncIterator()
+        let first = try #require(try await pages.next())
+        let resume = try #require(first.nextCursor)
+        #expect(resume == "c1")
+        #expect(
+            try await names(api.listPetCatalogPages(options: ListPetCatalogOptions(cursor: resume)).items())
+                == ["p1-0", "p2-0"])
+    }
+
+    /* Every other parameter, including the page size, is repeated unchanged on each page request. */
+    @Test func testBhvPagination013EveryOtherParameterIncludingThePageSizeIsRepeatedUnchangedOnEachPageRequest() async throws {
+        let server = try catalogServer(3, 1)
+        defer { server.stop() }
+        _ = try await names(
+            try pagedPetApi(server).listPetCatalogPages(
+                options: ListPetCatalogOptions(limit: 1, headers: ["X-Keep": "yes"])).items())
+        #expect(server.hits == 3)
+        for head in server.heads {
+            let request = PagedRequest(head: head)
+            #expect(request.param("limit") == "1")
+            #expect(request.headers["x-keep"] == "yes")
+        }
+        #expect(paramsSeen(server, "cursor") == [nil, "c1", "c2"])
+    }
+
+    /* A cursor equal to the one just sent, or an offset that did not advance, raises a PaginationError instead of looping. */
+    @Test func testBhvPagination014ACursorEqualToTheOneJustSentOrAnOffsetThatDidNotAdvanceRaisesAPaginationErrorInsteadOfLooping() async throws {
+        let server = try pagedServer { _, number in
+            .ok("{\"items\":[\(self.pagedPet("p\(number)"))],\"next_cursor\":\"c1\"}")
+        }
+        defer { server.stop() }
+        var items = try pagedPetApi(server).listPetCatalogPages().items().makeAsyncIterator()
+        #expect(try await items.next()?.name == "p1")
+        #expect(try await items.next()?.name == "p2", "the page that repeated the cursor is still delivered")
+        let error = await #expect(throws: PaginationError.self) { _ = try await items.next() }
+        #expect(error?.requestPath == "/pet/catalog")
+        #expect(server.hits == 2, "nothing was asked for after the repeat")
+        #expect(try await items.next() == nil, "the iteration is finished")
+    }
+
+    /* An error on a later page is raised after the earlier pages' items were delivered and ends iteration. */
+    @Test func testBhvPagination015AnErrorOnALaterPageIsRaisedAfterTheEarlierPagesItemsWereDeliveredAndEndsIteration() async throws {
+        let server = try pagedServer { request, _ in
+            request.param("cursor") == nil ? .ok(self.catalogBody(0, 2, 3)) : .failed(404)
+        }
+        defer { server.stop() }
+        var items = try pagedPetApi(server).listPetCatalogPages().items().makeAsyncIterator()
+        #expect(try await items.next()?.name == "p0-0")
+        #expect(try await items.next()?.name == "p0-1")
+        let error = await #expect(throws: NotFoundError.self) { _ = try await items.next() }
+        #expect(error?.statusCode == 404)
+        #expect(try await items.next() == nil, "the iteration ended with the error")
+        #expect(server.hits == 2)
+    }
+
+    /* A 503 on the second page is retried under the retry rules and iteration continues. */
+    @Test func testBhvPagination016A503OnTheSecondPageIsRetriedUnderTheRetryRulesAndIterationContinues() async throws {
+        let server = try pagedServer { _, number in
+            number == 2 ? .failed(503, "{}", "Retry-After: 0") : .ok(self.catalogBody(number == 1 ? 0 : 1, 1, 2))
+        }
+        defer { server.stop() }
+        #expect(try await names(try pagedPetApi(server, maxRetries: 2).listPetCatalogPages().items()) == ["p0-0", "p1-0"])
+        #expect(paramsSeen(server, "cursor") == [nil, "c1", "c1"])
+    }
+
+    /* The per-call timeout, headers and retry count apply to each page request. */
+    @Test func testBhvPagination017ThePerCallTimeoutHeadersAndRetryCountApplyToEachPageRequest() async throws {
+        let server = try pagedServer { _, number in
+            number % 2 == 1
+                ? .failed(503, "{}", "Retry-After: 0") : .ok(self.catalogBody(number == 2 ? 0 : 1, 1, 2))
+        }
+        defer { server.stop() }
+        _ = try await names(
+            try pagedPetApi(server, maxRetries: 5).listPetCatalogPages(
+                options: ListPetCatalogOptions(headers: ["X-Trace": "t1"], maxRetries: 1)).items())
+        #expect(server.hits == 4, "each page was tried twice: one try and one retry")
+        for head in server.heads { #expect(PagedRequest(head: head).headers["x-trace"] == "t1") }
+
+        /* The per-call timeout reaches the transport on every page request, and a timeout on the
+         * second page is raised from the read that needed it, as a network timeout error. */
+        PagedStubProtocol.reset()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [PagedStubProtocol.self]
+        let session = URLSession(configuration: configuration)
+        let transport = try TransportOptionsBuilder().session(session).maxRetries(0).build()
+        let api = PetApi(
+            apiClient: try DefaultApiClient(transportOptions: transport),
+            config: ConfigurationBuilder().baseURL("http://paged.test").build())
+        var items = api.listPetCatalogPages(options: ListPetCatalogOptions(timeout: 7000)).items()
+            .makeAsyncIterator()
+        #expect(try await items.next()?.name == "p0-0")
+        await #expect(throws: NetworkTimeoutError.self) { _ = try await items.next() }
+        #expect(PagedStubProtocol.timeouts() == [7.0, 7.0], "the timeout was set on both page requests")
+    }
+
+    /* Stopping early sends no further request and leaves nothing to close. */
+    @Test func testBhvPagination018StoppingEarlySendsNoFurtherRequestAndLeavesNothingToClose() async throws {
+        let server = try catalogServer(3, 2)
+        defer { server.stop() }
+        let api = try pagedPetApi(server)
+        for try await pet in api.listPetCatalogPages().items() {
+            #expect(pet.name == "p0-0")
+            break
+        }
+        #expect(server.hits == 1)
+        var taken: [String] = []
+        for try await pet in api.listPetCatalogPages().items().prefix(2) { taken.append(pet.name) }
+        #expect(taken == ["p0-0", "p0-1"])
+        try await Task.sleep(nanoseconds: 100_000_000)
+        #expect(server.hits == 2, "prefix(2) read exactly one more page")
+    }
+
+    /* Cancelling mid-iteration aborts the in-flight page request and is not reported as a timeout. */
+    @Test func testBhvPagination019CancellingMidIterationAbortsTheInFlightPageRequestAndIsNotReportedAsATimeout() async throws {
+        let server = try RawServer { connection, hit, head in
+            if hit == 1 {
+                let body = Data(self.catalogBody(0, 1, 2).utf8)
+                connection.send(
+                    Data(
+                        "HTTP/1.1 200 Test\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
+                            .utf8) + body)
+            } else {
+                connection.server.awaitRelease()
+            }
+        }
+        defer { server.stop() }
+        let paginator = try pagedPetApi(server).listPetCatalogPages(
+            options: ListPetCatalogOptions(timeout: 20_000))
+        let call = Task { () -> Error? in
+            do {
+                for try await _ in paginator {}
+                return nil
+            } catch {
+                return error
+            }
+        }
+        let deadline = Date().addingTimeInterval(10)
+        while server.hits < 2 && Date() < deadline { try await Task.sleep(nanoseconds: 20_000_000) }
+        #expect(server.hits == 2, "the second page request is in flight")
+        let started = Date()
+        call.cancel()
+        let error = await call.value
+        #expect(error is CancellationError, "got \(String(describing: error))")
+        #expect(!(error is NetworkTimeoutError))
+        #expect(Date().timeIntervalSince(started) < 5)
+    }
+
+    /* Iterating a second time starts again from the starting position. */
+    @Test func testBhvPagination020IteratingASecondTimeStartsAgainFromTheStartingPosition() async throws {
+        let server = try catalogServer(2, 2)
+        defer { server.stop() }
+        let paginator = try pagedPetApi(server).listPetCatalogPages()
+        let first = try await names(paginator.items())
+        let second = try await names(paginator.items())
+        #expect(second == first)
+        #expect(server.hits == 4, "the second loop read both pages again")
+        #expect(paramsSeen(server, "cursor") == [nil, "c1", nil, "c1"])
+    }
+
+    /* A page that does not decode on a later page fails with the serialization error after the earlier items were delivered. */
+    @Test func testBhvPagination021APageThatDoesNotDecodeOnALaterPageFailsWithTheSerializationErrorAfterTheEarlierItemsWereDelivered() async throws {
+        let server = try pagedServer { _, number in
+            number == 1
+                ? .ok(self.catalogBody(0, 1, 2))
+                : .ok("{\"items\":[{\"id\":\"not a number\",\"name\":\"x\",\"photoUrls\":[]}]}")
+        }
+        defer { server.stop() }
+        var items = try pagedPetApi(server).listPetCatalogPages().items().makeAsyncIterator()
+        #expect(try await items.next()?.name == "p0-0")
+        await #expect(throws: SerializationError.self) { _ = try await items.next() }
+        #expect(try await items.next() == nil)
+    }
+
+    /* A refreshed credential is used for the next page. */
+    @Test func testBhvPagination022ARefreshedCredentialIsUsedForTheNextPage() async throws {
+        let server = try catalogServer(3, 1)
+        defer { server.stop() }
+        _ = try await names(try pagedPetApi(server, authenticator: CountingAuth()).listPetCatalogPages().items())
+        #expect(
+            server.heads.map { PagedRequest(head: $0).headers["authorization"] }
+                == ["Bearer n1", "Bearer n2", "Bearer n3"])
+    }
+
+    /* An error from a Link-driven page request carries the path without the query. */
+    @Test func testBhvPagination023AnErrorFromALinkDrivenPageRequestCarriesThePathWithoutTheQuery() async throws {
+        let server = try pagedServer { request, _ in
+            request.param("page") != nil
+                ? .failed(500)
+                : .ok("[\(self.pagedPet("f0"))]", "Link: </pet/feed?page=1&secret=s3>; rel=\"next\"")
+        }
+        defer { server.stop() }
+        var items = try pagedPetApi(server).listPetFeedPages().items().makeAsyncIterator()
+        #expect(try await items.next()?.name == "f0")
+        let error = await #expect(throws: ApiError.self) { _ = try await items.next() }
+        #expect(error?.statusCode == 500)
+        #expect(error?.requestPath == "/pet/feed")
+        #expect(error?.message.contains("s3") == false)
+    }
+
+    /* An operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method. */
+    @Test func testBhvPagination024AnOperationWithTwoCandidateCursorsTwoArrayPropertiesANonGetMethodOrSeveral2xxBodiesGetsNoPagedMethod() throws {
+        let source = try apiSource("PetApi.swift")
+        let found = source.components(separatedBy: "\n")
+            .compactMap { line -> String? in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard trimmed.hasPrefix("public func "), let end = trimmed.firstIndex(of: "(") else { return nil }
+                let name = String(trimmed[trimmed.index(trimmed.startIndex, offsetBy: 12)..<end])
+                return name.hasSuffix("Pages") ? name : nil
+            }
+        #expect(
+            Set(found) == ["listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages"])
+        #expect(source.contains("public func listPetMatches("), "the ambiguous operation keeps its base method")
+    }
+
+    /* A paged method has the same parameters in the same order as the base method and the base method is unchanged. */
+    @Test func testBhvPagination025APagedMethodHasTheSameParametersInTheSameOrderAsTheBaseMethodAndTheBaseMethodIsUnchanged() async throws {
+        let server = try pagedServer { request, _ in
+            .ok(request.path == "/pet/feed" ? "[\(self.pagedPet("f0"))]" : "{}")
+        }
+        defer { server.stop() }
+        let api = try pagedPetApi(server)
+        let catalog = ListPetCatalogOptions(limit: 1)
+        let feed = ListPetFeedOptions(limit: 1)
+        let notes = ListPetNotesOptions()
+        let events = ListPetEventsOptions()
+        let catalogPages: Paginator<Pet, String> = api.listPetCatalogPages(options: catalog)
+        let feedPages: Paginator<Pet, Void> = api.listPetFeedPages(options: feed)
+        let notePages: Paginator<String, String> = api.listPetNotesPages(options: notes)
+        let eventPages: Paginator<String, String> = api.listPetEventsPages(options: events)
+        _ = (catalogPages, feedPages, notePages, eventPages)
+        let catalogPage: PetCatalogPage = try await api.listPetCatalog(options: catalog)
+        let feedPet: [Pet] = try await api.listPetFeed(options: feed)
+        let notePage: PetNotePage = try await api.listPetNotes(options: notes)
+        let eventPage: PetEventPage = try await api.listPetEvents(options: events)
+        _ = (catalogPage, feedPet, notePage, eventPage)
+    }
+
+    /* The generator option overrides inference and can switch an operation or the whole feature off. */
+    @Test func testBhvPagination026TheGeneratorOptionOverridesInferenceAndCanSwitchAnOperationOrTheWholeFeatureOff() async throws {
+        let source = try apiSource("PetApi.swift")
+        #expect(source.contains("listPetEventsPages("), "an operation the option names is paged")
+        #expect(!source.contains("listPetArchivePages"), "an operation the option sets to none is not")
+        #expect(source.contains("public func listPetArchive("), "its base method remains")
+        let server = try pagedServer { request, _ in
+            .ok(request.param("since") == nil ? "{\"events\":[\"e1\"],\"upto\":\"u1\"}" : "{\"events\":[\"e2\"]}")
+        }
+        defer { server.stop() }
+        var events: [String] = []
+        for try await event in try pagedPetApi(server).listPetEventsPages() { events.append(event) }
+        #expect(events == ["e1", "e2"])
+        #expect(paramsSeen(server, "since") == [nil, "u1"])
+    }
+
+    /* Headers and options given to the paged method are sent on every page request. */
+    @Test func testBhvPagination027HeadersAndOptionsGivenToThePagedMethodAreSentOnEveryPageRequest() async throws {
+        let server = try feedServer(3)
+        defer { server.stop() }
+        _ = try await names(
+            try pagedPetApi(server).listPetFeedPages(
+                options: ListPetFeedOptions(limit: 1, headers: ["X-Keep": "yes"])).items())
+        #expect(server.hits == 3)
+        for head in server.heads { #expect(PagedRequest(head: head).headers["x-keep"] == "yes") }
+        #expect(PagedRequest(head: server.heads[0]).param("limit") == "1", "the first page carries the page size")
+    }
+
+    /* The cursor for the next page is taken from the accepted response, never from a retried attempt. */
+    @Test func testBhvPagination028TheCursorForTheNextPageIsTakenFromTheAcceptedResponseNeverFromARetriedAttempt() async throws {
+        let server = try pagedServer { request, number in
+            if number == 1 {
+                return .failed(503, "{\"items\":[],\"next_cursor\":\"WRONG\"}", "Retry-After: 0")
+            }
+            return .ok(self.catalogBody(request.param("cursor") == nil ? 0 : 1, 1, 2))
+        }
+        defer { server.stop() }
+        #expect(try await names(try pagedPetApi(server, maxRetries: 2).listPetCatalogPages().items()) == ["p0-0", "p1-0"])
+        #expect(paramsSeen(server, "cursor") == [nil, nil, "c1"])
+    }
+
+    /* A vendor extension on an operation is read as a hint, and the override option wins over it. */
+    @Test func testBhvPagination030AVendorExtensionOnAnOperationIsReadAsAHintAndTheOverrideOptionWinsOverIt() async throws {
+        let server = try pagedServer { request, _ in
+            .ok(request.param("pos") == nil ? "{\"rows\":[\"a\",\"b\"],\"following\":\"n1\"}" : "{\"rows\":[\"c\"]}")
+        }
+        defer { server.stop() }
+        var rows: [String] = []
+        for try await row in try pagedPetApi(server).listPetNotesPages() { rows.append(row) }
+        #expect(rows == ["a", "b", "c"], "the operation whose names are no known cursor is paged by its hint")
+        #expect(paramsSeen(server, "pos") == [nil, "n1"])
+    }
+
+    /* The repeated-cursor failure is a PaginationError and is not a network error or an API error. */
+    @Test func testBhvPagination031TheRepeatedCursorFailureIsAPaginationErrorAndIsNotANetworkErrorOrAnApiError() async throws {
+        let server = try pagedServer { _, _ in .ok("{\"items\":[],\"next_cursor\":\"c1\"}") }
+        defer { server.stop() }
+        let root: any {{errorPrefix}}Error = PaginationError(message: "x")
+        #expect(root is PaginationError)
+        do {
+            _ = try await names(
+                try pagedPetApi(server).listPetCatalogPages(options: ListPetCatalogOptions(cursor: "c1")).items())
+            Issue.record("the repeated cursor must raise")
+        } catch let error {
+            #expect(error is PaginationError)
+            #expect(error is any {{errorPrefix}}Error)
+            #expect(!(error is ApiError))
+            #expect(!(error is NetworkError))
+        }
+    }
+
+    /* An operation that is streamed is never also given a paged method. */
+    @Test func testBhvPagination032AnOperationThatIsStreamedIsNeverAlsoGivenAPagedMethod() throws {
+        let source = try apiSource("StoreApi.swift")
+        #expect(!source.contains("Pages("))
+        #expect(source.contains("exportOrdersStream("))
+    }
+}
+
+/// A URL protocol that answers the first page of the catalog and times out the second, and keeps the timeout of each request.
+private final class PagedStubProtocol: URLProtocol {
+    nonisolated(unsafe) private static var seen: [TimeInterval] = []
+    private static let lock = NSLock()
+
+    static func reset() { lock.withLock { seen = [] } }
+    static func timeouts() -> [TimeInterval] { lock.withLock { seen } }
+
+    override class func canInit(with request: URLRequest) -> Bool { return true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
+
+    override func startLoading() {
+        let number: Int = PagedStubProtocol.lock.withLock {
+            PagedStubProtocol.seen.append(request.timeoutInterval)
+            return PagedStubProtocol.seen.count
+        }
+        if number > 1 {
+            client?.urlProtocol(self, didFailWithError: URLError(.timedOut))
+            return
+        }
+        let body = Data("{\"items\":[{\"id\":1,\"name\":\"p0-0\",\"photoUrls\":[]}],\"next_cursor\":\"c1\"}".utf8)
+        if let url = request.url,
+            let response = HTTPURLResponse(
+                url: url, statusCode: 200, httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"])
+        {
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: body)
+        }
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
 
 /// A client whose transport always fails before a response arrives.

@@ -31,8 +31,10 @@ package errors
 //	 │   │                             BadGateway(502) ServiceUnavailable(503)
 //	 │   │                             GatewayTimeout(504)
 //	 │   └─ NetworkError               (no HTTP response: connection, DNS, TLS, reset)
-//	 │       └─ NetworkTimeoutError    (the request timed out)
+//	 │       ├─ NetworkTimeoutError    (the request timed out)
+//	 │       └─ StreamError            (a body that failed after the headers)
 //	 ├─ SerializationError             (serialize/deserialize failure)
+//	 ├─ PaginationError                (a paged list that cannot be followed safely)
 //	 ├─ OAuth2ServerError              (token endpoint returned 4xx/5xx)
 //	 └─ OAuth2TokenError               (token endpoint answered unusably)
 //

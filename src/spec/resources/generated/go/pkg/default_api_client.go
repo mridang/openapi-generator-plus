@@ -27,6 +27,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -86,7 +87,14 @@ type DefaultApiClient struct {
 	 * other SDKs. A request already in flight is not touched: it finishes, and
 	 * only its own context cancels it. */
 	closed atomic.Bool
+	/* streams are the response bodies handed out by SendStreaming that are still
+	 * open: Close cancels them, because an endless feed would hold a graceful
+	 * close open forever. */
+	streamsMu sync.Mutex
+	streams   map[*streamBody]struct{}
 }
+
+var _ StreamingApiClient = (*DefaultApiClient)(nil)
 
 // NewDefaultApiClient creates a client with the given transport settings.
 // If transportOptions is nil, default transport settings are used.
@@ -240,10 +248,11 @@ func removeHeader(headers map[string]string, name string) {
 	}
 }
 
-func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
-	if c.closed.Load() {
-		return nil, ErrClientClosed
-	}
+// prepareRequest merges the headers of a request and turns its body into a
+// reader: the part a buffered call and a streaming call share. It returns the
+// merged headers, the body reader (nil for no body), the BodySource of a streamed
+// body (nil for any other) and an error for a body that cannot be built.
+func (c *DefaultApiClient) prepareRequest(method string, headers map[string]string, body any, opts *RequestOptions) (map[string]string, io.Reader, *BodySource, error) {
 	merged := make(map[string]string)
 	if opts == nil || (!opts.NoDefaultHeaders && (opts.Context == nil || opts.Context.Value(authRequestContextKey{}) == nil)) {
 		mergeHeaders(merged, c.transportOptions.DefaultHeaders())
@@ -260,10 +269,17 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	}
 
 	var bodyReader io.Reader
+	var source *BodySource
 	switch b := body.(type) {
 	case nil:
 		// no body -- remove Content-Type to avoid sending it without a body
 		removeHeader(merged, "Content-Type")
+	case *BodySource:
+		if b == nil {
+			removeHeader(merged, "Content-Type")
+		} else {
+			source = b
+		}
 	case []byte:
 		/* A generated operation without a body passes a typed nil slice, not an
 		 * untyped nil, so it takes the same path as no body at all. */
@@ -274,12 +290,12 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	case map[string]any:
 		buf, contentType, err := buildTransportMultipartBody(b)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build multipart body: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to build multipart body: %w", err)
 		}
 		bodyReader = buf
 		mergeHeaders(merged, map[string]string{"Content-Type": contentType})
 	default:
-		return nil, fmt.Errorf("%w: unsupported body type %T", ErrInvalidRequest, body)
+		return nil, nil, nil, fmt.Errorf("%w: unsupported body type %T", ErrInvalidRequest, body)
 	}
 
 	// Some servers / WAFs treat POST/PUT/PATCH with no body and no
@@ -287,11 +303,91 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	// inconsistently. Attach an empty bytes.Reader on body-bearing
 	// verbs so net/http emits an explicit `Content-Length: 0`, matching
 	// Kotlin's `ByteArray(0)` and the other 11 SDKs.
-	if bodyReader == nil {
+	if bodyReader == nil && source == nil {
 		upper := strings.ToUpper(method)
 		if upper == "POST" || upper == "PUT" || upper == "PATCH" {
 			bodyReader = bytes.NewReader(nil)
 		}
+	}
+
+	return merged, bodyReader, source, nil
+}
+
+// newRequest builds the net/http request of a call. A streamed body is opened
+// here, for this send: its length (Content-Length, or chunked when unknown), its
+// stream (closed by net/http when the request is done) and, for a replayable
+// body, the function that opens it again for a 307 or 308 redirect.
+func newRequest(ctx context.Context, method, url string, reader io.Reader, source *BodySource) (*http.Request, error) {
+	if source == nil {
+		req, err := http.NewRequestWithContext(ctx, method, url, reader)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+		}
+		return req, nil
+	}
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+	}
+	stream, length, err := source.Open()
+	if err != nil {
+		return nil, fmt.Errorf("%w: cannot open the request body: %w", ErrInvalidRequest, err)
+	}
+	switch {
+	case length == 0:
+		_ = stream.Close()
+		req.Body = http.NoBody
+		req.ContentLength = 0
+	case length > 0:
+		req.Body = stream
+		req.ContentLength = length
+	default:
+		req.Body = stream
+		req.ContentLength = -1
+	}
+	if source.Replayable() {
+		req.GetBody = func() (io.ReadCloser, error) {
+			again, againLength, openErr := source.Open()
+			if openErr != nil {
+				return nil, openErr
+			}
+			if againLength == 0 {
+				_ = again.Close()
+				return http.NoBody, nil
+			}
+			return again, openErr
+		}
+	}
+	return req, nil
+}
+
+// refusesToReplay reports whether a response is a 307 or 308 redirect that this
+// client would follow with a body that can be sent only once. net/http returns
+// such a response as it is; the call refuses it instead of treating a redirect as
+// a success.
+func (c *DefaultApiClient) refusesToReplay(source *BodySource, resp *http.Response, opts *RequestOptions) bool {
+	if source == nil || source.Replayable() || !c.transportOptions.FollowRedirects() {
+		return false
+	}
+	if opts != nil && opts.NoRedirect {
+		return false
+	}
+	return (resp.StatusCode == http.StatusTemporaryRedirect || resp.StatusCode == http.StatusPermanentRedirect) &&
+		resp.Header.Get("Location") != ""
+}
+
+// replayRefusal is the error of a redirect that would send a single use body again.
+func replayRefusal(resp *http.Response) error {
+	return errors_pkg.NewApiError(resp.StatusCode, "Refusing to replay a streamed request body", "", refusedResponseHeaders(resp.Header), nil, nil)
+}
+
+func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
+	if c.closed.Load() {
+		return nil, ErrClientClosed
+	}
+	merged, bodyReader, source, err := c.prepareRequest(method, headers, body, opts)
+	if err != nil {
+		return nil, err
 	}
 
 	callCtx := context.Background()
@@ -331,9 +427,9 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	if opts != nil && opts.NoRedirect {
 		ctx = context.WithValue(ctx, noRedirectContextKey{}, true)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+	req, err := newRequest(ctx, method, url, bodyReader, source)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+		return nil, err
 	}
 
 	for k, v := range merged {
@@ -363,6 +459,9 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		return nil, newTransportError(fmt.Sprintf("request failed: %s", redactedTransportMessage(err)), err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if c.refusesToReplay(source, resp, opts) {
+		return nil, replayRefusal(resp)
+	}
 
 	// A failure reading the body AFTER headers were received (connection reset,
 	// truncated chunked encoding, a timeout) is a transport failure like a
@@ -409,6 +508,369 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		Body:       responseBody,
 		Headers:    respHeaders,
 	}, nil
+}
+
+// SendStreaming sends an HTTP request and returns as soon as the response
+// headers are accepted, with the body not read yet (StreamingApiClient).
+//
+// The headers are merged and the redirects followed exactly as for
+// SendRequestWithOptions. The timeout (opts.Timeout, else the transport's) covers
+// dial, TLS, the request and the wait for the headers, redirects included, and
+// stops there; the transport's IdleTimeout (opts.IdleTimeout overrides it)
+// bounds the gap between two reads of the body. The body is decoded
+// incrementally when the server compressed it. A non-2xx response is returned
+// with its body open, and Close cancels every body that is still open.
+func (c *DefaultApiClient) SendStreaming(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiStreamResponse, error) {
+	if c.closed.Load() {
+		return nil, ErrClientClosed
+	}
+	merged, bodyReader, source, err := c.prepareRequest(method, headers, body, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	callCtx := context.Background()
+	if opts != nil && opts.Context != nil {
+		callCtx = opts.Context
+	}
+	budget := time.Duration(0)
+	if c.transportOptions.Timeout() != nil {
+		budget = time.Duration(*c.transportOptions.Timeout()) * time.Millisecond
+	}
+	if opts != nil && opts.Timeout != nil {
+		budget = *opts.Timeout
+	}
+	idle := time.Duration(0)
+	if c.transportOptions.IdleTimeout() != nil {
+		idle = time.Duration(*c.transportOptions.IdleTimeout()) * time.Millisecond
+	}
+	if opts != nil && opts.IdleTimeout != nil {
+		idle = *opts.IdleTimeout
+	}
+
+	/* The request context outlives this call: it is what the body is read
+	 * under, and cancelling it (Close of the stream, Close of the client, the
+	 * caller's context) aborts the connection. The timeout of the client would
+	 * include the body read, so the policy client is copied without one and the
+	 * headers deadline is a timer that is stopped when they arrive. */
+	var reqCtx context.Context
+	var cancel context.CancelFunc
+	if opts != nil && opts.NoRedirect {
+		reqCtx, cancel = context.WithCancel(context.WithValue(callCtx, noRedirectContextKey{}, true))
+	} else {
+		reqCtx, cancel = context.WithCancel(callCtx)
+	}
+	var headersTimedOut atomic.Bool
+	var headerTimer *time.Timer
+	if budget > 0 {
+		headerTimer = time.AfterFunc(budget, func() {
+			headersTimedOut.Store(true)
+			cancel()
+		})
+	}
+	stopHeaderTimer := func() bool {
+		return headerTimer == nil || headerTimer.Stop()
+	}
+	req, err := newRequest(reqCtx, method, url, bodyReader, source)
+	if err != nil {
+		stopHeaderTimer()
+		cancel()
+		return nil, err
+	}
+	for k, v := range merged {
+		req.Header.Set(k, v)
+	}
+	doer := c.doer
+	if c.httpClient != nil {
+		scoped := *c.httpClient
+		scoped.Timeout = 0
+		doer = &scoped
+	}
+
+	resp, err := doer.Do(req)
+	if err != nil {
+		stopHeaderTimer()
+		cancel()
+		if resp != nil {
+			_ = resp.Body.Close()
+			return nil, errors_pkg.NewApiError(
+				resp.StatusCode,
+				redirectRefusalMessage(err),
+				"", refusedResponseHeaders(resp.Header), nil, err,
+			)
+		}
+		if errors.Is(callCtx.Err(), context.Canceled) {
+			return nil, c.cancellationError()
+		}
+		if headersTimedOut.Load() {
+			return nil, errors_pkg.NewNetworkTimeoutError("request failed: timed out waiting for the response headers", context.DeadlineExceeded)
+		}
+		return nil, newTransportError(fmt.Sprintf("request failed: %s", redactedTransportMessage(err)), err)
+	}
+	if c.refusesToReplay(source, resp, opts) {
+		stopHeaderTimer()
+		_ = resp.Body.Close()
+		cancel()
+		return nil, replayRefusal(resp)
+	}
+	if !stopHeaderTimer() {
+		/* The deadline fired as the headers arrived: the request context is
+		 * cancelled already, so the answer is the timeout. */
+		_ = resp.Body.Close()
+		cancel()
+		return nil, errors_pkg.NewNetworkTimeoutError("request failed: timed out waiting for the response headers", context.DeadlineExceeded)
+	}
+
+	respHeaders := lowerCaseHeaders(resp.Header)
+	encoding := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Encoding")))
+	switch encoding {
+	case "", "identity":
+		encoding = ""
+	case "gzip", "x-gzip", "deflate", "br", "zstd":
+		/* D92: the body the caller receives is decoded, so the headers drop the
+		 * encoding and the encoded length. */
+		delete(respHeaders, "content-encoding")
+		delete(respHeaders, "content-length")
+	default:
+		_ = resp.Body.Close()
+		cancel()
+		return nil, errors_pkg.NewApiError(
+			resp.StatusCode,
+			fmt.Sprintf("failed to decompress %s response body: unsupported Content-Encoding '%s'", resp.Header.Get("Content-Encoding"), resp.Header.Get("Content-Encoding")),
+			"", respHeaders, nil, nil,
+		)
+	}
+
+	stream := &streamBody{
+		client:   c,
+		status:   resp.StatusCode,
+		raw:      &trackedBody{inner: resp.Body},
+		encoding: encoding,
+		cancel:   cancel,
+		callCtx:  callCtx,
+		idle:     idle,
+		headers:  respHeaders,
+	}
+	if !c.track(stream) {
+		_ = stream.Close()
+		return nil, ErrClientClosed
+	}
+	return NewApiStreamResponse(resp.StatusCode, respHeaders, stream), nil
+}
+
+// track registers an open stream so Close can cancel it. It reports false, and
+// registers nothing, when the client was closed in the meantime.
+func (c *DefaultApiClient) track(s *streamBody) bool {
+	c.streamsMu.Lock()
+	defer c.streamsMu.Unlock()
+	if c.closed.Load() {
+		return false
+	}
+	if c.streams == nil {
+		c.streams = make(map[*streamBody]struct{})
+	}
+	c.streams[s] = struct{}{}
+	return true
+}
+
+// forget removes a finished or closed stream from the registry.
+func (c *DefaultApiClient) forget(s *streamBody) {
+	c.streamsMu.Lock()
+	delete(c.streams, s)
+	c.streamsMu.Unlock()
+}
+
+// trackedBody remembers the last error of the connection's body, so an error of
+// the decoder on top of it can be told apart from a transport failure.
+type trackedBody struct {
+	inner io.ReadCloser
+	err   error
+}
+
+func (b *trackedBody) Read(p []byte) (int, error) {
+	n, err := b.inner.Read(p)
+	if err != nil && err != io.EOF {
+		b.err = err
+	}
+	return n, err
+}
+
+func (b *trackedBody) Close() error { return b.inner.Close() }
+
+// streamBody is the open body of a streaming response: it decodes the
+// compression, applies the idle timeout, turns a failure into the SDK's error
+// and aborts the connection on Close instead of draining it.
+type streamBody struct {
+	client   *DefaultApiClient
+	status   int
+	headers  map[string]string
+	raw      *trackedBody
+	encoding string
+	cancel   context.CancelFunc
+	callCtx  context.Context
+	idle     time.Duration
+
+	mu           sync.Mutex // held while reading, so the decoder is closed after the read
+	reader       io.Reader  // the decoded body; built on the first read
+	closeDecoder func()
+	decodeErr    error
+
+	generation atomic.Int64
+	idleFired  atomic.Bool
+	clientShut atomic.Bool
+	closed     atomic.Bool
+}
+
+// Read reads the next decoded bytes. Every failure is one of the SDK's errors:
+// ErrClientClosed after the client was closed, *NetworkTimeoutError after an
+// idle gap, the cancellation error after the call context was cancelled,
+// io.ErrClosedPipe after Close, an *ApiError for a corrupt compressed body and
+// a *StreamError for anything the connection did.
+func (s *streamBody) Read(p []byte) (int, error) {
+	if err := s.stateErr(); err != nil {
+		return 0, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.idle > 0 {
+		generation := s.generation.Add(1)
+		timer := time.AfterFunc(s.idle, func() {
+			if s.generation.Load() == generation {
+				s.idleFired.Store(true)
+				s.cancel()
+			}
+		})
+		defer func() {
+			s.generation.Add(1)
+			timer.Stop()
+		}()
+	}
+	if s.reader == nil {
+		reader, closeDecoder, err := newDecodingReader(s.encoding, s.raw)
+		if err != nil {
+			return 0, s.classify(err)
+		}
+		s.reader, s.closeDecoder = reader, closeDecoder
+	}
+	n, err := s.reader.Read(p)
+	if err == nil {
+		return n, nil
+	}
+	if err == io.EOF {
+		s.finish()
+		return n, io.EOF
+	}
+	return n, s.classify(err)
+}
+
+// stateErr is the error of a stream that was closed or cancelled.
+func (s *streamBody) stateErr() error {
+	switch {
+	case s.clientShut.Load():
+		return ErrClientClosed
+	case s.closed.Load():
+		return io.ErrClosedPipe
+	}
+	return nil
+}
+
+// classify turns a failure of the read into the SDK's error for it.
+func (s *streamBody) classify(err error) error {
+	switch {
+	case s.clientShut.Load():
+		return ErrClientClosed
+	case s.closed.Load():
+		return io.ErrClosedPipe
+	case s.idleFired.Load():
+		return errors_pkg.NewNetworkTimeoutError(
+			fmt.Sprintf("the response body stayed silent for longer than the idle timeout of %s", s.idle), context.DeadlineExceeded)
+	case errors.Is(s.callCtx.Err(), context.Canceled):
+		return s.client.cancellationError()
+	case errors.Is(s.callCtx.Err(), context.DeadlineExceeded):
+		return errors_pkg.NewNetworkTimeoutError("the call context expired while the response body was being read", context.DeadlineExceeded)
+	}
+	if s.encoding != "" && s.raw.err == nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+		/* The connection is fine and the decoder failed: the body is corrupt. */
+		return errors_pkg.NewApiError(
+			s.status,
+			fmt.Sprintf("failed to decompress %s response body: %s", s.encoding, err.Error()),
+			"", s.headers, nil, err,
+		)
+	}
+	return errors_pkg.NewStreamError(fmt.Sprintf("failed to read response body: %s", err.Error()), err)
+}
+
+// finish releases the request context once the body has ended.
+func (s *streamBody) finish() {
+	s.cancel()
+	s.client.forget(s)
+}
+
+// Close aborts the connection instead of draining the body: the request context
+// is cancelled first, so the close of the body returns at once even when the
+// server never ends it (Go 1.27 reads the rest of an HTTP/1 body on Close).
+// Closing twice does nothing.
+func (s *streamBody) Close() error {
+	if s.closed.Swap(true) {
+		return nil
+	}
+	s.shutdown()
+	return nil
+}
+
+// abort is Close for a client that is closing: the next read returns
+// ErrClientClosed instead of the closed-stream error.
+func (s *streamBody) abort() {
+	s.clientShut.Store(true)
+	s.shutdown()
+}
+
+func (s *streamBody) shutdown() {
+	s.cancel()
+	_ = s.raw.Close()
+	s.client.forget(s)
+	/* A read that is still running was unblocked by the cancellation; the
+	 * decoder is closed once it has returned. */
+	go func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.closeDecoder != nil {
+			s.closeDecoder()
+			s.closeDecoder = nil
+		}
+	}()
+}
+
+// newDecodingReader wraps the body of a response in the decoder of its
+// Content-Encoding. The decoder is built on the first read, because gzip and
+// zlib read their header when they are built. The returned function releases the
+// decoder.
+func newDecodingReader(encoding string, body io.Reader) (io.Reader, func(), error) {
+	switch encoding {
+	case "":
+		return body, nil, nil
+	case "gzip", "x-gzip":
+		reader, err := gzip.NewReader(body)
+		if err != nil {
+			return nil, nil, err
+		}
+		return reader, func() { _ = reader.Close() }, nil
+	case "deflate":
+		reader, err := zlib.NewReader(body)
+		if err != nil {
+			return nil, nil, err
+		}
+		return reader, func() { _ = reader.Close() }, nil
+	case "br":
+		return brotli.NewReader(body), nil, nil
+	case "zstd":
+		reader, err := zstd.NewReader(body)
+		if err != nil {
+			return nil, nil, err
+		}
+		return reader, reader.Close, nil
+	}
+	return nil, nil, fmt.Errorf("unsupported Content-Encoding '%s'", encoding)
 }
 
 // lowerCaseHeaders flattens response headers into a map.
@@ -469,11 +931,22 @@ func newTransportError(msg string, err error) error {
 // Close marks the client closed and releases the idle connections of the
 // transport the SDK created. It is graceful and idempotent: a request already
 // in flight finishes (only its own context cancels it), and every request sent
-// afterwards returns ErrClientClosed. A transport supplied by the caller is
+// afterwards returns ErrClientClosed. The streams that are still open are
+// cancelled, because an endless feed would hold a graceful close open forever:
+// their next read returns ErrClientClosed. A transport supplied by the caller is
 // never closed: the caller owns its lifecycle.
 func (c *DefaultApiClient) Close() error {
 	if c.closed.Swap(true) {
 		return nil
+	}
+	c.streamsMu.Lock()
+	open := make([]*streamBody, 0, len(c.streams))
+	for stream := range c.streams {
+		open = append(open, stream)
+	}
+	c.streamsMu.Unlock()
+	for _, stream := range open {
+		stream.abort()
 	}
 	if c.owned != nil {
 		c.owned.CloseIdleConnections()

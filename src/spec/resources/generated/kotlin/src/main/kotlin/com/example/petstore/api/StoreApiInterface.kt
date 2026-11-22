@@ -10,6 +10,9 @@
 package com.example.petstore.api
 
 import com.example.petstore.ApiResult
+import com.example.petstore.JsonLinesStream
+import com.example.petstore.SseStream
+import com.example.petstore.StreamOptions
 import com.example.petstore.api.options.CreateAccountOptions
 import com.example.petstore.api.options.DeleteOrderOptions
 import com.example.petstore.api.options.ExportOrdersOptions
@@ -80,11 +83,11 @@ interface StoreApiInterface {
         options: DeleteOrderOptions? = null,
     ): ApiResult<Unit>
 
-    /** The `exportOrders` operation. */
-    suspend fun exportOrders(options: ExportOrdersOptions? = null): Order
-
-    /** The `exportOrders` operation with its status code, headers and body. */
-    suspend fun exportOrdersWithHttpInfo(options: ExportOrdersOptions? = null): ApiResult<Order>
+    /** The `exportOrders` operation as a stream; it has no buffered form. */
+    suspend fun exportOrdersStream(
+        options: ExportOrdersOptions? = null,
+        streamOptions: StreamOptions? = null,
+    ): JsonLinesStream<Order>
 
     /** The `getAuditTrail` operation. */
     suspend fun getAuditTrail(options: GetAuditTrailOptions? = null): ApiResponse
@@ -218,15 +221,15 @@ interface StoreApiInterface {
     /** The `searchStore` operation with its status code, headers and body. */
     suspend fun searchStoreWithHttpInfo(options: SearchStoreOptions? = null): ApiResult<List<Order>>
 
-    /** The `watchNotices` operation. */
-    suspend fun watchNotices(options: WatchNoticesOptions? = null): String
+    /** The `watchNotices` operation as a stream; it has no buffered form. */
+    suspend fun watchNoticesStream(
+        options: WatchNoticesOptions? = null,
+        streamOptions: StreamOptions? = null,
+    ): SseStream<String>
 
-    /** The `watchNotices` operation with its status code, headers and body. */
-    suspend fun watchNoticesWithHttpInfo(options: WatchNoticesOptions? = null): ApiResult<String>
-
-    /** The `watchOrders` operation. */
-    suspend fun watchOrders(options: WatchOrdersOptions? = null): Order
-
-    /** The `watchOrders` operation with its status code, headers and body. */
-    suspend fun watchOrdersWithHttpInfo(options: WatchOrdersOptions? = null): ApiResult<Order>
+    /** The `watchOrders` operation as a stream; it has no buffered form. */
+    suspend fun watchOrdersStream(
+        options: WatchOrdersOptions? = null,
+        streamOptions: StreamOptions? = null,
+    ): SseStream<Order>
 }

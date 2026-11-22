@@ -1,7 +1,9 @@
 {{>api_info}}
 
 using {{packageName}}.Errors;
+using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using {{packageName}};
 using {{packageName}}.Models;
@@ -3493,6 +3495,16 @@ public class DefaultApiClientUnitTest
         var absentClient = new DefaultApiClient(new HttpClient(absent), TransportOptions.Builder().MaxRetries(1).Build());
         _ = await SendGet(absentClient);
         Assert.Equal(2, absent.Requests.Count);
+
+        var factory = new SequenceHandler(_ => Respond(503));
+        var factoryClient = new DefaultApiClient(new HttpClient(factory), TransportOptions.Builder().MaxRetries(1).Build());
+        _ = await SendGet(factoryClient, BodySource.FromFactory(() => new MemoryStream([1, 2, 3])), method: "POST");
+        Assert.Equal(2, factory.Requests.Count);
+
+        var once = new SequenceHandler(_ => Respond(503));
+        var onceClient = new DefaultApiClient(new HttpClient(once), TransportOptions.Builder().MaxRetries(1).Build());
+        _ = await SendGet(onceClient, BodySource.Once(new MemoryStream([1, 2, 3])), method: "POST");
+        Assert.Single(once.Requests);
     }
 
     [Fact]
@@ -4370,8 +4382,11 @@ public class DefaultApiClientUnitTest
 
         _ = await SendGet(client, body: Encoding.UTF8.GetBytes("hello"), method: "POST");
         _ = await SendGet(client, body: new MemoryStream(Encoding.UTF8.GetBytes("hello")), method: "POST");
+        _ = await SendGet(client, body: BodySource.Of(Encoding.UTF8.GetBytes("hello")), method: "POST");
+        _ = await SendGet(
+            client, body: BodySource.Once(new MemoryStream(Encoding.UTF8.GetBytes("hello"))), method: "POST");
 
-        Assert.Equal(new[] { "hello", "hello" }, handler.Bodies);
+        Assert.Equal(new[] { "hello", "hello", "hello", "hello" }, handler.Bodies);
     }
 
     [Fact]
@@ -5109,6 +5124,15 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(503, response.StatusCode);
         Assert.Single(handler.Requests);
+
+        var once = new SequenceHandler(_ => Respond(503));
+        var onceClient = new DefaultApiClient(new HttpClient(once), TransportOptions.Builder().Build());
+
+        var onceResponse = await SendGet(
+            onceClient, BodySource.Once(new MemoryStream([1, 2, 3])), method: "POST");
+
+        Assert.Equal(503, onceResponse.StatusCode);
+        Assert.Single(once.Requests);
     }
 
     [Fact]
@@ -5722,6 +5746,1194 @@ public class DefaultApiClientUnitTest
 
         Assert.Equal(200, response.StatusCode);
         Assert.Equal("/echo", received?.AbsolutePath);
+    }
+
+    private static DefaultApiClient StreamClient()
+    {
+        return new DefaultApiClient(TransportOptions.Builder().Build());
+    }
+
+    private static Task<ApiStreamResponse> OpenStreamAsync(
+        DefaultApiClient client,
+        RawServer server,
+        string path,
+        Dictionary<string, string>? headers = null,
+        int? timeout = null,
+        int? maxRetries = null,
+        int? idleTimeout = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return client.SendStreamingAsync(
+            "GET",
+            new Uri(server.Url(path)),
+            headers ?? [],
+            null,
+            null,
+            timeout,
+            maxRetries,
+            idleTimeout,
+            cancellationToken
+        );
+    }
+
+    private static ByteStream Wrap(ApiStreamResponse response)
+    {
+        return new ByteStream(response.StatusCode, response.Headers, response.Body);
+    }
+
+    private static string Text(byte[] bytes)
+    {
+        return Encoding.UTF8.GetString(bytes);
+    }
+
+    private static async Task<byte[]> ReadExactAsync(Stream stream, int count)
+    {
+        byte[] bytes = new byte[count];
+        await stream.ReadExactlyAsync(bytes);
+        return bytes;
+    }
+
+    private static async Task EndlessChunksAsync(RawServer self, TcpClient socket)
+    {
+        await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+        try
+        {
+            while (true)
+            {
+                await RawServer.ChunkAsync(socket, new string('x', 4096));
+                await Task.Delay(5);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException)
+        {
+            self.MarkClientGone();
+        }
+    }
+
+    [Fact]
+    public async Task BhvStreaming001ABinaryStreamDeliversTheBytesInOrderAndReturnsBeforeTheBodyHasEnded()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(
+                    socket, 200, "Content-Type: application/octet-stream", "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "first-");
+                _ = await self.AwaitReleaseAsync();
+                await RawServer.ChunkAsync(socket, "second");
+                await RawServer.EndAsync(socket);
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/blob");
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.False(server.IsReleased, "the call returned while the body was unfinished");
+        Assert.Equal("first-", Text(await ReadExactAsync(response.Body, 6)));
+        server.Release();
+        using MemoryStream rest = new();
+        await response.Body.CopyToAsync(rest);
+        Assert.Equal("second", Text(rest.ToArray()));
+    }
+
+    [Fact]
+    public async Task BhvStreaming010TheCallTimeoutBoundsOnlyTheWaitForTheHeadersNotTheBody()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "ab");
+                await Task.Delay(1200);
+                await RawServer.ChunkAsync(socket, "cd");
+                await RawServer.EndAsync(socket);
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+
+        using ApiStreamResponse response = await OpenStreamAsync(
+            client, server, "/items/blob", timeout: 400, maxRetries: 0, idleTimeout: 0);
+
+        Assert.Equal("abcd", Text(await Wrap(response).ReadAllAsync()));
+    }
+
+    [Fact]
+    public async Task BhvStreaming011TheIdleTimeoutRaisesANetworkTimeoutErrorWhenTheServerStallsInTheBody()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "ab");
+                _ = await self.AwaitReleaseAsync();
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().IdleTimeout(300).Build());
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/blob");
+        Assert.Equal("ab", Text(await ReadExactAsync(response.Body, 2)));
+
+        long started = Stopwatch.GetTimestamp();
+        NetworkTimeoutException timeout = await Assert.ThrowsAsync<NetworkTimeoutException>(async () =>
+        {
+            _ = await response.Body.ReadAsync(new byte[1]);
+        });
+
+        Assert.Equal(0, timeout.StatusCode);
+        Assert.True(
+            Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5),
+            "the stall ended by the idle timeout and not by the server");
+        Assert.Equal(1, server.Hits);
+    }
+
+    [Fact]
+    public async Task BhvStreaming012AConnectionResetInTheMiddleOfTheBodyRaisesANetworkErrorAndIsNotRetried()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "ab");
+                await Task.Delay(100);
+                RawServer.Reset(socket);
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/blob");
+
+        _ = await Assert.ThrowsAnyAsync<NetworkException>(() => Wrap(response).ReadAllAsync());
+
+        Assert.Equal(1, server.Hits);
+    }
+
+    [Fact]
+    public async Task BhvStreaming013ABodyShorterThanItsContentLengthRaisesANetworkErrorAndNeverAShortSuccess()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Content-Length: 10");
+                await RawServer.WriteAsync(socket, "abcd");
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/blob");
+
+        _ = await Assert.ThrowsAnyAsync<NetworkException>(() => Wrap(response).ReadAllAsync());
+    }
+
+    [Fact]
+    public async Task BhvStreaming014AStreamingCallRetriesA503BeforeTheHeadersAndThenStreamsTheRetriedResponse()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, hit, _) =>
+            {
+                if (hit == 1)
+                {
+                    await RawServer.HeadAsync(socket, 503, "Retry-After: 0", "Content-Length: 4");
+                    await RawServer.WriteAsync(socket, "nope");
+                    return;
+                }
+                await RawServer.HeadAsync(socket, 200, "Content-Length: 5");
+                await RawServer.WriteAsync(socket, "hello");
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/blob");
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal("hello", Text(await Wrap(response).ReadAllAsync()));
+        Assert.Equal(2, server.Hits);
+    }
+
+    [Fact]
+    public async Task BhvStreaming015AStreamingCallNeverRetriesAfterTheFirstBodyByteWasDelivered()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "part");
+                await Task.Delay(100);
+                RawServer.Reset(socket);
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/blob");
+
+        Assert.Equal("part", Text(await ReadExactAsync(response.Body, 4)));
+        _ = await Assert.ThrowsAnyAsync<NetworkException>(() => Wrap(response).ReadAllAsync());
+        await Task.Delay(300);
+
+        Assert.Equal(1, server.Hits);
+    }
+
+    [Fact]
+    public async Task BhvStreaming016AStreamingCallFollowsARedirectBeforeTheBodyAndStripsCredentialsAcrossOrigins()
+    {
+        using RawServer target = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Content-Length: 6");
+                await RawServer.WriteAsync(socket, "landed");
+            }
+        );
+        using RawServer origin = RawServer.Serve(
+            (_, socket, _, _) =>
+                RawServer.HeadAsync(
+                    socket, 302, "Location: " + target.Url("/items/final"), "Content-Length: 0")
+        );
+        using DefaultApiClient client = StreamClient();
+
+        using ApiStreamResponse response = await OpenStreamAsync(
+            client,
+            origin,
+            "/items/blob",
+            new Dictionary<string, string>
+            {
+                ["Authorization"] = "Bearer secret-token",
+                ["Cookie"] = "session=abc",
+                ["X-Trace"] = "kept",
+            });
+
+        Assert.Equal("landed", Text(await Wrap(response).ReadAllAsync()));
+        string sentToOrigin = origin.Heads[0];
+        string sentToTarget = target.Heads[0];
+        Assert.Contains("authorization: bearer secret-token", sentToOrigin, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("authorization", sentToTarget, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("cookie", sentToTarget, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("x-trace: kept", sentToTarget, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task BhvStreaming019ClosingAStreamTwiceIsSafeAndAbortsTheConnection()
+    {
+        using RawServer server = RawServer.Serve((self, socket, _, _) => EndlessChunksAsync(self, socket));
+        using DefaultApiClient client = StreamClient();
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/blob");
+        ByteStream stream = Wrap(response);
+        Assert.Equal(4, (await ReadExactAsync(stream, 4)).Length);
+
+        await stream.DisposeAsync();
+        await stream.DisposeAsync();
+        await response.DisposeAsync();
+
+        Assert.True(
+            await server.ClientGoneAsync(TimeSpan.FromSeconds(10)),
+            "the server saw the connection dropped and was not made to finish the body");
+        _ = Assert.Throws<ObjectDisposedException>(() => stream.ReadByte());
+    }
+
+    [Fact]
+    public async Task BhvStreaming020CancellingTheCallAbortsTheStreamAndIsNeverRaisedAsATimeout()
+    {
+        using RawServer silent = RawServer.Serve(
+            async (self, _, _, _) =>
+            {
+                _ = await self.AwaitReleaseAsync();
+            }
+        );
+        using RawServer stalled = RawServer.Serve(
+            async (self, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "ab");
+                _ = await self.AwaitReleaseAsync();
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().MaxRetries(0).Build());
+
+        using CancellationTokenSource beforeHeaders = new();
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            Task<ApiStreamResponse> opening = OpenStreamAsync(
+                client, silent, "/items/blob", cancellationToken: beforeHeaders.Token);
+            while (silent.Hits == 0)
+            {
+                await Task.Delay(10);
+            }
+            await beforeHeaders.CancelAsync();
+            _ = await opening;
+        });
+
+        using CancellationTokenSource inBody = new();
+        using ApiStreamResponse response = await OpenStreamAsync(
+            client, stalled, "/items/blob", cancellationToken: inBody.Token);
+        Assert.Equal("ab", Text(await ReadExactAsync(response.Body, 2)));
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            Task<int> reading = response.Body.ReadAsync(new byte[1]).AsTask();
+            await Task.Delay(300);
+            await inBody.CancelAsync();
+            _ = await reading;
+        });
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            _ = await response.Body.ReadAsync(new byte[1]);
+        });
+    }
+
+    [Fact]
+    public async Task BhvStreaming022TheStringFormOfAStreamHidesCredentialsTheQueryAndTheData()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(
+                    socket, 200, "Content-Length: 7", "Set-Cookie: sid=secret-cookie");
+                await RawServer.WriteAsync(socket, "payload");
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+        using ApiStreamResponse response = await OpenStreamAsync(
+            client,
+            server,
+            "/items/blob?token=secret-query",
+            new Dictionary<string, string> { ["Authorization"] = "Bearer secret-token" });
+        using ByteStream stream = Wrap(response);
+        Assert.Equal("payload", Text(await ReadExactAsync(stream, 7)));
+
+        foreach (string shown in new[] { stream.ToString(), response.ToString() })
+        {
+            Assert.DoesNotContain("secret", shown, StringComparison.Ordinal);
+            Assert.DoesNotContain("payload", shown, StringComparison.Ordinal);
+            Assert.DoesNotContain("token", shown, StringComparison.Ordinal);
+            Assert.DoesNotContain("items", shown, StringComparison.Ordinal);
+        }
+        Assert.Equal("ByteStream(StatusCode=200, BytesDelivered=7)", stream.ToString());
+    }
+
+    [Fact]
+    public async Task BhvStreaming031ClosingALiveEndlessStreamReturnsPromptlyAndDoesNotWaitForTheServer()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "tick");
+                _ = await self.AwaitReleaseAsync();
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+        ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/events");
+        Assert.Equal("tick", Text(await ReadExactAsync(response.Body, 4)));
+
+        long started = Stopwatch.GetTimestamp();
+        await response.DisposeAsync();
+
+        Assert.True(
+            Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(2),
+            "close aborted the connection instead of waiting for the endless body");
+    }
+
+    [Fact]
+    public async Task BhvStreaming032AResetOrTruncationAfterTheHeadersRaisesAStreamErrorThatIsANetworkError()
+    {
+        using RawServer reset = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Transfer-Encoding: chunked");
+                await RawServer.ChunkAsync(socket, "ab");
+                await Task.Delay(100);
+                RawServer.Reset(socket);
+            }
+        );
+        using RawServer cut = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Content-Length: 10");
+                await RawServer.WriteAsync(socket, "abcd");
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+
+        foreach (RawServer server in new[] { reset, cut })
+        {
+            using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/blob");
+            StreamException failure = await Assert.ThrowsAsync<StreamException>(
+                () => Wrap(response).ReadAllAsync());
+            _ = Assert.IsAssignableFrom<NetworkException>(failure);
+            Assert.Equal(0, failure.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task BhvStreaming033StoppingAStreamEarlyWithoutReadingItToTheEndReleasesTheConnection()
+    {
+        using RawServer server = RawServer.Serve((self, socket, _, _) => EndlessChunksAsync(self, socket));
+        using DefaultApiClient client = StreamClient();
+
+        using (ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/events"))
+        {
+            Assert.Equal(10, (await ReadExactAsync(response.Body, 10)).Length);
+        }
+
+        Assert.True(
+            await server.ClientGoneAsync(TimeSpan.FromSeconds(10)),
+            "leaving the scope dropped the connection");
+    }
+
+    [Fact]
+    public async Task BhvStreaming029TheReadAllHelperOfAByteStreamReturnsEveryByteInOrderAndLeavesItClosed()
+    {
+        byte[] payload = new byte[100_000];
+        for (int i = 0; i < payload.Length; i++)
+        {
+            payload[i] = unchecked((byte)(i * 31));
+        }
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Content-Length: " + payload.Length);
+                await RawServer.WriteBytesAsync(socket, payload);
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/blob");
+        ByteStream stream = Wrap(response);
+
+        Assert.Equal(payload, await stream.ReadAllAsync());
+
+        Assert.Equal("ByteStream(StatusCode=200, BytesDelivered=100000)", stream.ToString());
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+        {
+            _ = await stream.ReadAsync(new byte[1]);
+        });
+    }
+
+    private static Func<string, CancellationToken, Task<ByteStream>> EventOpener(
+        RawServer server, DefaultApiClient client)
+    {
+        return async (lastEventId, cancellationToken) =>
+        {
+            Dictionary<string, string> headers = [];
+            if (lastEventId.Length > 0)
+            {
+                headers["Last-Event-ID"] = lastEventId;
+            }
+            ApiStreamResponse response = await OpenStreamAsync(
+                client, server, "/items/events", headers, maxRetries: 0, cancellationToken: cancellationToken);
+            return Wrap(response);
+        };
+    }
+
+    private static Task EventsHeadAsync(TcpClient socket)
+    {
+        return RawServer.HeadAsync(
+            socket, 200, "Content-Type: text/event-stream", "Transfer-Encoding: chunked");
+    }
+
+    private static Task<SseStream<string>> EventStreamAsync(
+        Func<string, CancellationToken, Task<ByteStream>> opener, StreamOptions options)
+    {
+        return SseStream<string>.OpenAsync(opener, null, null, options, false, false, "GET", "/items/events", default);
+    }
+
+    [Fact]
+    public async Task BhvStreaming006AGzipEncodedStreamIsDecodedIncrementallySoTheFirstItemArrivesBeforeTheBodyEnds()
+    {
+        using MemoryStream sink = new();
+        byte[] head;
+        await using (System.IO.Compression.GZipStream gzip = new(
+            sink, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true))
+        {
+            await gzip.WriteAsync(Encoding.UTF8.GetBytes("first\n"));
+            await gzip.FlushAsync();
+            head = sink.ToArray();
+            sink.SetLength(0);
+            await gzip.WriteAsync(Encoding.UTF8.GetBytes("second\n"));
+        }
+        byte[] rest = sink.ToArray();
+        using RawServer server = RawServer.Serve(
+            async (self, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Content-Encoding: gzip", "Transfer-Encoding: chunked");
+                await RawServer.ChunkBytesAsync(socket, head);
+                _ = await self.AwaitReleaseAsync();
+                await RawServer.ChunkBytesAsync(socket, rest);
+                await RawServer.EndAsync(socket);
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/export");
+        using JsonLinesStream<string> items = new(Wrap(response), line => line, 1024, "GET", "/items/export");
+
+        Assert.True(await items.MoveNextAsync(default));
+        Assert.Equal("first", items.Current);
+        Assert.False(server.IsReleased, "the first item arrived while the body was unfinished");
+        server.Release();
+        Assert.True(await items.MoveNextAsync(default));
+        Assert.Equal("second", items.Current);
+        Assert.False(await items.MoveNextAsync(default));
+    }
+
+    [Fact]
+    public async Task BhvStreaming007ACorruptCompressedStreamRaisesAnApiErrorWithTheStatusAndTheDecoderErrorAndIsNotRetried()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await RawServer.HeadAsync(socket, 200, "Content-Encoding: gzip", "Content-Length: 8");
+                await RawServer.WriteAsync(socket, "notgzip!");
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+        using ApiStreamResponse response = await OpenStreamAsync(client, server, "/items/export");
+        using JsonLinesStream<string> items = new(Wrap(response), line => line, 1024, "GET", "/items/export");
+
+        ApiException failure = await Assert.ThrowsAsync<ApiException>(async () =>
+        {
+            _ = await items.MoveNextAsync(default);
+        });
+
+        Assert.IsNotAssignableFrom<NetworkException>(failure);
+        Assert.Equal(200, failure.StatusCode);
+        Assert.NotNull(failure.InnerException);
+        Assert.Equal(1, server.Hits);
+    }
+
+    [Fact]
+    public async Task BhvSse007AnSseStreamReconnectsAfterTheConnectionDropsAndSendsTheLastEventIdInLastEventId()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, hit, _) =>
+            {
+                if (hit >= 3)
+                {
+                    await RawServer.HeadAsync(socket, 204, "Content-Length: 0");
+                    return;
+                }
+                await EventsHeadAsync(socket);
+                await RawServer.ChunkAsync(
+                    socket, hit == 1 ? "id: 1\ndata: a\n\nid: 2\ndata: b\n\n" : "id: 3\ndata: c\n\n");
+                await RawServer.EndAsync(socket);
+            }
+        );
+        using DefaultApiClient client = StreamClient();
+        await using SseStream<string> stream = await EventStreamAsync(
+            EventOpener(server, client), new StreamOptions { ReconnectDelay = 1 });
+        List<string?> data = [];
+
+        await foreach (ServerSentEvent<string> item in stream)
+        {
+            data.Add(item.Data);
+        }
+
+        Assert.Equal(["a", "b", "c"], data);
+        Assert.DoesNotContain("last-event-id", server.Heads[0], StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("last-event-id: 2", server.Heads[1], StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("last-event-id: 3", server.Heads[2], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task BhvSse015AnIdleTimeoutOnAnSseStreamCountsAsALostConnectionAndReconnects()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, hit, head) =>
+            {
+                await EventsHeadAsync(socket);
+                if (hit == 1)
+                {
+                    await RawServer.ChunkAsync(socket, "id: 1\ndata: a\n\n");
+                    _ = await self.AwaitReleaseAsync();
+                    return;
+                }
+                await RawServer.ChunkAsync(socket, "id: 2\ndata: b\n\n");
+                await RawServer.EndAsync(socket);
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().IdleTimeout(300).Build());
+        await using SseStream<string> stream = await EventStreamAsync(
+            EventOpener(server, client), new StreamOptions { ReconnectDelay = 1, MaxReconnects = 1 });
+
+        Assert.Equal("a", (await stream.AdvanceAsync(default))!.Data);
+        Assert.Equal("b", (await stream.AdvanceAsync(default))!.Data);
+
+        Assert.Contains("last-event-id: 1", server.Heads[1], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task BhvSse018AnSseCommentLineSuchAsAHeartbeatIsSkippedAndCountsAsActivityForTheIdleTimeout()
+    {
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, _) =>
+            {
+                await EventsHeadAsync(socket);
+                for (int beat = 0; beat < 8; beat++)
+                {
+                    await RawServer.ChunkAsync(socket, ": heartbeat\n\n");
+                    await Task.Delay(100);
+                }
+                await RawServer.ChunkAsync(socket, "data: late\n\n");
+                await RawServer.EndAsync(socket);
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().IdleTimeout(400).Build());
+        await using SseStream<string> stream = await EventStreamAsync(
+            EventOpener(server, client), new StreamOptions { ReconnectDelay = 1, MaxReconnects = 0 });
+
+        Assert.Equal("late", (await stream.AdvanceAsync(default))!.Data);
+
+        Assert.Equal(1, server.Hits);
+    }
+
+    private static byte[] Patterned(int size)
+    {
+        byte[] data = new byte[size];
+        for (int index = 0; index < size; index++)
+        {
+            data[index] = unchecked((byte)((index * 31) + 7));
+        }
+        return data;
+    }
+
+    /// <summary>A stream that counts how often it is disposed.</summary>
+    private sealed class CountingStream(byte[] data) : MemoryStream(data)
+    {
+        private int _disposals;
+
+        public int Disposals => Volatile.Read(ref _disposals);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _ = Interlocked.Increment(ref _disposals);
+            }
+            base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>A stream whose second half cannot be read until the gate opens.</summary>
+    private sealed class GatedStream(byte[] data, Task gate) : Stream
+    {
+        private int _position;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            return ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+        }
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (_position >= data.Length)
+            {
+                return 0;
+            }
+            int half = data.Length / 2;
+            if (_position >= half)
+            {
+                await gate.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken);
+            }
+            int limit = _position < half ? half : data.Length;
+            int count = Math.Min(Math.Min(buffer.Length, 32768), limit - _position);
+            data.AsMemory(_position, count).CopyTo(buffer);
+            _position += count;
+            return count;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    private static Task<ApiHttpResponse> PutAsync(DefaultApiClient client, RawServer server, BodySource body)
+    {
+        return client.SendRequestAsync(
+            "PUT", new Uri(server.Url("/items/blob")), new Dictionary<string, string>(), body);
+    }
+
+    [Fact]
+    public async Task BhvStreaming023AStreamedUploadOfUnknownLengthIsSentChunkedAndArrivesIntact()
+    {
+        byte[] data = Patterned(300_000);
+        TaskCompletionSource firstSeen = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Upload? seen = null;
+        using RawServer server = RawServer.Serve(
+            async (_, socket, _, head) =>
+            {
+                seen = await RawServer.ReadUploadAsync(socket, head, () => _ = firstSeen.TrySetResult());
+                await RawServer.ReplyAsync(socket, 200);
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().Build());
+
+        /* The second half is not readable until the server has the first, so a client that
+           buffered the stream before sending would wait here for good. */
+        ApiHttpResponse response = await PutAsync(client, server, BodySource.Once(new GatedStream(data, firstSeen.Task)));
+
+        Assert.Equal(200, response.StatusCode);
+        string head = server.Heads[0];
+        Assert.Contains("transfer-encoding: chunked", head, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("content-length", head, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(seen);
+        Assert.True(seen.Chunked);
+        Assert.Equal(data, seen.Bytes);
+    }
+
+    [Fact]
+    public async Task BhvStreaming024AStreamedUploadWithAKnownLengthSendsContentLength()
+    {
+        byte[] data = Patterned(100_000);
+        string file = Path.GetTempFileName();
+        await File.WriteAllBytesAsync(file, data);
+        try
+        {
+            System.Collections.Concurrent.ConcurrentQueue<Upload> seen = new();
+            using RawServer server = RawServer.Serve(
+                async (_, socket, _, head) =>
+                {
+                    seen.Enqueue(await RawServer.ReadUploadAsync(socket, head));
+                    await RawServer.ReplyAsync(socket, 200);
+                }
+            );
+            using DefaultApiClient client = new(TransportOptions.Builder().Build());
+            BodySource[] sources =
+            [
+                BodySource.Of(data),
+                BodySource.OfFile(file),
+                BodySource.FromFactory(() => new MemoryStream(data), data.Length),
+                BodySource.Once(new MemoryStream(data), data.Length),
+            ];
+
+            foreach (BodySource source in sources)
+            {
+                Assert.Equal(200, (await PutAsync(client, server, source)).StatusCode);
+            }
+
+            Upload[] uploads = [.. seen];
+            Assert.Equal(sources.Length, uploads.Length);
+            for (int index = 0; index < sources.Length; index++)
+            {
+                string head = server.Heads[index];
+                Assert.Contains("content-length: " + data.Length, head, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("transfer-encoding", head, StringComparison.OrdinalIgnoreCase);
+                Assert.False(uploads[index].Chunked);
+                Assert.Equal(data, uploads[index].Bytes);
+            }
+            Assert.Equal("BodySource[bytes, 100000 bytes]", sources[0].ToString());
+            Assert.Equal("BodySource[single use, 100000 bytes]", sources[3].ToString());
+            Assert.Equal(
+                "BodySource[factory, length unknown]",
+                BodySource.FromFactory(() => new MemoryStream(data)).ToString());
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    [Fact]
+    public async Task BhvStreaming025ACallerSuppliedUploadStreamIsNeverClosedByTheSdk()
+    {
+        using RawServer server = RawServer.Serve(
+            async (self, socket, hit, head) =>
+            {
+                _ = await RawServer.ReadUploadAsync(socket, head);
+                await RawServer.ReplyAsync(socket, hit == 2 ? 503 : 200, "Retry-After: 0");
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().Build());
+
+        using CountingStream callers = new(Patterned(5000));
+        Assert.Equal(200, (await PutAsync(client, server, BodySource.Once(callers))).StatusCode);
+        Assert.Equal(0, callers.Disposals);
+        Assert.Equal(callers.Length, callers.Position);
+
+        using CountingStream refused = new(Patterned(5000));
+        Assert.Equal(503, (await PutAsync(client, server, BodySource.Once(refused))).StatusCode);
+        Assert.Equal(0, refused.Disposals);
+
+        System.Collections.Concurrent.ConcurrentQueue<CountingStream> opened = new();
+        BodySource factory = BodySource.FromFactory(() =>
+        {
+            CountingStream stream = new(Patterned(5000));
+            opened.Enqueue(stream);
+            return stream;
+        });
+        _ = await PutAsync(client, server, factory);
+        Assert.NotEmpty(opened);
+        foreach (CountingStream stream in opened)
+        {
+            Assert.True(stream.Disposals >= 1, "what the SDK opened itself is closed by it");
+        }
+    }
+
+    [Fact]
+    public async Task BhvStreaming026AReplayableUploadIsRewoundAndRetriedAfterA503AndASingleUseUploadIsNotRetriedAndSurfacesTheOriginalError()
+    {
+        byte[] data = Patterned(20_000);
+        System.Collections.Concurrent.ConcurrentQueue<Upload> seen = new();
+        using RawServer server = RawServer.Serve(
+            async (_, socket, hit, head) =>
+            {
+                seen.Enqueue(await RawServer.ReadUploadAsync(socket, head));
+                if (hit == 1)
+                {
+                    await RawServer.ReplyAsync(socket, 503, "Retry-After: 0");
+                    return;
+                }
+                await RawServer.ReplyAsync(socket, 200);
+            }
+        );
+        using DefaultApiClient client = new(TransportOptions.Builder().Build());
+        int opens = 0;
+        BodySource replayable = BodySource.FromFactory(() =>
+        {
+            _ = Interlocked.Increment(ref opens);
+            return new MemoryStream(data);
+        });
+
+        ApiHttpResponse response = await PutAsync(client, server, replayable);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, server.Hits);
+        Assert.Equal(2, opens);
+        Upload[] uploads = [.. seen];
+        Assert.Equal(data, uploads[0].Bytes);
+        Assert.Equal(data, uploads[1].Bytes);
+
+        using RawServer failing = RawServer.Serve(
+            async (_, socket, _, head) =>
+            {
+                _ = await RawServer.ReadUploadAsync(socket, head);
+                await RawServer.ReplyAsync(socket, 503, "Retry-After: 0");
+            }
+        );
+        ApiHttpResponse unchanged = await PutAsync(client, failing, BodySource.Once(new MemoryStream(data)));
+
+        Assert.Equal(503, unchanged.StatusCode);
+        Assert.Equal(1, failing.Hits);
+    }
+
+    [Fact]
+    public async Task BhvStreaming027A307Or308WithASingleUseUploadIsRefusedAndTheBodyIsNeverBuffered()
+    {
+        byte[] data = Patterned(20_000);
+        foreach (int status in new[] { 307, 308 })
+        {
+            System.Collections.Concurrent.ConcurrentQueue<Upload> landed = new();
+            using RawServer target = RawServer.Serve(
+                async (_, socket, _, head) =>
+                {
+                    landed.Enqueue(await RawServer.ReadUploadAsync(socket, head));
+                    await RawServer.ReplyAsync(socket, 200);
+                }
+            );
+            using RawServer origin = RawServer.Serve(
+                async (_, socket, _, head) =>
+                {
+                    _ = await RawServer.ReadUploadAsync(socket, head);
+                    await RawServer.ReplyAsync(socket, status, "Location: " + target.Url("/items/final"));
+                }
+            );
+            using DefaultApiClient client = new(TransportOptions.Builder().Build());
+
+            using CountingStream once = new(data);
+            ApiException refused = await Assert.ThrowsAsync<ApiException>(
+                () => PutAsync(client, origin, BodySource.Once(once)));
+
+            Assert.Contains("Refusing to replay a streamed request body", refused.Message, StringComparison.Ordinal);
+            Assert.Equal(status, refused.StatusCode);
+            Assert.Equal(0, target.Hits);
+            Assert.Equal(1, origin.Hits);
+            Assert.Equal(once.Length, once.Position);
+            Assert.Equal(0, once.Disposals);
+
+            ApiHttpResponse followed = await PutAsync(
+                client, origin, BodySource.FromFactory(() => new MemoryStream(data)));
+            Assert.Equal(200, followed.StatusCode);
+            Assert.Equal(data, Assert.Single(landed).Bytes);
+        }
+    }
+
+}
+
+/// <summary>What a scripted raw server received as the body of one request.</summary>
+public sealed record Upload(byte[] Bytes, bool Chunked);
+
+/// <summary>
+/// What a scripted raw server does with one connection: the server, the socket, the
+/// number of the connection (1 for the first) and the request head.
+/// </summary>
+public delegate Task RawScript(RawServer server, TcpClient socket, int hit, string head);
+
+/// <summary>
+/// An in-process HTTP/1.1 server on a raw socket, so a test can stall a body, cut it
+/// short or reset the connection, which neither the shared mock server nor a plain
+/// HTTP server can do.
+/// </summary>
+public sealed class RawServer : IDisposable
+{
+    private readonly TcpListener _listener;
+    private readonly RawScript _script;
+    private readonly object _gate = new();
+    private readonly List<string> _heads = [];
+    private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _clientGone = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _hits;
+
+    private RawServer(RawScript script)
+    {
+        _script = script;
+        _listener = new TcpListener(IPAddress.Loopback, 0);
+        _listener.Start();
+        _ = Task.Run(AcceptLoopAsync);
+    }
+
+    /// <summary>Starts a server that runs <paramref name="script"/> for every connection it accepts.</summary>
+    public static RawServer Serve(RawScript script)
+    {
+        return new RawServer(script);
+    }
+
+    /// <summary>The URL of <paramref name="path"/> on this server.</summary>
+    public string Url(string path)
+    {
+        return "http://127.0.0.1:" + ((IPEndPoint)_listener.LocalEndpoint).Port + path;
+    }
+
+    /// <summary>The number of connections served so far.</summary>
+    public int Hits => Volatile.Read(ref _hits);
+
+    /// <summary>The request head of every connection, in order.</summary>
+    public IReadOnlyList<string> Heads
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _heads];
+            }
+        }
+    }
+
+    /// <summary>Whether the test has released the scripts that wait on it.</summary>
+    public bool IsReleased => _release.Task.IsCompleted;
+
+    /// <summary>Lets a script that waits on <see cref="AwaitReleaseAsync"/> carry on.</summary>
+    public void Release()
+    {
+        _ = _release.TrySetResult();
+    }
+
+    /// <summary>Waits until the test releases the script; true when it did, false when it timed out.</summary>
+    public async Task<bool> AwaitReleaseAsync()
+    {
+        Task done = await Task.WhenAny(_release.Task, Task.Delay(TimeSpan.FromSeconds(20)));
+        return done == _release.Task;
+    }
+
+    /// <summary>Called by a script whose write failed because the client dropped the connection.</summary>
+    public void MarkClientGone()
+    {
+        _ = _clientGone.TrySetResult();
+    }
+
+    /// <summary>Waits until a script saw the client drop the connection.</summary>
+    public async Task<bool> ClientGoneAsync(TimeSpan within)
+    {
+        Task done = await Task.WhenAny(_clientGone.Task, Task.Delay(within));
+        return done == _clientGone.Task;
+    }
+
+    /// <summary>
+    /// Reads the body that follows <paramref name="head"/>: a chunked one chunk by chunk and one
+    /// with a Content-Length to its end. <paramref name="onFirst"/> runs once the first bytes have
+    /// arrived, while the rest is still to come.
+    /// </summary>
+    public static async Task<Upload> ReadUploadAsync(TcpClient socket, string head, Action? onFirst = null)
+    {
+        NetworkStream stream = socket.GetStream();
+        using MemoryStream received = new();
+        if (head.Contains("transfer-encoding: chunked", StringComparison.OrdinalIgnoreCase))
+        {
+            byte[] one = new byte[1];
+            while (true)
+            {
+                StringBuilder size = new();
+                while (true)
+                {
+                    if (await stream.ReadAsync(one) == 0)
+                    {
+                        return new Upload(received.ToArray(), true);
+                    }
+                    if (one[0] == (byte)'\n')
+                    {
+                        break;
+                    }
+                    if (one[0] != (byte)'\r')
+                    {
+                        _ = size.Append((char)one[0]);
+                    }
+                }
+                int length = Convert.ToInt32(size.ToString().Trim(), 16);
+                if (length == 0)
+                {
+                    await stream.ReadExactlyAsync(new byte[2]);
+                    return new Upload(received.ToArray(), true);
+                }
+                byte[] chunk = new byte[length];
+                await stream.ReadExactlyAsync(chunk);
+                received.Write(chunk);
+                onFirst?.Invoke();
+                await stream.ReadExactlyAsync(new byte[2]);
+            }
+        }
+        System.Text.RegularExpressions.Match declared =
+            System.Text.RegularExpressions.Regex.Match(
+                head, "content-length: (\\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (declared.Success)
+        {
+            byte[] body = new byte[int.Parse(declared.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)];
+            await stream.ReadExactlyAsync(body);
+            received.Write(body);
+        }
+        onFirst?.Invoke();
+        return new Upload(received.ToArray(), false);
+    }
+
+    /// <summary>Answers with an empty body: the status, the given headers and <c>Content-Length: 0</c>.</summary>
+    public static Task ReplyAsync(TcpClient socket, int status, params string[] headers)
+    {
+        return HeadAsync(socket, status, [.. headers, "Content-Length: 0"]);
+    }
+
+    /// <summary>Writes a status line, the given headers and <c>Connection: close</c>.</summary>
+    public static async Task HeadAsync(TcpClient socket, int status, params string[] headers)
+    {
+        StringBuilder head = new("HTTP/1.1 " + status + " Test\r\n");
+        foreach (string header in headers)
+        {
+            _ = head.Append(header).Append("\r\n");
+        }
+        _ = head.Append("Connection: close\r\n\r\n");
+        await WriteAsync(socket, head.ToString());
+    }
+
+    /// <summary>Writes one chunk of a chunked body.</summary>
+    public static Task ChunkAsync(TcpClient socket, string data)
+    {
+        return WriteAsync(
+            socket,
+            Encoding.UTF8.GetByteCount(data).ToString("x", System.Globalization.CultureInfo.InvariantCulture)
+                + "\r\n" + data + "\r\n");
+    }
+
+    /// <summary>Writes one chunk of a chunked body from bytes.</summary>
+    public static async Task ChunkBytesAsync(TcpClient socket, byte[] bytes)
+    {
+        await WriteAsync(
+            socket,
+            bytes.Length.ToString("x", System.Globalization.CultureInfo.InvariantCulture) + "\r\n");
+        await WriteBytesAsync(socket, bytes);
+        await WriteAsync(socket, "\r\n");
+    }
+
+    /// <summary>Ends a chunked body.</summary>
+    public static Task EndAsync(TcpClient socket)
+    {
+        return WriteAsync(socket, "0\r\n\r\n");
+    }
+
+    /// <summary>Writes text as it is.</summary>
+    public static Task WriteAsync(TcpClient socket, string text)
+    {
+        return WriteBytesAsync(socket, Encoding.UTF8.GetBytes(text));
+    }
+
+    /// <summary>Writes bytes as they are.</summary>
+    public static async Task WriteBytesAsync(TcpClient socket, byte[] bytes)
+    {
+        NetworkStream stream = socket.GetStream();
+        await stream.WriteAsync(bytes);
+        await stream.FlushAsync();
+    }
+
+    /// <summary>Makes the close of the socket reset the connection instead of ending it cleanly.</summary>
+    public static void Reset(TcpClient socket)
+    {
+        socket.LingerState = new LingerOption(true, 0);
+    }
+
+    /// <summary>Stops listening and lets every waiting script carry on.</summary>
+    public void Dispose()
+    {
+        Release();
+        _listener.Stop();
+        _listener.Dispose();
+    }
+
+    private async Task AcceptLoopAsync()
+    {
+        while (true)
+        {
+            TcpClient socket;
+            try
+            {
+                socket = await _listener.AcceptTcpClientAsync();
+            }
+            catch (Exception ex) when (ex is ObjectDisposedException or SocketException or InvalidOperationException)
+            {
+                return;
+            }
+            _ = Task.Run(() => HandleAsync(socket));
+        }
+    }
+
+    private async Task HandleAsync(TcpClient socket)
+    {
+        using (socket)
+        {
+            try
+            {
+                string head = await ReadHeadAsync(socket.GetStream());
+                int hit = Interlocked.Increment(ref _hits);
+                lock (_gate)
+                {
+                    _heads.Add(head);
+                }
+                await _script(this, socket, hit, head);
+            }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException or SocketException or InvalidOperationException)
+            {
+                /* a script that drops the connection ends here, which is what it wanted */
+            }
+        }
+    }
+
+    private static async Task<string> ReadHeadAsync(NetworkStream stream)
+    {
+        StringBuilder head = new();
+        byte[] one = new byte[1];
+        while (await stream.ReadAsync(one) > 0)
+        {
+            _ = head.Append((char)one[0]);
+            if (head.Length >= 4 && head.ToString(head.Length - 4, 4) == "\r\n\r\n")
+            {
+                break;
+            }
+        }
+        return head.ToString();
     }
 }
 

@@ -1,0 +1,237 @@
+{{>api_info}}
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'byte_stream.dart';
+
+/// A line or event that is longer than the configured limit. Internal to the
+/// SDK: not exported from the package barrel.
+class OverLimit implements Exception {
+  /// Creates the error.
+  OverLimit(this.message);
+
+  /// What was too long, and the limit.
+  final String message;
+
+  @override
+  String toString() => 'OverLimit: $message';
+}
+
+/// The line splitter and the server-sent events parser behind
+/// `JsonLinesStream` and `SseStream`. The grammar is the one of the WHATWG HTML
+/// standard, "Server-sent events": UTF-8, a leading byte order mark dropped,
+/// lines ended by CRLF, LF or CR, a blank line dispatches, an empty data buffer
+/// is not dispatched but its id is kept, a line that starts with a colon is a
+/// comment, one space after the colon is removed, unknown fields are ignored,
+/// data lines are joined with a line feed, an id with a NUL is ignored, a retry
+/// value only counts when it is digits, and an event cut off by the end of the
+/// stream is discarded.
+///
+/// Splits a byte stream into lines on CRLF, LF or a lone CR, decoding UTF-8.
+class LineReader {
+  /// Reads lines of at most [maxBytes] bytes from [source].
+  LineReader(Stream<List<int>> source, this.maxBytes)
+      : _source = source,
+        _iterator = StreamIterator<List<int>>(source);
+
+  /// The longest a line may be, in bytes.
+  final int maxBytes;
+
+  final Stream<List<int>> _source;
+  final StreamIterator<List<int>> _iterator;
+  Uint8List _chunk = Uint8List(0);
+  int _position = 0;
+  bool _skipLineFeed = false;
+  bool _first = true;
+  bool _terminated = true;
+  bool _ended = false;
+  bool _started = false;
+
+  /// Whether the line last returned ended with a line terminator; a last line
+  /// cut off by the end of the stream does not.
+  bool get wasTerminated => _terminated;
+
+  /// Reads the next line without its terminator, or null at the end of the
+  /// stream. Throws a [OverLimit] past the limit.
+  Future<String?> readLine() async {
+    final line = BytesBuilder(copy: false);
+    var any = false;
+    while (true) {
+      if (_position >= _chunk.length) {
+        final source = _source;
+        if (_ended || (!_started && source is ByteStream && source.isClosed)) {
+          _ended = true;
+          return _finish(line, any);
+        }
+        _started = true;
+        if (!await _iterator.moveNext()) {
+          _ended = true;
+          return _finish(line, any);
+        }
+        final next = _iterator.current;
+        _chunk = next is Uint8List ? next : Uint8List.fromList(next);
+        _position = 0;
+        continue;
+      }
+      final value = _chunk[_position++];
+      if (_skipLineFeed) {
+        _skipLineFeed = false;
+        if (value == 0x0A) {
+          continue;
+        }
+      }
+      if (value == 0x0A || value == 0x0D) {
+        _skipLineFeed = value == 0x0D;
+        _terminated = true;
+        return _decode(line);
+      }
+      any = true;
+      if (line.length >= maxBytes) {
+        throw OverLimit('A line is longer than $maxBytes bytes');
+      }
+      line.addByte(value);
+    }
+  }
+
+  String? _finish(BytesBuilder line, bool any) {
+    if (!any) {
+      return null;
+    }
+    _terminated = false;
+    return _decode(line);
+  }
+
+  String _decode(BytesBuilder line) {
+    var text = utf8.decode(line.takeBytes(), allowMalformed: true);
+    if (_first) {
+      _first = false;
+      if (text.isNotEmpty && text.codeUnitAt(0) == 0xFEFF) {
+        text = text.substring(1);
+      }
+    }
+    return text;
+  }
+
+  /// Stops reading and releases the source.
+  Future<void> cancel() => _iterator.cancel();
+}
+
+/// One dispatched event, before its data is decoded.
+class RawEvent {
+  /// Creates an event.
+  const RawEvent(this.id, this.event, this.data, this.retry);
+
+  /// The last event id, or null when the stream has none.
+  final String? id;
+
+  /// The event name, `message` when the server sent none.
+  final String event;
+
+  /// The `data` lines joined with a line feed.
+  final String data;
+
+  /// The reconnection time in milliseconds the server named, or null.
+  final int? retry;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RawEvent &&
+      other.id == id &&
+      other.event == event &&
+      other.data == data &&
+      other.retry == retry;
+
+  @override
+  int get hashCode => Object.hash(id, event, data, retry);
+}
+
+/// Reads events from a [LineReader].
+class SseParser {
+  /// Parses [source], giving up on an event of more than [maxEventBytes], with
+  /// [lastEventId] as the id the stream starts from.
+  SseParser(Stream<List<int>> source, this.maxEventBytes, [String? lastEventId])
+      : _lines = LineReader(source, maxEventBytes),
+        lastEventId = lastEventId ?? '';
+
+  /// The longest an event may be, in bytes.
+  final int maxEventBytes;
+
+  final LineReader _lines;
+
+  /// The last event id seen, which a reconnect sends; empty when none.
+  String lastEventId;
+
+  /// The reconnection time the server last named, in milliseconds, or null.
+  int? retry;
+
+  static final RegExp _digits = RegExp(r'^[0-9]+$');
+
+  /// Reads up to the next event that carries data; null at the end of the
+  /// stream (a cut-off event is dropped). Throws a [OverLimit] past the
+  /// limit.
+  Future<RawEvent?> next() async {
+    final data = StringBuffer();
+    var hasData = false;
+    var name = '';
+    var idBuffer = lastEventId;
+    while (true) {
+      final line = await _lines.readLine();
+      if (line == null || !_lines.wasTerminated) {
+        return null;
+      }
+      if (line.isEmpty) {
+        lastEventId = idBuffer;
+        if (!hasData) {
+          name = '';
+          continue;
+        }
+        final text = data.toString();
+        return RawEvent(
+          lastEventId.isEmpty ? null : lastEventId,
+          name.isEmpty ? 'message' : name,
+          text.substring(0, text.length - 1),
+          retry,
+        );
+      }
+      if (line.startsWith(':')) {
+        continue;
+      }
+      var field = line;
+      var value = '';
+      final colon = line.indexOf(':');
+      if (colon >= 0) {
+        field = line.substring(0, colon);
+        value = line.substring(colon + 1);
+        if (value.startsWith(' ')) {
+          value = value.substring(1);
+        }
+      }
+      switch (field) {
+        case 'data':
+          if (data.length + value.length + 1 > maxEventBytes) {
+            throw OverLimit('An event is longer than $maxEventBytes bytes');
+          }
+          data
+            ..write(value)
+            ..write('\n');
+          hasData = true;
+        case 'event':
+          name = value;
+        case 'id':
+          if (!value.contains('\u0000')) {
+            idBuffer = value;
+          }
+        case 'retry':
+          if (_digits.hasMatch(value) && value.length < 18) {
+            retry = int.parse(value);
+          }
+        default:
+          break;
+      }
+    }
+  }
+
+  /// Stops reading and releases the source.
+  Future<void> cancel() => _lines.cancel();
+}

@@ -85,12 +85,14 @@ module Petstore::Client
     attr_reader inject_request_id: bool
     attr_reader max_retries: Integer
     attr_reader connection: untyped
-    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Numeric?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?max_retries: Integer, ?connection: untyped) -> void
+    attr_reader idle_timeout: (Integer | Float)?
+    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Numeric?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool, ?max_retries: Integer, ?connection: untyped, ?idle_timeout: (Integer | Float)?) -> void
     def self.builder: () -> TransportOptions::Builder
     def self.follows_redirects?: (untyped) -> bool
     def self.validate_proxy!: (String?) -> void
     def self.validate_max_retries!: (untyped) -> Integer
     def self.validate_max_redirects!: (untyped) -> untyped
+    def self.validate_idle_timeout!: (untyped) -> (Integer | Float)?
     def self.validate_connection!: (untyped, bool, String?, String?) -> void
     def self.redact_headers: (Hash[String, String]) -> Hash[String, String]
     def self.redact_url: (String?) -> String?
@@ -112,6 +114,7 @@ module Petstore::Client
       def inject_request_id: (bool) -> Builder
       def max_retries: (Integer) -> Builder
       def connection: (untyped) -> Builder
+      def idle_timeout: ((Integer | Float)?) -> Builder
       def build: () -> TransportOptions
     end
   end
@@ -154,6 +157,270 @@ module Petstore::Client
     attr_reader raw_body: String
     attr_reader headers: Hash[String, String]
     def initialize: (status_code: Integer, data: T, raw_body: String, headers: Hash[String, String]) -> void
+  end
+
+  interface _StreamSource
+    def read: (Integer) -> String?
+    def close: () -> void
+  end
+
+  class ApiStreamResponse
+    attr_reader status_code: Integer
+    attr_reader headers: Hash[String, String]
+    attr_reader body: _StreamSource
+    def initialize: (status_code: Integer, headers: Hash[String, String], body: _StreamSource) -> void
+    def read_bounded: (Integer) -> ApiHttpResponse
+    def close: () -> void
+    def inspect: () -> String
+    def to_s: () -> String
+    private
+    def read_up_to: (Integer) -> String
+    def text_content_type?: (String) -> bool
+    def decode_text: (String, String) -> String
+  end
+
+  class BodySource
+    LABELS: Hash[Symbol, String]
+    def self.of: (String) -> BodySource
+    def self.of_file: (String | Pathname) -> BodySource
+    def self.from_factory: (?untyped, ?length: Integer?) ?{ () -> untyped } -> BodySource
+    def self.once: (untyped, ?length: Integer?) -> BodySource
+    def self.from: (untyped, ?length: Integer?) -> BodySource
+    def self.checked_length: (Integer?) -> Integer?
+    attr_reader bytes: String?
+    def replayable?: () -> bool
+    def length: () -> Integer?
+    def open: () -> untyped
+    def release: (untyped) -> void
+    def to_s: () -> String
+    def inspect: () -> String
+    private
+    def initialize: (Symbol, ?bytes: String?, ?path: String?, ?factory: untyped, ?stream: untyped, ?length: Integer?) -> void
+    def open_file: () -> File
+    def open_factory: () -> untyped
+    def take_stream: () -> untyped
+  end
+
+  class ByteStream
+    CHUNK_SIZE: Integer
+    attr_reader status_code: Integer
+    attr_reader headers: Hash[String, String]
+    attr_reader bytes_delivered: Integer
+    def initialize: (status_code: Integer, headers: Hash[String, String], source: _StreamSource) -> void
+    def read: (?Integer? length, ?String? outbuf) -> String?
+    def read_partial: (?Integer) -> String?
+    def each: (?Integer) ?{ (String) -> void } -> (Enumerator[String, ByteStream] | ByteStream)
+    def read_all: () -> String
+    def close: () -> void
+    def closed?: () -> bool
+    def inspect: () -> String
+    def to_s: () -> String
+    private
+    def ensure_open: () -> void
+    def take: (Integer) -> String
+    def take_all: () -> String
+    def fill: (Integer?) -> void
+    def finish_read: (String?, String?) -> String?
+  end
+
+  class ServerSentEvent < Data
+    attr_reader id: String?
+    attr_reader event: String
+    attr_reader data: untyped
+    attr_reader retry: Integer?
+    attr_reader raw: String
+    def self.new: (id: String?, event: String, data: untyped, retry: Integer?, raw: String) -> ServerSentEvent
+                | (String?, String, untyped, Integer?, String) -> ServerSentEvent
+    def inspect: () -> String
+    def to_s: () -> String
+  end
+
+  class StreamOptions
+    attr_reader idle_timeout: (Integer | Float)?
+    attr_reader max_reconnects: Integer?
+    attr_reader reconnect_delay: Integer?
+    attr_reader last_event_id: String?
+    attr_reader max_event_bytes: Integer?
+    def initialize: (?idle_timeout: (Integer | Float)?, ?max_reconnects: Integer?, ?reconnect_delay: Integer?, ?last_event_id: String?, ?max_event_bytes: Integer?) -> void
+    def inspect: () -> String
+    def to_s: () -> String
+    private
+    def non_negative!: (Symbol, untyped) -> Integer?
+  end
+
+  module EventStream
+    class TooLongError < StandardError
+    end
+
+    class RawEvent < Data
+      attr_reader id: String?
+      attr_reader event: String
+      attr_reader data: String
+      attr_reader retry: Integer?
+      def self.new: (id: String?, event: String, data: String, retry: Integer?) -> RawEvent
+                  | (String?, String, String, Integer?) -> RawEvent
+    end
+
+    interface _PartialReader
+      def read_partial: (?Integer) -> String?
+    end
+
+    class LineReader
+      CHUNK_SIZE: Integer
+      def initialize: (_PartialReader, Integer) -> void
+      def terminated?: () -> bool
+      def read_line: () -> String?
+      private
+      def drop_line_feed: () -> void
+      def take_line: (Integer) -> String
+      def take_unterminated: () -> String?
+      def decode: (String) -> String
+    end
+
+    class SseParser
+      attr_reader last_event_id: String
+      attr_reader server_retry: Integer?
+      def initialize: (_PartialReader, Integer, String?) -> void
+      def next_event: () -> RawEvent?
+      private
+      def dispatch: (String, String) -> RawEvent
+    end
+  end
+
+  class JsonLinesStream
+    include Enumerable[untyped]
+    def initialize: (source: ByteStream, decoder: (^(String) -> untyped)?, max_line_bytes: Integer, method: String, path: String) -> void
+    def status_code: () -> Integer
+    def headers: () -> Hash[String, String]
+    def each: () { (untyped) -> void } -> self
+            | () -> Enumerator[untyped, self]
+    def close: () -> void
+    def inspect: () -> String
+    def to_s: () -> String
+    private
+    def read_item: () -> Array[untyped]?
+    def decode: (String) -> untyped
+    def failure: (String, Exception) -> Errors::SerializationError
+  end
+
+  interface _Opener
+    def call: (String) -> ByteStream
+  end
+
+  class SseStream
+    include Enumerable[ServerSentEvent]
+    MAX_RECONNECT_DELAY_MS: Integer
+    RETRY_AFTER_CAP_MS: Integer
+    RECONNECTABLE_STATUSES: Array[Integer]
+    def self.open: (opener: _Opener, decoder: (^(String) -> untyped)?, terminator: String?, options: StreamOptions?, has_body: bool, method: String, path: String, ?single_use_body: bool) -> SseStream
+    def self.connect_to: (_Opener, String, String, String) -> ByteStream
+    def self.reconnect_wait_ms: (Integer, Integer, Integer?, Integer?, Float) -> Integer
+    def status_code: () -> Integer
+    def headers: () -> Hash[String, String]
+    def each: () { (ServerSentEvent) -> void } -> self
+            | () -> Enumerator[ServerSentEvent, self]
+    def close: () -> void
+    def inspect: () -> String
+    def to_s: () -> String
+    private
+    def initialize: (_Opener, (^(String) -> untyped)?, String?, StreamOptions, bool, bool, String, String, ByteStream, String) -> void
+    def read_next: () -> ServerSentEvent?
+    def advance: () -> ServerSentEvent?
+    def deliver: (EventStream::RawEvent) -> ServerSentEvent?
+    def decode: (String) -> untyped
+    def reconnect: (Errors::NetworkError?) -> bool
+    def exhausted: (Errors::ApiError?) -> Errors::ApiError
+    def retry_after_of: (untyped) -> Integer?
+    def pause: (Integer) -> void
+    def finish: () -> void
+    def serialization_error: (String, Exception) -> Errors::SerializationError
+  end
+
+  class Page[T, C]
+    attr_reader items: Array[T]
+    attr_reader next_cursor: C?
+    attr_reader result: ApiResult[untyped]
+    def initialize: (items: Array[T], next_cursor: C?, result: ApiResult[untyped]) -> void
+  end
+
+  module LinkHeader
+    class Link < Struct[untyped]
+      attr_accessor target: String
+      attr_accessor relations: Array[String]
+      def self.new: (String, Array[String]) -> Link
+    end
+    def self.next_target: (String?) -> String?
+    def self.parse: (String) -> Array[Link]
+    def self.read_parameters: (String, Integer) -> [Integer, Array[String]]
+    def self.read_value: (String, Integer) -> [String, Integer]
+    def self.skip_to_comma: (String, Integer) -> Integer
+  end
+
+  interface _PageWalker[T, C]
+    def next_page: () -> Page[T, C]?
+  end
+
+  class Paginator[T, C]
+    include Enumerable[T]
+    class CursorPages[T, C]
+      def initialize: (C?, ^(C?) -> ApiResult[untyped], ^(untyped) -> Array[T]?, ^(untyped) -> C?, String) -> void
+      def next_page: () -> Page[T, C]?
+      private
+      def fetch_page: () -> ApiResult[untyped]
+      def repeated_error: () -> Errors::PaginationError
+    end
+    class LinkPages[T]
+      def initialize: (String, ^(String?) -> ApiResult[untyped], ^(untyped) -> Array[T]?, String) -> void
+      def next_page: () -> Page[T, nil]?
+      private
+      def fetch_page: () -> ApiResult[untyped]
+      def link_header_of: (Hash[String, String]) -> String?
+      def repeated_error: () -> Errors::PaginationError
+      def resolve: (String) -> String
+      def same_origin?: (URI::Generic, URI::Generic) -> bool
+    end
+    def self.of_cursor: [T, C] (start: C?, fetch: ^(C?) -> ApiResult[untyped], items: untyped, next_cursor: untyped, request_path: String) -> Paginator[T, C]
+    def self.of_link: [T] (base_url: String, fetch: ^(String?) -> ApiResult[untyped], items: untyped, request_path: String) -> Paginator[T, nil]
+    def initialize: (^() -> _PageWalker[T, C]) -> void
+    def each: () { (T) -> void } -> self
+            | () -> Enumerator[T, void]
+    def items: () -> Enumerator[T, void]
+    def pages: () -> Enumerator[Page[T, C], void]
+  end
+
+  class StreamBody
+    CLOSED_MESSAGE: String
+    QUEUE_CAPACITY: Integer
+    ABORT_WAIT_S: Integer
+    SINK_KEY: Symbol
+    attr_reader status: Integer?
+    attr_reader headers: Hash[String, String]?
+    def initialize: (method: String, url: String, idle_ms: (Integer | Float)?) -> void
+    def start: () { (StreamBody) -> void } -> StreamBody
+    def push_head: (Integer, untyped) -> void
+    def push_data: (String) -> void
+    def self.lower_cased: (untyped) -> Hash[String, String]
+    def await_head: (Float?) -> StreamBody?
+    def decode_with: (String?) -> void
+    def on_release: () { (StreamBody) -> void } -> void
+    def read: (Integer) -> String?
+    def close: () -> void
+    def cancel: () -> void
+    private
+    def request_path_of: (String) -> String
+    def check_readable: () -> void
+    def take: (Integer) -> String
+    def pull: () -> void
+    def handle: (untyped) -> void
+    def receive: (String) -> void
+    def inflate: (String) -> String
+    def finish_body: () -> void
+    def translate: (Exception) -> Errors::ApiError
+    def decode_error: (Exception) -> Errors::ApiError
+    def with_cause: (Errors::ApiError, Exception) -> Errors::ApiError
+    def fail_with: (Errors::ApiError) -> bot
+    def halt: () -> void
+    def release: () -> void
   end
 
   module Errors
@@ -275,6 +542,14 @@ module Petstore::Client
     class NetworkTimeoutError < NetworkError
     end
 
+    class StreamError < NetworkError
+    end
+
+    class PaginationError < ::Petstore::Client::Errors::OpenAPIError
+      attr_reader request_path: String?
+      def initialize: (String, ?String?) -> void
+    end
+
     class SerializationError < ::Petstore::Client::Errors::OpenAPIError
       attr_reader cause: Exception?
       attr_reader status_code: Integer?
@@ -333,6 +608,7 @@ module Petstore::Client
 
   class ApiClient
     def send_request: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool) -> ApiHttpResponse
+    def send_streaming: (Symbol | String, String, Hash[String, String], untyped, ?timeout: Numeric?, ?max_retries: Integer?, ?idle_timeout: (Integer | Float)?) -> ApiStreamResponse
     def close: () -> void
   end
 
@@ -346,6 +622,15 @@ module Petstore::Client
     RETRY_MAX_DELAY_S: Float
     RETRY_JITTER: Float
     RETRY_AFTER_CAP_S: Float
+    STREAM_ENCODINGS: String
+    STREAM_READ_TIMEOUT_S: Integer
+    class StreamSpec
+      attr_reader idle_ms: (Integer | Float)?
+      def initialize: ((Integer | Float)?) -> void
+    end
+    module HeadSignal
+      def request: (untyped, ?untyped) ?{ (untyped) -> untyped } -> untyped
+    end
     module QueryParamsEncoder
       RAW_QUERY_KEY: String
       def self.encode: (untyped) -> String?
@@ -353,15 +638,21 @@ module Petstore::Client
     end
     def initialize: (?TransportOptions?) -> void
     def send_request: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool, ?retry_headers: (^() -> Hash[String, String])?, ?no_default_headers: bool, ?timeout: (Numeric | false)?, ?max_retries: Integer?) -> ApiHttpResponse
+    def send_streaming: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool, ?retry_headers: (^() -> Hash[String, String])?, ?no_default_headers: bool, ?timeout: (Numeric | false)?, ?max_retries: Integer?, ?idle_timeout: (Integer | Float)?) -> ApiStreamResponse
     def close: () -> void
     def self.supported_encodings: () -> String
     private
+    def perform_stream: (Symbol | String, String, Hash[String, String], untyped, bool, (^() -> Hash[String, String])?, bool, (Numeric | false)?, Integer?, (Integer | Float)?) -> ApiStreamResponse
+    def open_stream: (StreamBody) -> ApiStreamResponse
+    def register_stream: (StreamBody) -> void
+    def abort_hop: (untyped) -> void
+    def open_hop: (Symbol, String, untyped, Hash[String, String], Float?, Numeric?, StreamSpec) -> StreamBody
     def perform_request: (Symbol | String, String, Hash[String, String], untyped, bool, (^() -> Hash[String, String])?, bool, (Numeric | false)?, Integer?) -> ApiHttpResponse
     def enter_request: () -> void
     def leave_request: () -> void
     def release_connection: () -> void
-    def transmit: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, bool, Numeric?) -> untyped
-    def transmit_with_retries: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, (^() -> Hash[String, String])?, bool, Numeric?, Integer) -> untyped
+    def transmit: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, bool, Numeric?, ?StreamSpec?) -> untyped
+    def transmit_with_retries: (Symbol | String, String, Hash[String, String], untyped, bool, Float?, (^() -> Hash[String, String])?, bool, Numeric?, Integer, ?StreamSpec?) -> untyped
     def give_up: (Errors::NetworkError?, untyped) -> untyped
     def retryable_network_error?: (Errors::NetworkError) -> bool
     def renewed_headers: (^() -> Hash[String, String]) -> Hash[String, String]?
@@ -370,8 +661,10 @@ module Petstore::Client
     def retry_after: (untyped) -> Float?
     def http_date_wait: (String) -> Float?
     def pause: (Float) -> void
-    def run_hop: (Symbol, String, untyped, Hash[String, String], Float?, Numeric?) -> untyped
+    def run_hop: (Symbol, String, untyped, Hash[String, String], Float?, Numeric?, ?StreamSpec?) -> untyped
     def dispatch: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
+    def wire_body: (BodySource) -> [untyped, Hash[String, String]]
+    def dispatch_wire: (Symbol, String, untyped, Hash[String, String]) ?{ (untyped) -> void } -> untyped
     def header?: (Hash[String, String], String) -> bool
     def validate_header_values!: (Hash[String, untyped]) -> void
     def redact_url_text: (String?) -> String
@@ -679,6 +972,7 @@ module Petstore::Client
 
   module Api
     class BaseApi
+      STREAM_ERROR_BODY_LIMIT: Integer
       # Sentinel marking an explicitly-unauthenticated (security:[]) operation.
       # A plain Object identity-compared against the per-call auth argument.
       NO_AUTH: Object
@@ -686,7 +980,10 @@ module Petstore::Client
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?, ?Hash[String, Auth::Authenticator]) -> void
       def scheme_authenticator: (*String) -> Auth::Authenticator?
       def requirement_authenticator: (*Array[String]) -> Auth::Authenticator?
-      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> ApiResult[untyped]
+      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?, ?stream: bool, ?idle_timeout: Numeric?) -> ApiResult[untyped]
+      def invoke_api_for_json_lines: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, ?(Auth::Authenticator | Object)?, ?item_type: String?, ?stream_options: StreamOptions?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> JsonLinesStream
+      def invoke_api_for_sse: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, ?(Auth::Authenticator | Object)?, ?item_type: String?, ?terminator: String?, ?stream_options: StreamOptions?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> SseStream
+      def invoke_api_for_stream: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> ApiResult[ByteStream]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
       def authenticated_headers: (Hash[String, String], untyped) -> Hash[String, String]
@@ -700,6 +997,9 @@ module Petstore::Client
       def error_outcome: (untyped) -> CallOutcome
       def finish_call: (_CallObserver, CallOutcome) -> void
       def dispatch_request: (Symbol, String, Hash[String, String], untyped, ^(?bool) -> Hash[String, String], ?Hash[Symbol, untyped]) -> ApiHttpResponse
+      def dispatch_stream: (Symbol, String, Hash[String, String], untyped, ^(?bool) -> Hash[String, String], ?Hash[Symbol, untyped]) -> ApiStreamResponse
+      def stream_decoder: (String?) -> (^(String) -> untyped)?
+      def send_call: (bool, Symbol, String, Hash[String, String], untyped, ^(?bool) -> Hash[String, String], Hash[Symbol, untyped]) -> untyped
       def replayable_body?: (untyped) -> bool
       def decode_success_body: (ApiHttpResponse, String, String?) -> untyped
       def throw_api_error: (ApiHttpResponse, Symbol, String, ?Hash[String, untyped]?) -> void

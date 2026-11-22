@@ -17,7 +17,7 @@ import (
 func TestBhvLanggo096_Skills_UploadParametersAreDocumentedAsIoReader(t *testing.T) {
 	t.Parallel()
 	skills := readSourceFile(t, "../SKILLS.md")
-	if !strings.Contains(skills, "File upload parameters and binary request bodies are typed as `io.Reader`;") {
+	if !strings.Contains(skills, "Multipart file parameters are typed as `io.Reader`;") {
 		t.Errorf("expected SKILLS.md to document file upload parameters as io.Reader")
 	}
 	if strings.Contains(skills, "typed as `*os.File`") {

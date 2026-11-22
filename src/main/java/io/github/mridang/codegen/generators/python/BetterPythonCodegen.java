@@ -434,6 +434,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             op.consumes != null && op.consumes.size() > 1;
                     op.vendorExtensions.put(
                             "hasMultipleConsumes", hasMultipleConsumes);
+                    markBinaryUpload(op);
                     for (final CodegenParameter param : op.allParams) {
                         if (param.isDate) {
                             scalarImports.add("from datetime import date");
@@ -457,6 +458,32 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         }
         final OperationsMap processed =
                 super.postProcessOperationsWithModels(objs, allModels);
+        /* After the shared pass: it is the one that fills the operation decorators. */
+        if (operations != null) {
+            final List<CodegenOperation> marked = (List<CodegenOperation>) operations.get("operation");
+            if (marked != null) {
+                for (final CodegenOperation op : marked) {
+                    markBinaryStream(op);
+                }
+            }
+        }
+        if (hasBinaryStream(operations)) {
+            scalarImports.add("from " + packageName + ".byte_stream import ByteStream");
+        }
+        addPagedImports(operations, scalarImports);
+        if (hasBinaryUpload(operations)) {
+            scalarImports.add("from " + packageName + ".body_source import BodySource");
+        }
+        if (hasStream(operations, "streamsSse")) {
+            scalarImports.add("from " + packageName + ".sse_stream import SseStream");
+        }
+        if (hasStream(operations, "streamsJsonLines")) {
+            scalarImports.add("from " + packageName + ".json_lines_stream import JsonLinesStream");
+        }
+        if (hasStream(operations, "streamsSse") || hasStream(operations, "streamsJsonLines")) {
+            scalarImports.add("from " + packageName + ".stream_options import StreamOptions");
+            addStreamItemImports(operations, scalarImports);
+        }
         // A format:date parameter (query, header, path, or form) types the
         // method signature as `date`, but openapi-generator only collects
         // model imports from body/response schemas, never from scalar
@@ -482,6 +509,281 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             }
         }
         return processed;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of {@code bytes}. It runs before the shared pass, which copies the body
+     * type into the signature arguments. Multipart and every other body kind keep the type the
+     * spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
+        op.vendorExtensions.put("uploadsBodySource", true);
+    }
+
+    /**
+     * What the {@code <op>_pages} methods of an api file need: the {@code Paginator}, the item
+     * model (the operation's own imports cover the page model, not the model of its items) and,
+     * for a token cursor, {@code dataclasses.replace}, which gives each page its own cursor.
+     */
+    @SuppressWarnings("unchecked")
+    private void addPagedImports(
+            @Nullable final Map<String, Object> operations, final Set<String> imports) {
+        if (operations == null || !(operations.get("operation") instanceof List)) {
+            return;
+        }
+        for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+            final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (!(decorators instanceof Map)
+                    || !Boolean.TRUE.equals(((Map<String, Object>) decorators).get("hasPagesMethod"))) {
+                continue;
+            }
+            imports.add("from " + packageName + ".paginator import Paginator");
+            final Object pagination = ((Map<String, Object>) decorators).get("pagination");
+            if (!(pagination instanceof Map)) {
+                continue;
+            }
+            final Map<String, Object> p = (Map<String, Object>) pagination;
+            if (Boolean.TRUE.equals(p.get("isToken"))) {
+                imports.add("from dataclasses import replace as _replace_options");
+            }
+            final Object model = p.get("itemModel");
+            if (model != null) {
+                imports.add("from " + modelPackage + "." + toModelFilename(model.toString())
+                        + " import " + model);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean hasBinaryUpload(@Nullable final Map<String, Object> operations) {
+        if (operations == null || !(operations.get("operation") instanceof List)) {
+            return false;
+        }
+        for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+            if (op.vendorExtensions != null
+                    && Boolean.TRUE.equals(op.vendorExtensions.get("uploadsBodySource"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator {@code streamsBinary}
+     * tells {@code api.mustache} to call {@code _invoke_api_for_stream}.
+     */
+    @SuppressWarnings("unchecked")
+    static void markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        final boolean sse = "sse".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean jsonLines = "jsonlines".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        d.put("streamsBinary", binary);
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = text || declared == null ? "str" : declared.toString();
+            final boolean typed = !"str".equals(item) && !"StrictStr".equals(item);
+            d.put("streamTyped", typed);
+            d.put("streamItemPython", typed ? item : "str");
+            d.put("streamMethodPython", op.operationId + "_stream");
+            op.returnType = (sse ? "SseStream[" : "JsonLinesStream[") + (typed ? item : "str") + "]";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void addStreamItemImports(
+            @Nullable final Map<String, Object> operations, final Set<String> imports) {
+        if (operations == null || !(operations.get("operation") instanceof List)) {
+            return;
+        }
+        for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+            final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (decorators instanceof Map
+                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("streamTyped"))) {
+                final String item = (String) ((Map<String, Object>) decorators).get("streamItemPython");
+                final java.util.regex.Matcher names = TYPE_NAME_TOKEN.matcher(item);
+                while (names.find()) {
+                    final String token = names.group();
+                    if (TYPING_NAMES.contains(token)) {
+                        imports.add("from typing import " + token);
+                    } else if (TYPE_IMPORTS.containsKey(token)) {
+                        imports.add(TYPE_IMPORTS.get(token));
+                    } else if (Character.isUpperCase(token.charAt(0))
+                            && token.indexOf('.') < 0
+                            && !languageSpecificPrimitives.contains(token)) {
+                        imports.add(
+                                "from " + modelPackage + "." + toModelFilename(token) + " import " + token);
+                    }
+                }
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean hasBinaryStream(@Nullable final Map<String, Object> operations) {
+        return hasStream(operations, "streamsBinary");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean hasStream(
+            @Nullable final Map<String, Object> operations, final String flag) {
+        if (operations == null || !(operations.get("operation") instanceof List)) {
+            return false;
+        }
+        for (final CodegenOperation op : (List<CodegenOperation>) operations.get("operation")) {
+            final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (decorators instanceof Map
+                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flag))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map,
+     * {@code hasBinaryStreamOperation} and {@code binaryStreamExample}, the imports, typed
+     * parameters and call arguments of a function that calls it), so the Streaming example calls a
+     * real operation of the spec under generation. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            final String cap = Character.toUpperCase(name.charAt(0)) + name.substring(1);
+            objs.put("has" + cap + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+                objs.put(name + "Example", binaryStreamExample(found));
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
+    }
+
+    /**
+     * The pieces of the Streaming example for {@code op}: the import lines its parameter types
+     * need ({@code imports}), the typed parameters of the function ({@code parameters}) and the
+     * arguments of the call ({@code arguments}). Only what the caller must pass is included: the
+     * path parameters, a required body and a required Options object.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> binaryStreamExample(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        final Object args =
+                decorators instanceof Map
+                        ? ((Map<String, Object>) decorators).get("signatureArgsNoServer")
+                        : null;
+        final TreeSet<String> imports = new TreeSet<>();
+        final TreeSet<String> typing = new TreeSet<>();
+        final List<String> parameters = new ArrayList<>();
+        final List<String> arguments = new ArrayList<>();
+        final List<Map<String, Object>> signature =
+                args instanceof List ? (List<Map<String, Object>>) args : List.of();
+        for (final Map<String, Object> arg : signature) {
+            if (Boolean.TRUE.equals(arg.get("nullable"))) {
+                continue;
+            }
+            final String dataType = (String) arg.get("dataType");
+            final String name = (String) arg.get("paramName");
+            parameters.add(name + ": " + dataType);
+            arguments.add(name);
+            if (Boolean.TRUE.equals(arg.get("isOptions"))) {
+                imports.add("from " + packageName + ".api.options import " + dataType);
+                continue;
+            }
+            final java.util.regex.Matcher names = TYPE_NAME_TOKEN.matcher(dataType);
+            while (names.find()) {
+                final String token = names.group();
+                if (TYPING_NAMES.contains(token)) {
+                    typing.add(token);
+                } else if (TYPE_IMPORTS.containsKey(token)) {
+                    imports.add(TYPE_IMPORTS.get(token));
+                } else if (Character.isUpperCase(token.charAt(0))
+                        && token.indexOf('.') < 0
+                        && !languageSpecificPrimitives.contains(token)) {
+                    imports.add(
+                            "from " + modelPackage + "." + toModelFilename(token) + " import " + token);
+                }
+            }
+        }
+        if (!typing.isEmpty()) {
+            imports.add("from typing import " + String.join(", ", typing));
+        }
+        final Map<String, Object> example = new HashMap<>();
+        example.put("imports", new ArrayList<>(imports));
+        example.put("parameters", String.join(", ", parameters));
+        example.put("arguments", String.join(", ", arguments));
+        example.put("hasParameters", !parameters.isEmpty());
+        return example;
     }
 
     /**
@@ -623,6 +925,17 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("default_api_client.mustache", packagePath, "default_api_client.py"),
             new SupportingFileSpec("api_response.mustache", packagePath, "api_http_response.py"),
             new SupportingFileSpec("api_result.mustache", packagePath, "api_result.py"),
+            new SupportingFileSpec("api_stream_response.mustache", packagePath, "api_stream_response.py"),
+            new SupportingFileSpec("body_source.mustache", packagePath, "body_source.py"),
+            new SupportingFileSpec("paginator.mustache", packagePath, "paginator.py"),
+            new SupportingFileSpec("page.mustache", packagePath, "page.py"),
+            new SupportingFileSpec("link_header.mustache", packagePath, "link_header.py"),
+            new SupportingFileSpec("byte_stream.mustache", packagePath, "byte_stream.py"),
+            new SupportingFileSpec("event_stream.mustache", packagePath, "event_stream.py"),
+            new SupportingFileSpec("server_sent_event.mustache", packagePath, "server_sent_event.py"),
+            new SupportingFileSpec("stream_options.mustache", packagePath, "stream_options.py"),
+            new SupportingFileSpec("json_lines_stream.mustache", packagePath, "json_lines_stream.py"),
+            new SupportingFileSpec("sse_stream.mustache", packagePath, "sse_stream.py"),
             new SupportingFileSpec("base_api.mustache", apiPath, "base_api.py"),
             new SupportingFileSpec("configuration.mustache", packagePath, "configuration.py"),
             new SupportingFileSpec("errors.mustache", errorsPath, "__init__.py"),
@@ -649,6 +962,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsPath, "internal_server_error_exception.py"),
             new SupportingFileSpec("errors/network_exception.mustache", errorsPath, "network_exception.py"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsPath, "network_timeout_exception.py"),
+            new SupportingFileSpec("errors/stream_exception.mustache", errorsPath, "stream_exception.py"),
+            new SupportingFileSpec("errors/pagination_exception.mustache", errorsPath, "pagination_exception.py"),
             new SupportingFileSpec("errors/serialization_exception.mustache", errorsPath, "serialization_exception.py"),
             new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsPath, "oauth2_server_exception.py"),
             new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsPath, "oauth2_token_exception.py"),
@@ -758,6 +1073,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "test/test_default_api_client_unit.mustache",
                             "test",
                             "test_default_api_client_unit.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_event_stream.mustache", "test", "test_event_stream.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_transport_options.mustache",

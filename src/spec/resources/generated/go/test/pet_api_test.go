@@ -444,7 +444,7 @@ func TestBhvOperations070_PetApi_SetPetAvatar(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
 
-	if err := api.SetPetAvatar(context.Background(), int64(1), f); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(f)); err != nil {
 		t.Fatalf("SetPetAvatar failed: %v", err)
 	}
 }
@@ -458,7 +458,7 @@ func TestBhvOperations076_PetApi_SetPetAvatarRejectsUnknownContentType(t *testin
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
 
-	err := api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithRequestContentType("application/unknown-type"))
+	err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(f), petstore.WithRequestContentType("application/unknown-type"))
 	if err == nil {
 		t.Fatal("expected an error for an undeclared request content-type, got nil")
 	}
@@ -491,11 +491,11 @@ func TestBhvOptions056_PetApi_SetPetAvatarRejectsAnInvalidCallOption(t *testing.
 	api := newPetApiForIntegration(t)
 	f := newTempFile(t, "fake-image-data")
 
-	err := api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithTimeout(0))
+	err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(f), petstore.WithTimeout(0))
 	if !errors.Is(err, petstore.ErrInvalidTimeout) {
 		t.Errorf("expected ErrInvalidTimeout, got %v", err)
 	}
-	err = api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithMaxRetries(-1))
+	err = api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(f), petstore.WithMaxRetries(-1))
 	if !errors.Is(err, petstore.ErrInvalidMaxRetries) {
 		t.Errorf("expected ErrInvalidMaxRetries, got %v", err)
 	}
@@ -539,7 +539,7 @@ func TestBhvOperations073_PetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentT
 		t.Fatalf("seek temp failed: %v", err)
 	}
 
-	if err := api.SetPetAvatar(context.Background(), int64(1), f); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(f)); err != nil {
 		t.Fatalf("SetPetAvatar failed: %v", err)
 	}
 
@@ -597,7 +597,7 @@ func TestBhvOperations071_PetApi_SetPetAvatarHonoursSelectedRequestContentType(t
 	}
 
 	// (1) No selector -> first declared content-type (image/jpeg).
-	if err := api.SetPetAvatar(context.Background(), int64(1), makeFile()); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(makeFile())); err != nil {
 		t.Fatalf("SetPetAvatar (default content-type) failed: %v", err)
 	}
 	if capturedContentType != "image/jpeg" {
@@ -606,7 +606,7 @@ func TestBhvOperations071_PetApi_SetPetAvatarHonoursSelectedRequestContentType(t
 
 	// (2) Selector "image/png" -> Content-Type: image/png (NOT image/jpeg).
 	capturedContentType = ""
-	if err := api.SetPetAvatar(context.Background(), int64(1), makeFile(), petstore.WithRequestContentType("image/png")); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(makeFile()), petstore.WithRequestContentType("image/png")); err != nil {
 		t.Fatalf("SetPetAvatar (image/png selector) failed: %v", err)
 	}
 	if capturedContentType != "image/png" {
@@ -633,7 +633,7 @@ func TestBhvOperations072_PetApi_SetPetAvatarSendsBinaryBytesVerbatimUnderTheJso
 	api := newPetApiForMock(t, server)
 	f := newTempFile(t, string(payload))
 
-	if err := api.SetPetAvatar(context.Background(), int64(1), f, petstore.WithRequestContentType("application/json")); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(f), petstore.WithRequestContentType("application/json")); err != nil {
 		t.Fatalf("SetPetAvatar (application/json selector) failed: %v", err)
 	}
 	if !bytes.Equal(capturedBody, payload) {
@@ -669,9 +669,41 @@ func TestBhvOperations045_PetApi_GetPetAvatar(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	_, err := api.GetPetAvatar(context.Background(), int64(1))
+	stream, err := api.GetPetAvatar(context.Background(), int64(1))
 	if err != nil {
 		t.Fatalf("GetPetAvatar failed: %v", err)
+	}
+	defer func() { _ = stream.Close() }()
+}
+
+func TestBhvStreaming009_PetApi_ABinaryStreamExposesTheStatusAndTheLowerCasedResponseHeaders(t *testing.T) {
+	t.Parallel()
+	api := newPetApiForIntegration(t)
+
+	stream, err := api.GetPetAvatar(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatar failed: %v", err)
+	}
+	defer func() { _ = stream.Close() }()
+	if stream.StatusCode() != 200 {
+		t.Errorf("expected status 200, got %d", stream.StatusCode())
+	}
+	if _, ok := stream.Headers()["content-type"]; !ok {
+		t.Errorf("expected a content-type header, got %v", stream.Headers())
+	}
+	for name := range stream.Headers() {
+		if name != strings.ToLower(name) {
+			t.Errorf("expected lower-cased header names, got %q", name)
+		}
+	}
+
+	result, err := api.GetPetAvatarWithHTTPInfo(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarWithHTTPInfo failed: %v", err)
+	}
+	defer func() { _ = result.Data.Close() }()
+	if result.StatusCode != result.Data.StatusCode() || result.RawBody != "" || !reflect.DeepEqual(result.Headers, result.Data.Headers()) {
+		t.Errorf("expected the result to repeat the stream's status and headers with an empty raw body, got %d %v %q", result.StatusCode, result.Headers, result.RawBody)
 	}
 }
 
@@ -892,10 +924,11 @@ func TestBhvOperations035_PetApi_DownloadPetDocument(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	_, err := api.DownloadPetDocument(context.Background(), int64(1), int64(1))
+	stream, err := api.DownloadPetDocument(context.Background(), int64(1), int64(1))
 	if err != nil {
 		t.Fatalf("DownloadPetDocument failed: %v", err)
 	}
+	defer func() { _ = stream.Close() }()
 }
 
 func TestBhvOperations055_PetApi_GetPetPhoto(t *testing.T) {
@@ -906,6 +939,7 @@ func TestBhvOperations055_PetApi_GetPetPhoto(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPetPhoto failed: %v", err)
 	}
+	defer func() { _ = result.Close() }()
 	if result == nil {
 		t.Fatal("expected non-nil result from GetPetPhoto")
 	}
@@ -1175,7 +1209,7 @@ func TestBhvOperations157_PetApi_NullRequiredNullableQueryIsAnEmptyValueAndBinar
 		defer server.Close()
 
 		api := newPetApiForMock(t, server)
-		if err := api.SetPetAvatar(context.Background(), int64(1), strings.NewReader("raw-reader-bytes")); err != nil {
+		if err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(strings.NewReader("raw-reader-bytes"))); err != nil {
 			t.Fatalf("SetPetAvatar with a strings.Reader failed: %v", err)
 		}
 		if string(gotBody) != "raw-reader-bytes" {
@@ -1320,7 +1354,15 @@ func TestBhvOperations034_PetApi_DownloadBinaryMock(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, _ = api.GetPetAvatarWithHTTPInfo(context.Background(), int64(1))
+	result, err := api.GetPetAvatarWithHTTPInfo(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarWithHTTPInfo failed: %v", err)
+	}
+	defer func() { _ = result.Data.Close() }()
+	got, err := result.Data.ReadAll()
+	if err != nil || !bytes.Equal(got, binaryData) {
+		t.Errorf("expected the binary bytes as the server sent them, got %v (%v)", got, err)
+	}
 }
 
 func TestBhvOperations089_PetApi_UploadMultipartMock(t *testing.T) {
@@ -1564,7 +1606,7 @@ func TestBhvTransport091_PetApi_CallerSuppliedFileHandleIsNeverClosedByTheSdk(t 
 	api := newPetApiForMock(t, server)
 
 	body := newTempFile(t, "raw-bytes")
-	if err := api.SetPetAvatar(context.Background(), int64(1), body); err != nil {
+	if err := api.SetPetAvatar(context.Background(), int64(1), petstore.BodyFromReader(body)); err != nil {
 		t.Fatalf("SetPetAvatar failed: %v", err)
 	}
 	if _, err := body.Stat(); err != nil {

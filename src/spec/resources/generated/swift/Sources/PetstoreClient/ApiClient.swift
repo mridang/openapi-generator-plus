@@ -19,7 +19,8 @@ public protocol ApiClient: Sendable {
   ///   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
   ///   - url: Fully qualified URL
   ///   - headers: HTTP headers
-  ///   - body: Request body (serialized JSON `Data`, raw `Data` for binary, or
+  ///   - body: Request body (serialized JSON `Data`, raw `Data` for binary, a
+  ///     ``BodySource`` for a binary body that is sent as it is read, or
   ///     `[String: Any]` for multipart form data; may be nil)
   /// - Returns: ``ApiHttpResponse`` containing status code, body, and headers.
   /// - Throws: ``ApiError`` if the request fails.
@@ -51,9 +52,44 @@ public protocol ApiClient: Sendable {
     method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
   ) async throws -> ApiHttpResponse
 
+  /// Send an HTTP request and return as soon as the response headers are
+  /// accepted, with the body not read yet.
+  ///
+  /// The retry, redirect, authentication and header rules are those of
+  /// ``sendRequest(method:url:headers:body:)``, up to the headers; `timeout`
+  /// stops at the headers, and `idleTimeout` bounds the gap between two reads
+  /// of the body. A request is never retried after the first body byte has
+  /// been handed to the caller. A non-2xx response is returned like any
+  /// other, with its body open.
+  ///
+  /// The default implementation throws ``ConfigurationError/unsupported(_:)``:
+  /// a transport that was written before streaming keeps working for every
+  /// buffered call, and a call that needs a stream fails clearly instead of
+  /// falling back to buffering (a buffered fallback would never end on an
+  /// endless feed).
+  ///
+  /// - Parameters:
+  ///   - method: HTTP method
+  ///   - url: Fully qualified URL
+  ///   - headers: HTTP headers
+  ///   - body: Request body (may be nil)
+  ///   - timeout: Timeout in milliseconds up to the response headers, or nil
+  ///   - maxRetries: Retry count for this call (0 disables retries), or nil
+  ///   - idleTimeout: The longest silence in the body in milliseconds, 0 to
+  ///     disable it, or nil for the transport's setting
+  /// - Returns: ``ApiStreamResponse`` with the status, the lower-cased headers
+  ///   and the open body.
+  /// - Throws: ``ConfigurationError/unsupported(_:)`` if this transport cannot
+  ///   stream, ``ApiError`` if the request fails.
+  func sendStreaming(
+    method: String, url: String, headers: [String: String], body: Any?,
+    timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+  ) async throws -> ApiStreamResponse
+
   /// Releases any resources held by this client (connection pool, delegate
   /// queue, sockets). Default implementation is a no-op; implementations
-  /// that own a pooled `URLSession` should override and dispose of it.
+  /// that own a pooled `URLSession` should override and dispose of it. A
+  /// transport that hands out streams should cancel the ones still open.
   func close()
 }
 
@@ -62,6 +98,15 @@ extension ApiClient {
     method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
   ) async throws -> ApiHttpResponse {
     try await sendRequest(method: method, url: url, headers: headers, body: body)
+  }
+
+  public func sendStreaming(
+    method: String, url: String, headers: [String: String], body: Any?,
+    timeout: Int?, maxRetries: Int?, idleTimeout: Int?
+  ) async throws -> ApiStreamResponse {
+    throw ConfigurationError.unsupported(
+      "\(type(of: self)) cannot stream: it does not implement sendStreaming, so an operation"
+        + " that returns a stream cannot be called through it")
   }
 
   public func close() {

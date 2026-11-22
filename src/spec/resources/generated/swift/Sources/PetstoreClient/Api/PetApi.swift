@@ -511,7 +511,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   ///   - ``NotFoundError`` on HTTP 404
   public func downloadPetDocument(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions? = nil
-  ) async throws -> Data {
+  ) async throws -> ByteStream {
     let result = try await downloadPetDocumentWithHTTPInfo(
       petId: petId, documentId: documentId, options: options)
     guard let data = result.data else {
@@ -531,7 +531,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   ///   - ``NotFoundError`` on HTTP 404
   public func downloadPetDocumentWithHTTPInfo(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions? = nil
-  ) async throws -> ApiResult<Data> {
+  ) async throws -> ApiResult<ByteStream> {
 
     var path = "/pet/{petId}/documents/{documentId}"
     path = path.replacingOccurrences(
@@ -558,7 +558,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       body: requestBody,
       accepts: ["application/octet-stream"],
       contentType: "application/json",
-      returnType: "Data",
+      returnType: "ByteStream",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.downloadPetDocument",
       operationId: "downloadPetDocument",
@@ -568,7 +568,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       maxRetries: options?.maxRetries
     )
 
-    return try await invokeAPIForResult(params, as: Data.self)
+    return try await invokeAPIForStream(params)
   }
 
   /// List pets born on a given date
@@ -876,7 +876,9 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   ///
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
-  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions? = nil) async throws -> Data {
+  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions? = nil) async throws
+    -> ByteStream
+  {
     let result = try await getPetAvatarWithHTTPInfo(petId: petId, options: options)
     guard let data = result.data else {
       throw ApiError(
@@ -894,7 +896,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
   public func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions? = nil)
-    async throws -> ApiResult<Data>
+    async throws -> ApiResult<ByteStream>
   {
 
     var path = "/pet/{petId}/avatar"
@@ -917,7 +919,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       body: requestBody,
       accepts: ["image/jpeg", "image/png"],
       contentType: "application/json",
-      returnType: "Data",
+      returnType: "ByteStream",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetAvatar",
       operationId: "getPetAvatar",
@@ -927,7 +929,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       maxRetries: options?.maxRetries
     )
 
-    return try await invokeAPIForResult(params, as: Data.self)
+    return try await invokeAPIForStream(params)
   }
 
   /// Get the pet's avatar thumbnail as base64
@@ -1305,7 +1307,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
   public func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions? = nil)
-    async throws -> Data
+    async throws -> ByteStream
   {
     let result = try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId, options: options)
     guard let data = result.data else {
@@ -1325,7 +1327,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   ///   - ``NotFoundError`` on HTTP 404
   public func getPetPhotoWithHTTPInfo(
     petId: Int64, photoId: Int64, options: GetPetPhotoOptions? = nil
-  ) async throws -> ApiResult<Data> {
+  ) async throws -> ApiResult<ByteStream> {
 
     var path = "/pet/{petId}/photos/{photoId}"
     path = path.replacingOccurrences(
@@ -1352,7 +1354,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       body: requestBody,
       accepts: ["image/jpeg", "image/png", "application/json"],
       contentType: "application/json",
-      returnType: "Data",
+      returnType: "ByteStream",
       auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
       operation: "PetApi.getPetPhoto",
       operationId: "getPetPhoto",
@@ -1362,7 +1364,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       maxRetries: options?.maxRetries
     )
 
-    return try await invokeAPIForResult(params, as: Data.self)
+    return try await invokeAPIForStream(params)
   }
 
   /// Get a <plain> \"text\" summary & it's short
@@ -1661,6 +1663,433 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Pet.self)
   }
 
+  /// Lists archived pets; it looks paged, and the generator option says it is not
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetArchive(options: ListPetArchiveOptions? = nil) async throws -> PetArchivePage {
+    let result = try await listPetArchiveWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetArchive but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetArchive operation and returns the full API result.
+  public func listPetArchiveWithHTTPInfo(options: ListPetArchiveOptions? = nil) async throws
+    -> ApiResult<PetArchivePage>
+  {
+
+    let path = "/pet/archive"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.cursor {
+      queryParams["cursor"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "cursor", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetArchivePage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetArchive",
+      operationId: "listPetArchive",
+      urlTemplate: "/pet/archive",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetArchivePage.self)
+  }
+
+  /// Lists the pet catalog one page at a time with a next-cursor token
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetCatalog(options: ListPetCatalogOptions? = nil) async throws -> PetCatalogPage {
+    let result = try await listPetCatalogWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetCatalog but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetCatalog operation and returns the full API result.
+  public func listPetCatalogWithHTTPInfo(options: ListPetCatalogOptions? = nil) async throws
+    -> ApiResult<PetCatalogPage>
+  {
+
+    let path = "/pet/catalog"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.limit {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.cursor {
+      queryParams["cursor"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "cursor", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetCatalogPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetCatalog",
+      operationId: "listPetCatalog",
+      urlTemplate: "/pet/catalog",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetCatalogPage.self)
+  }
+
+  /// Lists the pet catalog one page at a time with a next-cursor token
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetCatalogWithHTTPInfo`, with the same options on each page.
+  /// The value of the `cursor` option is where the list starts, and the
+  /// page after each one is requested with the `next_cursor` it returned.
+  public func listPetCatalogPages(options: ListPetCatalogOptions? = nil) -> Paginator<Pet, String> {
+    return Paginator<Pet, String>.ofCursor(
+      start: options?.cursor,
+      requestPath: "/pet/catalog",
+      fetch: { cursor in
+        let pageOptions =
+          cursor.map { (options ?? ListPetCatalogOptions()).withCursor($0) } ?? options
+        return try await self.listPetCatalogWithHTTPInfo(options: pageOptions)
+      },
+      items: { $0.items },
+      next: { $0.nextCursor })
+  }
+
+  /// Lists pet events; only the generator option says it is paged
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetEvents(options: ListPetEventsOptions? = nil) async throws -> PetEventPage {
+    let result = try await listPetEventsWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetEvents but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetEvents operation and returns the full API result.
+  public func listPetEventsWithHTTPInfo(options: ListPetEventsOptions? = nil) async throws
+    -> ApiResult<PetEventPage>
+  {
+
+    let path = "/pet/events"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.since {
+      queryParams["since"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "since", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetEventPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetEvents",
+      operationId: "listPetEvents",
+      urlTemplate: "/pet/events",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetEventPage.self)
+  }
+
+  /// Lists pet events; only the generator option says it is paged
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetEventsWithHTTPInfo`, with the same options on each page.
+  /// The value of the `since` option is where the list starts, and the
+  /// page after each one is requested with the `upto` it returned.
+  public func listPetEventsPages(options: ListPetEventsOptions? = nil) -> Paginator<String, String>
+  {
+    return Paginator<String, String>.ofCursor(
+      start: options?.since,
+      requestPath: "/pet/events",
+      fetch: { cursor in
+        let pageOptions =
+          cursor.map { (options ?? ListPetEventsOptions()).withCursor($0) } ?? options
+        return try await self.listPetEventsWithHTTPInfo(options: pageOptions)
+      },
+      items: { $0.events },
+      next: { $0.upto })
+  }
+
+  /// Lists the pet feed one page at a time with a Link header
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetFeed(options: ListPetFeedOptions? = nil) async throws -> [Pet] {
+    let result = try await listPetFeedWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetFeed but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetFeed operation and returns the full API result.
+  public func listPetFeedWithHTTPInfo(options: ListPetFeedOptions? = nil) async throws -> ApiResult<
+    [Pet]
+  > {
+    return try await listPetFeedPage(options: options, pageURL: nil)
+  }
+
+  /* One page of the list: the first when `pageURL` is nil, else the URL the Link header named. */
+  func listPetFeedPage(options: ListPetFeedOptions?, pageURL: String?) async throws -> ApiResult<
+    [Pet]
+  > {
+
+    let path = "/pet/feed"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.limit {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: pageURL ?? path,
+      queryParams: pageURL == nil ? queryParams : [:],
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[Pet]",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetFeed",
+      operationId: "listPetFeed",
+      urlTemplate: "/pet/feed",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: [Pet].self)
+  }
+
+  /// Lists the pet feed one page at a time with a Link header
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetFeedWithHTTPInfo`, with the same options on each page.
+  /// The page after each one is the `rel="next"` link of its `Link` header, followed only within
+  /// the origin of the client.
+  public func listPetFeedPages(options: ListPetFeedOptions? = nil) -> Paginator<Pet, Void> {
+    return Paginator<Pet, Void>.ofLink(
+      baseURL: config.baseURL,
+      requestPath: "/pet/feed",
+      fetch: { pageURL in
+        try await self.listPetFeedPage(options: options, pageURL: pageURL)
+      },
+      items: { $0 })
+  }
+
+  /// Finds pets and their owners; two lists make it ambiguous, so it is not paged
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetMatches(options: ListPetMatchesOptions? = nil) async throws -> PetMatchPage {
+    let result = try await listPetMatchesWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetMatches but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetMatches operation and returns the full API result.
+  public func listPetMatchesWithHTTPInfo(options: ListPetMatchesOptions? = nil) async throws
+    -> ApiResult<PetMatchPage>
+  {
+
+    let path = "/pet/matches"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.cursor {
+      queryParams["cursor"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "cursor", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetMatchPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetMatches",
+      operationId: "listPetMatches",
+      urlTemplate: "/pet/matches",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetMatchPage.self)
+  }
+
+  /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetNotes(options: ListPetNotesOptions? = nil) async throws -> PetNotePage {
+    let result = try await listPetNotesWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetNotes but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetNotes operation and returns the full API result.
+  public func listPetNotesWithHTTPInfo(options: ListPetNotesOptions? = nil) async throws
+    -> ApiResult<PetNotePage>
+  {
+
+    let path = "/pet/notes"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.pos {
+      queryParams["pos"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "pos", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetNotePage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetNotes",
+      operationId: "listPetNotes",
+      urlTemplate: "/pet/notes",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetNotePage.self)
+  }
+
+  /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetNotesWithHTTPInfo`, with the same options on each page.
+  /// The value of the `pos` option is where the list starts, and the
+  /// page after each one is requested with the `following` it returned.
+  public func listPetNotesPages(options: ListPetNotesOptions? = nil) -> Paginator<String, String> {
+    return Paginator<String, String>.ofCursor(
+      start: options?.pos,
+      requestPath: "/pet/notes",
+      fetch: { cursor in
+        let pageOptions =
+          cursor.map { (options ?? ListPetNotesOptions()).withCursor($0) } ?? options
+        return try await self.listPetNotesWithHTTPInfo(options: pageOptions)
+      },
+      items: { $0.rows },
+      next: { $0.following })
+  }
+
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
   ///
@@ -1673,7 +2102,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
   public func setPetAvatar(
-    petId: Int64, body: Data, options: SetPetAvatarOptions? = nil, requestContentType: String? = nil
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions? = nil,
+    requestContentType: String? = nil
   ) async throws {
     let result = try await setPetAvatarWithHTTPInfo(
       petId: petId, body: body, options: options, requestContentType: requestContentType)
@@ -1685,7 +2115,8 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
   ///   - ``NotFoundError`` on HTTP 404
   public func setPetAvatarWithHTTPInfo(
-    petId: Int64, body: Data, options: SetPetAvatarOptions? = nil, requestContentType: String? = nil
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions? = nil,
+    requestContentType: String? = nil
   ) async throws -> ApiResult<Void> {
 
     var path = "/pet/{petId}/avatar"

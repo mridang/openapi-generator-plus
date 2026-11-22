@@ -64,11 +64,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     "object", "mixed", "never", "self", "parent");
 
     /**
-     * The declared type of a {@code format: binary} request body: a file for its name and MIME type,
-     * a PSR-7 stream, or the raw bytes as a string, so in-memory content needs no temporary file.
+     * The name of the body source class, which is the declared type of a raw {@code format: binary}
+     * request body: the content is sent as it is read, so it never has to fit in memory.
      */
-    private static final String BINARY_BODY_TYPE =
-            "\\SplFileObject|\\Psr\\Http\\Message\\StreamInterface|string";
+    private static final String BINARY_BODY_CLASS = "BodySource";
 
     /** The authenticators whose generated scheme class reads a credential from the environment when none is passed. */
     private static final Set<String> CREDENTIAL_FALLBACK_BASES =
@@ -454,6 +453,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.php"),
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.php"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.php"),
+            new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.php"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.php"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.php"),
@@ -469,6 +469,18 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.php"),
             new SupportingFileSpec("client_lifecycle.mustache", invokerFolder, "ClientLifecycle.php"),
             new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
+            new SupportingFileSpec("raw_stream_response.mustache", invokerFolder, "RawStreamResponse.php"),
+            new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.php"),
+            new SupportingFileSpec("paginator.mustache", invokerFolder, "Paginator.php"),
+            new SupportingFileSpec("page.mustache", invokerFolder, "Page.php"),
+            new SupportingFileSpec("link_header.mustache", invokerFolder, "LinkHeader.php"),
+            new SupportingFileSpec("errors/PaginationException.mustache", errorsFolder, "PaginationException.php"),
+            new SupportingFileSpec("byte_stream.mustache", invokerFolder, "ByteStream.php"),
+            new SupportingFileSpec("event_stream.mustache", invokerFolder, "EventStream.php"),
+            new SupportingFileSpec("server_sent_event.mustache", invokerFolder, "ServerSentEvent.php"),
+            new SupportingFileSpec("sse_stream.mustache", invokerFolder, "SseStream.php"),
+            new SupportingFileSpec("stream_options.mustache", invokerFolder, "StreamOptions.php"),
+            new SupportingFileSpec("streaming_api_client.mustache", invokerFolder, "StreamingApiClient.php"),
             new SupportingFileSpec("abstract_api_client.mustache", invokerFolder, "AbstractApiClient.php"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.php"),
             new SupportingFileSpec("psr18_api_client.mustache", invokerFolder, "Psr18ApiClient.php"),
@@ -884,6 +896,16 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "StubbedDefaultApiClient.php"));
             supportingFiles.add(
                     new SupportingFile(
+                            "tests/EventStreamTest.mustache",
+                            "tests",
+                            "EventStreamTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/RawServer.mustache",
+                            "tests",
+                            "RawServer.php"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "tests/Psr18ApiClientUnitTest.mustache",
                             "tests",
                             "Psr18ApiClientUnitTest.php"));
@@ -956,6 +978,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/BaseApiTest.mustache",
                             "tests",
                             "BaseApiTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/PaginatorTest.mustache",
+                            "tests",
+                            "PaginatorTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/CapturingApiClient.mustache",
@@ -1534,6 +1561,26 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             params.add(param);
         }
 
+        // A paged operation's Options object can copy itself with another cursor, so every page is
+        // sent with its own one.
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        final Object pagination =
+                opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
+        boolean hasPageCursor = false;
+        String pageCursorType = "string";
+        if (pagination instanceof Map && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"))) {
+            final Map<?, ?> token = (Map<?, ?>) pagination;
+            hasPageCursor = true;
+            for (final Map<String, Object> param : params) {
+                final boolean cursor =
+                        java.util.Objects.equals(param.get("paramName"), token.get("requestParamName"));
+                param.put("isPageCursor", cursor);
+                if (cursor) {
+                    pageCursorType = String.valueOf(param.get("phpType"));
+                }
+            }
+        }
+
         final List<Map<String, Object>> requiredParams = new ArrayList<>();
         final List<Map<String, Object>> optionalParams = new ArrayList<>();
         for (final Map<String, Object> param : params) {
@@ -1591,6 +1638,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         context.put("hasRequiredParams", !requiredParams.isEmpty());
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty());
+        context.put("hasPageCursor", hasPageCursor);
+        context.put("pageCursorType", pageCursorType);
         injectAuthFieldContext(op, context);
         context.put("authImport", invokerPackage + "\\Auth\\" + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
@@ -2030,17 +2079,30 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         if (processedOps != null) {
             final List<CodegenOperation> orderedOps =
                     (List<CodegenOperation>) processedOps.get("operation");
+            boolean hasBinaryStream = false;
+            boolean hasSseMethod = false;
+            boolean hasStreamMethod = false;
+            boolean hasPagedOperation = false;
             if (orderedOps != null) {
                 for (final CodegenOperation op : orderedOps) {
+                    hasBinaryStream |= markBinaryStream(op);
+                    final Object streamDecorators = op.vendorExtensions.get("op");
+                    if (streamDecorators instanceof Map) {
+                        final Map<String, Object> sd = (Map<String, Object>) streamDecorators;
+                        final boolean sse = Boolean.TRUE.equals(sd.get("streamsSse"));
+                        hasSseMethod |= sse;
+                        hasStreamMethod |= sse || Boolean.TRUE.equals(sd.get("streamsJsonLines"));
+                    }
                     final boolean binaryBody =
                             op.bodyParam != null && "\\SplFileObject".equals(op.bodyParam.dataType);
+                    final String binaryBodyType = "\\" + invokerPackage + "\\" + BINARY_BODY_CLASS;
                     if (binaryBody) {
-                        op.bodyParam.dataType = BINARY_BODY_TYPE;
+                        op.bodyParam.dataType = binaryBodyType;
                     }
-                    final Object deco = op.vendorExtensions == null
-                            ? null : op.vendorExtensions.get("op");
+                    final Object deco = op.vendorExtensions.get("op");
                     if (deco instanceof Map) {
                         final Map<String, Object> decoMap = (Map<String, Object>) deco;
+                        hasPagedOperation |= markPaged(op, decoMap);
                         final Object sigArgs = decoMap.get("signatureArgs");
                         if (sigArgs instanceof List) {
                             final List<Map<String, Object>> ordered =
@@ -2048,7 +2110,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             if (binaryBody) {
                                 for (final Map<String, Object> arg : ordered) {
                                     if (Boolean.TRUE.equals(arg.get("isBody"))) {
-                                        arg.put("dataType", BINARY_BODY_TYPE);
+                                        arg.put("dataType", binaryBodyType);
                                     }
                                 }
                             }
@@ -2057,6 +2119,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     }
                 }
             }
+            processed.put("hasPagedOperation", hasPagedOperation);
+            processed.put("hasBinaryStream", hasBinaryStream);
+            processed.put("hasSseStream", hasSseMethod);
+            processed.put("hasStreamMethod", hasStreamMethod);
             processed.put("hasServerTypeDefs", processedOps.get("hasServerTypeDefs"));
             final List<Map<String, Object>> serverTypeDefs =
                     (List<Map<String, Object>>) processedOps.get("serverTypeDefs");
@@ -2065,6 +2131,134 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             }
         }
         return processed;
+    }
+
+    /**
+     * Adds the PHP types of the paged method to the pagination decorators: {@code phpItemType} (the
+     * documented item type, fully qualified for a model) and {@code phpCursorType} ({@code null} for a
+     * list that is followed by a {@code Link} header).
+     *
+     * @param op the operation
+     * @param decorators the operation decorators, which hold the shared {@code pagination} map
+     * @return whether the operation has a paged method
+     */
+    @SuppressWarnings("unchecked")
+    boolean markPaged(final CodegenOperation op, final Map<String, Object> decorators) {
+        final Object pagination = decorators.get("pagination");
+        if (!(pagination instanceof Map)) {
+            return false;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        String item = String.valueOf(p.get("itemType"));
+        if (p.get("itemModel") != null && !item.startsWith("\\")) {
+            item = "\\" + invokerPackage + "\\Models\\" + p.get("itemModel");
+        }
+        p.put("phpItemType", withDsGenerics(item));
+        p.put("phpCursorType", Boolean.TRUE.equals(p.get("isLink")) ? "null" : String.valueOf(p.get("cursorType")));
+        return true;
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the documented and the native return type become {@code ByteStream} and the
+     * decorator {@code streamsBinary} tells the templates to call {@code invokeApiForStream}. A
+     * JSON Lines or server-sent events response that has no buffered method (the decorator {@code
+     * streamOnly}) is returned by {@code <operation>Stream}: a {@code \Generator} of items for JSON
+     * Lines and an {@code SseStream} for events, with {@code streamsJsonLines}, {@code streamsSse},
+     * {@code streamTyped} (the data has a schema type) and {@code streamItemPhp} for the templates.
+     *
+     * @param op the operation, already decorated by the shared pass
+     * @return whether the operation returns a binary stream
+     */
+    @SuppressWarnings("unchecked")
+    static boolean markBinaryStream(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return false;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        final boolean sse = "sse".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean jsonLines = "jsonlines".equals(kind) && Boolean.TRUE.equals(d.get("streamOnly"));
+        d.put("streamsBinary", binary);
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+            op.vendorExtensions.put("phpDocReturnType", "ByteStream");
+            op.vendorExtensions.put("phpNativeReturnType", "ByteStream");
+        }
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "string";
+            d.put("streamTyped", !"string".equals(item));
+            d.put("streamItemPhp", item);
+            final String documented = sse ? "SseStream<" + item + ">" : "\\Generator<int, " + item + ">";
+            op.returnType = sse ? "SseStream" : "\\Generator";
+            op.returnBaseType = op.returnType;
+            op.vendorExtensions.put("phpDocReturnType", documented);
+            op.vendorExtensions.put("phpNativeReturnType", op.returnType);
+        }
+        return binary;
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation of each streaming kind, as {@code
+     * binaryStreamOperation}, {@code sseStreamOperation} and {@code jsonLinesStreamOperation}, and the
+     * first paged operation as {@code pagedOperation} (each
+     * with its {@code ...Group}, its operations map, and a {@code has...Operation} flag), so the
+     * Streaming examples call real operations of the spec under generation. Nothing is rendered for a
+     * kind the spec has none of.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            objs.put(
+                    "has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation",
+                    found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /**

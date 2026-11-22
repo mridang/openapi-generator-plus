@@ -384,7 +384,7 @@ func TestBhvMocking001_Client_EveryGroupHasAnInterfaceTheClassImplements(t *test
 {{#operations}}
 	var _ {{packageName}}.{{classname}}Interface = (*{{packageName}}.{{classname}})(nil)
 	group{{classname}} := reflect.TypeOf((*{{packageName}}.{{classname}}Interface)(nil)).Elem()
-	for _, name := range []string{ {{#operation}}"{{operationId}}", "{{operationId}}WithHTTPInfo", {{/operation}} } {
+	for _, name := range []string{ {{#operation}}{{#vendorExtensions.op.streamOnly}}"{{vendorExtensions.op.streamMethodName}}", {{/vendorExtensions.op.streamOnly}}{{^vendorExtensions.op.streamOnly}}"{{operationId}}", "{{operationId}}WithHTTPInfo", {{/vendorExtensions.op.streamOnly}}{{/operation}} } {
 		if _, ok := group{{classname}}.MethodByName(name); !ok {
 			t.Errorf("expected {{classname}}Interface to list %s", name)
 		}
@@ -1143,5 +1143,48 @@ func TestBhvMisc152_Client_ACallWhoseCancelSignalIsAlreadyAbortedSendsNothing(t 
 	}
 	if got := hits.Load(); got != 0 {
 		t.Errorf("expected no request sent, got %d", got)
+	}
+}
+
+func TestBhvStreaming021_Client_ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("tick"))
+		w.(http.Flusher).Flush()
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	t.Cleanup(func() {
+		close(release)
+		server.Close()
+	})
+	client := {{packageName}}.New{{clientClassName}}(mustBearer(t, server.URL, "test-token"), nil)
+	stream, err := client.Pet.GetPetAvatar(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	buffer := make([]byte, 4)
+	if _, err := io.ReadFull(stream, buffer); err != nil || string(buffer) != "tick" {
+		t.Fatalf("expected the first chunk, got %q (%v)", buffer, err)
+	}
+
+	started := time.Now()
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error closing the client: %v", err)
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Errorf("expected closing not to wait for the endless stream, it took %s", elapsed)
+	}
+
+	if _, err := stream.Read(make([]byte, 1)); !errors.Is(err, {{packageName}}.ErrClientClosed) {
+		t.Errorf("expected the next read to return ErrClientClosed, got %v", err)
+	}
+	if _, err := client.Pet.GetPetAvatar(context.Background(), int64(1)); !errors.Is(err, {{packageName}}.ErrClientClosed) {
+		t.Errorf("expected a new call to return ErrClientClosed, got %v", err)
 	}
 }

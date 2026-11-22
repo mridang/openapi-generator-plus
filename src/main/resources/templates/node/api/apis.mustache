@@ -3,6 +3,24 @@
 import type { ApiClient, RequestOptions } from '../api-client{{importFileExtension}}';
 import { ApiError } from '../errors/api-error{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
+{{#hasPagedOperation}}
+import { Paginator } from '../paginator{{importFileExtension}}';
+{{/hasPagedOperation}}
+{{#hasBinaryUpload}}
+import type { BodySource } from '../body-source{{importFileExtension}}';
+{{/hasBinaryUpload}}
+{{#hasBinaryStream}}
+import type { ByteStream } from '../byte-stream{{importFileExtension}}';
+{{/hasBinaryStream}}
+{{#hasJsonLinesStream}}
+import type { JsonLinesStream } from '../json-lines-stream{{importFileExtension}}';
+{{/hasJsonLinesStream}}
+{{#hasSseStream}}
+import type { SseStream } from '../sse-stream{{importFileExtension}}';
+{{/hasSseStream}}
+{{#hasStreamOptions}}
+import type { StreamOptions } from '../stream-options{{importFileExtension}}';
+{{/hasStreamOptions}}
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
 {{#hasAnySecurityNoneOp}}
 import { NO_AUTH } from '../auth/authenticator{{importFileExtension}}';
@@ -91,6 +109,13 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
  */
 export interface {{classname}}Interface {
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+{{#isDeprecated}}
+  /** @deprecated This operation is deprecated. */
+{{/isDeprecated}}
+  {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<{{{returnType}}}>;
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 {{#isDeprecated}}
   /** @deprecated This operation is deprecated. */
 {{/isDeprecated}}
@@ -99,6 +124,13 @@ export interface {{classname}}Interface {
   /** @deprecated This operation is deprecated. */
 {{/isDeprecated}}
   {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>>;
+{{#vendorExtensions.op.hasPagesMethod}}
+{{#isDeprecated}}
+  /** @deprecated This operation is deprecated. */
+{{/isDeprecated}}
+  {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): {{{vendorExtensions.op.pagination.paginatorType}}};
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }
 
@@ -121,6 +153,84 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
     super(apiClient, config, authenticator, schemeAuthenticators);
   }
   {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+  /**
+{{#summary}}
+   * {{&summary}}
+{{/summary}}
+{{#notes}}
+   * {{&notes}}
+{{/notes}}
+{{#pathParams}}
+   * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/pathParams}}
+{{#bodyParam}}
+   * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+   * @param options options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+{{#queryParams}}
+   * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/queryParams}}
+{{#headerParams}}
+   * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/headerParams}}
+{{#formParams}}
+   * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/formParams}}
+{{#cookieParams}}
+   * @param options.{{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/cookieParams}}
+{{#vendorExtensions.op.hasContentTypeSelector}}
+   * @param requestContentType optional request Content-Type; one of {{#vendorExtensions.op.contentTypeOptions}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.contentTypeOptions}}. Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when omitted.
+{{/vendorExtensions.op.hasContentTypeSelector}}
+   * @param streamOptions optional stream settings: the per-call `signal`, `timeout`, `maxRetries` and `headers`, and `idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId` and `maxEventBytes`
+   * @return {{{returnType}}} the open stream; close it when you stop early
+   * @throws {ApiError} if fails to make API call
+{{#vendorExtensions.op.errorResponses}}
+   * @throws {{#hasSchema}}{{{schemaClassName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}} on HTTP {{status}}{{#hasSchema}} with a {{{schemaName}}} body{{/hasSchema}}
+{{/vendorExtensions.op.errorResponses}}
+{{#isDeprecated}}
+   * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+   */
+  async {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<{{{returnType}}}> {
+{{>api/operation_prelude}}
+    return await this.{{#vendorExtensions.op.streamsSse}}invokeApiForSse{{/vendorExtensions.op.streamsSse}}{{#vendorExtensions.op.streamsJsonLines}}invokeApiForJsonLines{{/vendorExtensions.op.streamsJsonLines}}<{{{vendorExtensions.op.streamItemTs}}}>(
+      '{{httpMethod}}',
+      {{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,
+      queryParams,
+      headerParams,
+      {{#hasFormParams}}{{#vendorExtensions.op.hasContentTypeSelector}}requestBody{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}formBody{{/vendorExtensions.op.hasContentTypeSelector}}{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+      [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
+      {{#vendorExtensions.op.hasContentTypeSelector}}requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}},
+      {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}this.resolveRequirementAuth([{{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}'{{{schemeId}}}'{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}]){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}this.resolveSchemeAuth([{{#vendorExtensions.op.securitySchemeOrder}}'{{{schemeId}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}]){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}undefined{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}},
+      {{#bodyParam}}{{#isBinary}}true{{/isBinary}}{{^isBinary}}false{{/isBinary}}{{/bodyParam}}{{^bodyParam}}false{{/bodyParam}},
+      {{#vendorExtensions.op.streamIsModel}}(json: unknown) => ObjectSerializer.deserialize(json, {{{vendorExtensions.op.streamItemTs}}})!{{/vendorExtensions.op.streamIsModel}}{{^vendorExtensions.op.streamIsModel}}{{#vendorExtensions.op.streamTyped}}(json: unknown) => json as {{{vendorExtensions.op.streamItemTs}}}{{/vendorExtensions.op.streamTyped}}{{^vendorExtensions.op.streamTyped}}null{{/vendorExtensions.op.streamTyped}}{{/vendorExtensions.op.streamIsModel}},
+{{#vendorExtensions.op.streamsSse}}
+      {{#hasSseTerminator}}'{{{sseTerminator}}}'{{/hasSseTerminator}}{{^hasSseTerminator}}null{{/hasSseTerminator}},
+{{/vendorExtensions.op.streamsSse}}
+      streamOptions,
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
+      {
+{{#vendorExtensions.op.errorSchemaResponses}}
+        '{{{status}}}': (statusCode, responseHeaders, responseBody, request) =>
+          {{{schemaClassName}}}.fromErrorResponse(statusCode, responseHeaders, responseBody, request){{^isLast}},{{/isLast}}
+{{/vendorExtensions.op.errorSchemaResponses}}
+      },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{^vendorExtensions.op.hasErrorSchemaResponses}}
+      undefined,
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+      '{{nickname}}',
+      {{#lambda.tsString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.tsString}},
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
+    );
+  }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 
   /**
 {{#summary}}
@@ -219,188 +329,34 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
    * @deprecated This operation is deprecated.
 {{/isDeprecated}}
    */
+{{#vendorExtensions.op.pagination.isLink}}
   async {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
-{{#pathParams}}
-{{#required}}
-    if ({{paramName}} == null{{#isString}} || {{paramName}} === ''{{/isString}}) {
-      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
-    }
-{{/required}}
-{{/pathParams}}
-{{#bodyParam}}
-{{#required}}
-    if ({{paramName}} == null) {
-      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
-    }
-{{/required}}
-{{/bodyParam}}
-{{#queryParams}}
-{{#required}}
-{{#vendorExtensions.param.queryRequiredNullable}}
-{{#isString}}
-    if (options?.{{paramName}} === '') {
-      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
-    }
-{{/isString}}
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{^vendorExtensions.param.queryRequiredNullable}}
-    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
-    }
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{/required}}
-{{/queryParams}}
-{{#headerParams}}
-{{#required}}
-    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
-    }
-{{/required}}
-{{/headerParams}}
-{{#formParams}}
-{{#required}}
-    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
-    }
-{{/required}}
-{{/formParams}}
-{{#cookieParams}}
-{{#required}}
-    if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
-    }
-{{/required}}
-{{/cookieParams}}
-{{^pathParams}}
-    const path = `{{{path}}}`;
-{{/pathParams}}
-{{#pathParams}}
-{{#-first}}
-    let path = `{{{path}}}`;
-{{/-first}}
-    {{! path-double-encoding: serializeStyled already percent-encodes path
-        segments via encodePathSegment internally; wrapping its result in a
-        second encodePathSegment double-encodes (space -> %2520, a/b ->
-        a%252Fb). Encode once, in the serializer. A format date value is cut
-        to its date part first and then styled like any other value, so a
-        matrix or label style still applies. }}
-    path = path.replace(`{${'{{baseName}}'}}`, () => {{#vendorExtensions.param.queryContent}}ValueSerializer.encodePathSegment(ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string{{/vendorExtensions.param.queryContent}});
-{{/pathParams}}
-{{#servers}}
-{{#-first}}
-    const serverUrl = server ? server.getUrl() : null;
-{{/-first}}
-{{/servers}}
-    const queryParams: Record<string, unknown> = {};
-{{#queryParams}}
-{{#vendorExtensions.param.queryDeepObject}}
-    if (options?.{{paramName}} != null) {
-      const deepObj = ValueSerializer.serializeDeepObject('{{baseName}}', options.{{paramName}} as unknown as Record<string, unknown>);
-      Object.assign(queryParams, deepObj);
-    }
-{{/vendorExtensions.param.queryDeepObject}}
-{{#vendorExtensions.param.queryContent}}
-    if (options?.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = ObjectSerializer.serialize(options.{{paramName}});
-    }
-{{/vendorExtensions.param.queryContent}}
-{{#vendorExtensions.param.queryRequiredNullable}}
-    if (options?.{{paramName}} == null) {
-      queryParams['{{baseName}}'] = '';
-    } else {
-      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-    }
-{{/vendorExtensions.param.queryRequiredNullable}}
-{{#vendorExtensions.param.queryStyledAllowEmpty}}
-    if (options?.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-    }
-{{/vendorExtensions.param.queryStyledAllowEmpty}}
-{{#vendorExtensions.param.queryStyled}}
-    if (options?.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
-    }
-{{/vendorExtensions.param.queryStyled}}
-{{/queryParams}}
-    const headerParams: Record<string, string> = {};
-{{#headerParams}}
-    if (options?.{{paramName}} != null) {
-      headerParams['{{baseName}}'] = {{#vendorExtensions.param.queryContent}}ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'header', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string{{/vendorExtensions.param.queryContent}};
-    }
-{{/headerParams}}
-{{#hasCookieParams}}
-    const cookieParts: string[] = [];
-{{#cookieParams}}
-    if (options?.{{paramName}} != null) {
-      const {{paramName}}CookieValue = {{#vendorExtensions.param.queryContent}}ValueSerializer.encodeCookieComponent(ObjectSerializer.serialize(options.{{paramName}})){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}`${ ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) }`{{/vendorExtensions.param.queryContent}};
-      /* F840: a cookie value is sent exactly as given when every character is
-       * an RFC 6265 cookie-octet (a value the caller percent-encoded stays as
-       * written). Any other character, a space, comma, semicolon, quote,
-       * backslash, control or non-ASCII one, fails here, before anything is
-       * sent: the caller pre-encodes. This is also what keeps CR/LF out of the
-       * Cookie header. */
-      if (!/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test({{paramName}}CookieValue)) {
-        throw new TypeError(
-          `Cookie value for '{{baseName}}' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it`
-        );
-      }
-      cookieParts.push(`{{baseName}}=${ {{paramName}}CookieValue }`);
-    }
-{{/cookieParams}}
-    if (cookieParts.length > 0) {
-      headerParams['Cookie'] = cookieParts.join('; ');
-    }
-{{/hasCookieParams}}
-{{#hasFormParams}}
-    const formBody: Record<string, unknown> = {};
-{{#formParams}}
-    if (options?.{{paramName}} != null) {
-      formBody['{{baseName}}'] = {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}};
-    }
-{{/formParams}}
-{{#vendorExtensions.op.hasContentTypeSelector}}
-    /* This operation declares multiple request content types. The
-     * multipart/form-data envelope (formBody, a Record assembled above) is
-     * only correct when multipart/form-data is the selected Content-Type.
-     * For a binary single-part type (e.g. application/octet-stream) the wire
-     * body must be the RAW bytes of the binary part, NOT a multipart envelope
-     * and NOT a base64 string — mirror the raw-Buffer path taken by an
-     * operation whose body is a single binary part. The
-     * transport decides multipart-vs-raw by inspecting the body's runtime
-     * type (a plain object becomes multipart; a Buffer is sent verbatim), so
-     * we hand it the Buffer directly when the caller did not pick multipart. */
-    const requestBody: Record<string, unknown> | Buffer | Blob | null =
-      (requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}') ===
-      'multipart/form-data'
-        ? formBody
-{{#formParams}}{{#isBinary}}        : (options?.{{paramName}} ?? null);
-{{/isBinary}}{{/formParams}}
-{{/vendorExtensions.op.hasContentTypeSelector}}
+    return await this.{{nickname}}Page({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}});
+  }
 
-{{/hasFormParams}}
-{{#vendorExtensions.op.hasContentTypeSelector}}
-    /* This operation declares more than one request content-type. The optional
-     * requestContentType selector lets the caller pick among the declared types; when
-     * omitted it defaults to the first declared type. The TypeScript signature
-     * already narrows requestContentType to the declared union, but a plain-JS or
-     * `as any` caller can bypass that compile-time check, so reject an
-     * unrecognised selector at runtime too — a typo must never ride the wire as
-     * an undeclared Content-Type (matching java/python and the other SDKs). */
-    const declaredContentTypes = [{{#vendorExtensions.op.contentTypeOptions}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.contentTypeOptions}}];
-    if (requestContentType != null && !declaredContentTypes.includes(requestContentType)) {
-      throw new TypeError(
-        `Unsupported request content-type '${requestContentType}' for {{nickname}}; declared types are [${declaredContentTypes.join(', ')}]`
-      );
+  /* One page of the list: the first when pageUrl is not given, else the URL the Link header named. */
+  private async {{nickname}}Page({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}, {{/vendorExtensions.op.requestWrapperFields}}pageUrl?: string): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+{{/vendorExtensions.op.pagination.isLink}}
+{{^vendorExtensions.op.pagination.isLink}}
+  async {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+{{/vendorExtensions.op.pagination.isLink}}
+{{>api/operation_prelude}}
+{{#vendorExtensions.op.pagination.isLink}}
+    if (pageUrl !== undefined) {
+      for (const name of Object.keys(queryParams)) {
+        delete queryParams[name];
+      }
     }
-{{/vendorExtensions.op.hasContentTypeSelector}}
-    return await this.invokeApiForResult(
+{{/vendorExtensions.op.pagination.isLink}}
+    return await this.{{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{/vendorExtensions.op.streamsBinary}}(
       '{{httpMethod}}',
-      {{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,
+      {{#vendorExtensions.op.pagination.isLink}}pageUrl ?? {{/vendorExtensions.op.pagination.isLink}}{{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,
       queryParams,
       headerParams,
       {{#hasFormParams}}{{#vendorExtensions.op.hasContentTypeSelector}}requestBody{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}formBody{{/vendorExtensions.op.hasContentTypeSelector}}{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       {{#vendorExtensions.op.hasContentTypeSelector}}requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}},
+{{^vendorExtensions.op.streamsBinary}}
       {{#vendorExtensions.op.hasMultiple2xx}}(json: unknown, statusCode: number): {{{returnType}}} => {
 {{#vendorExtensions.op.successResponses}}
         if ({{#isRange}}statusCode >= 200 && statusCode < 300{{/isRange}}{{^isRange}}statusCode === {{statusCode}}{{/isRange}}) {
@@ -426,9 +382,12 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
       },
 {{/vendorExtensions.op.hasMultiple2xx}}
       {{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isArray}}{{#isMap}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}{{#returnProperty}}{{#isByteArray}}{{^isBinary}}(json: unknown) => ObjectSerializer.decodeBase64(json as string){{/isBinary}}{{#isBinary}}(json: unknown) => ObjectSerializer.toBinary(json){{/isBinary}}{{/isByteArray}}{{^isByteArray}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => json as {{{returnType}}}{{/isEnumRef}}{{/isByteArray}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}{{#returnProperty}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/isEnumRef}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},{{/vendorExtensions.op.hasMultiple2xx}}
+{{/vendorExtensions.op.streamsBinary}}
       {{#vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.hasAllOfGroup}}this.resolveRequirementAuth([{{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}'{{{schemeId}}}'{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}]){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}this.resolveSchemeAuth([{{#vendorExtensions.op.securitySchemeOrder}}'{{{schemeId}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}]){{/vendorExtensions.op.hasAllOfGroup}}{{/vendorExtensions.op.hasSecuritySchemes}}{{^vendorExtensions.op.hasSecuritySchemes}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}undefined{{/vendorExtensions.op.securityNone}}{{/vendorExtensions.op.hasSecuritySchemes}},
       {{#bodyParam}}{{#isBinary}}true{{/isBinary}}{{^isBinary}}false{{/isBinary}}{{/bodyParam}}{{^bodyParam}}false{{/bodyParam}},
+{{^vendorExtensions.op.streamsBinary}}
       {{#returnType}}'{{#returnProperty}}{{#isBinary}}binary{{/isBinary}}{{^isBinary}}{{#isFile}}binary{{/isFile}}{{^isFile}}{{#isByteArray}}model{{/isByteArray}}{{^isByteArray}}{{#isString}}{{^isEnumRef}}string{{/isEnumRef}}{{#isEnumRef}}model{{/isEnumRef}}{{/isString}}{{^isString}}model{{/isString}}{{/isByteArray}}{{/isFile}}{{/isBinary}}{{/returnProperty}}{{^returnProperty}}model{{/returnProperty}}'{{/returnType}}{{^returnType}}undefined{{/returnType}},
+{{/vendorExtensions.op.streamsBinary}}
       '{{nickname}}',
       requestOptions,
 {{#vendorExtensions.op.hasErrorSchemaResponses}}
@@ -446,6 +405,67 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
       {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
     );
   }
+{{#vendorExtensions.op.hasPagesMethod}}
+
+  /**
+{{#summary}}
+   * {{&summary}}
+{{/summary}}
+   *
+   * Returns the items as a lazy {@link Paginator}: no request is sent until you first read an item
+   * or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link {{nickname}}WithHttpInfo}, with the same options on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+   * The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is where the
+   * list starts, and the page after each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}`
+   * it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+   * The page after each one is the `rel="next"` link of its `Link` header, followed only within
+   * the origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+   *
+{{#pathParams}}
+   * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}
+{{/pathParams}}
+{{#bodyParam}}
+   * @param {{paramName}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}{{vendorExtensions.requiredLabel}}
+{{/bodyParam}}
+{{#vendorExtensions.op.hasOptionsParam}}
+   * @param options options for query, header, form, and cookie parameters
+{{/vendorExtensions.op.hasOptionsParam}}
+   * @param requestOptions optional per-call options, repeated on every page request: `signal` cancels the iteration, `timeout`, `maxRetries` and `headers` apply to each page
+   * @returns the paginator over the items
+{{#isDeprecated}}
+   * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+   */
+  {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): {{{vendorExtensions.op.pagination.paginatorType}}} {
+{{#vendorExtensions.op.pagination.isToken}}
+    return Paginator.ofCursor<{{{vendorExtensions.op.pagination.itemType}}}, {{{vendorExtensions.op.pagination.cursorType}}}, {{{returnType}}}>(
+      options?.{{vendorExtensions.op.pagination.requestParamName}},
+      (cursor) => this.{{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{#isOptions}}{ ...options, {{vendorExtensions.op.pagination.requestParamName}}: cursor }{{/isOptions}}{{^isOptions}}{{name}}{{/isOptions}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}),
+      (page) => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+      (page) => page.{{vendorExtensions.op.pagination.responsePropertyName}},
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
+    );
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+    return Paginator.ofLink<{{{vendorExtensions.op.pagination.itemType}}}, {{{returnType}}}>(
+      this.config.baseUrl,
+      (pageUrl) => this.{{nickname}}Page({{#vendorExtensions.op.requestWrapperFields}}{{name}}, {{/vendorExtensions.op.requestWrapperFields}}pageUrl),
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+      (page) => page,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+      (page) => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
+    );
+{{/vendorExtensions.op.pagination.isLink}}
+  }
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
   {{/operation}}
 }
 {{/operations}}

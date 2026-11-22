@@ -3228,3 +3228,87 @@ langcsharp079 | No fence tagged with the SDK language holds a placeholder line s
 langcsharp080 | The SDK Makefile has an examples target that builds every file under examples
 serialization131 | An integer with no format is 64-bit: a value above 2^31 decodes exactly into its field.
 enums012 | The catch-all member of an enum has no wire value, so writing it raises the serialization error.
+streaming001 | A binary stream call delivers the bytes in order and returns before the body has ended
+streaming008 | A non-2xx streaming call raises the typed error with the status and the error body and never returns a stream
+streaming009 | A stream exposes the status and the lower-cased response headers
+streaming010 | The call timeout bounds only the wait for the response headers, not the body
+streaming011 | The idle timeout raises a network timeout error when the server stalls in the middle of the body
+streaming012 | A connection reset in the middle of the body raises a network error and is not retried
+streaming013 | A body shorter than its Content-Length raises a network error and is never a silent short success
+streaming014 | A streaming call retries a 503 before the headers and then streams the retried response
+streaming015 | A streaming call never retries after the first body byte was delivered
+streaming016 | A streaming call follows a redirect before the body and strips credentials across origins
+streaming017 | A streaming call sends the same User-Agent, request id, trace context and authentication headers as a buffered call
+streaming018 | A 401 on a streaming call authenticated by OAuth2 refreshes the token and replays once before the stream is returned
+streaming019 | Closing a stream twice is safe and aborts the connection
+streaming020 | Cancelling the call aborts the stream and is never raised as a timeout
+streaming021 | Closing the client cancels the streams that are open, the next read of each raises the closed-client error, and new calls are refused
+streaming022 | The string form of a stream hides credentials, the query and the data
+streaming029 | The read-all helper of a byte stream returns every byte in order and leaves the stream closed
+streaming030 | A transport that does not implement the streaming method makes a stream call fail with the unsupported error that names the transport, and buffered calls on it keep working
+streaming031 | Closing a live endless stream returns promptly and does not wait for the server to finish
+streaming032 | A reset or truncation after the headers raises a StreamError, and a StreamError is a network error
+streaming033 | Stopping a stream early without reading it to the end releases the connection
+streaming002 | A JSON Lines stream yields one decoded item per line and skips blank lines
+streaming003 | A JSON Lines stream accepts CRLF line ends and a last line without a newline
+streaming004 | A JSON Lines line that does not decode raises a serialization error naming the 1-based line and ends the stream after the items before it
+streaming005 | A line or event longer than the limit raises a serialization error and ends the stream
+streaming006 | A gzip encoded stream is decoded incrementally, so the first item arrives before the body ends
+streaming007 | A corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried
+streaming028 | An operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method
+sse001 | An SSE stream yields the id, event, data and retry fields of each event, with message as the default event
+sse002 | An SSE stream joins consecutive data lines with a newline and skips comment lines
+sse003 | An SSE stream drops a leading byte order mark, accepts CR, LF and CRLF line ends and removes one space after the colon
+sse004 | An SSE event with an empty data buffer is not delivered but its id is kept
+sse005 | An SSE data payload is decoded as the declared schema, and a payload that does not decode raises a serialization error and ends the stream
+sse006 | An SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them
+sse007 | An SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID
+sse008 | An SSE reconnect waits the server retry value, else the reconnect delay doubling to a cap
+sse009 | An SSE GET stream stops after five consecutive failed reconnects by default and raises the last failure
+sse010 | An SSE reconnect counter resets after an event is received
+sse011 | An SSE stream does not reconnect after a 204, a 4xx status or a response that is not text/event-stream
+sse012 | An SSE stream sends the initial last event id of the call on its first request
+sse013 | An SSE reconnect rebuilds the headers so a refreshed token is the one sent
+sse014 | An SSE retry field that is not digits and an id containing NUL are ignored
+sse015 | An idle timeout on an SSE stream counts as a lost connection and reconnects
+sse016 | An SSE request that has a body is not reconnected unless the caller turns reconnect on, and a single use body is never reconnected
+sse017 | An SSE event with an id and no data is not dispatched but updates the last event id, and a reconnect resumes from it
+sse018 | An SSE comment line such as a heartbeat is skipped and counts as activity for the idle timeout
+sse019 | An SSE event cut off by the end of the connection is discarded
+sse020 | An SSE reconnect sends Last-Event-ID only when the last event id is not empty
+sse021 | The configured SSE terminator ends the stream and is not delivered
+sse022 | An SSE event named error raises the SDK API error with the response status and the data as its body and is not reconnected, and an event with any other name is an item
+sse023 | An unknown SSE field is ignored
+streaming023 | A streamed upload of unknown length is sent chunked and arrives intact
+streaming024 | A streamed upload with a known length sends Content-Length
+streaming025 | A caller supplied upload stream is never closed by the SDK
+streaming026 | A replayable upload is rewound and retried after a 503, and a single use upload is not retried and surfaces the original error
+streaming027 | A 307 or 308 with a single use upload is refused and the body is never buffered
+pagination001 | A paged operation reads no page until the first item or page is requested
+pagination002 | A token-cursor operation yields every item of every page in order and sends the next page's cursor
+pagination003 | The next request is sent only when the consumer asks for more items
+pagination007 | A Link-header operation follows rel=next and ends when it is absent
+pagination008 | A Link next URL on another origin is refused and no credentials are sent to it
+pagination009 | An empty page with a next cursor continues and an absent, null or empty cursor ends
+pagination010 | Pages yields one page per response with its items, status, headers, decoded body and next cursor
+pagination011 | The cursor passed to the paged method is the starting position and the first request sends it
+pagination012 | Resuming with the next cursor of a page continues with the following page
+pagination013 | Every other parameter, including the page size, is repeated unchanged on each page request
+pagination014 | A cursor equal to the one just sent, or an offset that did not advance, raises a PaginationError instead of looping
+pagination015 | An error on a later page is raised after the earlier pages' items were delivered and ends iteration
+pagination016 | A 503 on the second page is retried under the retry rules and iteration continues
+pagination017 | The per-call timeout, headers and retry count apply to each page request
+pagination018 | Stopping early sends no further request and leaves nothing to close
+pagination019 | Cancelling mid-iteration aborts the in-flight page request and is not reported as a timeout
+pagination020 | Iterating a second time starts again from the starting position
+pagination021 | A page that does not decode on a later page fails with the serialization error after the earlier items were delivered
+pagination022 | A refreshed credential is used for the next page
+pagination023 | An error from a Link-driven page request carries the path without the query
+pagination024 | An operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method
+pagination025 | A paged method has the same parameters in the same order as the base method and the base method is unchanged
+pagination026 | The generator option overrides inference and can switch an operation or the whole feature off
+pagination027 | Headers and options given to the paged method are sent on every page request
+pagination028 | The cursor for the next page is taken from the accepted response, never from a retried attempt
+pagination030 | A vendor extension on an operation is read as a hint, and the override option wins over it
+pagination031 | The repeated-cursor failure is a PaginationError and is not a network error or an API error
+pagination032 | An operation that is streamed is never also given a paged method

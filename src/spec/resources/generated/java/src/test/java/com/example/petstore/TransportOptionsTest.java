@@ -371,7 +371,8 @@ class TransportOptionsTest {
                     Map.of(),
                     false,
                     null,
-                    0));
+                    0,
+                    null));
     assertEquals(
         "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
         ex.getMessage());
@@ -501,11 +502,13 @@ class TransportOptionsTest {
     assertEquals(0, TransportOptions.builder().maxRetries(0).build().getMaxRetries());
     assertEquals(
         0,
-        new TransportOptions(true, null, null, null, true, null, null, Map.of(), false, null, 0)
+        new TransportOptions(
+                true, null, null, null, true, null, null, Map.of(), false, null, 0, null)
             .getMaxRetries());
     assertEquals(
         4,
-        new TransportOptions(true, null, null, null, true, null, null, Map.of(), false, null, 4)
+        new TransportOptions(
+                true, null, null, null, true, null, null, Map.of(), false, null, 4, null)
             .getMaxRetries());
   }
 

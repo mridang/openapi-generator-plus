@@ -30,6 +30,12 @@ from .get_pet_tag_options import GetPetTagOptions as GetPetTagOptions
 from .get_staging_pet_info_options import (
     GetStagingPetInfoOptions as GetStagingPetInfoOptions,
 )
+from .list_pet_archive_options import ListPetArchiveOptions as ListPetArchiveOptions
+from .list_pet_catalog_options import ListPetCatalogOptions as ListPetCatalogOptions
+from .list_pet_events_options import ListPetEventsOptions as ListPetEventsOptions
+from .list_pet_feed_options import ListPetFeedOptions as ListPetFeedOptions
+from .list_pet_matches_options import ListPetMatchesOptions as ListPetMatchesOptions
+from .list_pet_notes_options import ListPetNotesOptions as ListPetNotesOptions
 from .set_pet_avatar_options import SetPetAvatarOptions as SetPetAvatarOptions
 from .set_pet_avatar_thumbnail_options import (
     SetPetAvatarThumbnailOptions as SetPetAvatarThumbnailOptions,

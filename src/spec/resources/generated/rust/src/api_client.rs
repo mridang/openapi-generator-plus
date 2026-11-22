@@ -12,15 +12,22 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crate::api_http_response::ApiHttpResponse;
+use crate::api_stream_response::ApiStreamResponse;
+use crate::body_source::BodySource;
 
 /// Represents the body of an HTTP request.
 ///
-/// Supports raw bytes, multipart form data (as ordered (field name, value) parts),
-/// or no body.
+/// Supports raw bytes, a [`BodySource`] that is sent as it is read, multipart form
+/// data (as ordered (field name, value) parts), or no body.
 #[derive(Debug, Clone)]
 pub enum RequestBody {
     /// Raw bytes body.
     Bytes(Vec<u8>),
+    /// A raw binary body sent as it is read, never buffered. A replayable
+    /// source is opened again for a retry or a redirect; a single-use one is
+    /// sent once. A transport that is not `DefaultApiClient` reads it with
+    /// [`BodySource::open`].
+    Source(BodySource),
     /// Multipart form data: ordered (field name, value) parts in
     /// declaration order. Values may be raw bytes
     /// (for file uploads), strings, or JSON-serializable objects.
@@ -63,6 +70,10 @@ pub struct RequestOptions {
     /// `BaseApi`) sets it, so the transport gives each request only what is
     /// left of the budget. `None` lets the transport start its own timeout.
     pub deadline: Option<std::time::Instant>,
+    /// The longest a stream's body may stay silent between two reads, for this
+    /// request only: `Some(Duration::ZERO)` disables the idle timeout and `None`
+    /// keeps the transport's. Only a streaming call reads it.
+    pub idle_timeout: Option<std::time::Duration>,
 }
 
 impl RequestOptions {
@@ -74,6 +85,12 @@ impl RequestOptions {
     /// Sets the end-to-end deadline shared by the requests of one call.
     pub fn deadline(mut self, value: Option<std::time::Instant>) -> Self {
         self.deadline = value;
+        self
+    }
+
+    /// Sets the idle timeout of a streamed body for this request.
+    pub fn idle_timeout(mut self, value: Option<std::time::Duration>) -> Self {
+        self.idle_timeout = value;
         self
     }
 
@@ -96,7 +113,7 @@ pub trait ApiClient: Send + Sync {
     /// * `method` - HTTP method (GET, POST, PUT, DELETE, etc.)
     /// * `url` - Fully qualified URL
     /// * `headers` - HTTP headers
-    /// * `body` - Request body (raw bytes, or a map for multipart form data; may be `None`)
+    /// * `body` - Request body (raw bytes, a body source, or parts for multipart form data; may be `None`)
     ///
     /// # Returns
     ///
@@ -145,6 +162,47 @@ pub trait ApiClient: Send + Sync {
         self.send_request(method, url, headers, body)
     }
 
+    /// Sends an HTTP request and returns as soon as the response headers have
+    /// arrived, with the body not read yet.
+    ///
+    /// The redirect, header and credential rules are those of
+    /// [`send_request_with_options`](Self::send_request_with_options), up to the
+    /// headers; `options.deadline` stops at the headers, and the idle timeout of
+    /// the transport bounds the gap between two reads of the body. A non-2xx
+    /// response is returned like any other, with its body open, and dropping the
+    /// returned value aborts the connection.
+    ///
+    /// The default implementation returns an
+    /// [`std::io::ErrorKind::Unsupported`] error that names the transport: a
+    /// transport written before streaming keeps working for every buffered call,
+    /// and a call that needs a stream fails clearly instead of falling back to
+    /// buffering (a buffered fallback would never end on an endless feed).
+    fn send_streaming(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&RequestBody>,
+        _options: &RequestOptions,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiStreamResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
+        let message = format!(
+            "{} cannot stream: it does not implement send_streaming, so an operation that returns a stream cannot be called through it",
+            std::any::type_name::<Self>()
+        );
+        Box::pin(async move {
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                message,
+            )) as Box<dyn std::error::Error + Send + Sync>)
+        })
+    }
+
     /// The number of times a failed call is sent again (network failure before
     /// a response, or a status of 408, 409, 429, 500-599 except 501). The
     /// default is `0`, so a custom client never retries; `DefaultApiClient`
@@ -162,7 +220,8 @@ pub trait ApiClient: Send + Sync {
 
     /// Releases any resources held by this client (connection pool, sockets).
     /// Default implementation is a no-op; implementations that own a pooled
-    /// HTTP client should override and dispose of it.
+    /// HTTP client should override and dispose of it. A transport that hands out
+    /// streams should cancel the ones still open.
     fn close(&self) {
         /* No-op by default. Implementations override to release resources. */
     }

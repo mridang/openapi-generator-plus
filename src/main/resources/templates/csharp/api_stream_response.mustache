@@ -1,0 +1,119 @@
+{{>api_info}}
+
+using System.Collections.ObjectModel;
+
+namespace {{packageName}};
+
+/// <summary>
+/// An HTTP response whose body has not been read yet: the status code, the
+/// lower-cased headers and the open body. It is what
+/// <see cref="IApiClient.SendStreamingAsync"/> returns. The caller owns the body
+/// and must dispose it; disposing aborts the connection instead of draining it.
+///
+/// A non-2xx response is returned like any other, with its body open; a caller
+/// that does not want it reads a bounded part with
+/// <see cref="ReadBoundedAsync"/> or disposes it.
+/// </summary>
+public sealed class ApiStreamResponse : IDisposable, IAsyncDisposable
+{
+    /// <summary>Creates a response with defensively copied headers.</summary>
+    /// <param name="statusCode">The HTTP status code.</param>
+    /// <param name="headers">The response headers, lower-cased.</param>
+    /// <param name="body">The open response body, decoded when the server compressed it.</param>
+    public ApiStreamResponse(int statusCode, IReadOnlyDictionary<string, string> headers, Stream body)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+        ArgumentNullException.ThrowIfNull(body);
+        StatusCode = statusCode;
+        Headers = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(headers));
+        Body = body;
+    }
+
+    /// <summary>The HTTP status code.</summary>
+    public int StatusCode { get; }
+
+    /// <summary>The response headers, lower-cased (unmodifiable).</summary>
+    public IReadOnlyDictionary<string, string> Headers { get; }
+
+    /// <summary>The open response body. The caller owns it and must dispose it.</summary>
+    public Stream Body { get; }
+
+    /// <summary>
+    /// Reads at most <paramref name="maxBytes"/> of the body, disposes it and
+    /// returns the result as a buffered response, so the same typed error as a
+    /// buffered call can be raised from it. The body text is decoded for a text
+    /// content type and is Base64 text otherwise, as a buffered response is.
+    /// </summary>
+    /// <param name="maxBytes">The most bytes to read.</param>
+    /// <param name="cancellationToken">Token that cancels the read.</param>
+    /// <returns>The buffered response.</returns>
+    public async Task<ApiHttpResponse> ReadBoundedAsync(
+        int maxBytes,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            byte[] bytes = new byte[maxBytes];
+            int total = 0;
+            while (total < maxBytes)
+            {
+                int count = await Body
+                    .ReadAsync(bytes.AsMemory(total, maxBytes - total), cancellationToken)
+                    .ConfigureAwait(false);
+                if (count == 0)
+                {
+                    break;
+                }
+                total += count;
+            }
+            byte[] body = bytes[..total];
+            _ = Headers.TryGetValue("content-type", out string? contentType);
+            _ = System.Net.Http.Headers.MediaTypeHeaderValue.TryParse(
+                contentType, out System.Net.Http.Headers.MediaTypeHeaderValue? media);
+            string text;
+            if (DefaultApiClient.IsTextContentType(media?.MediaType))
+            {
+                System.Text.Encoding encoding = DefaultApiClient.GetEncodingFromContentType(
+                    contentType, body, out int preambleLength);
+                text = encoding.GetString(body, preambleLength, body.Length - preambleLength);
+            }
+            else
+            {
+                text = Convert.ToBase64String(body);
+            }
+            return new ApiHttpResponse(StatusCode, text, Headers);
+        }
+        catch (Exception ex) when (ex is IOException or Errors.ApiException)
+        {
+            /* The error body could not be read; the status still names the failure. */
+            return new ApiHttpResponse(StatusCode, string.Empty, Headers);
+        }
+        finally
+        {
+            await Body.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Disposes the body, which aborts the connection.</summary>
+    public void Dispose()
+    {
+        Body.Dispose();
+    }
+
+    /// <summary>Disposes the body, which aborts the connection.</summary>
+    /// <returns>A task that completes when the body is disposed.</returns>
+    public ValueTask DisposeAsync()
+    {
+        return Body.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Describes the response by its status only; the headers and the body are never shown.
+    /// </summary>
+    /// <returns>The status.</returns>
+    public override string ToString()
+    {
+        return $"{GetType().Name}(StatusCode={StatusCode})";
+    }
+}

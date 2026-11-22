@@ -39,7 +39,22 @@ export type {
   ApiClient,
   RequestOptions,
   SendRequestOptions,
+  SendStreamingOptions,
 } from "./api-client.js";
+export { ApiStreamResponse } from "./api-stream-response.js";
+export { BodySource } from "./body-source.js";
+export type {
+  BodyStream,
+  BodyStreamFactory,
+  OpenedBody,
+} from "./body-source.js";
+export { ByteStream } from "./byte-stream.js";
+export { JsonLinesStream } from "./json-lines-stream.js";
+export { Paginator } from "./paginator.js";
+export type { Page } from "./paginator.js";
+export { SseStream } from "./sse-stream.js";
+export type { ServerSentEvent } from "./server-sent-event.js";
+export type { StreamOptions } from "./stream-options.js";
 export type { ApiResult } from "./api-result.js";
 export { DefaultApiClient } from "#transport";
 

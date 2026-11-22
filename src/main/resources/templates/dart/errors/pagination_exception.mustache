@@ -1,0 +1,27 @@
+{{>api_info}}
+import '{{errorPrefixSnake}}_exception.dart';
+
+/// Raised when a paged list cannot be followed safely: the server returned the
+/// cursor that was just sent, so asking again would loop forever, or a `Link`
+/// header pointed to another origin, so following it would send the
+/// credentials there. It is not a network error and not an API error: it is a
+/// direct child of [{{errorPrefix}}Exception], and the items already delivered
+/// are complete and correct. A failed page request raises the SDK error of that
+/// failure instead.
+class PaginationException extends {{errorPrefix}}Exception {
+  /// Creates an exception. [message] says what made the list impossible to
+  /// follow and never holds a query string; [requestPath] is the path of the
+  /// request that returned the page, without its query.
+  const PaginationException(this.message, [this.requestPath]);
+
+  /// The detail message.
+  @override
+  final String message;
+
+  /// The path of the request whose response could not be followed, without its
+  /// query, or null when it is not known.
+  final String? requestPath;
+
+  @override
+  String toString() => 'PaginationException: $message';
+}

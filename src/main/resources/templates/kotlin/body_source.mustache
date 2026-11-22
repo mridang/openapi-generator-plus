@@ -1,0 +1,246 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import java.io.IOException
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicBoolean
+
+/**
+ * The body of a request that is sent as it is read, never buffered. An operation whose request
+ * body is raw binary takes one.
+ *
+ * A body is either replayable or single use:
+ * - [of], [ofFile], [fromSupplier] and [fromFlow] can be read again, so the SDK retries the
+ *   request after a 5xx, a 429 or a network error and follows a 307 or 308 redirect.
+ * - [once] wraps a stream, a channel or a flow that can be read once. It is never retried (the
+ *   original error is raised unchanged) and a redirect that would need it again is refused with
+ *   `Refusing to replay a streamed request body`.
+ *
+ * A known length is sent as `Content-Length`; an unknown length is sent chunked. The SDK never
+ * closes a stream or a channel you pass to [once]; it does close what it opened itself from a file
+ * or a factory.
+ *
+ * [toString] shows the kind and the length, never the content or the path.
+ */
+class BodySource private constructor(
+    private val kind: Kind,
+    private val bytes: ByteArray?,
+    private val path: Path?,
+    private val knownLength: Long?,
+    private val producer: () -> Flow<ByteArray>,
+) {
+    private enum class Kind(
+        val label: String,
+    ) {
+        BYTES("bytes"),
+        FILE("file"),
+        FACTORY("factory"),
+        ONCE("single use"),
+    }
+
+    private val taken = AtomicBoolean()
+
+    /** Whether the body can be sent again, which is what a retry or a redirect needs. */
+    val isReplayable: Boolean
+        get() = kind != Kind.ONCE
+
+    /**
+     * The number of bytes, when it is known.
+     *
+     * @return the length, or `null` when the body is sent chunked
+     * @throws IllegalArgumentException when the size of a file cannot be read
+     */
+    fun length(): Long? {
+        if (kind == Kind.FILE) {
+            try {
+                return Files.size(requireNotNull(path))
+            } catch (e: IOException) {
+                throw IllegalArgumentException("Failed to read request body file", e)
+            }
+        }
+        return knownLength
+    }
+
+    /** The bytes of an in-memory body, or `null`; shared with the transport, not copied. */
+    internal fun bytesOrNull(): ByteArray? = bytes
+
+    /**
+     * The content as a cold [Flow] of pieces, in order, for a transport that is not the default
+     * one. A replayable body opens its source again for every collection. A single-use body can be
+     * collected once (a second collection raises [IllegalStateException]) and the flow never closes
+     * what the caller passed to [once].
+     *
+     * @return the pieces of the body
+     */
+    fun chunks(): Flow<ByteArray> =
+        flow {
+            check(isReplayable || taken.compareAndSet(false, true)) {
+                "A single use request body can be sent only once"
+            }
+            producer().collect { emit(it) }
+        }
+
+    /**
+     * Shows the kind and the length, never the content or the path.
+     *
+     * @return the redacted description
+     */
+    override fun toString(): String {
+        val size =
+            try {
+                length()?.let { "$it bytes" } ?: "length unknown"
+            } catch (_: IllegalArgumentException) {
+                "length unknown"
+            }
+        return "BodySource[${kind.label}, $size]"
+    }
+
+    companion object {
+        private const val PIECE_SIZE = 16384
+
+        /**
+         * A replayable body of bytes held in memory; its length is known.
+         *
+         * @param bytes the content (copied)
+         * @return the body
+         */
+        fun of(bytes: ByteArray): BodySource {
+            val copy = bytes.copyOf()
+            return BodySource(Kind.BYTES, copy, null, copy.size.toLong()) { flowOf(copy) }
+        }
+
+        /**
+         * A replayable body read from a file, opened again for every send; its length is the size
+         * of the file and the SDK closes what it opens.
+         *
+         * @param path the file
+         * @return the body
+         */
+        fun ofFile(path: Path): BodySource =
+            BodySource(Kind.FILE, null, path, null) { readingStream({ Files.newInputStream(path) }) }
+
+        /**
+         * A replayable body made by a factory that opens a fresh stream every time it is called.
+         * The SDK closes each stream it opens.
+         *
+         * @param length the number of bytes every stream holds, sent as `Content-Length`, or
+         *   `null` for an unknown length, sent chunked
+         * @param factory opens a fresh stream for every send
+         * @return the body
+         * @throws IllegalArgumentException when [length] is negative
+         */
+        fun fromSupplier(
+            length: Long? = null,
+            factory: () -> InputStream,
+        ): BodySource = BodySource(Kind.FACTORY, null, null, checkedLength(length)) { readingStream(factory) }
+
+        /**
+         * A replayable body made by a factory that returns a cold [Flow] of pieces every time it
+         * is called.
+         *
+         * @param length the number of bytes every flow holds, sent as `Content-Length`, or `null`
+         *   for an unknown length, sent chunked
+         * @param factory returns a fresh flow for every send
+         * @return the body
+         * @throws IllegalArgumentException when [length] is negative
+         */
+        fun fromFlow(
+            length: Long? = null,
+            factory: () -> Flow<ByteArray>,
+        ): BodySource = BodySource(Kind.FACTORY, null, null, checkedLength(length), factory)
+
+        /**
+         * A single-use body read from a stream. It is read once, never buffered and never closed
+         * by the SDK.
+         *
+         * @param stream the stream to send
+         * @param length the number of bytes the stream holds, sent as `Content-Length`, or `null`
+         *   for an unknown length, sent chunked
+         * @return the body
+         * @throws IllegalArgumentException when [length] is negative
+         */
+        fun once(
+            stream: InputStream,
+            length: Long? = null,
+        ): BodySource = BodySource(Kind.ONCE, null, null, checkedLength(length)) { readingStream({ stream }, close = false) }
+
+        /**
+         * A single-use body read from a channel. It is read once, never buffered and never
+         * cancelled by the SDK.
+         *
+         * @param channel the channel to send
+         * @param length the number of bytes the channel holds, sent as `Content-Length`, or `null`
+         *   for an unknown length, sent chunked
+         * @return the body
+         * @throws IllegalArgumentException when [length] is negative
+         */
+        fun once(
+            channel: ByteReadChannel,
+            length: Long? = null,
+        ): BodySource = BodySource(Kind.ONCE, null, null, checkedLength(length)) { readingChannel(channel) }
+
+        /**
+         * A single-use body read from a flow of pieces. It is collected once and never buffered.
+         *
+         * @param chunks the flow to send
+         * @param length the number of bytes the flow holds, sent as `Content-Length`, or `null`
+         *   for an unknown length, sent chunked
+         * @return the body
+         * @throws IllegalArgumentException when [length] is negative
+         */
+        fun once(
+            chunks: Flow<ByteArray>,
+            length: Long? = null,
+        ): BodySource = BodySource(Kind.ONCE, null, null, checkedLength(length)) { chunks }
+
+        private fun checkedLength(length: Long?): Long? {
+            require(length == null || length >= 0) { "The length of a body cannot be negative" }
+            return length
+        }
+
+        private fun flowOf(bytes: ByteArray): Flow<ByteArray> = flow { emit(bytes) }
+
+        private fun readingStream(
+            open: () -> InputStream,
+            close: Boolean = true,
+        ): Flow<ByteArray> =
+            flow {
+                val stream = open()
+                try {
+                    val buffer = ByteArray(PIECE_SIZE)
+                    var count = stream.read(buffer)
+                    while (count >= 0) {
+                        if (count > 0) {
+                            emit(buffer.copyOf(count))
+                        }
+                        count = stream.read(buffer)
+                    }
+                } finally {
+                    if (close) {
+                        stream.close()
+                    }
+                }
+            }.flowOn(Dispatchers.IO)
+
+        private fun readingChannel(channel: ByteReadChannel): Flow<ByteArray> =
+            flow {
+                val buffer = ByteArray(PIECE_SIZE)
+                var count = channel.readAvailable(buffer)
+                while (count >= 0) {
+                    if (count > 0) {
+                        emit(buffer.copyOf(count))
+                    }
+                    count = channel.readAvailable(buffer)
+                }
+            }
+    }
+}

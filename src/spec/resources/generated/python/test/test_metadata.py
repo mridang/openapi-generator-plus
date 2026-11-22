@@ -384,7 +384,7 @@ class TestReadmeAndSkillsText:
         ):
             assert readme.index(heading) < not_supported
         assert "Unknown enum values decode to the catch-all member" in readme
-        assert "Streaming is not supported" in readme
+        assert "Streaming is not supported" not in readme
         assert "stay separate objects" in readme
 
     def test_bhv_lang_python_094_readme_not_supported_lists_xml_links_and_mutual_tls(
@@ -790,6 +790,48 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.pet_api",
             "PetApi",
+            "list_pet_archive",
+            "ListPetArchiveOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "list_pet_catalog",
+            "ListPetCatalogOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "list_pet_events",
+            "ListPetEventsOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "list_pet_feed",
+            "ListPetFeedOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "list_pet_matches",
+            "ListPetMatchesOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "list_pet_notes",
+            "ListPetNotesOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
             "set_pet_avatar",
             "SetPetAvatarOptions",
             True,
@@ -888,7 +930,7 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
-            "export_orders",
+            "export_orders_stream",
             "ExportOrdersOptions",
             True,
         ),
@@ -1021,14 +1063,14 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
-            "watch_notices",
+            "watch_notices_stream",
             "WatchNoticesOptions",
             True,
         ),
         (
             "petstore_client.api.store_api",
             "StoreApi",
-            "watch_orders",
+            "watch_orders_stream",
             "WatchOrdersOptions",
             False,
         ),

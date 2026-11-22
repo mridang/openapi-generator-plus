@@ -1,0 +1,21 @@
+{{>api_info}}
+
+/**
+ * One server-sent event: the fields of the standard envelope, with the data
+ * decoded.
+ *
+ * Its string form (`toString`, `util.inspect`) shows the event name and the id,
+ * never the data.
+ */
+export interface ServerSentEvent<T> {
+  /** The event id, or null when the stream has none. */
+  readonly id: string | null;
+  /** The event name, `message` when the server sent none. */
+  readonly event: string;
+  /** The decoded `data` field. */
+  readonly data: T;
+  /** The reconnection time in milliseconds the server named with this event, or null. */
+  readonly retry: number | null;
+  /** The `data` field exactly as it arrived, lines joined with a line feed. */
+  readonly raw: string;
+}

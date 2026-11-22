@@ -106,6 +106,39 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(ClientStubProtocol.lastRequest(host: "supplied-042.example.com") != nil)
   }
 
+  /* Closing the client cancels the streams that are open: the next read of each throws the closed-client error, and new calls are refused. */
+  @Test func testBhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls()
+    async throws
+  {
+    let server = try RawServer { connection, _, _ in
+      connection.head(200, "Content-Type: application/octet-stream", "Transfer-Encoding: chunked")
+      connection.chunk("tick")
+      connection.server.awaitRelease()
+    }
+    defer { server.stop() }
+    let client = try Client(
+      authenticator: try BearerAuthenticator(host: server.origin, token: "t"))
+    let stream = try await client.pet.getPetAvatar(petId: 1)
+    var iterator = stream.makeAsyncIterator()
+    let first = try #require(try await iterator.next())
+    #expect(String(decoding: first, as: UTF8.self) == "tick")
+
+    let started = Date()
+    client.close()
+    #expect(Date().timeIntervalSince(started) < 5, "closing did not wait for the endless stream")
+
+    let closed = ConfigurationError.invalidState(
+      "ApiClient has been closed and can no longer send requests")
+    let cancelled = await #expect(throws: ConfigurationError.self) {
+      _ = try await iterator.next()
+    }
+    #expect(cancelled == closed)
+    let refused = await #expect(throws: ConfigurationError.self) {
+      _ = try await client.pet.getPetAvatar(petId: 1)
+    }
+    #expect(refused == closed)
+  }
+
   /* A request after close never reaches the network. */
   @Test func testBhvLifecycle043ARequestAfterCloseNeverReachesTheNetwork() async throws {
     let host = "https://closed-043.example.com"
@@ -1487,7 +1520,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func downloadPetDocument(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
-  ) async throws -> Data {
+  ) async throws -> ByteStream {
     var parts: [String] = []
     parts.append(String(describing: petId))
     parts.append(String(describing: documentId))
@@ -1499,7 +1532,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func downloadPetDocumentWithHTTPInfo(
     petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
-  ) async throws -> ApiResult<Data> {
+  ) async throws -> ApiResult<ByteStream> {
     var parts: [String] = []
     parts.append(String(describing: petId))
     parts.append(String(describing: documentId))
@@ -1594,7 +1627,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
-  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> Data {
+  public func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> ByteStream {
     var parts: [String] = []
     parts.append(String(describing: petId))
     var call = "getPetAvatar(" + parts.joined(separator: ",") + ")"
@@ -1604,7 +1637,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions?) async throws
-    -> ApiResult<Data>
+    -> ApiResult<ByteStream>
   {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -1720,7 +1753,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws
-    -> Data
+    -> ByteStream
   {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -1732,7 +1765,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?)
-    async throws -> ApiResult<Data>
+    async throws -> ApiResult<ByteStream>
   {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -1813,8 +1846,155 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func listPetArchive(options: ListPetArchiveOptions?) async throws -> PetArchivePage {
+    var parts: [String] = []
+    var call = "listPetArchive(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetArchiveWithHTTPInfo(options: ListPetArchiveOptions?) async throws -> ApiResult<
+    PetArchivePage
+  > {
+    var parts: [String] = []
+    var call = "listPetArchiveWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetCatalog(options: ListPetCatalogOptions?) async throws -> PetCatalogPage {
+    var parts: [String] = []
+    var call = "listPetCatalog(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetCatalogWithHTTPInfo(options: ListPetCatalogOptions?) async throws -> ApiResult<
+    PetCatalogPage
+  > {
+    var parts: [String] = []
+    var call = "listPetCatalogWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetCatalogPages(options: ListPetCatalogOptions?) -> Paginator<Pet, String> {
+    record("listPetCatalogPages")
+    return Paginator<Pet, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetCatalogPage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
+  public func listPetEvents(options: ListPetEventsOptions?) async throws -> PetEventPage {
+    var parts: [String] = []
+    var call = "listPetEvents(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetEventsWithHTTPInfo(options: ListPetEventsOptions?) async throws -> ApiResult<
+    PetEventPage
+  > {
+    var parts: [String] = []
+    var call = "listPetEventsWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetEventsPages(options: ListPetEventsOptions?) -> Paginator<String, String> {
+    record("listPetEventsPages")
+    return Paginator<String, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetEventPage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
+  public func listPetFeed(options: ListPetFeedOptions?) async throws -> [Pet] {
+    var parts: [String] = []
+    var call = "listPetFeed(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetFeedWithHTTPInfo(options: ListPetFeedOptions?) async throws -> ApiResult<[Pet]>
+  {
+    var parts: [String] = []
+    var call = "listPetFeedWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetFeedPages(options: ListPetFeedOptions?) -> Paginator<Pet, Void> {
+    record("listPetFeedPages")
+    return Paginator<Pet, Void>.ofLink(
+      baseURL: "", requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<[Pet]> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil })
+  }
+
+  public func listPetMatches(options: ListPetMatchesOptions?) async throws -> PetMatchPage {
+    var parts: [String] = []
+    var call = "listPetMatches(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetMatchesWithHTTPInfo(options: ListPetMatchesOptions?) async throws -> ApiResult<
+    PetMatchPage
+  > {
+    var parts: [String] = []
+    var call = "listPetMatchesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetNotes(options: ListPetNotesOptions?) async throws -> PetNotePage {
+    var parts: [String] = []
+    var call = "listPetNotes(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetNotesWithHTTPInfo(options: ListPetNotesOptions?) async throws -> ApiResult<
+    PetNotePage
+  > {
+    var parts: [String] = []
+    var call = "listPetNotesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func listPetNotesPages(options: ListPetNotesOptions?) -> Paginator<String, String> {
+    record("listPetNotesPages")
+    return Paginator<String, String>.ofCursor(
+      start: nil, requestPath: "",
+      fetch: { (_: String?) async throws -> ApiResult<PetNotePage> in
+        throw NotFoundError(message: "missing")
+      },
+      items: { _ in nil }, next: { _ in nil })
+  }
+
   public func setPetAvatar(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -1825,7 +2005,7 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
   }
 
   public func setPetAvatarWithHTTPInfo(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
+    petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?
   ) async throws -> ApiResult<Void> {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -2148,19 +2328,11 @@ private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
-  public func exportOrders(options: ExportOrdersOptions?) async throws -> Order {
+  public func exportOrdersStream(options: ExportOrdersOptions?, streamOptions: StreamOptions?)
+    async throws -> JsonLinesStream<Order>
+  {
     var parts: [String] = []
-    var call = "exportOrders(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
-    record(call)
-    throw NotFoundError(message: "missing")
-  }
-
-  public func exportOrdersWithHTTPInfo(options: ExportOrdersOptions?) async throws -> ApiResult<
-    Order
-  > {
-    var parts: [String] = []
-    var call = "exportOrdersWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    var call = "exportOrdersStream(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
     throw NotFoundError(message: "missing")
@@ -2497,36 +2669,21 @@ private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
-  public func watchNotices(options: WatchNoticesOptions?) async throws -> String {
-    var parts: [String] = []
-    var call = "watchNotices(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
-    record(call)
-    throw NotFoundError(message: "missing")
-  }
-
-  public func watchNoticesWithHTTPInfo(options: WatchNoticesOptions?) async throws -> ApiResult<
-    String
-  > {
-    var parts: [String] = []
-    var call = "watchNoticesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
-    record(call)
-    throw NotFoundError(message: "missing")
-  }
-
-  public func watchOrders(options: WatchOrdersOptions?) async throws -> Order {
-    var parts: [String] = []
-    var call = "watchOrders(" + parts.joined(separator: ",") + ")"
-    call += options == nil ? " options=none" : " options=set"
-    record(call)
-    throw NotFoundError(message: "missing")
-  }
-
-  public func watchOrdersWithHTTPInfo(options: WatchOrdersOptions?) async throws -> ApiResult<Order>
+  public func watchNoticesStream(options: WatchNoticesOptions?, streamOptions: StreamOptions?)
+    async throws -> SseStream<String>
   {
     var parts: [String] = []
-    var call = "watchOrdersWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    var call = "watchNoticesStream(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func watchOrdersStream(options: WatchOrdersOptions?, streamOptions: StreamOptions?)
+    async throws -> SseStream<Order>
+  {
+    var parts: [String] = []
+    var call = "watchOrdersStream(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
     throw NotFoundError(message: "missing")
@@ -2650,6 +2807,22 @@ private func environmentClient(
     #expect(petListed.contains("getPetTagWithHTTPInfo"))
     #expect(petListed.contains("getStagingPetInfo"))
     #expect(petListed.contains("getStagingPetInfoWithHTTPInfo"))
+    #expect(petListed.contains("listPetArchive"))
+    #expect(petListed.contains("listPetArchiveWithHTTPInfo"))
+    #expect(petListed.contains("listPetCatalog"))
+    #expect(petListed.contains("listPetCatalogWithHTTPInfo"))
+    #expect(petListed.contains("listPetCatalogPages"))
+    #expect(petListed.contains("listPetEvents"))
+    #expect(petListed.contains("listPetEventsWithHTTPInfo"))
+    #expect(petListed.contains("listPetEventsPages"))
+    #expect(petListed.contains("listPetFeed"))
+    #expect(petListed.contains("listPetFeedWithHTTPInfo"))
+    #expect(petListed.contains("listPetFeedPages"))
+    #expect(petListed.contains("listPetMatches"))
+    #expect(petListed.contains("listPetMatchesWithHTTPInfo"))
+    #expect(petListed.contains("listPetNotes"))
+    #expect(petListed.contains("listPetNotesWithHTTPInfo"))
+    #expect(petListed.contains("listPetNotesPages"))
     #expect(petListed.contains("setPetAvatar"))
     #expect(petListed.contains("setPetAvatarWithHTTPInfo"))
     #expect(petListed.contains("setPetAvatarThumbnail"))
@@ -2688,8 +2861,7 @@ private func environmentClient(
     #expect(storeListed.contains("createAccountWithHTTPInfo"))
     #expect(storeListed.contains("deleteOrder"))
     #expect(storeListed.contains("deleteOrderWithHTTPInfo"))
-    #expect(storeListed.contains("exportOrders"))
-    #expect(storeListed.contains("exportOrdersWithHTTPInfo"))
+    #expect(storeListed.contains("exportOrdersStream"))
     #expect(storeListed.contains("getAuditTrail"))
     #expect(storeListed.contains("getAuditTrailWithHTTPInfo"))
     #expect(storeListed.contains("getBySwatch"))
@@ -2726,10 +2898,8 @@ private func environmentClient(
     #expect(storeListed.contains("reserveStockWithHTTPInfo"))
     #expect(storeListed.contains("searchStore"))
     #expect(storeListed.contains("searchStoreWithHTTPInfo"))
-    #expect(storeListed.contains("watchNotices"))
-    #expect(storeListed.contains("watchNoticesWithHTTPInfo"))
-    #expect(storeListed.contains("watchOrders"))
-    #expect(storeListed.contains("watchOrdersWithHTTPInfo"))
+    #expect(storeListed.contains("watchNoticesStream"))
+    #expect(storeListed.contains("watchOrdersStream"))
   }
 
   @Test func testBhvMocking002GroupProtocolListsExactlyThePublicOperationsOfTheClass() throws {

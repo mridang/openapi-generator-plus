@@ -1,0 +1,88 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/**
+ * The open body of an [ApiStreamResponse]: it is read piece by piece and closed by the caller.
+ * A transport that streams hands one out; the SDK wraps it as a [ByteStream].
+ */
+interface ApiStreamBody : AutoCloseable {
+    /**
+     * Reads up to `buffer.size` bytes into [buffer] and suspends until at least one is
+     * available.
+     *
+     * @param buffer where the bytes go
+     * @return the number of bytes read, or `-1` when the body has ended
+     */
+    suspend fun read(buffer: ByteArray): Int
+
+    /** Closes the body and aborts the connection instead of draining it; it is idempotent. */
+    override fun close()
+}
+
+/**
+ * An HTTP response whose body has not been read yet: the status code, the lower-cased headers
+ * and the open body. It is what [ApiClient.sendStreaming] returns. The caller owns the body and
+ * must close it; closing aborts the connection instead of draining it.
+ *
+ * A non-2xx response is returned like any other, with its body open; a caller that does not
+ * want it reads a bounded part with [readBounded] or closes it.
+ *
+ * @property statusCode the HTTP status code
+ * @property headers the response headers, lower-cased (a read-only copy)
+ * @property body the open response body, decoded when the server compressed it
+ */
+class ApiStreamResponse(
+    val statusCode: Int,
+    headers: Map<String, String>,
+    val body: ApiStreamBody,
+) : AutoCloseable {
+    val headers: Map<String, String> = java.util.Collections.unmodifiableMap(LinkedHashMap(headers))
+
+    /**
+     * Reads at most [maxBytes] of the body, closes it and returns the result as a buffered
+     * response, so the same typed error as a buffered call can be raised from it. The body text is
+     * decoded for a text content type and is Base64 text otherwise, as a buffered response is.
+     *
+     * @param maxBytes the most bytes to read
+     * @return the buffered response
+     */
+    suspend fun readBounded(maxBytes: Int): ApiHttpResponse {
+        val collected = java.io.ByteArrayOutputStream()
+        try {
+            val chunk = ByteArray(minOf(8192, maxBytes.coerceAtLeast(1)))
+            while (collected.size() < maxBytes) {
+                val count = body.read(chunk)
+                if (count < 0) break
+                collected.write(chunk, 0, minOf(count, maxBytes - collected.size()))
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // The error body is best effort: the status alone already says what failed.
+        } finally {
+            body.close()
+        }
+        val bytes = collected.toByteArray()
+        val contentType = headers["content-type"] ?: ""
+        val text =
+            if (isTextContentType(contentType)) {
+                bytes.toString(charsetFor(contentType))
+            } else {
+                java.util.Base64.getEncoder().encodeToString(bytes)
+            }
+        return ApiHttpResponse(statusCode, text, headers)
+    }
+
+    /** Closes the body, which aborts the connection. */
+    override fun close() {
+        body.close()
+    }
+
+    /**
+     * Describes the response by its status only; the headers and the body are never shown.
+     *
+     * @return the status
+     */
+    override fun toString(): String = "ApiStreamResponse(statusCode=$statusCode)"
+}

@@ -2,6 +2,7 @@
 
 require 'etc'
 require 'securerandom'
+require 'socket'
 
 # Every dependency an emitted test loads is listed, with the test that needs
 # it, in .openapi-generator/DEV-DEPENDENCIES. A client keep-lists its own
@@ -225,6 +226,254 @@ class RecordingCallObserver
 
   def finish(outcome)
     @hook.finished(outcome)
+  end
+end
+
+# An in-process HTTP/1.1 server on a raw socket, so a test can stall a body,
+# cut it short or reset the connection, which neither the shared mock server
+# nor a plain HTTP server can do. +script+ runs once per connection with the
+# server, the socket, the number of the hit and the request head.
+class RawServer
+  attr_reader :hits, :heads
+
+  # Starts a server that runs +script+ for every connection it accepts.
+  def self.serve(&)
+    new(&)
+  end
+
+  def initialize(&script)
+    @listener = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    @script = script
+    @lock = Mutex.new
+    @hits = 0
+    @heads = [] # : Array[String]
+    @release = Queue.new
+    @client_gone = Queue.new
+    @acceptor = Thread.new { accept_loop }
+  end
+
+  def port
+    @listener.addr[1]
+  end
+
+  def url(path)
+    "http://127.0.0.1:#{port}#{path}"
+  end
+
+  # Lets a script that waits on the test carry on; also done when the server closes.
+  def release!
+    @release.close
+  end
+
+  def released?
+    @release.closed?
+  end
+
+  # Waits until the test releases the script, or for 20 seconds.
+  def await_release
+    @release.pop(timeout: 20)
+    nil
+  end
+
+  # Called by a script whose write failed because the client dropped the connection.
+  def client_gone!
+    @client_gone.close
+  end
+
+  # Whether a script saw the client drop the connection, waiting up to +seconds+ for it.
+  def client_gone?(seconds = 10)
+    @client_gone.pop(timeout: seconds)
+    @client_gone.closed?
+  end
+
+  def close
+    release!
+    @listener.close
+    @acceptor.join(2)
+  end
+
+  private
+
+  def accept_loop
+    loop do
+      socket = @listener.accept
+      Thread.new(socket) { |connection| handle(connection) }
+    rescue IOError, SystemCallError
+      break
+    end
+  end
+
+  def handle(socket)
+    head = +''
+    head << socket.readpartial(1) until head.end_with?("\r\n\r\n")
+    hit = @lock.synchronize do
+      @heads << head
+      @hits += 1
+    end
+    @script.call(self, socket, hit, head)
+  rescue IOError, SystemCallError
+    nil
+  ensure
+    socket.close unless socket.closed?
+  end
+end
+
+# What a RawServer script writes.
+module RawHttp
+  # The status line and headers; the connection is closed after the body.
+  def self.head(socket, status, *headers)
+    lines = ["HTTP/1.1 #{status} Test", *headers, 'Connection: close', '', '']
+    socket.write(lines.join("\r\n"))
+    socket.flush
+  end
+
+  # One chunk of a chunked body.
+  def self.chunk(socket, data)
+    socket.write("#{data.bytesize.to_s(16)}\r\n#{data}\r\n")
+    socket.flush
+  end
+
+  # The last chunk of a chunked body.
+  def self.finish(socket)
+    socket.write("0\r\n\r\n")
+    socket.flush
+  end
+
+  # The body of the request a script was called for: the head says how it is framed
+  # (Content-Length or chunked), and the whole body is read off the socket.
+  def self.read_body(socket, head)
+    lower = head.downcase
+    if (length = lower[/^content-length: *(\d+)/, 1])
+      return socket.read(length.to_i).to_s.b
+    end
+    return ''.b unless lower.include?('transfer-encoding: chunked')
+
+    body = ''.b
+    while (size = socket.gets("\r\n").to_s.strip.to_i(16)).positive?
+      body << socket.read(size).to_s
+      socket.read(2)
+    end
+    socket.gets("\r\n")
+    body
+  end
+
+  # Makes the close of the socket reset the connection instead of ending it cleanly.
+  def self.reset(socket)
+    socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_LINGER, [1, 0].pack('ii'))
+    socket.close
+  end
+
+  # A script for other tests: one chunk, then silence until the test releases the server.
+  def self.one_chunk_then_hold(server, socket, _hit, _head)
+    head(socket, 200, 'Transfer-Encoding: chunked')
+    chunk(socket, 'tick')
+    server.await_release
+  end
+
+  # A script for other tests: a complete two byte text response.
+  def self.reply_ok(_server, socket, _hit, _head)
+    head(socket, 200, 'Content-Type: text/plain', 'Content-Length: 2')
+    socket.write('ok')
+  end
+end
+
+# One request a paged-list server saw: the path, the decoded query and the headers (lower-cased names).
+class SeenRequest
+  attr_reader :path, :query, :headers
+
+  def initialize(path, query, headers)
+    @path = path
+    @query = query
+    @headers = headers
+  end
+
+  def param(name)
+    query[name]
+  end
+end
+
+# What a paged-list server answers: a status, a body, extra headers and a delay before it answers.
+class PagedReply
+  attr_reader :status, :body, :headers, :delay
+
+  def self.ok(body, headers = {})
+    new(200, body, headers, 0) # steep:ignore UnexpectedPositionalArgument
+  end
+
+  def self.status(status)
+    new(status, '{}', { 'Retry-After' => '0' }, 0) # steep:ignore UnexpectedPositionalArgument
+  end
+
+  def initialize(status, body, headers, delay)
+    @status = status
+    @body = body
+    @headers = headers
+    @delay = delay
+  end
+
+  def after(seconds)
+    PagedReply.new(status, body, headers, seconds)
+  end
+end
+
+# An in-process server whose answer depends on the request it gets and on how many it has had, which the
+# shared mock cannot do. +handler+ gets the request and its number (from 1) and returns a PagedReply; every
+# request is recorded in arrival order.
+class PagedServer
+  attr_reader :seen
+
+  def initialize(&handler)
+    @seen = [] # : Array[SeenRequest]
+    @lock = Mutex.new
+    @raw = RawServer.serve do |_server, socket, _hit, head|
+      request = parse(head)
+      number = @lock.synchronize do
+        @seen << request
+        @seen.length
+      end
+      answer(socket, handler.call(request, number))
+    end
+  end
+
+  def url
+    @raw.url('')
+  end
+
+  def close
+    @raw.close
+  end
+
+  # The values the requests sent for the query parameter +name+, in order.
+  def params(name)
+    @lock.synchronize { @seen.map { |request| request.param(name) } }
+  end
+
+  private
+
+  def parse(head)
+    lines = head.split("\r\n")
+    target = lines.first.to_s.split[1].to_s
+    path, raw_query = target.split('?', 2)
+    query = {} # : Hash[String, String]
+    raw_query.to_s.split('&').each do |pair|
+      key, value = pair.split('=', 2)
+      query[URI.decode_www_form_component(key.to_s)] = URI.decode_www_form_component(value.to_s)
+    end
+    headers = {} # : Hash[String, String]
+    lines.drop(1).each do |line|
+      name, value = line.split(':', 2)
+      headers[name.to_s.downcase] = value.to_s.strip
+    end
+    SeenRequest.new(path.to_s, query, headers)
+  end
+
+  def answer(socket, reply)
+    sleep reply.delay if reply.delay.positive?
+    extra = reply.headers.map { |name, value| "#{name}: #{value}" }
+    RawHttp.head(socket, reply.status, 'Content-Type: application/json', "Content-Length: #{reply.body.bytesize}", *extra)
+    socket.write(reply.body)
+  rescue IOError, SystemCallError
+    nil
   end
 end
 

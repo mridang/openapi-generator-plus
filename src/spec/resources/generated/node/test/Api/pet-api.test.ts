@@ -33,6 +33,8 @@ import type { ApiHttpResponse } from "../../src/api-http-response.js";
 import { ApiKeyAuthenticator } from "../../src/auth/api-key-authenticator.js";
 import { ApiKeyLocation } from "../../src/auth/api-key-location.js";
 import { BearerAuthenticator } from "../../src/auth/bearer-authenticator.js";
+import { BodySource } from "../../src/body-source.js";
+import { ByteStream } from "../../src/byte-stream.js";
 import { Configuration } from "../../src/configuration.js";
 import { DefaultApiClient } from "../../src/default-api-client.js";
 import { TransportOptions } from "../../src/transport-options.js";
@@ -131,14 +133,40 @@ describe("PetApi", () => {
   test("bhv operations 070 setPetAvatar", async () => {
     const body = Buffer.from([0xff, 0xd8, 0xff]);
 
-    await api.setPetAvatar(1, body);
+    await api.setPetAvatar(1, BodySource.of(body));
   });
 
   test("bhv operations 045 getPetAvatar", async () => {
     const result = await api.getPetAvatarWithHttpInfo(1);
+    const stream = result.data as ByteStream;
 
-    expect(Buffer.isBuffer(result.data)).toBe(true);
-    expect((result.data as Buffer).toString("base64")).toBe(result.rawBody);
+    expect(stream).toBeInstanceOf(ByteStream);
+    expect(result.rawBody).toBe("");
+    await stream.close();
+  });
+
+  test("bhv streaming 009 a binary stream exposes the status and the lower-cased response headers", async () => {
+    const stream = await api.getPetAvatar(1);
+    try {
+      expect(stream.statusCode).toBe(200);
+      expect(Object.keys(stream.headers)).toContain("content-type");
+      expect(
+        Object.keys(stream.headers).every(
+          (name) => name === name.toLowerCase(),
+        ),
+      ).toBe(true);
+    } finally {
+      await stream.close();
+    }
+    const result = await api.getPetAvatarWithHttpInfo(1);
+    const data = result.data as ByteStream;
+    try {
+      expect(result.statusCode).toBe(data.statusCode);
+      expect(result.headers).toEqual(data.headers);
+      expect(result.rawBody).toBe("");
+    } finally {
+      await data.close();
+    }
   });
 
   test("bhv operations 046 getPetAvatarThumbnail", async () => {
@@ -197,12 +225,14 @@ describe("PetApi", () => {
     const result = await api.downloadPetDocument(1, 100);
 
     expect(result).toBeDefined();
+    await result.close();
   });
 
   test("bhv operations 055 getPetPhoto", async () => {
     const result = await api.getPetPhoto(1, 100);
 
     expect(result).toBeDefined();
+    await result.close();
   });
 
   test("bhv operations 073 setPetAvatar streams raw bytes with declared content type", async () => {
@@ -228,10 +258,14 @@ describe("PetApi", () => {
     );
     const payload = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
 
-    await capturingApi.setPetAvatar(1, payload);
+    await capturingApi.setPetAvatar(1, BodySource.of(payload));
 
-    expect(Buffer.isBuffer(capturedBody)).toBe(true);
-    expect((capturedBody as Buffer).equals(payload)).toBe(true);
+    expect(capturedBody).toBeInstanceOf(BodySource);
+    const opened = await (capturedBody as BodySource).open();
+    expect(Buffer.from(opened.content as Uint8Array).equals(payload)).toBe(
+      true,
+    );
+    expect(opened.length).toBe(payload.length);
     expect(capturedHeaders["Content-Type"]).toBe("image/jpeg");
   });
 
@@ -581,7 +615,9 @@ describe("PetApi", () => {
     );
     try {
       const result = await mockApi.getPetAvatar(1);
-      expect(result).toBeDefined();
+      expect((await result.readAll()).toString("utf8")).toBe(
+        "FAKE_BINARY_DATA",
+      );
     } finally {
       close();
     }
@@ -1225,7 +1261,7 @@ describe("PetApi request content-type selector", () => {
     try {
       const bytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
       await api
-        .setPetAvatar(1, bytes, "application/json")
+        .setPetAvatar(1, BodySource.of(bytes), "application/json")
         .catch(() => undefined);
 
       const { body, requestContentType } = getCapture();
@@ -1704,7 +1740,7 @@ describe("PetApi against a recording client", () => {
   test("bhv operations 024 addPetTreatment sends the chosen anyOf variant as the request body", async () => {
     const sent: {
       path?: string;
-      body?: string | Buffer | Record<string, unknown> | null;
+      body?: string | Buffer | Record<string, unknown> | BodySource | null;
     } = {};
     const treatmentApi = new PetApi(
       {
@@ -1921,7 +1957,11 @@ describe("PetApi against a recording client", () => {
   test("bhv operations 076 setPetAvatar rejects an undeclared request content type before sending", async () => {
     const undeclared: string = "application/unknown-type";
     const error = await recordingApi
-      .setPetAvatar(1, Buffer.from([1]), undeclared as "image/png")
+      .setPetAvatar(
+        1,
+        BodySource.of(Buffer.from([1])),
+        undeclared as "image/png",
+      )
       .catch((e: unknown) => e);
 
     expect((error as Error).constructor).toBe(TypeError);

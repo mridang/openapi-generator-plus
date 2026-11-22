@@ -1,0 +1,129 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # Reads the +Link+ header of RFC 8288. A value is a comma separated list of
+  # links, each an angle-bracketed URI reference followed by +;+ parameters
+  # whose values are tokens or quoted strings. Commas and semicolons inside the
+  # brackets or inside a quoted string do not split anything.
+  #
+  # @api private
+  module LinkHeader
+    # One link of the header: the URI reference and the relation types of its +rel+ parameter.
+    Link = Struct.new(:target, :relations)
+
+    # The URI reference of the first link whose relation type is +next+.
+    #
+    # @param header [String, nil] the header value, repeated headers joined with a comma
+    # @return [String, nil] the URI reference exactly as written, or nil when there is no +next+ link
+    def self.next_target(header)
+      return nil if header.nil?
+
+      parse(header).find { |link| link.relations.include?('next') }&.target
+    end
+
+    # Parses a header value into its links. A link that is malformed is skipped,
+    # and the parse goes on with the next comma that is outside brackets and quotes.
+    #
+    # @param header [String] the header value
+    # @return [Array<Link>] the links in order
+    def self.parse(header)
+      links = [] # : Array[Link]
+      index = 0
+      while index < header.length
+        index += 1 while index < header.length && [' ', "\t", ','].include?(header[index])
+        break if index >= header.length
+
+        if header[index] != '<'
+          index = skip_to_comma(header, index)
+          next
+        end
+        close = header.index('>', index + 1)
+        break if close.nil?
+
+        target = header[(index + 1)...close].to_s
+        index, relations = read_parameters(header, close + 1)
+        links << Link.new(target, relations)
+      end
+      links
+    end
+
+    # Reads the parameters that follow a target and returns where the link ends
+    # and the relation types of its first +rel+ parameter.
+    def self.read_parameters(header, start)
+      index = start
+      relations = [] # : Array[String]
+      while index < header.length
+        index += 1 while index < header.length && [' ', "\t"].include?(header[index])
+        break if index >= header.length || header[index] == ','
+
+        if header[index] != ';'
+          index = skip_to_comma(header, index)
+          break
+        end
+        index += 1
+        index += 1 while index < header.length && [' ', "\t"].include?(header[index])
+        name_start = index
+        index += 1 while index < header.length && !'=;, \t'.include?(header[index].to_s)
+        name = header[name_start...index].to_s.downcase
+        value, index = read_value(header, index)
+        relations = value.strip.split(/\s+/).reject(&:empty?).map(&:downcase) if name == 'rel' && relations.empty?
+      end
+      [index, relations]
+    end
+
+    # Reads the value that follows a parameter name: nothing, a token or a quoted string.
+    def self.read_value(header, start)
+      index = start
+      value = +''
+      return [value, index] unless header[index] == '='
+
+      index += 1
+      if header[index] == '"'
+        index += 1
+        while index < header.length && header[index] != '"'
+          index += 1 if header[index] == '\\' && index + 1 < header.length
+          value << header[index].to_s
+          index += 1
+        end
+        index += 1
+      else
+        while index < header.length && !';, \t'.include?(header[index].to_s)
+          value << header[index].to_s
+          index += 1
+        end
+      end
+      [value, index]
+    end
+
+    # Skips to the next comma that is outside brackets and quotes, and returns its index or the end.
+    def self.skip_to_comma(text, from)
+      quoted = false
+      bracketed = false
+      index = from
+      while index < text.length
+        char = text[index]
+        if quoted
+          if char == '\\'
+            index += 1
+          elsif char == '"'
+            quoted = false
+          end
+        elsif char == '"'
+          quoted = true
+        elsif char == '<'
+          bracketed = true
+        elsif char == '>'
+          bracketed = false
+        elsif char == ',' && !bracketed
+          return index
+        end
+        index += 1
+      end
+      text.length
+    end
+
+    private_class_method :read_parameters, :read_value, :skip_to_comma
+  end
+end

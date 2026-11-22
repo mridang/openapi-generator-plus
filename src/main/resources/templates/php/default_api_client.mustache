@@ -3,6 +3,7 @@ namespace {{invokerPackage}};
 
 use {{invokerPackage}}\Errors\NetworkException;
 use {{invokerPackage}}\Errors\NetworkTimeoutException;
+use {{invokerPackage}}\Errors\StreamException;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\Mime\Header\Headers;
 use Symfony\Component\Mime\Part\DataPart;
@@ -268,21 +269,44 @@ class DefaultApiClient extends AbstractApiClient
     }
 
     /**
-     * Perform a single Symfony HTTP request with no automatic redirect
-     * following, returning the raw status, body, and multi-value headers.
+     * The body of a request that is read as it is sent: a reader the client calls for each chunk,
+     * or an empty string for a body of zero length.
      *
-     * Handles multipart/form-data encoding when $body is an array, owning the
-     * boundary-bearing `Content-Type` header in that case.
+     * @return \Closure(int): string|string
+     */
+    private static function sourceReader(BodySource $source): \Closure|string
+    {
+        if ($source->length() === 0) {
+            return '';
+        }
+        $chunks = $source->chunks();
+        $started = false;
+
+        return static function (int $size) use ($chunks, &$started): string {
+            /* The chunk handed out last time is left current until now, so a stream is closed by the
+             * generator as soon as its end was read and no read goes ahead of the client. */
+            if ($started) {
+                $chunks->next();
+            }
+            $started = true;
+
+            return $chunks->valid() ? $chunks->current() : '';
+        };
+    }
+
+    /**
+     * Builds the Symfony request options of one exchange: the headers and the body, with
+     * multipart/form-data encoding when $body is an array, in which case the boundary-bearing
+     * `Content-Type` header is owned here.
      *
      * @param array<string, string> $headers
-     * @throws NetworkException if the request fails at the transport level
+     * @return array<string, mixed> the Symfony request options
      */
-    protected function execute(
+    private function buildOptions(
         string $method,
-        string $url,
         array $headers,
         mixed $body,
-    ): RawHttpResponse {
+    ): array {
         $mergedHeaders = $headers;
 
         if (is_array($body)) {
@@ -379,7 +403,12 @@ class DefaultApiClient extends AbstractApiClient
                 'headers' => $mergedHeaders,
             ];
 
-            if ($body !== null) {
+            if ($body instanceof BodySource) {
+                /* Sent as it is read, never buffered: the body is read in chunks while the request
+                 * goes out. A known length is the Content-Length header set by the base class, an
+                 * unknown one makes the client send it chunked. */
+                $options['body'] = self::sourceReader($body);
+            } elseif ($body !== null) {
                 $options['body'] = $body;
             } else {
                 /* A null body on a body-bearing verb is sent as an explicit
@@ -391,6 +420,27 @@ class DefaultApiClient extends AbstractApiClient
                 }
             }
         }
+
+        return $options;
+    }
+
+    /**
+     * Perform a single Symfony HTTP request with no automatic redirect
+     * following, returning the raw status, body, and multi-value headers.
+     *
+     * Handles multipart/form-data encoding when $body is an array, owning the
+     * boundary-bearing `Content-Type` header in that case.
+     *
+     * @param array<string, string> $headers
+     * @throws NetworkException if the request fails at the transport level
+     */
+    protected function execute(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+    ): RawHttpResponse {
+        $options = $this->buildOptions($method, $headers, $body);
 
         /* The timeout is one budget for the whole call: each hop gets only
          * what the earlier hops left, never a fresh allowance. */
@@ -425,6 +475,114 @@ class DefaultApiClient extends AbstractApiClient
     }
 
     /**
+     * Perform the header phase of a single streaming Symfony request with no automatic redirect
+     * following: send the request, wait for the status and the headers, and return them with the
+     * body left unread. The `timeout` bounds the wait for the headers only (the body is not
+     * buffered and has no maximum duration), and `$idleSeconds` bounds the gap between two chunks
+     * of the body.
+     *
+     * @param array<string, string> $headers
+     * @param float|null            $idleSeconds the longest silence in the body, or null when disabled
+     * @throws NetworkException if the request fails at the transport level
+     */
+    protected function executeStreaming(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        ?float $idleSeconds,
+    ): RawStreamResponse {
+        $options = $this->buildOptions($method, $headers, $body);
+        $options['buffer'] = false;
+        /* The client-wide max_duration is the call budget of a buffered call and would cut a long
+         * body, so a streaming request carries none: the budget stops at the headers. */
+        $options['max_duration'] = 0;
+        $remaining = $this->remainingTimeout();
+        if ($remaining !== null) {
+            $options['timeout'] = $remaining;
+        }
+
+        try {
+            $response = $this->client->request($method, $url, $options);
+            $statusCode = $response->getStatusCode();
+            $rawHeaders = $response->getHeaders(false);
+        } catch (TimeoutExceptionInterface $e) {
+            throw new NetworkTimeoutException("API Request timed out: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+        } catch (TransportExceptionInterface $e) {
+            if (preg_match('/max duration|timed? ?out/i', $e->getMessage()) === 1) {
+                throw new NetworkTimeoutException("API Request timed out: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+            }
+
+            throw new NetworkException("API Request failed: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
+        }
+
+        $client = $this->client;
+        $path = self::redactUrlQuery($url, $url);
+        $chunks = null;
+        $started = false;
+        $finished = false;
+        $pull = function () use ($client, $response, $idleSeconds, $method, $url, $path, &$chunks, &$started, &$finished): ?string {
+            if ($finished) {
+                return null;
+            }
+            $chunks ??= $client->stream($response, $idleSeconds ?? \INF);
+            try {
+                /* The chunk handed out by the previous call is left current until now: moving
+                 * on earlier would wait for the next chunk before the caller got this one. */
+                if ($started) {
+                    $chunks->next();
+                }
+                $started = true;
+                while ($chunks->valid()) {
+                    $chunk = $chunks->current();
+                    if ($chunk->isTimeout()) {
+                        $finished = true;
+                        $response->cancel();
+                        throw new NetworkTimeoutException(
+                            'The response body was silent for ' . (int) round(($idleSeconds ?? 0.0) * 1000) . ' ms',
+                            null,
+                            $method,
+                            $path
+                        );
+                    }
+                    $data = $chunk->getContent();
+                    if ($chunk->isLast()) {
+                        $finished = true;
+                        if ($data === '') {
+                            return null;
+                        }
+                    }
+                    if ($data !== '') {
+                        return $data;
+                    }
+                    $chunks->next();
+                }
+            } catch (TransportExceptionInterface $e) {
+                $finished = true;
+                $response->cancel();
+                throw new StreamException(
+                    'The response body failed after the headers: ' . self::redactUrlQuery($e->getMessage(), $url),
+                    $e,
+                    $method,
+                    $path
+                );
+            }
+            $finished = true;
+
+            return null;
+        };
+
+        return new RawStreamResponse(
+            $statusCode,
+            $rawHeaders,
+            $pull,
+            static function () use ($response): void {
+                $response->cancel();
+            }
+        );
+    }
+
+    /**
      * Resets the underlying Symfony HTTP client, closing any open
      * connections and clearing pooled state. Safe to call multiple times.
      * Symfony's `ResetInterface` is implemented by both CurlHttpClient and
@@ -432,6 +590,9 @@ class DefaultApiClient extends AbstractApiClient
      */
     public function close(): void
     {
+        /* Open streams are cancelled first: each aborts its connection and raises the
+         * closed-client error on its next read, rather than meeting a reset client. */
+        $this->cancelOpenStreams();
         if ($this->client instanceof \Symfony\Contracts\Service\ResetInterface) {
             $this->client->reset();
         }

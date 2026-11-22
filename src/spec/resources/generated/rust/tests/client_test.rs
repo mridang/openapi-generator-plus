@@ -13,8 +13,14 @@ use petstore::api::options::*;
 use petstore::api::*;
 use petstore::models::*;
 use petstore::ApiResult;
+use petstore::BodySource;
+use petstore::ByteStream;
 use petstore::Client;
 use petstore::ClientTrait;
+use petstore::JsonLinesStream;
+use petstore::Paginator;
+use petstore::SseStream;
+use petstore::StreamOptions;
 
 /* The signatures of the fakes name `crate::date_time`, which is the SDK's module; this file is its own
  * crate, so the path is made to resolve to the SDK's. */
@@ -457,6 +463,10 @@ impl FakePetApi {
     }
 
     fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+        Self::fresh_failure()
+    }
+
+    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
         let api_error =
             petstore::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = petstore::errors::client_error::ClientError::try_from(api_error)
@@ -614,7 +624,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document({:?},{:?}, options={})",
             pet_id,
@@ -630,7 +640,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "download_pet_document_with_http_info({:?},{:?}, options={})",
@@ -759,7 +769,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar({:?}, options={})",
             pet_id,
@@ -773,7 +783,7 @@ impl PetApiTrait for FakePetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_avatar_with_http_info({:?}, options={})",
@@ -928,7 +938,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo({:?},{:?}, options={})",
             pet_id,
@@ -944,7 +954,7 @@ impl PetApiTrait for FakePetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
             "get_pet_photo_with_http_info({:?},{:?}, options={})",
@@ -1049,10 +1059,208 @@ impl PetApiTrait for FakePetApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn list_pet_archive(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> impl Future<Output = Result<PetArchivePage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_archive( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_archive_with_http_info(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_archive_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn list_pet_catalog(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> impl Future<Output = Result<PetCatalogPage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_catalog( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_catalog_with_http_info(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_catalog_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_catalog_pages(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Paginator<Pet, String, PetCatalogPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_catalog_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
+    fn list_pet_events(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> impl Future<Output = Result<PetEventPage, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_events( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_events_with_http_info(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_events_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_events_pages(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Paginator<String, String, PetEventPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_events_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
+    fn list_pet_feed(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_feed( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_feed_with_http_info(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_feed_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_feed_pages(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Paginator<Pet, (), Vec<Pet>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_feed_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
+    fn list_pet_matches(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> impl Future<Output = Result<PetMatchPage, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_matches( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_matches_with_http_info(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_matches_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn list_pet_notes(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> impl Future<Output = Result<PetNotePage, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_notes( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_notes_with_http_info(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_notes_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_notes_pages(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Paginator<String, String, PetNotePage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_notes_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
     fn set_pet_avatar(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
@@ -1069,7 +1277,7 @@ impl PetApiTrait for FakePetApi {
     fn set_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
@@ -1245,6 +1453,10 @@ impl FakeProblemsApi {
     }
 
     fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+        Self::fresh_failure()
+    }
+
+    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
         let api_error =
             petstore::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = petstore::errors::client_error::ClientError::try_from(api_error)
@@ -1442,6 +1654,10 @@ impl FakeStoreApi {
     }
 
     fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+        Self::fresh_failure()
+    }
+
+    fn fresh_failure() -> Box<dyn std::error::Error + Send + Sync> {
         let api_error =
             petstore::errors::api_error::ApiError::new(404, "missing".to_string(), None, None);
         let client_error = petstore::errors::client_error::ClientError::try_from(api_error)
@@ -1508,25 +1724,15 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
-    fn export_orders(
+    fn export_orders_stream(
         &self,
         options: Option<&ExportOrdersOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
-        self.calls
-            .lock()
-            .expect("calls lock")
-            .push(format!("export_orders( options={})", options.is_some()));
-        let failure = self.failure();
-        async move { Err(failure) }
-    }
 
-    fn export_orders_with_http_info(
-        &self,
-        options: Option<&ExportOrdersOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<JsonLinesStream<Order>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
-            "export_orders_with_http_info( options={})",
+            "export_orders_stream( options={})",
             options.is_some()
         ));
         let failure = self.failure();
@@ -2016,49 +2222,29 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
-    fn watch_notices(
+    fn watch_notices_stream(
         &self,
         options: Option<&WatchNoticesOptions>,
-    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>> {
-        self.calls
-            .lock()
-            .expect("calls lock")
-            .push(format!("watch_notices( options={})", options.is_some()));
-        let failure = self.failure();
-        async move { Err(failure) }
-    }
 
-    fn watch_notices_with_http_info(
-        &self,
-        options: Option<&WatchNoticesOptions>,
-    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<SseStream<String>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
-            "watch_notices_with_http_info( options={})",
+            "watch_notices_stream( options={})",
             options.is_some()
         ));
         let failure = self.failure();
         async move { Err(failure) }
     }
-    fn watch_orders(
+    fn watch_orders_stream(
         &self,
         options: Option<&WatchOrdersOptions>,
-    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
-        self.calls
-            .lock()
-            .expect("calls lock")
-            .push(format!("watch_orders( options={})", options.is_some()));
-        let failure = self.failure();
-        async move { Err(failure) }
-    }
 
-    fn watch_orders_with_http_info(
-        &self,
-        options: Option<&WatchOrdersOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+        stream_options: Option<&StreamOptions>,
+    ) -> impl Future<Output = Result<SseStream<Order>, Box<dyn std::error::Error + Send + Sync>>>
     {
         self.calls.lock().expect("calls lock").push(format!(
-            "watch_orders_with_http_info( options={})",
+            "watch_orders_stream( options={})",
             options.is_some()
         ));
         let failure = self.failure();
@@ -2085,7 +2271,13 @@ fn read_group(file: &str, trait_name: &str) -> (Vec<String>, Vec<String>) {
         .collect();
     let declared = source
         .lines()
-        .filter_map(|line| line.trim().strip_prefix("pub async fn "))
+        .filter_map(|line| {
+            let line = line.trim();
+            line.strip_prefix("pub async fn ").or_else(|| {
+                line.strip_prefix("pub fn ")
+                    .filter(|rest| rest.contains("_pages("))
+            })
+        })
         .filter_map(|rest| rest.split('(').next())
         .map(str::to_string)
         .collect();
@@ -2140,6 +2332,18 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(pet_listed.contains(&"get_pet_tag_with_http_info".to_string()));
     assert!(pet_listed.contains(&"get_staging_pet_info".to_string()));
     assert!(pet_listed.contains(&"get_staging_pet_info_with_http_info".to_string()));
+    assert!(pet_listed.contains(&"list_pet_archive".to_string()));
+    assert!(pet_listed.contains(&"list_pet_archive_with_http_info".to_string()));
+    assert!(pet_listed.contains(&"list_pet_catalog".to_string()));
+    assert!(pet_listed.contains(&"list_pet_catalog_with_http_info".to_string()));
+    assert!(pet_listed.contains(&"list_pet_events".to_string()));
+    assert!(pet_listed.contains(&"list_pet_events_with_http_info".to_string()));
+    assert!(pet_listed.contains(&"list_pet_feed".to_string()));
+    assert!(pet_listed.contains(&"list_pet_feed_with_http_info".to_string()));
+    assert!(pet_listed.contains(&"list_pet_matches".to_string()));
+    assert!(pet_listed.contains(&"list_pet_matches_with_http_info".to_string()));
+    assert!(pet_listed.contains(&"list_pet_notes".to_string()));
+    assert!(pet_listed.contains(&"list_pet_notes_with_http_info".to_string()));
     assert!(pet_listed.contains(&"set_pet_avatar".to_string()));
     assert!(pet_listed.contains(&"set_pet_avatar_with_http_info".to_string()));
     assert!(pet_listed.contains(&"set_pet_avatar_thumbnail".to_string()));
@@ -2174,8 +2378,7 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"create_account_with_http_info".to_string()));
     assert!(store_listed.contains(&"delete_order".to_string()));
     assert!(store_listed.contains(&"delete_order_with_http_info".to_string()));
-    assert!(store_listed.contains(&"export_orders".to_string()));
-    assert!(store_listed.contains(&"export_orders_with_http_info".to_string()));
+    assert!(store_listed.contains(&"export_orders_stream".to_string()));
     assert!(store_listed.contains(&"get_audit_trail".to_string()));
     assert!(store_listed.contains(&"get_audit_trail_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_by_swatch".to_string()));
@@ -2212,10 +2415,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"reserve_stock_with_http_info".to_string()));
     assert!(store_listed.contains(&"search_store".to_string()));
     assert!(store_listed.contains(&"search_store_with_http_info".to_string()));
-    assert!(store_listed.contains(&"watch_notices".to_string()));
-    assert!(store_listed.contains(&"watch_notices_with_http_info".to_string()));
-    assert!(store_listed.contains(&"watch_orders".to_string()));
-    assert!(store_listed.contains(&"watch_orders_with_http_info".to_string()));
+    assert!(store_listed.contains(&"watch_notices_stream".to_string()));
+    assert!(store_listed.contains(&"watch_orders_stream".to_string()));
 }
 
 #[test]

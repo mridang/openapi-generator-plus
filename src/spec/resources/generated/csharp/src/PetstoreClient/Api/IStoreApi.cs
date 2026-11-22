@@ -46,15 +46,10 @@ public interface IStoreApi
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>The <c>ExportOrders</c> operation.</summary>
-    Task<Order> ExportOrdersAsync(
+    /// <summary>The <c>ExportOrders</c> operation as a stream of JSON Lines items.</summary>
+    Task<JsonLinesStream<Order>> ExportOrdersStreamAsync(
         ExportOrdersOptions? options = null,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>The <c>ExportOrders</c> operation with its status code, headers and body.</summary>
-    Task<ApiResult<Order>> ExportOrdersWithHttpInfoAsync(
-        ExportOrdersOptions? options = null,
+        StreamOptions? streamOptions = null,
         CancellationToken cancellationToken = default
     );
 
@@ -282,27 +277,17 @@ public interface IStoreApi
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>The <c>WatchNotices</c> operation.</summary>
-    Task<string> WatchNoticesAsync(
+    /// <summary>The <c>WatchNotices</c> operation as a stream of server-sent events.</summary>
+    Task<SseStream<string>> WatchNoticesStreamAsync(
         WatchNoticesOptions? options = null,
+        StreamOptions? streamOptions = null,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>The <c>WatchNotices</c> operation with its status code, headers and body.</summary>
-    Task<ApiResult<string>> WatchNoticesWithHttpInfoAsync(
-        WatchNoticesOptions? options = null,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>The <c>WatchOrders</c> operation.</summary>
-    Task<Order> WatchOrdersAsync(
+    /// <summary>The <c>WatchOrders</c> operation as a stream of server-sent events.</summary>
+    Task<SseStream<Order>> WatchOrdersStreamAsync(
         WatchOrdersOptions? options = null,
-        CancellationToken cancellationToken = default
-    );
-
-    /// <summary>The <c>WatchOrders</c> operation with its status code, headers and body.</summary>
-    Task<ApiResult<Order>> WatchOrdersWithHttpInfoAsync(
-        WatchOrdersOptions? options = null,
+        StreamOptions? streamOptions = null,
         CancellationToken cancellationToken = default
     );
 }

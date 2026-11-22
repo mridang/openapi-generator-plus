@@ -1,0 +1,65 @@
+
+    /// <summary>
+    /// {{#lambda.escapeXml}}{{{summary}}}{{/lambda.escapeXml}} (as a lazy paginator over its items)
+    /// </summary>
+    /// <remarks>
+    /// Returns the items as a lazy <see cref="Paginator{T, TCursor}"/>: no request is sent until you
+    /// first read an item or a page, and each next page is requested only when you ask for more.
+    /// Every page is an ordinary call of <c>{{operationId}}WithHttpInfoAsync</c>, with the same options
+    /// on each page.
+{{#vendorExtensions.op.pagination.isToken}}
+    /// The value of the <c>{{vendorExtensions.op.pagination.csRequestParamPascal}}</c> option is where
+    /// the list starts, and the page after each one is requested with the
+    /// <c>{{vendorExtensions.op.pagination.responsePropertyName}}</c> it returned.
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+    /// The page after each one is the <c>rel="next"</c> link of its <c>Link</c> header, followed only
+    /// within the origin of the client.
+{{/vendorExtensions.op.pagination.isLink}}
+    /// </remarks>
+{{#pathParams}}
+    /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+{{/pathParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+    /// <param name="options">Options for query, header, form, and cookie parameters; they are sent on every page.</param>
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+    /// <param name="cancellationToken">Token that cancels the page request in flight. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>The paginator over the items.</returns>
+{{#isDeprecated}}
+    [Obsolete("This operation is deprecated.")]
+{{/isDeprecated}}
+    public {{{vendorExtensions.op.pagination.csPaginatorType}}} {{operationId}}PagesAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}CancellationToken cancellationToken = default)
+    {
+{{#vendorExtensions.op.optionsParamRequired}}
+        ArgumentNullException.ThrowIfNull(options);
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.pagination.isToken}}
+        {{#vendorExtensions.op.signatureArgs}}{{#isOptions}}{{{dataType}}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}} pageOptions = options{{^vendorExtensions.op.optionsParamRequired}} ?? new {{#vendorExtensions.op.signatureArgs}}{{#isOptions}}{{{dataType}}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}(){{/vendorExtensions.op.optionsParamRequired}};
+        return {{{vendorExtensions.op.pagination.csPaginatorType}}}.OfCursor<{{{returnType}}}>(
+            pageOptions.{{vendorExtensions.op.pagination.csRequestParamPascal}},
+            (pageCursor, pageToken) =>
+                {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}pageOptions.WithCursor(pageCursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}pageToken),
+            page => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+            page => page.{{vendorExtensions.op.pagination.responsePropertyName}},
+            "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}",
+            cancellationToken
+        );
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+        return {{{vendorExtensions.op.pagination.csPaginatorType}}}.OfLink<{{{returnType}}}>(
+            Config.BaseUrl,
+            (pageUrl, pageToken) =>
+                {{operationId}}PageAsync({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}pageUrl, pageToken),
+{{#vendorExtensions.op.pagination.itemsFromBody}}
+            page => page,
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+{{^vendorExtensions.op.pagination.itemsFromBody}}
+            page => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+{{/vendorExtensions.op.pagination.itemsFromBody}}
+            "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}",
+            cancellationToken
+        );
+{{/vendorExtensions.op.pagination.isLink}}
+    }

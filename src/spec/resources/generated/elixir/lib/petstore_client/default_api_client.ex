@@ -37,7 +37,8 @@ defmodule PetstoreClient.DefaultApiClient do
             transport_options: PetstoreClient.TransportOptions.t(),
             base_req: term(),
             proxy_auth_header: String.t() | nil,
-            closed: term()
+            closed: term(),
+            owners: term()
           }
 
   # `closed` carries an `:atomics` reference: process-less, shared mutable
@@ -46,8 +47,9 @@ defmodule PetstoreClient.DefaultApiClient do
   # flight (two per operation). Slot 2 is set once, by the one caller that
   # claims the release of what the client started. `close/1` sets the closed
   # flag; a call that starts after it raises an SDK error, a call admitted
-  # before it runs to the end.
-  defstruct [:transport_options, :base_req, :proxy_auth_header, :closed]
+  # before it runs to the end. `owners` is an ETS table that lists the processes
+  # that own the streams still open, so `close/1` can cancel them.
+  defstruct [:transport_options, :base_req, :proxy_auth_header, :closed, :owners]
 
   @doc """
   Creates a client with the given transport options.
@@ -67,7 +69,8 @@ defmodule PetstoreClient.DefaultApiClient do
       transport_options: opts,
       base_req: base_request(opts),
       proxy_auth_header: build_proxy_auth_header(opts.proxy),
-      closed: :atomics.new(2, signed: false)
+      closed: :atomics.new(2, signed: false),
+      owners: :ets.new(:stream_owners, [:public, :set])
     }
   end
 
@@ -208,82 +211,13 @@ defmodule PetstoreClient.DefaultApiClient do
         ) :: PetstoreClient.ApiHttpResponse.t()
   def send_request(%__MODULE__{} = client, method, url, headers, body, request_opts)
       when is_list(request_opts) do
-    # Close lifecycle: use-after-close is a wrong call order, so it
-    # raises RuntimeError rather than letting the call proceed against a
-    # logically closed client. While an operation admitted before `close/1` is
-    # still in flight the client serves that operation's own requests (a token
-    # fetch, a retry), so only a closed client with nothing in flight refuses.
-    if client.closed != nil and :atomics.get(client.closed, 1) == 1 do
-      raise RuntimeError, @closed_message
-    end
-
-    # A malformed or non-HTTP request URL is a caller mistake, not a network
-    # failure.
-    case URI.new(to_string(url)) do
-      {:ok, %URI{scheme: scheme, host: host}}
-      when scheme in ["http", "https"] and is_binary(host) and host != "" ->
-        :ok
-
-      _ ->
-        raise ArgumentError, "malformed request URL: #{inspect(url)}"
-    end
+    ensure_open!(client)
+    validate_url!(url)
 
     opts = client.transport_options
 
-    default_headers =
-      if Keyword.get(request_opts, :no_default_headers, false),
-        do: %{},
-        else: opts.default_headers
-
-    merged = merge_headers(default_headers, headers)
-
-    merged =
-      if opts.user_agent && !has_header?(merged, "User-Agent") do
-        Map.put(merged, "User-Agent", opts.user_agent)
-      else
-        merged
-      end
-
-    merged =
-      if opts.inject_request_id && !has_header?(merged, "X-Request-ID") do
-        Map.put(merged, "X-Request-ID", generate_uuid())
-      else
-        merged
-      end
-
-    merged =
-      if has_header?(merged, "Accept-Encoding") do
-        merged
-      else
-        # Only advertise "br" when the optional :brotli NIF is actually
-        # loaded, and "zstd" when Erlang/OTP ships the :zstd module (OTP 28);
-        # otherwise a server may return a body that cannot be decoded,
-        # leaving raw bytes the caller can't parse.
-        accept_encoding =
-          Enum.join(
-            ["gzip", "deflate"] ++
-              if(Code.ensure_loaded?(:brotli), do: ["br"], else: []) ++
-              if(Code.ensure_loaded?(:zstd), do: ["zstd"], else: []),
-            ", "
-          )
-
-        Map.put(merged, "Accept-Encoding", accept_encoding)
-      end
-
-    {serialized_body, merged} = prepare_body(body, merged)
-
-    # Some servers / WAFs treat POST/PUT/PATCH with no body and no
-    # Content-Length as malformed (411 Length Required) or behave
-    # inconsistently. Send an empty-string body on body-bearing verbs
-    # so Finch / Req emits an explicit `Content-Length: 0`, matching
-    # every other generated client.
-    {serialized_body, merged} =
-      if serialized_body == nil and
-           String.upcase(to_string(method)) in ["POST", "PUT", "PATCH"] do
-        {"", Map.put_new(merged, "Content-Length", "0")}
-      else
-        {serialized_body, merged}
-      end
+    {merged, serialized_body} =
+      prepare_request(client, method, headers, body, request_opts, buffered_accept_encoding())
 
     # Req re-sends Authorization / Cookie / Proxy-Authorization
     # across cross-origin 3xx redirects by default, which leaks bearer
@@ -298,7 +232,7 @@ defmodule PetstoreClient.DefaultApiClient do
     no_redirect = Keyword.get(request_opts, :no_redirect, false)
 
     response =
-      try do
+      with_transport_errors(fn ->
         do_request_with_redirects(
           client,
           method,
@@ -306,30 +240,10 @@ defmodule PetstoreClient.DefaultApiClient do
           merged,
           serialized_body,
           opts.max_redirects || 20,
-          {no_redirect, Keyword.get(request_opts, :deadline), Keyword.get(request_opts, :timeout)}
+          {no_redirect, Keyword.get(request_opts, :deadline), Keyword.get(request_opts, :timeout),
+           :buffered}
         )
-      rescue
-        e in [
-          PetstoreClient.Errors.ApiError,
-          PetstoreClient.Errors.NetworkError,
-          PetstoreClient.Errors.NetworkTimeoutError
-        ] ->
-          reraise e, __STACKTRACE__
-
-        e in [Req.TransportError, Req.HTTPError, Finch.Error] ->
-          reraise transport_error(e), __STACKTRACE__
-
-        # A malformed request (a bad URL, an unsupported method) is a caller
-        # mistake and keeps its ArgumentError.
-        e in [ArgumentError] ->
-          reraise e, __STACKTRACE__
-
-        # Any other failure produced no HTTP response.
-        e ->
-          reraise PetstoreClient.Errors.NetworkError,
-                  [message: Exception.message(e), status_code: 0, cause: e],
-                  __STACKTRACE__
-      end
+      end)
 
     headers = normalize_headers(response.headers)
     content_type = Map.get(headers, "content-type") || ""
@@ -368,6 +282,221 @@ defmodule PetstoreClient.DefaultApiClient do
       headers: headers
     }
   end
+
+  @doc """
+  Send an HTTP request and return as soon as the response headers are accepted,
+  with the body not read yet.
+
+  Takes the same `opts` as `send_request/6` (`:no_redirect`,
+  `:no_default_headers`, `:deadline` and `:timeout`) and `:idle_timeout`, the
+  longest the body may stay silent in milliseconds (`nil` for none), which
+  replaces `TransportOptions.idle_timeout` for this call. Redirects, the header
+  rules and the deadline are those of the buffered call, up to the headers: the
+  deadline stops there, and the body is bounded by the idle timeout alone.
+  Retries and the 401 replay belong to the caller, which never retries after the
+  first body byte.
+
+  Returns an `#{inspect(PetstoreClient.ApiStreamResponse)}`. Its body is an
+  `Enumerable` of binaries, decoded as it arrives when the server used gzip or
+  deflate (this call asks for those two only, since the others need the whole
+  body); reading it raises `#{inspect(PetstoreClient.Errors.StreamError)}` when the
+  connection is reset or the body ends before its `Content-Length`, and
+  `#{inspect(PetstoreClient.Errors.NetworkTimeoutError)}` when it stays silent longer
+  than the idle timeout. `close` aborts the connection instead of draining it.
+  Closing the client cancels the open bodies: their next read raises the
+  closed-client `RuntimeError`.
+  """
+  @impl PetstoreClient.ApiClient
+  @spec send_streaming(
+          t(),
+          method :: atom(),
+          url :: String.t(),
+          headers :: %{optional(String.t()) => String.t()},
+          body :: term() | nil,
+          opts :: keyword()
+        ) :: PetstoreClient.ApiStreamResponse.t()
+  def send_streaming(%__MODULE__{} = client, method, url, headers, body, request_opts)
+      when is_list(request_opts) do
+    ensure_open!(client)
+    validate_url!(url)
+
+    opts = client.transport_options
+
+    {merged, serialized_body} =
+      prepare_request(client, method, headers, body, request_opts, stream_accept_encoding())
+
+    no_redirect = Keyword.get(request_opts, :no_redirect, false)
+    idle_timeout = Keyword.get(request_opts, :idle_timeout, opts.idle_timeout)
+    idle_timeout = if idle_timeout == 0, do: nil, else: idle_timeout
+
+    response =
+      with_transport_errors(fn ->
+        do_request_with_redirects(
+          client,
+          method,
+          url,
+          merged,
+          serialized_body,
+          opts.max_redirects || 20,
+          {no_redirect, Keyword.get(request_opts, :deadline), Keyword.get(request_opts, :timeout),
+           {:stream, idle_timeout}}
+        )
+      end)
+
+    %PetstoreClient.ApiStreamResponse{
+      status_code: response.status,
+      headers: response.headers,
+      body: response.stream,
+      close: fn -> PetstoreClient.StreamBody.close(response.stream) end
+    }
+  end
+
+  @doc false
+  def send_streaming(%__MODULE__{} = client, method, url, headers, body) do
+    send_streaming(client, method, url, headers, body, [])
+  end
+
+  @doc """
+  The message of the `RuntimeError` that a call on a closed client, and the next
+  read of a stream that the closing cancelled, raise.
+  """
+  @spec closed_message() :: String.t()
+  def closed_message, do: @closed_message
+
+  @doc false
+  # A response body as the text an error is built from: decoded for a text
+  # content type, Base64 text otherwise, as a buffered response carries it.
+  @spec response_text(binary(), %{optional(String.t()) => String.t()}) :: String.t()
+  def response_text(bytes, headers) do
+    content_type = Map.get(headers, "content-type") || ""
+
+    if text_content_type?(content_type),
+      do: decode_text_body(bytes, content_type),
+      else: Base.encode64(bytes)
+  end
+
+  # Raises the SDK's error for a failure that produced no HTTP response: a
+  # transport failure keeps its classification and any other failure is a
+  # NetworkError. A malformed request (a bad URL, an unsupported method) is a
+  # caller mistake and keeps its ArgumentError.
+  defp with_transport_errors(fun) do
+    fun.()
+  rescue
+    e in [
+      PetstoreClient.Errors.ApiError,
+      PetstoreClient.Errors.NetworkError,
+      PetstoreClient.Errors.NetworkTimeoutError
+    ] ->
+      reraise e, __STACKTRACE__
+
+    e in [Req.TransportError, Req.HTTPError, Finch.Error] ->
+      reraise transport_error(e), __STACKTRACE__
+
+    e in [ArgumentError] ->
+      reraise e, __STACKTRACE__
+
+    # Any other failure produced no HTTP response.
+    e ->
+      reraise PetstoreClient.Errors.NetworkError,
+              [message: Exception.message(e), status_code: 0, cause: e],
+              __STACKTRACE__
+  end
+
+  # Close lifecycle: use-after-close is a wrong call order, so it raises
+  # RuntimeError rather than letting the call proceed against a logically
+  # closed client. While an operation admitted before `close/1` is still in
+  # flight the client serves that operation's own requests (a token fetch, a
+  # retry), so only a closed client with nothing in flight refuses.
+  defp ensure_open!(client) do
+    if client.closed != nil and :atomics.get(client.closed, 1) == 1 do
+      raise RuntimeError, @closed_message
+    end
+
+    :ok
+  end
+
+  # A malformed or non-HTTP request URL is a caller mistake, not a network
+  # failure.
+  defp validate_url!(url) do
+    case URI.new(to_string(url)) do
+      {:ok, %URI{scheme: scheme, host: host}}
+      when scheme in ["http", "https"] and is_binary(host) and host != "" ->
+        :ok
+
+      _ ->
+        raise ArgumentError, "malformed request URL: #{inspect(url)}"
+    end
+  end
+
+  # The headers and the body of one call, as the buffered and the streaming
+  # path both send them: the transport's default headers, the caller's headers,
+  # the User-Agent, the request id and Accept-Encoding, with the body
+  # serialized.
+  defp prepare_request(client, method, headers, body, request_opts, accept_encoding) do
+    opts = client.transport_options
+
+    default_headers =
+      if Keyword.get(request_opts, :no_default_headers, false),
+        do: %{},
+        else: opts.default_headers
+
+    merged = merge_headers(default_headers, headers)
+
+    merged =
+      if opts.user_agent && !has_header?(merged, "User-Agent") do
+        Map.put(merged, "User-Agent", opts.user_agent)
+      else
+        merged
+      end
+
+    merged =
+      if opts.inject_request_id && !has_header?(merged, "X-Request-ID") do
+        Map.put(merged, "X-Request-ID", generate_uuid())
+      else
+        merged
+      end
+
+    merged =
+      if has_header?(merged, "Accept-Encoding") do
+        merged
+      else
+        Map.put(merged, "Accept-Encoding", accept_encoding)
+      end
+
+    {serialized_body, merged} = prepare_body(body, merged)
+
+    # Some servers / WAFs treat POST/PUT/PATCH with no body and no
+    # Content-Length as malformed (411 Length Required) or behave
+    # inconsistently. Send an empty-string body on body-bearing verbs
+    # so Finch / Req emits an explicit `Content-Length: 0`, matching
+    # every other generated client.
+    {serialized_body, merged} =
+      if serialized_body == nil and
+           String.upcase(to_string(method)) in ["POST", "PUT", "PATCH"] do
+        {"", Map.put_new(merged, "Content-Length", "0")}
+      else
+        {serialized_body, merged}
+      end
+
+    {merged, serialized_body}
+  end
+
+  # Only advertise "br" when the optional :brotli NIF is actually loaded, and
+  # "zstd" when Erlang/OTP ships the :zstd module (OTP 28); otherwise a server
+  # may return a body that cannot be decoded, leaving raw bytes the caller
+  # can't parse.
+  defp buffered_accept_encoding do
+    Enum.join(
+      ["gzip", "deflate"] ++
+        if(Code.ensure_loaded?(:brotli), do: ["br"], else: []) ++
+        if(Code.ensure_loaded?(:zstd), do: ["zstd"], else: []),
+      ", "
+    )
+  end
+
+  # A stream is decoded as it arrives, and only gzip and deflate decode that
+  # way (br and zstd need the whole body), so those are the two it asks for.
+  defp stream_accept_encoding, do: "gzip, deflate"
 
   @doc """
   Classifies a transport failure — a request that produced no HTTP response —
@@ -683,7 +812,8 @@ defmodule PetstoreClient.DefaultApiClient do
   Req/Finch owns a globally supervised connection pool, so there is no
   socket to tear down here. A call that starts after `close/1` raises a typed
   SDK error instead of silently proceeding (uniform use-after-close contract);
-  an operation already in flight finishes. What the SDK started for the client
+  an operation already in flight finishes, except that the streams still open
+  are cancelled: their next read raises the same error. What the SDK started for the client
   (the authenticators' processes) is released by whoever wins
   `claim_release/1`: `close/1` of the client when nothing is in flight, else
   the last operation to finish.
@@ -692,7 +822,10 @@ defmodule PetstoreClient.DefaultApiClient do
   @spec close(t()) :: :ok
   def close(%__MODULE__{closed: nil}), do: :ok
 
-  def close(%__MODULE__{closed: state}), do: set_closed(state)
+  def close(%__MODULE__{closed: state, owners: owners}) do
+    :ok = set_closed(state)
+    PetstoreClient.StreamBody.cancel_all(owners)
+  end
 
   defp set_closed(state) do
     current = :atomics.get(state, 1)
@@ -906,47 +1039,12 @@ defmodule PetstoreClient.DefaultApiClient do
     end
   end
 
-  defp do_request_with_redirects(
-         client,
-         method,
-         url,
-         headers,
-         body,
-         max_redirects,
-         {no_redirect, given_deadline, call_timeout}
-       ) do
-    # One end-to-end budget for the whole call: the deadline is fixed here and
-    # every redirect hop spends what is left of it, never a fresh timeout. A
-    # deadline handed in by the caller (a retry of the same operation) is kept.
-    deadline =
-      case {given_deadline, call_timeout || client.transport_options.timeout} do
-        {nil, nil} -> nil
-        {nil, total} -> System.monotonic_time(:millisecond) + total
-        {given, _total} -> given
-      end
+  # One request of the redirect loop. A buffered hop reads the whole response
+  # (Req's response); a streaming hop returns at the headers, with the body not
+  # read, as `%{status: integer, headers: map, stream: StreamBody.t()}`.
+  defp send_hop(client, method, url, headers, body, deadline, call_timeout, :buffered) do
+    {body, headers} = hop_body(body, headers)
 
-    do_request_with_redirects(
-      client,
-      method,
-      url,
-      url,
-      headers,
-      body,
-      {max_redirects, 0},
-      {no_redirect, deadline, call_timeout}
-    )
-  end
-
-  defp do_request_with_redirects(
-         client,
-         method,
-         url,
-         orig_url,
-         headers,
-         body,
-         {max, hops},
-         {no_redirect, deadline, call_timeout}
-       ) do
     # Catch inside the task so it always returns a tagged value and never
     # crashes the linked caller: Task.async links, so an uncaught raise
     # would take down this process before Task.yield could observe it.
@@ -967,38 +1065,160 @@ defmodule PetstoreClient.DefaultApiClient do
       end
     end
 
-    response =
-      case deadline do
-        nil ->
-          case req_fun.() do
-            {:ok, result} -> result
-            {:raised, exception, stacktrace} -> reraise(exception, stacktrace)
-          end
+    case deadline do
+      nil ->
+        case req_fun.() do
+          {:ok, result} -> result
+          {:raised, exception, stacktrace} -> reraise(exception, stacktrace)
+        end
 
-        _deadline ->
-          total = max(deadline - System.monotonic_time(:millisecond), 0)
+      _deadline ->
+        total = max(deadline - System.monotonic_time(:millisecond), 0)
 
-          # Req/Finch's :receive_timeout is per-chunk inactivity
-          # (it resets on every received packet), so a slow-trickle response
-          # can run arbitrarily long without tripping it. Enforce a hard
-          # end-to-end wall-clock budget by running the call in a Task and
-          # shutting it down if it overruns the configured timeout.
-          task = Task.async(req_fun)
+        # Req/Finch's :receive_timeout is per-chunk inactivity
+        # (it resets on every received packet), so a slow-trickle response
+        # can run arbitrarily long without tripping it. Enforce a hard
+        # end-to-end wall-clock budget by running the call in a Task and
+        # shutting it down if it overruns the configured timeout.
+        task = Task.async(req_fun)
 
-          case Task.yield(task, total) || Task.shutdown(task) do
-            {:ok, {:ok, result}} ->
-              result
+        case Task.yield(task, total) || Task.shutdown(task) do
+          {:ok, {:ok, result}} ->
+            result
 
-            {:ok, {:raised, exception, stacktrace}} ->
-              reraise(exception, stacktrace)
+          {:ok, {:raised, exception, stacktrace}} ->
+            reraise(exception, stacktrace)
 
-            nil ->
-              raise PetstoreClient.Errors.NetworkTimeoutError,
-                message:
-                  "request exceeded total timeout of #{call_timeout || client.transport_options.timeout}ms",
-                status_code: 0
-          end
+          nil ->
+            raise PetstoreClient.Errors.NetworkTimeoutError,
+              message:
+                "request exceeded total timeout of #{call_timeout || client.transport_options.timeout}ms",
+              status_code: 0
+        end
+    end
+  end
+
+  # The streaming hop: the request runs in a process of its own (see
+  # `StreamBody`), and the call waits for the response headers only, so the
+  # deadline stops there. The socket's own receive timeout is lifted because
+  # the deadline (for the headers) and the idle timeout (for the body) are
+  # enforced by the SDK and one socket setting cannot be both.
+  defp send_hop(
+         client,
+         method,
+         url,
+         headers,
+         body,
+         deadline,
+         call_timeout,
+         {:stream, idle_timeout}
+       ) do
+    {body, headers} = hop_body(body, headers)
+
+    options =
+      [
+        method: method,
+        url: url,
+        headers: Enum.map(headers, fn {k, v} -> {k, v} end),
+        body: body
+      ] ++
+        Keyword.put(proxy_request_options(client, url, call_timeout), :receive_timeout, :infinity)
+
+    spec = %{
+      req: client.base_req,
+      options: options,
+      method: method,
+      idle_timeout: idle_timeout,
+      owners: client.owners
+    }
+
+    case PetstoreClient.StreamBody.open(spec, deadline) do
+      {:ok, status, response_headers, stream} ->
+        %{status: status, headers: response_headers, stream: stream}
+
+      {:error, exception} ->
+        raise exception
+
+      :timeout ->
+        raise PetstoreClient.Errors.NetworkTimeoutError,
+          message:
+            "request exceeded total timeout of #{call_timeout || client.transport_options.timeout}ms",
+          status_code: 0
+    end
+  end
+
+  # A BodySource is opened for each hop, so a replay reads it again from the start. A body that
+  # is not in memory is sent as it is read: with its length as `Content-Length` when that is
+  # known, else chunked (no length header at all).
+  defp hop_body(%PetstoreClient.BodySource{} = source, headers) do
+    case PetstoreClient.BodySource.open(source) do
+      {bytes, _length} when is_binary(bytes) ->
+        {bytes, headers}
+
+      {stream, length} ->
+        headers =
+          Map.reject(headers, fn {name, _value} ->
+            String.downcase(to_string(name)) in ["content-length", "transfer-encoding"]
+          end)
+
+        headers =
+          if is_integer(length),
+            do: Map.put(headers, "Content-Length", Integer.to_string(length)),
+            else: headers
+
+        {stream, headers}
+    end
+  end
+
+  defp hop_body(body, headers), do: {body, headers}
+
+  # A hop whose response is not the one the caller gets (a redirect that is
+  # followed or refused) lets go of its connection first.
+  defp discard_hop(%{stream: stream}), do: PetstoreClient.StreamBody.close(stream)
+  defp discard_hop(_buffered), do: :ok
+
+  defp do_request_with_redirects(
+         client,
+         method,
+         url,
+         headers,
+         body,
+         max_redirects,
+         {no_redirect, given_deadline, call_timeout, mode}
+       ) do
+    # One end-to-end budget for the whole call: the deadline is fixed here and
+    # every redirect hop spends what is left of it, never a fresh timeout. A
+    # deadline handed in by the caller (a retry of the same operation) is kept.
+    deadline =
+      case {given_deadline, call_timeout || client.transport_options.timeout} do
+        {nil, nil} -> nil
+        {nil, total} -> System.monotonic_time(:millisecond) + total
+        {given, _total} -> given
       end
+
+    do_request_with_redirects(
+      client,
+      method,
+      url,
+      url,
+      headers,
+      body,
+      {max_redirects, 0},
+      {no_redirect, deadline, call_timeout, mode}
+    )
+  end
+
+  defp do_request_with_redirects(
+         client,
+         method,
+         url,
+         orig_url,
+         headers,
+         body,
+         {max, hops},
+         {no_redirect, deadline, call_timeout, mode}
+       ) do
+    response = send_hop(client, method, url, headers, body, deadline, call_timeout, mode)
 
     if not no_redirect and client.transport_options.follow_redirects and
          redirect_status?(response.status) do
@@ -1018,6 +1238,8 @@ defmodule PetstoreClient.DefaultApiClient do
               # (e.g. file:, javascript:, data:). Silently returning the
               # 3xx would hide a potential SSRF / local-file-read vector;
               # surface it as a typed SDK error instead.
+              discard_hop(response)
+
               raise PetstoreClient.Errors.ApiError,
                 message:
                   "Refusing to follow redirect to non-HTTP(S) URL: #{redact_url(next_url)}",
@@ -1025,6 +1247,18 @@ defmodule PetstoreClient.DefaultApiClient do
 
             true ->
               cross_origin = not same_origin?(orig_url, next_url)
+
+              # A single use body was read to its end by the first hop. It is
+              # never buffered to make a replay possible, so a redirect that
+              # keeps the method (and so the body) is refused.
+              if next_method_keeps_body?(response.status, method) and
+                   PetstoreClient.BodySource.single_use?(body) do
+                discard_hop(response)
+
+                raise PetstoreClient.Errors.ApiError,
+                  message: "Refusing to replay a streamed request body",
+                  status_code: response.status
+              end
 
               # Refuse to replay a request body across a transport
               # downgrade (HTTPS -> HTTP). A 307/308 normally preserves the
@@ -1037,6 +1271,8 @@ defmodule PetstoreClient.DefaultApiClient do
               # chain downgrades on the final hop even though the first request
               # was already http, which an orig_url anchor would miss.
               if refuse_body_replay?(response.status, url, next_url, body) do
+                discard_hop(response)
+
                 raise PetstoreClient.Errors.ApiError,
                   message: replay_refusal_message(url, next_url),
                   status_code: response.status
@@ -1067,10 +1303,14 @@ defmodule PetstoreClient.DefaultApiClient do
               # Exceeding the redirect cap is a response that arrived but
               # cannot be used: an ApiError with the redirect's real status.
               if hops + 1 > max do
+                discard_hop(response)
+
                 raise PetstoreClient.Errors.ApiError,
                   message: "Too many redirects (exceeded #{max})",
                   status_code: response.status
               end
+
+              discard_hop(response)
 
               do_request_with_redirects(
                 client,
@@ -1080,7 +1320,7 @@ defmodule PetstoreClient.DefaultApiClient do
                 next_headers,
                 next_body,
                 {max, hops + 1},
-                {no_redirect, deadline, call_timeout}
+                {no_redirect, deadline, call_timeout, mode}
               )
           end
       end
@@ -1194,6 +1434,8 @@ defmodule PetstoreClient.DefaultApiClient do
       true -> method
     end
   end
+
+  defp next_method_keeps_body?(status, method), do: redirect_method(status, method) == method
 
   @doc false
   # Whether following a redirect would replay a request body over an HTTPS ->
@@ -1436,7 +1678,9 @@ defmodule PetstoreClient.DefaultApiClient do
   # cookie access should split on ", " with care or use a dedicated cookie
   # library such as `:cookies` or parse the original `Req.Response.headers/0`
   # map themselves.
-  defp normalize_headers(headers) do
+  @doc false
+  @spec normalize_headers(term()) :: %{optional(String.t()) => String.t()}
+  def normalize_headers(headers) do
     Enum.reduce(headers, %{}, fn {key, values}, acc ->
       value =
         case values do

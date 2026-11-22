@@ -1,0 +1,206 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/** A line or event that is longer than the configured limit. */
+internal class TooLongException(
+    message: String,
+) : java.io.IOException(message)
+
+/**
+ * Splits a byte stream into lines on CRLF, LF or a lone CR, decoding UTF-8. A leading byte order
+ * mark is dropped. It reads from a [ByteStream], so a read suspends until bytes arrive.
+ *
+ * @param source the open body
+ * @param maxBytes the most bytes one line may have
+ */
+internal class LineReader(
+    private val source: ByteStream,
+    private val maxBytes: Int,
+) {
+    private val buffer = ByteArray(BUFFER_SIZE)
+    private var position = 0
+    private var limit = 0
+    private var skipLineFeed = false
+    private var first = true
+
+    /** Whether the line last returned ended with a line terminator; a cut-off last line does not. */
+    var wasTerminated: Boolean = true
+        private set
+
+    /**
+     * Reads the next line without its terminator.
+     *
+     * @return the line, or `null` at the end of the stream
+     * @throws TooLongException past the limit
+     */
+    suspend fun readLine(): String? {
+        val line = java.io.ByteArrayOutputStream()
+        var any = false
+        while (true) {
+            if (position >= limit && !fill()) {
+                return if (any) {
+                    wasTerminated = false
+                    decode(line)
+                } else {
+                    null
+                }
+            }
+            val value = buffer[position++]
+            val followsCarriageReturn = skipLineFeed && value == LINE_FEED
+            skipLineFeed = false
+            if (value == LINE_FEED || value == CARRIAGE_RETURN) {
+                if (!followsCarriageReturn) {
+                    skipLineFeed = value == CARRIAGE_RETURN
+                    wasTerminated = true
+                    return decode(line)
+                }
+            } else {
+                any = true
+                if (line.size() >= maxBytes) {
+                    throw TooLongException("A line is longer than $maxBytes bytes")
+                }
+                line.write(value.toInt())
+            }
+        }
+    }
+
+    private suspend fun fill(): Boolean {
+        val count = source.read(buffer)
+        if (count < 0) {
+            return false
+        }
+        position = 0
+        limit = count
+        return true
+    }
+
+    private fun decode(line: java.io.ByteArrayOutputStream): String {
+        var text = String(line.toByteArray(), Charsets.UTF_8)
+        if (first) {
+            first = false
+            if (text.isNotEmpty() && text[0] == BYTE_ORDER_MARK) {
+                text = text.substring(1)
+            }
+        }
+        return text
+    }
+
+    private companion object {
+        const val BUFFER_SIZE = 8192
+        const val LINE_FEED = '\n'.code.toByte()
+        const val CARRIAGE_RETURN = '\r'.code.toByte()
+        const val BYTE_ORDER_MARK = '﻿'
+    }
+}
+
+/**
+ * One dispatched event, before its data is decoded.
+ *
+ * @property id the last event id, or `null` when there is none
+ * @property event the event name, `message` when the server sent none
+ * @property data the data lines joined with a line feed
+ * @property retry the reconnection time the server last named, in milliseconds, or `null`
+ */
+internal data class RawEvent(
+    val id: String?,
+    val event: String,
+    val data: String,
+    val retry: Long?,
+)
+
+/**
+ * Reads events from a [LineReader]. The grammar is the one of the WHATWG HTML standard,
+ * "Server-sent events": UTF-8, a leading byte order mark dropped, lines ended by CRLF, LF or CR, a
+ * blank line dispatches, an empty data buffer is not dispatched but its id is kept, a line that
+ * starts with a colon is a comment, one space after the colon is removed, unknown fields are
+ * ignored, data lines are joined with a line feed, an id with a NUL is ignored, a retry value only
+ * counts when it is digits, and an event cut off by the end of the stream is discarded.
+ *
+ * @param source the open body
+ * @param maxEventBytes the most bytes one line or event may have
+ * @param initialEventId the event id to resume from, or `null` for none
+ */
+internal class SseParser(
+    source: ByteStream,
+    private val maxEventBytes: Int,
+    initialEventId: String?,
+) {
+    private val lines = LineReader(source, maxEventBytes)
+
+    /** The last event id seen, which a reconnect sends; empty when none. */
+    var lastEventId: String = initialEventId ?: ""
+        private set
+
+    /** The reconnection time the server last named, in milliseconds, or `null` when it never did. */
+    var retry: Long? = null
+        private set
+
+    /** What one event has gathered so far. */
+    private class Gathering(
+        var id: String,
+    ) {
+        val data = StringBuilder()
+        var hasData = false
+        var name = ""
+    }
+
+    /**
+     * Reads up to the next event that carries data.
+     *
+     * @return the event, or `null` at the end of the stream (a cut-off event is dropped)
+     * @throws TooLongException past the limit
+     */
+    suspend fun next(): RawEvent? {
+        val gathering = Gathering(lastEventId)
+        while (true) {
+            val line = lines.readLine()
+            if (line == null || !lines.wasTerminated) {
+                return null
+            }
+            if (line.isEmpty()) {
+                lastEventId = gathering.id
+                if (gathering.hasData) {
+                    return RawEvent(
+                        lastEventId.ifEmpty { null },
+                        gathering.name.ifEmpty { "message" },
+                        gathering.data.substring(0, gathering.data.length - 1),
+                        retry,
+                    )
+                }
+                gathering.name = ""
+            } else if (line[0] != ':') {
+                accept(line, gathering)
+            }
+        }
+    }
+
+    private fun accept(
+        line: String,
+        gathering: Gathering,
+    ) {
+        val colon = line.indexOf(':')
+        val field = if (colon >= 0) line.substring(0, colon) else line
+        var value = if (colon >= 0) line.substring(colon + 1) else ""
+        if (value.startsWith(" ")) {
+            value = value.substring(1)
+        }
+        when (field) {
+            "data" -> {
+                if (gathering.data.length + value.length + 1 > maxEventBytes) {
+                    throw TooLongException("An event is longer than $maxEventBytes bytes")
+                }
+                gathering.data.append(value).append('\n')
+                gathering.hasData = true
+            }
+            "event" -> gathering.name = value
+            "id" -> if (value.indexOf('\u0000') < 0) gathering.id = value
+            "retry" -> if (value.isNotEmpty() && value.length < MAX_RETRY_DIGITS && value.all { it in '0'..'9' }) retry = value.toLong()
+            else -> Unit
+        }
+    }
+
+    private companion object {
+        const val MAX_RETRY_DIGITS = 18
+    }
+}

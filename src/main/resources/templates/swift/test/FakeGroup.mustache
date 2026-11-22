@@ -16,6 +16,29 @@ private final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendabl
         lock.unlock()
     }
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.signatureArgs.0}}, {{/vendorExtensions.op.signatureArgs.0}}streamOptions: StreamOptions?) async throws -> {{{returnType}}} {
+        var parts: [String] = []
+{{#vendorExtensions.op.signatureArgs}}
+{{#isPath}}
+        parts.append(String(describing: {{paramName}}))
+{{/isPath}}
+{{/vendorExtensions.op.signatureArgs}}
+        var call = "{{vendorExtensions.op.streamMethodName}}(" + parts.joined(separator: ",") + ")"
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+        call += options == nil ? " options=none" : " options=set"
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
+        record(call)
+        throw NotFoundError(message: "missing")
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 
 {{#isDeprecated}}
     @available(*, deprecated, message: "This operation is deprecated.")
@@ -56,5 +79,27 @@ private final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendabl
         record(call)
         throw NotFoundError(message: "missing")
     }
+{{#vendorExtensions.op.hasPagesMethod}}
+
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+    public func {{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}) -> {{{vendorExtensions.op.pagination.paginatorType}}} {
+        record("{{vendorExtensions.op.pagesMethodName}}")
+{{#vendorExtensions.op.pagination.isToken}}
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, {{{vendorExtensions.op.pagination.cursorType}}}>.ofCursor(
+            start: nil, requestPath: "",
+            fetch: { (_: {{{vendorExtensions.op.pagination.cursorType}}}?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
+            items: { _ in nil }, next: { _ in nil })
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isLink}}
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Void>.ofLink(
+            baseURL: "", requestPath: "",
+            fetch: { (_: String?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
+            items: { _ in nil })
+{{/vendorExtensions.op.pagination.isLink}}
+    }
+{{/vendorExtensions.op.hasPagesMethod}}
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 }

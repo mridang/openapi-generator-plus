@@ -22,6 +22,16 @@ class TestableApi < Petstore::Client::Api::BaseApi
                                                                     spec_operation_id: spec_operation_id,
                                                                     url_template: url_template)
   end
+
+  def stream(method, path, auth = nil)
+    invoke_api_for_stream(method, path, {}, {}, nil, ['application/octet-stream'], 'application/json', auth)
+  end
+
+  def events(header_params = {}, stream_options = nil, auth = nil)
+    invoke_api_for_sse(:GET, '/items/events', {}, header_params, nil, ['text/event-stream'], 'application/json', auth,
+                       stream_options: stream_options, spec_operation_id: 'watch_events',
+                       url_template: '/items/events')
+  end
 end
 
 CallOptions = Struct.new(:timeout, :headers, :max_retries)
@@ -120,13 +130,26 @@ end
 # Serves a scripted list of statuses for API calls and issues numbered tokens
 # at the token endpoint, recording what each received.
 class ReplayApiClient
-  attr_reader :api_requests, :token_requests
+  attr_reader :api_requests, :token_requests, :opened
 
   def initialize(api_statuses, token_statuses: [])
     @api_statuses = api_statuses
     @token_statuses = token_statuses
     @api_requests = []
     @token_requests = []
+    @opened = []
+  end
+
+  # A stream call is answered from the same list of statuses, with a body that
+  # remembers whether it was closed.
+  def send_streaming(_method, _url, headers, body, **_kwargs)
+    @api_requests << { headers: headers.dup, body: body }
+    status = @api_statuses[@api_requests.length - 1] || @api_statuses.last
+    opening = StringIO.new('ok')
+    @opened << opening
+    Petstore::Client::ApiStreamResponse.new(
+      status_code: status, headers: { 'content-type' => 'application/octet-stream' }, body: opening
+    )
   end
 
   def send_request(_method, url, headers, body, **_kwargs)
@@ -152,6 +175,111 @@ class ReplayApiClient
     Petstore::Client::ApiHttpResponse.new(
       status_code: status, body: payload.to_json, headers: { 'content-type' => 'application/json' }
     )
+  end
+end
+
+# Answers a stream call from a script: the statuses it replies with, one per
+# call, and the body each reply opens.
+class ScriptedStreamingClient
+  attr_reader :stream_headers, :opened
+
+  def initialize(content_type, body, *statuses)
+    @content_type = content_type
+    @body = body
+    @statuses = statuses
+    @stream_headers = []
+    @opened = []
+  end
+
+  def send_streaming(_method, _url, headers, _body, **_kwargs)
+    index = [@stream_headers.length, @statuses.length - 1].min
+    @stream_headers << headers.dup
+    opening = StringIO.new(@body)
+    @opened << opening
+    Petstore::Client::ApiStreamResponse.new(
+      status_code: @statuses[index], headers: { 'content-type' => @content_type }, body: opening
+    )
+  end
+end
+
+# Answers each event stream call with the next scripted body and keeps the
+# headers it was sent. An empty body is a 204.
+class EventStreamClient
+  attr_reader :sent_headers
+
+  def initialize(*bodies)
+    @bodies = bodies
+    @sent_headers = []
+  end
+
+  def send_streaming(_method, _url, headers, _body, **_kwargs)
+    index = [@sent_headers.length, @bodies.length - 1].min
+    @sent_headers << headers.dup
+    text = @bodies[index]
+    return Petstore::Client::ApiStreamResponse.new(status_code: 204, headers: {}, body: StringIO.new) if text.empty?
+
+    Petstore::Client::ApiStreamResponse.new(
+      status_code: 200, headers: { 'content-type' => 'text/event-stream' }, body: StringIO.new(text)
+    )
+  end
+end
+
+# A credential that sends a different token every time it is asked.
+class RotatingBearerAuthenticator < Petstore::Client::Auth::Authenticator
+  def initialize
+    super
+    @count = 0
+  end
+
+  def host
+    ''
+  end
+
+  def auth_headers
+    @count += 1
+    { 'Authorization' => "Bearer t#{@count}" }
+  end
+end
+
+# A transport written before streaming: it only answers buffered calls.
+class BufferedOnlyClient
+  attr_reader :sent_url
+
+  def initialize
+    @sent_url = ''
+  end
+
+  def send_request(_method, url, _headers, _body, **_kwargs)
+    @sent_url = url
+    Petstore::Client::ApiHttpResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
+  end
+end
+
+# The same, as a subclass of ApiClient that does not override send_streaming.
+class SubclassedBufferedClient < Petstore::Client::ApiClient
+  attr_reader :sent_url
+
+  def initialize
+    super
+    @sent_url = ''
+  end
+
+  def send_request(_method, url, _headers, _body, **_kwargs)
+    @sent_url = url
+    Petstore::Client::ApiHttpResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
+  end
+end
+
+# A call hook that puts a trace context on the call.
+class TraceContextHook
+  def start(_info, headers)
+    headers['traceparent'] = '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01'
+    Observer.new
+  end
+
+  # The observer of a call that needs none.
+  class Observer
+    def finish(_outcome); end
   end
 end
 
@@ -2421,5 +2549,145 @@ describe Petstore::Client::Api::BaseApi do
 
     _(hook.infos.first.operation_id).must_equal 'ItemApi.get_item'
     _(hook.infos.first.url_template).must_equal '/items/7'
+  end
+
+  # ── Binary streams ──
+
+  def header_map(head)
+    head.split("\r\n").drop(1).to_h do |line|
+      name, value = line.split(':', 2)
+      [name.to_s.downcase, value.to_s.strip]
+    end
+  end
+
+  it 'bhv_streaming_008 a non-2xx streaming call raises the typed error with the error body and never returns a stream' do
+    client = ScriptedStreamingClient.new('application/json', '{"message":"gone"}', 404)
+    api = TestableApi.new(client, Petstore::Client::Configuration.builder.base_url('http://localhost').build)
+    failure = assert_raises(Petstore::Client::Errors::NotFoundError) { api.stream('GET', '/items/blob') }
+    _(failure.status_code).must_equal 404
+    _(failure.response_body).must_include 'gone'
+    _(failure.request_path).must_equal '/items/blob'
+    _(client.opened.first.closed?).must_equal true
+
+    large = ScriptedStreamingClient.new('text/plain', 'x' * 200_000, 502)
+    api = TestableApi.new(large, Petstore::Client::Configuration.builder.base_url('http://localhost').build)
+    bounded = assert_raises(Petstore::Client::Errors::BadGatewayError) { api.stream('GET', '/items/blob') }
+    _(bounded.response_body.length).must_equal 64 * 1024
+  end
+
+  it 'bhv_streaming_017 a stream call sends the same user agent, request id, trace context and authentication as a buffered call' do
+    server = RawServer.serve { |*args| RawHttp.reply_ok(*args) }
+    config = Petstore::Client::Configuration.builder.base_url(server.url('')).call_hook(TraceContextHook.new).build
+    transport = Petstore::Client::DefaultApiClient.new(
+      Petstore::Client::TransportOptions.builder.inject_request_id(true).max_retries(0).build
+    )
+    auth = Petstore::Client::Auth::BearerAuthenticator.new(server.url(''), 'k-123')
+    api = TestableApi.new(transport, config, auth)
+    api.call_for_result('GET', '/items/blob', {}, {}, nil, ['application/octet-stream'], 'application/json', 'String')
+    api.stream('GET', '/items/blob').data.close
+
+    buffered = header_map(server.heads[0])
+    streamed = header_map(server.heads[1])
+    _(streamed.keys.sort).must_equal buffered.keys.sort
+    %w[user-agent authorization traceparent accept].each do |name|
+      _(streamed[name]).wont_be_nil
+      _(streamed[name]).must_equal buffered[name]
+    end
+    _(streamed['x-request-id']).wont_be_nil
+    _(streamed['x-request-id']).wont_equal buffered['x-request-id']
+  ensure
+    server&.close
+  end
+
+  it 'bhv_streaming_018 a 401 on a stream call refreshes the token and replays once before the stream is returned' do
+    client = ReplayApiClient.new([401, 200])
+    stream = replay_api(client, client_credentials_auth).stream('GET', '/items/blob').data
+    _(client.api_requests.map { |r| r[:headers]['Authorization'] }).must_equal ['Bearer tok1', 'Bearer tok2']
+    _(client.opened.first.closed?).must_equal true
+    _(stream.read_all).must_equal 'ok'
+
+    refused = ReplayApiClient.new([401, 401])
+    assert_raises(Petstore::Client::Errors::UnauthorizedError) do
+      replay_api(refused, client_credentials_auth).stream('GET', '/items/blob')
+    end
+    _(refused.api_requests.length).must_equal 2
+  end
+
+  it 'bhv_streaming_030 a transport that cannot stream fails a stream call naming itself, and buffered calls keep working' do
+    [BufferedOnlyClient.new, SubclassedBufferedClient.new].each_case do |transport|
+      api = TestableApi.new(transport, Petstore::Client::Configuration.builder.base_url('http://localhost').build)
+      refused = assert_raises(NotImplementedError) { api.stream('GET', '/items/blob') }
+      _(refused.message).must_include transport.class.name
+      _(refused.message).must_include 'cannot stream'
+      _(transport.sent_url).must_equal ''
+
+      api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+      _(transport.sent_url).must_match(%r{/test/echo\z})
+    end
+  end
+
+  # ── Event streams ──
+
+  def header_named(headers, name)
+    headers.find { |key, _value| key.casecmp?(name) }&.last
+  end
+
+  def events_api(client, config = Petstore::Client::Configuration.builder.base_url('http://localhost').build, auth = nil)
+    TestableApi.new(client, config, auth)
+  end
+
+  it 'bhv_sse_006 an SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them' do
+    client = EventStreamClient.new("data: a
+
+", '')
+    events_api(client).events.to_a
+    sent = client.sent_headers.first
+    _(header_named(sent, 'Accept')).must_equal 'text/event-stream'
+    _(header_named(sent, 'Cache-Control')).must_equal 'no-cache'
+    _(header_named(sent, 'Accept-Encoding')).must_equal 'identity'
+
+    own = EventStreamClient.new("data: a
+
+", '')
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').default_header('accept-encoding', 'gzip').build
+    events_api(own, config).events({ 'cache-control' => 'max-age=0' }).to_a
+    chosen = own.sent_headers.first
+    _(header_named(chosen, 'Cache-Control')).must_equal 'max-age=0'
+    _(chosen.keys.count { |name| name.casecmp?('cache-control') }).must_equal 1
+    _(header_named(chosen, 'Accept-Encoding')).must_equal 'gzip'
+    _(chosen.keys.count { |name| name.casecmp?('accept-encoding') }).must_equal 1
+  end
+
+  it 'bhv_sse_012 an SSE stream sends the initial last event id of the call on its first request' do
+    client = EventStreamClient.new("data: a
+
+", '')
+    events_api(client).events({}, Petstore::Client::StreamOptions.new(last_event_id: '42')).to_a
+    _(header_named(client.sent_headers.first, 'Last-Event-ID')).must_equal '42'
+  end
+
+  it 'bhv_sse_013 an SSE reconnect rebuilds the headers so a refreshed token is the one sent' do
+    client = EventStreamClient.new("data: a
+
+", '')
+    events_api(client, Petstore::Client::Configuration.builder.base_url('http://localhost').build, RotatingBearerAuthenticator.new)
+      .events({}, Petstore::Client::StreamOptions.new(reconnect_delay: 1)).to_a
+    _(client.sent_headers.length).must_equal 2
+    _(header_named(client.sent_headers[0], 'Authorization')).must_equal 'Bearer t1'
+    _(header_named(client.sent_headers[1], 'Authorization')).must_equal 'Bearer t2'
+  end
+
+  it 'bhv_sse_020 an SSE reconnect sends Last-Event-ID only when the last event id is not empty' do
+    client = EventStreamClient.new("data: a
+
+", "id: 5
+data: b
+
+", '')
+    events_api(client).events({}, Petstore::Client::StreamOptions.new(reconnect_delay: 1)).to_a
+    _(client.sent_headers.length).must_equal 3
+    _(header_named(client.sent_headers[0], 'Last-Event-ID')).must_be_nil
+    _(header_named(client.sent_headers[1], 'Last-Event-ID')).must_be_nil
+    _(header_named(client.sent_headers[2], 'Last-Event-ID')).must_equal '5'
   end
 end

@@ -89,6 +89,42 @@ class GeneratedFileLayoutTest {
         "OpenAPIException lives in errors/__init__.py as the base every other error imports");
     allow(
         ALLOWED_MISSING,
+        "php",
+        "apistreamresponse",
+        "the PHP transport returns the ByteStream directly, because a PSR-7 body carrier already"
+            + " holds the status, headers and open body");
+    allow(
+        ALLOWED_MISSING,
+        "php",
+        "jsonlinesstream",
+        "a PHP JSON Lines stream is a plain Generator of items, so there is no class to hold");
+    allow(
+        ALLOWED_MISSING,
+        "elixir",
+        "streamoptions",
+        "the stream settings are a keyword list in the opts argument, as for every other Elixir call");
+    allow(
+        ALLOWED_MISSING,
+        "go",
+        "streamoptions",
+        "the stream settings are RequestOption values (WithIdleTimeout and friends), as for every other Go call setting");
+    allow(
+        ALLOWED_MISSING,
+        "elixir",
+        "linkheader",
+        "the RFC 8288 Link header parser is private to the Paginator module in Elixir");
+    allow(
+        ALLOWED_MISSING,
+        "node",
+        "page",
+        "the Page type lives in paginator.ts beside the Paginator that yields it");
+    allow(
+        ALLOWED_MISSING,
+        "rust",
+        "page",
+        "the Page type lives in paginator.rs beside the Paginator that yields it");
+    allow(
+        ALLOWED_MISSING,
         "rust",
         "baseauthenticator",
         "rust has no class inheritance, so the shared authenticator behaviour is a trait default"
@@ -106,6 +142,19 @@ class GeneratedFileLayoutTest {
         "the mock seam: IClient is the interface a fake implements, declared in its own file beside"
             + " the Client class that implements it");
 
+    allow(ALLOWED_EXTRA, "elixir", "streambody", "the process that owns an open response body, because Req can be read only by the process that sent the request");
+    allow(ALLOWED_EXTRA, "ruby", "streambody", "the open response body fed by the producer thread that runs the Faraday request");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "streamingapiclient",
+        "PHP 8.3 interfaces cannot carry a default method, so the transport that can stream is a"
+            + " second interface that the SDK checks at call time (D118)");
+    allow(ALLOWED_EXTRA, "php", "rawstreamresponse", "the internal pair of status, headers and open body that a PHP transport hands to the ByteStream");
+    allow(ALLOWED_EXTRA, "dart", "bodysourcefilesio", "dart:io file reading of a body source, chosen by conditional import");
+    allow(ALLOWED_EXTRA, "dart", "bodysourcefilesweb", "the browser stand-in for file reading of a body source, chosen by conditional import");
+    allow(ALLOWED_EXTRA, "swift", "streamtransfer", "the URLSession delegate that feeds the AsyncThrowingStream, because AsyncBytes is absent on Linux");
+    allow(ALLOWED_EXTRA, "dart", "retryafter", "the Retry-After parser shared by the retry loop and the server-sent events reconnect");
     allow(ALLOWED_EXTRA, "go", "doc", "a go package description can only live in a package comment file");
     allow(
         ALLOWED_EXTRA,

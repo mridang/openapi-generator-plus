@@ -1,0 +1,135 @@
+{{>api_info}}
+package {{packageName}}
+
+import "strings"
+
+// linkNext reads the Link header of RFC 8288 and returns the URI reference of
+// the first link whose relation type is next, exactly as written. A value is a
+// comma separated list of links, each an angle-bracketed URI reference followed
+// by ; parameters whose values are tokens or quoted strings; a comma or a
+// semicolon inside the brackets or inside a quoted string splits nothing. A
+// malformed link is skipped and the parse goes on with the next comma outside
+// brackets and quotes.
+func linkNext(header string) (string, bool) {
+	for _, link := range parseLinks(header) {
+		for _, relation := range link.relations {
+			if relation == "next" {
+				return link.target, true
+			}
+		}
+	}
+	return "", false
+}
+
+// headerLink is one link of the header: the URI reference and the relation types
+// of its rel parameter.
+type headerLink struct {
+	target    string
+	relations []string
+}
+
+func isLinkSpace(c byte) bool { return c == ' ' || c == '\t' }
+
+func parseLinks(header string) []headerLink {
+	var links []headerLink
+	n := len(header)
+	i := 0
+	for i < n {
+		for i < n && (isLinkSpace(header[i]) || header[i] == ',') {
+			i++
+		}
+		if i >= n {
+			break
+		}
+		if header[i] != '<' {
+			i = skipToComma(header, i)
+			continue
+		}
+		closing := strings.IndexByte(header[i+1:], '>')
+		if closing < 0 {
+			break
+		}
+		closing += i + 1
+		target := header[i+1 : closing]
+		i = closing + 1
+		var relations []string
+		seenRel := false
+		for i < n {
+			for i < n && isLinkSpace(header[i]) {
+				i++
+			}
+			if i >= n || header[i] == ',' {
+				break
+			}
+			if header[i] != ';' {
+				i = skipToComma(header, i)
+				break
+			}
+			i++
+			for i < n && isLinkSpace(header[i]) {
+				i++
+			}
+			nameStart := i
+			for i < n && !strings.ContainsRune("=;, \t", rune(header[i])) {
+				i++
+			}
+			name := strings.ToLower(header[nameStart:i])
+			var value strings.Builder
+			if i < n && header[i] == '=' {
+				i++
+				if i < n && header[i] == '"' {
+					i++
+					for i < n && header[i] != '"' {
+						if header[i] == '\\' && i+1 < n {
+							i++
+						}
+						value.WriteByte(header[i])
+						i++
+					}
+					i++
+				} else {
+					for i < n && !strings.ContainsRune(";, \t", rune(header[i])) {
+						value.WriteByte(header[i])
+						i++
+					}
+				}
+			}
+			if name == "rel" && !seenRel {
+				seenRel = true
+				for _, relation := range strings.Fields(value.String()) {
+					relations = append(relations, strings.ToLower(relation))
+				}
+			}
+		}
+		links = append(links, headerLink{target: target, relations: relations})
+	}
+	return links
+}
+
+// skipToComma returns the index of the next comma outside brackets and quotes,
+// or the end of the string.
+func skipToComma(s string, from int) int {
+	quoted := false
+	bracketed := false
+	for i := from; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case quoted:
+			switch c {
+			case '\\':
+				i++
+			case '"':
+				quoted = false
+			}
+		case c == '"':
+			quoted = true
+		case c == '<':
+			bracketed = true
+		case c == '>':
+			bracketed = false
+		case c == ',' && !bracketed:
+			return i
+		}
+	}
+	return len(s)
+}

@@ -1,0 +1,42 @@
+{{>api_info}}
+
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class StreamOptions:
+    """The settings of one call to a stream method (a JSON Lines or server-sent events operation).
+
+    A setting left ``None`` keeps its default. They live here and not in the per-call
+    Options object because they only apply to a stream method.
+    """
+
+    idle_timeout: Optional[int] = None
+    """The longest a stream may stay silent, in milliseconds; ``0`` disables it.
+
+    The default is the transport's ``idle_timeout``.
+    """
+
+    max_reconnects: Optional[int] = None
+    """How many consecutive failures without an event an event stream survives.
+
+    ``-1`` is unlimited and ``0`` turns reconnecting off. The default is 5 for a request
+    without a body and 0 for a request with one. Applies to server-sent events only.
+    """
+
+    reconnect_delay: Optional[int] = None
+    """The wait before the first reconnect, in milliseconds.
+
+    It doubles up to 30 seconds, reduced by up to 25% of jitter. A ``retry`` value from the
+    server replaces it. The default is 1000.
+    """
+
+    last_event_id: Optional[str] = None
+    """The id sent as ``Last-Event-ID`` on the first request, to resume an earlier stream."""
+
+    max_event_bytes: Optional[int] = None
+    """The longest line (JSON Lines) or event (server-sent events) accepted, in bytes.
+
+    A longer one raises :class:`SerializationException` and ends the stream. The default is 1 MiB.
+    """

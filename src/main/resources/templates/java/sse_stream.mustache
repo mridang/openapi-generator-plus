@@ -1,0 +1,467 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import {{invokerPackage}}.errors.ApiException;
+import {{invokerPackage}}.errors.NetworkException;
+import {{invokerPackage}}.errors.SerializationException;
+import {{invokerPackage}}.errors.StreamException;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Flow;
+import java.util.function.Function;
+import javax.annotation.Nullable;
+
+/**
+ * The events of a server-sent events response, parsed as they arrive (WHATWG HTML, "Server-sent
+ * events"), with automatic reconnecting.
+ *
+ * <p>It is an {@link Iterator} of {@link ServerSentEvent} and {@link AutoCloseable}.
+ * {@link #close()} is idempotent and aborts the connection; close it (try-with-resources) when you
+ * stop early. {@link #asPublisher()} adapts it to a {@link Flow.Publisher}.
+ *
+ * <p>When the connection ends, fails or stays silent for the idle timeout, the stream asks again
+ * with a fresh request (headers rebuilt, so a refreshed token is the one sent) that carries the last
+ * event id in {@code Last-Event-ID}. It waits the server's {@code retry} value, else the
+ * {@code reconnectDelay} doubling to 30 seconds with jitter, and gives up after
+ * {@code maxReconnects} consecutive failures without an event by raising the last failure. It
+ * never reconnects after a {@code 204}, a status other than 408, 429 and 5xx, a response that is not
+ * {@code text/event-stream}, a cancellation or the closing of the client. An event named
+ * {@code error} raises an {@link ApiException} with the response status and the data as its body.
+ * {@link #toString()} shows the status code, the events delivered and the last event id, never the
+ * data.
+ *
+ * @param <T> the type of the {@code data} field ({@code String} for a plain payload)
+ */
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+        value = {"THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"},
+        justification = "the SDK's error contract is built on unchecked exceptions")
+public final class SseStream<T> implements Iterator<ServerSentEvent<T>>, AutoCloseable {
+
+    private static final long MAX_RECONNECT_DELAY_MILLIS = 30_000L;
+
+    private final Function<String, ByteStream> opener;
+    @Nullable private final Function<String, T> decoder;
+    @Nullable private final String terminator;
+    private final int maxReconnects;
+    private final long reconnectDelay;
+    private final int maxEventBytes;
+    private final String method;
+    private final String path;
+    private ByteStream current;
+    private EventStream.SseParser parser;
+    private String lastEventId;
+    @Nullable private Long serverRetry;
+    private final java.util.concurrent.atomic.AtomicInteger consecutive =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private final java.util.concurrent.atomic.AtomicLong delivered =
+            new java.util.concurrent.atomic.AtomicLong();
+    @Nullable private ServerSentEvent<T> pending;
+    private volatile boolean done;
+
+    private SseStream(
+            Function<String, ByteStream> opener,
+            @Nullable Function<String, T> decoder,
+            @Nullable String terminator,
+            StreamOptions given,
+            boolean hasBody,
+            boolean singleUseBody,
+            String method,
+            String path,
+            ByteStream first,
+            String lastEventId) {
+        this.opener = opener;
+        this.decoder = decoder;
+        this.terminator = terminator;
+        Integer reconnects = given.getMaxReconnects();
+        /* A single use body has been read to its end, so a reconnect has nothing to send. */
+        this.maxReconnects =
+                singleUseBody ? 0 : (reconnects != null ? reconnects : (hasBody ? 0 : 5));
+        Integer delay = given.getReconnectDelay();
+        this.reconnectDelay = delay != null ? delay : 1000L;
+        Integer limit = given.getMaxEventBytes();
+        this.maxEventBytes = limit != null ? limit : 1024 * 1024;
+        this.method = method;
+        this.path = path;
+        this.lastEventId = lastEventId;
+        this.current = first;
+        this.parser = new EventStream.SseParser(first, maxEventBytes, lastEventId);
+    }
+
+    /**
+     * Opens the first connection of an event stream; a failure of that request is raised here.
+     *
+     * @param <T> the data type
+     * @param opener sends one request with the given last event id ({@code ""} for none) and
+     *               returns its open body, or raises the typed error of a failed status
+     * @param decoder decodes the {@code data} field, or {@code null} to hand it over as a string
+     * @param terminator a {@code data} value that ends the stream and is not delivered, or {@code null}
+     * @param options the call's settings, or {@code null}
+     * @param hasBody whether the request has a body, which turns reconnecting off by default
+     * @param method the HTTP method, for errors
+     * @param path the request path, for errors
+     * @return the open stream
+     */
+    public static <T> SseStream<T> open(
+            Function<String, ByteStream> opener,
+            @Nullable Function<String, T> decoder,
+            @Nullable String terminator,
+            @Nullable StreamOptions options,
+            boolean hasBody,
+            String method,
+            String path) {
+        return open(opener, decoder, terminator, options, hasBody, false, method, path);
+    }
+
+    /**
+     * Opens the first connection of an event stream whose request body may be single use.
+     *
+     * @param <T> the data type
+     * @param opener sends one request with the given last event id ({@code ""} for none) and
+     *               returns its open body, or raises the typed error of a failed status
+     * @param decoder decodes the {@code data} field, or {@code null} to hand it over as a string
+     * @param terminator a {@code data} value that ends the stream and is not delivered, or {@code null}
+     * @param options the call's settings, or {@code null}
+     * @param hasBody whether the request has a body, which turns reconnecting off by default
+     * @param singleUseBody whether the body can be sent only once, which turns reconnecting off
+     *                      whatever the options say
+     * @param method the HTTP method, for errors
+     * @param path the request path, for errors
+     * @return the open stream
+     */
+    public static <T> SseStream<T> open(
+            Function<String, ByteStream> opener,
+            @Nullable Function<String, T> decoder,
+            @Nullable String terminator,
+            @Nullable StreamOptions options,
+            boolean hasBody,
+            boolean singleUseBody,
+            String method,
+            String path) {
+        StreamOptions given = options == null ? new StreamOptions() : options;
+        String initial = given.getLastEventId();
+        String lastEventId = initial == null ? "" : initial;
+        ByteStream first = connectTo(opener, lastEventId, method, path);
+        return new SseStream<>(
+                opener, decoder, terminator, given, hasBody, singleUseBody, method, path, first,
+                lastEventId);
+    }
+
+    /**
+     * The HTTP status code of the current connection.
+     *
+     * @return the status code
+     */
+    public int getStatusCode() {
+        return current.getStatusCode();
+    }
+
+    /**
+     * The lower-cased headers of the current connection.
+     *
+     * @return the headers (unmodifiable)
+     */
+    public Map<String, String> getHeaders() {
+        return current.getHeaders();
+    }
+
+    private ByteStream connect() {
+        return connectTo(opener, lastEventId, method, path);
+    }
+
+    /** Sends the request and checks that the answer is an event stream. */
+    private static ByteStream connectTo(
+            Function<String, ByteStream> opener, String lastEventId, String method, String path) {
+        ByteStream stream = opener.apply(lastEventId);
+        if (stream.getStatusCode() == 204) {
+            return stream;
+        }
+        String type = stream.getHeaders().getOrDefault("content-type", "");
+        if (!type.toLowerCase(Locale.ROOT).startsWith("text/event-stream")) {
+            stream.close();
+            int semicolon = type.indexOf(';');
+            throw new SerializationException(
+                    "Unexpected response Content-Type '"
+                            + (semicolon >= 0 ? type.substring(0, semicolon) : type).trim()
+                            + "' for " + path + ": expected text/event-stream",
+                    null, stream.getStatusCode(), stream.getHeaders(), null, method, path);
+        }
+        return stream;
+    }
+
+    @Override
+    public boolean hasNext() {
+        if (pending != null) {
+            return true;
+        }
+        if (done) {
+            return false;
+        }
+        try {
+            pending = advance();
+        } catch (RuntimeException | Error failure) {
+            finish();
+            throw failure;
+        }
+        if (pending == null) {
+            finish();
+        }
+        return pending != null;
+    }
+
+    @Override
+    public ServerSentEvent<T> next() {
+        if (!hasNext()) {
+            throw new NoSuchElementException();
+        }
+        ServerSentEvent<T> event = pending;
+        pending = null;
+        if (event == null) {
+            throw new NoSuchElementException();
+        }
+        return event;
+    }
+
+    @Nullable
+    private ServerSentEvent<T> advance() {
+        if (current.getStatusCode() == 204) {
+            return null;
+        }
+        while (!done) {
+            EventStream.RawEvent raw;
+            RuntimeException lost;
+            try {
+                raw = parser.next();
+                lost = null;
+            } catch (EventStream.TooLongException tooLong) {
+                throw new SerializationException(
+                        "An event of the stream is too long: " + tooLong.getMessage(), tooLong,
+                        current.getStatusCode(), current.getHeaders(), null, method, path);
+            } catch (IOException closed) {
+                return null;
+            } catch (NetworkException network) {
+                raw = null;
+                lost = network;
+            }
+            lastEventId = parser.lastEventId();
+            serverRetry = parser.retry();
+            if (raw != null) {
+                consecutive.set(0);
+                return deliver(raw);
+            }
+            if (done) {
+                return null;
+            }
+            if (!reconnect(lost)) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private ServerSentEvent<T> deliver(EventStream.RawEvent raw) {
+        if ("error".equals(raw.event())) {
+            throw new ApiException(
+                    current.getStatusCode(), "The server sent an error event", current.getHeaders(), raw.data());
+        }
+        if (terminator != null && terminator.equals(raw.data())) {
+            return null;
+        }
+        T data;
+        if (decoder == null) {
+            data = (T) raw.data();
+        } else {
+            try {
+                data = decoder.apply(raw.data());
+            } catch (SerializationException failure) {
+                throw new SerializationException(
+                        "The data of an event does not decode: " + failure.getMessage(), failure,
+                        current.getStatusCode(), current.getHeaders(), null, method, path);
+            }
+        }
+        delivered.incrementAndGet();
+        return new ServerSentEvent<>(raw.id(), raw.event(), data, raw.retry(), raw.data());
+    }
+
+    /**
+     * Re-establishes the connection after it was lost.
+     *
+     * @param failure why it was lost, or {@code null} when it ended cleanly
+     * @return {@code true} when a new connection is open, {@code false} when the stream ends
+     */
+    private boolean reconnect(@Nullable RuntimeException failure) {
+        RuntimeException cause = failure;
+        while (true) {
+            current.close();
+            if (maxReconnects == 0) {
+                if (cause != null) {
+                    throw cause;
+                }
+                return false;
+            }
+            if (maxReconnects > 0 && consecutive.get() >= maxReconnects) {
+                if (cause != null) {
+                    throw cause;
+                }
+                throw new StreamException(
+                        "The event stream ended and was not re-established after " + maxReconnects
+                                + " reconnects",
+                        new IOException("end of stream"), method, path);
+            }
+            int attempt = consecutive.incrementAndGet();
+            pause(reconnectWaitMillis(attempt, reconnectDelay, serverRetry, retryAfterOf(cause),
+                    java.util.concurrent.ThreadLocalRandom.current().nextDouble()));
+            try {
+                ByteStream next = connect();
+                current = next;
+                parser = new EventStream.SseParser(next, maxEventBytes, lastEventId);
+                return next.getStatusCode() != 204;
+            } catch (NetworkException network) {
+                cause = network;
+            } catch (ApiException status) {
+                if (!(status.getStatusCode() == 408 || status.getStatusCode() == 429
+                        || (status.getStatusCode() >= 500 && status.getStatusCode() <= 599))) {
+                    throw status;
+                }
+                cause = status;
+            }
+        }
+    }
+
+    @Nullable
+    private static Long retryAfterOf(@Nullable RuntimeException failure) {
+        if (failure instanceof ApiException api && !(failure instanceof NetworkException)) {
+            int status = api.getStatusCode();
+            Map<String, String> headers = api.getResponseHeaders();
+            if (headers != null && (status == 429 || status == 502 || status == 503 || status == 504)) {
+                String value = headers.get("retry-after");
+                if (value != null) {
+                    long millis = DefaultApiClient.retryAfterMillis(value, java.time.Instant.now());
+                    return millis >= 0 ? millis : null;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * How long to wait before reconnect number {@code attempt} (1 for the first): the server's
+     * {@code retry} value, else {@code Retry-After}, else {@code base} doubling to 30 seconds,
+     * reduced by up to 25% of jitter.
+     *
+     * @param attempt the consecutive reconnect number, from 1
+     * @param base the first delay in milliseconds
+     * @param serverRetry the last {@code retry} value of the stream, or {@code null}
+     * @param retryAfter the {@code Retry-After} of the failure, or {@code null}
+     * @param jitterSample a uniform random value in [0, 1)
+     * @return the wait in milliseconds
+     */
+    static long reconnectWaitMillis(
+            int attempt,
+            long base,
+            @Nullable Long serverRetry,
+            @Nullable Long retryAfter,
+            double jitterSample) {
+        if (serverRetry != null) {
+            return serverRetry;
+        }
+        if (retryAfter != null) {
+            return retryAfter;
+        }
+        long doubled = Math.min(MAX_RECONNECT_DELAY_MILLIS, base << Math.min(attempt - 1, 20));
+        return (long) (Math.min(MAX_RECONNECT_DELAY_MILLIS, doubled) * (1.0 - 0.25 * jitterSample));
+    }
+
+    private void pause(long millis) {
+        if (millis <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            CancellationException cancelled = new CancellationException("request interrupted");
+            cancelled.initCause(interrupted);
+            throw cancelled;
+        }
+    }
+
+    private void finish() {
+        done = true;
+        current.close();
+    }
+
+    /** Closes the stream and aborts the connection; later calls do nothing. */
+    @Override
+    public void close() {
+        done = true;
+        pending = null;
+        current.close();
+    }
+
+    /**
+     * Adapts the stream to a {@link Flow.Publisher} for reactive callers. The base stays blocking:
+     * a virtual thread reads the events and hands them over as the subscriber asks for them. One
+     * subscriber is served; cancelling its subscription closes the stream.
+     *
+     * @return a publisher of the remaining events
+     */
+    public Flow.Publisher<ServerSentEvent<T>> asPublisher() {
+        return subscriber -> {
+            java.util.concurrent.Semaphore demand = new java.util.concurrent.Semaphore(0);
+            java.util.concurrent.atomic.AtomicBoolean cancelled =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            subscriber.onSubscribe(
+                    new Flow.Subscription() {
+                        @Override
+                        public void request(long count) {
+                            demand.release((int) Math.min(count, Integer.MAX_VALUE / 2));
+                        }
+
+                        @Override
+                        public void cancel() {
+                            cancelled.set(true);
+                            demand.release(1);
+                            close();
+                        }
+                    });
+            Thread.ofVirtual().start(() -> pump(subscriber, demand, cancelled));
+        };
+    }
+
+    private void pump(
+            Flow.Subscriber<? super ServerSentEvent<T>> subscriber,
+            java.util.concurrent.Semaphore demand,
+            java.util.concurrent.atomic.AtomicBoolean cancelled) {
+        try {
+            while (true) {
+                demand.acquire();
+                if (cancelled.get()) {
+                    return;
+                }
+                if (!hasNext()) {
+                    subscriber.onComplete();
+                    return;
+                }
+                subscriber.onNext(next());
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        } catch (RuntimeException failure) {
+            if (!cancelled.get()) {
+                subscriber.onError(failure);
+            }
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "SseStream{statusCode=" + current.getStatusCode() + ", eventsDelivered=" + delivered.get()
+                + ", lastEventId=" + lastEventId + "}";
+    }
+}

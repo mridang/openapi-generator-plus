@@ -6,6 +6,9 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\Api\BaseApi;
 use PetstoreClient\ApiResult;
+use PetstoreClient\ByteStream;
+use PetstoreClient\SseStream;
+use PetstoreClient\StreamOptions;
 use PetstoreClient\Auth\Authenticator;
 
 class TestableApi extends BaseApi
@@ -98,5 +101,59 @@ class TestableApi extends BaseApi
             null,
             securityRequirements: $securityRequirements
         )->data;
+    }
+
+    /**
+     * Sends a request the way a generated operation with a binary response does and returns the
+     * result that holds the open stream.
+     *
+     * @param array<string, mixed>  $queryParams
+     * @param array<string, string> $headerParams
+     * @param array<string>         $accepts
+     * @return ApiResult<ByteStream>
+     */
+    public function stream(
+        string $method,
+        string $path,
+        array $queryParams = [],
+        array $headerParams = [],
+        mixed $body = null,
+        array $accepts = ['application/octet-stream'],
+        ?string $contentType = null,
+        ?Authenticator $auth = null,
+    ): ApiResult {
+        return $this->invokeApiForStream(
+            $method,
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            $accepts,
+            $contentType,
+            $auth
+        );
+    }
+
+    /**
+     * Sends a request the way a generated server-sent events operation does and returns the stream.
+     *
+     * @param array<string, string> $headerParams
+     *
+     * @return SseStream<mixed>
+     */
+    public function events(array $headerParams = [], ?StreamOptions $streamOptions = null): SseStream
+    {
+        return $this->invokeApiForSse(
+            'GET',
+            '/items/events',
+            [],
+            $headerParams,
+            null,
+            ['text/event-stream'],
+            'application/json',
+            operationId: 'watchEvents',
+            urlTemplate: '/items/events',
+            streamOptions: $streamOptions
+        );
     }
 }

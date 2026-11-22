@@ -4497,7 +4497,7 @@ func TestBhvMisc213_BaseApi_OptionalArrayQueryParamIsNotRenderedAsBracketsOrComm
 	}
 }
 
-func TestBhvMisc216_BaseApi_BinaryResponseIsReturnedDecodedWhileRawBodyKeepsTheEncodedText(t *testing.T) {
+func TestBhvMisc216_BaseApi_BinaryResponseIsReturnedAsAByteStreamWithAnEmptyRawBody(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
@@ -4511,33 +4511,42 @@ func TestBhvMisc216_BaseApi_BinaryResponseIsReturnedDecodedWhileRawBodyKeepsTheE
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.Data == nil || string(*result.Data) != "aGVsbG8=" {
-		t.Errorf("expected the binary body as base64 text, got %v", result.Data)
+	if result.Data == nil {
+		t.Fatal("expected the binary body as a stream")
 	}
-	if result.RawBody != "YUdWc2JHOD0=" {
-		t.Errorf("expected the raw body to be the base64 text of the bytes, got %q", result.RawBody)
+	body, err := result.Data.ReadAll()
+	if err != nil || string(body) != "aGVsbG8=" {
+		t.Errorf("expected the bytes as the server sent them, got %q (%v)", body, err)
+	}
+	if result.RawBody != "" {
+		t.Errorf("expected an empty raw body for a stream, got %q", result.RawBody)
 	}
 }
 
-func TestBhvMisc217_BaseApi_BinaryUploadAcceptsInMemoryBytesAndSendsThem(t *testing.T) {
+func TestBhvMisc217_BaseApi_BinaryUploadAcceptsInMemoryBytesAndAStreamAndSendsThem(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
-	var received []byte
+	var received [][]byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		mu.Lock()
-		received = body
+		received = append(received, body)
 		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	}))
 	t.Cleanup(server.Close)
 	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
 
-	_, _ = api.UploadPetDocument(context.Background(), int64(1), &options.UploadPetDocumentOptions{File: bytes.NewReader([]byte("document-bytes"))})
+	if err := api.SetPetAvatar(context.Background(), int64(1), {{packageName}}.BodyFromBytes([]byte("document-bytes"))); err != nil {
+		t.Fatalf("expected the in-memory bytes to be sent, got %v", err)
+	}
+	if err := api.SetPetAvatar(context.Background(), int64(1), {{packageName}}.BodyFromReader(io.MultiReader(strings.NewReader("stream-bytes")))); err != nil {
+		t.Fatalf("expected the stream to be sent, got %v", err)
+	}
 	mu.Lock()
 	defer mu.Unlock()
-	if !bytes.Contains(received, []byte("document-bytes")) {
-		t.Errorf("expected the in-memory bytes in the upload, got %q", received)
+	if len(received) != 2 || string(received[0]) != "document-bytes" || string(received[1]) != "stream-bytes" {
+		t.Errorf("expected the bytes and the stream as given, got %q", received)
 	}
 }
 
@@ -4845,5 +4854,170 @@ func TestBhvMisc239_BaseApi_QueryParamIsSerializedWithoutAnAuthenticator(t *test
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{Status: &status})
 	if !strings.Contains(client.capturedURL, "status=available") {
 		t.Errorf("expected URL to contain status=available, got %q", client.capturedURL)
+	}
+}
+
+// closeTrackingBody is a response body that remembers whether it was closed.
+type closeTrackingBody struct {
+	*bytes.Reader
+	closed atomic.Bool
+}
+
+func (b *closeTrackingBody) Close() error {
+	b.closed.Store(true)
+	return nil
+}
+
+// scriptedStreamingClient answers a stream call with the given body and a script
+// of statuses (the last repeats), and keeps what each call was sent.
+type scriptedStreamingClient struct {
+	mu          sync.Mutex
+	headers     []map[string]string
+	opened      []*closeTrackingBody
+	statuses    []int
+	body        []byte
+	contentType string
+}
+
+func (c *scriptedStreamingClient) SendRequest(method, url string, headers map[string]string, body any) (*{{packageName}}.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *scriptedStreamingClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *{{packageName}}.RequestOptions) (*{{packageName}}.ApiHttpResponse, error) {
+	return &{{packageName}}.ApiHttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"content-type": "application/json"}}, nil
+}
+
+func (c *scriptedStreamingClient) SendStreaming(method, url string, headers map[string]string, body any, opts *{{packageName}}.RequestOptions) (*{{packageName}}.ApiStreamResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	status := c.statuses[min(len(c.headers), len(c.statuses)-1)]
+	c.headers = append(c.headers, headers)
+	opening := &closeTrackingBody{Reader: bytes.NewReader(c.body)}
+	c.opened = append(c.opened, opening)
+	return {{packageName}}.NewApiStreamResponse(status, map[string]string{"content-type": c.contentType}, opening), nil
+}
+
+func (c *scriptedStreamingClient) Close() error { return nil }
+
+// bufferedOnlyClient is a transport written before streaming existed: it
+// implements the buffered calls only.
+type bufferedOnlyClient struct{ sentURLs []string }
+
+func (c *bufferedOnlyClient) SendRequest(method, url string, headers map[string]string, body any) (*{{packageName}}.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *bufferedOnlyClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *{{packageName}}.RequestOptions) (*{{packageName}}.ApiHttpResponse, error) {
+	c.sentURLs = append(c.sentURLs, url)
+	return &{{packageName}}.ApiHttpResponse{StatusCode: 200, Body: `{"id":1,"name":"Test","photoUrls":[]}`, Headers: map[string]string{"content-type": "application/json"}}, nil
+}
+
+func (c *bufferedOnlyClient) Close() error { return nil }
+
+func TestBhvStreaming008_BaseApi_ANon2xxStreamingCallRaisesTheTypedErrorAndNeverReturnsAStream(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	client := &scriptedStreamingClient{statuses: []int{404}, contentType: "application/json", body: []byte(`{"message":"gone"}`)}
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+
+	stream, err := api.GetPetAvatar(context.Background(), int64(1))
+
+	var notFound *apierrors.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("expected *NotFoundError, got %T: %v", err, err)
+	}
+	if stream != nil {
+		t.Error("expected no stream for a non-2xx status")
+	}
+	if notFound.StatusCode() != 404 || !strings.Contains(notFound.ResponseBody(), "gone") || notFound.RequestPath() != "/pet/1/avatar" {
+		t.Errorf("expected the status, the error body and the path, got %d %q %q", notFound.StatusCode(), notFound.ResponseBody(), notFound.RequestPath())
+	}
+	if !client.opened[0].closed.Load() {
+		t.Error("expected the connection to be closed after the error body")
+	}
+
+	large := &scriptedStreamingClient{statuses: []int{502}, contentType: "text/plain", body: make([]byte, 200000)}
+	api = {{packageName}}.NewPetApi(large, config, nil, {{packageName}}.Credentials{})
+	_, err = api.GetPetAvatar(context.Background(), int64(1))
+	var bounded *apierrors.ApiError
+	if !errors.As(err, &bounded) || len(bounded.ResponseBody()) != 64*1024 {
+		t.Errorf("expected the error body to be bounded to 64 KiB, got %v", err)
+	}
+}
+
+func TestBhvStreaming014_BaseApi_AStreamingCallRetriesA503BeforeTheHeadersAndThenStreamsTheRetriedResponse(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 503, retryAfter: "0"}, scriptedReply{status: 200})
+	api := retryApi(t, srv, nil, nil)
+
+	stream, err := api.GetPetAvatar(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("expected the retried response to be streamed, got %v", err)
+	}
+	if stream.StatusCode() != 200 {
+		t.Errorf("expected status 200, got %d", stream.StatusCode())
+	}
+	body, err := stream.ReadAll()
+	if err != nil || !strings.Contains(string(body), `"name":"Test"`) {
+		t.Errorf("expected the body of the second response, got %q (%v)", body, err)
+	}
+	if got := srv.hits.Load(); got != 2 {
+		t.Errorf("expected 2 requests, got %d", got)
+	}
+}
+
+func TestBhvStreaming018_BaseApi_A401OnAStreamingCallRefreshesTheTokenAndReplaysOnceBeforeTheStreamIsReturned(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "tok2", 0)
+	client := replayClient(t, srv)
+
+	stream, err := client.Pet.GetPetAvatar(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("expected the replayed request to return the stream, got %v", err)
+	}
+	if body, err := stream.ReadAll(); err != nil || len(body) == 0 {
+		t.Errorf("expected a body, got %q (%v)", body, err)
+	}
+	if got := srv.apiHits.Load(); got != 2 {
+		t.Errorf("expected the request sent twice, got %d", got)
+	}
+	if got := srv.tokenHits.Load(); got != 2 {
+		t.Errorf("expected a second token after the 401, got %d", got)
+	}
+
+	refused := newOAuthReplayServer(t, "never", 0)
+	_, err = replayClient(t, refused).Pet.GetPetAvatar(context.Background(), int64(1))
+	var unauthorized *apierrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected *UnauthorizedError, got %T: %v", err, err)
+	}
+	if got := refused.apiHits.Load(); got != 2 {
+		t.Errorf("expected a second 401 not to be replayed again, got %d requests", got)
+	}
+}
+
+func TestBhvStreaming030_BaseApi_ATransportThatCannotStreamFailsAStreamCallNamingItselfAndStillServesBufferedCalls(t *testing.T) {
+	t.Parallel()
+	transport := &bufferedOnlyClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(transport, config, nil, {{packageName}}.Credentials{})
+
+	_, err := api.GetPetAvatar(context.Background(), int64(1))
+
+	if !errors.Is(err, {{packageName}}.ErrStreamingUnsupported) {
+		t.Fatalf("expected ErrStreamingUnsupported, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "bufferedOnlyClient") || !strings.Contains(err.Error(), "cannot stream") {
+		t.Errorf("expected the error to name the transport and say it cannot stream, got %q", err.Error())
+	}
+	if len(transport.sentURLs) != 0 {
+		t.Errorf("expected nothing sent and nothing buffered instead, got %v", transport.sentURLs)
+	}
+
+	if _, err := api.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("expected the buffered call to keep working, got %v", err)
+	}
+	if len(transport.sentURLs) != 1 || !strings.HasSuffix(transport.sentURLs[0], "/pet/1") {
+		t.Errorf("expected the buffered call to reach the transport, got %v", transport.sentURLs)
 	}
 }

@@ -1,0 +1,23 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for a response body that failed after its headers arrived: the
+/// connection was reset, or the body ended before its declared length. It is a
+/// <see cref="NetworkException"/>, so the status code is always 0 (the headers
+/// had arrived, but the body the caller was promised did not), and the
+/// underlying failure is kept as the inner exception. An idle stall is a
+/// <see cref="NetworkTimeoutException"/> and a body that cannot be decoded is
+/// a <see cref="SerializationException"/>, not this.
+/// </summary>
+public class StreamException : NetworkException
+{
+    public StreamException() { }
+
+    public StreamException(string message)
+        : base(message) { }
+
+    public StreamException(string message, Exception innerException)
+        : base(message, innerException) { }
+}

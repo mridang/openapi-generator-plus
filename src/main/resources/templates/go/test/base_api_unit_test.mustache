@@ -2,7 +2,16 @@
 package {{packageName}}
 
 import (
+	"bytes"
+	"{{packageName}}/pkg/auth"
 	"{{packageName}}/pkg/models"
+	"context"
+	"io"
+	"net"
+	"reflect"
+	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 	"os"
 	"errors"
@@ -349,5 +358,363 @@ func TestBhvMisc169_BaseApiUnit_TheRetryWaitStartsAtHalfASecondDoublesAndNeverEx
 		if delay := retryDelay(retries, nil, now); delay > base || delay < base*3/4 {
 			t.Errorf("retry %d: expected a wait between %v and %v, got %v", retries, base*3/4, base, delay)
 		}
+	}
+}
+
+// streamBase is a baseApi over a default client with the default retries, which
+// is what a generated operation runs on.
+func streamBase(t *testing.T, server *rawServer, authenticator Authenticator, hook CallHook) *baseApi {
+	t.Helper()
+	transport, err := NewTransportOptionsBuilder().InjectRequestID(true).Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	t.Cleanup(func() { _ = client.Close() })
+	config := NewConfigurationBuilder().BaseURL(server.url("")).CallHook(hook).Build()
+	return newBaseApi(client, config, authenticator)
+}
+
+func streamParams() invokeApiParams {
+	return invokeApiParams{
+		method:      "GET",
+		path:        "/items/blob",
+		accepts:     []string{"application/octet-stream"},
+		contentType: "application/json",
+		call:        &callState{},
+	}
+}
+
+func TestBhvStreaming012_BaseApi_InvokeApiForStream_AConnectionResetInTheMiddleOfTheBodyRaisesANetworkErrorAndIsNotRetried(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, rawResetAfterTwoBytes)
+	base := streamBase(t, server, nil, nil)
+	response, err := base.invokeApiForStream(streamParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+
+	_, err = io.ReadAll(response.Body)
+
+	var network *pkgerrors.NetworkError
+	if !errors.As(err, &network) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	time.Sleep(300 * time.Millisecond)
+	if got := server.hits.Load(); got != 1 {
+		t.Errorf("expected the default of two retries not to apply to a body, got %d requests", got)
+	}
+}
+
+func TestBhvStreaming015_BaseApi_InvokeApiForStream_AStreamingCallNeverRetriesAfterTheFirstBodyByteWasDelivered(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Transfer-Encoding: chunked")
+		_ = rawChunk(conn, "part")
+		time.Sleep(100 * time.Millisecond)
+		rawReset(conn)
+	})
+	base := streamBase(t, server, nil, nil)
+	response, err := base.invokeApiForStream(streamParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+	buffer := make([]byte, 4)
+	if _, err := io.ReadFull(response.Body, buffer); err != nil || string(buffer) != "part" {
+		t.Fatalf("expected the first bytes, got %q (%v)", buffer, err)
+	}
+
+	_, err = io.ReadAll(response.Body)
+
+	var network *pkgerrors.NetworkError
+	if !errors.As(err, &network) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	time.Sleep(300 * time.Millisecond)
+	if got := server.hits.Load(); got != 1 {
+		t.Errorf("expected no second request after the first body byte, got %d requests", got)
+	}
+}
+
+// requestHeaders reads the lower-cased header names and values of a raw request head.
+func requestHeaders(head string) map[string]string {
+	headers := map[string]string{}
+	for _, line := range strings.Split(head, "\r\n") {
+		name, value, found := strings.Cut(line, ":")
+		if found && !strings.HasPrefix(line, "GET ") {
+			headers[strings.ToLower(name)] = strings.TrimSpace(value)
+		}
+	}
+	return headers
+}
+
+func TestBhvStreaming017_BaseApi_InvokeApiForStream_AStreamingCallSendsTheSameHeadersAsABufferedCall(t *testing.T) {
+	t.Parallel()
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		rawHead(conn, 200, "Content-Type: text/plain", "Content-Length: 2")
+		_, _ = conn.Write([]byte("ok"))
+	})
+	trace := CallHookFunc(func(ctx context.Context, info CallInfo, headers map[string]string) (CallObserver, error) {
+		headers["traceparent"] = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+		return nil, nil
+	})
+	authenticator, err := auth.NewApiKeyAuthenticator(server.url(""), "X-Api-Key", "k-123", auth.ApiKeyLocationHeader)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	base := streamBase(t, server, authenticator, trace)
+	if _, err := base.invokeApiForResult(streamParams()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	response, err := base.invokeApiForStream(streamParams())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_ = response.Body.Close()
+
+	buffered, streamed := requestHeaders(server.headOf(0)), requestHeaders(server.headOf(1))
+	for name := range buffered {
+		if _, ok := streamed[name]; !ok {
+			t.Errorf("expected the streaming call to send %s as the buffered call does", name)
+		}
+	}
+	for name := range streamed {
+		if _, ok := buffered[name]; !ok {
+			t.Errorf("expected the buffered call to send %s as the streaming call does", name)
+		}
+	}
+	for _, name := range []string{"user-agent", "x-api-key", "traceparent", "accept", "accept-encoding"} {
+		if streamed[name] == "" || streamed[name] != buffered[name] {
+			t.Errorf("expected the same %s, got %q and %q", name, buffered[name], streamed[name])
+		}
+	}
+	if streamed["x-request-id"] == "" || streamed["x-request-id"] == buffered["x-request-id"] {
+		t.Errorf("expected each call to have its own request id, got %q and %q", buffered["x-request-id"], streamed["x-request-id"])
+	}
+}
+
+// eventStreamClient answers each event stream call with the next scripted body
+// (an empty one is a 204) and keeps the headers it was sent.
+type eventStreamClient struct {
+	mu     sync.Mutex
+	sent   []map[string]string
+	bodies []string
+}
+
+func (c *eventStreamClient) SendRequest(method, url string, headers map[string]string, body any) (*ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *eventStreamClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
+	return nil, errors.New("buffered calls are not used")
+}
+
+func (c *eventStreamClient) Close() error { return nil }
+
+func (c *eventStreamClient) SendStreaming(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiStreamResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	text := c.bodies[min(len(c.sent), len(c.bodies)-1)]
+	sent := map[string]string{}
+	for name, value := range headers {
+		sent[strings.ToLower(name)] = value
+	}
+	c.sent = append(c.sent, sent)
+	if text == "" {
+		return NewApiStreamResponse(204, map[string]string{}, io.NopCloser(strings.NewReader(""))), nil
+	}
+	return eventsResponse(text), nil
+}
+
+// rotatingAuth hands out a new bearer token every time it is asked.
+type rotatingAuth struct{ counter int }
+
+func (a *rotatingAuth) Host() string { return "" }
+func (a *rotatingAuth) AuthHeaders() map[string]string {
+	a.counter++
+	return map[string]string{"Authorization": "Bearer t" + strconv.Itoa(a.counter)}
+}
+func (a *rotatingAuth) QueryParams() map[string]string  { return nil }
+func (a *rotatingAuth) CookieParams() map[string]string { return nil }
+
+// eventsOf runs an event stream call through a baseApi over the client and
+// drains it.
+func eventsOf(t *testing.T, client *eventStreamClient, config *Configuration, authenticator Authenticator, headers map[string]string, options ...RequestOption) {
+	t.Helper()
+	settings, err := newCallSettings(options)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	base := newBaseApi(client, config, authenticator)
+	stream, err := invokeSse(base, invokeApiParams{
+		method:       "GET",
+		path:         "/items/events",
+		headerParams: headers,
+		accepts:      []string{"text/event-stream"},
+		contentType:  "application/json",
+		settings:     settings,
+	}, decodeText, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, err := range stream.All() {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+}
+
+func plainConfig(defaults map[string]string) *Configuration {
+	builder := NewConfigurationBuilder().BaseURL("http://localhost")
+	for name, value := range defaults {
+		builder.DefaultHeader(name, value)
+	}
+	return builder.Build()
+}
+
+func TestBhvSse006_BaseApi_InvokeSse_AnSseRequestSendsTheEventStreamHeadersUnlessTheCallerSetThem(t *testing.T) {
+	t.Parallel()
+	client := &eventStreamClient{bodies: []string{"data: a\n\n", ""}}
+	eventsOf(t, client, plainConfig(nil), nil, map[string]string{}, WithReconnectDelay(time.Millisecond))
+	sent := client.sent[0]
+	if sent["accept"] != "text/event-stream" || sent["cache-control"] != "no-cache" || sent["accept-encoding"] != "identity" {
+		t.Errorf("expected the event stream headers, got %v", sent)
+	}
+
+	own := &eventStreamClient{bodies: []string{"data: a\n\n", ""}}
+	eventsOf(t, own, plainConfig(map[string]string{"accept-encoding": "gzip"}), nil, map[string]string{}, WithHeaders(map[string]string{"cache-control": "max-age=0"}), WithReconnectDelay(time.Millisecond))
+	chosen := own.sent[0]
+	if chosen["cache-control"] != "max-age=0" || chosen["accept-encoding"] != "gzip" {
+		t.Errorf("expected the caller's own headers to be kept, got %v", chosen)
+	}
+}
+
+func TestBhvSse012_BaseApi_InvokeSse_AnSseStreamSendsTheInitialLastEventIdOnItsFirstRequest(t *testing.T) {
+	t.Parallel()
+	client := &eventStreamClient{bodies: []string{"data: a\n\n", ""}}
+
+	eventsOf(t, client, plainConfig(nil), nil, map[string]string{}, WithLastEventID("42"), WithReconnectDelay(time.Millisecond))
+
+	if got := client.sent[0]["last-event-id"]; got != "42" {
+		t.Errorf("expected Last-Event-ID 42 on the first request, got %q", got)
+	}
+}
+
+func TestBhvSse013_BaseApi_InvokeSse_AnSseReconnectRebuildsTheHeadersSoARefreshedTokenIsTheOneSent(t *testing.T) {
+	t.Parallel()
+	client := &eventStreamClient{bodies: []string{"data: a\n\n", ""}}
+
+	eventsOf(t, client, plainConfig(nil), &rotatingAuth{}, map[string]string{}, WithReconnectDelay(time.Millisecond))
+
+	if len(client.sent) != 2 {
+		t.Fatalf("expected 2 requests, got %d", len(client.sent))
+	}
+	if client.sent[0]["authorization"] != "Bearer t1" || client.sent[1]["authorization"] != "Bearer t2" {
+		t.Errorf("expected a fresh token on the reconnect, got %q and %q", client.sent[0]["authorization"], client.sent[1]["authorization"])
+	}
+}
+
+func TestBhvSse020_BaseApi_InvokeSse_AnSseReconnectSendsLastEventIdOnlyWhenTheLastEventIdIsNotEmpty(t *testing.T) {
+	t.Parallel()
+	client := &eventStreamClient{bodies: []string{"data: a\n\n", "id: 5\ndata: b\n\n", ""}}
+
+	eventsOf(t, client, plainConfig(nil), nil, map[string]string{}, WithReconnectDelay(time.Millisecond))
+
+	if len(client.sent) != 3 {
+		t.Fatalf("expected 3 requests, got %d", len(client.sent))
+	}
+	if _, ok := client.sent[0]["last-event-id"]; ok {
+		t.Error("expected no Last-Event-ID on the first request")
+	}
+	if _, ok := client.sent[1]["last-event-id"]; ok {
+		t.Error("expected no Last-Event-ID while there is no id")
+	}
+	if client.sent[2]["last-event-id"] != "5" {
+		t.Errorf("expected Last-Event-ID 5, got %q", client.sent[2]["last-event-id"])
+	}
+}
+
+func TestBhvStreaming028_BaseApi_AnOperationWithAStreamingMediaTypeGetsAStreamMethodAndAnSseOrJsonLinesOnlyOperationGetsNoBufferedMethod(t *testing.T) {
+	t.Parallel()
+	api := reflect.TypeOf((*StoreApiInterface)(nil)).Elem()
+	for _, operation := range []string{"ExportOrders", "WatchOrders", "WatchNotices"} {
+		if _, ok := api.MethodByName(operation + "Stream"); !ok {
+			t.Errorf("expected %sStream", operation)
+		}
+		if _, ok := api.MethodByName(operation); ok {
+			t.Errorf("expected no buffered %s", operation)
+		}
+		if _, ok := api.MethodByName(operation + "WithHTTPInfo"); ok {
+			t.Errorf("expected no raw %s", operation)
+		}
+	}
+	export, _ := api.MethodByName("ExportOrdersStream")
+	notices, _ := api.MethodByName("WatchNoticesStream")
+	if !strings.Contains(export.Type.Out(0).String(), "JsonLinesStream") || !strings.Contains(notices.Type.Out(0).String(), "SseStream") {
+		t.Errorf("expected the carriers, got %v and %v", export.Type.Out(0), notices.Type.Out(0))
+	}
+}
+
+func uploadParams(body *BodySource) invokeApiParams {
+	return invokeApiParams{
+		method:      "PUT",
+		path:        "/items/blob",
+		contentType: "application/octet-stream",
+		rawBody:     true,
+		body:        body,
+		call:        &callState{},
+	}
+}
+
+func TestBhvStreaming026_BaseApi_AReplayableUploadIsRewoundAndRetriedAfterA503AndASingleUseUploadIsNotRetriedAndSurfacesTheOriginalError(t *testing.T) {
+	t.Parallel()
+	data := patterned(20_000)
+	var mu sync.Mutex
+	var seen []upload
+	server := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		received := readRawUpload(conn, head, func() {})
+		mu.Lock()
+		seen = append(seen, received)
+		mu.Unlock()
+		if hit == 1 {
+			rawReply(conn, 503, "Retry-After: 0")
+			return
+		}
+		rawReply(conn, 200)
+	})
+	var opens atomic.Int32
+	replayable := BodyFromFactory(func() (io.ReadCloser, error) {
+		opens.Add(1)
+		return io.NopCloser(bytes.NewReader(data)), nil
+	})
+
+	response, err := streamBase(t, server, nil, nil).invokeApiForResult(uploadParams(replayable))
+
+	if err != nil || response.StatusCode != 200 {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	if got := server.hits.Load(); got != 2 || opens.Load() != 2 {
+		t.Errorf("expected the 503 retried with the source opened again, got %d requests and %d opens", got, opens.Load())
+	}
+	mu.Lock()
+	if len(seen) != 2 || !bytes.Equal(seen[0].bytes, data) || !bytes.Equal(seen[1].bytes, data) {
+		t.Errorf("expected the retry to carry the whole body")
+	}
+	mu.Unlock()
+
+	failing := serveRaw(t, func(s *rawServer, conn net.Conn, hit int, head string) {
+		readRawUpload(conn, head, func() {})
+		rawReply(conn, 503, "Retry-After: 0")
+	})
+	_, err = streamBase(t, failing, nil, nil).invokeApiForResult(uploadParams(BodyFromReader(io.MultiReader(bytes.NewReader(data)))))
+
+	var unavailable *pkgerrors.ServiceUnavailableError
+	if !errors.As(err, &unavailable) {
+		t.Fatalf("expected the original 503 error, got %T: %v", err, err)
+	}
+	if got := failing.hits.Load(); got != 1 {
+		t.Errorf("expected a single use body to be sent once, got %d requests", got)
 	}
 }

@@ -1,0 +1,60 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"encoding/base64"
+	"fmt"
+	"io"
+	"maps"
+)
+
+// ApiStreamResponse is an HTTP response whose body has not been read yet: the
+// status code, the lower-cased headers and the open body. It is what
+// StreamingApiClient.SendStreaming returns. The caller owns Body and must close
+// it; closing aborts the connection instead of draining it.
+//
+// A non-2xx response is returned like any other, with its body open; a caller
+// that does not want it reads a bounded part with ReadBounded or closes it.
+type ApiStreamResponse struct {
+	/* StatusCode is the HTTP status code. */
+	StatusCode int
+
+	/* Headers are the response headers with lower-cased names. */
+	Headers map[string]string
+
+	/* Body is the open response body, decoded when the server compressed it. */
+	Body io.ReadCloser
+}
+
+// NewApiStreamResponse creates a response over an open body. The headers are
+// copied.
+func NewApiStreamResponse(statusCode int, headers map[string]string, body io.ReadCloser) *ApiStreamResponse {
+	return &ApiStreamResponse{StatusCode: statusCode, Headers: maps.Clone(headers), Body: body}
+}
+
+// ReadBounded reads at most maxBytes of the body, closes it and returns the
+// result as a buffered response, so the same typed error as a buffered call can
+// be raised from it. The body text is decoded for a text content type and is
+// base64 text otherwise, as a buffered response is. A failure while reading
+// keeps what was read.
+func (r *ApiStreamResponse) ReadBounded(maxBytes int64) *ApiHttpResponse {
+	defer func() { _ = r.Body.Close() }()
+	raw, _ := io.ReadAll(io.LimitReader(r.Body, maxBytes))
+	contentType := r.Headers["content-type"]
+	text := base64.StdEncoding.EncodeToString(raw)
+	if isTextContentType(contentType) {
+		text = decodeBodyByCharset(raw, contentType)
+	}
+	return &ApiHttpResponse{StatusCode: r.StatusCode, Body: text, Headers: maps.Clone(r.Headers)}
+}
+
+// String describes the response by its status only; the headers and the body
+// are never shown.
+func (r ApiStreamResponse) String() string {
+	return fmt.Sprintf("ApiStreamResponse{statusCode=%d}", r.StatusCode)
+}
+
+// GoString is String for the %#v verb, which would otherwise show the headers.
+func (r ApiStreamResponse) GoString() string {
+	return r.String()
+}

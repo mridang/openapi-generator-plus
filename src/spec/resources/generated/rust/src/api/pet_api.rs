@@ -18,10 +18,14 @@ use crate::api_client::ApiClient;
 use crate::api_client::MultipartValue;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
+use crate::body_source::BodySource;
+use crate::byte_stream::ByteStream;
 use crate::configuration::Configuration;
 use crate::errors::api_error::ApiError;
 use crate::models::*;
 use crate::object_serializer;
+use crate::paginator::CursorOf;
+use crate::paginator::{ItemsOf, PageFuture, Paginator};
 use crate::value_serializer;
 use crate::value_serializer::SerializedValue;
 
@@ -219,6 +223,7 @@ impl GetStagingPetInfoServer for GetStagingPetInfoServerStagingServer {
 /// (globs like /pets/* and /pets/**/ and an id of #{petId})
 /// See <https://example.com/docs/pets> Find out more about pets (it's */ here)
 /// on two lines
+#[derive(Clone)]
 pub struct PetApi {
     base: BaseApi,
 }
@@ -344,6 +349,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -486,6 +492,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -598,6 +605,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -734,6 +742,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -881,6 +890,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec![],
             content_type: request_content_type,
@@ -908,7 +918,7 @@ impl PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ByteStream, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
             .download_pet_document_with_http_info(pet_id, document_id, options)
             .await?;
@@ -935,7 +945,7 @@ impl PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -955,7 +965,7 @@ impl PetApi {
         options: Option<&DownloadPetDocumentOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/documents/{documentId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1012,10 +1022,11 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/octet-stream"],
             content_type: request_content_type,
-            return_type: "Vec<u8>",
+            return_type: "ByteStream",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
             error_schemas: &[],
             /* This operation inherits the global security requirement; pass
@@ -1023,7 +1034,9 @@ impl PetApi {
             auth: None,
         };
 
-        self.base.invoke_api_for_result::<Vec<u8>>(params).await
+        /* A binary response is returned as a stream, not read yet; the call
+         * returns once the response headers have arrived. */
+        self.base.invoke_api_for_stream(params).await
     }
 
     /// List pets born on a given date
@@ -1115,6 +1128,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -1323,6 +1337,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -1434,6 +1449,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -1546,6 +1562,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -1571,7 +1588,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ByteStream, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_pet_avatar_with_http_info(pet_id, options).await?;
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body must surface the SDK's typed ApiError
@@ -1595,7 +1612,7 @@ impl PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -1614,7 +1631,7 @@ impl PetApi {
         options: Option<&GetPetAvatarOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/avatar".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -1651,10 +1668,11 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["image/jpeg", "image/png"],
             content_type: request_content_type,
-            return_type: "Vec<u8>",
+            return_type: "ByteStream",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
             error_schemas: &[],
             /* This operation inherits the global security requirement; pass
@@ -1662,7 +1680,9 @@ impl PetApi {
             auth: None,
         };
 
-        self.base.invoke_api_for_result::<Vec<u8>>(params).await
+        /* A binary response is returned as a stream, not read yet; the call
+         * returns once the response headers have arrived. */
+        self.base.invoke_api_for_stream(params).await
     }
 
     /// Get the pet's avatar thumbnail as base64
@@ -1759,6 +1779,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -1889,6 +1910,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -2093,6 +2115,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -2260,6 +2283,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -2367,6 +2391,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -2393,7 +2418,7 @@ impl PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ByteStream, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
             .get_pet_photo_with_http_info(pet_id, photo_id, options)
             .await?;
@@ -2420,7 +2445,7 @@ impl PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         /* The shared implementation below takes the resolved Content-Type as an
          * argument. The first declared request content-type,
          * application/json, is the default
@@ -2440,7 +2465,7 @@ impl PetApi {
         options: Option<&GetPetPhotoOptions>,
 
         request_content_type: &str,
-    ) -> Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/photos/{photoId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2495,10 +2520,11 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["image/jpeg", "image/png", "application/json"],
             content_type: request_content_type,
-            return_type: "Vec<u8>",
+            return_type: "ByteStream",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
             error_schemas: &[],
             /* This operation inherits the global security requirement; pass
@@ -2506,7 +2532,9 @@ impl PetApi {
             auth: None,
         };
 
-        self.base.invoke_api_for_result::<Vec<u8>>(params).await
+        /* A binary response is returned as a stream, not read yet; the call
+         * returns once the response headers have arrived. */
+        self.base.invoke_api_for_stream(params).await
     }
 
     /// Get a \<plain\> "text" summary & it's short
@@ -2717,6 +2745,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["text/plain"],
             content_type: request_content_type,
@@ -3108,6 +3137,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -3219,6 +3249,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -3231,6 +3262,918 @@ impl PetApi {
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
+    }
+
+    /// Lists archived pets; it looks paged, and the generator option says it is not
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pet_archive(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> Result<PetArchivePage, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pet_archive_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pet_archive but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pet_archive operation and returns the full API result.
+    pub async fn list_pet_archive_with_http_info(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pet_archive_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the list_pet_archive operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pet_archive_invoke(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/archive".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.cursor {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "cursor",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "String",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("cursor".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("cursor".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pet_archive",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetArchive",
+            url_template: "/pet/archive",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "PetArchivePage",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base
+            .invoke_api_for_result::<PetArchivePage>(params)
+            .await
+    }
+
+    /// Lists the pet catalog one page at a time with a next-cursor token
+    /// * `limit`: The number of pets on a page
+    /// * `cursor`: Where to continue, as returned in next_cursor of the previous page
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pet_catalog(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Result<PetCatalogPage, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pet_catalog_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pet_catalog but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pet_catalog operation and returns the full API result.
+    pub async fn list_pet_catalog_with_http_info(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pet_catalog_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the list_pet_catalog operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pet_catalog_invoke(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/catalog".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.limit {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "limit",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("limit".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("limit".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.cursor {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "cursor",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "String",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("cursor".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("cursor".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pet_catalog",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetCatalog",
+            url_template: "/pet/catalog",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "PetCatalogPage",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base
+            .invoke_api_for_result::<PetCatalogPage>(params)
+            .await
+    }
+
+    /// Lists the items of list_pet_catalog as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_catalog_with_http_info`](Self::list_pet_catalog_with_http_info),
+    /// with the same options on each page.
+    /// The `cursor` of the options is where the list starts, and
+    /// the page after each one is requested with the `next_cursor` it returned.
+    pub fn list_pet_catalog_pages(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Paginator<Pet, String, PetCatalogPage> {
+        let api = self.clone();
+        let base_options: Option<ListPetCatalogOptions> = options.cloned();
+        Paginator::of_cursor(
+            base_options
+                .as_ref()
+                .and_then(|options| options.cursor.clone()),
+            move |cursor: Option<String>| -> PageFuture<PetCatalogPage> {
+                let api = api.clone();
+                let mut page_options = base_options.clone();
+                if page_options.is_some() || cursor.is_some() {
+                    page_options
+                        .get_or_insert_with(ListPetCatalogOptions::new)
+                        .cursor = cursor;
+                }
+                Box::pin(async move {
+                    api.list_pet_catalog_with_http_info(page_options.as_ref())
+                        .await
+                })
+            },
+            |page: &PetCatalogPage| page.items.items_of(),
+            |page: &PetCatalogPage| page.next_cursor.cursor_of(),
+            "/pet/catalog".to_string(),
+        )
+    }
+
+    /// Lists pet events; only the generator option says it is paged
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pet_events(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Result<PetEventPage, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pet_events_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pet_events but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pet_events operation and returns the full API result.
+    pub async fn list_pet_events_with_http_info(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pet_events_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the list_pet_events operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pet_events_invoke(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/events".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.since {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "since",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "String",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("since".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("since".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pet_events",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetEvents",
+            url_template: "/pet/events",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "PetEventPage",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base
+            .invoke_api_for_result::<PetEventPage>(params)
+            .await
+    }
+
+    /// Lists the items of list_pet_events as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_events_with_http_info`](Self::list_pet_events_with_http_info),
+    /// with the same options on each page.
+    /// The `since` of the options is where the list starts, and
+    /// the page after each one is requested with the `upto` it returned.
+    pub fn list_pet_events_pages(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Paginator<String, String, PetEventPage> {
+        let api = self.clone();
+        let base_options: Option<ListPetEventsOptions> = options.cloned();
+        Paginator::of_cursor(
+            base_options
+                .as_ref()
+                .and_then(|options| options.since.clone()),
+            move |cursor: Option<String>| -> PageFuture<PetEventPage> {
+                let api = api.clone();
+                let mut page_options = base_options.clone();
+                if page_options.is_some() || cursor.is_some() {
+                    page_options
+                        .get_or_insert_with(ListPetEventsOptions::new)
+                        .since = cursor;
+                }
+                Box::pin(async move {
+                    api.list_pet_events_with_http_info(page_options.as_ref())
+                        .await
+                })
+            },
+            |page: &PetEventPage| page.events.items_of(),
+            |page: &PetEventPage| page.upto.cursor_of(),
+            "/pet/events".to_string(),
+        )
+    }
+
+    /// Lists the pet feed one page at a time with a Link header
+    /// * `limit`: The number of pets on a page
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pet_feed(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pet_feed_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pet_feed but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pet_feed operation and returns the full API result.
+    pub async fn list_pet_feed_with_http_info(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pet_feed_invoke(options, "application/json", None)
+            .await
+    }
+
+    /// Shared implementation for the list_pet_feed operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pet_feed_invoke(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+
+        request_content_type: &str,
+        page_url: Option<&str>,
+    ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/feed".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.limit {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "limit",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("limit".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("limit".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        /* A page after the first is the URL the Link header named: it replaces
+         * the path, and its own query replaces the query of the operation. */
+        if let Some(url) = page_url {
+            path = url.to_string();
+            query_params.clear();
+        }
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pet_feed",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetFeed",
+            url_template: "/pet/feed",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "Vec<Pet>",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base.invoke_api_for_result::<Vec<Pet>>(params).await
+    }
+
+    /// Lists the items of list_pet_feed as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_feed_with_http_info`](Self::list_pet_feed_with_http_info),
+    /// with the same options on each page.
+    /// The page after each one is the `rel="next"` link of its `Link` header,
+    /// followed only within the origin of the client.
+    pub fn list_pet_feed_pages(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Paginator<Pet, (), Vec<Pet>> {
+        let api = self.clone();
+        let base_options: Option<ListPetFeedOptions> = options.cloned();
+        Paginator::of_link(
+            self.base.base_url().to_string(),
+            move |page_url: Option<String>| -> PageFuture<Vec<Pet>> {
+                let api = api.clone();
+                let page_options = base_options.clone();
+                Box::pin(async move {
+                    api.list_pet_feed_invoke(
+                        page_options.as_ref(),
+                        "application/json",
+                        page_url.as_deref(),
+                    )
+                    .await
+                })
+            },
+            |page: &Vec<Pet>| page.items_of(),
+            "/pet/feed".to_string(),
+        )
+    }
+
+    /// Finds pets and their owners; two lists make it ambiguous, so it is not paged
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pet_matches(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> Result<PetMatchPage, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pet_matches_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pet_matches but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pet_matches operation and returns the full API result.
+    pub async fn list_pet_matches_with_http_info(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pet_matches_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the list_pet_matches operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pet_matches_invoke(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/matches".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.cursor {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "cursor",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "String",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("cursor".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("cursor".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pet_matches",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetMatches",
+            url_template: "/pet/matches",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "PetMatchPage",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base
+            .invoke_api_for_result::<PetMatchPage>(params)
+            .await
+    }
+
+    /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pet_notes(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Result<PetNotePage, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pet_notes_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pet_notes but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pet_notes operation and returns the full API result.
+    pub async fn list_pet_notes_with_http_info(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pet_notes_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the list_pet_notes operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pet_notes_invoke(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/notes".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.pos {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "pos",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "String",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("pos".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("pos".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pet_notes",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetNotes",
+            url_template: "/pet/notes",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "PetNotePage",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base.invoke_api_for_result::<PetNotePage>(params).await
+    }
+
+    /// Lists the items of list_pet_notes as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_notes_with_http_info`](Self::list_pet_notes_with_http_info),
+    /// with the same options on each page.
+    /// The `pos` of the options is where the list starts, and
+    /// the page after each one is requested with the `following` it returned.
+    pub fn list_pet_notes_pages(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Paginator<String, String, PetNotePage> {
+        let api = self.clone();
+        let base_options: Option<ListPetNotesOptions> = options.cloned();
+        Paginator::of_cursor(
+            base_options
+                .as_ref()
+                .and_then(|options| options.pos.clone()),
+            move |cursor: Option<String>| -> PageFuture<PetNotePage> {
+                let api = api.clone();
+                let mut page_options = base_options.clone();
+                if page_options.is_some() || cursor.is_some() {
+                    page_options
+                        .get_or_insert_with(ListPetNotesOptions::new)
+                        .pos = cursor;
+                }
+                Box::pin(async move {
+                    api.list_pet_notes_with_http_info(page_options.as_ref())
+                        .await
+                })
+            },
+            |page: &PetNotePage| page.rows.items_of(),
+            |page: &PetNotePage| page.following.cursor_of(),
+            "/pet/notes".to_string(),
+        )
     }
 
     /// Set the pet's profile photo
@@ -3246,7 +4189,7 @@ impl PetApi {
     pub async fn set_pet_avatar(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
@@ -3262,7 +4205,7 @@ impl PetApi {
     pub async fn set_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
@@ -3287,7 +4230,7 @@ impl PetApi {
     async fn set_pet_avatar_invoke(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: &str,
@@ -3332,13 +4275,14 @@ impl PetApi {
         let mut header_params: HashMap<String, String> = HashMap::new();
 
         /* Binary (`type: string, format: binary`) request body. The parameter is
-         * `Vec<u8>` (raw bytes) and must be streamed UNCHANGED — JSON-serializing
-         * it would emit a byte array like `[255,216,...]` and base64 would
-         * re-encode it, either of which corrupts the payload. The raw octets are
-         * handed straight to invoke_api with the declared Content-Type
-         * (image/jpeg) preserved; serialize_body
-         * passes image/\* and application/octet-stream bodies through verbatim. */
-        let request_body = Some(body);
+         * a `BodySource`: a body of bytes, a file or a stream that is sent as it
+         * is read and must reach the wire UNCHANGED — JSON-serializing it would
+         * emit a byte array like `[255,216,...]` and base64 would re-encode it,
+         * either of which corrupts the payload. It goes straight to invoke_api
+         * with the declared Content-Type
+         * (image/jpeg) preserved. */
+        let request_source: Option<BodySource> = Some(body);
+        let request_body: Option<Vec<u8>> = None;
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
         let params = InvokeApiParams {
@@ -3350,6 +4294,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: request_source,
             multipart,
             accepts: vec![],
             content_type: request_content_type,
@@ -3457,6 +4402,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec![],
             content_type: request_content_type,
@@ -3602,6 +4548,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -3712,6 +4659,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -3838,6 +4786,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -4047,6 +4996,7 @@ impl PetApi {
             query_params,
             header_params,
             body: request_body,
+            source: None,
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
@@ -4124,13 +5074,13 @@ pub trait PetApiTrait {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>>;
     fn download_pet_document_with_http_info(
         &self,
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>;
     fn find_pets_born_on(
         &self,
         born_on: chrono::NaiveDate,
@@ -4179,12 +5129,12 @@ pub trait PetApiTrait {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
@@ -4242,13 +5192,13 @@ pub trait PetApiTrait {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_pet_photo_with_http_info(
         &self,
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>;
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_pet_summary(
         &self,
         pet_id: i64,
@@ -4285,10 +5235,74 @@ pub trait PetApiTrait {
         server: Option<&dyn GetStagingPetInfoServer>,
         options: Option<&GetStagingPetInfoOptions>,
     ) -> impl Future<Output = Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_archive(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> impl Future<Output = Result<PetArchivePage, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_archive_with_http_info(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_catalog(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> impl Future<Output = Result<PetCatalogPage, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_catalog_with_http_info(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_catalog_pages(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Paginator<Pet, String, PetCatalogPage>;
+    fn list_pet_events(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> impl Future<Output = Result<PetEventPage, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_events_with_http_info(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_events_pages(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Paginator<String, String, PetEventPage>;
+    fn list_pet_feed(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_feed_with_http_info(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_feed_pages(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Paginator<Pet, (), Vec<Pet>>;
+    fn list_pet_matches(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> impl Future<Output = Result<PetMatchPage, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_matches_with_http_info(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_notes(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> impl Future<Output = Result<PetNotePage, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_notes_with_http_info(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_notes_pages(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Paginator<String, String, PetNotePage>;
     fn set_pet_avatar(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
@@ -4296,7 +5310,7 @@ pub trait PetApiTrait {
     fn set_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
@@ -4448,7 +5462,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         PetApi::download_pet_document(self, pet_id, document_id, options)
     }
 
@@ -4457,7 +5471,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         document_id: i64,
         options: Option<&DownloadPetDocumentOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::download_pet_document_with_http_info(self, pet_id, document_id, options)
     }
@@ -4533,7 +5547,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         PetApi::get_pet_avatar(self, pet_id, options)
     }
 
@@ -4541,7 +5555,7 @@ impl PetApiTrait for PetApi {
         &self,
         pet_id: i64,
         options: Option<&GetPetAvatarOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::get_pet_avatar_with_http_info(self, pet_id, options)
     }
@@ -4632,7 +5646,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>>> {
+    ) -> impl Future<Output = Result<ByteStream, Box<dyn std::error::Error + Send + Sync>>> {
         PetApi::get_pet_photo(self, pet_id, photo_id, options)
     }
 
@@ -4641,7 +5655,7 @@ impl PetApiTrait for PetApi {
         pet_id: i64,
         photo_id: i64,
         options: Option<&GetPetPhotoOptions>,
-    ) -> impl Future<Output = Result<ApiResult<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>>
+    ) -> impl Future<Output = Result<ApiResult<ByteStream>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::get_pet_photo_with_http_info(self, pet_id, photo_id, options)
     }
@@ -4699,10 +5713,124 @@ impl PetApiTrait for PetApi {
     {
         PetApi::get_staging_pet_info_with_http_info(self, pet_id, server, options)
     }
+    fn list_pet_archive(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> impl Future<Output = Result<PetArchivePage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_archive(self, options)
+    }
+
+    fn list_pet_archive_with_http_info(
+        &self,
+        options: Option<&ListPetArchiveOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetArchivePage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_archive_with_http_info(self, options)
+    }
+    fn list_pet_catalog(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> impl Future<Output = Result<PetCatalogPage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_catalog(self, options)
+    }
+
+    fn list_pet_catalog_with_http_info(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetCatalogPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_catalog_with_http_info(self, options)
+    }
+
+    fn list_pet_catalog_pages(
+        &self,
+        options: Option<&ListPetCatalogOptions>,
+    ) -> Paginator<Pet, String, PetCatalogPage> {
+        PetApi::list_pet_catalog_pages(self, options)
+    }
+    fn list_pet_events(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> impl Future<Output = Result<PetEventPage, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::list_pet_events(self, options)
+    }
+
+    fn list_pet_events_with_http_info(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetEventPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_events_with_http_info(self, options)
+    }
+
+    fn list_pet_events_pages(
+        &self,
+        options: Option<&ListPetEventsOptions>,
+    ) -> Paginator<String, String, PetEventPage> {
+        PetApi::list_pet_events_pages(self, options)
+    }
+    fn list_pet_feed(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> impl Future<Output = Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::list_pet_feed(self, options)
+    }
+
+    fn list_pet_feed_with_http_info(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_feed_with_http_info(self, options)
+    }
+
+    fn list_pet_feed_pages(
+        &self,
+        options: Option<&ListPetFeedOptions>,
+    ) -> Paginator<Pet, (), Vec<Pet>> {
+        PetApi::list_pet_feed_pages(self, options)
+    }
+    fn list_pet_matches(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> impl Future<Output = Result<PetMatchPage, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::list_pet_matches(self, options)
+    }
+
+    fn list_pet_matches_with_http_info(
+        &self,
+        options: Option<&ListPetMatchesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_matches_with_http_info(self, options)
+    }
+    fn list_pet_notes(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> impl Future<Output = Result<PetNotePage, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::list_pet_notes(self, options)
+    }
+
+    fn list_pet_notes_with_http_info(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetNotePage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_notes_with_http_info(self, options)
+    }
+
+    fn list_pet_notes_pages(
+        &self,
+        options: Option<&ListPetNotesOptions>,
+    ) -> Paginator<String, String, PetNotePage> {
+        PetApi::list_pet_notes_pages(self, options)
+    }
     fn set_pet_avatar(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,
@@ -4713,7 +5841,7 @@ impl PetApiTrait for PetApi {
     fn set_pet_avatar_with_http_info(
         &self,
         pet_id: i64,
-        body: Vec<u8>,
+        body: BodySource,
         options: Option<&SetPetAvatarOptions>,
 
         request_content_type: Option<&str>,

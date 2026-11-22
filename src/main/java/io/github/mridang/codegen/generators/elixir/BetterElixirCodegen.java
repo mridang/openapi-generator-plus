@@ -31,6 +31,7 @@ import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
@@ -57,6 +58,152 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @Override
     protected String errorSchemaTemplate() {
         return "errors/schema_error.mustache";
+    }
+
+    /**
+     * After the shared pass, marks the operations whose success response is binary: the decorator
+     * {@code streamsBinary} tells the templates to call the stream invoker, and the return type
+     * becomes {@code <module>.ByteStream.t()} (D119).
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> early = (Map<String, Object>) objs.get("operations");
+        if (early != null && early.get("operation") != null) {
+            for (final CodegenOperation op : (List<CodegenOperation>) early.get("operation")) {
+                markBinaryUpload(op, moduleName);
+            }
+        }
+        final OperationsMap processed = super.postProcessOperationsWithModels(objs, allModels);
+        final Map<String, Object> operations = (Map<String, Object>) processed.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                for (final CodegenOperation op : ops) {
+                    markBinaryStream(op, moduleName);
+                }
+            }
+        }
+        return processed;
+    }
+
+    /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of the bytes. It runs before the shared pass, which copies the body type
+     * into the signature arguments. Multipart and every other body kind keep the type the spec
+     * maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op, final String moduleName) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        final String type = moduleName + ".BodySource.t()";
+        body.dataType = type;
+        body.baseType = type;
+        body.datatypeWithEnum = type;
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = type;
+                    p.baseType = type;
+                    p.datatypeWithEnum = type;
+                }
+            }
+        }
+    }
+
+    /**
+     * Sets {@code streamsBinary} on {@code vendorExtensions.op} and rewrites the return type of an
+     * operation whose {@code streamKind} is {@code binary}.
+     */
+    @SuppressWarnings("unchecked")
+    static void markBinaryStream(final CodegenOperation op, final String moduleName) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final Object kind = d.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        d.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = moduleName + ".ByteStream.t()";
+            op.returnBaseType = moduleName + ".ByteStream.t()";
+        }
+        final boolean only = Boolean.TRUE.equals(d.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && only;
+        final boolean jsonLines = "jsonlines".equals(kind) && only;
+        d.put("streamsSse", sse);
+        d.put("streamsJsonLines", jsonLines);
+        d.put("streamsAny", binary || sse || jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(d.get("streamEventIsText"));
+            final Object declared = d.get("streamItemType");
+            final boolean typed = !text && declared != null;
+            d.put("streamTyped", typed);
+            d.put("streamItemDecode", typed && declared != null ? declared.toString() : "");
+            final String carrier = moduleName + (sse ? ".SseStream.t()" : ".JsonLinesStream.t()");
+            op.returnType = carrier;
+            op.returnBaseType = carrier;
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first paged operation, as {@code pagedOperation}, and the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(
+                                            ((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
     }
 
     /** {@inheritDoc} */
@@ -393,6 +540,8 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "internal_server_error.ex"),
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "network_error.ex"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "network_timeout_error.ex"),
+            new SupportingFileSpec("errors/stream_error.mustache", errorsDir, "stream_error.ex"),
+            new SupportingFileSpec("errors/pagination_error.mustache", errorsDir, "pagination_error.ex"),
             new SupportingFileSpec("errors/root_error.mustache", errorsDir, errorPrefixSnake() + "_error.ex"),
             new SupportingFileSpec("header_selector.mustache", libDir, "header_selector.ex"),
             new SupportingFileSpec("object_serializer.mustache", libDir, "object_serializer.ex"),
@@ -403,6 +552,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("call_hook.mustache", libDir, "call_hook.ex"),
             new SupportingFileSpec("api_response.mustache", libDir, "api_http_response.ex"),
             new SupportingFileSpec("api_result.mustache", libDir, "api_result.ex"),
+            new SupportingFileSpec("api_stream_response.mustache", libDir, "api_stream_response.ex"),
+            new SupportingFileSpec("body_source.mustache", libDir, "body_source.ex"),
+            new SupportingFileSpec("byte_stream.mustache", libDir, "byte_stream.ex"),
+            new SupportingFileSpec("stream_body.mustache", libDir, "stream_body.ex"),
+            new SupportingFileSpec("event_stream.mustache", libDir, "event_stream.ex"),
+            new SupportingFileSpec("server_sent_event.mustache", libDir, "server_sent_event.ex"),
+            new SupportingFileSpec("sse_stream.mustache", libDir, "sse_stream.ex"),
+            new SupportingFileSpec("json_lines_stream.mustache", libDir, "json_lines_stream.ex"),
+            new SupportingFileSpec("paginator.mustache", libDir, "paginator.ex"),
+            new SupportingFileSpec("page.mustache", libDir, "page.ex"),
             new SupportingFileSpec("api_client.mustache", libDir, "api_client.ex"),
             new SupportingFileSpec("default_api_client.mustache", libDir, "default_api_client.ex"),
             new SupportingFileSpec("base_api.mustache", Path.of(libDir, "api").toString(), "base_api.ex"),
@@ -462,6 +621,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test/value_serializer_test.mustache",
                             "test",
                             "value_serializer_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/event_stream_test.mustache", "test", "event_stream_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/header_selector_test.mustache",

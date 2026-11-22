@@ -15,6 +15,7 @@ import {
 import type { Authenticator } from "../src/auth/authenticator.js";
 import { NO_AUTH } from "../src/auth/authenticator.js";
 import { AsyncLocalStorage } from "node:async_hooks";
+import * as http from "node:http";
 import { ApiError } from "../src/errors/api-error.js";
 import { ClientError } from "../src/errors/client-error.js";
 import { ServerError } from "../src/errors/server-error.js";
@@ -33,6 +34,12 @@ import type {
   SendRequestOptions,
 } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
+import { ApiStreamResponse } from "../src/api-stream-response.js";
+import { BodySource } from "../src/body-source.js";
+import type { ByteStream } from "../src/byte-stream.js";
+import { JsonLinesStream } from "../src/json-lines-stream.js";
+import { SseStream } from "../src/sse-stream.js";
+import type { StreamOptions } from "../src/stream-options.js";
 import type { ApiResult } from "../src/api-result.js";
 import { PetApi } from "../src/api/pet-api.js";
 import { StoreApi } from "../src/api/store-api.js";
@@ -40,7 +47,7 @@ import { BearerAuthenticator } from "../src/auth/bearer-authenticator.js";
 import { ApiKeyAuthenticator } from "../src/auth/api-key-authenticator.js";
 import { OAuth2ClientCredentialsAuthenticator } from "../src/auth/oauth/oauth2-client-credentials-authenticator.js";
 import { ApiKeyLocation } from "../src/auth/api-key-location.js";
-import { Category } from "../src/models/index.js";
+import { Category, Pet, PetCatalogPage } from "../src/models/index.js";
 import { ObjectSerializer } from "../src/object-serializer.js";
 import {
   OpenAPIError,
@@ -51,6 +58,9 @@ import {
 import { chain } from "../src/call-hook.js";
 import type { CallHook, CallInfo, CallOutcome } from "../src/call-hook.js";
 import { TransportOptions } from "../src/transport-options.js";
+import { Paginator } from "../src/paginator.js";
+import type { Page } from "../src/paginator.js";
+import { PaginationError } from "../src/errors/pagination-error.js";
 
 class CapturingApiClient implements ApiClient {
   capturedUrl = "";
@@ -1711,7 +1721,7 @@ describe("BaseApi", () => {
       new Configuration({ baseUrl: "http://localhost" }),
     );
     try {
-      await defaultApi.setPetAvatar(1, payload);
+      await defaultApi.setPetAvatar(1, BodySource.of(payload));
     } catch {
       // setPetAvatar returns void; the capturing client returns '{}' so nothing
       // should throw, but stay capture-only regardless.
@@ -1725,7 +1735,7 @@ describe("BaseApi", () => {
       new Configuration({ baseUrl: "http://localhost" }),
     );
     try {
-      await pngApi.setPetAvatar(1, payload, "image/png");
+      await pngApi.setPetAvatar(1, BodySource.of(payload), "image/png");
     } catch {
       // capture-only, as above.
     }
@@ -4294,5 +4304,1150 @@ describe("BaseApi misc truncation behaviours", () => {
       )
       .catch((e: unknown) => e);
     expect(String(error)).toContain("(476 more bytes)");
+  });
+});
+
+describe("BaseApi binary streams", () => {
+  class StreamingApi extends TestableApi {
+    stream(path: string): Promise<ApiResult<ByteStream>> {
+      return this.invokeApiForStream(
+        "GET",
+        path,
+        {},
+        {},
+        null,
+        ["application/octet-stream"],
+        "application/json",
+        undefined,
+        false,
+        "downloadOperation",
+        undefined,
+        undefined,
+        "download_operation",
+        path,
+      );
+    }
+  }
+
+  /** A response body that remembers whether it was closed before it ended. */
+  function trackedBody(
+    bytes: Uint8Array,
+    probe: { cancelled: boolean },
+  ): ReadableStream<Uint8Array> {
+    let sent = false;
+    return new ReadableStream<Uint8Array>(
+      {
+        pull(controller): void {
+          if (sent) {
+            controller.close();
+            return;
+          }
+          sent = true;
+          controller.enqueue(bytes);
+        },
+        cancel(): void {
+          probe.cancelled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+  }
+
+  /** Answers a stream call from a script of statuses and keeps what each call was sent. */
+  class ScriptedStreamingClient implements ApiClient {
+    readonly streamHeaders: Array<Record<string, string>> = [];
+    readonly opened: Array<{ cancelled: boolean }> = [];
+    constructor(
+      private readonly contentType: string,
+      private readonly bytes: Uint8Array,
+      private readonly statuses: number[],
+    ) {}
+    async sendRequest(): Promise<ApiHttpResponse> {
+      return {
+        statusCode: 200,
+        body: "{}",
+        headers: { "content-type": "application/json" },
+      };
+    }
+    async sendStreaming(
+      _method: string,
+      _url: string,
+      headers: Record<string, string>,
+    ): Promise<ApiStreamResponse> {
+      const index = Math.min(
+        this.streamHeaders.length,
+        this.statuses.length - 1,
+      );
+      this.streamHeaders.push({ ...headers });
+      const probe = { cancelled: false };
+      this.opened.push(probe);
+      return new ApiStreamResponse(
+        this.statuses[index]!,
+        { "content-type": this.contentType },
+        trackedBody(this.bytes, probe),
+      );
+    }
+  }
+
+  /** An authenticator that hands out t1, t2, ... and moves to the next token when told to drop the current one. */
+  class RotatingTokenAuthenticator implements Authenticator {
+    private current = 1;
+    invalidations = 0;
+    getHost(): string {
+      return "";
+    }
+    getAuthHeaders(): Record<string, string> {
+      return { Authorization: `Bearer t${this.current}` };
+    }
+    getAuthHeadersAsync(): Promise<Record<string, string>> {
+      return Promise.resolve(this.getAuthHeaders());
+    }
+    getQueryParams(): Record<string, string> {
+      return {};
+    }
+    getCookieParams(): Record<string, string> {
+      return {};
+    }
+    invalidateAccessToken(): void {
+      this.invalidations += 1;
+      this.current += 1;
+    }
+  }
+
+  const streamApi = (
+    client: ApiClient,
+    authenticator?: Authenticator,
+  ): StreamingApi =>
+    new StreamingApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+      authenticator ?? null,
+    );
+
+  test("bhv streaming 008 a non-2xx streaming call raises the typed error with the status and the error body and never returns a stream", async () => {
+    const client = new ScriptedStreamingClient(
+      "application/json",
+      Buffer.from('{"message":"gone"}'),
+      [404],
+    );
+
+    const failure = await streamApi(client)
+      .stream("/items/blob")
+      .catch((error: unknown) => error);
+
+    expect((failure as Error).constructor).toBe(NotFoundError);
+    expect((failure as NotFoundError).statusCode).toBe(404);
+    expect((failure as NotFoundError).responseBody).toContain("gone");
+    expect((failure as NotFoundError).requestPath).toBe("/items/blob");
+
+    const endless = { cancelled: false };
+    const bounded = await streamApi({
+      async sendRequest(): Promise<ApiHttpResponse> {
+        return { statusCode: 200, body: "{}", headers: {} };
+      },
+      async sendStreaming(): Promise<ApiStreamResponse> {
+        return new ApiStreamResponse(
+          502,
+          { "content-type": "text/plain" },
+          new ReadableStream<Uint8Array>(
+            {
+              pull(controller): void {
+                controller.enqueue(Buffer.alloc(16 * 1024, "x"));
+              },
+              cancel(): void {
+                endless.cancelled = true;
+              },
+            },
+            { highWaterMark: 0 },
+          ),
+        );
+      },
+    })
+      .stream("/items/blob")
+      .catch((error: unknown) => error);
+
+    expect(bounded).toBeInstanceOf(BadGatewayError);
+    expect((bounded as BadGatewayError).responseBody).toHaveLength(64 * 1024);
+    expect(endless.cancelled).toBe(true);
+  });
+
+  test("bhv streaming 017 a streaming call sends the same user agent, request id, trace context and authentication as a buffered call", async () => {
+    const seen: Array<http.IncomingHttpHeaders> = [];
+    const server = http.createServer((request, response) => {
+      seen.push(request.headers);
+      response.writeHead(200, { "content-type": "text/plain" });
+      response.end("ok");
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const baseUrl = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+      const hook: CallHook = {
+        start: (_info, headers) => {
+          headers["traceparent"] =
+            "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+          return undefined;
+        },
+      };
+      const transport = new DefaultApiClient(
+        TransportOptions.builder().injectRequestId(true).maxRetries(0).build(),
+      );
+      const api = new StreamingApi(
+        transport,
+        new Configuration({ baseUrl, callHook: hook }),
+        new ApiKeyAuthenticator(
+          baseUrl,
+          "X-Api-Key",
+          "k-123",
+          ApiKeyLocation.HEADER,
+        ),
+      );
+
+      await api.callForResult(
+        "GET",
+        "/items/blob",
+        {},
+        {},
+        null,
+        ["application/octet-stream"],
+        "application/json",
+        (json: unknown) => json,
+      );
+      await (await api.stream("/items/blob")).data!.close();
+      await transport.close();
+
+      const [buffered, streamed] = seen;
+      expect(Object.keys(streamed!).sort()).toEqual(
+        Object.keys(buffered!).sort(),
+      );
+      for (const name of [
+        "user-agent",
+        "x-api-key",
+        "traceparent",
+        "accept",
+        "accept-encoding",
+      ]) {
+        expect(streamed![name]).toBeDefined();
+        expect(streamed![name]).toEqual(buffered![name]);
+      }
+      expect(streamed!["x-request-id"]).toBeDefined();
+      expect(streamed!["x-request-id"]).not.toEqual(buffered!["x-request-id"]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  test("bhv streaming 018 a 401 on a streaming call authenticated by OAuth2 refreshes the token and replays once before the stream is returned", async () => {
+    const client = new ScriptedStreamingClient(
+      "application/octet-stream",
+      Buffer.from("ok"),
+      [401, 200],
+    );
+    const authenticator = new RotatingTokenAuthenticator();
+
+    const result = await streamApi(client, authenticator).stream("/items/blob");
+
+    expect(client.streamHeaders).toHaveLength(2);
+    expect(client.streamHeaders[0]!["Authorization"]).toBe("Bearer t1");
+    expect(client.streamHeaders[1]!["Authorization"]).toBe("Bearer t2");
+    expect(authenticator.invalidations).toBe(1);
+    expect(client.opened[0]!.cancelled).toBe(true);
+    expect((await result.data!.readAll()).toString("utf8")).toBe("ok");
+
+    const refused = new ScriptedStreamingClient(
+      "application/octet-stream",
+      Buffer.alloc(0),
+      [401],
+    );
+    const failure = await streamApi(refused, new RotatingTokenAuthenticator())
+      .stream("/items/blob")
+      .catch((error: unknown) => error);
+    expect((failure as Error).constructor).toBe(UnauthorizedError);
+    expect(refused.streamHeaders).toHaveLength(2);
+  });
+
+  test("bhv streaming 030 a transport that does not implement the streaming method makes a stream call fail with the unsupported error that names the transport, and buffered calls on it keep working", async () => {
+    class BufferedOnlyClient implements ApiClient {
+      sentUrl = "";
+      async sendRequest(
+        _method: string,
+        url: string,
+      ): Promise<ApiHttpResponse> {
+        this.sentUrl = url;
+        return {
+          statusCode: 200,
+          body: "{}",
+          headers: { "content-type": "application/json" },
+        };
+      }
+    }
+    const transport = new BufferedOnlyClient();
+    const api = streamApi(transport);
+
+    const refused = await api
+      .stream("/items/blob")
+      .catch((error: unknown) => error);
+
+    expect(refused).toBeInstanceOf(TypeError);
+    expect((refused as TypeError).message).toContain("BufferedOnlyClient");
+    expect((refused as TypeError).message).toContain("cannot stream");
+    expect(transport.sentUrl).toBe("");
+
+    await api.callForResult(
+      "GET",
+      "/items/blob",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    expect(transport.sentUrl).toBe("http://localhost/items/blob");
+  });
+});
+
+describe("BaseApi event streams", () => {
+  class EventApi extends TestableApi {
+    events(
+      headerParams: Record<string, string>,
+      streamOptions?: StreamOptions,
+    ): Promise<SseStream<string>> {
+      return this.invokeApiForSse<string>(
+        "GET",
+        "/items/events",
+        {},
+        headerParams,
+        null,
+        ["text/event-stream"],
+        "application/json",
+        undefined,
+        false,
+        null,
+        null,
+        streamOptions,
+        undefined,
+        "watchEvents",
+        "watch_events",
+        "/items/events",
+      );
+    }
+  }
+
+  /** Answers each event stream call with the next scripted body and keeps the headers it was sent. */
+  class EventStreamClient implements ApiClient {
+    readonly sentHeaders: Array<Record<string, string>> = [];
+    private readonly bodies: string[];
+    constructor(...bodies: string[]) {
+      this.bodies = bodies;
+    }
+    async sendRequest(): Promise<ApiHttpResponse> {
+      throw new Error("not buffered");
+    }
+    async sendStreaming(
+      _method: string,
+      _url: string,
+      headers: Record<string, string>,
+    ): Promise<ApiStreamResponse> {
+      const index = Math.min(this.sentHeaders.length, this.bodies.length - 1);
+      this.sentHeaders.push({ ...headers });
+      const text = this.bodies[index]!;
+      const body = new ReadableStream<Uint8Array>({
+        start(controller): void {
+          controller.enqueue(Buffer.from(text, "utf8"));
+          controller.close();
+        },
+      });
+      return text === ""
+        ? new ApiStreamResponse(204, {}, body)
+        : new ApiStreamResponse(
+            200,
+            { "content-type": "text/event-stream" },
+            body,
+          );
+    }
+  }
+
+  const headerOf = (
+    headers: Record<string, string>,
+    name: string,
+  ): string | undefined =>
+    Object.entries(headers).find(
+      ([key]) => key.toLowerCase() === name.toLowerCase(),
+    )?.[1];
+
+  const drain = async (stream: SseStream<string>): Promise<void> => {
+    for await (const event of stream) {
+      expect(event).toBeDefined();
+    }
+  };
+
+  const apiFor = (
+    client: ApiClient,
+    config?: Configuration,
+    authenticator?: Authenticator,
+  ): EventApi =>
+    new EventApi(
+      client,
+      config ?? new Configuration({ baseUrl: "http://localhost" }),
+      authenticator ?? null,
+    );
+
+  test("bhv streaming 028 an operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method", async () => {
+    const names = Object.getOwnPropertyNames(StoreApi.prototype);
+    for (const operation of ["exportOrders", "watchOrders", "watchNotices"]) {
+      expect(names).toContain(`${operation}Stream`);
+      expect(names).not.toContain(operation);
+      expect(names).not.toContain(`${operation}WithHttpInfo`);
+    }
+    const client = new EventStreamClient("data: a\n\n");
+    const store = new StoreApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    const notices = await store.watchNoticesStream();
+    expect(notices).toBeInstanceOf(SseStream);
+    await notices.close();
+    const orders = await store.exportOrdersStream();
+    expect(orders).toBeInstanceOf(JsonLinesStream);
+    await orders.close();
+  });
+
+  test("bhv sse 006 an SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them", async () => {
+    const client = new EventStreamClient("data: a\n\n", "");
+    await drain(await apiFor(client).events({}));
+    const sent = client.sentHeaders[0]!;
+    expect(headerOf(sent, "Accept")).toBe("text/event-stream");
+    expect(headerOf(sent, "Cache-Control")).toBe("no-cache");
+    expect(headerOf(sent, "Accept-Encoding")).toBe("identity");
+
+    const own = new EventStreamClient("data: a\n\n", "");
+    await drain(
+      await apiFor(
+        own,
+        new Configuration({
+          baseUrl: "http://localhost",
+          defaultHeaders: { "accept-encoding": "gzip" },
+        }),
+      ).events({
+        "cache-control": "max-age=0",
+      }),
+    );
+    const chosen = own.sentHeaders[0]!;
+    expect(headerOf(chosen, "Cache-Control")).toBe("max-age=0");
+    expect(
+      Object.keys(chosen).filter(
+        (name) => name.toLowerCase() === "cache-control",
+      ),
+    ).toHaveLength(1);
+    expect(headerOf(chosen, "Accept-Encoding")).toBe("gzip");
+    expect(
+      Object.keys(chosen).filter(
+        (name) => name.toLowerCase() === "accept-encoding",
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("bhv sse 012 an SSE stream sends the initial last event id of the call on its first request", async () => {
+    const client = new EventStreamClient("data: a\n\n", "");
+
+    await drain(await apiFor(client).events({}, { lastEventId: "42" }));
+
+    expect(headerOf(client.sentHeaders[0]!, "Last-Event-ID")).toBe("42");
+  });
+
+  test("bhv sse 013 an SSE reconnect rebuilds the headers so a refreshed token is the one sent", async () => {
+    const client = new EventStreamClient("data: a\n\n", "");
+    let counter = 0;
+    const rotating = new TestAuthenticator();
+    rotating.getAuthHeadersAsync = (): Promise<Record<string, string>> =>
+      Promise.resolve({ Authorization: `Bearer t${++counter}` });
+
+    await drain(
+      await apiFor(client, undefined, rotating).events(
+        {},
+        { reconnectDelay: 1 },
+      ),
+    );
+
+    expect(client.sentHeaders).toHaveLength(2);
+    expect(headerOf(client.sentHeaders[0]!, "Authorization")).toBe("Bearer t1");
+    expect(headerOf(client.sentHeaders[1]!, "Authorization")).toBe("Bearer t2");
+  });
+
+  test("bhv sse 020 an SSE reconnect sends Last-Event-ID only when the last event id is not empty", async () => {
+    const client = new EventStreamClient(
+      "data: a\n\n",
+      "id: 5\ndata: b\n\n",
+      "",
+    );
+
+    await drain(await apiFor(client).events({}, { reconnectDelay: 1 }));
+
+    expect(client.sentHeaders).toHaveLength(3);
+    expect(headerOf(client.sentHeaders[0]!, "Last-Event-ID")).toBeUndefined();
+    expect(headerOf(client.sentHeaders[1]!, "Last-Event-ID")).toBeUndefined();
+    expect(headerOf(client.sentHeaders[2]!, "Last-Event-ID")).toBe("5");
+  });
+});
+
+/** One request a paged-list server saw: the path, the decoded query and the headers (lower-cased names). */
+interface SeenRequest {
+  readonly path: string;
+  readonly query: Readonly<Record<string, string>>;
+  readonly headers: http.IncomingHttpHeaders;
+}
+
+/** What a paged-list server answers: a status, a JSON body, extra headers and a delay before it answers. */
+interface Reply {
+  readonly status: number;
+  readonly body: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly delayMs: number;
+}
+
+const replyOk = (
+  body: string,
+  headers: Record<string, string> = {},
+  delayMs = 0,
+): Reply => ({ status: 200, body, headers, delayMs });
+const replyStatus = (status: number, body = "{}"): Reply => ({
+  status,
+  body,
+  headers: { "Retry-After": "0" },
+  delayMs: 0,
+});
+
+/**
+ * An in-process server whose answer depends on the request it gets and on how many it has had, which
+ * the shared mock cannot do. It records every request in arrival order.
+ */
+class PagedServer {
+  private constructor(
+    private readonly listener: http.Server,
+    readonly seen: SeenRequest[],
+  ) {}
+
+  static async start(
+    handler: (request: SeenRequest, number: number) => Reply,
+  ): Promise<PagedServer> {
+    const seen: SeenRequest[] = [];
+    const listener = http.createServer((request, response) => {
+      const target = new URL(request.url ?? "/", "http://127.0.0.1");
+      const seenRequest: SeenRequest = {
+        path: target.pathname,
+        query: Object.fromEntries(target.searchParams.entries()),
+        headers: request.headers,
+      };
+      seen.push(seenRequest);
+      const reply = handler(seenRequest, seen.length);
+      setTimeout(() => {
+        response.writeHead(reply.status, {
+          "Content-Type": "application/json",
+          ...reply.headers,
+        });
+        response.end(reply.body);
+      }, reply.delayMs);
+    });
+    const server = new PagedServer(listener, seen);
+    await new Promise<void>((resolve) =>
+      listener.listen(0, "127.0.0.1", resolve),
+    );
+    return server;
+  }
+
+  get url(): string {
+    return `http://127.0.0.1:${(this.listener.address() as { port: number }).port}`;
+  }
+
+  async close(): Promise<void> {
+    this.listener.closeAllConnections();
+    await new Promise<void>((resolve) => this.listener.close(() => resolve()));
+  }
+}
+
+describe("BaseApi paged lists", () => {
+  const servers: PagedServer[] = [];
+  const clients: DefaultApiClient[] = [];
+
+  afterEach(async () => {
+    for (const client of clients.splice(0)) {
+      await client.close();
+    }
+    for (const server of servers.splice(0)) {
+      await server.close();
+    }
+  });
+
+  const start = async (
+    handler: (request: SeenRequest, number: number) => Reply,
+  ): Promise<PagedServer> => {
+    const server = await PagedServer.start(handler);
+    servers.push(server);
+    return server;
+  };
+
+  const petApi = (
+    server: PagedServer,
+    maxRetries = 0,
+    authenticator?: Authenticator,
+  ): PetApi => {
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(maxRetries).build(),
+    );
+    clients.push(client);
+    return new PetApi(
+      client,
+      new Configuration({ baseUrl: server.url }),
+      authenticator ?? null,
+    );
+  };
+
+  const petJson = (name: string): string =>
+    `{"id":1,"name":"${name}","photoUrls":[]}`;
+
+  /** A catalog page: the pets of page `page` of `size`, and the cursor of the page after it. */
+  const catalogBody = (page: number, size: number, pages: number): string => {
+    const items = Array.from({ length: size }, (_unused, index) =>
+      petJson(`p${page}-${index}`),
+    ).join(",");
+    const next = page + 1 < pages ? `,"next_cursor":"c${page + 1}"` : "";
+    return `{"items":[${items}]${next}}`;
+  };
+
+  const pageOf = (request: SeenRequest): number => {
+    const cursor = request.query["cursor"];
+    return cursor === undefined ? 0 : Number(cursor.substring(1));
+  };
+
+  /** A catalog of `pages` pages of `size` pets; the cursor of page n is "c" followed by n. */
+  const catalogServer = (pages: number, size: number): Promise<PagedServer> =>
+    start((request) => replyOk(catalogBody(pageOf(request), size, pages)));
+
+  const names = async (items: AsyncIterable<Pet>): Promise<string[]> => {
+    const out: string[] = [];
+    for await (const pet of items) {
+      out.push(pet.name);
+    }
+    return out;
+  };
+
+  const paramsSeen = (
+    server: PagedServer,
+    name: string,
+  ): Array<string | undefined> =>
+    server.seen.map((request) => request.query[name]);
+
+  /** A feed whose page n carries one pet and a Link header that names the next page, none on the last. */
+  const feedServer = (
+    pages: number,
+    link: (next: number, server: () => PagedServer) => string,
+  ): Promise<PagedServer> => {
+    let self: PagedServer | undefined;
+    const handler = (request: SeenRequest): Reply => {
+      const index =
+        request.query["page"] === undefined ? 0 : Number(request.query["page"]);
+      const headers: Record<string, string> =
+        index + 1 < pages
+          ? { Link: link(index + 1, () => self as PagedServer) }
+          : {};
+      return replyOk(`[${petJson(`f${index}`)}]`, headers);
+    };
+    return start(handler).then((server) => {
+      self = server;
+      return server;
+    });
+  };
+
+  const sameOriginFeed = (pages: number): Promise<PagedServer> =>
+    feedServer(
+      pages,
+      (next, server) =>
+        `<${server().url}/pet/feed?page=${next}&secret=s3>; rel="next"`,
+    );
+
+  test("bhv pagination 001 a paged operation reads no page until the first item or page is requested", async () => {
+    const server = await catalogServer(2, 2);
+
+    const paginator = petApi(server).listPetCatalogPages();
+    expect(paginator).toBeInstanceOf(Paginator);
+    expect(server.seen).toHaveLength(0);
+    const items = paginator.items();
+    const pages = paginator.pages();
+    expect(server.seen).toHaveLength(0);
+    await items.next();
+    expect(server.seen).toHaveLength(1);
+    await items.return(undefined);
+    await pages.return(undefined);
+  });
+
+  test("bhv pagination 002 a token-cursor operation yields every item of every page in order and sends the next page cursor", async () => {
+    const server = await catalogServer(3, 2);
+
+    expect(await names(petApi(server).listPetCatalogPages())).toEqual([
+      "p0-0",
+      "p0-1",
+      "p1-0",
+      "p1-1",
+      "p2-0",
+      "p2-1",
+    ]);
+
+    expect(paramsSeen(server, "cursor")).toEqual([undefined, "c1", "c2"]);
+  });
+
+  test("bhv pagination 003 the next request is sent only when the consumer asks for more items", async () => {
+    const server = await catalogServer(3, 2);
+
+    const items = petApi(server).listPetCatalogPages().items();
+    await items.next();
+    await items.next();
+    expect(server.seen).toHaveLength(1);
+    await items.next();
+    expect(server.seen).toHaveLength(2);
+    await items.return(undefined);
+  });
+
+  test("bhv pagination 007 a Link-header operation follows rel=next and ends when it is absent", async () => {
+    const server = await sameOriginFeed(3);
+
+    expect(await names(petApi(server).listPetFeedPages())).toEqual([
+      "f0",
+      "f1",
+      "f2",
+    ]);
+
+    expect(paramsSeen(server, "page")).toEqual([undefined, "1", "2"]);
+    expect(server.seen[2]!.path).toBe("/pet/feed");
+  });
+
+  test("bhv pagination 008 a Link next URL on another origin is refused and no credentials are sent to it", async () => {
+    const elsewhere = await start(() => replyOk(`[${petJson("stolen")}]`));
+    const origin = await start(() =>
+      replyOk(`[${petJson("f0")}]`, {
+        Link: `<${elsewhere.url}/pet/feed?page=1>; rel="next"`,
+      }),
+    );
+    const api = petApi(
+      origin,
+      0,
+      new TestAuthenticator({ Authorization: "Bearer secret" }),
+    );
+
+    const items = api.listPetFeedPages().items();
+    expect((await items.next()).value?.name).toBe("f0");
+    expect(origin.seen[0]!.headers["authorization"]).toBe("Bearer secret");
+    const refused = await items.next().catch((error: unknown) => error);
+
+    expect(refused).toBeInstanceOf(PaginationError);
+    expect(String((refused as PaginationError).message)).not.toContain(
+      "page=1",
+    );
+    expect(elsewhere.seen).toHaveLength(0);
+    expect(origin.seen).toHaveLength(1);
+  });
+
+  test("bhv pagination 009 an empty page with a next cursor continues and an absent, null or empty cursor ends", async () => {
+    for (const end of ["", ',"next_cursor":null', ',"next_cursor":""']) {
+      const server = await start((request) =>
+        replyOk(
+          request.query["cursor"] === undefined
+            ? '{"items":[],"next_cursor":"c1"}'
+            : `{"items":[${petJson("only")}]${end}}`,
+        ),
+      );
+
+      expect(await names(petApi(server).listPetCatalogPages())).toEqual([
+        "only",
+      ]);
+      expect(server.seen).toHaveLength(2);
+    }
+  });
+
+  test("bhv pagination 010 pages yields one page per response with its items, status, headers, decoded body and next cursor", async () => {
+    const server = await start((request) => {
+      const page = pageOf(request);
+      return replyOk(catalogBody(page, 2, 2), { "X-Page": String(page) });
+    });
+
+    const pages: Array<Page<Pet, string>> = [];
+    for await (const page of petApi(server).listPetCatalogPages().pages()) {
+      pages.push(page);
+    }
+
+    expect(pages).toHaveLength(2);
+    expect(pages[0]!.items.map((pet) => pet.name)).toEqual(["p0-0", "p0-1"]);
+    expect(pages[0]!.result.statusCode).toBe(200);
+    expect(pages[0]!.result.headers["x-page"]).toBe("0");
+    expect(pages[1]!.result.headers["x-page"]).toBe("1");
+    expect(pages[0]!.result.data).toBeInstanceOf(PetCatalogPage);
+    expect(pages[0]!.nextCursor).toBe("c1");
+    expect(pages[1]!.nextCursor).toBeNull();
+  });
+
+  test("bhv pagination 011 the cursor passed to the paged method is the starting position and the first request sends it", async () => {
+    const server = await catalogServer(3, 1);
+
+    expect(
+      await names(petApi(server).listPetCatalogPages({ cursor: "c1" })),
+    ).toEqual(["p1-0", "p2-0"]);
+
+    expect(server.seen[0]!.query["cursor"]).toBe("c1");
+  });
+
+  test("bhv pagination 012 resuming with the next cursor of a page continues with the following page", async () => {
+    const server = await catalogServer(3, 1);
+    const api = petApi(server);
+
+    let resume: string | null = null;
+    for await (const page of api.listPetCatalogPages().pages()) {
+      resume = page.nextCursor;
+      break;
+    }
+
+    expect(resume).toBe("c1");
+    expect(
+      await names(api.listPetCatalogPages({ cursor: resume ?? undefined })),
+    ).toEqual(["p1-0", "p2-0"]);
+  });
+
+  test("bhv pagination 013 every other parameter, including the page size, is repeated unchanged on each page request", async () => {
+    const server = await catalogServer(3, 1);
+
+    await names(
+      petApi(server).listPetCatalogPages(
+        { limit: 1 },
+        { headers: { "X-Keep": "yes" } },
+      ),
+    );
+
+    expect(server.seen).toHaveLength(3);
+    for (const request of server.seen) {
+      expect(request.query["limit"]).toBe("1");
+      expect(request.headers["x-keep"]).toBe("yes");
+    }
+    expect(paramsSeen(server, "cursor")).toEqual([undefined, "c1", "c2"]);
+  });
+
+  test("bhv pagination 014 a cursor equal to the one just sent raises a PaginationError instead of looping", async () => {
+    const server = await start((_request, number) =>
+      replyOk(`{"items":[${petJson(`p${number}`)}],"next_cursor":"c1"}`),
+    );
+
+    const items = petApi(server).listPetCatalogPages().items();
+    expect((await items.next()).value?.name).toBe("p1");
+    expect((await items.next()).value?.name).toBe("p2");
+    const failure = await items.next().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(PaginationError);
+    expect((failure as PaginationError).requestPath).toBe("/pet/catalog");
+    expect(server.seen).toHaveLength(2);
+    expect((await items.next()).done).toBe(true);
+  });
+
+  test("bhv pagination 015 an error on a later page is raised after the earlier pages items were delivered and ends iteration", async () => {
+    const server = await start((request) =>
+      request.query["cursor"] === undefined
+        ? replyOk(catalogBody(0, 2, 3))
+        : { status: 404, body: "{}", headers: {}, delayMs: 0 },
+    );
+
+    const items = petApi(server).listPetCatalogPages().items();
+    expect((await items.next()).value?.name).toBe("p0-0");
+    expect((await items.next()).value?.name).toBe("p0-1");
+    const failure = await items.next().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(NotFoundError);
+    expect((failure as NotFoundError).statusCode).toBe(404);
+    expect((await items.next()).done).toBe(true);
+    expect(server.seen).toHaveLength(2);
+  });
+
+  test("bhv pagination 016 a 503 on the second page is retried under the retry rules and iteration continues", async () => {
+    const server = await start((request, number) =>
+      number === 2
+        ? replyStatus(503)
+        : replyOk(catalogBody(pageOf(request), 1, 2)),
+    );
+
+    expect(await names(petApi(server, 2).listPetCatalogPages())).toEqual([
+      "p0-0",
+      "p1-0",
+    ]);
+
+    expect(paramsSeen(server, "cursor")).toEqual([undefined, "c1", "c1"]);
+  });
+
+  test("bhv pagination 017 the per-call timeout, headers and retry count apply to each page request", async () => {
+    const flaky = await start((request, number) =>
+      number % 2 === 1
+        ? replyStatus(503)
+        : replyOk(catalogBody(pageOf(request), 1, 2)),
+    );
+
+    await names(
+      petApi(flaky, 0).listPetCatalogPages(undefined, {
+        maxRetries: 1,
+        headers: { "X-Trace": "t1" },
+      }),
+    );
+
+    expect(flaky.seen).toHaveLength(4);
+    for (const request of flaky.seen) {
+      expect(request.headers["x-trace"]).toBe("t1");
+    }
+
+    const slow = await start((request) =>
+      request.query["cursor"] === undefined
+        ? replyOk(catalogBody(0, 1, 2))
+        : replyOk(catalogBody(1, 1, 2), {}, 1500),
+    );
+    const items = petApi(slow)
+      .listPetCatalogPages(undefined, { timeout: 300 })
+      .items();
+    expect((await items.next()).value?.name).toBe("p0-0");
+    await expect(items.next()).rejects.toBeInstanceOf(NetworkTimeoutError);
+  });
+
+  test("bhv pagination 018 stopping early sends no further request and leaves nothing to close", async () => {
+    const server = await catalogServer(3, 2);
+
+    for await (const pet of petApi(server).listPetCatalogPages()) {
+      expect(pet.name).toBe("p0-0");
+      break;
+    }
+    expect(server.seen).toHaveLength(1);
+
+    let count = 0;
+    for await (const pet of petApi(server).listPetCatalogPages()) {
+      expect(pet).toBeDefined();
+      if (++count === 3) {
+        break;
+      }
+    }
+    expect(server.seen).toHaveLength(3);
+    expect(
+      typeof (
+        petApi(server).listPetCatalogPages() as unknown as { close?: unknown }
+      ).close,
+    ).toBe("undefined");
+  });
+
+  test("bhv pagination 019 cancelling mid-iteration aborts the in-flight page request and is not reported as a timeout", async () => {
+    const server = await start((request) =>
+      request.query["cursor"] === undefined
+        ? replyOk(catalogBody(0, 1, 2))
+        : replyOk(catalogBody(1, 1, 2), {}, 8000),
+    );
+    const controller = new AbortController();
+    const reading = names(
+      petApi(server).listPetCatalogPages(undefined, {
+        signal: controller.signal,
+        timeout: 20_000,
+      }),
+    );
+    const settled = reading.then(
+      () => null,
+      (error: unknown) => error,
+    );
+
+    const deadline = Date.now() + 5000;
+    while (server.seen.length < 2 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    expect(server.seen).toHaveLength(2);
+    controller.abort();
+    const failure = await settled;
+
+    expect(failure).not.toBeNull();
+    expect(failure).not.toBeInstanceOf(NetworkTimeoutError);
+    expect((failure as Error).name).toBe("AbortError");
+  });
+
+  test("bhv pagination 020 iterating a second time starts again from the starting position", async () => {
+    const server = await catalogServer(2, 2);
+    const paginator = petApi(server).listPetCatalogPages();
+
+    const first = await names(paginator);
+    const second = await names(paginator);
+
+    expect(second).toEqual(first);
+    expect(server.seen).toHaveLength(4);
+    expect(paramsSeen(server, "cursor")).toEqual([
+      undefined,
+      "c1",
+      undefined,
+      "c1",
+    ]);
+  });
+
+  test("bhv pagination 021 a page that does not decode on a later page fails with the serialization error after the earlier items were delivered", async () => {
+    const server = await start((_request, number) =>
+      number === 1
+        ? replyOk(catalogBody(0, 1, 2))
+        : replyOk(
+            '{"items":[{"id":"not a number","name":"x","photoUrls":[]}]}',
+          ),
+    );
+
+    const items = petApi(server).listPetCatalogPages().items();
+    expect((await items.next()).value?.name).toBe("p0-0");
+    await expect(items.next()).rejects.toBeInstanceOf(SerializationError);
+    expect((await items.next()).done).toBe(true);
+  });
+
+  test("bhv pagination 022 a refreshed credential is used for the next page", async () => {
+    const server = await catalogServer(3, 1);
+    let issued = 0;
+    const rotating = new TestAuthenticator();
+    rotating.getAuthHeadersAsync = (): Promise<Record<string, string>> =>
+      Promise.resolve({ Authorization: `Bearer token-${++issued}` });
+
+    await names(petApi(server, 0, rotating).listPetCatalogPages());
+
+    expect(
+      server.seen.map((request) => request.headers["authorization"]),
+    ).toEqual(["Bearer token-1", "Bearer token-2", "Bearer token-3"]);
+  });
+
+  test("bhv pagination 023 an error from a Link-driven page request carries the path without the query", async () => {
+    const server = await start((request) =>
+      request.query["page"] !== undefined
+        ? { status: 500, body: "{}", headers: {}, delayMs: 0 }
+        : replyOk(`[${petJson("f0")}]`, {
+            Link: '</pet/feed?page=1&secret=s3>; rel="next"',
+          }),
+    );
+
+    const items = petApi(server).listPetFeedPages().items();
+    expect((await items.next()).value?.name).toBe("f0");
+    const failure = await items.next().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).statusCode).toBe(500);
+    expect((failure as ApiError).requestPath).toBe("/pet/feed");
+    expect(String((failure as ApiError).message)).not.toContain("s3");
+  });
+
+  const pagedMethods = (api: object): string[] =>
+    Object.getOwnPropertyNames(Object.getPrototypeOf(api))
+      .filter((name) => name.endsWith("Pages"))
+      .sort();
+
+  test("bhv pagination 024 an operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method", async () => {
+    const api = petApi(await catalogServer(1, 1));
+
+    expect(pagedMethods(api)).toEqual([
+      "listPetCatalogPages",
+      "listPetEventsPages",
+      "listPetFeedPages",
+      "listPetNotesPages",
+    ]);
+    expect(typeof api.listPetMatches).toBe("function");
+  });
+
+  test("bhv pagination 025 a paged method has the same parameters in the same order as the base method and the base method is unchanged", async () => {
+    const server = await catalogServer(1, 1);
+    const api = petApi(server);
+
+    for (const paged of pagedMethods(api)) {
+      const base = paged.slice(0, -"Pages".length);
+      const prototype = Object.getPrototypeOf(api) as Record<
+        string,
+        (...args: unknown[]) => unknown
+      >;
+      expect(prototype[paged]!.length).toBe(prototype[base]!.length);
+    }
+    expect(await api.listPetCatalog()).toBeInstanceOf(PetCatalogPage);
+  });
+
+  test("bhv pagination 026 the generator option overrides inference and can switch an operation or the whole feature off", async () => {
+    const api = petApi(await catalogServer(1, 1));
+    const names = Object.getOwnPropertyNames(Object.getPrototypeOf(api));
+
+    expect(names).toContain("listPetEventsPages");
+    expect(names).not.toContain("listPetArchivePages");
+    expect(names).toContain("listPetArchive");
+  });
+
+  test("bhv pagination 027 headers and options given to the paged method are sent on every page request", async () => {
+    const server = await sameOriginFeed(3);
+
+    await names(
+      petApi(server).listPetFeedPages(
+        { limit: 1 },
+        { headers: { "X-Keep": "yes" } },
+      ),
+    );
+
+    expect(server.seen).toHaveLength(3);
+    for (const request of server.seen) {
+      expect(request.headers["x-keep"]).toBe("yes");
+    }
+    expect(server.seen[0]!.query["limit"]).toBe("1");
+  });
+
+  test("bhv pagination 028 the cursor for the next page is taken from the accepted response, never from a retried attempt", async () => {
+    const server = await start((request, number) =>
+      number === 1
+        ? {
+            status: 503,
+            body: '{"items":[],"next_cursor":"WRONG"}',
+            headers: { "Retry-After": "0" },
+            delayMs: 0,
+          }
+        : replyOk(
+            catalogBody(request.query["cursor"] === undefined ? 0 : 1, 1, 2),
+          ),
+    );
+
+    expect(await names(petApi(server, 2).listPetCatalogPages())).toEqual([
+      "p0-0",
+      "p1-0",
+    ]);
+
+    expect(paramsSeen(server, "cursor")).toEqual([undefined, undefined, "c1"]);
+  });
+
+  test("bhv pagination 030 a vendor extension on an operation is read as a hint, and the override option wins over it", async () => {
+    const api = petApi(await catalogServer(1, 1));
+
+    expect(Object.getOwnPropertyNames(Object.getPrototypeOf(api))).toContain(
+      "listPetNotesPages",
+    );
+  });
+
+  test("bhv pagination 031 the repeated-cursor failure is a PaginationError and is not a network error or an API error", async () => {
+    expect(Object.getPrototypeOf(PaginationError.prototype)).toBe(
+      OpenAPIError.prototype,
+    );
+    const server = await start(() =>
+      replyOk('{"items":[],"next_cursor":"c1"}'),
+    );
+
+    const failure = await names(
+      petApi(server).listPetCatalogPages({ cursor: "c1" }),
+    ).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(PaginationError);
+    expect(failure).toBeInstanceOf(OpenAPIError);
+    expect(failure).not.toBeInstanceOf(ApiError);
+    expect(failure).not.toBeInstanceOf(NetworkError);
+  });
+
+  test("bhv pagination 032 an operation that is streamed is never also given a paged method", async () => {
+    const store = new StoreApi(
+      undefined,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+
+    expect(
+      Object.getOwnPropertyNames(Object.getPrototypeOf(store)).filter((name) =>
+        name.endsWith("Pages"),
+      ),
+    ).toEqual([]);
+    expect(typeof store.exportOrdersStream).toBe("function");
   });
 });

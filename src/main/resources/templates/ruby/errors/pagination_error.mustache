@@ -1,0 +1,30 @@
+# frozen_string_literal: true
+
+{{> api_info}}
+{{#apiErrorParentFile}}
+require_relative '{{apiErrorParentFile}}'
+
+{{/apiErrorParentFile}}
+module {{moduleName}}
+  module Errors
+    # Raised when a paged list cannot be followed safely: the server returned
+    # the cursor that was just sent, so asking again would loop forever, or a
+    # +Link+ header pointed to another origin, so following it would send the
+    # credentials there. It is not a {NetworkError} and not an {ApiError}: it
+    # is a direct child of {{apiErrorParentSimpleName}}, and the items already
+    # delivered are complete and correct. A failed page request raises the SDK
+    # error of that failure instead.
+    class PaginationError < {{apiErrorParent}}
+      # @return [String, nil] the path of the request whose response could not
+      #   be followed, without its query
+      attr_reader :request_path
+
+      # @param message [String] what made the list impossible to follow; it never holds a query string
+      # @param request_path [String, nil] the path of the request that returned the page, without its query
+      def initialize(message, request_path = nil)
+        super(message)
+        @request_path = request_path
+      end
+    end
+  end
+end

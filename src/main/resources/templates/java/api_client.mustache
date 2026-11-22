@@ -139,9 +139,51 @@ public interface ApiClient extends AutoCloseable {
     }
 
     /**
+     * Send an HTTP request and return as soon as the response headers are accepted, with the body
+     * not read yet.
+     *
+     * <p>The retry, redirect, authentication and header rules are those of
+     * {@link #sendRequest(String, String, Map, Object, Integer, Integer)}, up to the headers; the
+     * {@code timeoutMillis} stops at the headers, and {@code idleTimeoutMillis} bounds the gap
+     * between two reads of the body. A request is never retried after the first body byte has been
+     * handed to the caller. A non-2xx response is returned like any other, with its body open.
+     *
+     * <p>The default implementation throws {@link UnsupportedOperationException}: a transport that
+     * was written before streaming keeps working for every buffered call, and a call that needs
+     * a stream fails clearly instead of falling back to buffering (a buffered fallback would never
+     * end on an endless feed).
+     *
+     * @param method            HTTP method
+     * @param url               Fully qualified URL
+     * @param headers           HTTP headers
+     * @param body              Request body (may be null)
+     * @param timeoutMillis     timeout in milliseconds up to the response headers, or {@code null}
+     * @param maxRetries        retry count for this call (0 disables retries), or {@code null}
+     * @param idleTimeoutMillis the longest silence in the body in milliseconds, {@code 0} to
+     *                          disable it, or {@code null} for the transport's setting
+     * @return the status, the lower-cased headers and the open body
+     * @throws UnsupportedOperationException if this transport cannot stream
+     * @throws ApiException if the request fails
+     */
+    default ApiStreamResponse sendStreaming(
+            String method,
+            String url,
+            Map<String, String> headers,
+            @Nullable Object body,
+            @Nullable Integer timeoutMillis,
+            @Nullable Integer maxRetries,
+            @Nullable Integer idleTimeoutMillis) {
+        throw new UnsupportedOperationException(
+                getClass().getName()
+                        + " cannot stream: it does not implement sendStreaming, so an operation"
+                        + " that returns a stream cannot be called through it");
+    }
+
+    /**
      * Releases any resources held by this client (connection pool, executor
      * threads, sockets). Default implementation is a no-op; implementations
-     * that own a pooled HTTP client should override and dispose of it.
+     * that own a pooled HTTP client should override and dispose of it. A
+     * transport that hands out streams should cancel the ones still open.
      *
      * <p>Use with try-with-resources:
      * <pre>{@code

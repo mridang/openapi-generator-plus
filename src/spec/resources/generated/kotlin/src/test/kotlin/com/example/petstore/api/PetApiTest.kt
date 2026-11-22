@@ -527,7 +527,7 @@ class PetApiTest {
         fun testSetPetAvatar() {
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
 
-            assertDoesNotThrow { runBlocking { api.setPetAvatar(1L, imageData) } }
+            assertDoesNotThrow { runBlocking { api.setPetAvatar(1L, BodySource.of(imageData)) } }
         }
 
         @Test
@@ -538,7 +538,7 @@ class PetApiTest {
             // passed onto the wire as an undeclared Content-Type.
             val ex =
                 assertThrows(IllegalArgumentException::class.java) {
-                    runBlocking { api.setPetAvatar(1L, imageData, requestContentType = "application/unknown-type") }
+                    runBlocking { api.setPetAvatar(1L, BodySource.of(imageData), requestContentType = "application/unknown-type") }
                 }
             assertTrue(
                 ex.message!!.startsWith(
@@ -552,9 +552,25 @@ class PetApiTest {
         @Test
         @DisplayName("bhvOperations045 getPetAvatar")
         fun testGetPetAvatar() {
-            val result = runBlocking { api.getPetAvatar(1L) }
+            runBlocking { api.getPetAvatar(1L) }.use { result ->
+                assertNotNull(result)
+            }
+        }
 
-            assertNotNull(result)
+        @Test
+        @DisplayName("bhvStreaming009 a binary stream exposes the status and the lower-cased response headers")
+        fun bhvStreaming009ABinaryStreamExposesTheStatusAndTheLowerCasedResponseHeaders() {
+            runBlocking { api.getPetAvatar(1L) }.use { stream ->
+                assertEquals(200, stream.statusCode)
+                assertTrue(stream.headers.containsKey("content-type"))
+                assertTrue(stream.headers.keys.all { it == it.lowercase() })
+            }
+            val result = runBlocking { api.getPetAvatarWithHttpInfo(1L) }
+            result.data!!.use { stream ->
+                assertEquals(stream.statusCode, result.statusCode)
+                assertEquals(stream.headers, result.headers)
+                assertEquals("", result.rawBody)
+            }
         }
 
         @Test
@@ -607,17 +623,17 @@ class PetApiTest {
         @Test
         @DisplayName("bhvOperations035 downloadPetDocument")
         fun testDownloadPetDocument() {
-            val result = runBlocking { api.downloadPetDocument(1L, 1L) }
-
-            assertNotNull(result)
+            runBlocking { api.downloadPetDocument(1L, 1L) }.use { result ->
+                assertNotNull(result)
+            }
         }
 
         @Test
         @DisplayName("bhvOperations055 getPetPhoto")
         fun testGetPetPhoto() {
-            val result = runBlocking { api.getPetPhoto(1L, 1L) }
-
-            assertNotNull(result)
+            runBlocking { api.getPetPhoto(1L, 1L) }.use { result ->
+                assertNotNull(result)
+            }
         }
 
         @Test
@@ -739,7 +755,7 @@ class PetApiTest {
             // JPEG SOI marker (0xFF 0xD8 0xFF 0xE0) -- a known, non-trivial
             // payload that would be visibly corrupted by any JSON/base64 encoding.
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
-            runBlocking { api.setPetAvatar(1L, imageData) }
+            runBlocking { api.setPetAvatar(1L, BodySource.of(imageData)) }
 
             assertEquals("PUT", capturedMethod)
             assertTrue(capturedPath!!.contains("/pet/1/avatar"))
@@ -778,12 +794,12 @@ class PetApiTest {
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
 
             // (1) No selector -> first declared content-type (image/jpeg).
-            runBlocking { api.setPetAvatar(1L, imageData) }
+            runBlocking { api.setPetAvatar(1L, BodySource.of(imageData)) }
             assertEquals("image/jpeg", capturedContentType)
 
             // (2) Selector set to image/png -> Content-Type is image/png, NOT
             // image/jpeg, with the same raw bytes.
-            runBlocking { api.setPetAvatar(1L, imageData, requestContentType = "image/png") }
+            runBlocking { api.setPetAvatar(1L, BodySource.of(imageData), requestContentType = "image/png") }
             assertEquals("image/png", capturedContentType)
         }
 
@@ -2082,8 +2098,9 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
-            val result = runBlocking { api.getPetAvatar(1L) }
-            assertNotNull(result)
+            runBlocking { api.getPetAvatar(1L) }.use { result ->
+                assertEquals("FAKE_BINARY_DATA", String(runBlocking { result.readAll() }, Charsets.UTF_8))
+            }
         }
 
         @Test
@@ -2394,7 +2411,7 @@ class PetApiTest {
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
 
-            runBlocking { api.setPetAvatar(1L, imageData, requestContentType = "application/json") }
+            runBlocking { api.setPetAvatar(1L, BodySource.of(imageData), requestContentType = "application/json") }
 
             assertArrayEquals(imageData, capturedBytes)
             assertEquals("application/json", capturedContentType)

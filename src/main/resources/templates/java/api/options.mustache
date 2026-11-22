@@ -133,6 +133,37 @@ public final class {{className}} {
 {{/isByteArrayParam}}
     }
 {{/params}}
+{{#hasCopy}}
+
+    /**
+     * Returns an independent copy of these options: the same value for every parameter, the same
+     * timeout, retry count and headers. A paged list uses it to send each page with its own cursor.
+     *
+     * @return the copy
+     */
+    public {{className}} copy() {
+        {{className}} copy = new {{className}}({{#requiredParams}}{{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}});
+{{#params}}
+{{^required}}
+{{#isMutableCollection}}
+        copy.{{paramName}} = this.{{paramName}} == null ? null : {{copyFactory}}.copyOf(this.{{paramName}});
+{{/isMutableCollection}}
+{{^isMutableCollection}}
+{{#isByteArrayParam}}
+        copy.{{paramName}} = this.{{paramName}} == null ? null : this.{{paramName}}.clone();
+{{/isByteArrayParam}}
+{{^isByteArrayParam}}
+        copy.{{paramName}} = this.{{paramName}};
+{{/isByteArrayParam}}
+{{/isMutableCollection}}
+{{/required}}
+{{/params}}
+        copy.timeout = timeout;
+        copy.maxRetries = maxRetries;
+        copy.headers = headers == null ? null : java.util.Map.copyOf(headers);
+        return copy;
+    }
+{{/hasCopy}}
 
     /**
      * Sets the end-to-end timeout for this call only, in milliseconds. It replaces the

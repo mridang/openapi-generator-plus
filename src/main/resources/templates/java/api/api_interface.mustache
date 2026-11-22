@@ -3,6 +3,12 @@
 package {{package}};
 
 import {{invokerPackage}}.ApiResult;
+import {{invokerPackage}}.BodySource;
+import {{invokerPackage}}.ByteStream;
+import {{invokerPackage}}.JsonLinesStream;
+import {{invokerPackage}}.Paginator;
+import {{invokerPackage}}.SseStream;
+import {{invokerPackage}}.StreamOptions;
 import {{invokerPackage}}.errors.ApiException;
 {{#imports}}import {{import}};
 {{/imports}}
@@ -20,6 +26,44 @@ import javax.annotation.Nullable;
  */
 public interface {{classname}}Interface {
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+{{>api/operation_doc_server}}
+     * @param streamOptions the stream settings, or {@code null} for the defaults
+     * @return the open stream; close it when you stop early
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    {{{returnType}}} {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable StreamOptions streamOptions);
+
+    /**
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+     *
+     * <p>Convenience overload that keeps every stream setting at its default.
+     *
+{{>api/operation_doc_args}}
+{{>api/operation_doc_options}}
+{{>api/operation_doc_server}}
+     * @return the open stream; close it when you stop early
+     * @throws ApiException if fails to make API call
+{{>api/operation_doc_throws}}
+     */
+{{#isDeprecated}}
+    @Deprecated
+{{/isDeprecated}}
+    default {{{returnType}}} {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
+        return {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}, null);
+    }
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
 {{#servers}}{{#-first}}
 {{>api/operation_doc_noserver}}
 {{#isDeprecated}}
@@ -173,6 +217,10 @@ public interface {{classname}}Interface {
     @Deprecated
 {{/isDeprecated}}
     ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{#isServer}}{{classname}}.{{/isServer}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}});
+{{/vendorExtensions.op.streamOnly}}
+{{#vendorExtensions.op.hasPagesMethod}}
+{{>api/operation_pages_interface}}
+{{/vendorExtensions.op.hasPagesMethod}}
 {{/operation}}
 }
 {{/operations}}

@@ -343,11 +343,7 @@ void main() {
     test('bhv operations 070 setPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
-      await api.setPetAvatar(
-        1,
-        Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
-        null,
-      );
+      await api.setPetAvatar(1, BodySource.of([0xFF, 0xD8, 0xFF, 0xE0]), null);
     });
 
     test(
@@ -359,7 +355,7 @@ void main() {
         await expectLater(
           api.setPetAvatar(
             1,
-            Uint8List.fromList([0xFF, 0xD8, 0xFF]),
+            BodySource.of([0xFF, 0xD8, 0xFF]),
             null,
             'application/unknown-type',
           ),
@@ -466,7 +462,7 @@ void main() {
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
           // A non-trivial JPEG SOI marker (0xFF 0xD8 0xFF 0xE0).
-          final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+          final payload = BodySource.of([0xFF, 0xD8, 0xFF, 0xE0]);
           await api.setPetAvatar(1, payload, null);
 
           // (1) The body bytes are EXACTLY the raw payload — not a JSON
@@ -510,7 +506,7 @@ void main() {
               .build();
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-          final payload = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]);
+          final payload = BodySource.of([0xFF, 0xD8, 0xFF, 0xE0]);
 
           // (1) No selector — defaults to the first declared type (image/jpeg).
           await api.setPetAvatar(1, payload, null);
@@ -554,7 +550,7 @@ void main() {
 
           await api.setPetAvatar(
             1,
-            Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
+            BodySource.of([0xFF, 0xD8, 0xFF, 0xE0]),
             null,
             'application/json',
           );
@@ -578,7 +574,38 @@ void main() {
 
       final result = await api.getPetAvatar(1, null);
       expect(result, isNotNull);
+      await result.close();
     });
+
+    test(
+      'bhv streaming 009 a binary stream exposes the status and the lower-cased response headers',
+      () async {
+        final api = _newPetApiForIntegration();
+
+        final stream = await api.getPetAvatar(1, null);
+        try {
+          expect(stream.statusCode, equals(200));
+          expect(stream.headers, contains('content-type'));
+          expect(
+            stream.headers.keys,
+            everyElement(
+              predicate<String>((name) => name == name.toLowerCase()),
+            ),
+          );
+        } finally {
+          await stream.close();
+        }
+        final result = await api.getPetAvatarWithHttpInfo(1, null);
+        final data = result.data!;
+        try {
+          expect(result.statusCode, equals(data.statusCode));
+          expect(result.headers, equals(data.headers));
+          expect(result.rawBody, isEmpty);
+        } finally {
+          await data.close();
+        }
+      },
+    );
 
     test('bhv operations 046 getPetAvatarThumbnail', () async {
       final api = _newPetApiForIntegration();
@@ -870,12 +897,14 @@ void main() {
 
       final result = await api.downloadPetDocument(1, 1, null);
       expect(result, isNotNull);
+      await result.close();
     });
 
     test('bhv operations 055 getPetPhoto', () async {
       final api = _newPetApiForIntegration();
       final result = await api.getPetPhoto(1, 1, null);
       expect(result, isNotNull);
+      await result.close();
     });
 
     test('bhv operations 058 getPetTag', () async {
@@ -926,6 +955,10 @@ void main() {
 
         final result = await api.getPetAvatarWithHttpInfo(1, null);
         expect(result.statusCode, equals(200));
+        expect(
+          await result.data!.readAll(),
+          equals([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+        );
       } finally {
         await server.close();
       }

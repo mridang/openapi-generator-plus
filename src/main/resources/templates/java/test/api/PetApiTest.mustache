@@ -4,6 +4,8 @@ package {{apiPackage}};
 
 import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiHttpResponse;
+import {{invokerPackage}}.BodySource;
+import {{invokerPackage}}.ByteStream;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.DefaultApiClient;
 import {{invokerPackage}}.TransportOptions;
@@ -183,7 +185,7 @@ class PetApiTest {
 
     @Test
     void bhvOperations070TestSetPetAvatar() throws Exception {
-        InputStream fakeImageData = new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8));
+        BodySource fakeImageData = BodySource.of("fake-image-data".getBytes(StandardCharsets.UTF_8));
         api.setPetAvatar(1L, fakeImageData);
 
         assertThat(true).isTrue();
@@ -191,8 +193,25 @@ class PetApiTest {
 
     @Test
     void bhvOperations045TestGetPetAvatar() throws Exception {
-        InputStream result = api.getPetAvatar(1L);
-        assertNotNull(result);
+        try (InputStream result = api.getPetAvatar(1L)) {
+            assertNotNull(result);
+        }
+    }
+
+    @Test
+    void bhvStreaming009ABinaryStreamExposesTheStatusAndTheLowerCasedResponseHeaders() throws Exception {
+        try (ByteStream stream = api.getPetAvatar(1L)) {
+            assertThat(stream.getStatusCode()).isEqualTo(200);
+            assertThat(stream.getHeaders()).containsKey("content-type");
+            assertThat(stream.getHeaders().keySet())
+                    .allMatch(name -> name.equals(name.toLowerCase(java.util.Locale.ROOT)));
+        }
+        {{invokerPackage}}.ApiResult<ByteStream> result = api.getPetAvatarWithHttpInfo(1L);
+        try (ByteStream stream = result.data()) {
+            assertThat(result.statusCode()).isEqualTo(stream.getStatusCode());
+            assertThat(result.headers()).isEqualTo(stream.getHeaders());
+            assertThat(result.rawBody()).isEmpty();
+        }
     }
 
     @Test
@@ -254,14 +273,16 @@ class PetApiTest {
 
     @Test
     void bhvOperations035TestDownloadPetDocument() throws Exception {
-        InputStream result = api.downloadPetDocument(1L, 1L);
-        assertNotNull(result);
+        try (InputStream result = api.downloadPetDocument(1L, 1L)) {
+            assertNotNull(result);
+        }
     }
 
     @Test
     void bhvOperations055TestGetPetPhoto() throws Exception {
-        InputStream result = api.getPetPhoto(1L, 1L);
-        assertNotNull(result);
+        try (InputStream result = api.getPetPhoto(1L, 1L)) {
+            assertNotNull(result);
+        }
     }
 
     @Test
@@ -390,8 +411,10 @@ class PetApiTest {
     void bhvOperations034TestDownloadBinaryMock() throws Exception {
         PetApi mockApi = newPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
-        InputStream result = mockApi.getPetAvatar(1L);
-        assertNotNull(result);
+        try (InputStream result = mockApi.getPetAvatar(1L)) {
+            assertNotNull(result);
+            assertThat(new String(result.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("FAKE_BINARY_DATA");
+        }
     }
 
     @Test
@@ -1079,12 +1102,12 @@ class PetApiTest {
         // high-bit byte (0xFF) that a JSON encoder would mangle.
         byte[] payload = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
 
-        petApi.setPetAvatar(1L, new ByteArrayInputStream(payload));
+        petApi.setPetAvatar(1L, BodySource.of(payload));
 
-        // The SDK hands the transport the raw InputStream body unchanged.
+        // The SDK hands the transport the body source unchanged.
         assertNotNull(capturing.capturedBody);
-        assertThat(capturing.capturedBody).isInstanceOf(InputStream.class);
-        byte[] wireBytes = ((InputStream) capturing.capturedBody).readAllBytes();
+        assertThat(capturing.capturedBody).isInstanceOf(BodySource.class);
+        byte[] wireBytes = ((BodySource) capturing.capturedBody).open().readAllBytes();
         assertThat(wireBytes).isEqualTo(payload);
 
         // Not JSON-marshaled, not a JSON int-array, not base64, not "{}".
@@ -1113,21 +1136,22 @@ class PetApiTest {
         // (1) No selector -> first declared content-type (image/jpeg).
         CapturingApiClient defaultCapture = new CapturingApiClient();
         PetApi defaultApi = new PetApi(defaultCapture, config);
-        defaultApi.setPetAvatar(1L, new ByteArrayInputStream(payload));
+        defaultApi.setPetAvatar(1L, BodySource.of(payload));
         assertNotNull(defaultCapture.capturedHeaders);
         assertThat(defaultCapture.capturedHeaders).containsEntry("Content-Type", "image/jpeg");
 
         // (2) Selector set to image/png -> Content-Type is image/png, not jpeg.
         CapturingApiClient pngCapture = new CapturingApiClient();
         PetApi pngApi = new PetApi(pngCapture, config);
-        pngApi.setPetAvatar(1L, new ByteArrayInputStream(payload), null, "image/png");
+        pngApi.setPetAvatar(1L, BodySource.of(payload), null, "image/png");
         assertNotNull(pngCapture.capturedHeaders);
         assertThat(pngCapture.capturedHeaders).containsEntry("Content-Type", "image/png");
 
         // The raw bytes are unchanged regardless of the selected content-type.
-        assertThat(pngCapture.capturedBody).isInstanceOf(InputStream.class);
+        assertThat(pngCapture.capturedBody).isInstanceOf(BodySource.class);
         byte[] wireBytes =
-                ((InputStream) java.util.Objects.requireNonNull(pngCapture.capturedBody))
+                ((BodySource) java.util.Objects.requireNonNull(pngCapture.capturedBody))
+                        .open()
                         .readAllBytes();
         assertThat(wireBytes).isEqualTo(payload);
     }
@@ -1141,12 +1165,13 @@ class PetApiTest {
         CapturingApiClient jsonCapture = new CapturingApiClient();
         PetApi jsonApi = new PetApi(jsonCapture, config);
 
-        jsonApi.setPetAvatar(1L, new ByteArrayInputStream(payload), null, "application/json");
+        jsonApi.setPetAvatar(1L, BodySource.of(payload), null, "application/json");
 
         assertThat(jsonCapture.capturedHeaders).containsEntry("Content-Type", "application/json");
-        assertThat(jsonCapture.capturedBody).isInstanceOf(InputStream.class);
+        assertThat(jsonCapture.capturedBody).isInstanceOf(BodySource.class);
         byte[] wireBytes =
-                ((InputStream) java.util.Objects.requireNonNull(jsonCapture.capturedBody))
+                ((BodySource) java.util.Objects.requireNonNull(jsonCapture.capturedBody))
+                        .open()
                         .readAllBytes();
         assertThat(wireBytes).isEqualTo(payload);
     }
@@ -1493,7 +1518,7 @@ class PetApiTest {
                 Configuration.builder().baseUrl("http://localhost").build());
 
         assertThatThrownBy(() -> petApi.setPetAvatar(
-                        1L, new ByteArrayInputStream(new byte[] {1}), null, "application/unknown-type"))
+                        1L, BodySource.of(new byte[] {1}), null, "application/unknown-type"))
                 .isExactlyInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unsupported request content-type 'application/unknown-type' for"
                         + " setPetAvatar; declared types are"

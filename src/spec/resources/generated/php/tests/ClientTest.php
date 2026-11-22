@@ -11,6 +11,7 @@ use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Auth\HttpAwareAuthenticator;
 use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
+use PetstoreClient\Test\RawServer;
 use PetstoreClient\Test\RecordingCallHook;
 use PetstoreClient\Test\StubPsr18Client;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -232,6 +233,30 @@ test('bhv lifecycle 035 a request after close fails with the one closed client e
     expect(fn () => $method->invoke($api, 'GET', '/ping', [], [], null, ['application/json'], null, null))
         ->toThrow(\LogicException::class, 'client closed');
     expect($counts->sent)->toBe(0);
+});
+
+test('bhv streaming 021 closing the client cancels the open streams, the next read of each raises the closed client error and new calls are refused', function (): void {
+    $server = RawServer::serve(<<<'PHP'
+        reply($socket, 200, 'Transfer-Encoding: chunked');
+        chunk($socket, 'tick');
+        awaitRelease();
+        PHP);
+    $client = new Client(new BearerAuthenticator($server->url(''), 'test-token'));
+    $api = $client->pet;
+    $open = new \ReflectionMethod($api, 'invokeApiForStream');
+    /** @var \PetstoreClient\ApiResult<\PetstoreClient\ByteStream> $result */
+    $result = $open->invoke($api, 'GET', '/items/events', [], [], null, ['application/octet-stream'], null);
+    $stream = $result->data;
+    assert($stream instanceof \PetstoreClient\ByteStream);
+    expect($stream->read(4))->toBe('tick');
+
+    $started = microtime(true);
+    $client->close();
+
+    expect(microtime(true) - $started)->toBeLessThan(5.0);
+    expect(fn (): string => $stream->read(1))->toThrow(\LogicException::class, 'client closed');
+    expect(fn (): mixed => $open->invoke($api, 'GET', '/items/events', [], [], null, ['application/octet-stream'], null))
+        ->toThrow(\LogicException::class, 'client closed');
 });
 
 test('bhv lifecycle 009 closing a client never closes a transport the caller supplied', function (): void {
@@ -531,6 +556,12 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($petListed)->toContain('getPetSummary')->toContain('getPetSummaryWithHttpInfo');
     expect($petListed)->toContain('getPetTag')->toContain('getPetTagWithHttpInfo');
     expect($petListed)->toContain('getStagingPetInfo')->toContain('getStagingPetInfoWithHttpInfo');
+    expect($petListed)->toContain('listPetArchive')->toContain('listPetArchiveWithHttpInfo');
+    expect($petListed)->toContain('listPetCatalog')->toContain('listPetCatalogWithHttpInfo');
+    expect($petListed)->toContain('listPetEvents')->toContain('listPetEventsWithHttpInfo');
+    expect($petListed)->toContain('listPetFeed')->toContain('listPetFeedWithHttpInfo');
+    expect($petListed)->toContain('listPetMatches')->toContain('listPetMatchesWithHttpInfo');
+    expect($petListed)->toContain('listPetNotes')->toContain('listPetNotesWithHttpInfo');
     expect($petListed)->toContain('setPetAvatar')->toContain('setPetAvatarWithHttpInfo');
     expect($petListed)->toContain('setPetAvatarThumbnail')->toContain('setPetAvatarThumbnailWithHttpInfo');
     expect($petListed)->toContain('setPetPreferences')->toContain('setPetPreferencesWithHttpInfo');
@@ -549,7 +580,7 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     $storeListed = get_class_methods(\PetstoreClient\Api\StoreApiInterface::class);
     expect($storeListed)->toContain('createAccount')->toContain('createAccountWithHttpInfo');
     expect($storeListed)->toContain('deleteOrder')->toContain('deleteOrderWithHttpInfo');
-    expect($storeListed)->toContain('exportOrders')->toContain('exportOrdersWithHttpInfo');
+    expect($storeListed)->toContain('exportOrdersStream');
     expect($storeListed)->toContain('getAuditTrail')->toContain('getAuditTrailWithHttpInfo');
     expect($storeListed)->toContain('getBySwatch')->toContain('getBySwatchWithHttpInfo');
     expect($storeListed)->toContain('getDefaults')->toContain('getDefaultsWithHttpInfo');
@@ -568,8 +599,8 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($storeListed)->toContain('placeOrder')->toContain('placeOrderWithHttpInfo');
     expect($storeListed)->toContain('reserveStock')->toContain('reserveStockWithHttpInfo');
     expect($storeListed)->toContain('searchStore')->toContain('searchStoreWithHttpInfo');
-    expect($storeListed)->toContain('watchNotices')->toContain('watchNoticesWithHttpInfo');
-    expect($storeListed)->toContain('watchOrders')->toContain('watchOrdersWithHttpInfo');
+    expect($storeListed)->toContain('watchNoticesStream');
+    expect($storeListed)->toContain('watchOrdersStream');
 });
 
 /**

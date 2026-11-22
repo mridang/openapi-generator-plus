@@ -450,6 +450,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsDir, "internal_server_error_exception.dart"),
             new SupportingFileSpec("errors/network_exception.mustache", errorsDir, "network_exception.dart"),
             new SupportingFileSpec("errors/network_timeout_exception.mustache", errorsDir, "network_timeout_exception.dart"),
+            new SupportingFileSpec("errors/stream_exception.mustache", errorsDir, "stream_exception.dart"),
             new SupportingFileSpec("errors/serialization_exception.mustache", errorsDir, "serialization_exception.dart"),
             new SupportingFileSpec("errors/oauth2_server_exception.mustache", errorsDir, "oauth2_server_exception.dart"),
             new SupportingFileSpec("errors/oauth2_token_exception.mustache", errorsDir, "oauth2_token_exception.dart"),
@@ -463,6 +464,21 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("call_outcome.mustache", srcDir, "call_outcome.dart"),
             new SupportingFileSpec("api_response.mustache", srcDir, "api_http_response.dart"),
             new SupportingFileSpec("api_result.mustache", srcDir, "api_result.dart"),
+            new SupportingFileSpec("api_stream_response.mustache", srcDir, "api_stream_response.dart"),
+            new SupportingFileSpec("body_source.mustache", srcDir, "body_source.dart"),
+            new SupportingFileSpec("body_source_files_io.mustache", srcDir, "body_source_files_io.dart"),
+            new SupportingFileSpec("body_source_files_web.mustache", srcDir, "body_source_files_web.dart"),
+            new SupportingFileSpec("byte_stream.mustache", srcDir, "byte_stream.dart"),
+            new SupportingFileSpec("paginator.mustache", srcDir, "paginator.dart"),
+            new SupportingFileSpec("page.mustache", srcDir, "page.dart"),
+            new SupportingFileSpec("link_header.mustache", srcDir, "link_header.dart"),
+            new SupportingFileSpec("errors/pagination_exception.mustache", errorsDir, "pagination_exception.dart"),
+            new SupportingFileSpec("event_stream.mustache", srcDir, "event_stream.dart"),
+            new SupportingFileSpec("server_sent_event.mustache", srcDir, "server_sent_event.dart"),
+            new SupportingFileSpec("stream_options.mustache", srcDir, "stream_options.dart"),
+            new SupportingFileSpec("json_lines_stream.mustache", srcDir, "json_lines_stream.dart"),
+            new SupportingFileSpec("sse_stream.mustache", srcDir, "sse_stream.dart"),
+            new SupportingFileSpec("retry_after.mustache", srcDir, "retry_after.dart"),
             new SupportingFileSpec("api_client.mustache", srcDir, "api_client.dart"),
             new SupportingFileSpec("abstract_api_client.mustache", srcDir, "abstract_api_client.dart"),
             new SupportingFileSpec("default_api_client.mustache", srcDir, "default_api_client.dart"),
@@ -620,6 +636,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/api_result_test.mustache",
                             "test",
                             "api_result_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/event_stream_test.mustache",
+                            "test",
+                            "event_stream_test.dart"));
         }
     }
 
@@ -1321,6 +1342,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
+        final Map<String, Object> uploads = (Map<String, Object>) objs.get("operations");
+        if (uploads != null && uploads.get("operation") instanceof List) {
+            for (final CodegenOperation op : (List<CodegenOperation>) uploads.get("operation")) {
+                markBinaryUpload(op);
+            }
+        }
         objs = super.postProcessOperationsWithModels(objs, allModels);
 
         // Optional request-content-type selector (decision H3). An operation
@@ -1358,6 +1385,8 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                     final boolean hasMultipleConsumes =
                             op.consumes != null && op.consumes.size() > 1;
                     opDeco.put("hasMultipleConsumes", hasMultipleConsumes);
+                    markBinaryStream(op, opDeco);
+                    markPaginator(opDeco);
                     final Object sigArgs = opDeco.get("signatureArgs");
                     if (sigArgs instanceof List) {
                         opDeco.put(
@@ -1410,6 +1439,135 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * A raw binary request body is a {@code BodySource}: the operation takes it, in every
+     * signature, instead of a {@code Uint8List}. It runs before the shared pass, which copies the
+     * body type into the signature arguments. Multipart and every other body kind keep the type
+     * the spec maps.
+     */
+    static void markBinaryUpload(final CodegenOperation op) {
+        final CodegenParameter body = op.bodyParam;
+        if (body == null
+                || !body.isBinary
+                || op.isMultipart
+                || (op.formParams != null && !op.formParams.isEmpty())) {
+            return;
+        }
+        body.dataType = "BodySource";
+        body.baseType = "BodySource";
+        body.datatypeWithEnum = "BodySource";
+        if (op.allParams != null) {
+            for (final CodegenParameter p : op.allParams) {
+                if (p.isBodyParam) {
+                    p.dataType = "BodySource";
+                    p.baseType = "BodySource";
+                    p.datatypeWithEnum = "BodySource";
+                }
+            }
+        }
+    }
+
+    /**
+     * Gives a paged operation the Dart type of its paginator, {@code dartPaginatorType}: the item
+     * type and the type of the cursor parameter, or {@code void} for a list that is followed by its
+     * {@code Link} header.
+     */
+    @SuppressWarnings("unchecked")
+    static void markPaginator(final Map<String, Object> decorators) {
+        final Object pagination = decorators.get("pagination");
+        if (!(pagination instanceof Map)) {
+            return;
+        }
+        final Map<String, Object> p = (Map<String, Object>) pagination;
+        p.put(
+                "dartPaginatorType",
+                "Paginator<" + p.get("itemType") + ", "
+                        + (Boolean.TRUE.equals(p.get("isLink")) ? "void" : p.get("cursorType")) + ">");
+    }
+
+    /**
+     * A binary success response is returned as a {@code ByteStream} by the one operation method
+     * (D119), so the return type becomes {@code ByteStream} and the decorator
+     * {@code streamsBinary} tells the API template to call {@code invokeApiForStream}.
+     */
+    static void markBinaryStream(final CodegenOperation op, final Map<String, Object> decorators) {
+        final Object kind = decorators.get("streamKind");
+        final boolean binary = "binary".equals(kind);
+        decorators.put("streamsBinary", binary);
+        if (binary) {
+            op.returnType = "ByteStream";
+            op.returnBaseType = "ByteStream";
+        }
+        final boolean streamOnly = Boolean.TRUE.equals(decorators.get("streamOnly"));
+        final boolean sse = "sse".equals(kind) && streamOnly;
+        final boolean jsonLines = "jsonlines".equals(kind) && streamOnly;
+        decorators.put("streamsSse", sse);
+        decorators.put("streamsJsonLines", jsonLines);
+        if (sse || jsonLines) {
+            final boolean text = sse && Boolean.TRUE.equals(decorators.get("streamEventIsText"));
+            final Object declared = decorators.get("streamItemType");
+            final String item = !text && declared != null ? declared.toString() : "String";
+            decorators.put("streamTyped", !"String".equals(item));
+            decorators.put("streamItemDart", item);
+            decorators.put("streamItemIsModel", item.matches("[A-Z][A-Za-z0-9_]*")
+                    && !Set.of("String", "Object", "DateTime", "Duration", "Uint8List", "UuidValue").contains(item));
+            op.returnType = (sse ? "SseStream<" : "JsonLinesStream<") + item + ">";
+            op.returnBaseType = sse ? "SseStream" : "JsonLinesStream";
+        }
+    }
+
+    /**
+     * Hands the README and SKILLS the first operation that returns a {@code ByteStream}, as
+     * {@code binaryStreamOperation} (with {@code binaryStreamGroup}, its operations map, and
+     * {@code hasBinaryStreamOperation}), so the Streaming example calls a real operation of the
+     * spec under generation. The first paged operation is handed over the same way, as
+     * {@code pagedOperation}. Nothing is rendered when the spec has none.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final String[] flags = {"streamsBinary", "streamsSse", "streamsJsonLines", "hasPagesMethod"};
+        final String[] names = {"binaryStream", "sseStream", "jsonLinesStream", "paged"};
+        for (int kind = 0; kind < flags.length; kind++) {
+            CodegenOperation found = null;
+            Object group = null;
+            final Object apiInfo = objs.get("apiInfo");
+            if (apiInfo instanceof Map) {
+                final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+                if (apis instanceof List) {
+                    for (final Object api : (List<Object>) apis) {
+                        final Object operations = ((Map<String, Object>) api).get("operations");
+                        if (!(operations instanceof Map)) {
+                            continue;
+                        }
+                        final Object list = ((Map<String, Object>) operations).get("operation");
+                        if (!(list instanceof List)) {
+                            continue;
+                        }
+                        for (final Object candidate : (List<Object>) list) {
+                            final CodegenOperation op = (CodegenOperation) candidate;
+                            final Object decorators =
+                                    op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+                            if (found == null
+                                    && decorators instanceof Map
+                                    && Boolean.TRUE.equals(((Map<String, Object>) decorators).get(flags[kind]))) {
+                                found = op;
+                                group = operations;
+                            }
+                        }
+                    }
+                }
+            }
+            final String name = names[kind];
+            objs.put("has" + Character.toUpperCase(name.charAt(0)) + name.substring(1) + "Operation", found != null);
+            if (found != null) {
+                objs.put(name + "Operation", found);
+                objs.put(name + "Group", group);
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
+    }
+
+    /**
      * Adds an import for every schema of an operation with several 2xx responses: the API
      * class decodes each body as the schema of its status code, so it names the variant
      * models itself and not only their union. A model that is already imported is skipped.
@@ -1429,6 +1587,21 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             final Object deco = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
             if (!(deco instanceof Map)) {
                 continue;
+            }
+            final Object pagination = ((Map<String, Object>) deco).get("pagination");
+            if (pagination instanceof Map) {
+                final Object model = ((Map<String, Object>) pagination).get("itemModel");
+                if (model != null) {
+                    final String className = model.toString();
+                    final String filename = toModelFilename(className);
+                    if (known.add(filename)) {
+                        final Map<String, String> imp = new HashMap<>();
+                        imp.put("import", className);
+                        imp.put("className", className);
+                        imp.put("filename", filename);
+                        imports.add(imp);
+                    }
+                }
             }
             final Object variants = ((Map<String, Object>) deco).get("successVariants");
             if (!(variants instanceof List)) {
@@ -1723,6 +1896,23 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         context.put("className", className);
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
+        // A paged operation that follows a token cursor can copy its Options with the next cursor,
+        // so every page is sent with its own cursor and everything else unchanged.
+        final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+        final Object pagination =
+                opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
+        final boolean cursorCopy =
+                pagination instanceof Map
+                        && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"));
+        context.put("hasCursorCopy", cursorCopy);
+        if (cursorCopy && pagination instanceof Map) {
+            final Map<?, ?> plan = (Map<?, ?>) pagination;
+            final Object cursorName = plan.get("requestParamName");
+            context.put("cursorType", plan.get("cursorType"));
+            for (final Map<String, Object> param : params) {
+                param.put("isCursor", Objects.equals(param.get("name"), cursorName));
+            }
+        }
         context.put("params", params);
         context.put("dartImports", optionsImports);
         context.put("hasDartImports", !optionsImports.isEmpty());

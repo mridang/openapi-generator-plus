@@ -239,6 +239,35 @@ class ClientTest {
     }
 
     @Test
+    @DisplayName(
+        "bhvStreaming021 closing the client cancels the open streams, the next read of each raises the closed-client error, and new calls are refused",
+    )
+    fun bhvStreaming021ClosingTheClientCancelsTheOpenStreamsAndRefusesNewCalls() {
+        DefaultApiClientUnitTest.RawServer.serve(DefaultApiClientUnitTest.oneChunkThenHold).use { server ->
+            val client = Client(BearerAuthenticator(server.url(""), "test-token"))
+            runBlocking {
+                val open = client.pet.getPetAvatar(1L)
+                val buffer = ByteArray(4)
+                assertEquals(4, open.read(buffer))
+                assertEquals("tick", String(buffer, Charsets.UTF_8))
+
+                val started = System.nanoTime()
+                client.close()
+                assertTrue(
+                    System.nanoTime() - started <
+                        java.util.concurrent.TimeUnit.SECONDS
+                            .toNanos(5),
+                    "closing did not wait for the endless stream",
+                )
+
+                val cancelled = assertThrows(IllegalStateException::class.java) { runBlocking { open.read(buffer) } }
+                assertEquals("ApiClient has been closed and can no longer send requests", cancelled.message)
+                assertThrows(IllegalStateException::class.java) { runBlocking { client.pet.getPetAvatar(1L) } }
+            }
+        }
+    }
+
+    @Test
     @DisplayName("bhvLifecycle009 F824: closing the client never closes a caller-supplied transport")
     fun closingTheClientKeepsASuppliedTransportOpen() {
         val custom = HttpClient(MockEngine { respond("{}") }) { followRedirects = false }
@@ -611,6 +640,18 @@ class ClientTest {
         assertTrue("getPetTagWithHttpInfo" in petListed)
         assertTrue("getStagingPetInfo" in petListed)
         assertTrue("getStagingPetInfoWithHttpInfo" in petListed)
+        assertTrue("listPetArchive" in petListed)
+        assertTrue("listPetArchiveWithHttpInfo" in petListed)
+        assertTrue("listPetCatalog" in petListed)
+        assertTrue("listPetCatalogWithHttpInfo" in petListed)
+        assertTrue("listPetEvents" in petListed)
+        assertTrue("listPetEventsWithHttpInfo" in petListed)
+        assertTrue("listPetFeed" in petListed)
+        assertTrue("listPetFeedWithHttpInfo" in petListed)
+        assertTrue("listPetMatches" in petListed)
+        assertTrue("listPetMatchesWithHttpInfo" in petListed)
+        assertTrue("listPetNotes" in petListed)
+        assertTrue("listPetNotesWithHttpInfo" in petListed)
         assertTrue("setPetAvatar" in petListed)
         assertTrue("setPetAvatarWithHttpInfo" in petListed)
         assertTrue("setPetAvatarThumbnail" in petListed)
@@ -651,8 +692,7 @@ class ClientTest {
         assertTrue("createAccountWithHttpInfo" in storeListed)
         assertTrue("deleteOrder" in storeListed)
         assertTrue("deleteOrderWithHttpInfo" in storeListed)
-        assertTrue("exportOrders" in storeListed)
-        assertTrue("exportOrdersWithHttpInfo" in storeListed)
+        assertTrue("exportOrdersStream" in storeListed)
         assertTrue("getAuditTrail" in storeListed)
         assertTrue("getAuditTrailWithHttpInfo" in storeListed)
         assertTrue("getBySwatch" in storeListed)
@@ -689,10 +729,8 @@ class ClientTest {
         assertTrue("reserveStockWithHttpInfo" in storeListed)
         assertTrue("searchStore" in storeListed)
         assertTrue("searchStoreWithHttpInfo" in storeListed)
-        assertTrue("watchNotices" in storeListed)
-        assertTrue("watchNoticesWithHttpInfo" in storeListed)
-        assertTrue("watchOrders" in storeListed)
-        assertTrue("watchOrdersWithHttpInfo" in storeListed)
+        assertTrue("watchNoticesStream" in storeListed)
+        assertTrue("watchOrdersStream" in storeListed)
     }
 
     private fun publicMethodNames(methods: Array<java.lang.reflect.Method>): Set<String> =

@@ -509,7 +509,10 @@ pub(crate) fn attach_request(
                 .downcast::<crate::errors::network_timeout_error::NetworkTimeoutError>()
             {
                 Ok(timeout) => Box::new(timeout.with_request(method, path)),
-                Err(other) => other,
+                Err(other) => match other.downcast::<crate::errors::stream_error::StreamError>() {
+                    Ok(stream) => Box::new(stream.with_request(method, path)),
+                    Err(other) => other,
+                },
             },
         },
     }

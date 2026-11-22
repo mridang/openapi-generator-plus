@@ -19,6 +19,14 @@ __all__ = [
     "Client",
     "ClientProtocol",
     "ApiClient",
+    "BodySource",
+    "ByteStream",
+    "JsonLinesStream",
+    "ServerSentEvent",
+    "SseStream",
+    "StreamOptions",
+    "Paginator",
+    "Page",
     "Configuration",
     "CallHook",
     "CallObserver",
@@ -53,6 +61,8 @@ __all__ = [
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",
+    "StreamException",
+    "PaginationException",
     "SerializationException",
     "OAuth2ServerException",
     "OAuth2TokenException",
@@ -82,8 +92,13 @@ __all__ = [
     "NativeValues",
     "Order",
     "Pet",
+    "PetArchivePage",
+    "PetCatalogPage",
     "PetCriteria",
+    "PetEventPage",
     "PetFood",
+    "PetMatchPage",
+    "PetNotePage",
     "PetPassport",
     "PetTreatment",
     "PetWithOwner",
@@ -134,6 +149,14 @@ from petstore_client.api.store_api import StoreApiProtocol as StoreApiProtocol
 
 # import ApiClient
 from petstore_client.api_client import ApiClient as ApiClient
+from petstore_client.body_source import BodySource as BodySource
+from petstore_client.byte_stream import ByteStream as ByteStream
+from petstore_client.json_lines_stream import JsonLinesStream as JsonLinesStream
+from petstore_client.server_sent_event import ServerSentEvent as ServerSentEvent
+from petstore_client.sse_stream import SseStream as SseStream
+from petstore_client.stream_options import StreamOptions as StreamOptions
+from petstore_client.paginator import Paginator as Paginator
+from petstore_client.page import Page as Page
 from petstore_client.auth.authenticator import Authenticator as Authenticator
 from petstore_client.client import Client as Client
 from petstore_client.client import ClientProtocol as ClientProtocol
@@ -183,6 +206,8 @@ from petstore_client.errors import (
 )
 from petstore_client.errors import NetworkException as NetworkException
 from petstore_client.errors import NetworkTimeoutException as NetworkTimeoutException
+from petstore_client.errors import StreamException as StreamException
+from petstore_client.errors import PaginationException as PaginationException
 from petstore_client.errors import SerializationException as SerializationException
 from petstore_client.errors import OAuth2ServerException as OAuth2ServerException
 from petstore_client.errors import OAuth2TokenException as OAuth2TokenException
@@ -266,11 +291,26 @@ from petstore_client.models.order import (
 from petstore_client.models.pet import (
     Pet as Pet,
 )
+from petstore_client.models.pet_archive_page import (
+    PetArchivePage as PetArchivePage,
+)
+from petstore_client.models.pet_catalog_page import (
+    PetCatalogPage as PetCatalogPage,
+)
 from petstore_client.models.pet_criteria import (
     PetCriteria as PetCriteria,
 )
+from petstore_client.models.pet_event_page import (
+    PetEventPage as PetEventPage,
+)
 from petstore_client.models.pet_food import (
     PetFood as PetFood,
+)
+from petstore_client.models.pet_match_page import (
+    PetMatchPage as PetMatchPage,
+)
+from petstore_client.models.pet_note_page import (
+    PetNotePage as PetNotePage,
 )
 from petstore_client.models.pet_passport import (
     PetPassport as PetPassport,

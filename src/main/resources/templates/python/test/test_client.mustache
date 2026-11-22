@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 import threading
+import time
 from typing import Any, Optional, cast
 
 import pytest
@@ -17,6 +18,7 @@ from {{apiPackage}}.{{classFilename}} import {{classname}}, {{classname}}Protoco
 {{/apis}}
 {{/apiInfo}}
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}}, {{clientClassName}}Protocol
+from {{packageName}}.byte_stream import ByteStream
 from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.call_hook import CallInfo, CallObserver
 from {{packageName}}.transport_options import TransportOptions
@@ -593,8 +595,13 @@ class TestMocking:
         {{clientPropertyName}}_listed = _public_names({{classname}}Protocol)
         assert {{clientPropertyName}}_group is client.{{clientPropertyName}}
 {{#operation}}
+{{#vendorExtensions.op.streamOnly}}
+        assert '{{operationId}}_stream' in {{clientPropertyName}}_listed
+{{/vendorExtensions.op.streamOnly}}
+{{^vendorExtensions.op.streamOnly}}
         assert '{{operationId}}' in {{clientPropertyName}}_listed
         assert '{{operationId}}_with_http_info' in {{clientPropertyName}}_listed
+{{/vendorExtensions.op.streamOnly}}
 {{/operation}}
 {{/operations}}
 {{/apis}}
@@ -664,3 +671,30 @@ class TestClientCloseState:
 
         client.close()
 
+
+
+class TestClientCloseCancelsStreams:
+    async def test_bhv_streaming_021_closing_the_client_cancels_the_open_streams_and_refuses_new_calls(
+        self, raw_server: Any
+    ) -> None:
+        def script(connection: Any) -> None:
+            connection.head(200, 'Transfer-Encoding: chunked')
+            connection.chunk('tick')
+            connection.hold()
+
+        server = raw_server(script)
+        client = {{clientClassName}}(BearerAuthenticator('{{{basePath}}}', 'test-token'))
+        url = server.url('/items/events')
+        response = await asyncio.to_thread(client._api_client.send_streaming, 'GET', url, {}, None)
+        stream = ByteStream(response.status_code, response.headers, response.body)
+        assert await stream.read(4) == b'tick'
+
+        started = time.monotonic()
+        client.close()
+        assert time.monotonic() - started < 5, 'closing did not wait for the endless stream'
+
+        with pytest.raises(RuntimeError) as cancelled:
+            await stream.read()
+        assert str(cancelled.value) == 'ApiClient has been closed and can no longer send requests'
+        with pytest.raises(RuntimeError):
+            await asyncio.to_thread(client._api_client.send_streaming, 'GET', url, {}, None)
