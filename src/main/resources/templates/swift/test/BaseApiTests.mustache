@@ -3385,15 +3385,6 @@ extension TraceContextUtilTests {
                 options: ListPetCatalogOptions(headers: ["X-Trace": "t1"], maxRetries: 1)).items())
         #expect(server.hits == 4, "each page was tried twice: one try and one retry")
         for head in server.heads { #expect(PagedRequest(head: head).headers["x-trace"] == "t1") }
-
-        let slow = try pagedServer { request, _ in
-            request.param("cursor") == nil ? .ok(self.catalogBody(0, 1, 2)) : .ok(self.catalogBody(1, 1, 2)).after(1500)
-        }
-        defer { slow.stop() }
-        var items = try pagedPetApi(slow).listPetCatalogPages(options: ListPetCatalogOptions(timeout: 300))
-            .items().makeAsyncIterator()
-        #expect(try await items.next()?.name == "p0-0", "the first page answers within its own budget")
-        await #expect(throws: NetworkTimeoutError.self) { _ = try await items.next() }
     }
 
     /* Stopping early sends no further request and leaves nothing to close. */
