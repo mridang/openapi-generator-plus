@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,11 +10,12 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
-class ReservationReceipt implements \Ds\Hashable
+class ReservationReceipt implements \Ds\Hashable, \Stringable
 {
     /** @example rcpt-77 */
     #[SerializedName('receiptCode')]
@@ -78,7 +80,7 @@ class ReservationReceipt implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === $this::class
+            && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -88,7 +90,7 @@ class ReservationReceipt implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [$this::class];
+        $parts = [static::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -97,5 +99,4 @@ class ReservationReceipt implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
-
 }

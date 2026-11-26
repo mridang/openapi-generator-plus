@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,11 +10,12 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
-class Defaults implements \Ds\Hashable
+class Defaults implements \Ds\Hashable, \Stringable
 {
     #[SerializedName('swatch')]
     public readonly ?\PetstoreClient\Models\Swatch $swatch;
@@ -72,11 +74,11 @@ class Defaults implements \Ds\Hashable
     public function withSwatch(?\PetstoreClient\Models\Swatch $swatch): self
     {
         return new self(
-            swatch: $swatch,
             retries: $this->retries,
             mode: $this->mode,
             label: $this->label,
             greeting: $this->greeting,
+            swatch: $swatch,
             ratio: $this->ratio,
             scale: $this->scale,
             weight: $this->weight,
@@ -90,11 +92,11 @@ class Defaults implements \Ds\Hashable
     public function withRetries(int $retries): self
     {
         return new self(
-            swatch: $this->swatch,
             retries: $retries,
             mode: $this->mode,
             label: $this->label,
             greeting: $this->greeting,
+            swatch: $this->swatch,
             ratio: $this->ratio,
             scale: $this->scale,
             weight: $this->weight,
@@ -108,11 +110,11 @@ class Defaults implements \Ds\Hashable
     public function withMode(DefaultsModeEnum $mode): self
     {
         return new self(
-            swatch: $this->swatch,
             retries: $this->retries,
             mode: $mode,
             label: $this->label,
             greeting: $this->greeting,
+            swatch: $this->swatch,
             ratio: $this->ratio,
             scale: $this->scale,
             weight: $this->weight,
@@ -126,11 +128,11 @@ class Defaults implements \Ds\Hashable
     public function withLabel(?string $label): self
     {
         return new self(
-            swatch: $this->swatch,
             retries: $this->retries,
             mode: $this->mode,
             label: $label,
             greeting: $this->greeting,
+            swatch: $this->swatch,
             ratio: $this->ratio,
             scale: $this->scale,
             weight: $this->weight,
@@ -144,11 +146,11 @@ class Defaults implements \Ds\Hashable
     public function withGreeting(string $greeting): self
     {
         return new self(
-            swatch: $this->swatch,
             retries: $this->retries,
             mode: $this->mode,
             label: $this->label,
             greeting: $greeting,
+            swatch: $this->swatch,
             ratio: $this->ratio,
             scale: $this->scale,
             weight: $this->weight,
@@ -162,11 +164,11 @@ class Defaults implements \Ds\Hashable
     public function withRatio(float $ratio): self
     {
         return new self(
-            swatch: $this->swatch,
             retries: $this->retries,
             mode: $this->mode,
             label: $this->label,
             greeting: $this->greeting,
+            swatch: $this->swatch,
             ratio: $ratio,
             scale: $this->scale,
             weight: $this->weight,
@@ -180,11 +182,11 @@ class Defaults implements \Ds\Hashable
     public function withScale(float $scale): self
     {
         return new self(
-            swatch: $this->swatch,
             retries: $this->retries,
             mode: $this->mode,
             label: $this->label,
             greeting: $this->greeting,
+            swatch: $this->swatch,
             ratio: $this->ratio,
             scale: $scale,
             weight: $this->weight,
@@ -198,11 +200,11 @@ class Defaults implements \Ds\Hashable
     public function withWeight(float $weight): self
     {
         return new self(
-            swatch: $this->swatch,
             retries: $this->retries,
             mode: $this->mode,
             label: $this->label,
             greeting: $this->greeting,
+            swatch: $this->swatch,
             ratio: $this->ratio,
             scale: $this->scale,
             weight: $weight,
@@ -216,11 +218,11 @@ class Defaults implements \Ds\Hashable
     public function withCeiling(int $ceiling): self
     {
         return new self(
-            swatch: $this->swatch,
             retries: $this->retries,
             mode: $this->mode,
             label: $this->label,
             greeting: $this->greeting,
+            swatch: $this->swatch,
             ratio: $this->ratio,
             scale: $this->scale,
             weight: $this->weight,
@@ -251,7 +253,7 @@ class Defaults implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === $this::class
+            && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -261,7 +263,7 @@ class Defaults implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [$this::class];
+        $parts = [static::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -270,5 +272,4 @@ class Defaults implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
-
 }

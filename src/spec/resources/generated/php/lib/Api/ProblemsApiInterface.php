@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -30,7 +31,6 @@ interface ProblemsApiInterface
     /**
      * Read a fallback, declaring a default response
      * @param GetFallbackOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\UnexpectedFailureException on HTTP default with a {@see \PetstoreClient\Models\UnexpectedFailure} body
      */
@@ -47,7 +47,6 @@ interface ProblemsApiInterface
     /**
      * Read a member, declaring a 404 with a different schema
      * @param GetMemberOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\MemberNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\MemberNotFound} body
      */
@@ -64,7 +63,6 @@ interface ProblemsApiInterface
     /**
      * Read a project, declaring a 404 with its own schema
      * @param GetProjectOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\ProjectNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\ProjectNotFound} body
      */
@@ -81,7 +79,6 @@ interface ProblemsApiInterface
     /**
      * Read a range, declaring one schema for every 4XX status
      * @param GetRangeOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\RejectedRequestException on HTTP 4XX with a {@see \PetstoreClient\Models\RejectedRequest} body
      */
@@ -98,7 +95,6 @@ interface ProblemsApiInterface
     /**
      * Read an upstream, declaring one schema for every 5XX status
      * @param GetUpstreamOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\UpstreamFailureException on HTTP 5XX with a {@see \PetstoreClient\Models\UpstreamFailure} body
      */
@@ -115,7 +111,6 @@ interface ProblemsApiInterface
     /**
      * Take a lock, declaring one schema under two statuses
      * @param TakeLockOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\StateConflictException on HTTP 409 with a {@see \PetstoreClient\Models\StateConflict} body
      * @throws \PetstoreClient\Errors\StateConflictException on HTTP 423 with a {@see \PetstoreClient\Models\StateConflict} body

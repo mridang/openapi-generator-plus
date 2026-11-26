@@ -260,7 +260,7 @@ test('bhv config 017 a built configuration cannot be changed', function (): void
 });
 
 test('bhv options 044 the README names the builder setter that rejects a SOCKS proxy', function (): void {
-    $readme = (string) file_get_contents(dirname(__DIR__) . '/README.md');
+    $readme = (string) file_get_contents(__DIR__ . '/../README.md');
     $section = strpos($readme, '### SOCKS proxies');
 
     expect($section)->not->toBeFalse();
@@ -268,7 +268,7 @@ test('bhv options 044 the README names the builder setter that rejects a SOCKS p
 });
 
 test('bhv mocking 009 the README has a Testing your code section naming both interfaces and showing a fake', function (): void {
-    $readme = (string) file_get_contents(dirname(__DIR__) . '/README.md');
+    $readme = (string) file_get_contents(__DIR__ . '/../README.md');
     $section = strpos($readme, '### Testing your code');
 
     expect($section)->not->toBeFalse();
@@ -353,7 +353,7 @@ test('bhv langphp 042 the README names the composer package and the real proxy s
 });
 
 test('bhv langphp 043 SKILLS types file upload parameters as the SplFileObject the options require', function (): void {
-    $skills = (string) file_get_contents(dirname(__DIR__) . '/SKILLS.md');
+    $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
 
     expect($skills)->toContain('A multipart file field is a `\SplFileObject`');
     expect($skills)->not->toContain('SplFileInfo');
@@ -366,14 +366,14 @@ test('bhv langphp 044 phpunit.xml runs the hand written spec directory as well a
     }
     $xml = simplexml_load_file($root . '/phpunit.xml');
     assert($xml instanceof \SimpleXMLElement);
-    $directories = array_map('strval', $xml->xpath('//testsuite/directory') ?: []);
+    $directories = array_map(strval(...), $xml->xpath('//testsuite/directory') ?: []);
 
     expect($directories)->toContain('tests');
     expect($directories)->toContain('spec');
 });
 
 test('bhv skills 001 SKILLS names the root exception and the error types that are siblings of ApiException', function (): void {
-    $skills = (string) file_get_contents(dirname(__DIR__) . '/SKILLS.md');
+    $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
 
     expect(preg_match('/- `[A-Za-z0-9]+Exception` \(root\)/', $skills))->toBe(1);
     foreach (['SerializationException', 'OAuth2ServerException', 'OAuth2TokenException'] as $name) {
@@ -384,7 +384,7 @@ test('bhv skills 001 SKILLS names the root exception and the error types that ar
 });
 
 test('bhv skills 002 SKILLS documents the retries in the configuration section', function (): void {
-    $skills = (string) file_get_contents(dirname(__DIR__) . '/SKILLS.md');
+    $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
     $start = strpos($skills, "\n## Configuration\n");
     $end = strpos($skills, "\n## API Methods\n");
     expect($start)->toBeInt();
@@ -511,7 +511,7 @@ function examplesPhpFences(string $text): array
 
 function examplesRootFile(string $name): string
 {
-    return (string) file_get_contents(dirname(__DIR__) . '/' . $name);
+    return (string) file_get_contents(__DIR__ . '/../' . $name);
 }
 
 test('bhv langphp 071 the quickstart builds a client, calls an operation and closes it', function (): void {

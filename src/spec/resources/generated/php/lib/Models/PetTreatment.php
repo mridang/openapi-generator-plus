@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,6 +10,7 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 /**
@@ -20,8 +22,8 @@ class PetTreatment implements \Ds\Hashable
     private static function anyOfCandidates(): array
     {
         return [
-            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('\PetstoreClient\Models\Medication')),
-            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('\PetstoreClient\Models\Surgery')),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Medication::class)),
+            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Surgery::class)),
         ];
     }
 
@@ -84,7 +86,7 @@ class PetTreatment implements \Ds\Hashable
      */
     public function isMedication(): bool
     {
-        return $this->asMedication() !== null;
+        return $this->asMedication() instanceof \PetstoreClient\Models\Medication;
     }
 
     /**
@@ -114,7 +116,7 @@ class PetTreatment implements \Ds\Hashable
      */
     public function isSurgery(): bool
     {
-        return $this->asSurgery() !== null;
+        return $this->asSurgery() instanceof \PetstoreClient\Models\Surgery;
     }
 
     /**
@@ -144,7 +146,7 @@ class PetTreatment implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === $this::class
+            && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -154,7 +156,7 @@ class PetTreatment implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [$this::class];
+        $parts = [static::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -163,5 +165,4 @@ class PetTreatment implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
-
 }

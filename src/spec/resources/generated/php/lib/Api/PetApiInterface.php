@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -63,7 +64,6 @@ interface PetApiInterface
      * Add a new pet to the store
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
      * @param AddPetOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
@@ -99,7 +99,6 @@ interface PetApiInterface
     /**
      * Record a treatment for a pet
      * @param AddPetTreatmentOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\PetTreatment
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): \PetstoreClient\Models\PetTreatment;
@@ -115,7 +114,6 @@ interface PetApiInterface
      * Attach files in a multipart/mixed request
      * Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
      * @param AttachPetFilesOptions $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function attachPetFiles(int $petId, AttachPetFilesOptions $options): \PetstoreClient\Models\ApiResponse;
@@ -149,7 +147,6 @@ interface PetApiInterface
      * Download a vet document
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
      * @param DownloadPetDocumentOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ByteStream
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -203,7 +200,6 @@ interface PetApiInterface
     /**
      * Get external pet info
      * @param GetExternalPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null, ?GetExternalPetInfoOptions $options = null): \PetstoreClient\Models\Pet;
@@ -218,7 +214,6 @@ interface PetApiInterface
     /**
      * Get multi-server pet info
      * @param GetMultiServerPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null, ?GetMultiServerPetInfoOptions $options = null): \PetstoreClient\Models\Pet;
@@ -234,7 +229,6 @@ interface PetApiInterface
      * Get the pet's profile photo
      * Returns the raw image bytes of the pet's current avatar.
      * @param GetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ByteStream
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -252,7 +246,6 @@ interface PetApiInterface
      * Get the pet's avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
      * @param GetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -273,7 +266,6 @@ interface PetApiInterface
      * @example 1 Small breed ID
      * @example 42 Large breed ID
      * @param GetPetByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -295,7 +287,6 @@ interface PetApiInterface
     /**
      * Look up a pet by name (simple string path param + required query)
      * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetByName(string $name, GetPetByNameOptions $options): \PetstoreClient\Models\Pet;
@@ -310,7 +301,6 @@ interface PetApiInterface
     /**
      * Look up a pet by note (required query parameters whose value may be null)
      * @param GetPetByNoteOptions $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetByNote(GetPetByNoteOptions $options): \PetstoreClient\Models\Pet;
@@ -326,7 +316,6 @@ interface PetApiInterface
      * Get the pet's passport
      * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
      * @param GetPetPassportOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\PetPassport
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -344,7 +333,6 @@ interface PetApiInterface
      * Get a photo or its metadata
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
      * @param GetPetPhotoOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return ByteStream
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -363,7 +351,6 @@ interface PetApiInterface
      * Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done
      * @param \DateTime $asOf Summary date, sent as a matrix-style path segment
      * @param GetPetSummaryOptions $options Options for query, header, form, and cookie parameters
-     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -381,7 +368,6 @@ interface PetApiInterface
     /**
      * Get a tag for a pet
      * @param GetPetTagOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetTag(int $petId, string $tagName, ?GetPetTagOptions $options = null): \PetstoreClient\Models\Pet;
@@ -396,7 +382,6 @@ interface PetApiInterface
     /**
      * Get staging pet info
      * @param GetStagingPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null, ?GetStagingPetInfoOptions $options = null): \PetstoreClient\Models\Pet;
@@ -411,7 +396,6 @@ interface PetApiInterface
     /**
      * Lists archived pets; it looks paged, and the generator option says it is not
      * @param ListPetArchiveOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\PetArchivePage
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function listPetArchive(?ListPetArchiveOptions $options = null): \PetstoreClient\Models\PetArchivePage;
@@ -426,7 +410,6 @@ interface PetApiInterface
     /**
      * Lists the pet catalog one page at a time with a next-cursor token
      * @param ListPetCatalogOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\PetCatalogPage
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function listPetCatalog(?ListPetCatalogOptions $options = null): \PetstoreClient\Models\PetCatalogPage;
@@ -459,7 +442,6 @@ interface PetApiInterface
     /**
      * Lists pet events; only the generator option says it is paged
      * @param ListPetEventsOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\PetEventPage
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function listPetEvents(?ListPetEventsOptions $options = null): \PetstoreClient\Models\PetEventPage;
@@ -524,7 +506,6 @@ interface PetApiInterface
     /**
      * Finds pets and their owners; two lists make it ambiguous, so it is not paged
      * @param ListPetMatchesOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\PetMatchPage
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function listPetMatches(?ListPetMatchesOptions $options = null): \PetstoreClient\Models\PetMatchPage;
@@ -539,7 +520,6 @@ interface PetApiInterface
     /**
      * Lists pets with the URL of the next page in the body
      * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\PetNextUrlPage
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function listPetNextUrl(?ListPetNextUrlOptions $options = null): \PetstoreClient\Models\PetNextUrlPage;
@@ -571,7 +551,6 @@ interface PetApiInterface
     /**
      * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
      * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\PetNotePage
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function listPetNotes(?ListPetNotesOptions $options = null): \PetstoreClient\Models\PetNotePage;
@@ -604,7 +583,6 @@ interface PetApiInterface
     /**
      * Lists pets by offset and limit; the list ends on an empty page
      * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\PetOffsetPage
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function listPetOffsets(?ListPetOffsetsOptions $options = null): \PetstoreClient\Models\PetOffsetPage;
@@ -637,7 +615,6 @@ interface PetApiInterface
     /**
      * Lists pets one numbered page at a time; the list ends on an empty page
      * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\PetPageNumberPage
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function listPetPageNumbers(?ListPetPageNumbersOptions $options = null): \PetstoreClient\Models\PetPageNumberPage;
@@ -670,7 +647,6 @@ interface PetApiInterface
     /**
      * Lists pets after the id of the last one; the has_more flag says when the list ends
      * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\PetAfterPage
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function listPetsAfter(?ListPetsAfterOptions $options = null): \PetstoreClient\Models\PetAfterPage;
@@ -740,7 +716,6 @@ interface PetApiInterface
      * Update a pet's notification preferences
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -759,7 +734,6 @@ interface PetApiInterface
      * @param int $petId ID of pet to update
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
      * @param UpdatePetOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -781,7 +755,6 @@ interface PetApiInterface
      * Upload the pet's adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -800,7 +773,6 @@ interface PetApiInterface
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
-     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */

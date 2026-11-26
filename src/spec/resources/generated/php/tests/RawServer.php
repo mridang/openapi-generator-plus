@@ -17,164 +17,164 @@ namespace PetstoreClient\Test;
  */
 final class RawServer
 {
-    private const string PRELUDE = <<<'PHP'
-        <?php
-        declare(strict_types=1);
-        $dir = $argv[1];
-        $listener = stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
-        if ($listener === false) {
-            exit(1);
+    private const string PRELUDE = <<<'PHP_WRAP'
+    <?php
+    declare(strict_types=1);
+    $dir = $argv[1];
+    $listener = stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+    if ($listener === false) {
+        exit(1);
+    }
+    $name = (string) stream_socket_get_name($listener, false);
+    file_put_contents($dir . '/port', substr($name, (int) strrpos($name, ':') + 1));
+    
+    /** @param resource $socket */
+    function reply($socket, int $status, string ...$headers): void
+    {
+        $head = 'HTTP/1.1 ' . $status . " Test\r\n";
+        foreach ($headers as $header) {
+            $head .= $header . "\r\n";
         }
-        $name = (string) stream_socket_get_name($listener, false);
-        file_put_contents($dir . '/port', substr($name, (int) strrpos($name, ':') + 1));
-
-        /** @param resource $socket */
-        function reply($socket, int $status, string ...$headers): void
-        {
-            $head = 'HTTP/1.1 ' . $status . " Test\r\n";
-            foreach ($headers as $header) {
-                $head .= $header . "\r\n";
-            }
-            @fwrite($socket, $head . "Connection: close\r\n\r\n");
+        @fwrite($socket, $head . "Connection: close\r\n\r\n");
+    }
+    
+    /** @param resource $socket */
+    function chunk($socket, string $data): bool
+    {
+        $written = @fwrite($socket, dechex(strlen($data)) . "\r\n" . $data . "\r\n");
+    
+        return $written !== false && $written > 0;
+    }
+    
+    /** @param resource $socket */
+    function endChunks($socket): void
+    {
+        @fwrite($socket, "0\r\n\r\n");
+    }
+    
+    function awaitRelease(): void
+    {
+        global $dir;
+        $until = microtime(true) + 20.0;
+        while (!file_exists($dir . '/release') && microtime(true) < $until) {
+            usleep(10_000);
         }
-
-        /** @param resource $socket */
-        function chunk($socket, string $data): bool
-        {
-            $written = @fwrite($socket, dechex(strlen($data)) . "\r\n" . $data . "\r\n");
-
-            return $written !== false && $written > 0;
-        }
-
-        /** @param resource $socket */
-        function endChunks($socket): void
-        {
-            @fwrite($socket, "0\r\n\r\n");
-        }
-
-        function awaitRelease(): void
-        {
-            global $dir;
-            $until = microtime(true) + 20.0;
-            while (!file_exists($dir . '/release') && microtime(true) < $until) {
-                usleep(10_000);
-            }
-        }
-
-        /**
-         * Holds the connection open and silent until the client drops it (or the test releases the
-         * script), so that a script waiting here does not keep the next connection from being served.
-         *
-         * @param resource $socket
-         */
-        function holdUntilGone($socket): void
-        {
-            global $dir;
-            $until = microtime(true) + 20.0;
-            while (!file_exists($dir . '/release') && microtime(true) < $until) {
-                $read = [$socket];
-                $write = null;
-                $except = null;
-                if (@stream_select($read, $write, $except, 0, 50_000) > 0) {
-                    $data = @fread($socket, 1024);
-                    if (($data === '' || $data === false) && feof($socket)) {
-                        return;
-                    }
+    }
+    
+    /**
+     * Holds the connection open and silent until the client drops it (or the test releases the
+     * script), so that a script waiting here does not keep the next connection from being served.
+     *
+     * @param resource $socket
+     */
+    function holdUntilGone($socket): void
+    {
+        global $dir;
+        $until = microtime(true) + 20.0;
+        while (!file_exists($dir . '/release') && microtime(true) < $until) {
+            $read = [$socket];
+            $write = null;
+            $except = null;
+            if (@stream_select($read, $write, $except, 0, 50_000) > 0) {
+                $data = @fread($socket, 1024);
+                if (($data === '' || $data === false) && feof($socket)) {
+                    return;
                 }
             }
         }
-
-        /**
-         * Reads the body of the request that the head announces (a Content-Length or a chunked
-         * body), saves it for the test and returns it. Answers `Expect: 100-continue` first.
-         *
-         * @param resource $socket
-         */
-        function recordBody($socket, string $head, int $hit): string
-        {
-            global $dir;
-            if (stripos($head, 'expect: 100-continue') !== false) {
-                @fwrite($socket, "HTTP/1.1 100 Continue\r\n\r\n");
-            }
-            $body = '';
-            if (preg_match('/^transfer-encoding:\s*chunked/im', $head) === 1) {
-                while (($size = stream_get_line($socket, 64, "\r\n")) !== false) {
-                    $length = (int) hexdec(trim(explode(';', $size)[0]));
-                    if ($length === 0) {
-                        stream_get_line($socket, 64, "\r\n");
-                        break;
-                    }
-                    $read = '';
-                    while (strlen($read) < $length) {
-                        $part = fread($socket, $length - strlen($read));
-                        if ($part === false || $part === '') {
-                            break;
-                        }
-                        $read .= $part;
-                    }
-                    $body .= $read;
+    }
+    
+    /**
+     * Reads the body of the request that the head announces (a Content-Length or a chunked
+     * body), saves it for the test and returns it. Answers `Expect: 100-continue` first.
+     *
+     * @param resource $socket
+     */
+    function recordBody($socket, string $head, int $hit): string
+    {
+        global $dir;
+        if (stripos($head, 'expect: 100-continue') !== false) {
+            @fwrite($socket, "HTTP/1.1 100 Continue\r\n\r\n");
+        }
+        $body = '';
+        if (preg_match('/^transfer-encoding:\s*chunked/im', $head) === 1) {
+            while (($size = stream_get_line($socket, 64, "\r\n")) !== false) {
+                $length = (int) hexdec(trim(explode(';', $size)[0]));
+                if ($length === 0) {
                     stream_get_line($socket, 64, "\r\n");
+                    break;
                 }
-            } elseif (preg_match('/^content-length:\s*(\d+)/im', $head, $match) === 1) {
-                $want = (int) $match[1];
-                while (strlen($body) < $want) {
-                    $part = fread($socket, $want - strlen($body));
+                $read = '';
+                while (strlen($read) < $length) {
+                    $part = fread($socket, $length - strlen($read));
                     if ($part === false || $part === '') {
                         break;
                     }
-                    $body .= $part;
+                    $read .= $part;
                 }
+                $body .= $read;
+                stream_get_line($socket, 64, "\r\n");
             }
-            file_put_contents($dir . '/body.' . $hit, $body);
-
-            return $body;
-        }
-
-        /** The base URL of this server, so that a reply can point back at it. */
-        function selfUrl(): string
-        {
-            global $name;
-
-            return 'http://127.0.0.1:' . substr($name, (int) strrpos($name, ':') + 1);
-        }
-
-        /**
-         * The decoded query of the request that the head describes.
-         *
-         * @return array<string, mixed>
-         */
-        function queryOf(string $head): array
-        {
-            $target = explode(' ', $head)[1] ?? '/';
-            parse_str((string) parse_url($target, PHP_URL_QUERY), $query);
-
-            return $query;
-        }
-
-        /** @param resource $socket */
-        function replyJson($socket, int $status, string $json, string ...$headers): void
-        {
-            reply($socket, $status, 'Content-Type: application/json', 'Content-Length: ' . strlen($json), ...$headers);
-            @fwrite($socket, $json);
-        }
-
-        function gone(): void
-        {
-            global $dir;
-            touch($dir . '/gone');
-        }
-
-        $hit = 0;
-        while (true) {
-            $socket = @stream_socket_accept($listener, 60.0);
-            if ($socket === false) {
-                exit(0);
+        } elseif (preg_match('/^content-length:\s*(\d+)/im', $head, $match) === 1) {
+            $want = (int) $match[1];
+            while (strlen($body) < $want) {
+                $part = fread($socket, $want - strlen($body));
+                if ($part === false || $part === '') {
+                    break;
+                }
+                $body .= $part;
             }
-            $head = (string) stream_get_line($socket, 65536, "\r\n\r\n");
-            $hit++;
-            file_put_contents($dir . '/heads', base64_encode($head) . "\n", FILE_APPEND);
-            $script = static function ($socket, int $hit, string $head): void {
-        PHP;
+        }
+        file_put_contents($dir . '/body.' . $hit, $body);
+    
+        return $body;
+    }
+    
+    /** The base URL of this server, so that a reply can point back at it. */
+    function selfUrl(): string
+    {
+        global $name;
+    
+        return 'http://127.0.0.1:' . substr($name, (int) strrpos($name, ':') + 1);
+    }
+    
+    /**
+     * The decoded query of the request that the head describes.
+     *
+     * @return array<string, mixed>
+     */
+    function queryOf(string $head): array
+    {
+        $target = explode(' ', $head)[1] ?? '/';
+        parse_str((string) parse_url($target, PHP_URL_QUERY), $query);
+    
+        return $query;
+    }
+    
+    /** @param resource $socket */
+    function replyJson($socket, int $status, string $json, string ...$headers): void
+    {
+        reply($socket, $status, 'Content-Type: application/json', 'Content-Length: ' . strlen($json), ...$headers);
+        @fwrite($socket, $json);
+    }
+    
+    function gone(): void
+    {
+        global $dir;
+        touch($dir . '/gone');
+    }
+    
+    $hit = 0;
+    while (true) {
+        $socket = @stream_socket_accept($listener, 60.0);
+        if ($socket === false) {
+            exit(0);
+        }
+        $head = (string) stream_get_line($socket, 65536, "\r\n\r\n");
+        $hit++;
+        file_put_contents($dir . '/heads', base64_encode($head) . "\n", FILE_APPEND);
+        $script = static function ($socket, int $hit, string $head): void {
+    PHP_WRAP;
 
     private const string EPILOGUE = <<<'PHP'
 
@@ -224,7 +224,7 @@ final class RawServer
             }
         }
         if ($port === 0) {
-            throw new \RuntimeException('the raw test server did not start: ' . (string) @file_get_contents($dir . '/stderr'));
+            throw new \RuntimeException('the raw test server did not start: ' . @file_get_contents($dir . '/stderr'));
         }
 
         return new self($dir, $port, $process);
@@ -297,7 +297,7 @@ final class RawServer
     {
         parse_str((string) parse_url(explode(' ', $this->heads()[$connection])[1] ?? '/', PHP_URL_QUERY), $query);
 
-        return array_combine(array_map('strval', array_keys($query)), array_values($query));
+        return array_combine(array_map(strval(...), array_keys($query)), array_values($query));
     }
 
     /**

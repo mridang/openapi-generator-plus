@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -222,7 +223,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                for the public surface. The joined form is not directly
                parseable for Set-Cookie; callers needing structured cookie
                access should use a transport that exposes the raw response. */
-            $responseHeaders = self::joinedHeaders($response->headers);
+            $responseHeaders = $this->joinedHeaders($response->headers);
             $contentEncoding = $response->headers['content-encoding'][0] ?? '';
             try {
                 $responseBody = $this->decompressBody($responseBody, $contentEncoding);
@@ -295,7 +296,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
         /* A malformed request URL is a caller mistake, not a network failure:
          * refuse it before any header is merged or the transport is touched. */
         if (!self::isUsableWebUrl($url)) {
-            throw new \InvalidArgumentException('Malformed request URL: ' . self::loggableUrl($url));
+            throw new \InvalidArgumentException('Malformed request URL: ' . $this->loggableUrl($url));
         }
 
         /* An SDK token request (RFC 6749 section 3.2) or OpenID Connect
@@ -304,7 +305,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
          * API) must not ride along. */
         $mergedHeaders = $noDefaultHeaders
             ? $headers
-            : self::mergeHeaders($this->transportOptions->defaultHeaders, $headers);
+            : $this->mergeHeaders($this->transportOptions->defaultHeaders, $headers);
         /* A CR, LF or NUL in a header value would end the header line early and let
          * the rest be read as a forged header, so it is refused before the transport
          * is touched. The value is never echoed: only the header name is named. */
@@ -365,7 +366,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
              * `Content-Length: 0` on body-bearing verbs to match
              * Kotlin's `ByteArray(0)` and the other 11 SDKs. */
             $upperMethod = strtoupper($method);
-            if ($upperMethod === 'POST' || $upperMethod === 'PUT' || $upperMethod === 'PATCH') {
+            if (in_array($upperMethod, ['POST', 'PUT', 'PATCH'], true)) {
                 $mergedHeaders['Content-Length'] = '0';
             }
         }
@@ -458,7 +459,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                         throw new ApiException(
                             $response->statusCode,
                             'Refusing to follow redirect to non-HTTP(S) URL: ' . self::withoutQuery($nextUrl),
-                            self::joinedHeaders($response->headers)
+                            $this->joinedHeaders($response->headers)
                         );
                     }
                     $crossOrigin = !self::sameOrigin($originalUrl, $nextUrl);
@@ -500,7 +501,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                         throw new ApiException(
                             $statusCode,
                             'Refusing to replay a streamed request body',
-                            self::joinedHeaders($response->headers)
+                            $this->joinedHeaders($response->headers)
                         );
                     }
                     $isDowngrade = $prevScheme === 'https' && $nextScheme === 'http';
@@ -515,7 +516,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                             $statusCode,
                             'Refusing to replay request body across HTTPS->HTTP redirect: '
                             . self::withoutQuery($url) . ' -> ' . self::withoutQuery($nextUrl),
-                            self::joinedHeaders($response->headers)
+                            $this->joinedHeaders($response->headers)
                         );
                     }
 
@@ -579,7 +580,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                     throw new ApiException(
                         $response->statusCode,
                         "Too many redirects (exceeded $maxRedirects)",
-                        self::joinedHeaders($response->headers)
+                        $this->joinedHeaders($response->headers)
                     );
                 }
             }
@@ -632,7 +633,6 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
         try {
             $response = $this->sendAndRetry(
                 $method,
-                $url,
                 $headers,
                 $body,
                 $timeoutMs ?? $this->transportOptions->timeout,
@@ -707,7 +707,6 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
         try {
             $response = $this->sendAndRetry(
                 $method,
-                $url,
                 $headers,
                 $body,
                 $timeoutMs ?? $this->transportOptions->timeout,
@@ -772,7 +771,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      */
     private function wrapStream(string $method, string $url, RawStreamResponse $raw): ByteStream
     {
-        $headers = self::joinedHeaders($raw->headers);
+        $headers = $this->joinedHeaders($raw->headers);
         $encoding = strtolower(trim($raw->headers['content-encoding'][0] ?? ''));
         $identity = $encoding === '' || $encoding === 'identity';
         $status = $raw->statusCode;
@@ -816,14 +815,14 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                         $path
                     );
                 }
-                if ($inflater !== null && $wire > 0 && inflate_get_status($inflater) !== ZLIB_STREAM_END) {
+                if ($inflater instanceof \InflateContext && $wire > 0 && inflate_get_status($inflater) !== ZLIB_STREAM_END) {
                     throw new StreamException('The compressed response body ended early', null, $method, $path);
                 }
 
                 return null;
             }
             $wire += strlen($chunk);
-            if ($inflater === null) {
+            if (!$inflater instanceof \InflateContext) {
                 return $chunk;
             }
             $decoded = @inflate_add($inflater, $chunk, ZLIB_SYNC_FLUSH);
@@ -898,7 +897,6 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      */
     private function sendAndRetry(
         string $method,
-        string $url,
         callable $headers,
         mixed $body,
         ?int $timeout,
@@ -950,7 +948,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
                 /* misc161: a dropped connection is retried only for idempotent
                  * methods, since the request may already have reached the server.
                  * misc170: a TLS or certificate failure is never retried. */
-                if (!self::isIdempotentMethod($method) || self::isTlsFailure($e)) {
+                if (!$this->isIdempotentMethod($method) || $this->isTlsFailure($e)) {
                     throw $e;
                 }
                 $response = null;
@@ -958,7 +956,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
             } finally {
                 $this->retryDeadline = null;
             }
-            if ($failure === null && $response !== null && !self::isRetryableStatus($response->statusCode)) {
+            if (!$failure instanceof \PetstoreClient\Errors\NetworkException && $response !== null && !$this->isRetryableStatus($response->statusCode)) {
                 return $response;
             }
             if ($attempt >= $maxRetries) {
@@ -966,8 +964,8 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
             }
             $delay = $response === null
                 ? null
-                : self::retryAfterSeconds($response->headers['retry-after'] ?? null);
-            $delay ??= self::backoffSeconds($attempt, $this->jitter());
+                : $this->retryAfterSeconds($response->headers['retry-after'] ?? null);
+            $delay ??= $this->backoffSeconds($attempt, $this->jitter());
             if ($budgetEnd !== null && hrtime(true) / 1e9 + $delay >= $budgetEnd) {
                 break;
             }
@@ -978,7 +976,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
             $this->pause($delay);
             $attempt++;
         }
-        if ($failure !== null) {
+        if ($failure instanceof \PetstoreClient\Errors\NetworkException) {
             throw $failure;
         }
         /* The loop only leaves with a response or a failure. */
@@ -1008,9 +1006,9 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      * Whether a response status is worth another attempt: 408, 409, 429 and
      * every 5xx except 501 (which will not change).
      */
-    private static function isRetryableStatus(int $status): bool
+    private function isRetryableStatus(int $status): bool
     {
-        return $status === 408 || $status === 409 || $status === 429
+        return in_array($status, [408, 409, 429], true)
             || ($status >= 500 && $status <= 599 && $status !== 501);
     }
 
@@ -1018,7 +1016,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      * Whether a method may be sent again after a dropped connection: the
      * RFC 9110 idempotent methods plus QUERY. POST and PATCH are not.
      */
-    private static function isIdempotentMethod(string $method): bool
+    private function isIdempotentMethod(string $method): bool
     {
         return in_array(strtoupper($method), ['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY'], true);
     }
@@ -1028,9 +1026,9 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      * walking the exception and its previous chain. The lookaround keeps a
      * host such as ssl.example.com from matching.
      */
-    private static function isTlsFailure(\Throwable $e): bool
+    private function isTlsFailure(\Throwable $e): bool
     {
-        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+        for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
             if (preg_match('/(?<![.\w-])(ssl|tls)(?![.\w-])|certificate/i', $cause->getMessage()) === 1) {
                 return true;
             }
@@ -1042,7 +1040,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      * Backoff before retry number $attempt + 1: 0.5 s doubling up to 8 s, cut
      * by up to 25% of itself according to $jitter in [0, 1).
      */
-    private static function backoffSeconds(int $attempt, float $jitter): float
+    private function backoffSeconds(int $attempt, float $jitter): float
     {
         $base = min(8.0, 0.5 * (2 ** min($attempt, 16)));
         return $base * (1.0 - 0.25 * $jitter);
@@ -1052,7 +1050,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      * Seconds a `Retry-After` value asks for (delay-seconds or an HTTP date),
      * capped at 60, or null when it is absent or not understood.
      */
-    private static function retryAfterSeconds(?string $value): ?float
+    private function retryAfterSeconds(?string $value): ?float
     {
         if ($value === null) {
             return null;
@@ -1078,7 +1076,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      * @param array<array-key, array<array-key, string>> $headers transport headers, name to value list
      * @return array<string, string>
      */
-    private static function joinedHeaders(array $headers): array
+    private function joinedHeaders(array $headers): array
     {
         $joined = [];
         foreach ($headers as $name => $values) {
@@ -1352,14 +1350,14 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
         $literal = str_starts_with((string) $host, '[') || str_ends_with((string) $host, ']');
 
         return $host !== ''
-            && !($literal && filter_var(trim((string) $host, '[]'), FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false);
+            && (!$literal || filter_var(trim((string) $host, '[]'), FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false);
     }
 
     /**
      * The URL for an error message: no query, and any userinfo replaced by
      * `***@`, so a credential never reaches a log.
      */
-    private static function loggableUrl(string $url): string
+    private function loggableUrl(string $url): string
     {
         return preg_replace('~^([a-z][a-z0-9+.-]*://)[^/?#]*@~i', '$1***@', self::withoutQuery($url)) ?? '';
     }
@@ -1463,7 +1461,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      * @param array<string, string> $overrides
      * @return array<string, string>
      */
-    private static function mergeHeaders(array $base, array $overrides): array
+    private function mergeHeaders(array $base, array $overrides): array
     {
         foreach ($overrides as $name => $value) {
             foreach (array_keys($base) as $existing) {
@@ -1536,15 +1534,15 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
             /* The @ keeps zlib's E_WARNING for a corrupt body from escaping
              * (an error handler could turn it into an \ErrorException); the
              * false return is what signals the failure. */
-            'gzip', 'x-gzip' => self::decoded(@gzdecode($body), 'gzip'),
-            'deflate' => self::decoded(@gzuncompress($body), 'deflate'),
+            'gzip', 'x-gzip' => $this->decoded(@gzdecode($body), 'gzip'),
+            'deflate' => $this->decoded(@gzuncompress($body), 'deflate'),
             'br' => function_exists('brotli_uncompress')
-                ? self::decoded(@brotli_uncompress($body), 'br')
+                ? $this->decoded(@brotli_uncompress($body), 'br')
                 : throw new \RuntimeException(
                     'Received a br-encoded response but the br extension is unavailable'
                 ),
             'zstd' => function_exists('zstd_uncompress')
-                ? self::decoded(@zstd_uncompress($body), 'zstd')
+                ? $this->decoded(@zstd_uncompress($body), 'zstd')
                 : throw new \RuntimeException(
                     'Received a zstd-encoded response but the zstd extension is unavailable'
                 ),
@@ -1555,7 +1553,8 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
              * and the documented contract) rather than returning the body
              * still encoded. */
             default => throw new \RuntimeException(
-                "Unsupported Content-Encoding '" . $encoding . "'"),
+                "Unsupported Content-Encoding '" . $encoding . "'"
+            ),
         };
     }
 
@@ -1567,7 +1566,7 @@ abstract class AbstractApiClient implements ApiClient, StreamingApiClient
      *
      * @throws \RuntimeException when the decoder returned false
      */
-    private static function decoded(string|false $decoded, string $codec): string
+    private function decoded(string|false $decoded, string $codec): string
     {
         if ($decoded === false) {
             throw new \RuntimeException("the $codec stream is corrupt or truncated");

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -300,7 +301,6 @@ class BaseApi
         array $errorSchemas = [],
         ?string $operationId = null,
         ?string $urlTemplate = null
-    
     ): ApiResult {
         return $this->invokeCall(
             true,
@@ -601,7 +601,7 @@ class BaseApi
             $options,
             $body !== null,
             $method,
-            self::urlWithoutQuery($path),
+            $this->urlWithoutQuery($path),
             singleUseBody: $body instanceof BodySource && !$body->isReplayable()
         );
     }
@@ -731,7 +731,7 @@ class BaseApi
         if ($auth === NoAuth::instance()) {
             $effectiveAuth = null;
         } else {
-            if ($auth !== null) {
+            if ($auth instanceof \PetstoreClient\Auth\Authenticator) {
                 $effectiveAuth = $auth;
             } elseif ($this->schemeAuthenticators !== []) {
                 $effectiveAuth = $this->schemeAuthenticatorFor($securityRequirements);
@@ -739,7 +739,7 @@ class BaseApi
                 $effectiveAuth = $this->authenticator;
             }
         }
-        if ($auth !== null && $effectiveAuth instanceof HttpAwareAuthenticator) {
+        if ($auth instanceof \PetstoreClient\Auth\Authenticator && $effectiveAuth instanceof HttpAwareAuthenticator) {
             /* A per-call authenticator never went through the Client
              * constructor, so it has no transport for its token requests yet. */
             $effectiveAuth->setApiClient($this->apiClient);
@@ -769,10 +769,10 @@ class BaseApi
             $callHeaders,
         ): array {
             $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
-            $headers = self::mergeHeaders($headers, $this->config->defaultHeaders);
-            $headers = self::mergeHeaders($headers, $headerParams);
+            $headers = $this->mergeHeaders($headers, $this->config->defaultHeaders);
+            $headers = $this->mergeHeaders($headers, $headerParams);
             if ($effectiveAuth instanceof Authenticator) {
-                $headers = self::mergeHeaders($headers, $effectiveAuth->getAuthHeaders());
+                $headers = $this->mergeHeaders($headers, $effectiveAuth->getAuthHeaders());
                 $cookies = $effectiveAuth->getCookieParams();
                 if ($cookies !== []) {
                     /* RFC 6265 — don't URL-encode cookie name/value; most cookie
@@ -831,7 +831,7 @@ class BaseApi
          * the headers of every later attempt, which are rebuilt from scratch. */
         $observer = null;
         $callHook = $this->config->getCallHook();
-        if ($callHook !== null) {
+        if ($callHook instanceof \PetstoreClient\CallHook) {
             $initialHeaders = $headersForAttempt();
             $headersBeforeHook = $initialHeaders;
             $observer = $callHook->start(
@@ -839,8 +839,8 @@ class BaseApi
                     $operationId ?? '',
                     $method,
                     $urlTemplate ?? '',
-                    self::urlWithoutQuery($url),
-                    self::serverAddress($url)
+                    $this->urlWithoutQuery($url),
+                    $this->serverAddress($url)
                 ),
                 $initialHeaders
             );
@@ -851,7 +851,7 @@ class BaseApi
                     return $initialHeaders;
                 }
 
-                return self::applyHeaderEdits($rebuildHeaders(), $headersBeforeHook, $initialHeaders);
+                return $this->applyHeaderEdits($rebuildHeaders(), $headersBeforeHook, $initialHeaders);
             };
         }
 
@@ -891,10 +891,11 @@ class BaseApi
                 $statusCode = $response->statusCode;
                 $responseHeaders = $response->headers;
 
-                if ($response->statusCode === 401
+                if (
+                    $response->statusCode === 401
                     && $effectiveAuth instanceof Authenticator
                     && method_exists($effectiveAuth, 'invalidateAccessToken')
-                    && self::isReplayableBody($serializedBody)
+                    && $this->isReplayableBody($serializedBody)
                 ) {
                     /* A revoked or rotated token keeps failing while it is cached.
                      * Drop it, obtain a new one (a refresh grant first) and replay the
@@ -944,10 +945,10 @@ class BaseApi
                 $result = new ApiResult($response->statusCode, $data, $response->body, $response->headers);
             }
         } catch (\Throwable $error) {
-            self::finishCall($observer, $statusCode, $responseHeaders, $error);
+            $this->finishCall($observer, $statusCode, $responseHeaders, $error);
             throw $error;
         }
-        self::finishCall($observer, $statusCode, $responseHeaders, null);
+        $this->finishCall($observer, $statusCode, $responseHeaders, null);
 
         return $result;
     }
@@ -995,10 +996,11 @@ class BaseApi
         $statusCode = $stream->statusCode;
         $responseHeaders = $stream->headers;
 
-        if ($stream->statusCode === 401
+        if (
+            $stream->statusCode === 401
             && $effectiveAuth instanceof Authenticator
             && method_exists($effectiveAuth, 'invalidateAccessToken')
-            && self::isReplayableBody($serializedBody)
+            && $this->isReplayableBody($serializedBody)
         ) {
             /* The same replay as a buffered call: drop the cached token, obtain a new one and send
              * the request once more. The refused response is closed unread. */
@@ -1029,7 +1031,7 @@ class BaseApi
             throw ApiException::fromResponse(
                 $stream->statusCode,
                 $stream->headers,
-                self::errorBodyText($bytes, $stream->headers),
+                $this->errorBodyText($bytes, $stream->headers),
                 $method,
                 $url,
                 $errorSchemas
@@ -1086,14 +1088,15 @@ class BaseApi
      *
      * @param array<string, string> $headers the response headers, lower-cased
      */
-    private static function errorBodyText(string $bytes, array $headers): string
+    private function errorBodyText(string $bytes, array $headers): string
     {
         $contentType = $headers['content-type'] ?? '';
         $mediaType = trim(explode(';', $contentType)[0]);
-        if ($mediaType !== '' && !self::isTextMediaType($mediaType)) {
+        if ($mediaType !== '' && !$this->isTextMediaType($mediaType)) {
             return base64_encode($bytes);
         }
-        if (preg_match('/charset\s*=\s*"?([^";\s]+)/i', $contentType, $found) === 1
+        if (
+            preg_match('/charset\s*=\s*"?([^";\s]+)/i', $contentType, $found) === 1
             && !in_array(strtolower($found[1]), ['utf-8', 'utf8'], true)
             && function_exists('mb_convert_encoding')
         ) {
@@ -1119,13 +1122,13 @@ class BaseApi
      * @param array<string, string>|null $headers    the response headers, or null when no response arrived
      * @param \Throwable|null            $error      the error the caller receives, or null on success
      */
-    private static function finishCall(
+    private function finishCall(
         ?CallObserver $observer,
         int $statusCode,
         ?array $headers,
         ?\Throwable $error
     ): void {
-        if ($observer === null) {
+        if (!$observer instanceof \PetstoreClient\CallObserver) {
             return;
         }
         try {
@@ -1146,7 +1149,7 @@ class BaseApi
      *
      * @return array<string, string> the headers of this attempt with the edits of the hook
      */
-    private static function applyHeaderEdits(array $fresh, array $before, array $after): array
+    private function applyHeaderEdits(array $fresh, array $before, array $after): array
     {
         foreach (array_keys($before) as $name) {
             if (!array_key_exists($name, $after)) {
@@ -1171,7 +1174,7 @@ class BaseApi
     /**
      * The request URL without its query string and fragment.
      */
-    private static function urlWithoutQuery(string $url): string
+    private function urlWithoutQuery(string $url): string
     {
         $end = strcspn($url, '?#');
 
@@ -1182,9 +1185,9 @@ class BaseApi
      * The host of the request URL, lower-case, without port and without the brackets of
      * an IPv6 literal.
      */
-    private static function serverAddress(string $url): string
+    private function serverAddress(string $url): string
     {
-        $host = parse_url(self::urlWithoutQuery($url), PHP_URL_HOST);
+        $host = parse_url($this->urlWithoutQuery($url), PHP_URL_HOST);
 
         return is_string($host) ? strtolower(trim($host, '[]')) : '';
     }
@@ -1217,8 +1220,9 @@ class BaseApi
             $isNonJson = $respContentType !== null
                 && !$this->headerSelector->isJsonMime($respContentType);
 
-            if ($isNonJson && $returnType !== null && $returnType !== 'string'
-                && self::isTextMediaType((string) $respContentType)
+            if (
+                $isNonJson && $returnType !== null && $returnType !== 'string'
+                && $this->isTextMediaType((string) $respContentType)
             ) {
                 /* A model, number or collection cannot be built from a
                  * non-JSON text body, and handing back the raw string in its
@@ -1232,7 +1236,7 @@ class BaseApi
             /* A void operation has no return type and ignores a non-JSON success body. */
             if ($isNonJson && $returnType === null) {
                 $data = null;
-            } elseif ($isNonJson && self::isTextMediaType((string) $respContentType)) {
+            } elseif ($isNonJson && $this->isTextMediaType((string) $respContentType)) {
                 /* A text response (text/plain, XML, ...) crosses the
                  * transport as its decoded string, never base64: hand it
                  * back unchanged. Base64-decoding it would corrupt any text
@@ -1361,7 +1365,7 @@ class BaseApi
      * @param array<string, string> $overrides
      * @return array<string, string>
      */
-    private static function mergeHeaders(array $base, array $overrides): array
+    private function mergeHeaders(array $base, array $overrides): array
     {
         foreach ($overrides as $name => $value) {
             foreach (array_keys($base) as $existing) {
@@ -1380,7 +1384,7 @@ class BaseApi
      * decoded string (the same rule the transport uses), as opposed to a
      * binary body it base64-encodes.
      */
-    private static function isTextMediaType(string $mediaType): bool
+    private function isTextMediaType(string $mediaType): bool
     {
         $mediaType = strtolower($mediaType);
         return str_starts_with($mediaType, 'text/')
@@ -1425,7 +1429,7 @@ class BaseApi
              * encoded normally. When the key is absent from the set the value
              * encoder is the default one, so encoding is byte-identical. */
             $encodeValue = isset($allowReservedKeys[$k])
-                ? static fn (string $s): string => ValueSerializer::encodeQueryAllowingReserved($s)
+                ? ValueSerializer::encodeQueryAllowingReserved(...)
                 : $encode;
             if (is_array($v)) {
                 foreach ($v as $vv) {
@@ -1433,7 +1437,7 @@ class BaseApi
                         continue;
                     }
                     $qs .= $key;
-                    $qs .= '=' . $encodeValue(self::queryValueText($vv));
+                    $qs .= '=' . $encodeValue($this->queryValueText($vv));
                     $qs .= '&';
                 }
             } else {
@@ -1448,7 +1452,7 @@ class BaseApi
                     continue;
                 }
                 $qs .= $key;
-                $qs .= '=' . $encodeValue(self::queryValueText($v));
+                $qs .= '=' . $encodeValue($this->queryValueText($v));
                 $qs .= '&';
             }
         }
@@ -1462,9 +1466,9 @@ class BaseApi
      * form (so a date-time is RFC 3339 and an enum is its bare value, never a
      * JSON-encoded object or a quoted string); anything else is JSON-encoded.
      */
-    private static function queryValueText(mixed $value): string
+    private function queryValueText(mixed $value): string
     {
-        if (self::isFormScalar($value)) {
+        if ($this->isFormScalar($value)) {
             return ObjectSerializer::stringify($value);
         }
 
@@ -1475,7 +1479,7 @@ class BaseApi
      * Whether a value has a canonical {@see ObjectSerializer::stringify} text
      * form: a scalar, date-time, duration, UUID or backed enum.
      */
-    private static function isFormScalar(mixed $value): bool
+    private function isFormScalar(mixed $value): bool
     {
         return is_scalar($value)
             || $value instanceof \DateTimeInterface
@@ -1499,8 +1503,7 @@ class BaseApi
         ?string $contentType,
         bool $isMultipart,
         bool $rawBody = false
-    ): mixed
-    {
+    ): mixed {
         if ($body === null) {
             return null;
         }
@@ -1582,7 +1585,7 @@ class BaseApi
             foreach ($body as $name => $value) {
                 $values = is_array($value) && array_is_list($value) ? $value : [$value];
                 foreach ($values as $element) {
-                    if ($element !== null && !self::isFormScalar($element)) {
+                    if ($element !== null && !$this->isFormScalar($element)) {
                         /* A model, map or nested array has no defined form
                          * encoding without an OAS encoding block; failing here
                          * keeps a JSON blob or a language repr off the wire. */
@@ -1602,7 +1605,7 @@ class BaseApi
      * Whether a request body can be sent again, which a replay after a token refresh needs: no body,
      * bytes, or a replayable {@see BodySource}. A stream or multipart parts cannot.
      */
-    private static function isReplayableBody(mixed $body): bool
+    private function isReplayableBody(mixed $body): bool
     {
         return $body === null || is_string($body) || ($body instanceof BodySource && $body->isReplayable());
     }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,11 +10,12 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
-class Subscription implements \Ds\Hashable
+class Subscription implements \Ds\Hashable, \Stringable
 {
     #[SerializedName('tier')]
     public readonly ?\PetstoreClient\Models\Tier $tier;
@@ -47,8 +49,8 @@ class Subscription implements \Ds\Hashable
     public function withTier(?\PetstoreClient\Models\Tier $tier): self
     {
         return new self(
-            tier: $tier,
             rank: $this->rank,
+            tier: $tier,
             stage: $this->stage,
             interval: $this->interval,
         );
@@ -60,8 +62,8 @@ class Subscription implements \Ds\Hashable
     public function withRank(\PetstoreClient\Models\Rank $rank): self
     {
         return new self(
-            tier: $this->tier,
             rank: $rank,
+            tier: $this->tier,
             stage: $this->stage,
             interval: $this->interval,
         );
@@ -73,8 +75,8 @@ class Subscription implements \Ds\Hashable
     public function withStage(?\PetstoreClient\Models\Stage $stage): self
     {
         return new self(
-            tier: $this->tier,
             rank: $this->rank,
+            tier: $this->tier,
             stage: $stage,
             interval: $this->interval,
         );
@@ -86,8 +88,8 @@ class Subscription implements \Ds\Hashable
     public function withInterval(?SubscriptionIntervalEnum $interval): self
     {
         return new self(
-            tier: $this->tier,
             rank: $this->rank,
+            tier: $this->tier,
             stage: $this->stage,
             interval: $interval,
         );
@@ -116,7 +118,7 @@ class Subscription implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === $this::class
+            && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -126,7 +128,7 @@ class Subscription implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [$this::class];
+        $parts = [static::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -135,5 +137,4 @@ class Subscription implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
-
 }

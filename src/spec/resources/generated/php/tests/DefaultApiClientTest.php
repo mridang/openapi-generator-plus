@@ -58,7 +58,7 @@ test('bhv transport 066 a CA bundle file trusts every certificate it contains', 
     openssl_x509_export($cert, $unrelatedPem);
     $bundle = tempnam(sys_get_temp_dir(), 'ca-bundle-');
     assert(is_string($bundle));
-    file_put_contents($bundle, $unrelatedPem . (string) file_get_contents($caCertPath));
+    file_put_contents($bundle, $unrelatedPem . file_get_contents($caCertPath));
 
     try {
         $transport = TransportOptions::builder()
@@ -522,23 +522,23 @@ test('bhv redirects 006 respects max redirects limit', function (): void {
  */
 test('bhv redirects 003 redirect count and limit are scoped per request not shared per client', function (): void {
     // Router script for `php -S`: 302 -> /chain/{n-1} until /chain/0 -> 200.
-    $router = <<<'PHP'
-        <?php
-        header('Connection: close');
-        $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
-        if (preg_match('#^/chain/(\d+)$#', (string) $path, $m)) {
-            $n = (int) $m[1];
-            if ($n <= 0) {
-                http_response_code(200);
-                echo 'ok';
-                return true;
-            }
-            header('Location: /chain/' . ($n - 1), true, 302);
+    $router = <<<'PHP_WRAP'
+    <?php
+    header('Connection: close');
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+    if (preg_match('#^/chain/(\d+)$#', (string) $path, $m)) {
+        $n = (int) $m[1];
+        if ($n <= 0) {
+            http_response_code(200);
+            echo 'ok';
             return true;
         }
-        http_response_code(404);
+        header('Location: /chain/' . ($n - 1), true, 302);
         return true;
-        PHP;
+    }
+    http_response_code(404);
+    return true;
+    PHP_WRAP;
 
     // tempnam() reserves a unique base path; append .php for the router and
     // drop the original reservation so we don't leave an orphan temp file.
@@ -775,8 +775,8 @@ test('bhv transport 001 proxy auth squid end to end', function (): void {
     // The Squid fixture's second port answers 407 unless the request carries
     // Basic proxy credentials, so a success through it proves the credentials
     // embedded in the proxy URL reached the proxy.
-    $proxy = (string) parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_HOST) . ':'
-        . (string) parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_PORT);
+    $proxy = parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_HOST) . ':'
+        . parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_PORT);
     $client = new DefaultApiClient(
         TransportOptions::builder()->proxy('http://user:pass@' . $proxy)->build()
     );
@@ -982,8 +982,8 @@ test('bhv misc 272 an authenticating proxy accepts the credentials embedded in t
     // The Squid fixture's second port answers 407 unless the request carries
     // Basic proxy credentials, so a success through it proves the credentials
     // embedded in the proxy URL reached the proxy.
-    $proxy = (string) parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_HOST) . ':'
-        . (string) parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_PORT);
+    $proxy = parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_HOST) . ':'
+        . parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_PORT);
     $client = new DefaultApiClient(
         TransportOptions::builder()->proxy('http://user:pass@' . $proxy)->build()
     );

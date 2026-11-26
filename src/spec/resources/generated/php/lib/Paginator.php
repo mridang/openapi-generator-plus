@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -360,7 +361,7 @@ final class Paginator implements \IteratorAggregate
     /** Whether a page with these items continues: it has items and its has_more flag is not false. */
     private static function advances(array $items, ?\Closure $hasMore, mixed $body): bool
     {
-        return $items !== [] && ($hasMore === null || $hasMore($body) !== false);
+        return $items !== [] && (!$hasMore instanceof \Closure || $hasMore($body) !== false);
     }
 
     /**

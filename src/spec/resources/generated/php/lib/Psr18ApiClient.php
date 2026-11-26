@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -97,13 +98,13 @@ class Psr18ApiClient extends AbstractApiClient
         } elseif ($body instanceof BodySource) {
             /* Sent as it is read, never buffered: the PSR-7 stream pulls the chunks while the client
              * sends them. Its size is the Content-Length the base class set, or unknown. */
-            $request = $request->withBody(self::streamOf($body));
+            $request = $request->withBody($this->streamOf($body));
         } else {
             /* A null body on a body-bearing verb is sent as an explicit empty
              * body (the base class already injected Content-Length: 0);
              * GET/HEAD send nothing. */
             $upperMethod = strtoupper($method);
-            if ($upperMethod === 'POST' || $upperMethod === 'PUT' || $upperMethod === 'PATCH') {
+            if (in_array($upperMethod, ['POST', 'PUT', 'PATCH'], true)) {
                 $request = $request->withBody($this->streamFactory->createStream(''));
             }
         }
@@ -115,7 +116,7 @@ class Psr18ApiClient extends AbstractApiClient
      * A read-only, forward-only PSR-7 stream over a body source: the content is pulled from the
      * source as the client reads it and is never held in memory as a whole.
      */
-    private static function streamOf(BodySource $source): \Psr\Http\Message\StreamInterface
+    private function streamOf(BodySource $source): \Psr\Http\Message\StreamInterface
     {
         return new class ($source) implements \Psr\Http\Message\StreamInterface {
             /** @var \Generator<int, string>|null */
@@ -216,7 +217,7 @@ class Psr18ApiClient extends AbstractApiClient
                     }
                 }
                 $data = substr($this->pending, 0, $length);
-                $this->pending = (string) substr($this->pending, strlen($data));
+                $this->pending = substr($this->pending, strlen($data));
                 $this->position += strlen($data);
 
                 return $data;
@@ -263,7 +264,7 @@ class Psr18ApiClient extends AbstractApiClient
             /* PSR-18 has no timeout exception type, so look for Symfony's
              * TimeoutExceptionInterface in the chain (Symfony's Psr18Client
              * wraps it); anything else is a failure with no HTTP response. */
-            for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
                 if ($cause instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface) {
                     throw new NetworkTimeoutException("API Request timed out: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
                 }
@@ -307,7 +308,7 @@ class Psr18ApiClient extends AbstractApiClient
         try {
             $response = $this->httpClient->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
-            for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
                 if ($cause instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface) {
                     throw new NetworkTimeoutException("API Request timed out: " . self::redactUrlQuery($e->getMessage(), $url), $e, $method, $url);
                 }

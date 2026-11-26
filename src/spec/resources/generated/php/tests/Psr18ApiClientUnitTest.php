@@ -828,8 +828,8 @@ test('bhv misc 131 a supplied session follows redirects under the sdk redirect r
 
 test('bhv misc 267 the default headers of a caller supplied http client are sent on the wire with each request', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'), psr18Response(200, '{}'));
-    $withDefaults = new class ($stub) implements ClientInterface {
-        public function __construct(private readonly ClientInterface $inner)
+    $withDefaults = new readonly class ($stub) implements ClientInterface {
+        public function __construct(private ClientInterface $inner)
         {
         }
 

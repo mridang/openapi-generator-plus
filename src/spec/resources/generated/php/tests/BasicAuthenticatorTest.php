@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -115,7 +116,7 @@ test('bhv authbasic 010 debug output keeps the host and username and masks only 
 
 test('bhv authbasic 002 every generated basic wrapper sends the basic header and masks the password', function (): void {
     $wrappers = 0;
-    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, BasicAuthenticator::class)) {
             continue;
@@ -257,7 +258,7 @@ function withBasicEnvValues(array $values, callable $body): void
 function assertBasicWrappersRefuseEmptyVariable(string $field, string $user, string $secret): void
 {
     $matched = 0;
-    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, BasicAuthenticator::class)) {
             continue;
@@ -283,7 +284,7 @@ test('bhv authbasic 019 generated basic scheme wrappers emit the same basic head
         ->toBe($expected);
 
     $wrappers = 0;
-    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, BasicAuthenticator::class)) {
             continue;

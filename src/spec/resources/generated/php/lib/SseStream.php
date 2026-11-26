@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -41,7 +42,7 @@ use PetstoreClient\Errors\StreamException;
  * @category Class
  * @package  PetstoreClient
  */
-final class SseStream implements \IteratorAggregate
+final class SseStream implements \IteratorAggregate, \Stringable
 {
     private const int MAX_RECONNECT_DELAY_MILLIS = 30000;
 
@@ -155,7 +156,7 @@ final class SseStream implements \IteratorAggregate
         try {
             while (!$this->done) {
                 $event = $this->advance();
-                if ($event === null) {
+                if (!$event instanceof \PetstoreClient\ServerSentEvent) {
                     break;
                 }
                 yield $event;
@@ -263,7 +264,7 @@ final class SseStream implements \IteratorAggregate
             }
             $this->lastEventId = $this->parser->lastEventId();
             $this->serverRetry = $this->parser->retry();
-            if ($raw !== null) {
+            if ($raw instanceof \PetstoreClient\ServerSentEvent) {
                 $this->consecutive = 0;
 
                 return $this->deliver($raw);
@@ -301,7 +302,7 @@ final class SseStream implements \IteratorAggregate
             return null;
         }
         $data = $raw->raw;
-        if ($this->decoder !== null) {
+        if ($this->decoder instanceof \Closure) {
             try {
                 $data = ($this->decoder)($raw->raw);
             } catch (SerializationException $failure) {
@@ -334,14 +335,14 @@ final class SseStream implements \IteratorAggregate
         while (true) {
             $this->current->close();
             if ($this->maxReconnects === 0) {
-                if ($cause !== null) {
+                if ($cause instanceof \PetstoreClient\Errors\ApiException) {
                     throw $cause;
                 }
 
                 return false;
             }
             if ($this->maxReconnects > 0 && $this->consecutive >= $this->maxReconnects) {
-                if ($cause !== null) {
+                if ($cause instanceof \PetstoreClient\Errors\ApiException) {
                     throw $cause;
                 }
 
@@ -357,7 +358,7 @@ final class SseStream implements \IteratorAggregate
                 $this->consecutive,
                 $this->reconnectDelay,
                 $this->serverRetry,
-                self::retryAfterOf($cause),
+                $this->retryAfterOf($cause),
                 mt_rand() / (mt_getrandmax() + 1)
             ));
             try {
@@ -379,9 +380,9 @@ final class SseStream implements \IteratorAggregate
     }
 
     /** The wait a `Retry-After` header asks for after a 429, 502, 503 or 504, in milliseconds. */
-    private static function retryAfterOf(?ApiException $failure): ?int
+    private function retryAfterOf(?ApiException $failure): ?int
     {
-        if ($failure === null || $failure instanceof NetworkException) {
+        if (!$failure instanceof \PetstoreClient\Errors\ApiException || $failure instanceof NetworkException) {
             return null;
         }
         $status = $failure->getStatusCode();

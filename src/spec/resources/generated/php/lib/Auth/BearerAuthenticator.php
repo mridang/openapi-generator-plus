@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -36,22 +37,22 @@ class BearerAuthenticator extends BaseAuthenticator
         #[\SensitiveParameter] ?string $token = null,
         ?\Closure $tokenProvider = null
     ) {
-        if ($token !== null && $tokenProvider !== null) {
+        if ($token !== null && $tokenProvider instanceof \Closure) {
             throw new \InvalidArgumentException('Pass either a bearer token or a token provider, not both');
         }
-        if ($token === null && $tokenProvider === null) {
+        if ($token === null && !$tokenProvider instanceof \Closure) {
             /* Order: explicit token or provider, then the environment variable. A provider that
              * is passed wins over a set variable; an empty or unset variable is the fallback. */
             $token = static::environmentCredential('token');
         }
-        if ($token === null && $tokenProvider === null) {
+        if ($token === null && !$tokenProvider instanceof \Closure) {
             throw new \InvalidArgumentException(
                 'Bearer token is required: pass a token or a token provider'
                 . static::environmentHint('token')
             );
         }
         if ($token !== null) {
-            self::assertValidToken($token);
+            $this->assertValidToken($token);
         }
         $this->host = $host;
         $this->token = $token;
@@ -65,7 +66,7 @@ class BearerAuthenticator extends BaseAuthenticator
      * Mirrors the api-key authenticator's own empty guard: blank means
      * empty or only ASCII whitespace (space, tab, LF, CR, FF, VT).
      */
-    private static function assertValidToken(#[\SensitiveParameter] string $token): void
+    private function assertValidToken(#[\SensitiveParameter] string $token): void
     {
         if (trim($token, " \t\n\r\x0C\x0B") === '') {
             throw new \InvalidArgumentException(
@@ -97,9 +98,9 @@ class BearerAuthenticator extends BaseAuthenticator
         $value = $this->token;
         if ($value === null) {
             $provider = $this->tokenProvider;
-            assert($provider !== null);
+            assert($provider instanceof \Closure);
             $value = (string) $provider();
-            self::assertValidToken($value);
+            $this->assertValidToken($value);
         }
         if (strlen($value) >= 7 && strcasecmp(substr($value, 0, 7), 'Bearer ') === 0) {
             $value = substr($value, 7);

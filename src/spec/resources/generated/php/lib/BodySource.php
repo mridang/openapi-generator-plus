@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -34,7 +35,7 @@ use Psr\Http\Message\StreamInterface;
  * @category Class
  * @package  PetstoreClient
  */
-final class BodySource
+final class BodySource implements \Stringable
 {
     private const string BYTES = 'bytes';
 
@@ -212,7 +213,7 @@ final class BodySource
             return;
         }
         if ($this->kind === self::ONCE) {
-            yield from self::chunksOf($this->stream, $size, $this->length, false);
+            yield from $this->chunksOf($this->stream, $size, $this->length, false);
 
             return;
         }
@@ -221,12 +222,12 @@ final class BodySource
             if ($handle === false) {
                 throw new \InvalidArgumentException('Failed to read request body file');
             }
-            yield from self::chunksOf($handle, $size, null, true);
+            yield from $this->chunksOf($handle, $size, null, true);
 
             return;
         }
         $factory = $this->factory;
-        assert($factory !== null);
+        assert($factory instanceof \Closure);
         $made = $factory();
         if (is_string($made)) {
             yield from self::of($made)->read($size);
@@ -239,7 +240,7 @@ final class BodySource
                 . ' an SplFileObject or a string'
             );
         }
-        yield from self::chunksOf($made, $size, $this->length, true);
+        yield from $this->chunksOf($made, $size, $this->length, true);
     }
 
     /**
@@ -249,7 +250,7 @@ final class BodySource
      *
      * @return \Generator<int, string>
      */
-    private static function chunksOf(mixed $stream, int $size, ?int $length, bool $owned): \Generator
+    private function chunksOf(mixed $stream, int $size, ?int $length, bool $owned): \Generator
     {
         $sent = 0;
         try {
@@ -258,13 +259,13 @@ final class BodySource
                 if ($want <= 0) {
                     return;
                 }
-                [$chunk, $ended] = self::next($stream, $want);
+                [$chunk, $ended] = $this->next($stream, $want);
                 $sent += strlen($chunk);
                 if ($length !== null && $sent >= $length) {
                     $ended = true;
                 }
                 if ($ended && $owned) {
-                    self::release($stream);
+                    $this->release($stream);
                     $owned = false;
                 }
                 if ($chunk !== '') {
@@ -276,7 +277,7 @@ final class BodySource
             }
         } finally {
             if ($owned) {
-                self::release($stream);
+                $this->release($stream);
             }
         }
     }
@@ -284,7 +285,7 @@ final class BodySource
     /**
      * @return array{0: string, 1: bool} the next chunk and whether the stream has ended
      */
-    private static function next(mixed $stream, int $size): array
+    private function next(mixed $stream, int $size): array
     {
         if ($stream instanceof StreamInterface) {
             $chunk = $stream->read($size);
@@ -309,7 +310,7 @@ final class BodySource
         return [$chunk, $chunk === '' || feof($stream)];
     }
 
-    private static function release(mixed $stream): void
+    private function release(mixed $stream): void
     {
         if ($stream instanceof StreamInterface) {
             $stream->close();

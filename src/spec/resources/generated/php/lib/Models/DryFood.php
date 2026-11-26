@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,11 +10,12 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
-class DryFood implements \Ds\Hashable
+class DryFood implements \Ds\Hashable, \Stringable
 {
     #[SerializedName('weightKg')]
     public readonly float $weightKg;
@@ -37,8 +39,8 @@ class DryFood implements \Ds\Hashable
     public function withWeightKg(float $weightKg): self
     {
         return new self(
-            foodType: $this->foodType,
             weightKg: $weightKg,
+            foodType: $this->foodType,
         );
     }
 
@@ -48,8 +50,8 @@ class DryFood implements \Ds\Hashable
     public function withFoodType(string $foodType): self
     {
         return new self(
-            foodType: $foodType,
             weightKg: $this->weightKg,
+            foodType: $foodType,
         );
     }
 
@@ -76,7 +78,7 @@ class DryFood implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === $this::class
+            && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -86,7 +88,7 @@ class DryFood implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [$this::class];
+        $parts = [static::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -95,5 +97,4 @@ class DryFood implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
-
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -19,7 +20,7 @@ namespace PetstoreClient;
  * @category Class
  * @package  PetstoreClient
  */
-final class ServerSentEvent
+final class ServerSentEvent implements \Stringable
 {
     /**
      * @param string|null $id    the last event id, or null while none was set

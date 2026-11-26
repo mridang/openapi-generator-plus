@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -61,7 +62,7 @@ final class LinkHeader
         $i = 0;
         $n = strlen($header);
         while ($i < $n) {
-            while ($i < $n && ($header[$i] === ' ' || $header[$i] === "\t" || $header[$i] === ',')) {
+            while ($i < $n && (in_array($header[$i], [' ', "\t", ','], true))) {
                 $i++;
             }
             if ($i >= $n) {
@@ -94,7 +95,7 @@ final class LinkHeader
                     $i++;
                 }
                 $nameStart = $i;
-                while ($i < $n && strpos("=;, \t", $header[$i]) === false) {
+                while ($i < $n && !str_contains("=;, \t", $header[$i])) {
                     $i++;
                 }
                 $name = strtolower(substr($header, $nameStart, $i - $nameStart));
@@ -112,7 +113,7 @@ final class LinkHeader
                         }
                         $i++;
                     } else {
-                        while ($i < $n && strpos(";, \t", $header[$i]) === false) {
+                        while ($i < $n && !str_contains(";, \t", $header[$i])) {
                             $value .= $header[$i];
                             $i++;
                         }

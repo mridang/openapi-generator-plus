@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,11 +10,12 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
-class StrictTag implements \Ds\Hashable
+class StrictTag implements \Ds\Hashable, \Stringable
 {
     #[SerializedName('id')]
     public readonly ?int $id;
@@ -35,7 +37,7 @@ class StrictTag implements \Ds\Hashable
         foreach (array_keys($data) as $key) {
             if (!in_array($key, $declared, true)) {
                 throw new \InvalidArgumentException(
-                    "Unknown property '" . (string) $key
+                    "Unknown property '" . $key
                         . "' on StrictTag (unevaluatedProperties:false)"
                 );
             }
@@ -97,7 +99,7 @@ class StrictTag implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === $this::class
+            && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -107,7 +109,7 @@ class StrictTag implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [$this::class];
+        $parts = [static::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -116,5 +118,4 @@ class StrictTag implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
-
 }

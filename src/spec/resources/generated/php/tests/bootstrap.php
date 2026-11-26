@@ -89,7 +89,7 @@ function fakeGroup(string $interface, ?\Throwable $failWith = null, mixed $resul
         foreach ($method->getParameters() as $param) {
             $type = $param->getType();
             $default = $param->isDefaultValueAvailable() ? ' = ' . var_export($param->getDefaultValue(), true) : '';
-            $params[] = ($type === null ? '' : (string) $type . ' ') . '$' . $param->getName() . $default;
+            $params[] = ($type === null ? '' : $type . ' ') . '$' . $param->getName() . $default;
             $names[] = '$' . $param->getName();
         }
         $returnType = $method->hasReturnType() ? (string) $method->getReturnType() : null;

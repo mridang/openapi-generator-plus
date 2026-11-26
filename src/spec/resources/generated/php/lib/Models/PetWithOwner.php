@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,6 +10,7 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
@@ -16,7 +18,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 /**
  * A pet record extended with owner information
  */
-class PetWithOwner implements \Ds\Hashable
+class PetWithOwner implements \Ds\Hashable, \Stringable
 {
     /** @example 10 */
     #[SerializedName('id')]
@@ -130,10 +132,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withId(?int $id): self
     {
         return new self(
-            id: $id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -143,7 +146,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -153,10 +155,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withName(string $name): self
     {
         return new self(
-            id: $this->id,
             name: $name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -166,7 +169,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -176,10 +178,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withCategory(?\PetstoreClient\Models\Category $category): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -189,7 +192,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -201,10 +203,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withPhotoUrls(\Ds\Set $photoUrls): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -214,7 +217,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -226,10 +228,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withTags(?\Ds\Vector $tags): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $tags,
             status: $this->status,
             location: $this->location,
@@ -239,7 +242,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -249,10 +251,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withStatus(?PetWithOwnerStatusEnum $status): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $status,
             location: $this->location,
@@ -262,7 +265,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -274,10 +276,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withLocation(?\Ds\Vector $location): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $location,
@@ -287,7 +290,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -297,10 +299,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withHomepageUrl(?string $homepageUrl): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -310,7 +313,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -320,10 +322,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withThumbnailRef(?string $thumbnailRef): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -333,7 +336,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -343,10 +345,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withLinkTemplate(?string $linkTemplate): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -356,7 +359,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -366,10 +368,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withOwnerEmail(?string $ownerEmail): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -379,7 +382,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -389,10 +391,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withWeightKg(?float $weightKg): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -402,7 +405,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $weightKg,
             nickname: $this->nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -412,10 +414,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withNickname(?string $nickname): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $this->ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -425,7 +428,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $nickname,
-            ownerName: $this->ownerName,
         );
     }
 
@@ -435,10 +437,11 @@ class PetWithOwner implements \Ds\Hashable
     public function withOwnerName(string $ownerName): self
     {
         return new self(
-            id: $this->id,
             name: $this->name,
-            category: $this->category,
             photoUrls: $this->photoUrls,
+            ownerName: $ownerName,
+            id: $this->id,
+            category: $this->category,
             tags: $this->tags,
             status: $this->status,
             location: $this->location,
@@ -448,7 +451,6 @@ class PetWithOwner implements \Ds\Hashable
             ownerEmail: $this->ownerEmail,
             weightKg: $this->weightKg,
             nickname: $this->nickname,
-            ownerName: $ownerName,
         );
     }
 
@@ -475,7 +477,7 @@ class PetWithOwner implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === $this::class
+            && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -485,7 +487,7 @@ class PetWithOwner implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [$this::class];
+        $parts = [static::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -494,5 +496,4 @@ class PetWithOwner implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
-
 }

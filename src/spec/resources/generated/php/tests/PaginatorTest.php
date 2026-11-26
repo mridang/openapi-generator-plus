@@ -317,11 +317,9 @@ test('bhv pagination 014 a cursor equal to the one just sent, or an offset that 
     $items = pagedApi($server)->listPetCatalogPages()->items();
 
     $first = $items->current();
-    assert($first instanceof Pet);
     expect($first->name)->toBe('p1');
     $items->next();
     $second = $items->current();
-    assert($second instanceof Pet);
     expect($second->name)->toBe('p2');
     try {
         $items->next();
@@ -347,7 +345,6 @@ test('bhv pagination 015 an error on a later page is raised after the earlier pa
 
     try {
         foreach ($items as $pet) {
-            assert($pet instanceof Pet);
             $delivered[] = $pet->name;
         }
         test()->fail('Expected the second page to fail');
@@ -401,7 +398,6 @@ test('bhv pagination 017 the per call timeout, headers and retry count apply to 
         PHP);
     $items = pagedApi($slow, 0)->listPetCatalogPages(new ListPetCatalogOptions(timeout: 300))->items();
     $first = $items->current();
-    assert($first instanceof Pet);
     expect($first->name)->toBe('p0-0');
     expect(fn () => $items->next())->toThrow(NetworkTimeoutException::class);
 });
@@ -412,7 +408,6 @@ test('bhv pagination 018 stopping early sends no further request and leaves noth
 
     $items = $paginator->items();
     $first = $items->current();
-    assert($first instanceof Pet);
     expect($first->name)->toBe('p0-0');
     unset($items);
     expect($server->hits())->toBe(1);
@@ -450,7 +445,6 @@ test('bhv pagination 021 a page that does not decode on a later page fails with 
     $items = pagedApi($server)->listPetCatalogPages()->items();
 
     $first = $items->current();
-    assert($first instanceof Pet);
     expect($first->name)->toBe('p0-0');
     expect(fn () => $items->next())->toThrow(SerializationException::class);
     expect($items->valid())->toBeFalse();
@@ -460,8 +454,8 @@ test('bhv pagination 022 a refreshed credential is used for the next page', func
     $server = catalogServer(3, 1);
     $issued = new \stdClass();
     $issued->count = 0;
-    $rotating = new class ($issued) implements Authenticator {
-        public function __construct(private readonly \stdClass $issued)
+    $rotating = new readonly class ($issued) implements Authenticator {
+        public function __construct(private \stdClass $issued)
         {
         }
 
@@ -506,7 +500,6 @@ test('bhv pagination 023 an error from a link driven page request carries the pa
     $items = pagedApi($server)->listPetFeedPages()->items();
 
     $first = $items->current();
-    assert($first instanceof Pet);
     expect($first->name)->toBe('f0');
     try {
         $items->next();
@@ -617,7 +610,6 @@ test('bhv pagination 029 a next url in the body is followed and a next url on an
     $items = pagedApi($origin, 0, ['Authorization' => 'Bearer secret'])->listPetNextUrlPages()->items();
 
     $first = $items->current();
-    assert($first instanceof Pet);
     expect($first->name)->toBe('f0');
     try {
         $items->next();

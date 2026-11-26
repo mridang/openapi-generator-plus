@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -27,7 +28,7 @@ final class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator
     ) {
         parent::__construct(
             $host,
-            static::credentialOrEnvironment($clientId, 'clientId'),
+            self::credentialOrEnvironment($clientId, 'clientId'),
             'https://auth.example.com/authorize',
             ['read']
         );

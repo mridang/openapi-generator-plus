@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,6 +10,7 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
@@ -16,7 +18,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 /**
  * @see https://example.com/docs/account Account <docs> & "notes" it's here
  */
-class Account implements \Ds\Hashable
+class Account implements \Ds\Hashable, \Stringable
 {
     /** Read only: the server sets this value. */
     #[SerializedName('id')]
@@ -47,8 +49,8 @@ class Account implements \Ds\Hashable
     public function withId(?int $id): self
     {
         return new self(
-            id: $id,
             username: $this->username,
+            id: $id,
             password: $this->password,
         );
     }
@@ -59,8 +61,8 @@ class Account implements \Ds\Hashable
     public function withUsername(string $username): self
     {
         return new self(
-            id: $this->id,
             username: $username,
+            id: $this->id,
             password: $this->password,
         );
     }
@@ -71,8 +73,8 @@ class Account implements \Ds\Hashable
     public function withPassword(?string $password): self
     {
         return new self(
-            id: $this->id,
             username: $this->username,
+            id: $this->id,
             password: $password,
         );
     }
@@ -104,7 +106,7 @@ class Account implements \Ds\Hashable
     {
         $parts = [];
         foreach (get_object_vars($this) as $name => $value) {
-            $masked = in_array($name, ['password', ], true);
+            $masked = $name === 'password';
             $parts[] = $name . '=' . ($masked && $value !== null
                 ? '***'
                 : \PetstoreClient\ObjectSerializer::describeValue($value));
@@ -121,7 +123,7 @@ class Account implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === $this::class
+            && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -131,7 +133,7 @@ class Account implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [$this::class];
+        $parts = [static::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -140,5 +142,4 @@ class Account implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
-
 }

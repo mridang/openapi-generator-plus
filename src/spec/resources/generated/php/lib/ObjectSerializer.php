@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -70,7 +71,6 @@ class ObjectSerializer
      * keeping the same numeric UTC offset (+00:00) the offset tests and the
      * decoder already expect, so the fraction the decoder accepts is now also
      * emitted and the round-trip is lossless to the millisecond. */
-    /** @var string */
     private const string DATE_TIME_FORMAT = \DateTime::RFC3339_EXTENDED;
 
     private const int MAX_SANITIZE_DEPTH = 512;
@@ -99,7 +99,7 @@ class ObjectSerializer
             self::$serializer = new Serializer([
                 /* An enum value this SDK does not list decodes to the enum's
                  * catch-all case, and the catch-all case cannot be written. */
-                new class implements NormalizerInterface, DenormalizerInterface {
+                new class () implements NormalizerInterface, DenormalizerInterface {
                     private BackedEnumNormalizer $inner;
 
                     public function __construct()
@@ -179,7 +179,7 @@ class ObjectSerializer
                  * offset-less text read in the host zone). Encode, and the
                  * \DateTimeImmutable `format: time` fields, stay with
                  * DateTimeNormalizer. */
-                new class implements DenormalizerInterface {
+                new class () implements DenormalizerInterface {
                     /** @param array<string, mixed> $context */
                     public function denormalize(
                         mixed $data,
@@ -216,7 +216,7 @@ class ObjectSerializer
                  * partial-time on the wire (H:i:s, plus .SSS only when the
                  * milliseconds are non-zero), never a full date-time. Registered
                  * before DateTimeNormalizer so it wins for both directions. */
-                new class implements NormalizerInterface, DenormalizerInterface {
+                new class () implements NormalizerInterface, DenormalizerInterface {
                     /** @param array<string, mixed> $context */
                     public function normalize(mixed $data, ?string $format = null, array $context = []): string
                     {
@@ -1251,7 +1251,7 @@ class ObjectSerializer
             return null;
         }
 
-        if ($class === 'Symfony\Component\Uid\Uuid') {
+        if ($class === \Symfony\Component\Uid\Uuid::class) {
             if (!$decoded && is_string($data)) {
                 $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
                 if (is_string($literal)) {
@@ -1480,7 +1480,7 @@ class ObjectSerializer
         }
         $reflection = new \ReflectionClass($class);
         $constructor = $reflection->getConstructor();
-        if ($constructor === null) {
+        if (!$constructor instanceof \ReflectionMethod) {
             return;
         }
         foreach ($constructor->getParameters() as $param) {
@@ -1961,7 +1961,7 @@ class ObjectSerializer
         }
 
         if (is_array($value)) {
-            $items = array_map([self::class, 'stringify'], $value);
+            $items = array_map(self::stringify(...), $value);
             return match ($collectionFormat) {
                 'ssv' => implode(' ', $items),
                 'tsv' => implode("\t", $items),
@@ -1980,7 +1980,7 @@ class ObjectSerializer
     public static function toHeaderValue(mixed $value): string
     {
         if (is_array($value)) {
-            return implode(',', array_map(static fn ($v): string => self::stringify($v), $value));
+            return implode(',', array_map(self::stringify(...), $value));
         }
 
         return self::stringify($value);
@@ -2402,8 +2402,10 @@ class ObjectSerializer
 
         /* D88: the protobuf range is +-315576000000 s. The bound itself is
          * accepted only with a zero fraction; anything past it is rejected. */
-        if ((int) $digits > 315576000000
-            || ((int) $digits === 315576000000 && isset($m[3]) && (int) $m[3] !== 0)) {
+        if (
+            (int) $digits > 315576000000
+            || ((int) $digits === 315576000000 && isset($m[3]) && (int) $m[3] !== 0)
+        ) {
             throw new SerializationException(
                 "Invalid protobuf-JSON duration '$value': outside the protobuf range of +-315576000000 seconds"
             );

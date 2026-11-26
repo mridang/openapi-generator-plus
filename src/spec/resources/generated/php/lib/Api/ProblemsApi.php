@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -35,7 +36,6 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
     /**
      * Read a fallback, declaring a default response
      * @param GetFallbackOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\UnexpectedFailureException on HTTP default with a {@see \PetstoreClient\Models\UnexpectedFailure} body
@@ -113,7 +113,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Result',
+            \PetstoreClient\Models\Result::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -122,12 +122,12 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            operationId: 'getFallback',
-            urlTemplate: '/fallbacks/{fallbackId}',
             securityRequirements: [],
             errorSchemas: [
                 'default' => \PetstoreClient\Errors\UnexpectedFailureException::fromErrorResponse(...),
             ],
+            operationId: 'getFallback',
+            urlTemplate: '/fallbacks/{fallbackId}',
         );
         return $result;
     }
@@ -135,7 +135,6 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
     /**
      * Read a member, declaring a 404 with a different schema
      * @param GetMemberOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\MemberNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\MemberNotFound} body
@@ -213,7 +212,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Result',
+            \PetstoreClient\Models\Result::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -222,12 +221,12 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            operationId: 'getMember',
-            urlTemplate: '/members/{memberId}',
             securityRequirements: [],
             errorSchemas: [
                 '404' => \PetstoreClient\Errors\MemberNotFoundException::fromErrorResponse(...),
             ],
+            operationId: 'getMember',
+            urlTemplate: '/members/{memberId}',
         );
         return $result;
     }
@@ -235,7 +234,6 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
     /**
      * Read a project, declaring a 404 with its own schema
      * @param GetProjectOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\ProjectNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\ProjectNotFound} body
@@ -313,7 +311,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Result',
+            \PetstoreClient\Models\Result::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -322,12 +320,12 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            operationId: 'getProject',
-            urlTemplate: '/projects/{projectId}',
             securityRequirements: [],
             errorSchemas: [
                 '404' => \PetstoreClient\Errors\ProjectNotFoundException::fromErrorResponse(...),
             ],
+            operationId: 'getProject',
+            urlTemplate: '/projects/{projectId}',
         );
         return $result;
     }
@@ -335,7 +333,6 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
     /**
      * Read a range, declaring one schema for every 4XX status
      * @param GetRangeOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\RejectedRequestException on HTTP 4XX with a {@see \PetstoreClient\Models\RejectedRequest} body
@@ -413,7 +410,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Result',
+            \PetstoreClient\Models\Result::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -422,12 +419,12 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            operationId: 'getRange',
-            urlTemplate: '/ranges/{rangeId}',
             securityRequirements: [],
             errorSchemas: [
                 '4XX' => \PetstoreClient\Errors\RejectedRequestException::fromErrorResponse(...),
             ],
+            operationId: 'getRange',
+            urlTemplate: '/ranges/{rangeId}',
         );
         return $result;
     }
@@ -435,7 +432,6 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
     /**
      * Read an upstream, declaring one schema for every 5XX status
      * @param GetUpstreamOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\UpstreamFailureException on HTTP 5XX with a {@see \PetstoreClient\Models\UpstreamFailure} body
@@ -513,7 +509,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Result',
+            \PetstoreClient\Models\Result::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -522,12 +518,12 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            operationId: 'getUpstream',
-            urlTemplate: '/upstreams/{upstreamId}',
             securityRequirements: [],
             errorSchemas: [
                 '5XX' => \PetstoreClient\Errors\UpstreamFailureException::fromErrorResponse(...),
             ],
+            operationId: 'getUpstream',
+            urlTemplate: '/upstreams/{upstreamId}',
         );
         return $result;
     }
@@ -535,7 +531,6 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
     /**
      * Take a lock, declaring one schema under two statuses
      * @param TakeLockOptions|null $options Options carrying the per-call timeout, headers and retry count
-     * @return \PetstoreClient\Models\Result
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\StateConflictException on HTTP 409 with a {@see \PetstoreClient\Models\StateConflict} body
@@ -615,7 +610,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Result',
+            \PetstoreClient\Models\Result::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -624,13 +619,13 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            operationId: 'takeLock',
-            urlTemplate: '/locks/{lockId}',
             securityRequirements: [],
             errorSchemas: [
                 '409' => \PetstoreClient\Errors\StateConflictException::fromErrorResponse(...),
                 '423' => \PetstoreClient\Errors\StateConflictException::fromErrorResponse(...),
             ],
+            operationId: 'takeLock',
+            urlTemplate: '/locks/{lockId}',
         );
         return $result;
     }
