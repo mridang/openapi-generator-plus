@@ -270,20 +270,18 @@ final class Paginator implements \IteratorAggregate
      * The pages of a cursor list: each request sends the cursor that the page before it named, and the
      * cursor after a page is what $next returns for the request that was sent and the page it returned.
      *
-     * @template TCursor of int|string|null
-     * @template TItem
+     * @template TCursor of int|string
      * @template TBody
      *
-     * @param TCursor                                      $start
-     * @param \Closure(TCursor): ApiResult<mixed>            $fetch
-     * @param \Closure(TBody): iterable<TItem>               $items
-     * @param \Closure(TCursor, TBody, list<TItem>): mixed   $next
+     * @param TCursor|null                                              $start
+     * @param \Closure(TCursor|null): ApiResult<mixed>                  $fetch
+     * @param \Closure(TBody): iterable<mixed>                          $items
+     * @param \Closure(TCursor|null, TBody, list<mixed>): (TCursor|null) $next
      *
      * @return \Generator<int, Page<mixed, mixed>>
      */
     private static function cursorPages(mixed $start, \Closure $fetch, \Closure $items, \Closure $next, string $requestPath): \Generator
     {
-        /** @var TCursor|null $sent */
         $sent = $start;
         while (true) {
             $result = $fetch($sent);
@@ -296,7 +294,9 @@ final class Paginator implements \IteratorAggregate
                 return;
             }
             $repeated = $following === $sent;
-            yield new Page($list, $following, $result);
+            /** @var Page<mixed, mixed> $page */
+            $page = new Page($list, $following, $result);
+            yield $page;
             if ($repeated) {
                 /* The page itself is good: it was delivered, and the next read raises. */
                 throw new PaginationException(
@@ -304,7 +304,6 @@ final class Paginator implements \IteratorAggregate
                     $requestPath
                 );
             }
-            /** @var TCursor|null $sent */
             $sent = $following;
         }
     }
