@@ -279,10 +279,11 @@ final class Paginator implements \IteratorAggregate
      * @param \Closure(TBody): iterable<TItem>               $items
      * @param \Closure(TCursor, TBody, list<TItem>): mixed   $next
      *
-     * @return \Generator<int, Page<TItem, TCursor>>
+     * @return \Generator<int, Page<mixed, mixed>>
      */
     private static function cursorPages(mixed $start, \Closure $fetch, \Closure $items, \Closure $next, string $requestPath): \Generator
     {
+        /** @var TCursor|null $sent */
         $sent = $start;
         while (true) {
             $result = $fetch($sent);
@@ -303,6 +304,7 @@ final class Paginator implements \IteratorAggregate
                     $requestPath
                 );
             }
+            /** @var TCursor|null $sent */
             $sent = $following;
         }
     }
