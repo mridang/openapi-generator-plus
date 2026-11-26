@@ -166,13 +166,13 @@ public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sen
     @available(*, deprecated, message: "This operation is deprecated.")
 {{/isDeprecated}}
     public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
         return try await {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{paramName}}, {{/vendorExtensions.op.signatureArgs}}pageURL: nil)
     }
 
-    /* One page of the list: the first when `pageURL` is nil, else the URL the Link header named. */
+    /* One page of the list: the first when `pageURL` is nil, else the URL the Link header or the body named. */
     func {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}pageURL: String?) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{>api/operation_prelude}}
 
 {{#returnType}}

@@ -4381,6 +4381,57 @@ fn feed_server(pages: usize, absolute: bool) -> RawServer {
     server
 }
 
+/// Five pets read by offset and limit, two to a page; the body has no has_more flag.
+fn offset_server() -> RawServer {
+    RawServer::serve(|conn| {
+        let offset: usize = query_of(&conn.head).get("offset").map(|offset| offset.parse().expect("an offset")).unwrap_or(0);
+        let end = (offset + 2).min(5);
+        let items: Vec<String> = (offset..end).map(|i| pet_json(&format!("p{i}"))).collect();
+        reply(conn, 200, &format!(r#"{{"items":[{}]}}"#, items.join(",")), &[]);
+    })
+}
+
+/// Five pets read a numbered page at a time, two to a page; has_more is false on the empty page after the last.
+fn page_number_server() -> RawServer {
+    RawServer::serve(|conn| {
+        let page: usize = query_of(&conn.head).get("page").map(|page| page.parse().expect("a page number")).unwrap_or(1);
+        let start = (page - 1) * 2;
+        let end = (start + 2).min(5);
+        let items: Vec<String> = (start..end).map(|i| pet_json(&format!("p{i}"))).collect();
+        let has_more = !items.is_empty();
+        reply(conn, 200, &format!(r#"{{"items":[{}],"has_more":{has_more}}}"#, items.join(",")), &[]);
+    })
+}
+
+/// Five pets read after the id of the last one, two to a page; has_more says when the list ends.
+fn after_server() -> RawServer {
+    RawServer::serve(|conn| {
+        let start: usize = query_of(&conn.head)
+            .get("starting_after")
+            .map(|id| id[1..].parse::<usize>().expect("a pet id") + 1)
+            .unwrap_or(0);
+        let end = (start + 2).min(5);
+        let items: Vec<String> = (start..end).map(|i| pet_json(&format!("p{i}"))).collect();
+        let last_id = if end > start { format!("p{}", end - 1) } else { String::new() };
+        let has_more = end < 5;
+        reply(conn, 200, &format!(r#"{{"data":[{}],"has_more":{has_more},"last_id":"{last_id}"}}"#, items.join(",")), &[]);
+    })
+}
+
+/// A list of `pages` pets whose body names the next page with an absolute URL on the same origin.
+fn next_url_server(pages: usize) -> RawServer {
+    let origin = Arc::new(Mutex::new(String::new()));
+    let seen = origin.clone();
+    let server = RawServer::serve(move |conn| {
+        let index: usize = query_of(&conn.head).get("p").map(|p| p.parse().expect("a page")).unwrap_or(0);
+        let prefix = seen.lock().unwrap().clone();
+        let next = if index + 1 < pages { format!(r#","next_url":"{prefix}/pet/next?p={}""#, index + 1) } else { String::new() };
+        reply(conn, 200, &format!(r#"{{"items":[{}]{}}}"#, pet_json(&format!("f{index}")), next), &[]);
+    });
+    *origin.lock().unwrap() = server.url("");
+    server
+}
+
 #[tokio::test]
 async fn test_bhv_pagination_001_a_paged_operation_reads_no_page_until_the_first_item_or_page_is_requested() {
     let server = catalog_server(2, 2);
@@ -4417,6 +4468,41 @@ async fn test_bhv_pagination_003_the_next_request_is_sent_only_when_the_consumer
 
     items.next().await.expect("an item").expect("decoded");
     assert_eq!(2, server.hits(), "the third item needed the second page");
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_004_an_offset_and_limit_operation_advances_the_offset_by_the_items_received_and_ends_on_an_empty_page() {
+    let server = offset_server();
+
+    let names = names_of(paged_api(&server, 0).list_pet_offsets_pages(None).items()).await;
+
+    assert_eq!(vec!["p0", "p1", "p2", "p3", "p4"], names);
+    let offsets: Vec<Option<String>> =
+        server.heads().iter().map(|head| query_of(head).get("offset").cloned()).collect();
+    assert_eq!(vec![None, Some("2".to_string()), Some("4".to_string()), Some("5".to_string())], offsets);
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_005_a_page_number_operation_starts_at_the_supplied_page_and_increments_it() {
+    let server = page_number_server();
+
+    let names = names_of(paged_api(&server, 0).list_pet_page_numbers_pages(None).items()).await;
+
+    assert_eq!(vec!["p0", "p1", "p2", "p3", "p4"], names);
+    let pages: Vec<Option<String>> = server.heads().iter().map(|head| query_of(head).get("page").cloned()).collect();
+    assert_eq!(vec![None, Some("2".to_string()), Some("3".to_string()), Some("4".to_string())], pages);
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_006_an_id_cursor_operation_ends_when_has_more_is_false() {
+    let server = after_server();
+
+    let names = names_of(paged_api(&server, 0).list_pets_after_pages(None).items()).await;
+
+    assert_eq!(vec!["p0", "p1", "p2", "p3", "p4"], names);
+    let starting_after: Vec<Option<String>> =
+        server.heads().iter().map(|head| query_of(head).get("starting_after").cloned()).collect();
+    assert_eq!(vec![None, Some("p1".to_string()), Some("p3".to_string())], starting_after);
 }
 
 #[tokio::test]
@@ -4773,7 +4859,7 @@ async fn test_bhv_pagination_023_an_error_from_a_link_driven_page_request_carrie
 async fn test_bhv_pagination_024_an_operation_with_two_candidate_cursors_two_array_properties_a_non_get_method_or_several_2xx_bodies_gets_no_paged_method() {
     let source = include_str!("../src/api/pet_api.rs");
 
-    for paged in ["list_pet_catalog_pages", "list_pet_events_pages", "list_pet_feed_pages", "list_pet_notes_pages"] {
+    for paged in ["list_pet_catalog_pages", "list_pet_events_pages", "list_pet_feed_pages", "list_pet_notes_pages", "list_pet_offsets_pages", "list_pet_page_numbers_pages", "list_pets_after_pages", "list_pet_next_url_pages"] {
         assert!(source.contains(&format!("pub fn {paged}(")), "{paged}");
     }
     assert!(!source.contains("fn list_pet_matches_pages"), "the ambiguous operation has no paged method");
@@ -4833,6 +4919,29 @@ async fn test_bhv_pagination_028_the_cursor_for_the_next_page_is_taken_from_the_
 
     assert_eq!(vec!["p0-0", "p1-0"], names);
     assert_eq!(vec![None, None, Some("c1".to_string())], cursors_seen(&server));
+}
+
+#[tokio::test]
+async fn test_bhv_pagination_029_a_next_url_in_the_body_is_followed_and_a_next_url_on_another_origin_is_refused() {
+    let server = next_url_server(3);
+
+    let names = names_of(paged_api(&server, 0).list_pet_next_url_pages(None).items()).await;
+
+    assert_eq!(vec!["f0", "f1", "f2"], names);
+    let pages: Vec<Option<String>> = server.heads().iter().map(|head| query_of(head).get("p").cloned()).collect();
+    assert_eq!(vec![None, Some("1".to_string()), Some("2".to_string())], pages);
+
+    let elsewhere = RawServer::serve(|conn| reply(conn, 200, &format!(r#"{{"items":[{}]}}"#, pet_json("stolen")), &[]));
+    let elsewhere_next = elsewhere.url("/pet/next?p=1");
+    let refusing = RawServer::serve(move |conn| {
+        reply(conn, 200, &format!(r#"{{"items":[{}],"next_url":"{elsewhere_next}"}}"#, pet_json("f0")), &[])
+    });
+    let mut items = paged_api(&refusing, 0).list_pet_next_url_pages(None).items();
+
+    assert_eq!("f0", items.next().await.expect("an item").expect("decoded").name);
+    let failure = items.next().await.expect("the failure").expect_err("the next URL leaves the origin");
+    assert!(failure.downcast_ref::<PaginationError>().is_some(), "got: {failure}");
+    assert_eq!(0, elsewhere.hits(), "nothing is sent to the other origin");
 }
 
 #[tokio::test]

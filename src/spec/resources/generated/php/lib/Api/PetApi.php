@@ -46,7 +46,11 @@ use PetstoreClient\Api\Options\ListPetCatalogOptions;
 use PetstoreClient\Api\Options\ListPetEventsOptions;
 use PetstoreClient\Api\Options\ListPetFeedOptions;
 use PetstoreClient\Api\Options\ListPetMatchesOptions;
+use PetstoreClient\Api\Options\ListPetNextUrlOptions;
 use PetstoreClient\Api\Options\ListPetNotesOptions;
+use PetstoreClient\Api\Options\ListPetOffsetsOptions;
+use PetstoreClient\Api\Options\ListPetPageNumbersOptions;
+use PetstoreClient\Api\Options\ListPetsAfterOptions;
 use PetstoreClient\Api\Options\SetPetAvatarOptions;
 use PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
@@ -2715,6 +2719,133 @@ class PetApi extends BaseApi implements PetApiInterface
     }
 
     /**
+     * Lists pets with the URL of the next page in the body
+     * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetNextUrl(?ListPetNextUrlOptions $options = null): \PetstoreClient\Models\PetNextUrlPage
+    {
+        $apiResult = $this->listPetNextUrlWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetNextUrl but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetNextUrlPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetNextUrlPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetNextUrlWithHttpInfo(?ListPetNextUrlOptions $options = null): ApiResult
+    {
+        return $this->listPetNextUrlPage($options, null);
+    }
+
+    /**
+     * One page of the list: the first when $pageUrl is null, else the URL the Link header named.
+     *
+     * @return ApiResult<\PetstoreClient\Models\PetNextUrlPage>
+     */
+    private function listPetNextUrlPage(?ListPetNextUrlOptions $options, ?string $pageUrl): ApiResult
+    {
+        $path = '/pet/next';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetNextUrlOptions && $options->limit !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
+                'limit',
+                $options->limit,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        if ($pageUrl !== null) {
+            $path = $pageUrl;
+            $queryParams = [];
+        }
+        /** @var ApiResult<\PetstoreClient\Models\PetNextUrlPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\PetNextUrlPage::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetNextUrl',
+            urlTemplate: '/pet/next',
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pets with the URL of the next page in the body
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetNextUrlWithHttpInfo()}, with the same options on each page.
+     * The page after each one is the URL in its `next_url` property,
+     * followed only within the origin of the client.
+     *
+     * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, null>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetNextUrlPages(?ListPetNextUrlOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetNextUrlOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, null> $pages */
+        $pages = Paginator::ofNextUrl(
+            $this->config->baseUrl,
+            fn (?string $pageUrl): ApiResult => $this->listPetNextUrlPage($pageOptions, $pageUrl),
+            static fn (\PetstoreClient\Models\PetNextUrlPage $page): iterable => $page->items ?? [],
+            static fn (\PetstoreClient\Models\PetNextUrlPage $page): ?string => $page->nextUrl,
+            '/pet/next'
+        );
+
+        return $pages;
+    }
+
+    /**
      * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
      * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -2823,6 +2954,381 @@ class PetApi extends BaseApi implements PetApiInterface
             static fn (\PetstoreClient\Models\PetNotePage $page): iterable => $page->rows ?? [],
             static fn (\PetstoreClient\Models\PetNotePage $page): ?string => $page->following,
             '/pet/notes'
+        );
+
+        return $pages;
+    }
+
+    /**
+     * Lists pets by offset and limit; the list ends on an empty page
+     * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetOffsets(?ListPetOffsetsOptions $options = null): \PetstoreClient\Models\PetOffsetPage
+    {
+        $apiResult = $this->listPetOffsetsWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetOffsets but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetOffsetPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetOffsetPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetOffsetsWithHttpInfo(?ListPetOffsetsOptions $options = null): ApiResult
+    {
+        $path = '/pet/offsets';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetOffsetsOptions && $options->offset !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'offset', ValueSerializer::serializeStyled(
+                'offset',
+                $options->offset,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetOffsetsOptions && $options->limit !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
+                'limit',
+                $options->limit,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetOffsetPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\PetOffsetPage::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetOffsets',
+            urlTemplate: '/pet/offsets',
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pets by offset and limit; the list ends on an empty page
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetOffsetsWithHttpInfo()}, with the same options on each page.
+     * The value of the `offset` option is the offset of the first
+     * item, and each page after one is requested at the offset past the items it received. The list ends on
+     * an empty page or when its `hasMore` is false.
+     *
+     * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, int>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetOffsetsPages(?ListPetOffsetsOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetOffsetsOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, int> $pages */
+        $pages = Paginator::ofOffset(
+            $pageOptions->offset,
+            fn (?int $pageOffset): ApiResult => $this->listPetOffsetsWithHttpInfo($pageOptions->withPageCursor($pageOffset)),
+            static fn (\PetstoreClient\Models\PetOffsetPage $page): iterable => $page->items ?? [],
+            static fn (\PetstoreClient\Models\PetOffsetPage $page): ?bool => $page->hasMore,
+            '/pet/offsets'
+        );
+
+        return $pages;
+    }
+
+    /**
+     * Lists pets one numbered page at a time; the list ends on an empty page
+     * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetPageNumbers(?ListPetPageNumbersOptions $options = null): \PetstoreClient\Models\PetPageNumberPage
+    {
+        $apiResult = $this->listPetPageNumbersWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetPageNumbers but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetPageNumberPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetPageNumberPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetPageNumbersWithHttpInfo(?ListPetPageNumbersOptions $options = null): ApiResult
+    {
+        $path = '/pet/pages';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetPageNumbersOptions && $options->page !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'page', ValueSerializer::serializeStyled(
+                'page',
+                $options->page,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetPageNumbersOptions && $options->perPage !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'per_page', ValueSerializer::serializeStyled(
+                'per_page',
+                $options->perPage,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetPageNumberPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\PetPageNumberPage::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetPageNumbers',
+            urlTemplate: '/pet/pages',
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pets one numbered page at a time; the list ends on an empty page
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetPageNumbersWithHttpInfo()}, with the same options on each page.
+     * The value of the `page` option is the page number of the
+     * first request, and each page after one is requested with the next page number. The list ends on an
+     * empty page or when its `hasMore` is false.
+     *
+     * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, int>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetPageNumbersPages(?ListPetPageNumbersOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetPageNumbersOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, int> $pages */
+        $pages = Paginator::ofPage(
+            $pageOptions->page,
+            fn (?int $pageNumber): ApiResult => $this->listPetPageNumbersWithHttpInfo($pageOptions->withPageCursor($pageNumber)),
+            static fn (\PetstoreClient\Models\PetPageNumberPage $page): iterable => $page->items ?? [],
+            static fn (\PetstoreClient\Models\PetPageNumberPage $page): ?bool => $page->hasMore,
+            '/pet/pages'
+        );
+
+        return $pages;
+    }
+
+    /**
+     * Lists pets after the id of the last one; the has_more flag says when the list ends
+     * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetsAfter(?ListPetsAfterOptions $options = null): \PetstoreClient\Models\PetAfterPage
+    {
+        $apiResult = $this->listPetsAfterWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetsAfter but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetAfterPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetAfterPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetsAfterWithHttpInfo(?ListPetsAfterOptions $options = null): ApiResult
+    {
+        $path = '/pet/after';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetsAfterOptions && $options->startingAfter !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'starting_after', ValueSerializer::serializeStyled(
+                'starting_after',
+                $options->startingAfter,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        if ($options instanceof \PetstoreClient\Api\Options\ListPetsAfterOptions && $options->limit !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
+                'limit',
+                $options->limit,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetAfterPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\PetAfterPage::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer']],
+            operationId: 'listPetsAfter',
+            urlTemplate: '/pet/after',
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pets after the id of the last one; the has_more flag says when the list ends
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetsAfterWithHttpInfo()}, with the same options on each page.
+     * The value of the `starting_after` option is where the list starts,
+     * the page after each one is requested with the `last_id`
+     * it returned, and the list ends when its `hasMore` is false.
+     *
+     * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetsAfterPages(?ListPetsAfterOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetsAfterOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, string> $pages */
+        $pages = Paginator::ofCursor(
+            $pageOptions->startingAfter,
+            fn (?string $pageCursor): ApiResult => $this->listPetsAfterWithHttpInfo($pageOptions->withPageCursor($pageCursor)),
+            static fn (\PetstoreClient\Models\PetAfterPage $page): iterable => $page->data ?? [],
+            static fn (\PetstoreClient\Models\PetAfterPage $page): ?string => $page->hasMore === false ? null : $page->lastId,
+            '/pet/after'
         );
 
         return $pages;

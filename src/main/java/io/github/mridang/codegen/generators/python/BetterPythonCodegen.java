@@ -543,7 +543,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /**
      * What the {@code <op>_pages} methods of an api file need: the {@code Paginator}, the item
      * model (the operation's own imports cover the page model, not the model of its items) and,
-     * for a token cursor, {@code dataclasses.replace}, which gives each page its own cursor.
+     * for a request that carries a cursor (token, id, offset or page), {@code dataclasses.replace},
+     * which gives each page its own cursor.
      */
     @SuppressWarnings("unchecked")
     private void addPagedImports(
@@ -563,7 +564,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 continue;
             }
             final Map<String, Object> p = (Map<String, Object>) pagination;
-            if (Boolean.TRUE.equals(p.get("isToken"))) {
+            if (!Boolean.TRUE.equals(p.get("isUrlPaged"))) {
                 imports.add("from dataclasses import replace as _replace_options");
             }
             final Object model = p.get("itemModel");

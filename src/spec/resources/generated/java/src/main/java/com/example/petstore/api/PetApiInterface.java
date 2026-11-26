@@ -37,7 +37,11 @@ import com.example.petstore.api.options.ListPetCatalogOptions;
 import com.example.petstore.api.options.ListPetEventsOptions;
 import com.example.petstore.api.options.ListPetFeedOptions;
 import com.example.petstore.api.options.ListPetMatchesOptions;
+import com.example.petstore.api.options.ListPetNextUrlOptions;
 import com.example.petstore.api.options.ListPetNotesOptions;
+import com.example.petstore.api.options.ListPetOffsetsOptions;
+import com.example.petstore.api.options.ListPetPageNumbersOptions;
+import com.example.petstore.api.options.ListPetsAfterOptions;
 import com.example.petstore.api.options.SetPetAvatarOptions;
 import com.example.petstore.api.options.SetPetAvatarThumbnailOptions;
 import com.example.petstore.api.options.SetPetPreferencesOptions;
@@ -47,11 +51,15 @@ import com.example.petstore.api.options.UploadPetDocumentOptions;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Pet;
+import com.example.petstore.models.PetAfterPage;
 import com.example.petstore.models.PetArchivePage;
 import com.example.petstore.models.PetCatalogPage;
 import com.example.petstore.models.PetEventPage;
 import com.example.petstore.models.PetMatchPage;
+import com.example.petstore.models.PetNextUrlPage;
 import com.example.petstore.models.PetNotePage;
+import com.example.petstore.models.PetOffsetPage;
+import com.example.petstore.models.PetPageNumberPage;
 import com.example.petstore.models.PetPassport;
 import com.example.petstore.models.PetTreatment;
 import com.example.petstore.models.Photo;
@@ -1457,6 +1465,76 @@ public interface PetApiInterface {
   ApiResult<PetMatchPage> listPetMatchesWithHttpInfo(@Nullable ListPetMatchesOptions options);
 
   /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetNextUrlPage}
+   * @throws ApiException if fails to make API call
+   */
+  default PetNextUrlPage listPetNextUrl() {
+    return listPetNextUrl(null);
+  }
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetNextUrlPage}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<PetNextUrlPage> listPetNextUrlWithHttpInfo() {
+    return listPetNextUrlWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetNextUrlPage}
+   * @throws ApiException if fails to make API call
+   */
+  PetNextUrlPage listPetNextUrl(@Nullable ListPetNextUrlOptions options);
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetNextUrlPage}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<PetNextUrlPage> listPetNextUrlWithHttpInfo(@Nullable ListPetNextUrlOptions options);
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetNextUrlWithHttpInfo}, with the same options on each page.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the paginator over the items
+   */
+  Paginator<Pet, Void> listPetNextUrlPages(@Nullable ListPetNextUrlOptions options);
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  default Paginator<Pet, Void> listPetNextUrlPages() {
+    return listPetNextUrlPages(null);
+  }
+
+  /**
    * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -1524,6 +1602,217 @@ public interface PetApiInterface {
    */
   default Paginator<String, String> listPetNotesPages() {
     return listPetNotesPages(null);
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetOffsetPage}
+   * @throws ApiException if fails to make API call
+   */
+  default PetOffsetPage listPetOffsets() {
+    return listPetOffsets(null);
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetOffsetPage}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<PetOffsetPage> listPetOffsetsWithHttpInfo() {
+    return listPetOffsetsWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetOffsetPage}
+   * @throws ApiException if fails to make API call
+   */
+  PetOffsetPage listPetOffsets(@Nullable ListPetOffsetsOptions options);
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetOffsetPage}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<PetOffsetPage> listPetOffsetsWithHttpInfo(@Nullable ListPetOffsetsOptions options);
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetOffsetsWithHttpInfo}, with the same options on each page.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the paginator over the items
+   */
+  Paginator<Pet, Integer> listPetOffsetsPages(@Nullable ListPetOffsetsOptions options);
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  default Paginator<Pet, Integer> listPetOffsetsPages() {
+    return listPetOffsetsPages(null);
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetPageNumberPage}
+   * @throws ApiException if fails to make API call
+   */
+  default PetPageNumberPage listPetPageNumbers() {
+    return listPetPageNumbers(null);
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetPageNumberPage}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<PetPageNumberPage> listPetPageNumbersWithHttpInfo() {
+    return listPetPageNumbersWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetPageNumberPage}
+   * @throws ApiException if fails to make API call
+   */
+  PetPageNumberPage listPetPageNumbers(@Nullable ListPetPageNumbersOptions options);
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetPageNumberPage}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<PetPageNumberPage> listPetPageNumbersWithHttpInfo(
+      @Nullable ListPetPageNumbersOptions options);
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetPageNumbersWithHttpInfo}, with the same options on each page.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the paginator over the items
+   */
+  Paginator<Pet, Integer> listPetPageNumbersPages(@Nullable ListPetPageNumbersOptions options);
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  default Paginator<Pet, Integer> listPetPageNumbersPages() {
+    return listPetPageNumbersPages(null);
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetAfterPage}
+   * @throws ApiException if fails to make API call
+   */
+  default PetAfterPage listPetsAfter() {
+    return listPetsAfter(null);
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetAfterPage}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<PetAfterPage> listPetsAfterWithHttpInfo() {
+    return listPetsAfterWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetAfterPage}
+   * @throws ApiException if fails to make API call
+   */
+  PetAfterPage listPetsAfter(@Nullable ListPetsAfterOptions options);
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetAfterPage}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<PetAfterPage> listPetsAfterWithHttpInfo(@Nullable ListPetsAfterOptions options);
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetsAfterWithHttpInfo}, with the same options on each page.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the paginator over the items
+   */
+  Paginator<Pet, String> listPetsAfterPages(@Nullable ListPetsAfterOptions options);
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  default Paginator<Pet, String> listPetsAfterPages() {
+    return listPetsAfterPages(null);
   }
 
   /**

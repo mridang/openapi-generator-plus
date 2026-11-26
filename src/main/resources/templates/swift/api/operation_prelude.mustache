@@ -347,8 +347,8 @@
 {{/hasFormParams}}
         let params = InvokeAPIParams(
             method: "{{httpMethod}}",
-            path: {{#vendorExtensions.op.pagination.isLink}}pageURL ?? {{/vendorExtensions.op.pagination.isLink}}path,
-            queryParams: {{#vendorExtensions.op.pagination.isLink}}pageURL == nil ? queryParams : [:]{{/vendorExtensions.op.pagination.isLink}}{{^vendorExtensions.op.pagination.isLink}}queryParams{{/vendorExtensions.op.pagination.isLink}},
+            path: {{#vendorExtensions.op.pagination.isUrlPaged}}pageURL ?? {{/vendorExtensions.op.pagination.isUrlPaged}}path,
+            queryParams: {{#vendorExtensions.op.pagination.isUrlPaged}}pageURL == nil ? queryParams : [:]{{/vendorExtensions.op.pagination.isUrlPaged}}{{^vendorExtensions.op.pagination.isUrlPaged}}queryParams{{/vendorExtensions.op.pagination.isUrlPaged}},
             headerParams: headerParams,
             body: requestBody,
             accepts: [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],

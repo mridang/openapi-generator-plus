@@ -4278,6 +4278,48 @@ class BaseApiTest {
         name: String,
     ): List<String?> = server.seen.map { it.param(name) }
 
+    /** The pets from index [from] up to [to], as JSON items. */
+    private fun petsJson(
+        from: Int,
+        to: Int,
+    ): String = (from until to).joinToString(",") { petJson("p$it") }
+
+    /** Five pets in total, served two at a time from the offset the request names. */
+    private fun offsetServer(): PagedServer =
+        PagedServer { request, _ ->
+            val from = request.param("offset")?.toInt() ?: 0
+            Reply.ok("{\"items\":[${petsJson(minOf(from, 5), minOf(from + 2, 5))}]}")
+        }
+
+    /** Five pets in total, two to a numbered page, from page 1. */
+    private fun pageNumberServer(): PagedServer =
+        PagedServer { request, _ ->
+            val index = request.param("page")?.toInt() ?: 1
+            val from = (index - 1) * 2
+            Reply.ok("{\"items\":[${petsJson(minOf(from, 5), minOf(from + 2, 5))}],\"has_more\":true}")
+        }
+
+    /** Five pets in total, two to a page, each page with the id of its last pet and a has_more flag. */
+    private fun afterServer(): PagedServer =
+        PagedServer { request, _ ->
+            val from = request.param("starting_after")?.let { it.substring(1).toInt() + 1 } ?: 0
+            val to = minOf(from + 2, 5)
+            Reply.ok("{\"data\":[${petsJson(from, to)}],\"has_more\":${to < 5},\"last_id\":\"p${to - 1}\"}")
+        }
+
+    /** Three pets, one to a page, each page with the URL of the next one in the body. */
+    private fun nextUrlServer(pages: Int): PagedServer {
+        var self: PagedServer? = null
+        val server =
+            PagedServer { request, _ ->
+                val index = request.param("p")?.toInt() ?: 0
+                val next = if (index + 1 < pages) ",\"next_url\":\"${self!!.url()}/pet/next?p=${index + 1}\"" else ""
+                Reply.ok("{\"items\":[${petJson("f$index")}]$next}")
+            }
+        self = server
+        return server
+    }
+
     @Nested
     @DisplayName("paged lists")
     inner class PagedLists {
@@ -4323,6 +4365,43 @@ class BaseApiTest {
                         .collect { sizes.add(server.seen.size) }
                 }
                 assertEquals(listOf(1, 1, 2), sizes, "the third item needed the second page and nothing was read ahead")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination004 an offset-and-limit operation advances the offset by the items received and ends on an empty page")
+        fun bhvPagination004AnOffsetAndLimitOperationAdvancesTheOffsetAndEndsOnAnEmptyPage() {
+            offsetServer().use { server ->
+                assertEquals(
+                    listOf("p0", "p1", "p2", "p3", "p4"),
+                    runBlocking { names(petApi(server).listPetOffsetsPages().items()) },
+                )
+                assertEquals(listOf(null, "2", "4", "5"), paramsSeen(server, "offset"))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination005 a page-number operation starts at the supplied page and increments it")
+        fun bhvPagination005APageNumberOperationStartsAtTheSuppliedPageAndIncrementsIt() {
+            pageNumberServer().use { server ->
+                assertEquals(
+                    listOf("p0", "p1", "p2", "p3", "p4"),
+                    runBlocking { names(petApi(server).listPetPageNumbersPages().items()) },
+                )
+                assertEquals(listOf(null, "2", "3", "4"), paramsSeen(server, "page"))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination006 an id-cursor operation ends when has_more is false")
+        fun bhvPagination006AnIdCursorOperationEndsWhenHasMoreIsFalse() {
+            afterServer().use { server ->
+                assertEquals(
+                    listOf("p0", "p1", "p2", "p3", "p4"),
+                    runBlocking { names(petApi(server).listPetsAfterPages().items()) },
+                )
+                assertEquals(listOf(null, "p1", "p3"), paramsSeen(server, "starting_after"))
+                assertEquals(3, server.seen.size, "the page with has_more false was the last request")
             }
         }
 
@@ -4726,7 +4805,16 @@ class BaseApiTest {
         )
         fun bhvPagination024AnOperationThatIsAmbiguousOrNotAGetGetsNoPagedMethod() {
             assertEquals(
-                setOf("listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages"),
+                setOf(
+                    "listPetCatalogPages",
+                    "listPetEventsPages",
+                    "listPetFeedPages",
+                    "listPetNotesPages",
+                    "listPetOffsetsPages",
+                    "listPetPageNumbersPages",
+                    "listPetsAfterPages",
+                    "listPetNextUrlPages",
+                ),
                 pagesMethodsOf(PetApi::class.java),
             )
             assertTrue(PetApi::class.java.methods.any { it.name == "listPetMatches" }, "the ambiguous operation keeps its base method")
@@ -4791,6 +4879,34 @@ class BaseApiTest {
                 val api = petApi(server, TransportOptions.builder().maxRetries(2).build())
                 assertEquals(listOf("p0-0", "p1-0"), runBlocking { names(api.listPetCatalogPages().items()) })
                 assertEquals(listOf(null, null, "c1"), paramsSeen(server, "cursor"))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvPagination029 a next URL in the body is followed and a next URL on another origin is refused")
+        fun bhvPagination029ANextUrlInTheBodyIsFollowedAndANextUrlOnAnotherOriginIsRefused() {
+            nextUrlServer(3).use { server ->
+                assertEquals(listOf("f0", "f1", "f2"), runBlocking { names(petApi(server).listPetNextUrlPages().items()) })
+                assertEquals(listOf(null, "1", "2"), paramsSeen(server, "p"))
+            }
+            PagedServer { _, _ -> Reply.ok("{\"items\":[${petJson("stolen")}]}") }.use { elsewhere ->
+                PagedServer { _, _ ->
+                    Reply.ok("{\"items\":[${petJson("f0")}],\"next_url\":\"${elsewhere.url()}/pet/next?p=1\"}")
+                }.use { origin ->
+                    val delivered = mutableListOf<String>()
+                    val failure =
+                        assertThrows(PaginationException::class.java) {
+                            runBlocking {
+                                petApi(origin, defaultHeaders = mapOf("Authorization" to "Bearer secret"))
+                                    .listPetNextUrlPages()
+                                    .items()
+                                    .collect { delivered.add(it.name) }
+                            }
+                        }
+                    assertEquals(listOf("f0"), delivered, "the page before the foreign URL is delivered")
+                    assertFalse(failure.message.orEmpty().contains("p=1"), "the message holds no query")
+                    assertEquals(0, elsewhere.seen.size, "nothing was sent to the other origin")
+                }
             }
         }
 

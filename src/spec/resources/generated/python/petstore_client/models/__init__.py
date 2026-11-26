@@ -34,13 +34,19 @@ from petstore_client.models.moments import Moments as Moments
 from petstore_client.models.native_values import NativeValues as NativeValues
 from petstore_client.models.order import Order as Order
 from petstore_client.models.pet import Pet as Pet
+from petstore_client.models.pet_after_page import PetAfterPage as PetAfterPage
 from petstore_client.models.pet_archive_page import PetArchivePage as PetArchivePage
 from petstore_client.models.pet_catalog_page import PetCatalogPage as PetCatalogPage
 from petstore_client.models.pet_criteria import PetCriteria as PetCriteria
 from petstore_client.models.pet_event_page import PetEventPage as PetEventPage
 from petstore_client.models.pet_food import PetFood as PetFood
 from petstore_client.models.pet_match_page import PetMatchPage as PetMatchPage
+from petstore_client.models.pet_next_url_page import PetNextUrlPage as PetNextUrlPage
 from petstore_client.models.pet_note_page import PetNotePage as PetNotePage
+from petstore_client.models.pet_offset_page import PetOffsetPage as PetOffsetPage
+from petstore_client.models.pet_page_number_page import (
+    PetPageNumberPage as PetPageNumberPage,
+)
 from petstore_client.models.pet_passport import PetPassport as PetPassport
 from petstore_client.models.pet_treatment import PetTreatment as PetTreatment
 from petstore_client.models.pet_with_owner import PetWithOwner as PetWithOwner

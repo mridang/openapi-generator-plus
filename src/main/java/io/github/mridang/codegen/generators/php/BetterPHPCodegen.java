@@ -1568,7 +1568,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
         boolean hasPageCursor = false;
         String pageCursorType = "string";
-        if (pagination instanceof Map && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"))) {
+        if (pagination instanceof Map && isCursorStyle((Map<?, ?>) pagination)) {
             final Map<?, ?> token = (Map<?, ?>) pagination;
             hasPageCursor = true;
             for (final Map<String, Object> param : params) {
@@ -2135,8 +2135,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     /**
      * Adds the PHP types of the paged method to the pagination decorators: {@code phpItemType} (the
-     * documented item type, fully qualified for a model) and {@code phpCursorType} ({@code null} for a
-     * list that is followed by a {@code Link} header).
+     * documented item type, fully qualified for a model), {@code phpCursorParamType} (the type of the
+     * cursor the request sends: {@code int} for an offset or a page number) and {@code phpCursorType}
+     * ({@code null} for a list that is followed by a {@code Link} header or a next URL in the body).
      *
      * @param op the operation
      * @param decorators the operation decorators, which hold the shared {@code pagination} map
@@ -2154,8 +2155,28 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             item = "\\" + invokerPackage + "\\Models\\" + p.get("itemModel");
         }
         p.put("phpItemType", withDsGenerics(item));
-        p.put("phpCursorType", Boolean.TRUE.equals(p.get("isLink")) ? "null" : String.valueOf(p.get("cursorType")));
+        /* An offset or a page number is sent as an integer; the other cursors keep their own type. */
+        final String cursorParamType = Boolean.TRUE.equals(p.get("isOffset")) || Boolean.TRUE.equals(p.get("isPage"))
+                ? "int"
+                : String.valueOf(p.get("cursorType"));
+        p.put("phpCursorParamType", cursorParamType);
+        p.put("phpCursorType",
+                Boolean.TRUE.equals(p.get("isLink")) || Boolean.TRUE.equals(p.get("isBody")) ? "null" : cursorParamType);
         return true;
+    }
+
+    /**
+     * Whether the paged method sends a cursor option with each request: a token, an id, an offset or a
+     * page number. A list followed by a link or a next URL in the body sends none.
+     *
+     * @param pagination the shared {@code pagination} map of the operation
+     * @return whether the options carry the page cursor
+     */
+    static boolean isCursorStyle(final Map<?, ?> pagination) {
+        return Boolean.TRUE.equals(pagination.get("isToken"))
+                || Boolean.TRUE.equals(pagination.get("isId"))
+                || Boolean.TRUE.equals(pagination.get("isOffset"))
+                || Boolean.TRUE.equals(pagination.get("isPage"));
     }
 
     /**

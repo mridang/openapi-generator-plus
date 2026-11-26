@@ -38,13 +38,17 @@
         <type fullname="PetstoreClient.Models.NativeValues" preserve="all" />
         <type fullname="PetstoreClient.Models.Order" preserve="all" />
         <type fullname="PetstoreClient.Models.Pet" preserve="all" />
+        <type fullname="PetstoreClient.Models.PetAfterPage" preserve="all" />
         <type fullname="PetstoreClient.Models.PetArchivePage" preserve="all" />
         <type fullname="PetstoreClient.Models.PetCatalogPage" preserve="all" />
         <type fullname="PetstoreClient.Models.PetCriteria" preserve="all" />
         <type fullname="PetstoreClient.Models.PetEventPage" preserve="all" />
         <type fullname="PetstoreClient.Models.PetFood" preserve="all" />
         <type fullname="PetstoreClient.Models.PetMatchPage" preserve="all" />
+        <type fullname="PetstoreClient.Models.PetNextUrlPage" preserve="all" />
         <type fullname="PetstoreClient.Models.PetNotePage" preserve="all" />
+        <type fullname="PetstoreClient.Models.PetOffsetPage" preserve="all" />
+        <type fullname="PetstoreClient.Models.PetPageNumberPage" preserve="all" />
         <type fullname="PetstoreClient.Models.PetPassport" preserve="all" />
         <type fullname="PetstoreClient.Models.PetTreatment" preserve="all" />
         <type fullname="PetstoreClient.Models.PetWithOwner" preserve="all" />

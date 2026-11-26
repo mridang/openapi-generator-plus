@@ -21,7 +21,7 @@ class Page(Generic[T, C]):
 
     ``items`` are the items of this page, in order. ``next_cursor`` is the cursor of the next page,
     or ``None`` on the last page; it is always ``None`` for a list that is followed by a ``Link``
-    header. ``result`` is what the matching ``..._with_http_info`` method returns for this page: the
+    header or by a next URL in its body. ``result`` is what the matching ``..._with_http_info`` method returns for this page: the
     status, the headers, the raw body and the decoded body.
     """
 

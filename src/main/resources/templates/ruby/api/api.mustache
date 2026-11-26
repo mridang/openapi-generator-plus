@@ -158,26 +158,26 @@ module {{moduleName}}
 {{#isDeprecated}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
       def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}})
         {{operationId}}_page({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}})
       end
 
-      # One page of the list: the first when +page_url+ is nil, else the URL the Link header named.
+      # One page of the list: the first when +page_url+ is nil, else the URL the Link header or the body named.
       #
       # @api private
       def {{operationId}}_page({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}}, page_url: nil)
-{{/vendorExtensions.op.pagination.isLink}}
-{{^vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{^vendorExtensions.op.pagination.isUrlPaged}}
       def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{>api/operation_prelude}}
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
         if page_url
           path = page_url
           query_params.clear
         end
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
         {{#vendorExtensions.op.streamsBinary}}invoke_api_for_stream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invoke_api_for_result{{/vendorExtensions.op.streamsBinary}}(
           :{{httpMethod}}, path, query_params, header_params, request_body,
           [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
@@ -190,9 +190,9 @@ module {{moduleName}}
 {{>api/operation_call_tail}}
         )
       end
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
       private :{{operationId}}_page
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{#vendorExtensions.op.hasPagesMethod}}
 {{>api/operation_pages}}
 {{/vendorExtensions.op.hasPagesMethod}}

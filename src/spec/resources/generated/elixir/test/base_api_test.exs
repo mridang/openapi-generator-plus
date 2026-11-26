@@ -6696,6 +6696,53 @@ defmodule PetstoreClient.Api.BaseApiTest do
     names
   end
 
+  # Five pets in total, p0 to p4. The offset and page servers answer pages of two; the page server
+  # sets has_more on every page, so only an empty page ends it.
+  defp pet_range(from, to),
+    do: Enum.map_join(from..(to - 1)//1, ",", fn index -> pet_json("p#{index}") end)
+
+  defp offset_server do
+    paged_server(fn request, _hit ->
+      from = min(String.to_integer(request.query["offset"] || "0"), 5)
+      ok(~s({"items":[#{pet_range(from, min(from + 2, 5))}]}))
+    end)
+  end
+
+  defp page_number_server do
+    paged_server(fn request, _hit ->
+      from = min((String.to_integer(request.query["page"] || "1") - 1) * 2, 5)
+      ok(~s({"items":[#{pet_range(from, min(from + 2, 5))}],"has_more":true}))
+    end)
+  end
+
+  defp after_server do
+    paged_server(fn request, _hit ->
+      from =
+        case request.query["starting_after"] do
+          nil -> 0
+          "p" <> number -> String.to_integer(number) + 1
+        end
+
+      to = min(from + 2, 5)
+      ok(~s({"data":[#{pet_range(from, to)}],"has_more":#{to < 5},"last_id":"p#{to - 1}"}))
+    end)
+  end
+
+  # Three pets, one to a page, each page with the URL of the next one in its body.
+  defp next_url_server(pages) do
+    paged_server(fn request, _hit ->
+      index = String.to_integer(request.query["p"] || "0")
+      host = request.headers["host"]
+
+      next =
+        if index + 1 < pages,
+          do: ~s(,"next_url":"http://#{host}/pet/next?p=#{index + 1}"),
+          else: ""
+
+      ok(~s({"items":[#{pet_json("f#{index}")}]#{next}}))
+    end)
+  end
+
   defp wait_until(condition, tries \\ 250) do
     cond do
       condition.() ->
@@ -6751,6 +6798,42 @@ defmodule PetstoreClient.Api.BaseApiTest do
              {"p2-0", 3},
              {"p2-1", 3}
            ]
+  end
+
+  test "bhv pagination 004 an offset-and-limit operation advances the offset by the items received and ends on an empty page" do
+    server = offset_server()
+
+    assert names_of(server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_offsets_pages()) ==
+             ["p0", "p1", "p2", "p3", "p4"]
+
+    assert seen_param(server, "offset") == [nil, "2", "4", "5"]
+  end
+
+  test "bhv pagination 005 a page-number operation starts at the supplied page and increments it" do
+    server = page_number_server()
+
+    assert names_of(
+             server
+             |> pet_api()
+             |> PetstoreClient.Api.PetApi.list_pet_page_numbers_pages()
+           ) == ["p0", "p1", "p2", "p3", "p4"]
+
+    assert seen_param(server, "page") == [nil, "2", "3", "4"]
+  end
+
+  test "bhv pagination 006 an id-cursor operation ends when has_more is false" do
+    server = after_server()
+
+    assert names_of(server |> pet_api() |> PetstoreClient.Api.PetApi.list_pets_after_pages()) == [
+             "p0",
+             "p1",
+             "p2",
+             "p3",
+             "p4"
+           ]
+
+    assert seen_param(server, "starting_after") == [nil, "p1", "p3"]
+    assert RawServer.hits(server) == 3
   end
 
   test "bhv pagination 007 a Link-header operation follows rel=next and ends when it is absent" do
@@ -7086,7 +7169,11 @@ defmodule PetstoreClient.Api.BaseApiTest do
              :list_pet_catalog_pages,
              :list_pet_events_pages,
              :list_pet_feed_pages,
-             :list_pet_notes_pages
+             :list_pet_next_url_pages,
+             :list_pet_notes_pages,
+             :list_pet_offsets_pages,
+             :list_pet_page_numbers_pages,
+             :list_pets_after_pages
            ]
 
     assert Keyword.has_key?(functions, :list_pet_matches),
@@ -7146,6 +7233,33 @@ defmodule PetstoreClient.Api.BaseApiTest do
            ) == ["p0-0", "p1-0"]
 
     assert seen_param(server, "cursor") == [nil, nil, "c1"]
+  end
+
+  test "bhv pagination 029 a next URL in the body is followed and a next URL on another origin is refused" do
+    server = next_url_server(3)
+
+    assert names_of(server |> pet_api() |> PetstoreClient.Api.PetApi.list_pet_next_url_pages()) ==
+             ["f0", "f1", "f2"]
+
+    assert seen_param(server, "p") == [nil, "1", "2"]
+
+    elsewhere = paged_server(fn _request, _hit -> ok(~s({"items":[#{pet_json("stolen")}]})) end)
+
+    origin =
+      paged_server(fn _request, _hit ->
+        ok(
+          ~s({"items":[#{pet_json("f0")}],"next_url":"#{RawServer.url(elsewhere, "/pet/next?p=1")}"})
+        )
+      end)
+
+    api = pet_api(origin, [max_retries: 0], %{"Authorization" => "Bearer secret"})
+
+    assert {["f0"], error} =
+             api |> PetstoreClient.Api.PetApi.list_pet_next_url_pages() |> read_names()
+
+    assert %PetstoreClient.Errors.PaginationError{} = error
+    refute Exception.message(error) =~ "p=1", "the message holds no query"
+    assert RawServer.hits(elsewhere) == 0, "nothing was sent to the other origin"
   end
 
   test "bhv pagination 030 a vendor extension on an operation is read as a hint, and the override option wins over it" do

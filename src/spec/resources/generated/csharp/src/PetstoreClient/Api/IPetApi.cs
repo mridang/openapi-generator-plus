@@ -394,6 +394,24 @@ public interface IPetApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>ListPetNextUrl</c> operation.</summary>
+    Task<PetNextUrlPage> ListPetNextUrlAsync(
+        ListPetNextUrlOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetNextUrl</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<PetNextUrlPage>> ListPetNextUrlWithHttpInfoAsync(
+        ListPetNextUrlOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetNextUrl</c> operation as a lazy paginator over its items.</summary>
+    Paginator<Pet, string?> ListPetNextUrlPagesAsync(
+        ListPetNextUrlOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>ListPetNotes</c> operation.</summary>
     Task<PetNotePage> ListPetNotesAsync(
         ListPetNotesOptions? options = null,
@@ -409,6 +427,60 @@ public interface IPetApi
     /// <summary>The <c>ListPetNotes</c> operation as a lazy paginator over its items.</summary>
     Paginator<string, string?> ListPetNotesPagesAsync(
         ListPetNotesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetOffsets</c> operation.</summary>
+    Task<PetOffsetPage> ListPetOffsetsAsync(
+        ListPetOffsetsOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetOffsets</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<PetOffsetPage>> ListPetOffsetsWithHttpInfoAsync(
+        ListPetOffsetsOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetOffsets</c> operation as a lazy paginator over its items.</summary>
+    Paginator<Pet, int?> ListPetOffsetsPagesAsync(
+        ListPetOffsetsOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetPageNumbers</c> operation.</summary>
+    Task<PetPageNumberPage> ListPetPageNumbersAsync(
+        ListPetPageNumbersOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetPageNumbers</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<PetPageNumberPage>> ListPetPageNumbersWithHttpInfoAsync(
+        ListPetPageNumbersOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetPageNumbers</c> operation as a lazy paginator over its items.</summary>
+    Paginator<Pet, int?> ListPetPageNumbersPagesAsync(
+        ListPetPageNumbersOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetsAfter</c> operation.</summary>
+    Task<PetAfterPage> ListPetsAfterAsync(
+        ListPetsAfterOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetsAfter</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<PetAfterPage>> ListPetsAfterWithHttpInfoAsync(
+        ListPetsAfterOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ListPetsAfter</c> operation as a lazy paginator over its items.</summary>
+    Paginator<Pet, string?> ListPetsAfterPagesAsync(
+        ListPetsAfterOptions? options = null,
         CancellationToken cancellationToken = default
     );
 

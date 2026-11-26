@@ -92,13 +92,17 @@ __all__ = [
     "NativeValues",
     "Order",
     "Pet",
+    "PetAfterPage",
     "PetArchivePage",
     "PetCatalogPage",
     "PetCriteria",
     "PetEventPage",
     "PetFood",
     "PetMatchPage",
+    "PetNextUrlPage",
     "PetNotePage",
+    "PetOffsetPage",
+    "PetPageNumberPage",
     "PetPassport",
     "PetTreatment",
     "PetWithOwner",
@@ -291,6 +295,9 @@ from petstore_client.models.order import (
 from petstore_client.models.pet import (
     Pet as Pet,
 )
+from petstore_client.models.pet_after_page import (
+    PetAfterPage as PetAfterPage,
+)
 from petstore_client.models.pet_archive_page import (
     PetArchivePage as PetArchivePage,
 )
@@ -309,8 +316,17 @@ from petstore_client.models.pet_food import (
 from petstore_client.models.pet_match_page import (
     PetMatchPage as PetMatchPage,
 )
+from petstore_client.models.pet_next_url_page import (
+    PetNextUrlPage as PetNextUrlPage,
+)
 from petstore_client.models.pet_note_page import (
     PetNotePage as PetNotePage,
+)
+from petstore_client.models.pet_offset_page import (
+    PetOffsetPage as PetOffsetPage,
+)
+from petstore_client.models.pet_page_number_page import (
+    PetPageNumberPage as PetPageNumberPage,
 )
 from petstore_client.models.pet_passport import (
     PetPassport as PetPassport,

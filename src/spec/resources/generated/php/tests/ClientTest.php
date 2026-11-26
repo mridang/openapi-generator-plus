@@ -561,7 +561,11 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($petListed)->toContain('listPetEvents')->toContain('listPetEventsWithHttpInfo');
     expect($petListed)->toContain('listPetFeed')->toContain('listPetFeedWithHttpInfo');
     expect($petListed)->toContain('listPetMatches')->toContain('listPetMatchesWithHttpInfo');
+    expect($petListed)->toContain('listPetNextUrl')->toContain('listPetNextUrlWithHttpInfo');
     expect($petListed)->toContain('listPetNotes')->toContain('listPetNotesWithHttpInfo');
+    expect($petListed)->toContain('listPetOffsets')->toContain('listPetOffsetsWithHttpInfo');
+    expect($petListed)->toContain('listPetPageNumbers')->toContain('listPetPageNumbersWithHttpInfo');
+    expect($petListed)->toContain('listPetsAfter')->toContain('listPetsAfterWithHttpInfo');
     expect($petListed)->toContain('setPetAvatar')->toContain('setPetAvatarWithHttpInfo');
     expect($petListed)->toContain('setPetAvatarThumbnail')->toContain('setPetAvatarThumbnailWithHttpInfo');
     expect($petListed)->toContain('setPetPreferences')->toContain('setPetPreferencesWithHttpInfo');

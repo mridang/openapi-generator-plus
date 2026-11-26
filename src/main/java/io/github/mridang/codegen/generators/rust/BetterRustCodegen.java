@@ -1231,7 +1231,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         boolean anyBinaryStream = false;
         boolean anyBodySource = false;
         boolean anyPaged = false;
-        boolean anyTokenPaged = false;
+        boolean anyCursorPaged = false;
+        boolean anyMorePaged = false;
+        boolean anyBodyPaged = false;
         boolean anyEventStream = false;
         boolean anyJsonLines = false;
         if (operations != null) {
@@ -1272,7 +1274,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     anyBinaryStream |= markBinaryStream(op);
                     final boolean paged = markPagination(op);
                     anyPaged |= paged;
-                    anyTokenPaged |= paged && isTokenPaged(op);
+                    anyCursorPaged |= paged && paginationFlag(op, "isToken", "isId");
+                    anyMorePaged |= paged && !paginationFlag(op, "isToken") && paginationFlag(op, "hasHasMore");
+                    anyBodyPaged |= paged && paginationFlag(op, "isBody");
                     final Object marked = op.vendorExtensions.get("op");
                     anyEventStream |=
                             marked instanceof Map
@@ -1286,7 +1290,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             result.put("hasBinaryStream", anyBinaryStream);
             result.put("hasBodySource", anyBodySource);
             result.put("hasPagedOps", anyPaged);
-            result.put("hasTokenPagedOps", anyTokenPaged);
+            result.put("hasCursorPagedOps", anyCursorPaged);
+            result.put("hasMorePagedOps", anyMorePaged);
+            result.put("hasBodyPagedOps", anyBodyPaged);
             result.put("hasSseStream", anyEventStream);
             result.put("hasJsonLinesStream", anyJsonLines);
             result.put("hasEventStream", anyEventStream || anyJsonLines);
@@ -1972,7 +1978,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /**
      * Gives a paged operation the type its {@code _pages} method returns:
-     * {@code Paginator<Item, Cursor, Body>}, with {@code ()} for the cursor of a {@code Link}
+     * {@code Paginator<Item, Cursor, Body>}, with {@code ()} for the cursor of a {@code Link} or next URL
      * list.
      *
      * @return whether the operation has a paged method
@@ -1993,22 +1999,30 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 "Paginator<"
                         + p.get("itemType")
                         + ", "
-                        + (Boolean.TRUE.equals(p.get("isLink")) ? "()" : p.get("cursorType"))
+                        + (Boolean.TRUE.equals(p.get("isUrlPaged")) ? "()" : p.get("cursorType"))
                         + ", "
                         + op.returnType
                         + ">");
         return true;
     }
 
+    /** Whether the operation's pagination map sets any of the named flags. */
     @SuppressWarnings("unchecked")
-    private static boolean isTokenPaged(final CodegenOperation op) {
+    private static boolean paginationFlag(final CodegenOperation op, final String... flags) {
         final Object decorators = op.vendorExtensions.get("op");
         if (!(decorators instanceof Map)) {
             return false;
         }
         final Object pagination = ((Map<String, Object>) decorators).get("pagination");
-        return pagination instanceof Map
-                && Boolean.TRUE.equals(((Map<String, Object>) pagination).get("isToken"));
+        if (!(pagination instanceof Map)) {
+            return false;
+        }
+        for (final String flag : flags) {
+            if (Boolean.TRUE.equals(((Map<String, Object>) pagination).get(flag))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

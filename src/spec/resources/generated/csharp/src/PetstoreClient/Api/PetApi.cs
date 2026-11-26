@@ -300,7 +300,15 @@ public class PetApi : BaseApi, IPetApi
 
     private static readonly string[] ListPetMatchesAccepts = ["application/json"];
 
+    private static readonly string[] ListPetNextUrlAccepts = ["application/json"];
+
     private static readonly string[] ListPetNotesAccepts = ["application/json"];
+
+    private static readonly string[] ListPetOffsetsAccepts = ["application/json"];
+
+    private static readonly string[] ListPetPageNumbersAccepts = ["application/json"];
+
+    private static readonly string[] ListPetsAfterAccepts = ["application/json"];
 
     private static readonly string[] SetPetPreferencesAccepts = ["application/json"];
 
@@ -3504,6 +3512,143 @@ public class PetApi : BaseApi, IPetApi
     }
 
     /// <summary>
+    /// Lists pets with the URL of the next page in the body
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[PetNextUrlPage]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetNextUrlPage> ListPetNextUrlAsync(
+        ListPetNextUrlOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<PetNextUrlPage>> task = ListPetNextUrlWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<PetNextUrlPage> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetNextUrl but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Lists pets with the URL of the next page in the body (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public Task<ApiResult<PetNextUrlPage>> ListPetNextUrlWithHttpInfoAsync(
+        ListPetNextUrlOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return ListPetNextUrlPageAsync(options, null, cancellationToken);
+    }
+
+    private async Task<ApiResult<PetNextUrlPage>> ListPetNextUrlPageAsync(
+        ListPetNextUrlOptions? options,
+        string? pageUrl,
+        CancellationToken cancellationToken
+    )
+    {
+        string path = "/pet/next";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Limit != null)
+        {
+            queryParams["limit"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "limit",
+                    options.Limit,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        if (pageUrl != null)
+        {
+            path = pageUrl;
+            queryParams.Clear();
+        }
+        return await InvokeApiForResultAsync<PetNextUrlPage>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetNextUrlAccepts,
+                "application/json",
+                typeof(PetNextUrlPage),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetNextUrl",
+                operationId: "listPetNextUrl",
+                urlTemplate: "/pet/next",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists pets with the URL of the next page in the body (as a lazy paginator over its items)
+    /// </summary>
+    /// <remarks>
+    /// Returns the items as a lazy <see cref="Paginator{T, TCursor}"/>: no request is sent until you
+    /// first read an item or a page, and each next page is requested only when you ask for more.
+    /// Every page is an ordinary call of <c>ListPetNextUrlWithHttpInfoAsync</c>, with the same options
+    /// on each page.
+    /// The page after each one is the URL in its <c>NextUrl</c>
+    /// property, followed only within the origin of the client.
+    /// </remarks>
+    /// <param name="options">Options for query, header, form, and cookie parameters; they are sent on every page.</param>
+    /// <param name="cancellationToken">Token that cancels the page request in flight. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>The paginator over the items.</returns>
+    public Paginator<Pet, string?> ListPetNextUrlPagesAsync(
+        ListPetNextUrlOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return Paginator<Pet, string?>.OfNextUrl<PetNextUrlPage>(
+            Config.BaseUrl,
+            (pageUrl, pageToken) => ListPetNextUrlPageAsync(options, pageUrl, pageToken),
+            page => page.Items,
+            page => page.NextUrl?.ToString(),
+            "/pet/next",
+            cancellationToken
+        );
+    }
+
+    /// <summary>
     /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
     /// </summary>
     /// <param name="options">Options for query, header, form, and cookie parameters.</param>
@@ -3625,6 +3770,433 @@ public class PetApi : BaseApi, IPetApi
             page => page.Rows,
             page => page.Following,
             "/pet/notes",
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Lists pets by offset and limit; the list ends on an empty page
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[PetOffsetPage]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetOffsetPage> ListPetOffsetsAsync(
+        ListPetOffsetsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<PetOffsetPage>> task = ListPetOffsetsWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<PetOffsetPage> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetOffsets but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Lists pets by offset and limit; the list ends on an empty page (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<PetOffsetPage>> ListPetOffsetsWithHttpInfoAsync(
+        ListPetOffsetsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/pet/offsets";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Offset != null)
+        {
+            queryParams["offset"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "offset",
+                    options.Offset,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options != null && options.Limit != null)
+        {
+            queryParams["limit"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "limit",
+                    options.Limit,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<PetOffsetPage>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetOffsetsAccepts,
+                "application/json",
+                typeof(PetOffsetPage),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetOffsets",
+                operationId: "listPetOffsets",
+                urlTemplate: "/pet/offsets",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists pets by offset and limit; the list ends on an empty page (as a lazy paginator over its items)
+    /// </summary>
+    /// <remarks>
+    /// Returns the items as a lazy <see cref="Paginator{T, TCursor}"/>: no request is sent until you
+    /// first read an item or a page, and each next page is requested only when you ask for more.
+    /// Every page is an ordinary call of <c>ListPetOffsetsWithHttpInfoAsync</c>, with the same options
+    /// on each page.
+    /// The value of the <c>Offset</c> option is the offset
+    /// of the first item, and each page after one is requested at the offset past the items it received.
+    /// The list ends on an empty page or when its has_more flag is false.
+    /// </remarks>
+    /// <param name="options">Options for query, header, form, and cookie parameters; they are sent on every page.</param>
+    /// <param name="cancellationToken">Token that cancels the page request in flight. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>The paginator over the items.</returns>
+    public Paginator<Pet, int?> ListPetOffsetsPagesAsync(
+        ListPetOffsetsOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ListPetOffsetsOptions pageOptions = options ?? new ListPetOffsetsOptions();
+        return Paginator<Pet, int?>.OfOffset<PetOffsetPage>(
+            pageOptions.Offset,
+            (pageCursor, pageToken) =>
+                ListPetOffsetsWithHttpInfoAsync(pageOptions.WithCursor(pageCursor), pageToken),
+            page => page.Items,
+            page => page.HasMore != false,
+            (sent, count) => (sent ?? 0) + count,
+            "/pet/offsets",
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Lists pets one numbered page at a time; the list ends on an empty page
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[PetPageNumberPage]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetPageNumberPage> ListPetPageNumbersAsync(
+        ListPetPageNumbersOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<PetPageNumberPage>> task = ListPetPageNumbersWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<PetPageNumberPage> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetPageNumbers but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Lists pets one numbered page at a time; the list ends on an empty page (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<PetPageNumberPage>> ListPetPageNumbersWithHttpInfoAsync(
+        ListPetPageNumbersOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/pet/pages";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Page != null)
+        {
+            queryParams["page"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "page",
+                    options.Page,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options != null && options.PerPage != null)
+        {
+            queryParams["per_page"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "per_page",
+                    options.PerPage,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<PetPageNumberPage>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetPageNumbersAccepts,
+                "application/json",
+                typeof(PetPageNumberPage),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetPageNumbers",
+                operationId: "listPetPageNumbers",
+                urlTemplate: "/pet/pages",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists pets one numbered page at a time; the list ends on an empty page (as a lazy paginator over its items)
+    /// </summary>
+    /// <remarks>
+    /// Returns the items as a lazy <see cref="Paginator{T, TCursor}"/>: no request is sent until you
+    /// first read an item or a page, and each next page is requested only when you ask for more.
+    /// Every page is an ordinary call of <c>ListPetPageNumbersWithHttpInfoAsync</c>, with the same options
+    /// on each page.
+    /// The value of the <c>Page</c> option is the page
+    /// number of the first request, and each page after one is requested with the next page number.
+    /// The list ends on an empty page or when its has_more flag is false.
+    /// </remarks>
+    /// <param name="options">Options for query, header, form, and cookie parameters; they are sent on every page.</param>
+    /// <param name="cancellationToken">Token that cancels the page request in flight. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>The paginator over the items.</returns>
+    public Paginator<Pet, int?> ListPetPageNumbersPagesAsync(
+        ListPetPageNumbersOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ListPetPageNumbersOptions pageOptions = options ?? new ListPetPageNumbersOptions();
+        return Paginator<Pet, int?>.OfPage<PetPageNumberPage>(
+            pageOptions.Page,
+            (pageCursor, pageToken) =>
+                ListPetPageNumbersWithHttpInfoAsync(pageOptions.WithCursor(pageCursor), pageToken),
+            page => page.Items,
+            page => page.HasMore != false,
+            (sent, _) => (sent ?? 1) + 1,
+            "/pet/pages",
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Lists pets after the id of the last one; the has_more flag says when the list ends
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[PetAfterPage]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetAfterPage> ListPetsAfterAsync(
+        ListPetsAfterOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<PetAfterPage>> task = ListPetsAfterWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<PetAfterPage> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for ListPetsAfter but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Lists pets after the id of the last one; the has_more flag says when the list ends (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<PetAfterPage>> ListPetsAfterWithHttpInfoAsync(
+        ListPetsAfterOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/pet/after";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.StartingAfter != null)
+        {
+            queryParams["starting_after"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "starting_after",
+                    options.StartingAfter,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options != null && options.Limit != null)
+        {
+            queryParams["limit"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "limit",
+                    options.Limit,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<PetAfterPage>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                ListPetsAfterAccepts,
+                "application/json",
+                typeof(PetAfterPage),
+                ResolveSchemeAuth("petStoreBearer"),
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.ListPetsAfter",
+                operationId: "listPetsAfter",
+                urlTemplate: "/pet/after",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Lists pets after the id of the last one; the has_more flag says when the list ends (as a lazy paginator over its items)
+    /// </summary>
+    /// <remarks>
+    /// Returns the items as a lazy <see cref="Paginator{T, TCursor}"/>: no request is sent until you
+    /// first read an item or a page, and each next page is requested only when you ask for more.
+    /// Every page is an ordinary call of <c>ListPetsAfterWithHttpInfoAsync</c>, with the same options
+    /// on each page.
+    /// The value of the <c>StartingAfter</c> option is where
+    /// the list starts, the page after each one is requested with the
+    /// <c>LastId</c> it returned, and the list ends when
+    /// its <c>HasMore</c> is false.
+    /// </remarks>
+    /// <param name="options">Options for query, header, form, and cookie parameters; they are sent on every page.</param>
+    /// <param name="cancellationToken">Token that cancels the page request in flight. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>The paginator over the items.</returns>
+    public Paginator<Pet, string?> ListPetsAfterPagesAsync(
+        ListPetsAfterOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ListPetsAfterOptions pageOptions = options ?? new ListPetsAfterOptions();
+        return Paginator<Pet, string?>.OfId<PetAfterPage>(
+            pageOptions.StartingAfter,
+            (pageCursor, pageToken) =>
+                ListPetsAfterWithHttpInfoAsync(pageOptions.WithCursor(pageCursor), pageToken),
+            page => page.Data,
+            page => page.LastId,
+            page => page.HasMore != false,
+            "/pet/after",
             cancellationToken
         );
     }

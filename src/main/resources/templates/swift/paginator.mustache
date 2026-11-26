@@ -19,8 +19,9 @@ import Foundation
 /// and ends that loop; a cursor equal to the one just sent raises a
 /// ``PaginationError`` after the items of the page that repeated it.
 ///
-/// `C` is the type of the cursor request parameter, and `Void` for a list that
-/// is followed by its `Link` header.
+/// `C` is the type of the request parameter that starts the next page (a cursor,
+/// an offset or a page number), and `Void` for a list whose next page is a URL,
+/// the `Link` header's or one in the body.
 public struct Paginator<T: Sendable, C: Sendable>: AsyncSequence, Sendable {
     public typealias Element = T
     public typealias AsyncIterator = Items.AsyncIterator
@@ -113,6 +114,93 @@ extension Paginator where C: Equatable {
                 start: start, requestPath: requestPath, fetch: fetch, items: items, next: next)
         }
     }
+
+    /// Creates a paginator that follows an id cursor: the cursor of each page is
+    /// the id of its last item, and the list ends when `hasMore` reads false.
+    /// Used by the generated `...Pages` methods.
+    ///
+    /// - Parameters:
+    ///   - start: The cursor of the first request, or nil to start at the beginning.
+    ///   - requestPath: The path of the operation, for errors.
+    ///   - fetch: Sends the request for a cursor (nil for none) and returns its result.
+    ///   - items: Reads the items of a decoded page.
+    ///   - next: Reads the cursor of the next page from a decoded page.
+    ///   - hasMore: Reads the `has_more` flag of a decoded page; false ends the list.
+    static func ofCursor<B: Sendable>(
+        start: C?, requestPath: String,
+        fetch: @escaping @Sendable (C?) async throws -> ApiResult<B>,
+        items: @escaping @Sendable (B) -> [T]?,
+        next: @escaping @Sendable (B) -> C?,
+        hasMore: @escaping @Sendable (B) -> Bool?
+    ) -> Paginator<T, C> {
+        return ofCursor(
+            start: start, requestPath: requestPath, fetch: fetch, items: items,
+            next: { (body: B) -> C? in hasMore(body) == false ? nil : next(body) })
+    }
+}
+
+extension Paginator where C == Int {
+    /// Creates a paginator that follows an offset: each next request sends the
+    /// offset past the items the last page received, and the list ends on an
+    /// empty page or when `hasMore` reads false. Used by the generated
+    /// `...Pages` methods.
+    ///
+    /// - Parameters:
+    ///   - start: The offset of the first request, or nil to send none.
+    ///   - requestPath: The path of the operation, for errors.
+    ///   - fetch: Sends the request for an offset (nil for none) and returns its result.
+    ///   - items: Reads the items of a decoded page.
+    ///   - hasMore: Reads the `has_more` flag of a decoded page, or nil when the list has none.
+    static func ofOffset<B: Sendable>(
+        start: Int?, requestPath: String,
+        fetch: @escaping @Sendable (Int?) async throws -> ApiResult<B>,
+        items: @escaping @Sendable (B) -> [T]?,
+        hasMore: (@Sendable (B) -> Bool?)? = nil
+    ) -> Paginator<T, Int> {
+        return ofCount(
+            start: start, requestPath: requestPath, fetch: fetch, items: items, hasMore: hasMore,
+            following: { (sent: Int?, count: Int) -> Int in (sent ?? 0) + count })
+    }
+
+    /// Creates a paginator that follows a page number: the first request sends
+    /// the page passed (or none, which the server reads as page 1), and each next
+    /// request sends the page after the one just requested. The list ends on an
+    /// empty page or when `hasMore` reads false. Used by the generated `...Pages`
+    /// methods.
+    ///
+    /// - Parameters:
+    ///   - start: The page of the first request, or nil to send none.
+    ///   - requestPath: The path of the operation, for errors.
+    ///   - fetch: Sends the request for a page (nil for none) and returns its result.
+    ///   - items: Reads the items of a decoded page.
+    ///   - hasMore: Reads the `has_more` flag of a decoded page, or nil when the list has none.
+    static func ofPage<B: Sendable>(
+        start: Int?, requestPath: String,
+        fetch: @escaping @Sendable (Int?) async throws -> ApiResult<B>,
+        items: @escaping @Sendable (B) -> [T]?,
+        hasMore: (@Sendable (B) -> Bool?)? = nil
+    ) -> Paginator<T, Int> {
+        return ofCount(
+            start: start, requestPath: requestPath, fetch: fetch, items: items, hasMore: hasMore,
+            following: { (sent: Int?, _: Int) -> Int in (sent ?? 1) + 1 })
+    }
+
+    /// Makes the paginator of an offset or a page number: `following` computes the
+    /// value of the next request from the value just sent and the number of items
+    /// the page received.
+    static func ofCount<B: Sendable>(
+        start: Int?, requestPath: String,
+        fetch: @escaping @Sendable (Int?) async throws -> ApiResult<B>,
+        items: @escaping @Sendable (B) -> [T]?,
+        hasMore: (@Sendable (B) -> Bool?)?,
+        following: @escaping @Sendable (Int?, Int) -> Int
+    ) -> Paginator<T, Int> {
+        return Paginator<T, Int> {
+            CountWalker<T, B>(
+                start: start, requestPath: requestPath, fetch: fetch, items: items,
+                hasMore: hasMore, following: following)
+        }
+    }
 }
 
 extension Paginator where C == Void {
@@ -130,7 +218,35 @@ extension Paginator where C == Void {
         items: @escaping @Sendable (B) -> [T]?
     ) -> Paginator<T, Void> {
         return Paginator<T, Void> {
-            LinkWalker<T, B>(baseURL: baseURL, requestPath: requestPath, fetch: fetch, items: items)
+            LinkWalker<T, B>(
+                baseURL: baseURL, requestPath: requestPath, fetch: fetch, items: items,
+                nextLink: { LinkHeader.next($0.headers["link"]) })
+        }
+    }
+
+    /// Creates a paginator that follows a next URL read from the body of each
+    /// page. Used by the generated `...Pages` methods.
+    ///
+    /// - Parameters:
+    ///   - baseURL: The base URL of the client: a next URL that leaves its scheme, host or port is refused.
+    ///   - requestPath: The path of the operation, for errors.
+    ///   - fetch: Sends the request for a URL (nil for the first page) and returns its result.
+    ///   - items: Reads the items of a decoded page.
+    ///   - next: Reads the next URL from a decoded page; absent, nil or empty ends the list.
+    static func ofNextUrl<B: Sendable>(
+        baseURL: String, requestPath: String,
+        fetch: @escaping @Sendable (String?) async throws -> ApiResult<B>,
+        items: @escaping @Sendable (B) -> [T]?,
+        next: @escaping @Sendable (B) -> String?
+    ) -> Paginator<T, Void> {
+        return Paginator<T, Void> {
+            LinkWalker<T, B>(
+                baseURL: baseURL, requestPath: requestPath, fetch: fetch, items: items,
+                nextLink: { (result: ApiResult<B>) -> String? in
+                    result.data.flatMap { next($0) }.flatMap { (url: String) -> String? in
+                        url.isEmpty ? nil : url
+                    }
+                })
         }
     }
 }
@@ -208,12 +324,63 @@ final class CursorWalker<T: Sendable, C: Sendable & Equatable, B: Sendable>: Pag
     }
 }
 
-/// Follows the `rel="next"` link of the `Link` header.
+/// Follows an offset or a page number: each next request sends the value that
+/// `following` computes, and the list ends on an empty page or when `hasMore`
+/// reads false.
+final class CountWalker<T: Sendable, B: Sendable>: PageWalker<T, Int> {
+    private let requestPath: String
+    private let fetch: @Sendable (Int?) async throws -> ApiResult<B>
+    private let items: @Sendable (B) -> [T]?
+    private let hasMore: (@Sendable (B) -> Bool?)?
+    private let following: @Sendable (Int?, Int) -> Int
+    private var sent: Int?
+    private var finished = false
+
+    init(
+        start: Int?, requestPath: String,
+        fetch: @escaping @Sendable (Int?) async throws -> ApiResult<B>,
+        items: @escaping @Sendable (B) -> [T]?,
+        hasMore: (@Sendable (B) -> Bool?)?,
+        following: @escaping @Sendable (Int?, Int) -> Int
+    ) {
+        self.sent = start
+        self.requestPath = requestPath
+        self.fetch = fetch
+        self.items = items
+        self.hasMore = hasMore
+        self.following = following
+    }
+
+    override func nextPage() async throws -> Page<T, Int>? {
+        if finished { return nil }
+        let result: ApiResult<B>
+        do {
+            try Task.checkCancellation()
+            result = try await fetch(sent)
+        } catch {
+            finished = true
+            throw error
+        }
+        let list = result.data.flatMap { items($0) } ?? []
+        let declaredEnd = result.data.flatMap { hasMore?($0) } == false
+        guard !list.isEmpty, !declaredEnd else {
+            finished = true
+            return Page(items: list, nextCursor: nil, result: Self.erased(result))
+        }
+        let cursor = following(sent, list.count)
+        sent = cursor
+        return Page(items: list, nextCursor: cursor, result: Self.erased(result))
+    }
+}
+
+/// Follows the next URL of each page: the `rel="next"` link of its `Link`
+/// header, or a URL read from its body.
 final class LinkWalker<T: Sendable, B: Sendable>: PageWalker<T, Void> {
     private let baseURL: String
     private let requestPath: String
     private let fetch: @Sendable (String?) async throws -> ApiResult<B>
     private let items: @Sendable (B) -> [T]?
+    private let nextLink: @Sendable (ApiResult<B>) -> String?
     private var url: String?
     private var finished = false
     private var refused: PaginationError?
@@ -221,12 +388,14 @@ final class LinkWalker<T: Sendable, B: Sendable>: PageWalker<T, Void> {
     init(
         baseURL: String, requestPath: String,
         fetch: @escaping @Sendable (String?) async throws -> ApiResult<B>,
-        items: @escaping @Sendable (B) -> [T]?
+        items: @escaping @Sendable (B) -> [T]?,
+        nextLink: @escaping @Sendable (ApiResult<B>) -> String?
     ) {
         self.baseURL = baseURL
         self.requestPath = requestPath
         self.fetch = fetch
         self.items = items
+        self.nextLink = nextLink
     }
 
     override func nextPage() async throws -> Page<T, Void>? {
@@ -246,7 +415,7 @@ final class LinkWalker<T: Sendable, B: Sendable>: PageWalker<T, Void> {
             throw error
         }
         let list = result.data.flatMap { items($0) } ?? []
-        guard let link = LinkHeader.next(result.headers["link"]) else {
+        guard let link = nextLink(result) else {
             finished = true
             return Page(items: list, nextCursor: nil, result: Self.erased(result))
         }

@@ -29,8 +29,9 @@ namespace PetstoreClient;
 /// </summary>
 /// <typeparam name="T">The item type.</typeparam>
 /// <typeparam name="TCursor">
-/// The type of the cursor request parameter (nullable, such as <c>string?</c>); <c>string?</c>
-/// for a list that is followed by a <c>Link</c> header, whose pages carry no cursor.
+/// The type of the cursor request parameter (nullable, such as <c>string?</c>, or <c>int?</c> for
+/// an offset or page number); <c>string?</c> for a list that is followed by a <c>Link</c> header
+/// or a next URL in the body, whose pages carry no cursor.
 /// </typeparam>
 public sealed class Paginator<T, TCursor> : IAsyncEnumerable<T>
 {
@@ -63,7 +64,153 @@ public sealed class Paginator<T, TCursor> : IAsyncEnumerable<T>
     )
     {
         return new Paginator<T, TCursor>(() =>
-            CursorPagesAsync(start, fetch, items, next, requestPath, cancellationToken)
+            CursorPagesAsync(start, fetch, items, next, null, null, requestPath, cancellationToken)
+        );
+    }
+
+    /// <summary>
+    /// Creates a paginator that follows an id cursor: the list ends when the page's has_more flag is
+    /// false. Used by the generated <c>...PagesAsync</c> methods.
+    /// </summary>
+    /// <typeparam name="TBody">The decoded page type.</typeparam>
+    /// <param name="start">The cursor of the first request, or null to start at the beginning.</param>
+    /// <param name="fetch">Sends the request for a cursor and returns its result.</param>
+    /// <param name="items">Reads the items of a decoded page.</param>
+    /// <param name="next">Reads the id of the last item of a decoded page, sent as the next cursor.</param>
+    /// <param name="hasMore">Reads the has_more flag of a decoded page; false ends the list.</param>
+    /// <param name="requestPath">The path of the operation, for errors.</param>
+    /// <param name="cancellationToken">Token that cancels every page request.</param>
+    /// <returns>The paginator.</returns>
+    internal static Paginator<T, TCursor> OfId<TBody>(
+        TCursor start,
+        Func<TCursor, CancellationToken, Task<ApiResult<TBody>>> fetch,
+        Func<TBody, IEnumerable<T>?> items,
+        Func<TBody, TCursor> next,
+        Func<TBody, bool> hasMore,
+        string requestPath,
+        CancellationToken cancellationToken
+    )
+    {
+        return new Paginator<T, TCursor>(() =>
+            CursorPagesAsync(
+                start,
+                fetch,
+                items,
+                next,
+                hasMore,
+                null,
+                requestPath,
+                cancellationToken
+            )
+        );
+    }
+
+    /// <summary>
+    /// Creates a paginator over an offset: each next request sends the offset past the items the
+    /// page received, and an empty page or a false has_more flag ends the list. Used by the generated
+    /// <c>...PagesAsync</c> methods.
+    /// </summary>
+    /// <typeparam name="TBody">The decoded page type.</typeparam>
+    /// <param name="start">The offset of the first request, or null to send none.</param>
+    /// <param name="fetch">Sends the request for an offset and returns its result.</param>
+    /// <param name="items">Reads the items of a decoded page.</param>
+    /// <param name="hasMore">Reads the has_more flag of a decoded page, or null when the list has none.</param>
+    /// <param name="advance">Gives the next offset from the offset just sent and the count of items received.</param>
+    /// <param name="requestPath">The path of the operation, for errors.</param>
+    /// <param name="cancellationToken">Token that cancels every page request.</param>
+    /// <returns>The paginator.</returns>
+    internal static Paginator<T, TCursor> OfOffset<TBody>(
+        TCursor start,
+        Func<TCursor, CancellationToken, Task<ApiResult<TBody>>> fetch,
+        Func<TBody, IEnumerable<T>?> items,
+        Func<TBody, bool>? hasMore,
+        Func<TCursor, int, TCursor> advance,
+        string requestPath,
+        CancellationToken cancellationToken
+    )
+    {
+        return new Paginator<T, TCursor>(() =>
+            CursorPagesAsync(
+                start,
+                fetch,
+                items,
+                null,
+                hasMore,
+                advance,
+                requestPath,
+                cancellationToken
+            )
+        );
+    }
+
+    /// <summary>
+    /// Creates a paginator over a page number: each next request sends the page after the one just
+    /// sent, and an empty page or a false has_more flag ends the list. Used by the generated
+    /// <c>...PagesAsync</c> methods.
+    /// </summary>
+    /// <typeparam name="TBody">The decoded page type.</typeparam>
+    /// <param name="start">The page number of the first request, or null to send none.</param>
+    /// <param name="fetch">Sends the request for a page number and returns its result.</param>
+    /// <param name="items">Reads the items of a decoded page.</param>
+    /// <param name="hasMore">Reads the has_more flag of a decoded page, or null when the list has none.</param>
+    /// <param name="advance">Gives the next page number from the page number just sent.</param>
+    /// <param name="requestPath">The path of the operation, for errors.</param>
+    /// <param name="cancellationToken">Token that cancels every page request.</param>
+    /// <returns>The paginator.</returns>
+    internal static Paginator<T, TCursor> OfPage<TBody>(
+        TCursor start,
+        Func<TCursor, CancellationToken, Task<ApiResult<TBody>>> fetch,
+        Func<TBody, IEnumerable<T>?> items,
+        Func<TBody, bool>? hasMore,
+        Func<TCursor, int, TCursor> advance,
+        string requestPath,
+        CancellationToken cancellationToken
+    )
+    {
+        return new Paginator<T, TCursor>(() =>
+            CursorPagesAsync(
+                start,
+                fetch,
+                items,
+                null,
+                hasMore,
+                advance,
+                requestPath,
+                cancellationToken
+            )
+        );
+    }
+
+    /// <summary>
+    /// Creates a paginator that follows the next URL read from the body of each page. The URL is
+    /// followed only within the origin of the client. Used by the generated <c>...PagesAsync</c> methods.
+    /// </summary>
+    /// <typeparam name="TBody">The decoded page type.</typeparam>
+    /// <param name="baseUrl">The base URL of the client; a next URL that leaves its scheme, host or port is refused.</param>
+    /// <param name="fetch">Sends the request for a URL (null for the first page) and returns its result.</param>
+    /// <param name="items">Reads the items of a decoded page.</param>
+    /// <param name="next">Reads the next URL from a decoded page; absent, null or empty ends the list.</param>
+    /// <param name="requestPath">The path of the operation, for errors.</param>
+    /// <param name="cancellationToken">Token that cancels every page request.</param>
+    /// <returns>The paginator.</returns>
+    internal static Paginator<T, TCursor> OfNextUrl<TBody>(
+        string baseUrl,
+        Func<string?, CancellationToken, Task<ApiResult<TBody>>> fetch,
+        Func<TBody, IEnumerable<T>?> items,
+        Func<TBody, string?> next,
+        string requestPath,
+        CancellationToken cancellationToken
+    )
+    {
+        return new Paginator<T, TCursor>(() =>
+            LinkPagesAsync(
+                baseUrl,
+                fetch,
+                items,
+                result => result.Data is { } data ? next(data) : null,
+                requestPath,
+                cancellationToken
+            )
         );
     }
 
@@ -87,7 +234,14 @@ public sealed class Paginator<T, TCursor> : IAsyncEnumerable<T>
     )
     {
         return new Paginator<T, TCursor>(() =>
-            LinkPagesAsync(baseUrl, fetch, items, requestPath, cancellationToken)
+            LinkPagesAsync(
+                baseUrl,
+                fetch,
+                items,
+                result => LinkHeaderNext(result),
+                requestPath,
+                cancellationToken
+            )
         );
     }
 
@@ -138,12 +292,18 @@ public sealed class Paginator<T, TCursor> : IAsyncEnumerable<T>
         return items is null ? [] : [.. items];
     }
 
-    /// <summary>The pages of a token cursor list.</summary>
+    /// <summary>
+    /// The pages of a cursor list: a token or id cursor, read from the page (<paramref name="next"/>),
+    /// or an offset or page number advanced by the items received (<paramref name="advance"/>). A
+    /// page without a next cursor, or one whose has_more flag is false, is the last.
+    /// </summary>
     private static async IAsyncEnumerable<Page<T, TCursor>> CursorPagesAsync<TBody>(
         TCursor start,
         Func<TCursor, CancellationToken, Task<ApiResult<TBody>>> fetch,
         Func<TBody, IEnumerable<T>?> items,
-        Func<TBody, TCursor> next,
+        Func<TBody, TCursor>? next,
+        Func<TBody, bool>? hasMore,
+        Func<TCursor, int, TCursor>? advance,
         string requestPath,
         CancellationToken callToken,
         [EnumeratorCancellation] CancellationToken cancellationToken = default
@@ -159,7 +319,14 @@ public sealed class Paginator<T, TCursor> : IAsyncEnumerable<T>
             ApiResult<TBody> result = await fetch(sent, linked.Token).ConfigureAwait(false);
             TBody? body = result.Data;
             List<T> list = body is null ? [] : Delivered(items(body));
-            TCursor following = body is null ? default! : next(body);
+            TCursor following = default!;
+            if (body is not null && (hasMore is null || hasMore(body)))
+            {
+                following =
+                    advance is null ? next!(body)
+                    : list.Count == 0 ? default!
+                    : advance(sent, list.Count);
+            }
             object? boxed = following;
             if (boxed is null or string { Length: 0 })
             {
@@ -179,11 +346,12 @@ public sealed class Paginator<T, TCursor> : IAsyncEnumerable<T>
         }
     }
 
-    /// <summary>The pages of a list that is followed by the Link header.</summary>
+    /// <summary>The pages of a list that is followed by a Link header or a next URL in the body.</summary>
     private static async IAsyncEnumerable<Page<T, TCursor>> LinkPagesAsync<TBody>(
         string baseUrl,
         Func<string?, CancellationToken, Task<ApiResult<TBody>>> fetch,
         Func<TBody, IEnumerable<T>?> items,
+        Func<ApiResult<TBody>, string?> nextUrl,
         string requestPath,
         CancellationToken callToken,
         [EnumeratorCancellation] CancellationToken cancellationToken = default
@@ -199,16 +367,8 @@ public sealed class Paginator<T, TCursor> : IAsyncEnumerable<T>
             ApiResult<TBody> result = await fetch(url, linked.Token).ConfigureAwait(false);
             TBody? body = result.Data;
             List<T> list = body is null ? [] : Delivered(items(body));
-            string? link = null;
-            foreach (KeyValuePair<string, string> header in result.Headers)
-            {
-                if (string.Equals(header.Key, "link", StringComparison.OrdinalIgnoreCase))
-                {
-                    link = LinkHeader.Next(header.Value);
-                    break;
-                }
-            }
-            if (link is null)
+            string? link = nextUrl(result);
+            if (string.IsNullOrEmpty(link))
             {
                 yield return new Page<T, TCursor>(list, default!, result);
                 yield break;
@@ -237,6 +397,19 @@ public sealed class Paginator<T, TCursor> : IAsyncEnumerable<T>
                 throw refused;
             }
         }
+    }
+
+    /// <summary>The URL of the rel="next" link in a page's Link header, or null when it names none.</summary>
+    private static string? LinkHeaderNext<TBody>(ApiResult<TBody> result)
+    {
+        foreach (KeyValuePair<string, string> header in result.Headers)
+        {
+            if (string.Equals(header.Key, "link", StringComparison.OrdinalIgnoreCase))
+            {
+                return LinkHeader.Next(header.Value);
+            }
+        }
+        return null;
     }
 
     /// <summary>

@@ -25,6 +25,8 @@ use crate::errors::api_error::ApiError;
 use crate::models::*;
 use crate::object_serializer;
 use crate::paginator::CursorOf;
+use crate::paginator::MoreOf;
+use crate::paginator::UrlOf;
 use crate::paginator::{ItemsOf, PageFuture, Paginator};
 use crate::value_serializer;
 use crate::value_serializer::SerializedValue;
@@ -3572,7 +3574,8 @@ impl PetApi {
                 })
             },
             |page: &PetCatalogPage| page.items.items_of(),
-            |page: &PetCatalogPage| page.next_cursor.cursor_of(),
+            |page: &PetCatalogPage, _: Option<&String>, _: usize| page.next_cursor.cursor_of(),
+            |_: &PetCatalogPage| true,
             "/pet/catalog".to_string(),
         )
     }
@@ -3731,7 +3734,8 @@ impl PetApi {
                 })
             },
             |page: &PetEventPage| page.events.items_of(),
-            |page: &PetEventPage| page.upto.cursor_of(),
+            |page: &PetEventPage, _: Option<&String>, _: usize| page.upto.cursor_of(),
+            |_: &PetEventPage| true,
             "/pet/events".to_string(),
         )
     }
@@ -3833,7 +3837,7 @@ impl PetApi {
         let request_body: Option<Vec<u8>> = None;
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
 
-        /* A page after the first is the URL the Link header named: it replaces
+        /* A page after the first is the URL the Link header or the body named: it replaces
          * the path, and its own query replaces the query of the operation. */
         if let Some(url) = page_url {
             path = url.to_string();
@@ -4019,6 +4023,169 @@ impl PetApi {
             .await
     }
 
+    /// Lists pets with the URL of the next page in the body
+    /// * `limit`: The number of pets on a page
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pet_next_url(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> Result<PetNextUrlPage, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pet_next_url_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pet_next_url but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pet_next_url operation and returns the full API result.
+    pub async fn list_pet_next_url_with_http_info(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> Result<ApiResult<PetNextUrlPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pet_next_url_invoke(options, "application/json", None)
+            .await
+    }
+
+    /// Shared implementation for the list_pet_next_url operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pet_next_url_invoke(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+
+        request_content_type: &str,
+        page_url: Option<&str>,
+    ) -> Result<ApiResult<PetNextUrlPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/next".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.limit {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "limit",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("limit".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("limit".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        /* A page after the first is the URL the Link header or the body named: it replaces
+         * the path, and its own query replaces the query of the operation. */
+        if let Some(url) = page_url {
+            path = url.to_string();
+            query_params.clear();
+        }
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pet_next_url",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetNextUrl",
+            url_template: "/pet/next",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "PetNextUrlPage",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base
+            .invoke_api_for_result::<PetNextUrlPage>(params)
+            .await
+    }
+
+    /// Lists the items of list_pet_next_url as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_next_url_with_http_info`](Self::list_pet_next_url_with_http_info),
+    /// with the same options on each page.
+    /// The page after each one is the URL that its body names, followed only within the origin of the client.
+    pub fn list_pet_next_url_pages(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> Paginator<Pet, (), PetNextUrlPage> {
+        let api = self.clone();
+        let base_options: Option<ListPetNextUrlOptions> = options.cloned();
+        Paginator::of_next_url(
+            self.base.base_url().to_string(),
+            move |page_url: Option<String>| -> PageFuture<PetNextUrlPage> {
+                let api = api.clone();
+                let page_options = base_options.clone();
+                Box::pin(async move {
+                    api.list_pet_next_url_invoke(
+                        page_options.as_ref(),
+                        "application/json",
+                        page_url.as_deref(),
+                    )
+                    .await
+                })
+            },
+            |page: &PetNextUrlPage| page.items.items_of(),
+            |page: &PetNextUrlPage| page.next_url.url_of(),
+            "/pet/next".to_string(),
+        )
+    }
+
     /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn list_pet_notes(
@@ -4171,8 +4338,594 @@ impl PetApi {
                 })
             },
             |page: &PetNotePage| page.rows.items_of(),
-            |page: &PetNotePage| page.following.cursor_of(),
+            |page: &PetNotePage, _: Option<&String>, _: usize| page.following.cursor_of(),
+            |_: &PetNotePage| true,
             "/pet/notes".to_string(),
+        )
+    }
+
+    /// Lists pets by offset and limit; the list ends on an empty page
+    /// * `offset`: The offset of the first pet on the page
+    /// * `limit`: The number of pets on a page
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pet_offsets(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> Result<PetOffsetPage, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pet_offsets_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pet_offsets but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pet_offsets operation and returns the full API result.
+    pub async fn list_pet_offsets_with_http_info(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> Result<ApiResult<PetOffsetPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pet_offsets_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the list_pet_offsets operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pet_offsets_invoke(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<PetOffsetPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/offsets".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.offset {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "offset",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("offset".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("offset".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.limit {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "limit",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("limit".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("limit".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pet_offsets",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetOffsets",
+            url_template: "/pet/offsets",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "PetOffsetPage",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base
+            .invoke_api_for_result::<PetOffsetPage>(params)
+            .await
+    }
+
+    /// Lists the items of list_pet_offsets as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_offsets_with_http_info`](Self::list_pet_offsets_with_http_info),
+    /// with the same options on each page.
+    /// The `offset` of the options is the offset where the list starts,
+    /// and the offset of each next page is the offset plus the items received. The list ends on an empty page or when `has_more` is false.
+    pub fn list_pet_offsets_pages(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> Paginator<Pet, i32, PetOffsetPage> {
+        let api = self.clone();
+        let base_options: Option<ListPetOffsetsOptions> = options.cloned();
+        Paginator::of_cursor(
+            base_options.as_ref().and_then(|options| options.offset),
+            move |cursor: Option<i32>| -> PageFuture<PetOffsetPage> {
+                let api = api.clone();
+                let mut page_options = base_options.clone();
+                if page_options.is_some() || cursor.is_some() {
+                    page_options
+                        .get_or_insert_with(ListPetOffsetsOptions::new)
+                        .offset = cursor;
+                }
+                Box::pin(async move {
+                    api.list_pet_offsets_with_http_info(page_options.as_ref())
+                        .await
+                })
+            },
+            |page: &PetOffsetPage| page.items.items_of(),
+            |_: &PetOffsetPage, sent: Option<&i32>, count: usize| {
+                if count == 0 {
+                    None
+                } else {
+                    Some(sent.copied().unwrap_or(0) + count as i32)
+                }
+            },
+            |page: &PetOffsetPage| page.has_more.more_of(),
+            "/pet/offsets".to_string(),
+        )
+    }
+
+    /// Lists pets one numbered page at a time; the list ends on an empty page
+    /// * `page`: The number of the page, from 1
+    /// * `per_page`: The number of pets on a page
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pet_page_numbers(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> Result<PetPageNumberPage, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pet_page_numbers_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pet_page_numbers but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pet_page_numbers operation and returns the full API result.
+    pub async fn list_pet_page_numbers_with_http_info(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> Result<ApiResult<PetPageNumberPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pet_page_numbers_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the list_pet_page_numbers operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pet_page_numbers_invoke(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<PetPageNumberPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/pages".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.page {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "page",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("page".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("page".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.per_page {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "per_page",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("per_page".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("per_page".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pet_page_numbers",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetPageNumbers",
+            url_template: "/pet/pages",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "PetPageNumberPage",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base
+            .invoke_api_for_result::<PetPageNumberPage>(params)
+            .await
+    }
+
+    /// Lists the items of list_pet_page_numbers as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pet_page_numbers_with_http_info`](Self::list_pet_page_numbers_with_http_info),
+    /// with the same options on each page.
+    /// The `page` of the options is the page where the list starts,
+    /// and the page after each one is the page after the one just read. The list ends on an empty page or when `has_more` is false.
+    pub fn list_pet_page_numbers_pages(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> Paginator<Pet, i32, PetPageNumberPage> {
+        let api = self.clone();
+        let base_options: Option<ListPetPageNumbersOptions> = options.cloned();
+        Paginator::of_cursor(
+            base_options.as_ref().and_then(|options| options.page),
+            move |cursor: Option<i32>| -> PageFuture<PetPageNumberPage> {
+                let api = api.clone();
+                let mut page_options = base_options.clone();
+                if page_options.is_some() || cursor.is_some() {
+                    page_options
+                        .get_or_insert_with(ListPetPageNumbersOptions::new)
+                        .page = cursor;
+                }
+                Box::pin(async move {
+                    api.list_pet_page_numbers_with_http_info(page_options.as_ref())
+                        .await
+                })
+            },
+            |page: &PetPageNumberPage| page.items.items_of(),
+            |_: &PetPageNumberPage, sent: Option<&i32>, count: usize| {
+                if count == 0 {
+                    None
+                } else {
+                    Some(sent.copied().unwrap_or(1) + 1)
+                }
+            },
+            |page: &PetPageNumberPage| page.has_more.more_of(),
+            "/pet/pages".to_string(),
+        )
+    }
+
+    /// Lists pets after the id of the last one; the has_more flag says when the list ends
+    /// * `starting_after`: The id of the last pet of the previous page
+    /// * `limit`: The number of pets on a page
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn list_pets_after(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> Result<PetAfterPage, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.list_pets_after_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for list_pets_after but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the list_pets_after operation and returns the full API result.
+    pub async fn list_pets_after_with_http_info(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> Result<ApiResult<PetAfterPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.list_pets_after_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the list_pets_after operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn list_pets_after_invoke(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<PetAfterPage>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/pet/after".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.starting_after {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "starting_after",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "String",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("starting_after".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("starting_after".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.limit {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "limit",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("limit".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("limit".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "PetApi.list_pets_after",
+            method: "GET",
+            path: &path,
+            operation_id: "listPetsAfter",
+            url_template: "/pet/after",
+            query_params,
+            header_params,
+            body: request_body,
+            source: None,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "PetAfterPage",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base
+            .invoke_api_for_result::<PetAfterPage>(params)
+            .await
+    }
+
+    /// Lists the items of list_pets_after as a lazy [`Paginator`] instead of one page.
+    ///
+    /// No request is sent until you first poll the items or the pages, and each
+    /// next page is requested only when you ask for more. Every page is an
+    /// ordinary call of [`list_pets_after_with_http_info`](Self::list_pets_after_with_http_info),
+    /// with the same options on each page.
+    /// The `starting_after` of the options is where the list starts, and
+    /// the page after each one is requested with the `last_id` it returned.
+    /// The list ends when `has_more` is false.
+    pub fn list_pets_after_pages(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> Paginator<Pet, String, PetAfterPage> {
+        let api = self.clone();
+        let base_options: Option<ListPetsAfterOptions> = options.cloned();
+        Paginator::of_cursor(
+            base_options
+                .as_ref()
+                .and_then(|options| options.starting_after.clone()),
+            move |cursor: Option<String>| -> PageFuture<PetAfterPage> {
+                let api = api.clone();
+                let mut page_options = base_options.clone();
+                if page_options.is_some() || cursor.is_some() {
+                    page_options
+                        .get_or_insert_with(ListPetsAfterOptions::new)
+                        .starting_after = cursor;
+                }
+                Box::pin(async move {
+                    api.list_pets_after_with_http_info(page_options.as_ref())
+                        .await
+                })
+            },
+            |page: &PetAfterPage| page.data.items_of(),
+            |page: &PetAfterPage, _: Option<&String>, _: usize| page.last_id.cursor_of(),
+            |page: &PetAfterPage| page.has_more.more_of(),
+            "/pet/after".to_string(),
         )
     }
 
@@ -5287,6 +6040,18 @@ pub trait PetApiTrait {
         &self,
         options: Option<&ListPetMatchesOptions>,
     ) -> impl Future<Output = Result<ApiResult<PetMatchPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_next_url(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> impl Future<Output = Result<PetNextUrlPage, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_next_url_with_http_info(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetNextUrlPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_next_url_pages(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> Paginator<Pet, (), PetNextUrlPage>;
     fn list_pet_notes(
         &self,
         options: Option<&ListPetNotesOptions>,
@@ -5299,6 +6064,44 @@ pub trait PetApiTrait {
         &self,
         options: Option<&ListPetNotesOptions>,
     ) -> Paginator<String, String, PetNotePage>;
+    fn list_pet_offsets(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> impl Future<Output = Result<PetOffsetPage, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_offsets_with_http_info(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetOffsetPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_offsets_pages(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> Paginator<Pet, i32, PetOffsetPage>;
+    fn list_pet_page_numbers(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> impl Future<Output = Result<PetPageNumberPage, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pet_page_numbers_with_http_info(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> impl Future<
+        Output = Result<ApiResult<PetPageNumberPage>, Box<dyn std::error::Error + Send + Sync>>,
+    >;
+    fn list_pet_page_numbers_pages(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> Paginator<Pet, i32, PetPageNumberPage>;
+    fn list_pets_after(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> impl Future<Output = Result<PetAfterPage, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pets_after_with_http_info(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetAfterPage>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn list_pets_after_pages(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> Paginator<Pet, String, PetAfterPage>;
     fn set_pet_avatar(
         &self,
         pet_id: i64,
@@ -5806,6 +6609,28 @@ impl PetApiTrait for PetApi {
     {
         PetApi::list_pet_matches_with_http_info(self, options)
     }
+    fn list_pet_next_url(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> impl Future<Output = Result<PetNextUrlPage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_next_url(self, options)
+    }
+
+    fn list_pet_next_url_with_http_info(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetNextUrlPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_next_url_with_http_info(self, options)
+    }
+
+    fn list_pet_next_url_pages(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> Paginator<Pet, (), PetNextUrlPage> {
+        PetApi::list_pet_next_url_pages(self, options)
+    }
     fn list_pet_notes(
         &self,
         options: Option<&ListPetNotesOptions>,
@@ -5826,6 +6651,71 @@ impl PetApiTrait for PetApi {
         options: Option<&ListPetNotesOptions>,
     ) -> Paginator<String, String, PetNotePage> {
         PetApi::list_pet_notes_pages(self, options)
+    }
+    fn list_pet_offsets(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> impl Future<Output = Result<PetOffsetPage, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::list_pet_offsets(self, options)
+    }
+
+    fn list_pet_offsets_with_http_info(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetOffsetPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_offsets_with_http_info(self, options)
+    }
+
+    fn list_pet_offsets_pages(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> Paginator<Pet, i32, PetOffsetPage> {
+        PetApi::list_pet_offsets_pages(self, options)
+    }
+    fn list_pet_page_numbers(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> impl Future<Output = Result<PetPageNumberPage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pet_page_numbers(self, options)
+    }
+
+    fn list_pet_page_numbers_with_http_info(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> impl Future<
+        Output = Result<ApiResult<PetPageNumberPage>, Box<dyn std::error::Error + Send + Sync>>,
+    > {
+        PetApi::list_pet_page_numbers_with_http_info(self, options)
+    }
+
+    fn list_pet_page_numbers_pages(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> Paginator<Pet, i32, PetPageNumberPage> {
+        PetApi::list_pet_page_numbers_pages(self, options)
+    }
+    fn list_pets_after(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> impl Future<Output = Result<PetAfterPage, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::list_pets_after(self, options)
+    }
+
+    fn list_pets_after_with_http_info(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetAfterPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::list_pets_after_with_http_info(self, options)
+    }
+
+    fn list_pets_after_pages(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> Paginator<Pet, String, PetAfterPage> {
+        PetApi::list_pets_after_pages(self, options)
     }
     fn set_pet_avatar(
         &self,

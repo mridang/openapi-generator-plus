@@ -41,7 +41,11 @@ use PetstoreClient\Api\Options\ListPetCatalogOptions;
 use PetstoreClient\Api\Options\ListPetEventsOptions;
 use PetstoreClient\Api\Options\ListPetFeedOptions;
 use PetstoreClient\Api\Options\ListPetMatchesOptions;
+use PetstoreClient\Api\Options\ListPetNextUrlOptions;
 use PetstoreClient\Api\Options\ListPetNotesOptions;
+use PetstoreClient\Api\Options\ListPetOffsetsOptions;
+use PetstoreClient\Api\Options\ListPetPageNumbersOptions;
+use PetstoreClient\Api\Options\ListPetsAfterOptions;
 use PetstoreClient\Api\Options\SetPetAvatarOptions;
 use PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
@@ -514,6 +518,37 @@ interface PetApiInterface
     public function listPetMatchesWithHttpInfo(?ListPetMatchesOptions $options = null): ApiResult;
 
     /**
+     * Lists pets with the URL of the next page in the body
+     * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetNextUrl(?ListPetNextUrlOptions $options = null): \PetstoreClient\Models\PetNextUrlPage;
+
+    /**
+     * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetNextUrlPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetNextUrlWithHttpInfo(?ListPetNextUrlOptions $options = null): ApiResult;
+
+    /**
+     * Lists pets with the URL of the next page in the body
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetNextUrlWithHttpInfo()}, with the same options on each page.
+     * The page after each one is the URL in its `next_url` property,
+     * followed only within the origin of the client.
+     *
+     * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, null>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetNextUrlPages(?ListPetNextUrlOptions $options = null): Paginator;
+
+    /**
      * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
      * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -544,6 +579,102 @@ interface PetApiInterface
      * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
      */
     public function listPetNotesPages(?ListPetNotesOptions $options = null): Paginator;
+
+    /**
+     * Lists pets by offset and limit; the list ends on an empty page
+     * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetOffsets(?ListPetOffsetsOptions $options = null): \PetstoreClient\Models\PetOffsetPage;
+
+    /**
+     * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetOffsetPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetOffsetsWithHttpInfo(?ListPetOffsetsOptions $options = null): ApiResult;
+
+    /**
+     * Lists pets by offset and limit; the list ends on an empty page
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetOffsetsWithHttpInfo()}, with the same options on each page.
+     * The value of the `offset` option is the offset of the first
+     * item, and each page after one is requested at the offset past the items it received. The list ends on
+     * an empty page or when its `hasMore` is false.
+     *
+     * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, int>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetOffsetsPages(?ListPetOffsetsOptions $options = null): Paginator;
+
+    /**
+     * Lists pets one numbered page at a time; the list ends on an empty page
+     * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetPageNumbers(?ListPetPageNumbersOptions $options = null): \PetstoreClient\Models\PetPageNumberPage;
+
+    /**
+     * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetPageNumberPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetPageNumbersWithHttpInfo(?ListPetPageNumbersOptions $options = null): ApiResult;
+
+    /**
+     * Lists pets one numbered page at a time; the list ends on an empty page
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetPageNumbersWithHttpInfo()}, with the same options on each page.
+     * The value of the `page` option is the page number of the
+     * first request, and each page after one is requested with the next page number. The list ends on an
+     * empty page or when its `hasMore` is false.
+     *
+     * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, int>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetPageNumbersPages(?ListPetPageNumbersOptions $options = null): Paginator;
+
+    /**
+     * Lists pets after the id of the last one; the has_more flag says when the list ends
+     * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetsAfter(?ListPetsAfterOptions $options = null): \PetstoreClient\Models\PetAfterPage;
+
+    /**
+     * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetAfterPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function listPetsAfterWithHttpInfo(?ListPetsAfterOptions $options = null): ApiResult;
+
+    /**
+     * Lists pets after the id of the last one; the has_more flag says when the list ends
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetsAfterWithHttpInfo()}, with the same options on each page.
+     * The value of the `starting_after` option is where the list starts,
+     * the page after each one is requested with the `last_id`
+     * it returned, and the list ends when its `hasMore` is false.
+     *
+     * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetsAfterPages(?ListPetsAfterOptions $options = null): Paginator;
 
     /**
      * Set the pet's profile photo

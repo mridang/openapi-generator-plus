@@ -400,7 +400,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             p.put(
                     "javaPaginatorType",
                     "Paginator<" + p.get("itemType") + ", "
-                            + (Boolean.TRUE.equals(p.get("isLink")) ? "Void" : p.get("cursorType")) + ">");
+                            + (Boolean.TRUE.equals(p.get("isUrlPaged")) ? "Void" : p.get("cursorType")) + ">");
         }
         for (final String key : new String[] {"signatureArgs", "signatureArgsNoOptions"}) {
             final Object list = d.get(key);

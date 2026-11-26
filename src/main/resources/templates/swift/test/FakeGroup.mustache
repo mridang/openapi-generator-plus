@@ -92,12 +92,36 @@ private final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendabl
             fetch: { (_: {{{vendorExtensions.op.pagination.cursorType}}}?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
             items: { _ in nil }, next: { _ in nil })
 {{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, {{{vendorExtensions.op.pagination.cursorType}}}>.ofCursor(
+            start: nil, requestPath: "",
+            fetch: { (_: {{{vendorExtensions.op.pagination.cursorType}}}?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
+            items: { _ in nil }, next: { _ in nil }, hasMore: { _ in nil })
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int>.ofOffset(
+            start: nil, requestPath: "",
+            fetch: { (_: Int?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
+            items: { _ in nil })
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int>.ofPage(
+            start: nil, requestPath: "",
+            fetch: { (_: Int?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
+            items: { _ in nil })
+{{/vendorExtensions.op.pagination.isPage}}
 {{#vendorExtensions.op.pagination.isLink}}
         return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Void>.ofLink(
             baseURL: "", requestPath: "",
             fetch: { (_: String?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
             items: { _ in nil })
 {{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Void>.ofNextUrl(
+            baseURL: "", requestPath: "",
+            fetch: { (_: String?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
+            items: { _ in nil }, next: { _ in nil })
+{{/vendorExtensions.op.pagination.isBody}}
     }
 {{/vendorExtensions.op.hasPagesMethod}}
 {{/vendorExtensions.op.streamOnly}}

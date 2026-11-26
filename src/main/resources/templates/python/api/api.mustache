@@ -418,7 +418,7 @@ class {{classname}}(BaseApi):
             This operation is deprecated.
 {{/isDeprecated}}
         """
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
         return await self._{{operationId}}_page(
 {{#vendorExtensions.op.signatureArgsNoServer}}
 {{#isPath}}
@@ -440,14 +440,14 @@ class {{classname}}(BaseApi):
         self,
 {{>api/operation_args}}        page_url: Optional[str] = None,
     ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
-        """One page of the list: the first when ``page_url`` is ``None``, else the URL the ``Link`` header named."""
-{{/vendorExtensions.op.pagination.isLink}}
+        """One page of the list: the first when ``page_url`` is ``None``, else the URL the previous page named."""
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{>api/operation_prelude}}
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
         if page_url is not None:
             path = page_url
             query_params.clear()
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{^vendorExtensions.op.streamsBinary}}
 {{#vendorExtensions.op.hasMultiple2xx}}
         def decode_success(status_code: int, body: str) -> Any:

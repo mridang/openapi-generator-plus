@@ -41,7 +41,11 @@ import com.example.petstore.api.options.ListPetCatalogOptions
 import com.example.petstore.api.options.ListPetEventsOptions
 import com.example.petstore.api.options.ListPetFeedOptions
 import com.example.petstore.api.options.ListPetMatchesOptions
+import com.example.petstore.api.options.ListPetNextUrlOptions
 import com.example.petstore.api.options.ListPetNotesOptions
+import com.example.petstore.api.options.ListPetOffsetsOptions
+import com.example.petstore.api.options.ListPetPageNumbersOptions
+import com.example.petstore.api.options.ListPetsAfterOptions
 import com.example.petstore.api.options.SetPetAvatarOptions
 import com.example.petstore.api.options.SetPetAvatarThumbnailOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
@@ -52,11 +56,15 @@ import com.example.petstore.auth.Authenticator
 import com.example.petstore.errors.ApiException
 import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Pet
+import com.example.petstore.models.PetAfterPage
 import com.example.petstore.models.PetArchivePage
 import com.example.petstore.models.PetCatalogPage
 import com.example.petstore.models.PetEventPage
 import com.example.petstore.models.PetMatchPage
+import com.example.petstore.models.PetNextUrlPage
 import com.example.petstore.models.PetNotePage
+import com.example.petstore.models.PetOffsetPage
+import com.example.petstore.models.PetPageNumberPage
 import com.example.petstore.models.PetPassport
 import com.example.petstore.models.PetTreatment
 import com.example.petstore.models.Photo
@@ -2023,6 +2031,89 @@ class PetApi :
     }
 
     /**
+     * Lists pets with the URL of the next page in the body
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return PetNextUrlPage
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetNextUrl(options: ListPetNextUrlOptions?): PetNextUrlPage =
+        listPetNextUrlWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetNextUrl but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetNextUrl] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetNextUrlWithHttpInfo(options: ListPetNextUrlOptions?): ApiResult<PetNextUrlPage> =
+        listPetNextUrlPage(options, null)
+
+    // One page of the list: the first when pageUrl is null, else the URL the Link header named.
+    private suspend fun listPetNextUrlPage(
+        options: ListPetNextUrlOptions?,
+        pageUrl: String?,
+    ): ApiResult<PetNextUrlPage> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/next"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.limit != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "limit",
+                ValueSerializer.serializeStyled("limit", options!!.limit, "query", "Int", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        if (pageUrl != null) {
+            path = pageUrl
+            queryParams.clear()
+        }
+        return invokeApiForResult<PetNextUrlPage>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetNextUrl",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetNextUrl",
+            urlTemplate = "/pet/next",
+        )
+    }
+
+    /**
+     * Lists pets with the URL of the next page in the body
+     *
+     * Returns the items as a lazy [Paginator]: no request is sent until you first collect its items
+     * or its pages, and each next page is requested only when you ask for more. Every page is an
+     * ordinary call of [listPetNextUrlWithHttpInfo], with the same options on each page.
+     * The page after each one is the URL in its `next_url`
+     * property, followed only within the origin of the client.
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+     * @return the paginator over the items
+     */
+    override fun listPetNextUrlPages(options: ListPetNextUrlOptions?): Paginator<Pet, Unit> =
+        Paginator.ofNextUrl<Pet, PetNextUrlPage>(
+            baseUrl = config.baseUrl,
+            fetch = { pageUrl -> listPetNextUrlPage(options, pageUrl) },
+            items = { page -> page.items },
+            next = { page -> page.nextUrl?.toString() },
+            requestPath = "/pet/next",
+        )
+
+    /**
      * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
      * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
@@ -2096,6 +2187,262 @@ class PetApi :
             items = { page -> page.rows },
             next = { page -> page.following },
             requestPath = "/pet/notes",
+        )
+    }
+
+    /**
+     * Lists pets by offset and limit; the list ends on an empty page
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return PetOffsetPage
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetOffsets(options: ListPetOffsetsOptions?): PetOffsetPage =
+        listPetOffsetsWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetOffsets but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetOffsets] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetOffsetsWithHttpInfo(options: ListPetOffsetsOptions?): ApiResult<PetOffsetPage> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/offsets"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.offset != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "offset",
+                ValueSerializer.serializeStyled("offset", options!!.offset, "query", "Int", null, "form", true),
+                false,
+            )
+        }
+        if (options?.limit != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "limit",
+                ValueSerializer.serializeStyled("limit", options!!.limit, "query", "Int", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<PetOffsetPage>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetOffsets",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetOffsets",
+            urlTemplate = "/pet/offsets",
+        )
+    }
+
+    /**
+     * Lists pets by offset and limit; the list ends on an empty page
+     *
+     * Returns the items as a lazy [Paginator]: no request is sent until you first collect its items
+     * or its pages, and each next page is requested only when you ask for more. Every page is an
+     * ordinary call of [listPetOffsetsWithHttpInfo], with the same options on each page.
+     * The value of the `offset` option is the offset of the
+     * first item, and each page after one is requested at the offset past the items it received. The
+     * list ends on an empty page or when its `hasMore` is false.
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+     * @return the paginator over the items
+     */
+    override fun listPetOffsetsPages(options: ListPetOffsetsOptions?): Paginator<Pet, Int> {
+        val pageOptions = options ?: ListPetOffsetsOptions()
+        return Paginator.ofOffset<Pet, PetOffsetPage>(
+            start = pageOptions.offset,
+            fetch = { pageOffset ->
+                listPetOffsetsWithHttpInfo(pageOptions.copy(offset = pageOffset))
+            },
+            items = { page -> page.items },
+            hasMore = { page -> page.hasMore },
+            requestPath = "/pet/offsets",
+        )
+    }
+
+    /**
+     * Lists pets one numbered page at a time; the list ends on an empty page
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return PetPageNumberPage
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetPageNumbers(options: ListPetPageNumbersOptions?): PetPageNumberPage =
+        listPetPageNumbersWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetPageNumbers but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetPageNumbers] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetPageNumbersWithHttpInfo(options: ListPetPageNumbersOptions?): ApiResult<PetPageNumberPage> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/pages"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.page != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "page",
+                ValueSerializer.serializeStyled("page", options!!.page, "query", "Int", null, "form", true),
+                false,
+            )
+        }
+        if (options?.perPage != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "per_page",
+                ValueSerializer.serializeStyled("per_page", options!!.perPage, "query", "Int", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<PetPageNumberPage>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetPageNumbers",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetPageNumbers",
+            urlTemplate = "/pet/pages",
+        )
+    }
+
+    /**
+     * Lists pets one numbered page at a time; the list ends on an empty page
+     *
+     * Returns the items as a lazy [Paginator]: no request is sent until you first collect its items
+     * or its pages, and each next page is requested only when you ask for more. Every page is an
+     * ordinary call of [listPetPageNumbersWithHttpInfo], with the same options on each page.
+     * The value of the `page` option is the page number of
+     * the first request, and each page after one is requested with the next page number. The list ends
+     * on an empty page or when its `hasMore` is false.
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+     * @return the paginator over the items
+     */
+    override fun listPetPageNumbersPages(options: ListPetPageNumbersOptions?): Paginator<Pet, Int> {
+        val pageOptions = options ?: ListPetPageNumbersOptions()
+        return Paginator.ofPage<Pet, PetPageNumberPage>(
+            start = pageOptions.page,
+            fetch = { pageNumber ->
+                listPetPageNumbersWithHttpInfo(pageOptions.copy(page = pageNumber))
+            },
+            items = { page -> page.items },
+            hasMore = { page -> page.hasMore },
+            requestPath = "/pet/pages",
+        )
+    }
+
+    /**
+     * Lists pets after the id of the last one; the has_more flag says when the list ends
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return PetAfterPage
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun listPetsAfter(options: ListPetsAfterOptions?): PetAfterPage =
+        listPetsAfterWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for listPetsAfter but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [listPetsAfter] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun listPetsAfterWithHttpInfo(options: ListPetsAfterOptions?): ApiResult<PetAfterPage> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/pet/after"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.startingAfter != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "starting_after",
+                ValueSerializer.serializeStyled("starting_after", options!!.startingAfter, "query", "String", null, "form", true),
+                false,
+            )
+        }
+        if (options?.limit != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "limit",
+                ValueSerializer.serializeStyled("limit", options!!.limit, "query", "Int", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<PetAfterPage>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer"),
+            "PetApi.listPetsAfter",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "listPetsAfter",
+            urlTemplate = "/pet/after",
+        )
+    }
+
+    /**
+     * Lists pets after the id of the last one; the has_more flag says when the list ends
+     *
+     * Returns the items as a lazy [Paginator]: no request is sent until you first collect its items
+     * or its pages, and each next page is requested only when you ask for more. Every page is an
+     * ordinary call of [listPetsAfterWithHttpInfo], with the same options on each page.
+     * The value of the `starting_after` option is where the list
+     * starts, the page after each one is requested with the `last_id`
+     * it returned, and the list ends when its `hasMore` is false.
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+     * @return the paginator over the items
+     */
+    override fun listPetsAfterPages(options: ListPetsAfterOptions?): Paginator<Pet, String> {
+        val pageOptions = options ?: ListPetsAfterOptions()
+        return Paginator.ofCursor<Pet, String, PetAfterPage>(
+            start = pageOptions.startingAfter,
+            fetch = { pageCursor ->
+                listPetsAfterWithHttpInfo(pageOptions.copy(startingAfter = pageCursor))
+            },
+            items = { page -> page._data },
+            next = { page -> page.lastId },
+            hasMore = { page -> page.hasMore },
+            requestPath = "/pet/after",
         )
     }
 

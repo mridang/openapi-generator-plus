@@ -1,6 +1,6 @@
 
     def {{vendorExtensions.op.pagesMethodName}}(
         self,
-{{>api/operation_args}}    ) -> 'Paginator[{{{vendorExtensions.op.pagination.itemType}}}, {{#vendorExtensions.op.pagination.isToken}}{{{vendorExtensions.op.pagination.cursorType}}}{{/vendorExtensions.op.pagination.isToken}}{{#vendorExtensions.op.pagination.isLink}}None{{/vendorExtensions.op.pagination.isLink}}]':
+{{>api/operation_args}}    ) -> 'Paginator[{{{vendorExtensions.op.pagination.itemType}}}, {{#vendorExtensions.op.pagination.isToken}}{{{vendorExtensions.op.pagination.cursorType}}}{{/vendorExtensions.op.pagination.isToken}}{{#vendorExtensions.op.pagination.isId}}{{{vendorExtensions.op.pagination.cursorType}}}{{/vendorExtensions.op.pagination.isId}}{{#vendorExtensions.op.pagination.isOffset}}int{{/vendorExtensions.op.pagination.isOffset}}{{#vendorExtensions.op.pagination.isPage}}int{{/vendorExtensions.op.pagination.isPage}}{{#vendorExtensions.op.pagination.isUrlPaged}}None{{/vendorExtensions.op.pagination.isUrlPaged}}]':
         """The ``{{vendorExtensions.op.pagesMethodName}}`` operation: the items of a paged list as a lazy paginator."""
         ...

@@ -1682,7 +1682,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     /**
      * Gives a paged operation the Go names the templates need: the paginator type, the cursor type
-     * ({@code NoCursor} for a list that is followed by {@code Link} header) and the field of the
+     * ({@code NoCursor} for a list whose next page is a URL, a {@code Link} header or a body property) and the field of the
      * options struct that holds the cursor. The shared detector has already decided which operations
      * are paged.
      *
@@ -1719,11 +1719,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             return;
         }
         final Map<String, Object> p = (Map<String, Object>) pagination;
-        final boolean link = Boolean.TRUE.equals(p.get("isLink"));
-        final String cursorType = link ? "NoCursor" : String.valueOf(p.get("cursorType"));
+        final boolean urlPaged = Boolean.TRUE.equals(p.get("isUrlPaged"));
+        final String cursorType = urlPaged ? "NoCursor" : String.valueOf(p.get("cursorType"));
         p.put("goCursorType", cursorType);
         p.put("goPaginatorType", "*Paginator[" + p.get("itemType") + ", " + cursorType + "]");
-        if (!link) {
+        if (!urlPaged) {
             p.put("goCursorField", optionsFieldName(String.valueOf(p.get("requestParamName"))));
         }
     }

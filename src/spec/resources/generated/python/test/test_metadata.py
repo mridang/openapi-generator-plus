@@ -825,8 +825,36 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.pet_api",
             "PetApi",
+            "list_pet_next_url",
+            "ListPetNextUrlOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
             "list_pet_notes",
             "ListPetNotesOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "list_pet_offsets",
+            "ListPetOffsetsOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "list_pet_page_numbers",
+            "ListPetPageNumbersOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
+            "list_pets_after",
+            "ListPetsAfterOptions",
             False,
         ),
         (

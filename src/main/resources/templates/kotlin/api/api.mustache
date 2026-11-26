@@ -258,23 +258,23 @@ class {{classname}} : BaseApi, {{classname}}Interface {
 {{#isDeprecated}}
     @Deprecated("This operation is deprecated.")
 {{/isDeprecated}}
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
     override suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> =
         {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}null{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}})
 
     /* One page of the list: the first when pageUrl is null, else the URL the Link header named. */
     private suspend fun {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}, {{/vendorExtensions.op.signatureArgs}}pageUrl: String?{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
-{{/vendorExtensions.op.pagination.isLink}}
-{{^vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{^vendorExtensions.op.pagination.isUrlPaged}}
     override suspend fun {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#nullable}}?{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{>api/operation_prelude}}
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
         if (pageUrl != null) {
             path = pageUrl
             queryParams.clear()
         }
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
         return {{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{#returnType}}<{{{returnType}}}>{{/returnType}}{{^returnType}}<Unit>{{/returnType}}{{/vendorExtensions.op.streamsBinary}}(
                 "{{httpMethod}}",
                 path,

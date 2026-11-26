@@ -4126,6 +4126,33 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             "nextcursor", "nextpagetoken", "nexttoken", "nextmarker", "nextcontinuationtoken",
             "continuationtoken", "next");
 
+    /** Tier 2: the id-cursor request parameters, compared like the token names. */
+    private static final Set<String> PAGINATION_ID_REQUEST = Set.of("startingafter", "afterid", "after");
+
+    /** Tier 2: the response properties that carry the id of the last item, the next cursor. */
+    private static final Set<String> PAGINATION_ID_RESPONSE = Set.of("lastid", "nextcursor");
+
+    /** Tier 4: the offset request parameter. */
+    private static final Set<String> PAGINATION_OFFSET_REQUEST = Set.of("offset");
+
+    /** Tier 4: the page request parameter of page-number paging. */
+    private static final Set<String> PAGINATION_PAGE_REQUEST = Set.of("page");
+
+    /** Tier 4: the limit parameter of offset paging. */
+    private static final Set<String> PAGINATION_LIMIT = Set.of("limit");
+
+    /** Tier 4: the page-size parameters of page-number paging. */
+    private static final Set<String> PAGINATION_PAGE_SIZE = Set.of("perpage", "pagesize", "size", "limit");
+
+    /** Tiers 2 and 4: the boolean response property that says whether a further page exists. */
+    private static final Set<String> PAGINATION_HAS_MORE = Set.of("hasmore");
+
+    /** Tier 5: the next-URL response property names, besides a string with format uri or uri-reference. */
+    private static final Set<String> PAGINATION_NEXT_URL = Set.of("nexturl", "nexturi", "nextlink");
+
+    /** The styles an override may name. */
+    private static final Set<String> PAGINATION_STYLES = Set.of("token", "link", "offset", "page", "id", "body");
+
     /** The global switch of the {@code pagination} option: {@code auto} (the default) or {@code off}. */
     private boolean paginationEnabled = true;
 
@@ -4184,14 +4211,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         @Nullable private final String requestParam;
         @Nullable private final String responseProperty;
         @Nullable private final String itemsProperty;
+        @Nullable private final String hasMoreProperty;
         private final String source;
 
         PaginationPlan(String style, @Nullable String requestParam, @Nullable String responseProperty,
-                @Nullable String itemsProperty, String source) {
+                @Nullable String itemsProperty, @Nullable String hasMoreProperty, String source) {
             this.style = style;
             this.requestParam = requestParam;
             this.responseProperty = responseProperty;
             this.itemsProperty = itemsProperty;
+            this.hasMoreProperty = hasMoreProperty;
             this.source = source;
         }
 
@@ -4199,6 +4228,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         @Nullable String requestParam() { return requestParam; }
         @Nullable String responseProperty() { return responseProperty; }
         @Nullable String itemsProperty() { return itemsProperty; }
+        @Nullable String hasMoreProperty() { return hasMoreProperty; }
         String source() { return source; }
     }
 
@@ -4263,12 +4293,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
             final Map<String, Object> o = (Map<String, Object>) override;
             final String style = String.valueOf(o.get("style")).toLowerCase(Locale.ROOT);
-            if (!style.equals("token") && !style.equals("link")) {
+            if (!PAGINATION_STYLES.contains(style)) {
                 throw new NotPaged("its override names the style " + o.get("style")
-                        + ", and only token and link are supported");
+                        + ", and only token, link, offset, page, id and body are supported");
             }
             return new PaginationPlan(style, text(o.get("requestParam")), text(o.get("responseProperty")),
-                    text(o.get("itemsProperty")), "override");
+                    text(o.get("itemsProperty")), text(o.get("hasMoreProperty")), "override");
         }
         final PaginationPlan hint = paginationHint(op);
         if (hint != null) {
@@ -4314,7 +4344,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             if (f.containsKey("cursor") && f.containsKey("next_cursor")) {
                 final String results = hintName(f.get("results"));
                 return new PaginationPlan("token", hintName(f.get("cursor")), hintName(f.get("next_cursor")),
-                        results, "hint");
+                        results, null, "hint");
             }
             LOGGER.info("Operation {} carries an x-fern-pagination hint of a style that is not supported yet;"
                     + " it is ignored", op.operationId);
@@ -4333,7 +4363,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     }
                 }
                 return new PaginationPlan("token", request, hintName(outputs.get("nextCursor")),
-                        hintName(outputs.get("results")), "hint");
+                        hintName(outputs.get("results")), null, "hint");
             }
             LOGGER.info("Operation {} carries an x-speakeasy-pagination hint of a style that is not supported"
                     + " yet; it is ignored", op.operationId);
@@ -4346,54 +4376,148 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
-     * Infers the style from names alone: tier 1 (a token cursor) and tier 3 (a declared {@code Link}
-     * header). Returns null when the operation shows no signal of either; throws when it shows one
-     * that cannot be followed, so the log says why.
+     * Infers the style from names alone (design 4.2, D129): tier 1 (a token cursor), tier 2 (an id
+     * cursor with a has_more flag), tier 3 (a declared {@code Link} header), tier 4 (offset and limit,
+     * or page and a page size) and tier 5 (a next URL in the body). Every style that matches counts;
+     * two matches make the operation ambiguous, so it is not paged. Returns null when the operation
+     * shows no signal of any style; throws when it shows one that cannot be followed, so the log says why.
      */
     @Nullable
     private PaginationPlan inferPagination(CodegenOperation op) {
-        final List<CodegenParameter> requestCandidates = new ArrayList<>();
-        if (op.queryParams != null) {
-            for (final CodegenParameter p : op.queryParams) {
-                if (PAGINATION_TOKEN_REQUEST.contains(pagingKey(p.baseName))) {
-                    requestCandidates.add(p);
-                }
-            }
-        }
+        final List<CodegenParameter> tokenRequest = queryNamed(op, PAGINATION_TOKEN_REQUEST);
+        final List<CodegenParameter> idRequest = queryNamed(op, PAGINATION_ID_REQUEST);
+        final List<CodegenParameter> offsetRequest = queryNamed(op, PAGINATION_OFFSET_REQUEST);
+        final List<CodegenParameter> pageRequest = queryNamed(op, PAGINATION_PAGE_REQUEST);
+        final boolean limitParam = !queryNamed(op, PAGINATION_LIMIT).isEmpty();
+        final boolean pageSizeParam = !queryNamed(op, PAGINATION_PAGE_SIZE).isEmpty();
         final CodegenResponse success = successResponse(op);
         final CodegenProperty schema = jsonSchema(success);
-        final List<CodegenProperty> responseCandidates = new ArrayList<>();
-        if (schema != null && !schema.isArray) {
-            for (final CodegenProperty p : propertiesOf(schema)) {
-                if (PAGINATION_TOKEN_RESPONSE.contains(pagingKey(p.baseName))) {
-                    responseCandidates.add(p);
-                }
-            }
-        }
+        final List<CodegenProperty> props = schema == null || schema.isArray ? List.of() : propertiesOf(schema);
+        final List<CodegenProperty> tokenResponse = namedProperties(props, PAGINATION_TOKEN_RESPONSE);
+        final List<CodegenProperty> idResponse = namedProperties(props, PAGINATION_ID_RESPONSE);
+        final List<CodegenProperty> hasMore = booleanNamed(props, PAGINATION_HAS_MORE);
+        final List<CodegenProperty> nextUrl = nextUrlProperties(props);
+        final String hasMoreName = hasMore.isEmpty() ? null : hasMore.get(0).baseName;
         final boolean link = success != null && declaresLink(success);
-        final boolean token = !requestCandidates.isEmpty() && !responseCandidates.isEmpty();
-        if (!token && !link) {
-            if (!requestCandidates.isEmpty() || !responseCandidates.isEmpty()) {
-                throw new NotPaged(requestCandidates.isEmpty()
+        final boolean noCursorRequest = tokenRequest.isEmpty() && idRequest.isEmpty()
+                && offsetRequest.isEmpty() && pageRequest.isEmpty();
+        final List<PaginationPlan> matches = new ArrayList<>();
+        if (link) {
+            matches.add(new PaginationPlan("link", null, null, null, null, "inference"));
+        }
+        if (!tokenRequest.isEmpty() && !tokenResponse.isEmpty()) {
+            requireOne(tokenRequest, "it has more than one cursor query parameter candidate");
+            requireOne(tokenResponse, "its response has more than one next-cursor property candidate");
+            matches.add(new PaginationPlan("token", tokenRequest.get(0).baseName,
+                    tokenResponse.get(0).baseName, null, null, "inference"));
+        }
+        if (!idRequest.isEmpty() && !idResponse.isEmpty() && !hasMore.isEmpty()) {
+            requireOne(idRequest, "it has more than one id cursor query parameter candidate");
+            requireOne(idResponse, "its response has more than one last-id property candidate");
+            matches.add(new PaginationPlan("id", idRequest.get(0).baseName, idResponse.get(0).baseName,
+                    null, hasMoreName, "inference"));
+        }
+        if (!offsetRequest.isEmpty() && limitParam) {
+            requireOne(offsetRequest, "it has more than one offset query parameter candidate");
+            matches.add(new PaginationPlan("offset", offsetRequest.get(0).baseName, null, null, hasMoreName,
+                    "inference"));
+        }
+        if (!pageRequest.isEmpty() && pageSizeParam) {
+            requireOne(pageRequest, "it has more than one page query parameter candidate");
+            matches.add(new PaginationPlan("page", pageRequest.get(0).baseName, null, null, hasMoreName,
+                    "inference"));
+        }
+        if (noCursorRequest && !nextUrl.isEmpty()) {
+            requireOne(nextUrl, "its response has more than one next-URL property candidate");
+            matches.add(new PaginationPlan("body", null, nextUrl.get(0).baseName, null, null, "inference"));
+        }
+        if (matches.isEmpty()) {
+            if (!tokenRequest.isEmpty() || !tokenResponse.isEmpty()) {
+                throw new NotPaged(tokenRequest.isEmpty()
                         ? "it returns a next-cursor property but takes no cursor query parameter"
                         : "it takes a cursor query parameter but its response has no next-cursor property");
             }
             return null;
         }
-        if (token && link) {
-            throw new NotPaged("it matches more than one style (a token cursor and a Link header)");
+        if (matches.size() > 1) {
+            final List<String> names = new ArrayList<>();
+            for (final PaginationPlan match : matches) {
+                names.add(match.style());
+            }
+            throw new NotPaged("it matches more than one style (" + String.join(", ", names) + ")");
         }
-        if (link) {
-            return new PaginationPlan("link", null, null, null, "inference");
+        return matches.get(0);
+    }
+
+    /** The query parameters whose names are in the set, compared without case, {@code _} and {@code -}. */
+    private static List<CodegenParameter> queryNamed(CodegenOperation op, Set<String> names) {
+        final List<CodegenParameter> found = new ArrayList<>();
+        if (op.queryParams != null) {
+            for (final CodegenParameter p : op.queryParams) {
+                if (names.contains(pagingKey(p.baseName))) {
+                    found.add(p);
+                }
+            }
         }
-        if (requestCandidates.size() > 1) {
-            throw new NotPaged("it has more than one cursor query parameter candidate");
+        return found;
+    }
+
+    /** The properties whose names are in the set, compared without case, {@code _} and {@code -}. */
+    private static List<CodegenProperty> namedProperties(List<CodegenProperty> props, Set<String> names) {
+        final List<CodegenProperty> found = new ArrayList<>();
+        for (final CodegenProperty p : props) {
+            if (names.contains(pagingKey(p.baseName))) {
+                found.add(p);
+            }
         }
-        if (responseCandidates.size() > 1) {
-            throw new NotPaged("its response has more than one next-cursor property candidate");
+        return found;
+    }
+
+    /** The boolean properties whose names are in the set. */
+    private static List<CodegenProperty> booleanNamed(List<CodegenProperty> props, Set<String> names) {
+        final List<CodegenProperty> found = new ArrayList<>();
+        for (final CodegenProperty p : namedProperties(props, names)) {
+            if (p.isBoolean) {
+                found.add(p);
+            }
         }
-        return new PaginationPlan("token", requestCandidates.get(0).baseName,
-                responseCandidates.get(0).baseName, null, "inference");
+        return found;
+    }
+
+    /**
+     * The next-URL candidates of a body (tier 5): a string named next_url, next_uri, nextlink or next_link,
+     * optional or nullable only. A format-only uri property is not enough: many response models carry one
+     * (a homepage, for instance), so it would page them by accident.
+     */
+    private static List<CodegenProperty> nextUrlProperties(List<CodegenProperty> props) {
+        final List<CodegenProperty> found = new ArrayList<>();
+        for (final CodegenProperty p : props) {
+            final boolean named = p.isString && PAGINATION_NEXT_URL.contains(pagingKey(p.baseName));
+            if (named && (!p.required || p.isNullable)) {
+                found.add(p);
+            }
+        }
+        return found;
+    }
+
+    private static void requireOne(List<?> candidates, String reason) {
+        if (candidates.size() > 1) {
+            throw new NotPaged(reason);
+        }
+    }
+
+    /** The property of an object schema with the given name, or null. */
+    @Nullable
+    private CodegenProperty propertyNamed(CodegenProperty schema, @Nullable String name) {
+        if (name == null) {
+            return null;
+        }
+        for (final CodegenProperty p : propertiesOf(schema)) {
+            if (p.baseName.equals(name)) {
+                return p;
+            }
+        }
+        return null;
     }
 
     /**
@@ -4415,16 +4539,24 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (schema == null) {
             throw new NotPaged("it does not have exactly one 2xx response with a JSON body");
         }
-        final boolean link = plan.style().equals("link");
+        final String style = plan.style();
+        final boolean link = style.equals("link");
+        final boolean body = style.equals("body");
+        final boolean integerCursor = style.equals("offset") || style.equals("page");
         final Map<String, Object> m = new LinkedHashMap<>();
-        m.put("style", plan.style());
-        m.put("isToken", !link);
+        m.put("style", style);
+        m.put("isToken", style.equals("token"));
         m.put("isLink", link);
+        m.put("isOffset", style.equals("offset"));
+        m.put("isPage", style.equals("page"));
+        m.put("isId", style.equals("id"));
+        m.put("isBody", body);
+        m.put("isUrlPaged", link || body);
         m.put("source", plan.source());
         CodegenProperty items = null;
         if (schema.isArray) {
             if (!link) {
-                throw new NotPaged("its response body is an array and a token cursor needs an object");
+                throw new NotPaged("its response body is an array and a cursor or a next URL needs an object");
             }
             items = schema;
             m.put("itemsFromBody", true);
@@ -4464,6 +4596,17 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (link) {
             return m;
         }
+        if (body) {
+            final CodegenProperty next = propertyNamed(schema, plan.responseProperty());
+            if (next == null) {
+                throw new NotPaged("its response has no property " + plan.responseProperty());
+            }
+            m.put("nextUrlProperty", next.baseName);
+            m.put("nextUrlPropertyName", next.name);
+            m.put("nextUrlPropertyGetter", next.getter);
+            m.put("nextUrlIsUri", next.isUri);
+            return m;
+        }
         CodegenParameter cursor = null;
         if (op.queryParams != null) {
             for (final CodegenParameter p : op.queryParams) {
@@ -4478,28 +4621,43 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (cursor.required) {
             throw new NotPaged("its cursor parameter " + cursor.baseName + " is required");
         }
-        CodegenProperty next = null;
-        for (final CodegenProperty p : propertiesOf(schema)) {
-            if (p.baseName.equals(plan.responseProperty())) {
-                next = p;
-            }
-        }
-        if (next == null) {
-            throw new NotPaged("its response has no property " + plan.responseProperty());
-        }
-        final boolean strings = cursor.isString && next.isString;
-        final boolean integers = (cursor.isInteger || cursor.isLong) && (next.isInteger || next.isLong);
-        if (!strings && !integers) {
-            throw new NotPaged("its cursor parameter " + cursor.baseName + " and its response property "
-                    + next.baseName + " are not both strings or both integers");
-        }
         m.put("requestParam", cursor.baseName);
         m.put("requestParamName", cursor.paramName);
         m.put("cursorType", cursor.dataType);
-        m.put("cursorIsString", strings);
-        m.put("responseProperty", next.baseName);
-        m.put("responsePropertyName", next.name);
-        m.put("responsePropertyGetter", next.getter);
+        if (integerCursor) {
+            if (!cursor.isInteger) {
+                throw new NotPaged("its " + style + " parameter " + cursor.baseName + " is not a 32-bit integer");
+            }
+            m.put("cursorIsString", false);
+        } else {
+            final CodegenProperty next = propertyNamed(schema, plan.responseProperty());
+            if (next == null) {
+                throw new NotPaged("its response has no property " + plan.responseProperty());
+            }
+            final boolean strings = cursor.isString && next.isString;
+            final boolean integers = (cursor.isInteger || cursor.isLong) && (next.isInteger || next.isLong);
+            if (!strings && !integers) {
+                throw new NotPaged("its cursor parameter " + cursor.baseName + " and its response property "
+                        + next.baseName + " are not both strings or both integers");
+            }
+            m.put("cursorIsString", strings);
+            m.put("responseProperty", next.baseName);
+            m.put("responsePropertyName", next.name);
+            m.put("responsePropertyGetter", next.getter);
+        }
+        final CodegenProperty more = propertyNamed(schema, plan.hasMoreProperty());
+        if (plan.hasMoreProperty() != null && (more == null || !more.isBoolean)) {
+            throw new NotPaged("its has_more property " + plan.hasMoreProperty() + " is not a boolean");
+        }
+        if (style.equals("id") && more == null) {
+            throw new NotPaged("it has no boolean has_more property, so its end cannot be told");
+        }
+        m.put("hasHasMore", more != null);
+        if (more != null) {
+            m.put("hasMoreProperty", more.baseName);
+            m.put("hasMorePropertyName", more.name);
+            m.put("hasMorePropertyGetter", more.getter);
+        }
         return m;
     }
 

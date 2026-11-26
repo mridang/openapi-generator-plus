@@ -2100,6 +2100,50 @@ describe {{moduleName}}::Api::PetApi do
         .tap { |server| origin << server }
     end
 
+    # The pets p<from> to p<to - 1>, as JSON objects separated by commas.
+    def pets_json(from, to)
+      (from...to).map { |index| pet_json("p#{index}") }.join(',')
+    end
+
+    # Five pets, p0 to p4, answered in slices of two from the offset asked for; past the last pet the page is empty.
+    def offset_server
+      PagedServer.new do |request, _number|
+        offset = request.param('offset').to_i
+        PagedReply.ok(%({"items":[#{pets_json(offset, [offset + 2, 5].min)}]}))
+      end
+    end
+
+    # Five pets, p0 to p4, answered in numbered pages of two from page 1; every page says has_more, so the list
+    # ends on the empty page after the last pet.
+    def page_number_server
+      PagedServer.new do |request, _number|
+        first = ((request.param('page') || '1').to_i - 1) * 2
+        PagedReply.ok(%({"items":[#{pets_json(first, [first + 2, 5].min)}],"has_more":true}))
+      end
+    end
+
+    # Five pets, p0 to p4, answered in pages of two after the id given; has_more is false on the last page.
+    def after_server
+      PagedServer.new do |request, _number|
+        after = request.param('starting_after')
+        first = after.nil? ? 0 : after[1..].to_i + 1
+        last = [first + 2, 5].min
+        PagedReply.ok(%({"data":[#{pets_json(first, last)}],"has_more":#{last < 5},"last_id":"p#{last - 1}"}))
+      end
+    end
+
+    # Feed pages f0 to f<pages - 1>, one pet each, with the URL of the next page in the body, on the same origin.
+    def next_url_server(pages)
+      origin = [] # : Array[PagedServer]
+      server = PagedServer.new do |request, _number|
+        index = request.param('p').to_i
+        following = index + 1 < pages ? %(,"next_url":"#{origin.first.url}/pet/next?p=#{index + 1}") : ''
+        PagedReply.ok(%({"items":[#{pet_json("f#{index}")}]#{following}}))
+      end
+      origin << server
+      server
+    end
+
     def pet_api_for(server, transport: nil, headers: {}, authenticator: nil)
       transport ||= {{moduleName}}::TransportOptions.builder.max_retries(0).build
       config = {{moduleName}}::Configuration.new(base_url: server.url, default_headers: headers)
@@ -2148,6 +2192,30 @@ describe {{moduleName}}::Api::PetApi do
       _(server.seen.length).must_equal 1
       items.next
       _(server.seen.length).must_equal 2
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_004 an offset and limit operation advances the offset by the items received and ends on an empty page' do
+      server = offset_server
+      _(names(pet_api_for(server).list_pet_offsets_pages)).must_equal %w[p0 p1 p2 p3 p4]
+      _(server.params('offset')).must_equal [nil, '2', '4', '5']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_005 a page-number operation starts at the supplied page and increments it' do
+      server = page_number_server
+      _(names(pet_api_for(server).list_pet_page_numbers_pages)).must_equal %w[p0 p1 p2 p3 p4]
+      _(server.params('page')).must_equal [nil, '2', '3', '4']
+    ensure
+      server&.close
+    end
+
+    it 'bhv_pagination_006 an id-cursor operation ends when has_more is false' do
+      server = after_server
+      _(names(pet_api_for(server).list_pets_after_pages)).must_equal %w[p0 p1 p2 p3 p4]
+      _(server.params('starting_after')).must_equal [nil, 'p1', 'p3']
     ensure
       server&.close
     end
@@ -2382,13 +2450,16 @@ describe {{moduleName}}::Api::PetApi do
 
     it 'bhv_pagination_024 an operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method' do
       paged = {{moduleName}}::Api::PetApi.public_instance_methods(false).grep(/_pages\z/).sort
-      _(paged).must_equal %i[list_pet_catalog_pages list_pet_events_pages list_pet_feed_pages list_pet_notes_pages]
+      _(paged).must_equal %i[
+        list_pet_catalog_pages list_pet_events_pages list_pet_feed_pages list_pet_next_url_pages list_pet_notes_pages
+        list_pet_offsets_pages list_pet_page_numbers_pages list_pets_after_pages
+      ]
       _({{moduleName}}::Api::PetApi.public_method_defined?(:list_pet_matches)).must_equal true
     end
 
     it 'bhv_pagination_025 a paged method has the same parameters in the same order as the base method and the base method is unchanged' do
       server = catalog_server(1, 1)
-      %i[list_pet_catalog list_pet_events list_pet_feed list_pet_notes].each_case do |base|
+      %i[list_pet_catalog list_pet_events list_pet_feed list_pet_next_url list_pet_notes list_pet_offsets list_pet_page_numbers list_pets_after].each_case do |base|
         pages = {{moduleName}}::Api::PetApi.instance_method(:"#{base}_pages")
         _(pages.parameters).must_equal {{moduleName}}::Api::PetApi.instance_method(base).parameters
       end
@@ -2428,6 +2499,26 @@ describe {{moduleName}}::Api::PetApi do
       _(server.params('cursor')).must_equal [nil, nil, 'c1']
     ensure
       server&.close
+    end
+
+    it 'bhv_pagination_029 a next URL in the body is followed and a next URL on another origin is refused' do
+      server = next_url_server(3)
+      _(names(pet_api_for(server).list_pet_next_url_pages)).must_equal %w[f0 f1 f2]
+      _(server.params('p')).must_equal [nil, '1', '2']
+      elsewhere = PagedServer.new { |_request, _number| PagedReply.ok(%({"items":[#{pet_json('stolen')}]})) }
+      origin = PagedServer.new do |_request, _number|
+        PagedReply.ok(%({"items":[#{pet_json('f0')}],"next_url":"#{elsewhere.url}/pet/next?p=1"}))
+      end
+      api = pet_api_for(origin, headers: { 'Authorization' => 'Bearer secret' })
+      delivered, refused = read_until_error(api.list_pet_next_url_pages, {{moduleName}}::Errors::PaginationError)
+      _(delivered).must_equal ['f0']
+      _(origin.seen.first.headers['authorization']).must_equal 'Bearer secret'
+      _(refused.message).wont_include 'p=1'
+      _(elsewhere.seen).must_be_empty
+    ensure
+      server&.close
+      elsewhere&.close
+      origin&.close
     end
 
     it 'bhv_pagination_030 a vendor extension on an operation is read as a hint, and the override option wins over it' do
