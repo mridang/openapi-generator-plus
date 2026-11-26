@@ -6765,7 +6765,11 @@ class TestPagedLists:
             "list_pet_catalog_pages",
             "list_pet_events_pages",
             "list_pet_feed_pages",
+            "list_pet_next_url_pages",
             "list_pet_notes_pages",
+            "list_pet_offsets_pages",
+            "list_pet_page_numbers_pages",
+            "list_pets_after_pages",
         ]
         assert hasattr(PetApi, "list_pet_matches"), (
             "the ambiguous operation keeps its base method"

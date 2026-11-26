@@ -186,7 +186,7 @@ module Petstore::Client
         end
         result = fetch_page
         body = result.data
-        list = body.nil? ? [] : Array(@items.call(body))
+        list = Array(body.nil? ? nil : @items.call(body))
         following = body.nil? ? nil : @following.call(@sent, body, list)
         if following.nil? || following == ''
           @done = true
@@ -240,7 +240,7 @@ module Petstore::Client
         end
         result = fetch_page
         body = result.data
-        list = body.nil? ? [] : Array(@items.call(body))
+        list = Array(body.nil? ? nil : @items.call(body))
         link = @next_link.call(result)
         if link.nil?
           @done = true

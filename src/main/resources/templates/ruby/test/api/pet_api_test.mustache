@@ -2135,11 +2135,13 @@ describe {{moduleName}}::Api::PetApi do
     # Feed pages f0 to f<pages - 1>, one pet each, with the URL of the next page in the body, on the same origin.
     def next_url_server(pages)
       origin = [] # : Array[PagedServer]
-      PagedServer.new do |request, _number|
+      server = PagedServer.new do |request, _number|
         index = request.param('p').to_i
         following = index + 1 < pages ? %(,"next_url":"#{origin.first.url}/pet/next?p=#{index + 1}") : ''
         PagedReply.ok(%({"items":[#{pet_json("f#{index}")}]#{following}}))
-      end.tap { |server| origin << server }
+      end
+      origin << server
+      server
     end
 
     def pet_api_for(server, transport: nil, headers: {}, authenticator: nil)

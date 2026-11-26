@@ -6696,6 +6696,10 @@ async fn test_bhv_pagination_024_an_operation_with_two_candidate_cursors_two_arr
         "list_pet_events_pages",
         "list_pet_feed_pages",
         "list_pet_notes_pages",
+        "list_pet_offsets_pages",
+        "list_pet_page_numbers_pages",
+        "list_pets_after_pages",
+        "list_pet_next_url_pages",
     ] {
         assert!(source.contains(&format!("pub fn {paged}(")), "{paged}");
     }

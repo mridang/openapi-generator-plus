@@ -2242,7 +2242,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   /// and each page after one is requested at the offset past the items it received. The list ends on an empty
   /// page or when its `hasMore` is false.
   public func listPetOffsetsPages(options: ListPetOffsetsOptions? = nil) -> Paginator<Pet, Int> {
-    return Paginator<Pet, Int32>.ofOffset(
+    return Paginator<Pet, Int>.ofOffset(
       start: options?.offset,
       requestPath: "/pet/offsets",
       fetch: { offset in
@@ -2329,7 +2329,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
   public func listPetPageNumbersPages(options: ListPetPageNumbersOptions? = nil) -> Paginator<
     Pet, Int
   > {
-    return Paginator<Pet, Int32>.ofPage(
+    return Paginator<Pet, Int>.ofPage(
       start: options?.page,
       requestPath: "/pet/pages",
       fetch: { page in

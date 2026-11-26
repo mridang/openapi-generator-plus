@@ -4513,9 +4513,7 @@ impl PetApi {
         let api = self.clone();
         let base_options: Option<ListPetOffsetsOptions> = options.cloned();
         Paginator::of_cursor(
-            base_options
-                .as_ref()
-                .and_then(|options| options.offset.clone()),
+            base_options.as_ref().and_then(|options| options.offset),
             move |cursor: Option<i32>| -> PageFuture<PetOffsetPage> {
                 let api = api.clone();
                 let mut page_options = base_options.clone();
@@ -4711,9 +4709,7 @@ impl PetApi {
         let api = self.clone();
         let base_options: Option<ListPetPageNumbersOptions> = options.cloned();
         Paginator::of_cursor(
-            base_options
-                .as_ref()
-                .and_then(|options| options.page.clone()),
+            base_options.as_ref().and_then(|options| options.page),
             move |cursor: Option<i32>| -> PageFuture<PetPageNumberPage> {
                 let api = api.clone();
                 let mut page_options = base_options.clone();

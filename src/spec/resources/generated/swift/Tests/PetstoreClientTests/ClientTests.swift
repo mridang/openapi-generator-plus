@@ -2041,9 +2041,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func listPetOffsetsPages(options: ListPetOffsetsOptions?) -> Paginator<Pet, Int> {
     record("listPetOffsetsPages")
-    return Paginator<Pet, Int32>.ofOffset(
+    return Paginator<Pet, Int>.ofOffset(
       start: nil, requestPath: "",
-      fetch: { (_: Int32?) async throws -> ApiResult<PetOffsetPage> in
+      fetch: { (_: Int?) async throws -> ApiResult<PetOffsetPage> in
         throw NotFoundError(message: "missing")
       },
       items: { _ in nil })
@@ -2071,9 +2071,9 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
 
   public func listPetPageNumbersPages(options: ListPetPageNumbersOptions?) -> Paginator<Pet, Int> {
     record("listPetPageNumbersPages")
-    return Paginator<Pet, Int32>.ofPage(
+    return Paginator<Pet, Int>.ofPage(
       start: nil, requestPath: "",
-      fetch: { (_: Int32?) async throws -> ApiResult<PetPageNumberPage> in
+      fetch: { (_: Int?) async throws -> ApiResult<PetPageNumberPage> in
         throw NotFoundError(message: "missing")
       },
       items: { _ in nil })

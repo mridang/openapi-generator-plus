@@ -4210,7 +4210,16 @@ class BaseApiTest {
         @DisplayName("bhvPagination024 an operation with two candidate cursors, two array properties, a non-GET method or several 2xx bodies gets no paged method")
         fun bhvPagination024AnOperationThatIsAmbiguousOrNotAGetGetsNoPagedMethod() {
             assertEquals(
-                setOf("listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages"),
+                setOf(
+                    "listPetCatalogPages",
+                    "listPetEventsPages",
+                    "listPetFeedPages",
+                    "listPetNotesPages",
+                    "listPetOffsetsPages",
+                    "listPetPageNumbersPages",
+                    "listPetsAfterPages",
+                    "listPetNextUrlPages",
+                ),
                 pagesMethodsOf(PetApi::class.java),
             )
             assertTrue(PetApi::class.java.methods.any { it.name == "listPetMatches" }, "the ambiguous operation keeps its base method")

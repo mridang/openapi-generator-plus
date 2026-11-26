@@ -5008,17 +5008,15 @@ describe("BaseApi paged lists", () => {
 
   /** Three pets, one to a page, each page with the URL of the next one in the body. */
   const nextUrlServer = async (pages: number): Promise<PagedServer> => {
-    let self: PagedServer | undefined;
-    const server = await start((request) => {
+    const server: PagedServer = await start((request) => {
       const index =
         request.query["p"] === undefined ? 0 : Number(request.query["p"]);
       const next =
         index + 1 < pages
-          ? `,"next_url":"${(self as PagedServer).url}/pet/next?p=${index + 1}"`
+          ? `,"next_url":"${server.url}/pet/next?p=${index + 1}"`
           : "";
       return replyOk(`{"items":[${petJson(`f${index}`)}]${next}}`);
     });
-    self = server;
     return server;
   };
 

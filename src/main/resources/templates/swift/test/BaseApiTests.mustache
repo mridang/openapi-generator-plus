@@ -3593,7 +3593,7 @@ extension TraceContextUtilTests {
                 return name.hasSuffix("Pages") ? name : nil
             }
         #expect(
-            Set(found) == ["listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages"])
+            Set(found) == ["listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages", "listPetOffsetsPages", "listPetPageNumbersPages", "listPetsAfterPages", "listPetNextUrlPages"])
         #expect(source.contains("public func listPetMatches("), "the ambiguous operation keeps its base method")
     }
 

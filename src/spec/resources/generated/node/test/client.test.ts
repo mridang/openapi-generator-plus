@@ -1581,6 +1581,7 @@ describe("mockable client", () => {
         "listPetNextUrl",
         "listPetNextUrlWithHttpInfo",
         "listPetNextUrlPages",
+        "listPetNextUrlPage",
         "listPetNotes",
         "listPetNotesWithHttpInfo",
         "listPetNotesPages",

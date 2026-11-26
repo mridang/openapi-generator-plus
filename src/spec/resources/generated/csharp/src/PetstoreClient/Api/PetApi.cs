@@ -3909,7 +3909,7 @@ public class PetApi : BaseApi, IPetApi
             (pageCursor, pageToken) =>
                 ListPetOffsetsWithHttpInfoAsync(pageOptions.WithCursor(pageCursor), pageToken),
             page => page.Items,
-            page => page.HasMore == true,
+            page => page.HasMore != false,
             (sent, count) => (sent ?? 0) + count,
             "/pet/offsets",
             cancellationToken
@@ -4051,7 +4051,7 @@ public class PetApi : BaseApi, IPetApi
             (pageCursor, pageToken) =>
                 ListPetPageNumbersWithHttpInfoAsync(pageOptions.WithCursor(pageCursor), pageToken),
             page => page.Items,
-            page => page.HasMore == true,
+            page => page.HasMore != false,
             (sent, _) => (sent ?? 1) + 1,
             "/pet/pages",
             cancellationToken
@@ -4195,7 +4195,7 @@ public class PetApi : BaseApi, IPetApi
                 ListPetsAfterWithHttpInfoAsync(pageOptions.WithCursor(pageCursor), pageToken),
             page => page.Data,
             page => page.LastId,
-            page => page.HasMore == true,
+            page => page.HasMore != false,
             "/pet/after",
             cancellationToken
         );

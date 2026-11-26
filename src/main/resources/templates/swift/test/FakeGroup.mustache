@@ -99,15 +99,15 @@ private final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendabl
             items: { _ in nil }, next: { _ in nil }, hasMore: { _ in nil })
 {{/vendorExtensions.op.pagination.isId}}
 {{#vendorExtensions.op.pagination.isOffset}}
-        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int32>.ofOffset(
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int>.ofOffset(
             start: nil, requestPath: "",
-            fetch: { (_: Int32?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
+            fetch: { (_: Int?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
             items: { _ in nil })
 {{/vendorExtensions.op.pagination.isOffset}}
 {{#vendorExtensions.op.pagination.isPage}}
-        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int32>.ofPage(
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int>.ofPage(
             start: nil, requestPath: "",
-            fetch: { (_: Int32?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
+            fetch: { (_: Int?) async throws -> ApiResult<{{{returnType}}}> in throw NotFoundError(message: "missing") },
             items: { _ in nil })
 {{/vendorExtensions.op.pagination.isPage}}
 {{#vendorExtensions.op.pagination.isLink}}

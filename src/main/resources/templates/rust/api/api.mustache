@@ -1242,7 +1242,7 @@ impl {{classname}} {
 {{/consumes.1}}
 {{^vendorExtensions.op.pagination.isUrlPaged}}
         Paginator::of_cursor(
-            base_options.as_ref().and_then(|options| options.{{vendorExtensions.op.pagination.requestParamName}}.clone()),
+            base_options.as_ref().and_then(|options| options.{{vendorExtensions.op.pagination.requestParamName}}{{#vendorExtensions.op.pagination.cursorIsString}}.clone(){{/vendorExtensions.op.pagination.cursorIsString}}),
             move |cursor: Option<{{{vendorExtensions.op.pagination.cursorType}}}>| -> PageFuture<{{{returnType}}}> {
                 let api = api.clone();
 {{#vendorExtensions.op.signatureArgs}}

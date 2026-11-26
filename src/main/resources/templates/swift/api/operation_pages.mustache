@@ -61,7 +61,7 @@
             hasMore: { $0.{{vendorExtensions.op.pagination.hasMorePropertyName}} })
 {{/vendorExtensions.op.pagination.isId}}
 {{#vendorExtensions.op.pagination.isOffset}}
-        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int32>.ofOffset(
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int>.ofOffset(
             start: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{vendorExtensions.op.pagination.requestParamName}},
             requestPath: "{{#lambda.swiftString}}{{{path}}}{{/lambda.swiftString}}",
             fetch: { offset in
@@ -72,7 +72,7 @@
             hasMore: { $0.{{vendorExtensions.op.pagination.hasMorePropertyName}} }{{/vendorExtensions.op.pagination.hasHasMore}})
 {{/vendorExtensions.op.pagination.isOffset}}
 {{#vendorExtensions.op.pagination.isPage}}
-        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int32>.ofPage(
+        return Paginator<{{{vendorExtensions.op.pagination.itemType}}}, Int>.ofPage(
             start: options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{vendorExtensions.op.pagination.requestParamName}},
             requestPath: "{{#lambda.swiftString}}{{{path}}}{{/lambda.swiftString}}",
             fetch: { page in

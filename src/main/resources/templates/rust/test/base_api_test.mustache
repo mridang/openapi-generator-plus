@@ -4859,7 +4859,7 @@ async fn test_bhv_pagination_023_an_error_from_a_link_driven_page_request_carrie
 async fn test_bhv_pagination_024_an_operation_with_two_candidate_cursors_two_array_properties_a_non_get_method_or_several_2xx_bodies_gets_no_paged_method() {
     let source = include_str!("../src/api/pet_api.rs");
 
-    for paged in ["list_pet_catalog_pages", "list_pet_events_pages", "list_pet_feed_pages", "list_pet_notes_pages"] {
+    for paged in ["list_pet_catalog_pages", "list_pet_events_pages", "list_pet_feed_pages", "list_pet_notes_pages", "list_pet_offsets_pages", "list_pet_page_numbers_pages", "list_pets_after_pages", "list_pet_next_url_pages"] {
         assert!(source.contains(&format!("pub fn {paged}(")), "{paged}");
     }
     assert!(!source.contains("fn list_pet_matches_pages"), "the ambiguous operation has no paged method");

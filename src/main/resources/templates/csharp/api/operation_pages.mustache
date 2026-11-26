@@ -76,7 +76,7 @@
                 {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}pageOptions.WithCursor(pageCursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}pageToken),
             page => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
             page => page.{{vendorExtensions.op.pagination.responsePropertyName}},
-            page => page.{{vendorExtensions.op.pagination.hasMorePropertyName}} == true,
+            page => page.{{vendorExtensions.op.pagination.hasMorePropertyName}} != false,
             "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}",
             cancellationToken
         );
@@ -88,7 +88,7 @@
                 {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}pageOptions.WithCursor(pageCursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}pageToken),
             page => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
 {{#vendorExtensions.op.pagination.hasHasMore}}
-            page => page.{{vendorExtensions.op.pagination.hasMorePropertyName}} == true,
+            page => page.{{vendorExtensions.op.pagination.hasMorePropertyName}} != false,
 {{/vendorExtensions.op.pagination.hasHasMore}}
 {{^vendorExtensions.op.pagination.hasHasMore}}
             null,
@@ -105,7 +105,7 @@
                 {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}pageOptions.WithCursor(pageCursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}pageToken),
             page => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
 {{#vendorExtensions.op.pagination.hasHasMore}}
-            page => page.{{vendorExtensions.op.pagination.hasMorePropertyName}} == true,
+            page => page.{{vendorExtensions.op.pagination.hasMorePropertyName}} != false,
 {{/vendorExtensions.op.pagination.hasHasMore}}
 {{^vendorExtensions.op.pagination.hasHasMore}}
             null,

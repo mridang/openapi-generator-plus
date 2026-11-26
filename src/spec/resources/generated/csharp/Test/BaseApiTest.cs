@@ -4953,6 +4953,10 @@ public class BaseApiTest
                 "ListPetEventsPagesAsync",
                 "ListPetFeedPagesAsync",
                 "ListPetNotesPagesAsync",
+                "ListPetOffsetsPagesAsync",
+                "ListPetPageNumbersPagesAsync",
+                "ListPetsAfterPagesAsync",
+                "ListPetNextUrlPagesAsync",
             },
             paged
         );

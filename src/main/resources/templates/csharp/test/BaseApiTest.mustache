@@ -3814,6 +3814,10 @@ public class BaseApiTest
                 "ListPetEventsPagesAsync",
                 "ListPetFeedPagesAsync",
                 "ListPetNotesPagesAsync",
+                "ListPetOffsetsPagesAsync",
+                "ListPetPageNumbersPagesAsync",
+                "ListPetsAfterPagesAsync",
+                "ListPetNextUrlPagesAsync",
             },
             paged);
         Assert.Contains(typeof(PetApi).GetMethods(), m => m.Name == "ListPetMatchesAsync");

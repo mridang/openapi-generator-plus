@@ -3893,6 +3893,8 @@ extension TraceContextUtilTests {
     #expect(
       Set(found) == [
         "listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages",
+        "listPetOffsetsPages", "listPetPageNumbersPages", "listPetsAfterPages",
+        "listPetNextUrlPages",
       ])
     #expect(
       source.contains("public func listPetMatches("),

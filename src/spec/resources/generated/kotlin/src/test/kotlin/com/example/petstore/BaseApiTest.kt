@@ -4805,7 +4805,16 @@ class BaseApiTest {
         )
         fun bhvPagination024AnOperationThatIsAmbiguousOrNotAGetGetsNoPagedMethod() {
             assertEquals(
-                setOf("listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages"),
+                setOf(
+                    "listPetCatalogPages",
+                    "listPetEventsPages",
+                    "listPetFeedPages",
+                    "listPetNotesPages",
+                    "listPetOffsetsPages",
+                    "listPetPageNumbersPages",
+                    "listPetsAfterPages",
+                    "listPetNextUrlPages",
+                ),
                 pagesMethodsOf(PetApi::class.java),
             )
             assertTrue(PetApi::class.java.methods.any { it.name == "listPetMatches" }, "the ambiguous operation keeps its base method")

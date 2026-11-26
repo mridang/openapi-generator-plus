@@ -139,7 +139,7 @@ extension Paginator where C: Equatable {
     }
 }
 
-extension Paginator where C == Int32 {
+extension Paginator where C == Int {
     /// Creates a paginator that follows an offset: each next request sends the
     /// offset past the items the last page received, and the list ends on an
     /// empty page or when `hasMore` reads false. Used by the generated
@@ -152,14 +152,14 @@ extension Paginator where C == Int32 {
     ///   - items: Reads the items of a decoded page.
     ///   - hasMore: Reads the `has_more` flag of a decoded page, or nil when the list has none.
     static func ofOffset<B: Sendable>(
-        start: Int32?, requestPath: String,
-        fetch: @escaping @Sendable (Int32?) async throws -> ApiResult<B>,
+        start: Int?, requestPath: String,
+        fetch: @escaping @Sendable (Int?) async throws -> ApiResult<B>,
         items: @escaping @Sendable (B) -> [T]?,
         hasMore: (@Sendable (B) -> Bool?)? = nil
-    ) -> Paginator<T, Int32> {
+    ) -> Paginator<T, Int> {
         return ofCount(
             start: start, requestPath: requestPath, fetch: fetch, items: items, hasMore: hasMore,
-            following: { (sent: Int32?, count: Int) -> Int32 in (sent ?? 0) + Int32(count) })
+            following: { (sent: Int?, count: Int) -> Int in (sent ?? 0) + count })
     }
 
     /// Creates a paginator that follows a page number: the first request sends
@@ -175,27 +175,27 @@ extension Paginator where C == Int32 {
     ///   - items: Reads the items of a decoded page.
     ///   - hasMore: Reads the `has_more` flag of a decoded page, or nil when the list has none.
     static func ofPage<B: Sendable>(
-        start: Int32?, requestPath: String,
-        fetch: @escaping @Sendable (Int32?) async throws -> ApiResult<B>,
+        start: Int?, requestPath: String,
+        fetch: @escaping @Sendable (Int?) async throws -> ApiResult<B>,
         items: @escaping @Sendable (B) -> [T]?,
         hasMore: (@Sendable (B) -> Bool?)? = nil
-    ) -> Paginator<T, Int32> {
+    ) -> Paginator<T, Int> {
         return ofCount(
             start: start, requestPath: requestPath, fetch: fetch, items: items, hasMore: hasMore,
-            following: { (sent: Int32?, _: Int) -> Int32 in (sent ?? 1) + 1 })
+            following: { (sent: Int?, _: Int) -> Int in (sent ?? 1) + 1 })
     }
 
     /// Makes the paginator of an offset or a page number: `following` computes the
     /// value of the next request from the value just sent and the number of items
     /// the page received.
     static func ofCount<B: Sendable>(
-        start: Int32?, requestPath: String,
-        fetch: @escaping @Sendable (Int32?) async throws -> ApiResult<B>,
+        start: Int?, requestPath: String,
+        fetch: @escaping @Sendable (Int?) async throws -> ApiResult<B>,
         items: @escaping @Sendable (B) -> [T]?,
         hasMore: (@Sendable (B) -> Bool?)?,
-        following: @escaping @Sendable (Int32?, Int) -> Int32
-    ) -> Paginator<T, Int32> {
-        return Paginator<T, Int32> {
+        following: @escaping @Sendable (Int?, Int) -> Int
+    ) -> Paginator<T, Int> {
+        return Paginator<T, Int> {
             CountWalker<T, B>(
                 start: start, requestPath: requestPath, fetch: fetch, items: items,
                 hasMore: hasMore, following: following)
@@ -327,21 +327,21 @@ final class CursorWalker<T: Sendable, C: Sendable & Equatable, B: Sendable>: Pag
 /// Follows an offset or a page number: each next request sends the value that
 /// `following` computes, and the list ends on an empty page or when `hasMore`
 /// reads false.
-final class CountWalker<T: Sendable, B: Sendable>: PageWalker<T, Int32> {
+final class CountWalker<T: Sendable, B: Sendable>: PageWalker<T, Int> {
     private let requestPath: String
-    private let fetch: @Sendable (Int32?) async throws -> ApiResult<B>
+    private let fetch: @Sendable (Int?) async throws -> ApiResult<B>
     private let items: @Sendable (B) -> [T]?
     private let hasMore: (@Sendable (B) -> Bool?)?
-    private let following: @Sendable (Int32?, Int) -> Int32
-    private var sent: Int32?
+    private let following: @Sendable (Int?, Int) -> Int
+    private var sent: Int?
     private var finished = false
 
     init(
-        start: Int32?, requestPath: String,
-        fetch: @escaping @Sendable (Int32?) async throws -> ApiResult<B>,
+        start: Int?, requestPath: String,
+        fetch: @escaping @Sendable (Int?) async throws -> ApiResult<B>,
         items: @escaping @Sendable (B) -> [T]?,
         hasMore: (@Sendable (B) -> Bool?)?,
-        following: @escaping @Sendable (Int32?, Int) -> Int32
+        following: @escaping @Sendable (Int?, Int) -> Int
     ) {
         self.sent = start
         self.requestPath = requestPath
@@ -351,7 +351,7 @@ final class CountWalker<T: Sendable, B: Sendable>: PageWalker<T, Int32> {
         self.following = following
     }
 
-    override func nextPage() async throws -> Page<T, Int32>? {
+    override func nextPage() async throws -> Page<T, Int>? {
         if finished { return nil }
         let result: ApiResult<B>
         do {

@@ -402,7 +402,7 @@ where
             base_url,
             fetch,
             items,
-            move |result: &ApiResult<B>| result.data().and_then(|body| next(body)),
+            move |result: &ApiResult<B>| result.data().and_then(&next),
             request_path,
         )
     }
