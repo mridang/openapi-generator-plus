@@ -108,7 +108,11 @@ final class Paginator implements \IteratorAggregate
         return new self($source);
     }
 
-    /** The URL of the rel="next" link of the Link header of a response, or null when it has none. */
+    /**
+     * The URL of the rel="next" link of the Link header of a response, or null when it has none.
+     *
+     * @param ApiResult<mixed> $result
+     */
     private static function linkHeaderNext(ApiResult $result): ?string
     {
         foreach ($result->headers as $name => $value) {
@@ -266,11 +270,16 @@ final class Paginator implements \IteratorAggregate
      * The pages of a cursor list: each request sends the cursor that the page before it named, and the
      * cursor after a page is what $next returns for the request that was sent and the page it returned.
      *
-     * @param \Closure(mixed): ApiResult<mixed>            $fetch
-     * @param \Closure(mixed): iterable<mixed>             $items
-     * @param \Closure(mixed, mixed, list<mixed>): mixed   $next
+     * @template TCursor of int|string|null
+     * @template TItem
+     * @template TBody
      *
-     * @return \Generator<int, Page<mixed, mixed>>
+     * @param TCursor                                      $start
+     * @param \Closure(TCursor): ApiResult<mixed>            $fetch
+     * @param \Closure(TBody): iterable<TItem>               $items
+     * @param \Closure(TCursor, TBody, list<TItem>): mixed   $next
+     *
+     * @return \Generator<int, Page<TItem, TCursor>>
      */
     private static function cursorPages(mixed $start, \Closure $fetch, \Closure $items, \Closure $next, string $requestPath): \Generator
     {
@@ -358,7 +367,12 @@ final class Paginator implements \IteratorAggregate
         return $target;
     }
 
-    /** Whether a page with these items continues: it has items and its has_more flag is not false. */
+    /**
+     * Whether a page with these items continues: it has items and its has_more flag is not false.
+     *
+     * @param list<mixed> $items
+     * @param \Closure(mixed): (bool|null)|null $hasMore
+     */
     private static function advances(array $items, ?\Closure $hasMore, mixed $body): bool
     {
         return $items !== [] && (!$hasMore instanceof \Closure || $hasMore($body) !== false);
