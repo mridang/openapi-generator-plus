@@ -559,6 +559,61 @@ List<String?> _paramsSeen(_PagedServer server, String name) => [
   for (final request in List.of(server.seen)) request.param(name),
 ];
 
+/// The pets from index [from] up to [to] of five, as JSON items.
+String _petsFrom(int from, int to) =>
+    [for (var i = from; i < to; i++) _petJson('p$i')].join(',');
+
+/// Caps an index at the five pets of the offset and page lists.
+int _upToFive(int index) => index > 5 ? 5 : index;
+
+/// Five pets in total, served two at a time from the offset the request names.
+Future<_PagedServer> _offsetServer() => _PagedServer.start((request, number) {
+  final offset = request.param('offset');
+  final from = offset == null ? 0 : int.parse(offset);
+  return _Reply.ok(
+    '{"items":[${_petsFrom(_upToFive(from), _upToFive(from + 2))}]}',
+  );
+});
+
+/// Five pets in total, two to a numbered page from page 1, with has_more set.
+Future<_PagedServer> _pageNumberServer() => _PagedServer.start((
+  request,
+  number,
+) {
+  final page = request.param('page');
+  final index = page == null ? 1 : int.parse(page);
+  final from = (index - 1) * 2;
+  return _Reply.ok(
+    '{"items":[${_petsFrom(_upToFive(from), _upToFive(from + 2))}],"has_more":true}',
+  );
+});
+
+/// Five pets in total, two to a page, each page with the id of its last pet
+/// and a has_more flag.
+Future<_PagedServer> _afterServer() => _PagedServer.start((request, number) {
+  final after = request.param('starting_after');
+  final from = after == null ? 0 : int.parse(after.substring(1)) + 1;
+  final to = _upToFive(from + 2);
+  return _Reply.ok(
+    '{"data":[${_petsFrom(from, to)}],"has_more":${to < 5},'
+    '"last_id":"p${to - 1}"}',
+  );
+});
+
+/// Three pets, one to a page, each page with the URL of the next one in the body.
+Future<_PagedServer> _nextUrlServer(int pages) async {
+  late final _PagedServer self;
+  self = await _PagedServer.start((request, number) {
+    final p = request.param('p');
+    final index = p == null ? 0 : int.parse(p);
+    final next = index + 1 < pages
+        ? ',"next_url":"${self.url}/pet/next?p=${index + 1}"'
+        : '';
+    return _Reply.ok('{"items":[${_petJson('f$index')}]$next}');
+  });
+  return self;
+}
+
 /// An authenticator whose credential lookup suspends before it answers.
 class _SlowAuth extends _BaseApiAuth {
   @override
@@ -8111,6 +8166,10 @@ void main() {
             'listPetEventsPages',
             'listPetFeedPages',
             'listPetNotesPages',
+            'listPetNextUrlPages',
+            'listPetOffsetsPages',
+            'listPetPageNumbersPages',
+            'listPetsAfterPages',
           }),
         );
         expect(
@@ -8313,6 +8372,119 @@ void main() {
         final source = File('lib/src/api/store_api.dart').readAsStringSync();
         expect(source, isNot(contains('Pages(')));
         expect(source, contains('exportOrdersStream('));
+      },
+    );
+    test(
+      'bhv pagination 004 an offset-and-limit operation advances the offset by the items received and ends on an empty page',
+      () async {
+        final server = await _offsetServer();
+        try {
+          expect(
+            await _namesOf(_petApi(server).listPetOffsetsPages(null).items()),
+            equals(['p0', 'p1', 'p2', 'p3', 'p4']),
+          );
+          expect(_paramsSeen(server, 'offset'), equals([null, '2', '4', '5']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 005 a page-number operation starts at the supplied page and increments it',
+      () async {
+        final server = await _pageNumberServer();
+        try {
+          expect(
+            await _namesOf(
+              _petApi(server).listPetPageNumbersPages(null).items(),
+            ),
+            equals(['p0', 'p1', 'p2', 'p3', 'p4']),
+          );
+          expect(_paramsSeen(server, 'page'), equals([null, '2', '3', '4']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 006 an id-cursor operation ends when has_more is false',
+      () async {
+        final server = await _afterServer();
+        try {
+          expect(
+            await _namesOf(_petApi(server).listPetsAfterPages(null).items()),
+            equals(['p0', 'p1', 'p2', 'p3', 'p4']),
+          );
+          expect(
+            _paramsSeen(server, 'starting_after'),
+            equals([null, 'p1', 'p3']),
+          );
+          expect(
+            server.seen,
+            hasLength(3),
+            reason: 'the page with has_more false was the last request',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv pagination 029 a next URL in the body is followed and a next URL on another origin is refused',
+      () async {
+        final server = await _nextUrlServer(3);
+        try {
+          expect(
+            await _namesOf(_petApi(server).listPetNextUrlPages(null).items()),
+            equals(['f0', 'f1', 'f2']),
+          );
+          expect(_paramsSeen(server, 'p'), equals([null, '1', '2']));
+        } finally {
+          await server.close();
+        }
+        final elsewhere = await _PagedServer.start(
+          (request, number) => _Reply.ok('{"items":[${_petJson('stolen')}]}'),
+        );
+        final origin = await _PagedServer.start(
+          (request, number) => _Reply.ok(
+            '{"items":[${_petJson('f0')}],"next_url":"${elsewhere.url}/pet/next?p=1"}',
+          ),
+        );
+        try {
+          final items = StreamIterator(
+            _petApi(
+              origin,
+              headers: {'Authorization': 'Bearer secret'},
+            ).listPetNextUrlPages(null).items(),
+          );
+          expect(await items.moveNext(), isTrue);
+          expect(
+            items.current.name,
+            equals('f0'),
+            reason: 'the page before the foreign URL is delivered',
+          );
+          await expectLater(
+            items.moveNext(),
+            throwsA(
+              isA<PaginationException>().having(
+                (e) => e.message,
+                'message',
+                isNot(contains('p=1')),
+              ),
+            ),
+          );
+          expect(
+            elsewhere.seen,
+            isEmpty,
+            reason: 'nothing was sent to the other origin',
+          );
+        } finally {
+          await origin.close();
+          await elsewhere.close();
+        }
       },
     );
   });

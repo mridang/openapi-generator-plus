@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -46,7 +45,11 @@ use PetstoreClient\Api\Options\ListPetCatalogOptions;
 use PetstoreClient\Api\Options\ListPetEventsOptions;
 use PetstoreClient\Api\Options\ListPetFeedOptions;
 use PetstoreClient\Api\Options\ListPetMatchesOptions;
+use PetstoreClient\Api\Options\ListPetNextUrlOptions;
 use PetstoreClient\Api\Options\ListPetNotesOptions;
+use PetstoreClient\Api\Options\ListPetOffsetsOptions;
+use PetstoreClient\Api\Options\ListPetPageNumbersOptions;
+use PetstoreClient\Api\Options\ListPetsAfterOptions;
 use PetstoreClient\Api\Options\SetPetAvatarOptions;
 use PetstoreClient\Api\Options\SetPetAvatarThumbnailOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
@@ -67,6 +70,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Add a new pet to the store
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
      * @param AddPetOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
@@ -123,7 +127,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -131,9 +135,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['apiKeyHeader'], ['petStoreBearer']],
             operationId: 'addPet',
             urlTemplate: '/pet',
+            securityRequirements: [['apiKeyHeader'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -227,9 +231,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'addPetPhotos',
             urlTemplate: '/pet/{petId}/photos',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -237,6 +241,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Record a treatment for a pet
      * @param AddPetTreatmentOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\PetTreatment
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -309,7 +314,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetTreatment::class,
+            '\PetstoreClient\Models\PetTreatment',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -317,9 +322,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petstore_auth']],
             operationId: 'addPetTreatment',
             urlTemplate: '/pet/{petId}/treatment',
+            securityRequirements: [['petstore_auth']],
         );
         return $result;
     }
@@ -328,6 +333,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Attach files in a multipart/mixed request
      * Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
      * @param AttachPetFilesOptions $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -404,7 +410,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'multipart/mixed',
-            \PetstoreClient\Models\ApiResponse::class,
+            '\PetstoreClient\Models\ApiResponse',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -412,9 +418,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'attachPetFiles',
             urlTemplate: '/pet/{petId}/attachments',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -472,7 +478,7 @@ class PetApi extends BaseApi implements PetApiInterface
         $allowReservedKeys = [];
         $headerParams = [];
         $cookieParts = [];
-        if ($options instanceof \PetstoreClient\Api\Options\DeletePetOptions && $options->apiKey !== null) {
+        if ($options !== null && $options->apiKey !== null) {
             /** @var string $cookieValue */
             $cookieValue = ValueSerializer::serializeStyled('api_key', $options->apiKey, 'cookie', 'string', null, 'form', true);
             /* RFC 6265 cookie-value: reject CR/LF/control chars and other
@@ -507,9 +513,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['adminBasic'], ['machineAuth']],
             operationId: 'deletePet',
             urlTemplate: '/pet/{petId}',
+            securityRequirements: [['adminBasic'], ['machineAuth']],
         );
         return $result;
     }
@@ -518,6 +524,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Download a vet document
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
      * @param DownloadPetDocumentOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ByteStream
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -618,9 +625,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'downloadPetDocument',
             urlTemplate: '/pet/{petId}/documents/{documentId}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -711,9 +718,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'findPetsBornOn',
             urlTemplate: '/pet/born-on/{bornOn}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -772,13 +779,13 @@ class PetApi extends BaseApi implements PetApiInterface
          * tolerates an empty value IF the key is sent, not that the key must
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious 'status=' appears on the wire. */
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->status !== null) {
+        if ($options !== null && $options->status !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'status', ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->filter !== null) {
+        if ($options !== null && $options->filter !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $options->filter));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->bornAfter instanceof \DateTime) {
+        if ($options !== null && $options->bornAfter !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'bornAfter', ValueSerializer::serializeStyled(
                 'bornAfter',
                 $options->bornAfter,
@@ -789,7 +796,7 @@ class PetApi extends BaseApi implements PetApiInterface
                 true,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->n2ndPage !== null) {
+        if ($options !== null && $options->n2ndPage !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, '2ndPage', ValueSerializer::serializeStyled(
                 '2ndPage',
                 $options->n2ndPage,
@@ -801,7 +808,7 @@ class PetApi extends BaseApi implements PetApiInterface
             ));
         }
         $headerParams = [];
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->reportDate instanceof \DateTime) {
+        if ($options !== null && $options->reportDate !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'Report-Date',
@@ -833,9 +840,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'findPetsByStatus',
             urlTemplate: '/pet/findByStatus',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -843,6 +850,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Get external pet info
      * @param GetExternalPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -921,7 +929,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -929,9 +937,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getExternalPetInfo',
             urlTemplate: '/pet/{petId}/external',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -939,6 +947,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Get multi-server pet info
      * @param GetMultiServerPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -1017,7 +1026,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -1025,9 +1034,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getMultiServerPetInfo',
             urlTemplate: '/pet/{petId}/multi',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1036,6 +1045,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Get the pet's profile photo
      * Returns the raw image bytes of the pet's current avatar.
      * @param GetPetAvatarOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ByteStream
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -1117,9 +1127,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getPetAvatar',
             urlTemplate: '/pet/{petId}/avatar',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1128,6 +1138,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Get the pet's avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
      * @param GetPetAvatarThumbnailOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -1210,9 +1221,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getPetAvatarThumbnail',
             urlTemplate: '/pet/{petId}/avatar/thumbnail',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1224,6 +1235,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * @example 1 Small breed ID
      * @example 42 Large breed ID
      * @param GetPetByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
@@ -1309,7 +1321,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -1317,9 +1329,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getPetById',
             urlTemplate: '/pet/{petId}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1327,6 +1339,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Look up a pet by name (simple string path param + required query)
      * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -1423,7 +1436,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -1431,9 +1444,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getPetByName',
             urlTemplate: '/pet/byName/{name}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1441,6 +1454,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Look up a pet by note (required query parameters whose value may be null)
      * @param GetPetByNoteOptions $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -1511,7 +1525,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -1519,9 +1533,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getPetByNote',
             urlTemplate: '/pet/byNote',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1530,6 +1544,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Get the pet's passport
      * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
      * @param GetPetPassportOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\PetPassport
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -1604,7 +1619,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetPassport::class,
+            '\PetstoreClient\Models\PetPassport',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -1612,9 +1627,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getPetPassport',
             urlTemplate: '/pet/{petId}/passport',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1623,6 +1638,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Get a photo or its metadata
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
      * @param GetPetPhotoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ByteStream
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -1723,9 +1739,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getPetPhoto',
             urlTemplate: '/pet/{petId}/photos/{photoId}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1735,6 +1751,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done
      * @param \DateTime $asOf Summary date, sent as a matrix-style path segment
      * @param GetPetSummaryOptions $options Options for query, header, form, and cookie parameters
+     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -1825,7 +1842,7 @@ class PetApi extends BaseApi implements PetApiInterface
                 'days',
                 $options->days,
                 'query',
-                \Ds\Vector::class . '|date',
+                '\Ds\Vector' . '|date',
                 'multi',
                 'form',
                 true,
@@ -1866,9 +1883,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getPetSummary',
             urlTemplate: '/pet/{petId}/summary/{asOf}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1876,6 +1893,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Get a tag for a pet
      * @param GetPetTagOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -1959,23 +1977,23 @@ class PetApi extends BaseApi implements PetApiInterface
          * unchanged. */
         $allowReservedKeys = [];
         $allowReservedKeys['revision'] = true;
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->colors !== null) {
+        if ($options !== null && $options->colors !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'colors', ValueSerializer::serializeStyled(
                 'colors',
                 $options->colors,
                 'query',
-                \Ds\Vector::class,
+                '\Ds\Vector',
                 'pipes',
                 'pipeDelimited',
                 false,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->sizes !== null) {
+        if ($options !== null && $options->sizes !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'sizes', ValueSerializer::serializeStyled(
                 'sizes',
                 $options->sizes,
                 'query',
-                \Ds\Vector::class,
+                '\Ds\Vector',
                 'ssv',
                 'spaceDelimited',
                 false,
@@ -1985,10 +2003,10 @@ class PetApi extends BaseApi implements PetApiInterface
          * tolerates an empty value IF the key is sent, not that the key must
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious 'filter=' appears on the wire. */
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->filter !== null) {
+        if ($options !== null && $options->filter !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'filter', ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->revision !== null) {
+        if ($options !== null && $options->revision !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'revision', ValueSerializer::serializeStyled(
                 'revision',
                 $options->revision,
@@ -1999,7 +2017,7 @@ class PetApi extends BaseApi implements PetApiInterface
                 true,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->criteria instanceof \PetstoreClient\Models\PetCriteria) {
+        if ($options !== null && $options->criteria !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'criteria', ValueSerializer::serializeStyled(
                 'criteria',
                 $options->criteria,
@@ -2010,7 +2028,7 @@ class PetApi extends BaseApi implements PetApiInterface
                 true,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->criteriaCsv instanceof \PetstoreClient\Models\PetCriteria) {
+        if ($options !== null && $options->criteriaCsv !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'criteriaCsv', ValueSerializer::serializeStyled(
                 'criteriaCsv',
                 $options->criteriaCsv,
@@ -2021,10 +2039,10 @@ class PetApi extends BaseApi implements PetApiInterface
                 false,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->criteriaDeep instanceof \PetstoreClient\Models\PetCriteria) {
+        if ($options !== null && $options->criteriaDeep !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('criteriaDeep', $options->criteriaDeep));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->fingerprint !== null) {
+        if ($options !== null && $options->fingerprint !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'fingerprint', ValueSerializer::serializeStyled(
                 'fingerprint',
                 \PetstoreClient\ObjectSerializer::encodeBase64Param($options->fingerprint),
@@ -2036,7 +2054,7 @@ class PetApi extends BaseApi implements PetApiInterface
             ));
         }
         $headerParams = [];
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->xCriteria instanceof \PetstoreClient\Models\PetCriteria) {
+        if ($options !== null && $options->xCriteria !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'X-Criteria',
@@ -2049,7 +2067,7 @@ class PetApi extends BaseApi implements PetApiInterface
             );
             $headerParams['X-Criteria'] = $headerValue;
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->xFingerprint !== null) {
+        if ($options !== null && $options->xFingerprint !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'X-Fingerprint',
@@ -2073,7 +2091,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -2081,9 +2099,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getPetTag',
             urlTemplate: '/pet/{petId}/tag/{tagName}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -2091,6 +2109,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Get staging pet info
      * @param GetStagingPetInfoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -2169,7 +2188,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -2177,9 +2196,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getStagingPetInfo',
             urlTemplate: '/pet/{petId}/staging',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -2187,6 +2206,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Lists archived pets; it looks paged, and the generator option says it is not
      * @param ListPetArchiveOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\PetArchivePage
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -2228,7 +2248,7 @@ class PetApi extends BaseApi implements PetApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\ListPetArchiveOptions && $options->cursor !== null) {
+        if ($options !== null && $options->cursor !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'cursor', ValueSerializer::serializeStyled(
                 'cursor',
                 $options->cursor,
@@ -2251,7 +2271,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetArchivePage::class,
+            '\PetstoreClient\Models\PetArchivePage',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -2259,9 +2279,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBearer']],
             operationId: 'listPetArchive',
             urlTemplate: '/pet/archive',
+            securityRequirements: [['petStoreBearer']],
         );
         return $result;
     }
@@ -2269,6 +2289,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Lists the pet catalog one page at a time with a next-cursor token
      * @param ListPetCatalogOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\PetCatalogPage
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -2310,7 +2331,7 @@ class PetApi extends BaseApi implements PetApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\ListPetCatalogOptions && $options->limit !== null) {
+        if ($options !== null && $options->limit !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
                 'limit',
                 $options->limit,
@@ -2321,7 +2342,7 @@ class PetApi extends BaseApi implements PetApiInterface
                 true,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\ListPetCatalogOptions && $options->cursor !== null) {
+        if ($options !== null && $options->cursor !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'cursor', ValueSerializer::serializeStyled(
                 'cursor',
                 $options->cursor,
@@ -2344,7 +2365,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetCatalogPage::class,
+            '\PetstoreClient\Models\PetCatalogPage',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -2352,9 +2373,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBearer']],
             operationId: 'listPetCatalog',
             urlTemplate: '/pet/catalog',
+            securityRequirements: [['petStoreBearer']],
         );
         return $result;
     }
@@ -2394,6 +2415,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Lists pet events; only the generator option says it is paged
      * @param ListPetEventsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\PetEventPage
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -2435,7 +2457,7 @@ class PetApi extends BaseApi implements PetApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\ListPetEventsOptions && $options->since !== null) {
+        if ($options !== null && $options->since !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'since', ValueSerializer::serializeStyled(
                 'since',
                 $options->since,
@@ -2458,7 +2480,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetEventPage::class,
+            '\PetstoreClient\Models\PetEventPage',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -2466,9 +2488,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBearer']],
             operationId: 'listPetEvents',
             urlTemplate: '/pet/events',
+            securityRequirements: [['petStoreBearer']],
         );
         return $result;
     }
@@ -2547,6 +2569,8 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * One page of the list: the first when $pageUrl is null, else the URL the Link header named.
      *
+     * @param ListPetFeedOptions|null $options
+     * @param string|null $pageUrl
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
      */
     private function listPetFeedPage(?ListPetFeedOptions $options, ?string $pageUrl): ApiResult
@@ -2560,7 +2584,7 @@ class PetApi extends BaseApi implements PetApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\ListPetFeedOptions && $options->limit !== null) {
+        if ($options !== null && $options->limit !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
                 'limit',
                 $options->limit,
@@ -2595,9 +2619,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBearer']],
             operationId: 'listPetFeed',
             urlTemplate: '/pet/feed',
+            securityRequirements: [['petStoreBearer']],
         );
         return $result;
     }
@@ -2635,6 +2659,7 @@ class PetApi extends BaseApi implements PetApiInterface
     /**
      * Finds pets and their owners; two lists make it ambiguous, so it is not paged
      * @param ListPetMatchesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\PetMatchPage
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -2676,7 +2701,7 @@ class PetApi extends BaseApi implements PetApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\ListPetMatchesOptions && $options->cursor !== null) {
+        if ($options !== null && $options->cursor !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'cursor', ValueSerializer::serializeStyled(
                 'cursor',
                 $options->cursor,
@@ -2699,7 +2724,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetMatchPage::class,
+            '\PetstoreClient\Models\PetMatchPage',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -2707,16 +2732,147 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBearer']],
             operationId: 'listPetMatches',
             urlTemplate: '/pet/matches',
+            securityRequirements: [['petStoreBearer']],
         );
         return $result;
     }
 
     /**
+     * Lists pets with the URL of the next page in the body
+     * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\PetNextUrlPage
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetNextUrl(?ListPetNextUrlOptions $options = null): \PetstoreClient\Models\PetNextUrlPage
+    {
+        $apiResult = $this->listPetNextUrlWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetNextUrl but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetNextUrlPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetNextUrlPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetNextUrlWithHttpInfo(?ListPetNextUrlOptions $options = null): ApiResult
+    {
+        return $this->listPetNextUrlPage($options, null);
+    }
+
+    /**
+     * One page of the list: the first when $pageUrl is null, else the URL the Link header named.
+     *
+     * @param ListPetNextUrlOptions|null $options
+     * @param string|null $pageUrl
+     * @return ApiResult<\PetstoreClient\Models\PetNextUrlPage>
+     */
+    private function listPetNextUrlPage(?ListPetNextUrlOptions $options, ?string $pageUrl): ApiResult
+    {
+        $path = '/pet/next';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options !== null && $options->limit !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
+                'limit',
+                $options->limit,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        if ($pageUrl !== null) {
+            $path = $pageUrl;
+            $queryParams = [];
+        }
+        /** @var ApiResult<\PetstoreClient\Models\PetNextUrlPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\PetNextUrlPage',
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            operationId: 'listPetNextUrl',
+            urlTemplate: '/pet/next',
+            securityRequirements: [['petStoreBearer']],
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pets with the URL of the next page in the body
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetNextUrlWithHttpInfo()}, with the same options on each page.
+     * The page after each one is the URL in its `next_url` property,
+     * followed only within the origin of the client.
+     *
+     * @param ListPetNextUrlOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, null>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetNextUrlPages(?ListPetNextUrlOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetNextUrlOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, null> $pages */
+        $pages = Paginator::ofNextUrl(
+            $this->config->baseUrl,
+            fn (?string $pageUrl): ApiResult => $this->listPetNextUrlPage($pageOptions, $pageUrl),
+            static fn (\PetstoreClient\Models\PetNextUrlPage $page): iterable => $page->items ?? [],
+            static fn (\PetstoreClient\Models\PetNextUrlPage $page): ?string => $page->nextUrl,
+            '/pet/next'
+        );
+
+        return $pages;
+    }
+
+    /**
      * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
      * @param ListPetNotesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\PetNotePage
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -2758,7 +2914,7 @@ class PetApi extends BaseApi implements PetApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\ListPetNotesOptions && $options->pos !== null) {
+        if ($options !== null && $options->pos !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'pos', ValueSerializer::serializeStyled(
                 'pos',
                 $options->pos,
@@ -2781,7 +2937,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetNotePage::class,
+            '\PetstoreClient\Models\PetNotePage',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -2789,9 +2945,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBearer']],
             operationId: 'listPetNotes',
             urlTemplate: '/pet/notes',
+            securityRequirements: [['petStoreBearer']],
         );
         return $result;
     }
@@ -2823,6 +2979,384 @@ class PetApi extends BaseApi implements PetApiInterface
             static fn (\PetstoreClient\Models\PetNotePage $page): iterable => $page->rows ?? [],
             static fn (\PetstoreClient\Models\PetNotePage $page): ?string => $page->following,
             '/pet/notes'
+        );
+
+        return $pages;
+    }
+
+    /**
+     * Lists pets by offset and limit; the list ends on an empty page
+     * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\PetOffsetPage
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetOffsets(?ListPetOffsetsOptions $options = null): \PetstoreClient\Models\PetOffsetPage
+    {
+        $apiResult = $this->listPetOffsetsWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetOffsets but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetOffsetPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetOffsetPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetOffsetsWithHttpInfo(?ListPetOffsetsOptions $options = null): ApiResult
+    {
+        $path = '/pet/offsets';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options !== null && $options->offset !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'offset', ValueSerializer::serializeStyled(
+                'offset',
+                $options->offset,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        if ($options !== null && $options->limit !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
+                'limit',
+                $options->limit,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetOffsetPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\PetOffsetPage',
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            operationId: 'listPetOffsets',
+            urlTemplate: '/pet/offsets',
+            securityRequirements: [['petStoreBearer']],
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pets by offset and limit; the list ends on an empty page
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetOffsetsWithHttpInfo()}, with the same options on each page.
+     * The value of the `offset` option is the offset of the first
+     * item, and each page after one is requested at the offset past the items it received. The list ends on
+     * an empty page or when its `hasMore` is false.
+     *
+     * @param ListPetOffsetsOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, int>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetOffsetsPages(?ListPetOffsetsOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetOffsetsOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, int> $pages */
+        $pages = Paginator::ofOffset(
+            $pageOptions->offset,
+            fn (?int $pageOffset): ApiResult => $this->listPetOffsetsWithHttpInfo($pageOptions->withPageCursor($pageOffset)),
+            static fn (\PetstoreClient\Models\PetOffsetPage $page): iterable => $page->items ?? [],
+            static fn (\PetstoreClient\Models\PetOffsetPage $page): ?bool => $page->hasMore,
+            '/pet/offsets'
+        );
+
+        return $pages;
+    }
+
+    /**
+     * Lists pets one numbered page at a time; the list ends on an empty page
+     * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\PetPageNumberPage
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetPageNumbers(?ListPetPageNumbersOptions $options = null): \PetstoreClient\Models\PetPageNumberPage
+    {
+        $apiResult = $this->listPetPageNumbersWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetPageNumbers but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetPageNumberPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetPageNumberPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetPageNumbersWithHttpInfo(?ListPetPageNumbersOptions $options = null): ApiResult
+    {
+        $path = '/pet/pages';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options !== null && $options->page !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'page', ValueSerializer::serializeStyled(
+                'page',
+                $options->page,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        if ($options !== null && $options->perPage !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'per_page', ValueSerializer::serializeStyled(
+                'per_page',
+                $options->perPage,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetPageNumberPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\PetPageNumberPage',
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            operationId: 'listPetPageNumbers',
+            urlTemplate: '/pet/pages',
+            securityRequirements: [['petStoreBearer']],
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pets one numbered page at a time; the list ends on an empty page
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetPageNumbersWithHttpInfo()}, with the same options on each page.
+     * The value of the `page` option is the page number of the
+     * first request, and each page after one is requested with the next page number. The list ends on an
+     * empty page or when its `hasMore` is false.
+     *
+     * @param ListPetPageNumbersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, int>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetPageNumbersPages(?ListPetPageNumbersOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetPageNumbersOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, int> $pages */
+        $pages = Paginator::ofPage(
+            $pageOptions->page,
+            fn (?int $pageNumber): ApiResult => $this->listPetPageNumbersWithHttpInfo($pageOptions->withPageCursor($pageNumber)),
+            static fn (\PetstoreClient\Models\PetPageNumberPage $page): iterable => $page->items ?? [],
+            static fn (\PetstoreClient\Models\PetPageNumberPage $page): ?bool => $page->hasMore,
+            '/pet/pages'
+        );
+
+        return $pages;
+    }
+
+    /**
+     * Lists pets after the id of the last one; the has_more flag says when the list ends
+     * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\PetAfterPage
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetsAfter(?ListPetsAfterOptions $options = null): \PetstoreClient\Models\PetAfterPage
+    {
+        $apiResult = $this->listPetsAfterWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for listPetsAfter but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\PetAfterPage $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\PetAfterPage>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function listPetsAfterWithHttpInfo(?ListPetsAfterOptions $options = null): ApiResult
+    {
+        $path = '/pet/after';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options !== null && $options->startingAfter !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'starting_after', ValueSerializer::serializeStyled(
+                'starting_after',
+                $options->startingAfter,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        if ($options !== null && $options->limit !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'limit', ValueSerializer::serializeStyled(
+                'limit',
+                $options->limit,
+                'query',
+                'int',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\PetAfterPage> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\PetAfterPage',
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            operationId: 'listPetsAfter',
+            urlTemplate: '/pet/after',
+            securityRequirements: [['petStoreBearer']],
+        );
+        return $result;
+    }
+
+    /**
+     * Lists pets after the id of the last one; the has_more flag says when the list ends
+     *
+     * Returns the items as a lazy {@see Paginator}: no request is sent until you first read an item or a
+     * page, and each next page is requested only when you ask for more. Every page is an ordinary call of
+     * {@see listPetsAfterWithHttpInfo()}, with the same options on each page.
+     * The value of the `starting_after` option is where the list starts,
+     * the page after each one is requested with the `last_id`
+     * it returned, and the list ends when its `hasMore` is false.
+     *
+     * @param ListPetsAfterOptions|null $options Options for query, header, form, and cookie parameters
+     * @return Paginator<\PetstoreClient\Models\Pet, string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when a response body cannot be decoded
+     * @throws \PetstoreClient\Errors\PaginationException when the list cannot be followed
+     */
+    public function listPetsAfterPages(?ListPetsAfterOptions $options = null): Paginator
+    {
+        $pageOptions = $options ?? new ListPetsAfterOptions();
+
+        /** @var Paginator<\PetstoreClient\Models\Pet, string> $pages */
+        $pages = Paginator::ofCursor(
+            $pageOptions->startingAfter,
+            fn (?string $pageCursor): ApiResult => $this->listPetsAfterWithHttpInfo($pageOptions->withPageCursor($pageCursor)),
+            static fn (\PetstoreClient\Models\PetAfterPage $page): iterable => $page->data ?? [],
+            static fn (\PetstoreClient\Models\PetAfterPage $page): ?string => $page->hasMore === false ? null : $page->lastId,
+            '/pet/after'
         );
 
         return $pages;
@@ -2911,9 +3445,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'setPetAvatar',
             urlTemplate: '/pet/{petId}/avatar',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -2988,9 +3522,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'setPetAvatarThumbnail',
             urlTemplate: '/pet/{petId}/avatar/thumbnail',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -2999,6 +3533,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Update a pet's notification preferences
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -3073,10 +3608,10 @@ class PetApi extends BaseApi implements PetApiInterface
         if ($options->note !== null) {
             $requestBody['note'] = $options->note;
         }
-        if ($options->renewalDate instanceof \DateTime) {
+        if ($options->renewalDate !== null) {
             $requestBody['renewalDate'] = ValueSerializer::formatDateOnly($options->renewalDate);
         }
-        if ($options->reminder instanceof \DateTime) {
+        if ($options->reminder !== null) {
             $requestBody['reminder'] = $options->reminder;
         }
         if ($options->intervalDays !== null) {
@@ -3088,7 +3623,7 @@ class PetApi extends BaseApi implements PetApiInterface
         if ($options->urgent !== null) {
             $requestBody['urgent'] = $options->urgent;
         }
-        if ($options->snooze instanceof \DateInterval) {
+        if ($options->snooze !== null) {
             $requestBody['snooze'] = $options->snooze;
         }
 
@@ -3101,7 +3636,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/x-www-form-urlencoded',
-            \PetstoreClient\Models\ApiResponse::class,
+            '\PetstoreClient\Models\ApiResponse',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -3109,9 +3644,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'setPetPreferences',
             urlTemplate: '/pet/{petId}/preferences',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -3121,6 +3656,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * @param int $petId ID of pet to update
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
      * @param UpdatePetOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
@@ -3199,7 +3735,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -3207,9 +3743,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'updatePet',
             urlTemplate: '/pet/{petId}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -3218,6 +3754,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Upload the pet's adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -3293,7 +3830,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            \PetstoreClient\Models\ApiResponse::class,
+            '\PetstoreClient\Models\ApiResponse',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -3301,9 +3838,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'uploadPetCertificate',
             urlTemplate: '/pet/{petId}/certificate',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -3313,6 +3850,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
      * @param string|null $requestContentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
+     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -3391,10 +3929,10 @@ class PetApi extends BaseApi implements PetApiInterface
         if ($options->pageCount !== null) {
             $requestBody['pageCount'] = $options->pageCount;
         }
-        if ($options->takenAt instanceof \DateTime) {
+        if ($options->takenAt !== null) {
             $requestBody['takenAt'] = $options->takenAt;
         }
-        if ($options->swatch instanceof \PetstoreClient\Models\Swatch) {
+        if ($options->swatch !== null) {
             $requestBody['swatch'] = $options->swatch;
         }
 
@@ -3417,7 +3955,7 @@ class PetApi extends BaseApi implements PetApiInterface
             $requestBody,
             ['application/json'],
             $requestContentType ?? 'multipart/form-data',
-            \PetstoreClient\Models\ApiResponse::class,
+            '\PetstoreClient\Models\ApiResponse',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -3425,9 +3963,9 @@ class PetApi extends BaseApi implements PetApiInterface
             timeout: $options->timeout,
             headers: $options->headers,
             maxRetries: $options->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'uploadPetDocument',
             urlTemplate: '/pet/{petId}/documents',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -44,22 +43,22 @@ class ApiKeyAuthenticator extends BaseAuthenticator
         ApiKeyLocation $location,
         ?\Closure $apiKeyProvider = null
     ) {
-        if ($apiKey !== null && $apiKeyProvider instanceof \Closure) {
+        if ($apiKey !== null && $apiKeyProvider !== null) {
             throw new \InvalidArgumentException('Pass either an API key or an API key provider, not both');
         }
-        if ($apiKey === null && !$apiKeyProvider instanceof \Closure) {
+        if ($apiKey === null && $apiKeyProvider === null) {
             /* Order: explicit key or provider, then the environment variable. A provider that
              * is passed wins over a set variable; an empty or unset variable is the fallback. */
             $apiKey = static::environmentCredential('apiKey');
         }
-        if ($apiKey === null && !$apiKeyProvider instanceof \Closure) {
+        if ($apiKey === null && $apiKeyProvider === null) {
             throw new \InvalidArgumentException(
                 "API key for '$keyParamName' is required: pass a key or a key provider"
                 . static::environmentHint('apiKey')
             );
         }
         if ($apiKey !== null) {
-            $this->assertValidKey($keyParamName, $location, $apiKey);
+            self::assertValidKey($keyParamName, $location, $apiKey);
         }
         $this->host = $host;
         $this->keyParamName = $keyParamName;
@@ -75,7 +74,7 @@ class ApiKeyAuthenticator extends BaseAuthenticator
      * is a valid key. RFC 7230 §3.2.6 printable-ASCII rule still applies
      * to HEADER values.
      */
-    private function assertValidKey(
+    private static function assertValidKey(
         string $keyParamName,
         ApiKeyLocation $location,
         #[\SensitiveParameter] string $apiKey
@@ -107,9 +106,9 @@ class ApiKeyAuthenticator extends BaseAuthenticator
             return $this->apiKey;
         }
         $provider = $this->apiKeyProvider;
-        assert($provider instanceof \Closure);
+        assert($provider !== null);
         $key = (string) $provider();
-        $this->assertValidKey($this->keyParamName, $this->location, $key);
+        self::assertValidKey($this->keyParamName, $this->location, $key);
 
         return $key;
     }

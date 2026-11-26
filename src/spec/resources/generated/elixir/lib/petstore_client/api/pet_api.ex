@@ -849,6 +849,34 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
 
+  @callback list_pet_next_url(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetNextUrlOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.PetNextUrlPage.t()} | {:error, Exception.t()}
+
+  @callback list_pet_next_url!(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetNextUrlOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.PetNextUrlPage.t()
+
+  @callback list_pet_next_url_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetNextUrlOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback list_pet_next_url_pages(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetNextUrlOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Paginator.t()
+
   @callback list_pet_notes(
               PetstoreClient.Api.PetApi.t(),
               PetstoreClient.Api.Options.ListPetNotesOptions.t() | nil,
@@ -873,6 +901,90 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
   @callback list_pet_notes_pages(
               PetstoreClient.Api.PetApi.t(),
               PetstoreClient.Api.Options.ListPetNotesOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Paginator.t()
+
+  @callback list_pet_offsets(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetOffsetsOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.PetOffsetPage.t()} | {:error, Exception.t()}
+
+  @callback list_pet_offsets!(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetOffsetsOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.PetOffsetPage.t()
+
+  @callback list_pet_offsets_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetOffsetsOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback list_pet_offsets_pages(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetOffsetsOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Paginator.t()
+
+  @callback list_pet_page_numbers(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetPageNumbersOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.PetPageNumberPage.t()} | {:error, Exception.t()}
+
+  @callback list_pet_page_numbers!(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetPageNumbersOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.PetPageNumberPage.t()
+
+  @callback list_pet_page_numbers_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetPageNumbersOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback list_pet_page_numbers_pages(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetPageNumbersOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Paginator.t()
+
+  @callback list_pets_after(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetsAfterOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.PetAfterPage.t()} | {:error, Exception.t()}
+
+  @callback list_pets_after!(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetsAfterOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.PetAfterPage.t()
+
+  @callback list_pets_after_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetsAfterOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback list_pets_after_pages(
+              PetstoreClient.Api.PetApi.t(),
+              PetstoreClient.Api.Options.ListPetsAfterOptions.t() | nil,
               keyword()
             ) ::
               PetstoreClient.Paginator.t()
@@ -5264,7 +5376,7 @@ defmodule PetstoreClient.Api.PetApi do
     list_pet_feed_page(api, options, opts, nil)
   end
 
-  # One page of the list: the first when `page_url` is nil, else the URL the Link header named.
+  # One page of the list: the first when `page_url` is nil, else the URL the Link header or the body named.
   defp list_pet_feed_page(%__MODULE__{} = api, options, opts, page_url) do
     # `opts` carries only the keys this operation reads: the per-call settings
     # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
@@ -5493,6 +5605,178 @@ defmodule PetstoreClient.Api.PetApi do
   end
 
   @doc """
+  Lists pets with the URL of the next page in the body
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, PetNextUrlPage}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec list_pet_next_url(
+          t(),
+          PetstoreClient.Api.Options.ListPetNextUrlOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.PetNextUrlPage.t()} | {:error, Exception.t()}
+  @impl true
+  def list_pet_next_url(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_pet_next_url_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for list_pet_next_url but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `list_pet_next_url`. Raises on error.
+  """
+  @spec list_pet_next_url!(
+          t(),
+          PetstoreClient.Api.Options.ListPetNextUrlOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Models.PetNextUrlPage.t()
+  @impl true
+  def list_pet_next_url!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_pet_next_url(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `list_pet_next_url` but returns the full `ApiResult`.
+  """
+  @spec list_pet_next_url_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.ListPetNextUrlOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def list_pet_next_url_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    list_pet_next_url_page(api, options, opts, nil)
+  end
+
+  # One page of the list: the first when `page_url` is nil, else the URL the Link header or the body named.
+  defp list_pet_next_url_page(%__MODULE__{} = api, options, opts, page_url) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBearer"])
+    path = "/pet/next"
+    query_params = []
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.limit) and options.limit != [] do
+        query_params ++
+          [
+            {"limit",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "limit",
+                 options.limit,
+                 :query,
+                 "integer()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    header_params = %{}
+    request_body = nil
+    {path, query_params} = if page_url, do: {page_url, []}, else: {path, query_params}
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "PetNextUrlPage",
+      auth,
+      Keyword.put(call, :operation, {"listPetNextUrl", "/pet/next"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Lists pets with the URL of the next page in the body
+
+  Returns the items as a lazy `PetstoreClient.Paginator`: no request is sent until you first read an
+  item or a page, and each next page is requested only when you ask for more. Every page is an
+  ordinary call of `list_pet_next_url_with_http_info`, with the same options on each page.
+  The page after each one is the URL in its `next_url` property, followed only
+  within the origin of the client.
+
+  Enumerate it for the items, or call `PetstoreClient.Paginator.pages/1` for the pages with their cursor
+  and result. A failed page raises its error from the read that needed it.
+  """
+  @spec list_pet_next_url_pages(
+          t(),
+          PetstoreClient.Api.Options.ListPetNextUrlOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Paginator.t()
+  @impl true
+  def list_pet_next_url_pages(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    page_options = options || %PetstoreClient.Api.Options.ListPetNextUrlOptions{}
+
+    PetstoreClient.Paginator.of_next_url(
+      api.config.base_url,
+      fn page_url -> list_pet_next_url_page(api, page_options, opts, page_url) end,
+      fn page -> page.items end,
+      fn page -> page.next_url end,
+      "/pet/next"
+    )
+  end
+
+  @doc """
   Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
 
   ## Parameters
@@ -5649,6 +5933,577 @@ defmodule PetstoreClient.Api.PetApi do
       fn page -> page.rows end,
       fn page -> page.following end,
       "/pet/notes"
+    )
+  end
+
+  @doc """
+  Lists pets by offset and limit; the list ends on an empty page
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, PetOffsetPage}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec list_pet_offsets(
+          t(),
+          PetstoreClient.Api.Options.ListPetOffsetsOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.PetOffsetPage.t()} | {:error, Exception.t()}
+  @impl true
+  def list_pet_offsets(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_pet_offsets_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for list_pet_offsets but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `list_pet_offsets`. Raises on error.
+  """
+  @spec list_pet_offsets!(
+          t(),
+          PetstoreClient.Api.Options.ListPetOffsetsOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Models.PetOffsetPage.t()
+  @impl true
+  def list_pet_offsets!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_pet_offsets(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `list_pet_offsets` but returns the full `ApiResult`.
+  """
+  @spec list_pet_offsets_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.ListPetOffsetsOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def list_pet_offsets_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBearer"])
+    path = "/pet/offsets"
+    query_params = []
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.offset) and options.offset != [] do
+        query_params ++
+          [
+            {"offset",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "offset",
+                 options.offset,
+                 :query,
+                 "integer()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.limit) and options.limit != [] do
+        query_params ++
+          [
+            {"limit",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "limit",
+                 options.limit,
+                 :query,
+                 "integer()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "PetOffsetPage",
+      auth,
+      Keyword.put(call, :operation, {"listPetOffsets", "/pet/offsets"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Lists pets by offset and limit; the list ends on an empty page
+
+  Returns the items as a lazy `PetstoreClient.Paginator`: no request is sent until you first read an
+  item or a page, and each next page is requested only when you ask for more. Every page is an
+  ordinary call of `list_pet_offsets_with_http_info`, with the same options on each page.
+  The value of the `offset` option is the offset of the first item, and each
+  page after one is requested at the offset past the items it received. The list ends on an empty page
+  or when its `has_more` is false.
+
+  Enumerate it for the items, or call `PetstoreClient.Paginator.pages/1` for the pages with their cursor
+  and result. A failed page raises its error from the read that needed it.
+  """
+  @spec list_pet_offsets_pages(
+          t(),
+          PetstoreClient.Api.Options.ListPetOffsetsOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Paginator.t()
+  @impl true
+  def list_pet_offsets_pages(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    page_options = options || %PetstoreClient.Api.Options.ListPetOffsetsOptions{}
+
+    PetstoreClient.Paginator.of_offset(
+      page_options.offset,
+      fn cursor ->
+        list_pet_offsets_with_http_info(api, %{page_options | offset: cursor}, opts)
+      end,
+      fn page -> page.items end,
+      fn page -> page.has_more end,
+      "/pet/offsets"
+    )
+  end
+
+  @doc """
+  Lists pets one numbered page at a time; the list ends on an empty page
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, PetPageNumberPage}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec list_pet_page_numbers(
+          t(),
+          PetstoreClient.Api.Options.ListPetPageNumbersOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.PetPageNumberPage.t()} | {:error, Exception.t()}
+  @impl true
+  def list_pet_page_numbers(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_pet_page_numbers_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for list_pet_page_numbers but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `list_pet_page_numbers`. Raises on error.
+  """
+  @spec list_pet_page_numbers!(
+          t(),
+          PetstoreClient.Api.Options.ListPetPageNumbersOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Models.PetPageNumberPage.t()
+  @impl true
+  def list_pet_page_numbers!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_pet_page_numbers(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `list_pet_page_numbers` but returns the full `ApiResult`.
+  """
+  @spec list_pet_page_numbers_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.ListPetPageNumbersOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def list_pet_page_numbers_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBearer"])
+    path = "/pet/pages"
+    query_params = []
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.page) and options.page != [] do
+        query_params ++
+          [
+            {"page",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "page",
+                 options.page,
+                 :query,
+                 "integer()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.per_page) and options.per_page != [] do
+        query_params ++
+          [
+            {"per_page",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "per_page",
+                 options.per_page,
+                 :query,
+                 "integer()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "PetPageNumberPage",
+      auth,
+      Keyword.put(call, :operation, {"listPetPageNumbers", "/pet/pages"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Lists pets one numbered page at a time; the list ends on an empty page
+
+  Returns the items as a lazy `PetstoreClient.Paginator`: no request is sent until you first read an
+  item or a page, and each next page is requested only when you ask for more. Every page is an
+  ordinary call of `list_pet_page_numbers_with_http_info`, with the same options on each page.
+  The value of the `page` option is the page number of the first request, and
+  each page after one is requested with the next page number. The list ends on an empty page
+  or when its `has_more` is false.
+
+  Enumerate it for the items, or call `PetstoreClient.Paginator.pages/1` for the pages with their cursor
+  and result. A failed page raises its error from the read that needed it.
+  """
+  @spec list_pet_page_numbers_pages(
+          t(),
+          PetstoreClient.Api.Options.ListPetPageNumbersOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Paginator.t()
+  @impl true
+  def list_pet_page_numbers_pages(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    page_options = options || %PetstoreClient.Api.Options.ListPetPageNumbersOptions{}
+
+    PetstoreClient.Paginator.of_page(
+      page_options.page,
+      fn cursor ->
+        list_pet_page_numbers_with_http_info(api, %{page_options | page: cursor}, opts)
+      end,
+      fn page -> page.items end,
+      fn page -> page.has_more end,
+      "/pet/pages"
+    )
+  end
+
+  @doc """
+  Lists pets after the id of the last one; the has_more flag says when the list ends
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, PetAfterPage}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec list_pets_after(t(), PetstoreClient.Api.Options.ListPetsAfterOptions.t() | nil, keyword()) ::
+          {:ok, PetstoreClient.Models.PetAfterPage.t()} | {:error, Exception.t()}
+  @impl true
+  def list_pets_after(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_pets_after_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for list_pets_after but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `list_pets_after`. Raises on error.
+  """
+  @spec list_pets_after!(
+          t(),
+          PetstoreClient.Api.Options.ListPetsAfterOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Models.PetAfterPage.t()
+  @impl true
+  def list_pets_after!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case list_pets_after(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `list_pets_after` but returns the full `ApiResult`.
+  """
+  @spec list_pets_after_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.ListPetsAfterOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def list_pets_after_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBearer"])
+    path = "/pet/after"
+    query_params = []
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.starting_after) and
+           options.starting_after != [] do
+        query_params ++
+          [
+            {"starting_after",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "starting_after",
+                 options.starting_after,
+                 :query,
+                 "String.t()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.limit) and options.limit != [] do
+        query_params ++
+          [
+            {"limit",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "limit",
+                 options.limit,
+                 :query,
+                 "integer()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "PetAfterPage",
+      auth,
+      Keyword.put(call, :operation, {"listPetsAfter", "/pet/after"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Lists pets after the id of the last one; the has_more flag says when the list ends
+
+  Returns the items as a lazy `PetstoreClient.Paginator`: no request is sent until you first read an
+  item or a page, and each next page is requested only when you ask for more. Every page is an
+  ordinary call of `list_pets_after_with_http_info`, with the same options on each page.
+  The value of the `starting_after` option is where the list starts, the page after
+  each one is requested with the `last_id` it returned, and the list ends
+  when its `has_more` is false.
+
+  Enumerate it for the items, or call `PetstoreClient.Paginator.pages/1` for the pages with their cursor
+  and result. A failed page raises its error from the read that needed it.
+  """
+  @spec list_pets_after_pages(
+          t(),
+          PetstoreClient.Api.Options.ListPetsAfterOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Paginator.t()
+  @impl true
+  def list_pets_after_pages(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    page_options = options || %PetstoreClient.Api.Options.ListPetsAfterOptions{}
+
+    PetstoreClient.Paginator.of_id(
+      page_options.starting_after,
+      fn cursor ->
+        list_pets_after_with_http_info(api, %{page_options | starting_after: cursor}, opts)
+      end,
+      fn page -> page.data end,
+      fn page -> page.last_id end,
+      fn page -> page.has_more end,
+      "/pet/after"
     )
   end
 

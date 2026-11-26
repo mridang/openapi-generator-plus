@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -69,7 +68,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
     /**
      * @var list<class-string>
      */
-    private const array DS_CONTAINER_CLASSES = [
+    private const DS_CONTAINER_CLASSES = [
         \Ds\Vector::class,
         \Ds\Set::class,
         \Ds\Map::class,
@@ -132,14 +131,14 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
         $value = $this->propertyAccessor->getValue($object, $attribute);
         $shape = \PetstoreClient\ObjectSerializer::byteProperties($object::class)[$attribute] ?? null;
 
-        return $shape === null ? $value : $this->encodeBytes($value, $shape);
+        return $shape === null ? $value : self::encodeBytes($value, $shape);
     }
 
     /**
      * Base64-encode the raw bytes of a `format: byte` property for the wire:
      * a scalar string, every element of a list or every value of a map.
      */
-    private function encodeBytes(mixed $value, string $shape): mixed
+    private static function encodeBytes(mixed $value, string $shape): mixed
     {
         $encode = static fn (mixed $raw): mixed => is_string($raw) ? base64_encode($raw) : $raw;
         if ($shape === 'scalar') {
@@ -162,7 +161,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
      *
      * @param class-string $class
      */
-    private function decodeBytes(mixed $wire, string $shape, string $class, string $property): mixed
+    private static function decodeBytes(mixed $wire, string $shape, string $class, string $property): mixed
     {
         $decode = static function (mixed $encoded) use ($class, $property): mixed {
             if (!is_string($encoded)) {
@@ -221,7 +220,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
     ): mixed {
         $byteShape = \PetstoreClient\ObjectSerializer::byteProperties($class->getName())[$parameter->getName()] ?? null;
         if ($byteShape !== null) {
-            $parameterData = $this->decodeBytes($parameterData, $byteShape, $class->getName(), $parameter->getName());
+            $parameterData = self::decodeBytes($parameterData, $byteShape, $class->getName(), $parameter->getName());
         }
         $parameterType = $parameter->getType();
         if ($parameterType instanceof \ReflectionNamedType) {
@@ -231,6 +230,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     return null;
                 }
                 if (!is_array($parameterData)) {
+                    /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                     return new $className([$parameterData]);
                 }
 
@@ -275,6 +275,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     }
                 }
 
+                /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                 return new $className($items);
             }
         }
@@ -326,13 +327,11 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
          * `\Ds\Vector<int>` (up to the last `>` before the param name),
          * matching ObjectSerializer::deserializeInternal's own greedy
          * container regex. */
-        if (
-            !preg_match(
-                '/@param\s+[^\s<]+<(.+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
-                $doc,
-                $matches,
-            )
-        ) {
+        if (!preg_match(
+            '/@param\s+[^\s<]+<(.+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
+            $doc,
+            $matches,
+        )) {
             return null;
         }
         $inner = trim($matches[1]);

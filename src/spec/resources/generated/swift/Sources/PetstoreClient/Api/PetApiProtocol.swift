@@ -115,11 +115,30 @@ public protocol PetApiProtocol: Sendable {
   func listPetMatchesWithHTTPInfo(options: ListPetMatchesOptions?) async throws -> ApiResult<
     PetMatchPage
   >
+  func listPetNextUrl(options: ListPetNextUrlOptions?) async throws -> PetNextUrlPage
+  func listPetNextUrlWithHTTPInfo(options: ListPetNextUrlOptions?) async throws -> ApiResult<
+    PetNextUrlPage
+  >
+  func listPetNextUrlPages(options: ListPetNextUrlOptions?) -> Paginator<Pet, Void>
   func listPetNotes(options: ListPetNotesOptions?) async throws -> PetNotePage
   func listPetNotesWithHTTPInfo(options: ListPetNotesOptions?) async throws -> ApiResult<
     PetNotePage
   >
   func listPetNotesPages(options: ListPetNotesOptions?) -> Paginator<String, String>
+  func listPetOffsets(options: ListPetOffsetsOptions?) async throws -> PetOffsetPage
+  func listPetOffsetsWithHTTPInfo(options: ListPetOffsetsOptions?) async throws -> ApiResult<
+    PetOffsetPage
+  >
+  func listPetOffsetsPages(options: ListPetOffsetsOptions?) -> Paginator<Pet, Int>
+  func listPetPageNumbers(options: ListPetPageNumbersOptions?) async throws -> PetPageNumberPage
+  func listPetPageNumbersWithHTTPInfo(options: ListPetPageNumbersOptions?) async throws
+    -> ApiResult<PetPageNumberPage>
+  func listPetPageNumbersPages(options: ListPetPageNumbersOptions?) -> Paginator<Pet, Int>
+  func listPetsAfter(options: ListPetsAfterOptions?) async throws -> PetAfterPage
+  func listPetsAfterWithHTTPInfo(options: ListPetsAfterOptions?) async throws -> ApiResult<
+    PetAfterPage
+  >
+  func listPetsAfterPages(options: ListPetsAfterOptions?) -> Paginator<Pet, String>
   func setPetAvatar(
     petId: Int64, body: BodySource, options: SetPetAvatarOptions?, requestContentType: String?)
     async throws
@@ -443,6 +462,21 @@ extension PetApiProtocol {
     try await listPetMatchesWithHTTPInfo(options: nil)
   }
 
+  /// The `listPetNextUrl` operation with every optional parameter left out.
+  public func listPetNextUrl() async throws -> PetNextUrlPage {
+    try await listPetNextUrl(options: nil)
+  }
+
+  /// The `listPetNextUrlWithHTTPInfo` operation with every optional parameter left out.
+  public func listPetNextUrlWithHTTPInfo() async throws -> ApiResult<PetNextUrlPage> {
+    try await listPetNextUrlWithHTTPInfo(options: nil)
+  }
+
+  /// The `listPetNextUrlPages` operation with every optional parameter left out.
+  public func listPetNextUrlPages() -> Paginator<Pet, Void> {
+    listPetNextUrlPages(options: nil)
+  }
+
   /// The `listPetNotes` operation with every optional parameter left out.
   public func listPetNotes() async throws -> PetNotePage {
     try await listPetNotes(options: nil)
@@ -456,6 +490,51 @@ extension PetApiProtocol {
   /// The `listPetNotesPages` operation with every optional parameter left out.
   public func listPetNotesPages() -> Paginator<String, String> {
     listPetNotesPages(options: nil)
+  }
+
+  /// The `listPetOffsets` operation with every optional parameter left out.
+  public func listPetOffsets() async throws -> PetOffsetPage {
+    try await listPetOffsets(options: nil)
+  }
+
+  /// The `listPetOffsetsWithHTTPInfo` operation with every optional parameter left out.
+  public func listPetOffsetsWithHTTPInfo() async throws -> ApiResult<PetOffsetPage> {
+    try await listPetOffsetsWithHTTPInfo(options: nil)
+  }
+
+  /// The `listPetOffsetsPages` operation with every optional parameter left out.
+  public func listPetOffsetsPages() -> Paginator<Pet, Int> {
+    listPetOffsetsPages(options: nil)
+  }
+
+  /// The `listPetPageNumbers` operation with every optional parameter left out.
+  public func listPetPageNumbers() async throws -> PetPageNumberPage {
+    try await listPetPageNumbers(options: nil)
+  }
+
+  /// The `listPetPageNumbersWithHTTPInfo` operation with every optional parameter left out.
+  public func listPetPageNumbersWithHTTPInfo() async throws -> ApiResult<PetPageNumberPage> {
+    try await listPetPageNumbersWithHTTPInfo(options: nil)
+  }
+
+  /// The `listPetPageNumbersPages` operation with every optional parameter left out.
+  public func listPetPageNumbersPages() -> Paginator<Pet, Int> {
+    listPetPageNumbersPages(options: nil)
+  }
+
+  /// The `listPetsAfter` operation with every optional parameter left out.
+  public func listPetsAfter() async throws -> PetAfterPage {
+    try await listPetsAfter(options: nil)
+  }
+
+  /// The `listPetsAfterWithHTTPInfo` operation with every optional parameter left out.
+  public func listPetsAfterWithHTTPInfo() async throws -> ApiResult<PetAfterPage> {
+    try await listPetsAfterWithHTTPInfo(options: nil)
+  }
+
+  /// The `listPetsAfterPages` operation with every optional parameter left out.
+  public func listPetsAfterPages() -> Paginator<Pet, String> {
+    listPetsAfterPages(options: nil)
   }
 
   /// The `setPetAvatar` operation with every optional parameter left out.

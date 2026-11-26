@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -57,11 +56,11 @@ final class CallHookChain implements CallHook
             return null;
         }
 
-        return new readonly class (array_reverse($observers)) implements CallObserver {
+        return new class (array_reverse($observers)) implements CallObserver {
             /**
              * @param list<CallObserver> $observers the observers, in the order they finish
              */
-            public function __construct(private array $observers)
+            public function __construct(private readonly array $observers)
             {
             }
 

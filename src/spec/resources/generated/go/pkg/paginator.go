@@ -36,7 +36,7 @@ import (
 // out of the loop.
 //
 // The type parameter T is the item type and C is the type of the cursor request
-// parameter (NoCursor for a list that is followed by the Link header).
+// parameter (NoCursor for a list whose next page is a URL: a Link header or a body property).
 type Paginator[T any, C comparable] struct {
 	pages iter.Seq2[*Page[T, C], error]
 }
@@ -115,12 +115,13 @@ func pageCursor[C comparable](value any) *C {
 	return &cursor
 }
 
-// newCursorPaginator follows a token cursor: start is the cursor of the first
-// request (nil for the beginning of the list), fetch sends the request for a
-// cursor and returns its result, items and next read a decoded page. An absent,
-// nil or empty next cursor ends the list; an empty page with a next cursor
-// continues.
-func newCursorPaginator[T any, C comparable, B any](start *C, requestPath string, fetch func(*C) (*ApiResult[B], error), items func(B) []T, next func(B) *C) *Paginator[T, C] {
+// newCursorPaginator follows a cursor: start is the cursor of the first request
+// (nil for the beginning of the list), fetch sends the request for a cursor and
+// returns its result, items and next read a decoded page. next returns the cursor
+// of the request after the one that sent sent (nil to send none) and ends the list
+// when it returns nil. An absent, nil or empty next cursor ends the list; an empty
+// page with a next cursor continues.
+func newCursorPaginator[T any, C comparable, B any](start *C, requestPath string, fetch func(*C) (*ApiResult[B], error), items func(B) []T, next func(sent *C, body B) *C) *Paginator[T, C] {
 	return &Paginator[T, C]{pages: func(yield func(*Page[T, C], error) bool) {
 		sent := start
 		for {
@@ -132,7 +133,7 @@ func newCursorPaginator[T any, C comparable, B any](start *C, requestPath string
 			page := &Page[T, C]{Result: pageResult(result)}
 			if result.Data != nil {
 				page.Items = items(*result.Data)
-				page.NextCursor = next(*result.Data)
+				page.NextCursor = next(sent, *result.Data)
 			}
 			if text, isText := any(page.NextCursor).(*string); isText && text != nil && *text == "" {
 				page.NextCursor = nil
@@ -151,11 +152,93 @@ func newCursorPaginator[T any, C comparable, B any](start *C, requestPath string
 	}}
 }
 
+// newOffsetPaginator follows an offset: start is the offset of the first request
+// (nil to send none), and the next offset is the offset sent plus the items
+// received. more reads the has_more flag of a decoded page, or is nil when the
+// list does not declare one. A page with no items, or one whose flag is false,
+// ends the list.
+func newOffsetPaginator[T any, B any](start *int32, requestPath string, fetch func(*int32) (*ApiResult[B], error), items func(B) []T, more func(B) *bool) *Paginator[T, int32] {
+	return newCursorPaginator(start, requestPath, fetch, items, func(sent *int32, body B) *int32 {
+		count := len(items(body))
+		if count == 0 || (more != nil && !pageMore(more(body))) {
+			return nil
+		}
+		next := int32(count)
+		if sent != nil {
+			next += *sent
+		}
+		return &next
+	})
+}
+
+// newPagePaginator counts pages: start is the page number of the first request
+// (nil to send none, which the server answers as page 1), and each next request
+// asks for the page after the one it sent. more and the end rules are those of
+// newOffsetPaginator.
+func newPagePaginator[T any, B any](start *int32, requestPath string, fetch func(*int32) (*ApiResult[B], error), items func(B) []T, more func(B) *bool) *Paginator[T, int32] {
+	return newCursorPaginator(start, requestPath, fetch, items, func(sent *int32, body B) *int32 {
+		if len(items(body)) == 0 || (more != nil && !pageMore(more(body))) {
+			return nil
+		}
+		next := int32(1)
+		if sent != nil {
+			next = *sent
+		}
+		next++
+		return &next
+	})
+}
+
+// pageMore reports whether a page declares that the list goes on: a page that
+// has no has_more flag declares nothing, so only a false flag ends the list.
+func pageMore(flag *bool) bool {
+	return flag == nil || *flag
+}
+
+// pageFlag reads the has_more flag of a decoded page: the property is a bool, or
+// a pointer to one when it is optional. It returns nil when the list declares none.
+func pageFlag(value any) *bool {
+	current := reflect.ValueOf(value)
+	for current.IsValid() && current.Kind() == reflect.Pointer {
+		if current.IsNil() {
+			return nil
+		}
+		current = current.Elem()
+	}
+	if !current.IsValid() || current.Kind() != reflect.Bool {
+		return nil
+	}
+	flag := current.Bool()
+	return &flag
+}
+
+// pageNextURL reads the next URL of a decoded page: the property is a string, or
+// a pointer to one when it is optional. It reports false for an absent, nil or
+// empty one.
+func pageNextURL(value any) (string, bool) {
+	next := pageCursor[string](value)
+	if next == nil || *next == "" {
+		return "", false
+	}
+	return *next, true
+}
+
 // newLinkPaginator follows the rel="next" link of the Link header: fetch sends
 // the request for a URL (nil for the first page) and returns its result, items
 // reads a decoded page. A next URL that leaves the scheme, host or port of
 // baseURL is refused with a *PaginationError and nothing is sent to it.
 func newLinkPaginator[T any, B any](baseURL, requestPath string, fetch func(*string) (*ApiResult[B], error), items func(B) []T) *Paginator[T, NoCursor] {
+	return newNextURLPaginator(baseURL, requestPath, fetch, items, func(result *ApiResult[B]) (string, bool) {
+		return linkNext(headerValue(result.Headers, "link"))
+	})
+}
+
+// newNextURLPaginator follows the URL that nextURL reads from each page: fetch
+// sends the request for a URL (nil for the first page) and returns its result,
+// items reads a decoded page, and nextURL returns the next URL of a page, or false
+// when the page names none. A next URL that leaves the scheme, host or port of
+// baseURL is refused with a *PaginationError and nothing is sent to it.
+func newNextURLPaginator[T any, B any](baseURL, requestPath string, fetch func(*string) (*ApiResult[B], error), items func(B) []T, nextURL func(*ApiResult[B]) (string, bool)) *Paginator[T, NoCursor] {
 	return &Paginator[T, NoCursor]{pages: func(yield func(*Page[T, NoCursor], error) bool) {
 		var current *string
 		for {
@@ -168,7 +251,7 @@ func newLinkPaginator[T any, B any](baseURL, requestPath string, fetch func(*str
 			if result.Data != nil {
 				page.Items = items(*result.Data)
 			}
-			link, found := linkNext(headerValue(result.Headers, "link"))
+			link, found := nextURL(result)
 			if !found {
 				yield(page, nil)
 				return

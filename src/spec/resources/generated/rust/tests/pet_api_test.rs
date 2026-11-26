@@ -3244,6 +3244,44 @@ impl PetApiTrait for FakePetApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn list_pet_next_url(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> impl Future<Output = Result<PetNextUrlPage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_next_url( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_next_url_with_http_info(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetNextUrlPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_next_url_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_next_url_pages(
+        &self,
+        options: Option<&ListPetNextUrlOptions>,
+    ) -> Paginator<Pet, (), PetNextUrlPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_next_url_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
     fn list_pet_notes(
         &self,
         options: Option<&ListPetNotesOptions>,
@@ -3275,6 +3313,119 @@ impl PetApiTrait for FakePetApi {
     ) -> Paginator<String, String, PetNotePage> {
         self.calls.lock().expect("calls lock").push(format!(
             "list_pet_notes_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
+    fn list_pet_offsets(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> impl Future<Output = Result<PetOffsetPage, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pet_offsets( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_offsets_with_http_info(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetOffsetPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_offsets_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_offsets_pages(
+        &self,
+        options: Option<&ListPetOffsetsOptions>,
+    ) -> Paginator<Pet, i32, PetOffsetPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_offsets_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
+    fn list_pet_page_numbers(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> impl Future<Output = Result<PetPageNumberPage, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_page_numbers( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_page_numbers_with_http_info(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> impl Future<
+        Output = Result<ApiResult<PetPageNumberPage>, Box<dyn std::error::Error + Send + Sync>>,
+    > {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_page_numbers_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pet_page_numbers_pages(
+        &self,
+        options: Option<&ListPetPageNumbersOptions>,
+    ) -> Paginator<Pet, i32, PetPageNumberPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pet_page_numbers_pages( options={})",
+            options.is_some()
+        ));
+        Paginator::from_pages(|| {
+            futures_util::stream::once(std::future::ready(Err(FakePetApi::fresh_failure())))
+        })
+    }
+    fn list_pets_after(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> impl Future<Output = Result<PetAfterPage, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("list_pets_after( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pets_after_with_http_info(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> impl Future<Output = Result<ApiResult<PetAfterPage>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pets_after_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn list_pets_after_pages(
+        &self,
+        options: Option<&ListPetsAfterOptions>,
+    ) -> Paginator<Pet, String, PetAfterPage> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "list_pets_after_pages( options={})",
             options.is_some()
         ));
         Paginator::from_pages(|| {

@@ -28,29 +28,87 @@ import 'page.dart';
 /// were delivered, and ends that stream; a cursor equal to the one just sent
 /// raises a `PaginationException` after the items of the page that repeated it.
 ///
-/// [C] is the type of the cursor request parameter, and `void` for a list that
-/// is followed by its `Link` header.
+/// [C] is the type of the cursor request parameter (a string for a token or id
+/// cursor, an int for an offset or a page number), and `void` for a list whose
+/// next page is named by a `Link` header or by a next URL in its body.
 final class Paginator<T, C> {
   Paginator._(this._open);
 
   final Stream<Page<T, C>> Function() _open;
 
-  /// Creates a paginator that follows a token cursor. Used by the generated
-  /// `...Pages` methods.
+  /// Creates a paginator that follows a token cursor, or an id cursor when
+  /// [hasMore] is given. Used by the generated `...Pages` methods.
   ///
   /// [start] is the cursor of the first request, or null to start at the
   /// beginning. [fetch] sends the request for a cursor (null for none) and
   /// returns its result, [items] reads the items of a decoded page and [next]
   /// reads the cursor of the next page from it; absent, null or empty ends the
-  /// list. [requestPath] is the path of the operation, for errors.
+  /// list. [hasMore] reads the has_more flag of a decoded page: a flag that is
+  /// false ends the list, and a null flag (or no [hasMore]) does not. [requestPath]
+  /// is the path of the operation, for errors.
   static Paginator<T, C> ofCursor<T, C extends Object, B>({
     C? start,
     required Future<ApiResult<B>> Function(C? cursor) fetch,
     required Iterable<T>? Function(B body) items,
     required C? Function(B body) next,
+    bool? Function(B body)? hasMore,
     required String requestPath,
   }) => Paginator<T, C>._(
-    () => _cursorPages<T, C, B>(start, fetch, items, next, requestPath),
+    () => _cursorPages<T, C, B>(
+      start,
+      fetch,
+      items,
+      (sent, body) =>
+          hasMore != null && hasMore(body) == false ? null : next(body),
+      requestPath,
+    ),
+  );
+
+  /// Creates a paginator that follows an offset: the next offset is the offset
+  /// sent plus the items received, and the list ends on an empty page or when
+  /// the has_more flag of the page is false. Used by the generated `...Pages`
+  /// methods.
+  ///
+  /// [start] is the offset of the first request, or null to send none. [fetch]
+  /// sends the request for an offset (null for none) and returns its result,
+  /// [items] reads the items of a decoded page, [hasMore] reads its has_more
+  /// flag when the list declares one. [requestPath] is the path of the
+  /// operation, for errors.
+  static Paginator<T, int> ofOffset<T, B>({
+    int? start,
+    required Future<ApiResult<B>> Function(int? offset) fetch,
+    required Iterable<T>? Function(B body) items,
+    bool? Function(B body)? hasMore,
+    required String requestPath,
+  }) => Paginator<T, int>._(
+    () => _cursorPages<T, int, B>(start, fetch, items, (sent, body) {
+      final count = _continuingCount(items, hasMore, body);
+      return count == 0 ? null : (sent ?? 0) + count;
+    }, requestPath),
+  );
+
+  /// Creates a paginator that counts pages: the first request sends the page
+  /// number given, or none (page 1 is the first), and each next request sends
+  /// the page after the one it asked for. The list ends on an empty page or
+  /// when the has_more flag of the page is false. Used by the generated
+  /// `...Pages` methods.
+  ///
+  /// The parameters are those of [ofOffset].
+  static Paginator<T, int> ofPage<T, B>({
+    int? start,
+    required Future<ApiResult<B>> Function(int? page) fetch,
+    required Iterable<T>? Function(B body) items,
+    bool? Function(B body)? hasMore,
+    required String requestPath,
+  }) => Paginator<T, int>._(
+    () => _cursorPages<T, int, B>(
+      start,
+      fetch,
+      items,
+      (sent, body) =>
+          _continuingCount(items, hasMore, body) == 0 ? null : (sent ?? 1) + 1,
+      requestPath,
+    ),
   );
 
   /// Creates a paginator that follows the `rel="next"` link of the `Link`
@@ -66,7 +124,33 @@ final class Paginator<T, C> {
     required Iterable<T>? Function(B body) items,
     required String requestPath,
   }) => Paginator<T, void>._(
-    () => _linkPages<T, B>(baseUrl, fetch, items, requestPath),
+    () => _linkPages<T, B>(baseUrl, fetch, items, (result) {
+      for (final header in result.headers.entries) {
+        if (header.key.toLowerCase() == 'link') {
+          return LinkHeader.next(header.value);
+        }
+      }
+      return null;
+    }, requestPath),
+  );
+
+  /// Creates a paginator that follows a next URL in the body of each page.
+  /// Used by the generated `...Pages` methods. The URL is followed exactly as
+  /// a `Link` header is: [baseUrl] is the origin it must stay on, and a URL
+  /// that leaves it is refused with a `PaginationException` before anything is
+  /// sent to it. [next] reads the URL from a decoded page; absent, null or empty
+  /// ends the list.
+  static Paginator<T, void> ofNextUrl<T, B>({
+    required String baseUrl,
+    required Future<ApiResult<B>> Function(String? url) fetch,
+    required Iterable<T>? Function(B body) items,
+    required String? Function(B body) next,
+    required String requestPath,
+  }) => Paginator<T, void>._(
+    () => _linkPages<T, B>(baseUrl, fetch, items, (result) {
+      final body = result.data;
+      return body == null ? null : next(body);
+    }, requestPath),
   );
 
   /// The items, one after the other, starting at the starting position.
@@ -83,11 +167,30 @@ final class Paginator<T, C> {
   Stream<Page<T, C>> pages() => _open();
 }
 
+/// The number of items of a page that continues an offset or page list, or 0
+/// when the page ends it: a page with no items, or whose has_more flag is false.
+int _continuingCount<T, B>(
+  Iterable<T>? Function(B body) items,
+  bool? Function(B body)? hasMore,
+  B body,
+) {
+  final list = items(body);
+  if (list == null ||
+      list.isEmpty ||
+      (hasMore != null && hasMore(body) == false)) {
+    return 0;
+  }
+  return list.length;
+}
+
+/// Reads the pages of a cursor list. [next] takes the cursor just sent (null
+/// for the first request) and the decoded page, and returns the cursor of the
+/// next page, or null to end the list.
 Stream<Page<T, C>> _cursorPages<T, C extends Object, B>(
   C? start,
   Future<ApiResult<B>> Function(C? cursor) fetch,
   Iterable<T>? Function(B body) items,
-  C? Function(B body) next,
+  C? Function(C? sent, B body) next,
   String requestPath,
 ) async* {
   var sent = start;
@@ -95,7 +198,7 @@ Stream<Page<T, C>> _cursorPages<T, C extends Object, B>(
     final result = await fetch(sent);
     final body = result.data;
     final list = <T>[...?(body == null ? null : items(body))];
-    final following = body == null ? null : next(body);
+    final following = body == null ? null : next(sent, body);
     if (following == null || (following is String && following.isEmpty)) {
       yield Page<T, C>(list, null, result);
       return;
@@ -114,10 +217,14 @@ Stream<Page<T, C>> _cursorPages<T, C extends Object, B>(
   }
 }
 
+/// Reads the pages of a list whose next page is named by a link: [linkOf]
+/// returns the link of a page result (a `Link` header or a next URL in the
+/// body), or null or empty when the list ends.
 Stream<Page<T, void>> _linkPages<T, B>(
   String baseUrl,
   Future<ApiResult<B>> Function(String? url) fetch,
   Iterable<T>? Function(B body) items,
+  String? Function(ApiResult<B> result) linkOf,
   String requestPath,
 ) async* {
   String? url;
@@ -125,14 +232,8 @@ Stream<Page<T, void>> _linkPages<T, B>(
     final result = await fetch(url);
     final body = result.data;
     final list = <T>[...?(body == null ? null : items(body))];
-    String? link;
-    for (final header in result.headers.entries) {
-      if (header.key.toLowerCase() == 'link') {
-        link = LinkHeader.next(header.value);
-        break;
-      }
-    }
-    if (link == null) {
+    final link = linkOf(result);
+    if (link == null || link.trim().isEmpty) {
       yield Page<T, void>(list, null, result);
       return;
     }

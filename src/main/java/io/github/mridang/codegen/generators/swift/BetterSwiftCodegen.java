@@ -372,8 +372,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
 
     /**
      * Gives a paged operation the Swift type of its paginator, {@code paginatorType}: the item type
-     * and the type of the cursor parameter, or {@code Void} for a list that is followed by its
-     * {@code Link} header.
+     * and the type of the request parameter that starts the next page, or {@code Void} for a list
+     * whose next page is a URL (its {@code Link} header or a URL in its body).
      *
      * @param decorators the operation's decorator map
      */
@@ -387,7 +387,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         p.put(
                 "paginatorType",
                 "Paginator<" + p.get("itemType") + ", "
-                        + (Boolean.TRUE.equals(p.get("isLink")) ? "Void" : p.get("cursorType")) + ">");
+                        + (Boolean.TRUE.equals(p.get("isUrlPaged")) ? "Void" : p.get("cursorType")) + ">");
     }
 
     /**
@@ -1534,14 +1534,18 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         context.put("className", className);
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
-        // A paged operation that follows a token cursor can copy its Options with the next cursor,
-        // so every page is sent with its own cursor and everything else unchanged.
+        // A paged operation that follows a cursor, an offset or a page number can copy its Options
+        // with the next request value, so every page is sent with its own value and everything else
+        // unchanged.
         final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
         final Object pagination =
                 opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
         final boolean cursorCopy =
                 pagination instanceof Map
-                        && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"));
+                        && (Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"))
+                                || Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isId"))
+                                || Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isOffset"))
+                                || Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isPage")));
         context.put("hasCursorCopy", cursorCopy);
         if (cursorCopy && pagination instanceof Map) {
             final Map<?, ?> plan = (Map<?, ?>) pagination;

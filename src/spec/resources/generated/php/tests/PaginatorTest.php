@@ -74,6 +74,58 @@ function feedServer(int $pages): RawServer
         PHP));
 }
 
+/** Five pets in total, served two at a time from the offset the request names (the first from none). */
+function offsetServer(): RawServer
+{
+    return RawServer::serve(<<<'PHP'
+        $from = (int) (queryOf($head)['offset'] ?? 0);
+        $items = [];
+        for ($i = min($from, 5); $i < min($from + 2, 5); $i++) {
+            $items[] = ['id' => 1, 'name' => 'p' . $i, 'photoUrls' => []];
+        }
+        replyJson($socket, 200, (string) json_encode(['items' => $items]));
+        PHP);
+}
+
+/** Five pets in total, two to a numbered page, from page 1 (the first request names none). */
+function pageNumberServer(): RawServer
+{
+    return RawServer::serve(<<<'PHP'
+        $page = (int) (queryOf($head)['page'] ?? 1);
+        $from = ($page - 1) * 2;
+        $items = [];
+        for ($i = min($from, 5); $i < min($from + 2, 5); $i++) {
+            $items[] = ['id' => 1, 'name' => 'p' . $i, 'photoUrls' => []];
+        }
+        replyJson($socket, 200, (string) json_encode(['items' => $items, 'has_more' => true]));
+        PHP);
+}
+
+/** Five pets in total, two to a page after the id the request names, each page with its last id and has_more. */
+function afterServer(): RawServer
+{
+    return RawServer::serve(<<<'PHP'
+        $after = queryOf($head)['starting_after'] ?? null;
+        $from = $after === null ? 0 : (int) substr((string) $after, 1) + 1;
+        $to = min($from + 2, 5);
+        $data = [];
+        for ($i = $from; $i < $to; $i++) {
+            $data[] = ['id' => 1, 'name' => 'p' . $i, 'photoUrls' => []];
+        }
+        replyJson($socket, 200, (string) json_encode(['data' => $data, 'has_more' => $to < 5, 'last_id' => 'p' . ($to - 1)]));
+        PHP);
+}
+
+/** Three pets, one to a page, each page with the URL of the next one in its body. */
+function nextUrlServer(): RawServer
+{
+    return RawServer::serve(<<<'PHP'
+        $index = (int) (queryOf($head)['p'] ?? 0);
+        $next = $index + 1 < 3 ? ',"next_url":"' . selfUrl() . '/pet/next?p=' . ($index + 1) . '"' : '';
+        replyJson($socket, 200, '{"items":[{"id":1,"name":"f' . $index . '","photoUrls":[]}]' . $next . '}');
+        PHP);
+}
+
 /**
  * The names of the pets, in order.
  *
@@ -139,6 +191,28 @@ test('bhv pagination 003 the next request is sent only when the consumer asks fo
     expect($server->hits())->toBe(1);
     $items->next();
     expect($server->hits())->toBe(2);
+});
+
+test('bhv pagination 004 an offset and limit operation advances the offset by the items received and ends on an empty page', function (): void {
+    $server = offsetServer();
+
+    expect(petNames(pagedApi($server)->listPetOffsetsPages()))->toBe(['p0', 'p1', 'p2', 'p3', 'p4']);
+    expect(cursorsSeen($server, 'offset'))->toBe([null, '2', '4', '5']);
+});
+
+test('bhv pagination 005 a page number operation starts at the supplied page and increments it', function (): void {
+    $server = pageNumberServer();
+
+    expect(petNames(pagedApi($server)->listPetPageNumbersPages()))->toBe(['p0', 'p1', 'p2', 'p3', 'p4']);
+    expect(cursorsSeen($server, 'page'))->toBe([null, '2', '3', '4']);
+});
+
+test('bhv pagination 006 an id cursor operation ends when has_more is false', function (): void {
+    $server = afterServer();
+
+    expect(petNames(pagedApi($server)->listPetsAfterPages()))->toBe(['p0', 'p1', 'p2', 'p3', 'p4']);
+    expect(cursorsSeen($server, 'starting_after'))->toBe([null, 'p1', 'p3']);
+    expect($server->hits())->toBe(3);
 });
 
 test('bhv pagination 007 a link header operation follows rel next and ends when it is absent', function (): void {
@@ -243,9 +317,11 @@ test('bhv pagination 014 a cursor equal to the one just sent, or an offset that 
     $items = pagedApi($server)->listPetCatalogPages()->items();
 
     $first = $items->current();
+    assert($first instanceof Pet);
     expect($first->name)->toBe('p1');
     $items->next();
     $second = $items->current();
+    assert($second instanceof Pet);
     expect($second->name)->toBe('p2');
     try {
         $items->next();
@@ -271,6 +347,7 @@ test('bhv pagination 015 an error on a later page is raised after the earlier pa
 
     try {
         foreach ($items as $pet) {
+            assert($pet instanceof Pet);
             $delivered[] = $pet->name;
         }
         test()->fail('Expected the second page to fail');
@@ -324,6 +401,7 @@ test('bhv pagination 017 the per call timeout, headers and retry count apply to 
         PHP);
     $items = pagedApi($slow, 0)->listPetCatalogPages(new ListPetCatalogOptions(timeout: 300))->items();
     $first = $items->current();
+    assert($first instanceof Pet);
     expect($first->name)->toBe('p0-0');
     expect(fn () => $items->next())->toThrow(NetworkTimeoutException::class);
 });
@@ -334,6 +412,7 @@ test('bhv pagination 018 stopping early sends no further request and leaves noth
 
     $items = $paginator->items();
     $first = $items->current();
+    assert($first instanceof Pet);
     expect($first->name)->toBe('p0-0');
     unset($items);
     expect($server->hits())->toBe(1);
@@ -371,6 +450,7 @@ test('bhv pagination 021 a page that does not decode on a later page fails with 
     $items = pagedApi($server)->listPetCatalogPages()->items();
 
     $first = $items->current();
+    assert($first instanceof Pet);
     expect($first->name)->toBe('p0-0');
     expect(fn () => $items->next())->toThrow(SerializationException::class);
     expect($items->valid())->toBeFalse();
@@ -380,8 +460,8 @@ test('bhv pagination 022 a refreshed credential is used for the next page', func
     $server = catalogServer(3, 1);
     $issued = new \stdClass();
     $issued->count = 0;
-    $rotating = new readonly class ($issued) implements Authenticator {
-        public function __construct(private \stdClass $issued)
+    $rotating = new class ($issued) implements Authenticator {
+        public function __construct(private readonly \stdClass $issued)
         {
         }
 
@@ -426,6 +506,7 @@ test('bhv pagination 023 an error from a link driven page request carries the pa
     $items = pagedApi($server)->listPetFeedPages()->items();
 
     $first = $items->current();
+    assert($first instanceof Pet);
     expect($first->name)->toBe('f0');
     try {
         $items->next();
@@ -456,7 +537,16 @@ test('bhv pagination 024 an operation with two candidate cursors, two array prop
     $paged = array_values(array_filter(methodsOf(PetApi::class), static fn (string $name): bool => str_ends_with($name, 'Pages')));
     sort($paged);
 
-    expect($paged)->toBe(['listPetCatalogPages', 'listPetEventsPages', 'listPetFeedPages', 'listPetNotesPages']);
+    expect($paged)->toBe([
+        'listPetCatalogPages',
+        'listPetEventsPages',
+        'listPetFeedPages',
+        'listPetNextUrlPages',
+        'listPetNotesPages',
+        'listPetOffsetsPages',
+        'listPetPageNumbersPages',
+        'listPetsAfterPages',
+    ]);
     expect(methodsOf(PetApi::class))->toContain('listPetMatches');
 });
 
@@ -510,6 +600,34 @@ test('bhv pagination 028 the cursor for the next page is taken from the accepted
 
     expect(petNames(pagedApi($server, 2)->listPetCatalogPages()))->toBe(['p0-0', 'p1-0']);
     expect(cursorsSeen($server))->toBe([null, null, 'c1']);
+});
+
+test('bhv pagination 029 a next url in the body is followed and a next url on another origin is refused', function (): void {
+    $server = nextUrlServer();
+
+    expect(petNames(pagedApi($server)->listPetNextUrlPages()))->toBe(['f0', 'f1', 'f2']);
+    expect(cursorsSeen($server, 'p'))->toBe([null, '1', '2']);
+
+    $elsewhere = RawServer::serve(<<<'PHP'
+        replyJson($socket, 200, '{"items":[{"id":1,"name":"stolen","photoUrls":[]}]}');
+        PHP);
+    $origin = RawServer::serve(str_replace('ELSEWHERE', $elsewhere->url('/pet/next?p=1'), <<<'PHP'
+        replyJson($socket, 200, '{"items":[{"id":1,"name":"f0","photoUrls":[]}],"next_url":"ELSEWHERE"}');
+        PHP));
+    $items = pagedApi($origin, 0, ['Authorization' => 'Bearer secret'])->listPetNextUrlPages()->items();
+
+    $first = $items->current();
+    assert($first instanceof Pet);
+    expect($first->name)->toBe('f0');
+    try {
+        $items->next();
+        test()->fail('Expected the next url on another origin to be refused');
+    } catch (PaginationException $refused) {
+        expect($refused->getMessage())->not->toContain('p=1');
+    }
+
+    expect($elsewhere->hits())->toBe(0);
+    expect($origin->hits())->toBe(1);
 });
 
 test('bhv pagination 030 a vendor extension on an operation is read as a hint, and the override option wins over it', function (): void {

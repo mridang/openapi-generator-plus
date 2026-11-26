@@ -979,7 +979,7 @@ test('bhv redirects 011 cross origin redirect strips api key header', function (
     $transport = TransportOptions::builder()->followRedirects(true)->build();
     /* MockHttpClient records request options on its responses. We use a
      * closure form so we can capture the headers sent on hop 2. */
-    $mock = new MockHttpClient(function ($method, $url, array $options) use (&$capturedHeaders, $hop1, $hop2): \Symfony\Component\HttpClient\Response\MockResponse {
+    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
         static $hop = 0;
         $hop++;
         if ($hop === 1) {
@@ -1080,20 +1080,22 @@ test('bhv transport 064 the intermediate response of a refused redirect is relea
     /* The probe flips its flag when the 3xx response object is destroyed, so the test observes the release itself. */
     /** @var \ArrayObject<string, mixed> $probe */
     $probe = new \ArrayObject(['released' => false]);
-    $mock = new MockHttpClient(fn(): MockResponse => new class ('', ['http_code' => 302, 'response_headers' => ['Location' => 'ftp://example.com/next']], $probe) extends MockResponse {
-        /**
-         * @param array<string, mixed> $info
-         * @param \ArrayObject<string, mixed> $probe
-         */
-        public function __construct(string $body, array $info, private \ArrayObject $probe)
-        {
-            parent::__construct($body, $info);
-        }
+    $mock = new MockHttpClient(function () use ($probe): MockResponse {
+        return new class ('', ['http_code' => 302, 'response_headers' => ['Location' => 'ftp://example.com/next']], $probe) extends MockResponse {
+            /**
+             * @param array<string, mixed> $info
+             * @param \ArrayObject<string, mixed> $probe
+             */
+            public function __construct(string $body, array $info, private \ArrayObject $probe)
+            {
+                parent::__construct($body, $info);
+            }
 
-        public function __destruct()
-        {
-            $this->probe['released'] = true;
-        }
+            public function __destruct()
+            {
+                $this->probe['released'] = true;
+            }
+        };
     });
     $client = new StubbedDefaultApiClient($mock, TransportOptions::builder()->followRedirects(true)->build());
 
@@ -1114,7 +1116,7 @@ test('bhv redirects 012 cross origin redirect strips authorization and cookie', 
     $capturedHeaders = [];
     $hop2 = new MockResponse('ok', ['http_code' => 200]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $mock = new MockHttpClient(function ($method, $url, array $options) use (&$capturedHeaders, $hop1, $hop2): \Symfony\Component\HttpClient\Response\MockResponse {
+    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
         static $hop = 0;
         $hop++;
         if ($hop === 1) {
@@ -4479,7 +4481,7 @@ test('bhv sse 007 an sse stream reconnects after the connection drops and sends 
     }
 
     expect($data)->toBe(['a', 'b', 'c']);
-    $heads = array_map(strtolower(...), $server->heads());
+    $heads = array_map('strtolower', $server->heads());
     expect($heads[0])->not->toContain('last-event-id');
     expect($heads[1])->toContain('last-event-id: 2');
     expect($heads[2])->toContain('last-event-id: 3');
@@ -4500,7 +4502,7 @@ test('bhv sse 015 an idle timeout on an sse stream counts as a lost connection a
         rawEventOpener($server, TransportOptions::builder()->idleTimeout(300)->build()),
         null,
         null,
-        new StreamOptions(maxReconnects: 1, reconnectDelay: 1),
+        new StreamOptions(reconnectDelay: 1, maxReconnects: 1),
         false,
         'GET',
         '/items/events'
@@ -4527,7 +4529,7 @@ test('bhv sse 018 an sse comment line such as a heartbeat is skipped and counts 
         rawEventOpener($server, TransportOptions::builder()->idleTimeout(400)->build()),
         null,
         null,
-        new StreamOptions(maxReconnects: 0, reconnectDelay: 1),
+        new StreamOptions(reconnectDelay: 1, maxReconnects: 0),
         false,
         'GET',
         '/items/events'
@@ -4577,7 +4579,7 @@ function sentHead(RawServer $server, int $hit = 0): string
 
 test('bhv streaming 023 a streamed upload of unknown length is sent chunked and arrives intact', function (): void {
     $payload = random_bytes(200_000);
-    foreach (uploadTransports() as $client) {
+    foreach (uploadTransports() as $name => $client) {
         $server = RawServer::serve(<<<'PHP'
             recordBody($socket, $head, $hit);
             reply($socket, 204, 'Content-Length: 0');

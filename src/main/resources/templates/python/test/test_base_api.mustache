@@ -3991,6 +3991,65 @@ def _params_seen(server: _PagedServer, name: str) -> list[Optional[str]]:
     return [request.param(name) for request in server.seen]
 
 
+def _pets_json(start: int, stop: int) -> str:
+    return ','.join(_pet_json(f'p{index}') for index in range(start, stop))
+
+
+def _offset_server(raw_server: Any) -> _PagedServer:
+    """Five pets in total, served two at a time from the offset the request names."""
+
+    def handler(request: _SeenRequest, number: int) -> _PagedReply:
+        offset = request.param('offset')
+        start = 0 if offset is None else int(offset)
+        return _PagedReply('{"items":[' + _pets_json(min(start, 5), min(start + 2, 5)) + ']}')
+
+    return _PagedServer(raw_server, handler)
+
+
+def _page_number_server(raw_server: Any) -> _PagedServer:
+    """Five pets in total, two to a numbered page from page 1, every page with has_more true."""
+
+    def handler(request: _SeenRequest, number: int) -> _PagedReply:
+        page = request.param('page')
+        index = 1 if page is None else int(page)
+        start = (index - 1) * 2
+        return _PagedReply('{"items":[' + _pets_json(min(start, 5), min(start + 2, 5)) + '],"has_more":true}')
+
+    return _PagedServer(raw_server, handler)
+
+
+def _after_server(raw_server: Any) -> _PagedServer:
+    """Five pets in total, two to a page, each page with the id of its last pet and a has_more flag."""
+
+    def handler(request: _SeenRequest, number: int) -> _PagedReply:
+        after = request.param('starting_after')
+        start = 0 if after is None else int(after[1:]) + 1
+        stop = min(start + 2, 5)
+        more = 'true' if stop < 5 else 'false'
+        return _PagedReply(
+            '{"data":[' + _pets_json(start, stop) + '],"has_more":' + more + ',"last_id":"p' + str(stop - 1) + '"}'
+        )
+
+    return _PagedServer(raw_server, handler)
+
+
+def _next_url_server(raw_server: Any, pages: int) -> _PagedServer:
+    """Three pets, one to a page, each page with the URL of the next one in the body."""
+    holder: list[_PagedServer] = []
+
+    def handler(request: _SeenRequest, number: int) -> _PagedReply:
+        p = request.param('p')
+        index = 0 if p is None else int(p)
+        following = ''
+        if index + 1 < pages:
+            following = ',"next_url":"' + holder[0].url + '/pet/next?p=' + str(index + 1) + '"'
+        return _PagedReply('{"items":[' + _pet_json(f'f{index}') + ']' + following + '}')
+
+    server = _PagedServer(raw_server, handler)
+    holder.append(server)
+    return server
+
+
 class TestPagedLists:
     async def test_bhv_pagination_001_a_paged_operation_reads_no_page_until_the_first_item_or_page_is_requested(
         self, raw_server: Any
@@ -4024,6 +4083,26 @@ class TestPagedLists:
         assert len(server.seen) == 1, 'both items of the first page came from one request'
         await items.__anext__()
         assert len(server.seen) == 2, 'the third item needed the second page'
+
+    async def test_bhv_pagination_004_an_offset_and_limit_operation_advances_the_offset_by_the_items_received_and_ends_on_an_empty_page(
+        self, raw_server: Any
+    ) -> None:
+        server = _offset_server(raw_server)
+        assert await _names(_pet_api(server).list_pet_offsets_pages()) == ['p0', 'p1', 'p2', 'p3', 'p4']
+        assert _params_seen(server, 'offset') == [None, '2', '4', '5']
+
+    async def test_bhv_pagination_005_a_page_number_operation_starts_at_the_supplied_page_and_increments_it(
+        self, raw_server: Any
+    ) -> None:
+        server = _page_number_server(raw_server)
+        assert await _names(_pet_api(server).list_pet_page_numbers_pages()) == ['p0', 'p1', 'p2', 'p3', 'p4']
+        assert _params_seen(server, 'page') == [None, '2', '3', '4']
+
+    async def test_bhv_pagination_006_an_id_cursor_operation_ends_when_has_more_is_false(self, raw_server: Any) -> None:
+        server = _after_server(raw_server)
+        assert await _names(_pet_api(server).list_pets_after_pages()) == ['p0', 'p1', 'p2', 'p3', 'p4']
+        assert _params_seen(server, 'starting_after') == [None, 'p1', 'p3']
+        assert len(server.seen) == 3, 'the page with has_more false was the last request'
 
     async def test_bhv_pagination_007_a_link_header_operation_follows_rel_next_and_ends_when_it_is_absent(
         self, raw_server: Any
@@ -4348,6 +4427,27 @@ class TestPagedLists:
         server = _PagedServer(raw_server, handler)
         assert await _names(_pet_api(server, max_retries=2).list_pet_catalog_pages()) == ['p0-0', 'p1-0']
         assert _params_seen(server, 'cursor') == [None, None, 'c1']
+
+    async def test_bhv_pagination_029_a_next_url_in_the_body_is_followed_and_a_next_url_on_another_origin_is_refused(
+        self, raw_server: Any
+    ) -> None:
+        server = _next_url_server(raw_server, 3)
+        assert await _names(_pet_api(server).list_pet_next_url_pages()) == ['f0', 'f1', 'f2']
+        assert _params_seen(server, 'p') == [None, '1', '2']
+        elsewhere = _PagedServer(raw_server, lambda request, number: _PagedReply('{"items":[' + _pet_json('stolen') + ']}'))
+        origin = _PagedServer(
+            raw_server,
+            lambda request, number: _PagedReply(
+                '{"items":[' + _pet_json('f0') + '],"next_url":"' + elsewhere.url + '/pet/next?p=1"}'
+            ),
+        )
+        items = _pet_api(origin, default_headers={'Authorization': 'Bearer secret'}).list_pet_next_url_pages().items()
+        assert (await items.__anext__()).name == 'f0', 'the page before the foreign URL is delivered'
+        assert origin.seen[0].headers['authorization'] == 'Bearer secret'
+        with pytest.raises(PaginationException) as refused:
+            await items.__anext__()
+        assert 'p=1' not in str(refused.value), 'the message holds no query'
+        assert len(elsewhere.seen) == 0, 'nothing was sent to the other origin'
 
     async def test_bhv_pagination_030_a_vendor_extension_on_an_operation_is_read_as_a_hint_and_the_override_option_wins_over_it(
         self,

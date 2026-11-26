@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -30,8 +29,8 @@ final class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCreden
     ) {
         parent::__construct(
             $host,
-            self::credentialOrEnvironment($clientId, 'clientId'),
-            self::credentialOrEnvironment($clientSecret, 'clientSecret'),
+            static::credentialOrEnvironment($clientId, 'clientId'),
+            static::credentialOrEnvironment($clientSecret, 'clientSecret'),
             'https://auth.example.com/oauth/token',
             ['pets:read', 'pets:write']
         );

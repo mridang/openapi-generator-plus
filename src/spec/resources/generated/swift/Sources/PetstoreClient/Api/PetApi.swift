@@ -1902,7 +1902,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     return try await listPetFeedPage(options: options, pageURL: nil)
   }
 
-  /* One page of the list: the first when `pageURL` is nil, else the URL the Link header named. */
+  /* One page of the list: the first when `pageURL` is nil, else the URL the Link header or the body named. */
   func listPetFeedPage(options: ListPetFeedOptions?, pageURL: String?) async throws -> ApiResult<
     [Pet]
   > {
@@ -2014,6 +2014,87 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: PetMatchPage.self)
   }
 
+  /// Lists pets with the URL of the next page in the body
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetNextUrl(options: ListPetNextUrlOptions? = nil) async throws -> PetNextUrlPage {
+    let result = try await listPetNextUrlWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetNextUrl but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetNextUrl operation and returns the full API result.
+  public func listPetNextUrlWithHTTPInfo(options: ListPetNextUrlOptions? = nil) async throws
+    -> ApiResult<PetNextUrlPage>
+  {
+    return try await listPetNextUrlPage(options: options, pageURL: nil)
+  }
+
+  /* One page of the list: the first when `pageURL` is nil, else the URL the Link header or the body named. */
+  func listPetNextUrlPage(options: ListPetNextUrlOptions?, pageURL: String?) async throws
+    -> ApiResult<PetNextUrlPage>
+  {
+
+    let path = "/pet/next"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.limit {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: pageURL ?? path,
+      queryParams: pageURL == nil ? queryParams : [:],
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetNextUrlPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetNextUrl",
+      operationId: "listPetNextUrl",
+      urlTemplate: "/pet/next",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetNextUrlPage.self)
+  }
+
+  /// Lists pets with the URL of the next page in the body
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetNextUrlWithHTTPInfo`, with the same options on each page.
+  /// The page after each one is the URL in its `nextUrl` property,
+  /// followed only within the origin of the client.
+  public func listPetNextUrlPages(options: ListPetNextUrlOptions? = nil) -> Paginator<Pet, Void> {
+    return Paginator<Pet, Void>.ofNextUrl(
+      baseURL: config.baseURL,
+      requestPath: "/pet/next",
+      fetch: { pageURL in
+        try await self.listPetNextUrlPage(options: options, pageURL: pageURL)
+      },
+      items: { $0.items },
+      next: { $0.nextUrl })
+  }
+
   /// Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
   ///
   /// - Parameters:
@@ -2088,6 +2169,260 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
       },
       items: { $0.rows },
       next: { $0.following })
+  }
+
+  /// Lists pets by offset and limit; the list ends on an empty page
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetOffsets(options: ListPetOffsetsOptions? = nil) async throws -> PetOffsetPage {
+    let result = try await listPetOffsetsWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetOffsets but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetOffsets operation and returns the full API result.
+  public func listPetOffsetsWithHTTPInfo(options: ListPetOffsetsOptions? = nil) async throws
+    -> ApiResult<PetOffsetPage>
+  {
+
+    let path = "/pet/offsets"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.offset {
+      queryParams["offset"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "offset", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.limit {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetOffsetPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetOffsets",
+      operationId: "listPetOffsets",
+      urlTemplate: "/pet/offsets",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetOffsetPage.self)
+  }
+
+  /// Lists pets by offset and limit; the list ends on an empty page
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetOffsetsWithHTTPInfo`, with the same options on each page.
+  /// The value of the `offset` option is the offset of the first item,
+  /// and each page after one is requested at the offset past the items it received. The list ends on an empty
+  /// page or when its `hasMore` is false.
+  public func listPetOffsetsPages(options: ListPetOffsetsOptions? = nil) -> Paginator<Pet, Int> {
+    return Paginator<Pet, Int32>.ofOffset(
+      start: options?.offset,
+      requestPath: "/pet/offsets",
+      fetch: { offset in
+        let pageOptions =
+          offset.map { (options ?? ListPetOffsetsOptions()).withCursor($0) } ?? options
+        return try await self.listPetOffsetsWithHTTPInfo(options: pageOptions)
+      },
+      items: { $0.items },
+      hasMore: { $0.hasMore })
+  }
+
+  /// Lists pets one numbered page at a time; the list ends on an empty page
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetPageNumbers(options: ListPetPageNumbersOptions? = nil) async throws
+    -> PetPageNumberPage
+  {
+    let result = try await listPetPageNumbersWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetPageNumbers but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetPageNumbers operation and returns the full API result.
+  public func listPetPageNumbersWithHTTPInfo(options: ListPetPageNumbersOptions? = nil) async throws
+    -> ApiResult<PetPageNumberPage>
+  {
+
+    let path = "/pet/pages"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.page {
+      queryParams["page"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "page", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.perPage {
+      queryParams["per_page"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "per_page", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetPageNumberPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetPageNumbers",
+      operationId: "listPetPageNumbers",
+      urlTemplate: "/pet/pages",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetPageNumberPage.self)
+  }
+
+  /// Lists pets one numbered page at a time; the list ends on an empty page
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetPageNumbersWithHTTPInfo`, with the same options on each page.
+  /// The value of the `page` option is the page number of the first
+  /// request, and each page after one is requested with the next page number. The list ends on an empty
+  /// page or when its `hasMore` is false.
+  public func listPetPageNumbersPages(options: ListPetPageNumbersOptions? = nil) -> Paginator<
+    Pet, Int
+  > {
+    return Paginator<Pet, Int32>.ofPage(
+      start: options?.page,
+      requestPath: "/pet/pages",
+      fetch: { page in
+        let pageOptions =
+          page.map { (options ?? ListPetPageNumbersOptions()).withCursor($0) } ?? options
+        return try await self.listPetPageNumbersWithHTTPInfo(options: pageOptions)
+      },
+      items: { $0.items },
+      hasMore: { $0.hasMore })
+  }
+
+  /// Lists pets after the id of the last one; the has_more flag says when the list ends
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func listPetsAfter(options: ListPetsAfterOptions? = nil) async throws -> PetAfterPage {
+    let result = try await listPetsAfterWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for listPetsAfter but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the listPetsAfter operation and returns the full API result.
+  public func listPetsAfterWithHTTPInfo(options: ListPetsAfterOptions? = nil) async throws
+    -> ApiResult<PetAfterPage>
+  {
+
+    let path = "/pet/after"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.startingAfter {
+      queryParams["starting_after"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "starting_after", value: val, location: "query", schemaType: "String",
+          collectionFormat: "", style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.limit {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "PetAfterPage",
+      auth: schemeAuthenticator(["petStoreBearer"]),
+      operation: "PetApi.listPetsAfter",
+      operationId: "listPetsAfter",
+      urlTemplate: "/pet/after",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: PetAfterPage.self)
+  }
+
+  /// Lists pets after the id of the last one; the has_more flag says when the list ends
+  ///
+  /// Returns the items as a lazy ``Paginator``: no request is sent until you first read an item or a
+  /// page, and each next page is requested only when you ask for more. Every page is an ordinary
+  /// call of `listPetsAfterWithHTTPInfo`, with the same options on each page.
+  /// The value of the `starting_after` option is where the list starts, the
+  /// page after each one is requested with the `last_id` it returned,
+  /// and the list ends when its `hasMore` is false.
+  public func listPetsAfterPages(options: ListPetsAfterOptions? = nil) -> Paginator<Pet, String> {
+    return Paginator<Pet, String>.ofCursor(
+      start: options?.startingAfter,
+      requestPath: "/pet/after",
+      fetch: { cursor in
+        let pageOptions =
+          cursor.map { (options ?? ListPetsAfterOptions()).withCursor($0) } ?? options
+        return try await self.listPetsAfterWithHTTPInfo(options: pageOptions)
+      },
+      items: { $0.data },
+      next: { $0.lastId },
+      hasMore: { $0.hasMore })
   }
 
   /// Set the pet's profile photo

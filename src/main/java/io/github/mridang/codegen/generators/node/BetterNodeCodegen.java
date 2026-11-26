@@ -1155,8 +1155,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     /**
      * A paged operation gets a {@code <operation>Pages} method that returns a {@code Paginator}; this
      * records the type of that return value as {@code paginatorType} on the pagination decorator, so
-     * the class and the interface both say it. A list that is followed by the {@code Link} header has
-     * no cursor, so its cursor type is {@code never}.
+     * the class and the interface both say it. A list that follows a next URL, in the {@code Link} header
+     * or in the body, has no cursor, so its cursor type is {@code never}.
      *
      * @return whether the operation has a paged method
      */
@@ -1177,7 +1177,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 "Paginator<"
                         + p.get("itemType")
                         + ", "
-                        + (Boolean.TRUE.equals(p.get("isLink")) ? "never" : p.get("cursorType"))
+                        + (Boolean.TRUE.equals(p.get("isUrlPaged")) ? "never" : p.get("cursorType"))
                         + ">");
         return true;
     }

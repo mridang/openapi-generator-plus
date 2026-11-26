@@ -100,7 +100,7 @@ test('bhv unions 032 a one of wrapper built from a variant serializes it with it
     $food = PetFood::fromDryFood($dry);
 
     expect($food->getActualInstance())->toBe($dry);
-    $decoded = json_decode(ObjectSerializer::serialize($food), true);
+    $decoded = json_decode((string) ObjectSerializer::serialize($food), true);
     \assert(is_array($decoded));
     expect($decoded['foodType'] ?? null)->toBe('dry');
 });
@@ -306,6 +306,7 @@ test('bhv unions 004 all of deserializes pet with owner', function (): void {
         . '"ownerName":"John","ownerEmail":"john@example.com"}';
     /** @var PetWithOwner $result */
     $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
+    \assert($result instanceof PetWithOwner);
     expect($result)->toBeInstanceOf(PetWithOwner::class);
     expect($result->name)->toBe('doggie');
     expect($result->ownerName)->toBe('John');
@@ -316,6 +317,7 @@ test('bhv unions 021 all of serializes pet with owner', function (): void {
     $json = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}';
     /** @var PetWithOwner $result */
     $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
+    \assert($result instanceof PetWithOwner);
     $serialized = ObjectSerializer::serialize($result);
     expect($serialized)->not->toBeFalse();
     expect($serialized)->toContain('Fido');
@@ -326,9 +328,11 @@ test('bhv unions 017 all of round trip', function (): void {
     $json = '{"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"}';
     /** @var PetWithOwner $original */
     $original = ObjectSerializer::deserialize($json, PetWithOwner::class);
+    \assert($original instanceof PetWithOwner);
     $serialized = ObjectSerializer::serialize($original);
     /** @var PetWithOwner $restored */
     $restored = ObjectSerializer::deserialize($serialized, PetWithOwner::class);
+    \assert($restored instanceof PetWithOwner);
     expect($restored->name)->toBe($original->name);
     expect($restored->ownerName)->toBe($original->ownerName);
 });
@@ -378,6 +382,7 @@ test('bhv unions 023 set pet avatar thumbnail byte oneOf round-trips through bas
     // Deserializing recovers exactly the original 4 bytes.
     /** @var SetPetAvatarThumbnailRequest $restored */
     $restored = ObjectSerializer::deserialize($json, SetPetAvatarThumbnailRequest::class);
+    \assert($restored instanceof SetPetAvatarThumbnailRequest);
     expect($restored->getActualInstance())->toBe($raw);
 });
 
@@ -396,6 +401,7 @@ test('bhv unions 022 set pet avatar thumbnail byte oneOf array variant round-tri
     // The list variant is a Vector of the raw strings.
     /** @var SetPetAvatarThumbnailRequest $restored */
     $restored = ObjectSerializer::deserialize($json, SetPetAvatarThumbnailRequest::class);
+    \assert($restored instanceof SetPetAvatarThumbnailRequest);
     $instance = $restored->getActualInstance();
     expect($instance)->toBeInstanceOf(\Ds\Vector::class);
     assert($instance instanceof \Ds\Vector);
@@ -408,6 +414,7 @@ test('bhv unions 018 set pet avatar thumbnail scalar base64 does not parse as a 
     // list. The scalar branch is declared first, so resolveOneOf selects it.
     /** @var SetPetAvatarThumbnailRequest $restored */
     $restored = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    \assert($restored instanceof SetPetAvatarThumbnailRequest);
     expect($restored->getActualInstance())->toBeString();
     expect($restored->getActualInstance())->toBe("\x01\x02\x03\x04");
 });
@@ -480,8 +487,10 @@ test('bhv unions 040 a typed accessor returns the variant it holds and nothing f
 test('bhv unions 041 a oneOf without a discriminator decodes each json shape to the variant that describes it', function (): void {
     /** @var SetPetAvatarThumbnailRequest $byString */
     $byString = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    \assert($byString instanceof SetPetAvatarThumbnailRequest);
     /** @var SetPetAvatarThumbnailRequest $byArray */
     $byArray = ObjectSerializer::deserialize('["AQIDBA==","ABCD"]', SetPetAvatarThumbnailRequest::class);
+    \assert($byArray instanceof SetPetAvatarThumbnailRequest);
 
     expect($byString->getActualInstance())->toBe("\x01\x02\x03\x04");
     expect($byArray->getActualInstance())->toBeInstanceOf(\Ds\Vector::class);
@@ -502,7 +511,7 @@ test('bhv unions 042 a union wrapper built with no variant or a null variant hol
 test('bhv unions 043 a discriminator value already set on a subtype is written as given', function (): void {
     $dry = new DryFood(weightKg: 1.0, foodType: 'custom');
 
-    $decoded = json_decode(ObjectSerializer::serialize($dry), true);
+    $decoded = json_decode((string) ObjectSerializer::serialize($dry), true);
     \assert(is_array($decoded));
 
     expect($decoded['foodType'] ?? null)->toBe('custom');
@@ -583,6 +592,7 @@ test('bhv misc 295 a oneOf with a byte string variant round trips through base64
     // Deserializing recovers exactly the original 4 bytes.
     /** @var SetPetAvatarThumbnailRequest $restored */
     $restored = ObjectSerializer::deserialize($json, SetPetAvatarThumbnailRequest::class);
+    \assert($restored instanceof SetPetAvatarThumbnailRequest);
     expect($restored->getActualInstance())->toBe($raw);
 });
 

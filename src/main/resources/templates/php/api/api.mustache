@@ -208,7 +208,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $requestContentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
     {
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
         return $this->{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}${{paramName}}, {{/vendorExtensions.op.signatureArgs}}null);
     }
 
@@ -224,12 +224,12 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
      */
     private function {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isOptions}}?{{{dataType}}} $options{{/isOptions}}, {{/vendorExtensions.op.signatureArgs}}?string $pageUrl): ApiResult
     {
-{{/vendorExtensions.op.pagination.isLink}}
-{{>api/operation_prelude}}{{#vendorExtensions.op.pagination.isLink}}        if ($pageUrl !== null) {
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{>api/operation_prelude}}{{#vendorExtensions.op.pagination.isUrlPaged}}        if ($pageUrl !== null) {
             $path = $pageUrl;
             $queryParams = [];
         }
-{{/vendorExtensions.op.pagination.isLink}}        /** @var ApiResult<{{{vendorExtensions.phpDocReturnType}}}> $result */
+{{/vendorExtensions.op.pagination.isUrlPaged}}        /** @var ApiResult<{{{vendorExtensions.phpDocReturnType}}}> $result */
         $result = $this->{{#vendorExtensions.op.streamsBinary}}invokeApiForStream{{/vendorExtensions.op.streamsBinary}}{{^vendorExtensions.op.streamsBinary}}invokeApiForResult{{/vendorExtensions.op.streamsBinary}}(
             '{{httpMethod}}',
             $path,

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -161,49 +160,49 @@ class Client implements \PetstoreClient\ClientInterface
         ?CallHook $callHook = null
     ) {
         $schemeAuthenticators = [];
-        if ($petStoreBasic instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($petStoreBasic !== null) {
             $schemeAuthenticators['petStoreBasic'] = $petStoreBasic;
         }
-        if ($adminBasic instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($adminBasic !== null) {
             $schemeAuthenticators['adminBasic'] = $adminBasic;
         }
-        if ($petStoreBearer instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($petStoreBearer !== null) {
             $schemeAuthenticators['petStoreBearer'] = $petStoreBearer;
         }
-        if ($serviceToken instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($serviceToken !== null) {
             $schemeAuthenticators['serviceToken'] = $serviceToken;
         }
-        if ($apiKeyHeader instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($apiKeyHeader !== null) {
             $schemeAuthenticators['apiKeyHeader'] = $apiKeyHeader;
         }
-        if ($internalApiKey instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($internalApiKey !== null) {
             $schemeAuthenticators['internalApiKey'] = $internalApiKey;
         }
-        if ($apiKeyQuery instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($apiKeyQuery !== null) {
             $schemeAuthenticators['apiKeyQuery'] = $apiKeyQuery;
         }
-        if ($sessionCookie instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($sessionCookie !== null) {
             $schemeAuthenticators['sessionCookie'] = $sessionCookie;
         }
-        if ($machineAuth instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($machineAuth !== null) {
             $schemeAuthenticators['machineAuth'] = $machineAuth;
         }
-        if ($legacyAuth instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($legacyAuth !== null) {
             $schemeAuthenticators['legacyAuth'] = $legacyAuth;
         }
-        if ($userAuth instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($userAuth !== null) {
             $schemeAuthenticators['userAuth'] = $userAuth;
         }
-        if ($browserAuth instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($browserAuth !== null) {
             $schemeAuthenticators['browserAuth'] = $browserAuth;
         }
-        if ($ssoAuth instanceof \PetstoreClient\Auth\Authenticator) {
+        if ($ssoAuth !== null) {
             $schemeAuthenticators['ssoAuth'] = $ssoAuth;
         }
         $hostAuthenticator = $authenticator ?? (array_values($schemeAuthenticators)[0] ?? null);
         $transportOptions ??= TransportOptions::builder()->build();
         $this->lifecycle = new ClientLifecycle();
-        $this->sdkOwnsTransport = !$apiClient instanceof \PetstoreClient\ApiClient;
+        $this->sdkOwnsTransport = $apiClient === null;
         $apiClient ??= new DefaultApiClient($transportOptions);
         $this->sdkTransport = $apiClient;
         if ($hostAuthenticator === null) {

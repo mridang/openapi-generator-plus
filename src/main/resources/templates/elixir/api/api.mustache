@@ -279,13 +279,13 @@ defmodule {{moduleName}}.Api.{{classname}} do
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
   @impl true
   def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
     {{operationId}}_page(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, nil)
   end
 
-  # One page of the list: the first when `page_url` is nil, else the URL the Link header named.
+  # One page of the list: the first when `page_url` is nil, else the URL the Link header or the body named.
   defp {{operationId}}_page(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, page_url) do
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{/vendorExtensions.op.streamOnly}}
 {{#vendorExtensions.op.streamOnly}}
 
@@ -600,10 +600,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
 {{/hasFormParams}}
 {{/consumes.1}}
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
     {path, query_params} = if page_url, do: {page_url, []}, else: {path, query_params}
 
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
     {{moduleName}}.Api.BaseApi.invoke_api_for_result(
       api, :{{httpMethod}}, path, query_params, header_params, request_body,
       [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
@@ -635,10 +635,29 @@ defmodule {{moduleName}}.Api.{{classname}} do
   The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is where the list starts, and the page after
   each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}` it returned.
 {{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+  The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is where the list starts, the page after
+  each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}` it returned, and the list ends
+  when its `{{vendorExtensions.op.pagination.hasMorePropertyName}}` is false.
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+  The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is the offset of the first item, and each
+  page after one is requested at the offset past the items it received. The list ends on an empty page
+  {{#vendorExtensions.op.pagination.hasHasMore}}or when its `{{vendorExtensions.op.pagination.hasMorePropertyName}}` is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+  The value of the `{{vendorExtensions.op.pagination.requestParamName}}` option is the page number of the first request, and
+  each page after one is requested with the next page number. The list ends on an empty page
+  {{#vendorExtensions.op.pagination.hasHasMore}}or when its `{{vendorExtensions.op.pagination.hasMorePropertyName}}` is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isPage}}
 {{#vendorExtensions.op.pagination.isLink}}
   The page after each one is the `rel="next"` link of its `Link` header, followed only within the
   origin of the client.
 {{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+  The page after each one is the URL in its `{{vendorExtensions.op.pagination.nextUrlPropertyName}}` property, followed only
+  within the origin of the client.
+{{/vendorExtensions.op.pagination.isBody}}
 
   Enumerate it for the items, or call `{{moduleName}}.Paginator.pages/1` for the pages with their cursor
   and result. A failed page raises its error from the read that needed it.
@@ -671,6 +690,40 @@ defmodule {{moduleName}}.Api.{{classname}} do
       "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
     )
 {{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+    {{moduleName}}.Paginator.of_id(
+      page_options.{{vendorExtensions.op.pagination.requestParamName}},
+      fn cursor ->
+        {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}%{page_options | {{vendorExtensions.op.pagination.requestParamName}}: cursor}{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts)
+      end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      fn page -> page.{{vendorExtensions.op.pagination.responsePropertyName}} end,
+      fn page -> page.{{vendorExtensions.op.pagination.hasMorePropertyName}} end,
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+    {{moduleName}}.Paginator.of_offset(
+      page_options.{{vendorExtensions.op.pagination.requestParamName}},
+      fn cursor ->
+        {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}%{page_options | {{vendorExtensions.op.pagination.requestParamName}}: cursor}{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts)
+      end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      {{#vendorExtensions.op.pagination.hasHasMore}}fn page -> page.{{vendorExtensions.op.pagination.hasMorePropertyName}} end{{/vendorExtensions.op.pagination.hasHasMore}}{{^vendorExtensions.op.pagination.hasHasMore}}nil{{/vendorExtensions.op.pagination.hasHasMore}},
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+    {{moduleName}}.Paginator.of_page(
+      page_options.{{vendorExtensions.op.pagination.requestParamName}},
+      fn cursor ->
+        {{operationId}}_with_http_info(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}%{page_options | {{vendorExtensions.op.pagination.requestParamName}}: cursor}{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts)
+      end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      {{#vendorExtensions.op.pagination.hasHasMore}}fn page -> page.{{vendorExtensions.op.pagination.hasMorePropertyName}} end{{/vendorExtensions.op.pagination.hasHasMore}}{{^vendorExtensions.op.pagination.hasHasMore}}nil{{/vendorExtensions.op.pagination.hasHasMore}},
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isPage}}
 {{#vendorExtensions.op.pagination.isLink}}
     {{moduleName}}.Paginator.of_link(
       api.config.base_url,
@@ -684,6 +737,15 @@ defmodule {{moduleName}}.Api.{{classname}} do
       "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
     )
 {{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+    {{moduleName}}.Paginator.of_next_url(
+      api.config.base_url,
+      fn page_url -> {{operationId}}_page(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isOptions}}page_options{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts, page_url) end,
+      fn page -> page.{{vendorExtensions.op.pagination.itemsPropertyName}} end,
+      fn page -> page.{{vendorExtensions.op.pagination.nextUrlPropertyName}} end,
+      "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"
+    )
+{{/vendorExtensions.op.pagination.isBody}}
   end
 {{/vendorExtensions.op.hasPagesMethod}}
 

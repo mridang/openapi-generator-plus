@@ -1235,6 +1235,122 @@ paths:
               schema:
                 $ref: '#/components/schemas/PetArchivePage'
 
+  /pet/offsets:
+    get:
+      tags:
+        - pet
+      summary: Lists pets by offset and limit; the list ends on an empty page
+      operationId: listPetOffsets
+      security:
+        - petStoreBearer: []
+      parameters:
+        - name: offset
+          in: query
+          description: The offset of the first pet on the page
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: limit
+          in: query
+          description: The number of pets on a page
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: One page of pets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetOffsetPage'
+
+  /pet/pages:
+    get:
+      tags:
+        - pet
+      summary: Lists pets one numbered page at a time; the list ends on an empty page
+      operationId: listPetPageNumbers
+      security:
+        - petStoreBearer: []
+      parameters:
+        - name: page
+          in: query
+          description: The number of the page, from 1
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: per_page
+          in: query
+          description: The number of pets on a page
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: One numbered page of pets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetPageNumberPage'
+
+  /pet/after:
+    get:
+      tags:
+        - pet
+      summary: Lists pets after the id of the last one; the has_more flag says when the list ends
+      operationId: listPetsAfter
+      security:
+        - petStoreBearer: []
+      parameters:
+        - name: starting_after
+          in: query
+          description: The id of the last pet of the previous page
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: The number of pets on a page
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: One page of pets with the id of its last pet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetAfterPage'
+
+  /pet/next:
+    get:
+      tags:
+        - pet
+      summary: Lists pets with the URL of the next page in the body
+      operationId: listPetNextUrl
+      security:
+        - petStoreBearer: []
+      parameters:
+        - name: limit
+          in: query
+          description: The number of pets on a page
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: One page of pets with the URL of the next page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetNextUrlPage'
+
   /pet/{petId}/external:
     get:
       servers:
@@ -2549,6 +2665,50 @@ components:
         next_cursor:
           type: string
           description: The cursor of the next page, absent on the last page
+    PetOffsetPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pet'
+        has_more:
+          type: boolean
+          description: Whether a further page follows
+    PetPageNumberPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pet'
+        has_more:
+          type: boolean
+          description: Whether a further page follows
+    PetAfterPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pet'
+        has_more:
+          type: boolean
+          description: Whether a further page follows
+        last_id:
+          type: string
+          description: The id of the last pet on this page
+    PetNextUrlPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pet'
+        next_url:
+          type: string
+          format: uri
+          description: The URL of the next page, absent on the last page
     PetMatchPage:
       type: object
       properties:

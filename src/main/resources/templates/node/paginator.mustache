@@ -9,9 +9,9 @@ import { nextLink } from './link-header{{importFileExtension}}';
  * the request that returned it.
  *
  * `nextCursor` has the type of the cursor request parameter and is `null` on the last page. A list
- * that is followed by the `Link` header has no cursor, so its `nextCursor` is always `null`.
- * `result` is what the matching `...WithHttpInfo` method returns for this page: the status, the
- * headers, the raw body and the decoded body.
+ * that follows a next URL (the `Link` header or a property of the body) has no cursor, so its
+ * `nextCursor` is always `null`. `result` is what the matching `...WithHttpInfo` method returns for
+ * this page: the status, the headers, the raw body and the decoded body.
  */
 export interface Page<T, C> {
   /** The items of this page, in order (frozen). */
@@ -35,8 +35,8 @@ export interface Page<T, C> {
  * delivered, and ends that iteration; a cursor equal to the one just sent raises a
  * {@link PaginationError} from the next read, after the items of the page that repeated it.
  *
- * `T` is the item type and `C` is the type of the cursor request parameter, `never` for a list that
- * is followed by the `Link` header.
+ * `T` is the item type and `C` is the type of the cursor request parameter (a token, an id, an
+ * offset or a page number), `never` for a list that follows a next URL.
  */
 export class Paginator<T, C = never> implements AsyncIterable<T> {
   private constructor(private readonly source: () => AsyncGenerator<Page<T, C>, void, undefined>) {}
@@ -58,27 +58,94 @@ export class Paginator<T, C = never> implements AsyncIterable<T> {
     next: (page: B) => C | null | undefined,
     requestPath: string
   ): Paginator<T, C> {
-    return new Paginator<T, C>(async function* (): AsyncGenerator<Page<T, C>, void, undefined> {
-      let sent = start;
-      for (;;) {
-        const result = await fetch(sent);
-        const body = result.data;
-        const list = body == null ? [] : (items(body) ?? []);
-        const following = body == null ? null : (next(body) ?? null);
-        if (following === null || following === '') {
-          yield { items: Object.freeze([...list]), nextCursor: null, result };
-          return;
-        }
-        yield { items: Object.freeze([...list]), nextCursor: following, result };
-        /* The page itself is good: it was delivered, and the next read raises. */
-        if (following === sent) {
-          throw new PaginationError('The server returned the cursor that was just sent, so the list cannot advance', {
-            requestPath
-          });
-        }
-        sent = following;
-      }
-    });
+    return Paginator.follow<T, C, B>(start, fetch, items, (page) => next(page), requestPath);
+  }
+
+  /**
+   * Creates a paginator that follows an id cursor: the next cursor is read from the page, and the list
+   * ends when the `has_more` flag of the page is `false`. Used by the generated `...Pages` methods.
+   *
+   * @param start the cursor of the first request, or `undefined` to start at the beginning
+   * @param fetch sends the request for a cursor (`undefined` for none) and returns its result
+   * @param items reads the items of a decoded page
+   * @param next reads the cursor of the next page from a decoded page; absent, `null` or empty ends the list
+   * @param hasMore reads the `has_more` flag of a decoded page, or `undefined` when the list does not declare one
+   * @param requestPath the path of the operation, for errors
+   * @returns the paginator
+   */
+  static ofId<T, C extends string | number, B>(
+    start: C | undefined,
+    fetch: (cursor: C | undefined) => Promise<ApiResult<B>>,
+    items: (page: B) => readonly T[] | null | undefined,
+    next: (page: B) => C | null | undefined,
+    hasMore: ((page: B) => boolean | null | undefined) | undefined,
+    requestPath: string
+  ): Paginator<T, C> {
+    return Paginator.follow<T, C, B>(
+      start,
+      fetch,
+      items,
+      (page) => (hasMore !== undefined && hasMore(page) === false ? null : next(page)),
+      requestPath
+    );
+  }
+
+  /**
+   * Creates a paginator that follows an offset: the next offset is the offset sent plus the items
+   * received, and the list ends on an empty page or when the `has_more` flag of the page is `false`.
+   * Used by the generated `...Pages` methods.
+   *
+   * @param start the offset of the first request, or `undefined` to send none
+   * @param fetch sends the request for an offset (`undefined` for none) and returns its result
+   * @param items reads the items of a decoded page
+   * @param hasMore reads the `has_more` flag of a decoded page, or `undefined` when the list does not declare one
+   * @param requestPath the path of the operation, for errors
+   * @returns the paginator
+   */
+  static ofOffset<T, B>(
+    start: number | undefined,
+    fetch: (offset: number | undefined) => Promise<ApiResult<B>>,
+    items: (page: B) => readonly T[] | null | undefined,
+    hasMore: ((page: B) => boolean | null | undefined) | undefined,
+    requestPath: string
+  ): Paginator<T, number> {
+    return Paginator.follow<T, number, B>(
+      start,
+      fetch,
+      items,
+      (page, sent, count) =>
+        count === 0 || (hasMore !== undefined && hasMore(page) === false) ? null : (sent ?? 0) + count,
+      requestPath
+    );
+  }
+
+  /**
+   * Creates a paginator that counts pages: the first request sends the page number given, or none,
+   * and each next request sends the page after the one it asked for. The list ends on an empty page or
+   * when the `has_more` flag of the page is `false`. Used by the generated `...Pages` methods.
+   *
+   * @param start the page number of the first request, or `undefined` to send none (page 1 is the first)
+   * @param fetch sends the request for a page number (`undefined` for none) and returns its result
+   * @param items reads the items of a decoded page
+   * @param hasMore reads the `has_more` flag of a decoded page, or `undefined` when the list does not declare one
+   * @param requestPath the path of the operation, for errors
+   * @returns the paginator
+   */
+  static ofPage<T, B>(
+    start: number | undefined,
+    fetch: (page: number | undefined) => Promise<ApiResult<B>>,
+    items: (page: B) => readonly T[] | null | undefined,
+    hasMore: ((page: B) => boolean | null | undefined) | undefined,
+    requestPath: string
+  ): Paginator<T, number> {
+    return Paginator.follow<T, number, B>(
+      start,
+      fetch,
+      items,
+      (page, sent, count) =>
+        count === 0 || (hasMore !== undefined && hasMore(page) === false) ? null : (sent ?? 1) + 1,
+      requestPath
+    );
   }
 
   /**
@@ -97,28 +164,40 @@ export class Paginator<T, C = never> implements AsyncIterable<T> {
     items: (page: B) => readonly T[] | null | undefined,
     requestPath: string
   ): Paginator<T, never> {
-    return new Paginator<T, never>(async function* (): AsyncGenerator<Page<T, never>, void, undefined> {
-      let url: string | undefined;
-      for (;;) {
-        const result = await fetch(url);
-        const body = result.data;
-        const list = body == null ? [] : (items(body) ?? []);
-        const link = nextLink(headerOf(result.headers, 'link'));
-        yield { items: Object.freeze([...list]), nextCursor: null, result };
-        if (link === null) {
-          return;
-        }
-        /* The page itself is good: it was delivered, and the next read raises. */
-        const target = resolveNext(baseUrl, url, link, requestPath);
-        if (target === url) {
-          throw new PaginationError(
-            'The server returned a next link to the page that was just read, so the list cannot advance',
-            { requestPath }
-          );
-        }
-        url = target;
-      }
-    });
+    return Paginator.followUrls<T, B>(
+      baseUrl,
+      fetch,
+      items,
+      (result) => nextLink(headerOf(result.headers, 'link')),
+      requestPath
+    );
+  }
+
+  /**
+   * Creates a paginator that follows a next URL in the body of each page. Used by the generated
+   * `...Pages` methods.
+   *
+   * @param baseUrl the base URL of the client; a next URL that leaves its scheme, host or port is refused
+   * @param fetch sends the request for a URL (`undefined` for the first page) and returns its result
+   * @param items reads the items of a decoded page
+   * @param next reads the next URL from a decoded page; absent, `null` or empty ends the list
+   * @param requestPath the path of the operation, for errors
+   * @returns the paginator
+   */
+  static ofNextUrl<T, B>(
+    baseUrl: string,
+    fetch: (url: string | undefined) => Promise<ApiResult<B>>,
+    items: (page: B) => readonly T[] | null | undefined,
+    next: (page: B) => string | null | undefined,
+    requestPath: string
+  ): Paginator<T, never> {
+    return Paginator.followUrls<T, B>(
+      baseUrl,
+      fetch,
+      items,
+      (result) => (result.data == null ? null : next(result.data)),
+      requestPath
+    );
   }
 
   /**
@@ -152,6 +231,77 @@ export class Paginator<T, C = never> implements AsyncIterable<T> {
    */
   [Symbol.asyncIterator](): AsyncGenerator<T, void, undefined> {
     return this.items();
+  }
+
+  /**
+   * Follows a list whose next request value is computed from the page just read. `next` receives the
+   * decoded page, the value that was sent for it (`undefined` for none) and the number of items it
+   * holds; `undefined`, `null` or `''` ends the list. The page itself is always delivered before a
+   * value that repeats the one just sent raises.
+   */
+  private static follow<T, C extends string | number, B>(
+    start: C | undefined,
+    fetch: (cursor: C | undefined) => Promise<ApiResult<B>>,
+    items: (page: B) => readonly T[] | null | undefined,
+    next: (page: B, sent: C | undefined, count: number) => C | null | undefined,
+    requestPath: string
+  ): Paginator<T, C> {
+    return new Paginator<T, C>(async function* (): AsyncGenerator<Page<T, C>, void, undefined> {
+      let sent = start;
+      for (;;) {
+        const result = await fetch(sent);
+        const body = result.data;
+        const list = body == null ? [] : (items(body) ?? []);
+        const following = body == null ? null : (next(body, sent, list.length) ?? null);
+        if (following === null || following === '') {
+          yield { items: Object.freeze([...list]), nextCursor: null, result };
+          return;
+        }
+        yield { items: Object.freeze([...list]), nextCursor: following, result };
+        /* The page itself is good: it was delivered, and the next read raises. */
+        if (following === sent) {
+          throw new PaginationError('The server returned the cursor that was just sent, so the list cannot advance', {
+            requestPath
+          });
+        }
+        sent = following;
+      }
+    });
+  }
+
+  /**
+   * Follows a list whose next URL is named by the page just read, from the `Link` header or the body.
+   * `nextUrl` returns it from the result of the page; absent, `null` or empty ends the list.
+   */
+  private static followUrls<T, B>(
+    baseUrl: string,
+    fetch: (url: string | undefined) => Promise<ApiResult<B>>,
+    items: (page: B) => readonly T[] | null | undefined,
+    nextUrl: (result: ApiResult<B>) => string | null | undefined,
+    requestPath: string
+  ): Paginator<T, never> {
+    return new Paginator<T, never>(async function* (): AsyncGenerator<Page<T, never>, void, undefined> {
+      let url: string | undefined;
+      for (;;) {
+        const result = await fetch(url);
+        const body = result.data;
+        const list = body == null ? [] : (items(body) ?? []);
+        const next = nextUrl(result);
+        yield { items: Object.freeze([...list]), nextCursor: null, result };
+        if (!next) {
+          return;
+        }
+        /* The page itself is good: it was delivered, and the next read raises. */
+        const target = resolveNext(baseUrl, url, next, requestPath);
+        if (target === url) {
+          throw new PaginationError(
+            'The server returned a next link to the page that was just read, so the list cannot advance',
+            { requestPath }
+          );
+        }
+        url = target;
+      }
+    });
   }
 }
 

@@ -38,7 +38,7 @@ function parseEvents(string ...$chunks): array
 {
     $parser = new EventStream(eventBytes(...$chunks), 1024);
     $events = [];
-    while (($event = $parser->nextEvent()) instanceof \PetstoreClient\ServerSentEvent) {
+    while (($event = $parser->nextEvent()) !== null) {
         $events[] = $event;
     }
 
@@ -253,7 +253,7 @@ test('bhv sse 010 an sse reconnect counter resets after an event is received', f
     $ids = [];
     $stream = openEvents(
         scriptedOpener(["data: a\n\n", "data: b\n\n", "data: c\n\n", ''], $ids),
-        new StreamOptions(maxReconnects: 1, reconnectDelay: 1)
+        new StreamOptions(reconnectDelay: 1, maxReconnects: 1)
     );
     $seen = [];
 
@@ -309,7 +309,7 @@ test('bhv sse 016 an sse request with a body is not reconnected unless the calle
     $on = [];
     $reconnect = openEvents(
         scriptedOpener(["data: a\n\n", "data: b\n\n", noContentStream()], $on),
-        new StreamOptions(maxReconnects: 2, reconnectDelay: 1),
+        new StreamOptions(reconnectDelay: 1, maxReconnects: 2),
         null,
         null,
         true
@@ -319,7 +319,7 @@ test('bhv sse 016 an sse request with a body is not reconnected unless the calle
     $single = [];
     $once = openEvents(
         scriptedOpener(["data: a\n\n", "data: b\n\n"], $single),
-        new StreamOptions(maxReconnects: 2, reconnectDelay: 1),
+        new StreamOptions(reconnectDelay: 1, maxReconnects: 2),
         null,
         null,
         true,

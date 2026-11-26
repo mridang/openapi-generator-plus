@@ -20,11 +20,15 @@ import type { DeepInput } from "../deep-input.js";
 import {
   ApiResponse,
   Pet,
+  PetAfterPage,
   PetArchivePage,
   PetCatalogPage,
   PetEventPage,
   PetMatchPage,
+  PetNextUrlPage,
   PetNotePage,
+  PetOffsetPage,
+  PetPageNumberPage,
   PetPassport,
   PetTreatment,
   Photo,
@@ -43,7 +47,11 @@ import type { ListPetCatalogOptions } from "./options/list-pet-catalog-options.j
 import type { ListPetEventsOptions } from "./options/list-pet-events-options.js";
 import type { ListPetFeedOptions } from "./options/list-pet-feed-options.js";
 import type { ListPetMatchesOptions } from "./options/list-pet-matches-options.js";
+import type { ListPetNextUrlOptions } from "./options/list-pet-next-url-options.js";
 import type { ListPetNotesOptions } from "./options/list-pet-notes-options.js";
+import type { ListPetOffsetsOptions } from "./options/list-pet-offsets-options.js";
+import type { ListPetPageNumbersOptions } from "./options/list-pet-page-numbers-options.js";
+import type { ListPetsAfterOptions } from "./options/list-pets-after-options.js";
 import type { SetPetPreferencesOptions } from "./options/set-pet-preferences-options.js";
 import type { UploadPetCertificateOptions } from "./options/upload-pet-certificate-options.js";
 import type { UploadPetDocumentOptions } from "./options/upload-pet-document-options.js";
@@ -479,6 +487,18 @@ export interface PetApiInterface {
     options?: ListPetMatchesOptions,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<PetMatchPage>>;
+  listPetNextUrl(
+    options?: ListPetNextUrlOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetNextUrlPage>;
+  listPetNextUrlWithHttpInfo(
+    options?: ListPetNextUrlOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetNextUrlPage>>;
+  listPetNextUrlPages(
+    options?: ListPetNextUrlOptions,
+    requestOptions?: RequestOptions,
+  ): Paginator<Pet, never>;
   listPetNotes(
     options?: ListPetNotesOptions,
     requestOptions?: RequestOptions,
@@ -491,6 +511,42 @@ export interface PetApiInterface {
     options?: ListPetNotesOptions,
     requestOptions?: RequestOptions,
   ): Paginator<string, string>;
+  listPetOffsets(
+    options?: ListPetOffsetsOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetOffsetPage>;
+  listPetOffsetsWithHttpInfo(
+    options?: ListPetOffsetsOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetOffsetPage>>;
+  listPetOffsetsPages(
+    options?: ListPetOffsetsOptions,
+    requestOptions?: RequestOptions,
+  ): Paginator<Pet, number>;
+  listPetPageNumbers(
+    options?: ListPetPageNumbersOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetPageNumberPage>;
+  listPetPageNumbersWithHttpInfo(
+    options?: ListPetPageNumbersOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetPageNumberPage>>;
+  listPetPageNumbersPages(
+    options?: ListPetPageNumbersOptions,
+    requestOptions?: RequestOptions,
+  ): Paginator<Pet, number>;
+  listPetsAfter(
+    options?: ListPetsAfterOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetAfterPage>;
+  listPetsAfterWithHttpInfo(
+    options?: ListPetsAfterOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetAfterPage>>;
+  listPetsAfterPages(
+    options?: ListPetsAfterOptions,
+    requestOptions?: RequestOptions,
+  ): Paginator<Pet, string>;
   setPetAvatar(
     petId: number,
     body: BodySource,
@@ -3015,7 +3071,7 @@ export class PetApi extends BaseApi implements PetApiInterface {
     return await this.listPetFeedPage(options, requestOptions);
   }
 
-  /* One page of the list: the first when pageUrl is not given, else the URL the Link header named. */
+  /* One page of the list: the first when pageUrl is not given, else the URL the Link header or the body named. */
   private async listPetFeedPage(
     options?: ListPetFeedOptions,
     requestOptions?: RequestOptions,
@@ -3166,6 +3222,123 @@ export class PetApi extends BaseApi implements PetApiInterface {
   }
 
   /**
+   * Lists pets with the URL of the next page in the body
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.limit The number of pets on a page (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return PetNextUrlPage
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetNextUrl(
+    options?: ListPetNextUrlOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetNextUrlPage> {
+    const listPetNextUrlResult = await this.listPetNextUrlWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetNextUrlResult.data == null) {
+      throw new ApiError(
+        listPetNextUrlResult.statusCode,
+        "Expected a response body for listPetNextUrl but received none",
+        listPetNextUrlResult.headers,
+        listPetNextUrlResult.rawBody,
+        null,
+      );
+    }
+    return listPetNextUrlResult.data as PetNextUrlPage;
+  }
+
+  /**
+   * Lists pets with the URL of the next page in the body (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetNextUrlWithHttpInfo(
+    options?: ListPetNextUrlOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetNextUrlPage>> {
+    return await this.listPetNextUrlPage(options, requestOptions);
+  }
+
+  /* One page of the list: the first when pageUrl is not given, else the URL the Link header or the body named. */
+  private async listPetNextUrlPage(
+    options?: ListPetNextUrlOptions,
+    requestOptions?: RequestOptions,
+    pageUrl?: string,
+  ): Promise<ApiResult<PetNextUrlPage>> {
+    const path = `/pet/next`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.limit != null) {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit",
+          options.limit,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    if (pageUrl !== undefined) {
+      for (const name of Object.keys(queryParams)) {
+        delete queryParams[name];
+      }
+    }
+    return await this.invokeApiForResult(
+      "GET",
+      pageUrl ?? path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, PetNextUrlPage)!,
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetNextUrl",
+      requestOptions,
+      undefined,
+      "listPetNextUrl",
+      "/pet/next",
+    );
+  }
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * Returns the items as a lazy {@link Paginator}: no request is sent until you first read an item
+   * or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link listPetNextUrlWithHttpInfo}, with the same options on each page.
+   * The page after each one is the URL in its `next_url`
+   * property, followed only within the origin of the client.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @param requestOptions optional per-call options, repeated on every page request: `signal` cancels the iteration, `timeout`, `maxRetries` and `headers` apply to each page
+   * @returns the paginator over the items
+   */
+  listPetNextUrlPages(
+    options?: ListPetNextUrlOptions,
+    requestOptions?: RequestOptions,
+  ): Paginator<Pet, never> {
+    return Paginator.ofNextUrl<Pet, PetNextUrlPage>(
+      this.config.baseUrl,
+      (pageUrl) => this.listPetNextUrlPage(options, requestOptions, pageUrl),
+      (page) => page.items,
+      (page) => page.next_url,
+      "/pet/next",
+    );
+  }
+
+  /**
    * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
    * @param options options for query, header, form, and cookie parameters
    * @param options.pos  (optional)
@@ -3270,6 +3443,376 @@ export class PetApi extends BaseApi implements PetApiInterface {
       (page) => page.rows,
       (page) => page.following,
       "/pet/notes",
+    );
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.offset The offset of the first pet on the page (optional)
+   * @param options.limit The number of pets on a page (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return PetOffsetPage
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetOffsets(
+    options?: ListPetOffsetsOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetOffsetPage> {
+    const listPetOffsetsResult = await this.listPetOffsetsWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetOffsetsResult.data == null) {
+      throw new ApiError(
+        listPetOffsetsResult.statusCode,
+        "Expected a response body for listPetOffsets but received none",
+        listPetOffsetsResult.headers,
+        listPetOffsetsResult.rawBody,
+        null,
+      );
+    }
+    return listPetOffsetsResult.data as PetOffsetPage;
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetOffsetsWithHttpInfo(
+    options?: ListPetOffsetsOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetOffsetPage>> {
+    const path = `/pet/offsets`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.offset != null) {
+      queryParams["offset"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "offset",
+          options.offset,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.limit != null) {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit",
+          options.limit,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, PetOffsetPage)!,
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetOffsets",
+      requestOptions,
+      undefined,
+      "listPetOffsets",
+      "/pet/offsets",
+    );
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * Returns the items as a lazy {@link Paginator}: no request is sent until you first read an item
+   * or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link listPetOffsetsWithHttpInfo}, with the same options on each page.
+   * The value of the `offset` option is the offset of the
+   * first item, and each page after one is requested at the offset past the items it received. The list
+   * ends on an empty page or when its `has_more` is false.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @param requestOptions optional per-call options, repeated on every page request: `signal` cancels the iteration, `timeout`, `maxRetries` and `headers` apply to each page
+   * @returns the paginator over the items
+   */
+  listPetOffsetsPages(
+    options?: ListPetOffsetsOptions,
+    requestOptions?: RequestOptions,
+  ): Paginator<Pet, number> {
+    return Paginator.ofOffset<Pet, PetOffsetPage>(
+      options?.offset,
+      (offset) =>
+        this.listPetOffsetsWithHttpInfo(
+          { ...options, offset: offset },
+          requestOptions,
+        ),
+      (page) => page.items,
+      (page) => page.has_more,
+      "/pet/offsets",
+    );
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.page The number of the page, from 1 (optional)
+   * @param options.perPage The number of pets on a page (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return PetPageNumberPage
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetPageNumbers(
+    options?: ListPetPageNumbersOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetPageNumberPage> {
+    const listPetPageNumbersResult = await this.listPetPageNumbersWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetPageNumbersResult.data == null) {
+      throw new ApiError(
+        listPetPageNumbersResult.statusCode,
+        "Expected a response body for listPetPageNumbers but received none",
+        listPetPageNumbersResult.headers,
+        listPetPageNumbersResult.rawBody,
+        null,
+      );
+    }
+    return listPetPageNumbersResult.data as PetPageNumberPage;
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetPageNumbersWithHttpInfo(
+    options?: ListPetPageNumbersOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetPageNumberPage>> {
+    const path = `/pet/pages`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.page != null) {
+      queryParams["page"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "page",
+          options.page,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.perPage != null) {
+      queryParams["per_page"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "per_page",
+          options.perPage,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, PetPageNumberPage)!,
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetPageNumbers",
+      requestOptions,
+      undefined,
+      "listPetPageNumbers",
+      "/pet/pages",
+    );
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * Returns the items as a lazy {@link Paginator}: no request is sent until you first read an item
+   * or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link listPetPageNumbersWithHttpInfo}, with the same options on each page.
+   * The value of the `page` option is the page number of
+   * the first request, and each page after one is requested with the next page number. The list ends on
+   * an empty page or when its `has_more` is false.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @param requestOptions optional per-call options, repeated on every page request: `signal` cancels the iteration, `timeout`, `maxRetries` and `headers` apply to each page
+   * @returns the paginator over the items
+   */
+  listPetPageNumbersPages(
+    options?: ListPetPageNumbersOptions,
+    requestOptions?: RequestOptions,
+  ): Paginator<Pet, number> {
+    return Paginator.ofPage<Pet, PetPageNumberPage>(
+      options?.page,
+      (pageNumber) =>
+        this.listPetPageNumbersWithHttpInfo(
+          { ...options, page: pageNumber },
+          requestOptions,
+        ),
+      (page) => page.items,
+      (page) => page.has_more,
+      "/pet/pages",
+    );
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.startingAfter The id of the last pet of the previous page (optional)
+   * @param options.limit The number of pets on a page (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return PetAfterPage
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetsAfter(
+    options?: ListPetsAfterOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<PetAfterPage> {
+    const listPetsAfterResult = await this.listPetsAfterWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (listPetsAfterResult.data == null) {
+      throw new ApiError(
+        listPetsAfterResult.statusCode,
+        "Expected a response body for listPetsAfter but received none",
+        listPetsAfterResult.headers,
+        listPetsAfterResult.rawBody,
+        null,
+      );
+    }
+    return listPetsAfterResult.data as PetAfterPage;
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async listPetsAfterWithHttpInfo(
+    options?: ListPetsAfterOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<PetAfterPage>> {
+    const path = `/pet/after`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.startingAfter != null) {
+      queryParams["starting_after"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "starting_after",
+          options.startingAfter,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.limit != null) {
+      queryParams["limit"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "limit",
+          options.limit,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, PetAfterPage)!,
+      this.resolveSchemeAuth(["petStoreBearer"]),
+      false,
+      "model",
+      "listPetsAfter",
+      requestOptions,
+      undefined,
+      "listPetsAfter",
+      "/pet/after",
+    );
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * Returns the items as a lazy {@link Paginator}: no request is sent until you first read an item
+   * or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link listPetsAfterWithHttpInfo}, with the same options on each page.
+   * The value of the `startingAfter` option is where the
+   * list starts, the page after each one is requested with the `last_id`
+   * it returned, and the list ends when its `has_more` is false.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @param requestOptions optional per-call options, repeated on every page request: `signal` cancels the iteration, `timeout`, `maxRetries` and `headers` apply to each page
+   * @returns the paginator over the items
+   */
+  listPetsAfterPages(
+    options?: ListPetsAfterOptions,
+    requestOptions?: RequestOptions,
+  ): Paginator<Pet, string> {
+    return Paginator.ofId<Pet, string, PetAfterPage>(
+      options?.startingAfter,
+      (cursor) =>
+        this.listPetsAfterWithHttpInfo(
+          { ...options, startingAfter: cursor },
+          requestOptions,
+        ),
+      (page) => page.data,
+      (page) => page.last_id,
+      (page) => page.has_more,
+      "/pet/after",
     );
   }
 

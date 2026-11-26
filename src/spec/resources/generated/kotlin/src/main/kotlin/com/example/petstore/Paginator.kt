@@ -30,7 +30,7 @@ import java.util.Locale
  *
  * @param T the item type
  * @param C the cursor type, which is the type of the cursor request parameter; [Unit] for a list
- *   that is followed by `Link` header
+ *   that is followed by a URL, from a `Link` header or the body
  */
 class Paginator<T, C> private constructor(
     private val source: Flow<Page<T, C>>,
@@ -59,12 +59,14 @@ class Paginator<T, C> private constructor(
 
     internal companion object {
         /**
-         * Creates a paginator that follows a token cursor. Used by the generated `...Pages` methods.
+         * Creates a paginator that follows a token cursor, or an id cursor when [hasMore] is given. Used
+         * by the generated `...Pages` methods.
          *
          * @param start the cursor of the first request, or `null` to start at the beginning
          * @param fetch sends the request for a cursor (`null` for none) and returns its result
          * @param items reads the items of a decoded page
          * @param next reads the cursor of the next page from a decoded page; absent, `null` or empty ends the list
+         * @param hasMore reads the has_more flag of a decoded page; a `false` flag ends the list, and `null` means the list does not declare one
          * @param requestPath the path of the operation, for errors
          * @return the paginator
          */
@@ -73,33 +75,75 @@ class Paginator<T, C> private constructor(
             fetch: suspend (C?) -> ApiResult<B>,
             items: (B) -> List<T>?,
             next: (B) -> C?,
+            hasMore: ((B) -> Boolean?)? = null,
             requestPath: String,
         ): Paginator<T, C> =
-            Paginator(
-                flow {
-                    var sent = start
-                    var done = false
-                    while (!done) {
-                        val result = fetch(sent)
-                        val body = result.data
-                        val list = body?.let(items).orEmpty()
-                        val following = body?.let(next)
-                        if (following == null || (following is CharSequence && following.isEmpty())) {
-                            done = true
-                            emit(Page(list, null, result))
-                        } else {
-                            emit(Page(list, following, result))
-                            // The page itself is good: it was delivered, and the next read raises.
-                            if (following == sent) {
-                                throw PaginationException(
-                                    "The server returned the cursor that was just sent, so the list cannot advance",
-                                    requestPath,
-                                )
-                            }
-                            sent = following
-                        }
-                    }
+            cursorPages(
+                start,
+                fetch,
+                items,
+                { _, body -> if (hasMore?.invoke(body) == false) null else next(body) },
+                requestPath,
+            )
+
+        /**
+         * Creates a paginator that follows an offset: the next offset is the offset sent plus the items
+         * received, and the list ends on an empty page or when the has_more flag of the page is `false`.
+         * Used by the generated `...Pages` methods.
+         *
+         * @param start the offset of the first request, or `null` to send none
+         * @param fetch sends the request for an offset (`null` for none) and returns its result
+         * @param items reads the items of a decoded page
+         * @param hasMore reads the has_more flag of a decoded page, or `null` when the list does not declare one
+         * @param requestPath the path of the operation, for errors
+         * @return the paginator
+         */
+        fun <T, B> ofOffset(
+            start: Int?,
+            fetch: suspend (Int?) -> ApiResult<B>,
+            items: (B) -> List<T>?,
+            hasMore: ((B) -> Boolean?)? = null,
+            requestPath: String,
+        ): Paginator<T, Int> =
+            cursorPages<T, Int, B>(
+                start,
+                fetch,
+                items,
+                { sent, body ->
+                    val count = items(body)?.size ?: 0
+                    if (continues(count, hasMore, body)) (sent ?: 0) + count else null
                 },
+                requestPath,
+            )
+
+        /**
+         * Creates a paginator that counts pages: the first request sends the page number given, or none,
+         * and each next request sends the page after the one it asked for. The list ends on an empty page
+         * or when the has_more flag of the page is `false`. Used by the generated `...Pages` methods.
+         *
+         * @param start the page number of the first request, or `null` to send none (page 1 is the first)
+         * @param fetch sends the request for a page number (`null` for none) and returns its result
+         * @param items reads the items of a decoded page
+         * @param hasMore reads the has_more flag of a decoded page, or `null` when the list does not declare one
+         * @param requestPath the path of the operation, for errors
+         * @return the paginator
+         */
+        fun <T, B> ofPage(
+            start: Int?,
+            fetch: suspend (Int?) -> ApiResult<B>,
+            items: (B) -> List<T>?,
+            hasMore: ((B) -> Boolean?)? = null,
+            requestPath: String,
+        ): Paginator<T, Int> =
+            cursorPages<T, Int, B>(
+                start,
+                fetch,
+                items,
+                { sent, body ->
+                    val count = items(body)?.size ?: 0
+                    if (continues(count, hasMore, body)) (sent ?: 1) + 1 else null
+                },
+                requestPath,
             )
 
         /**
@@ -118,6 +162,96 @@ class Paginator<T, C> private constructor(
             items: (B) -> List<T>?,
             requestPath: String,
         ): Paginator<T, Unit> =
+            urlPages(
+                baseUrl,
+                fetch,
+                items,
+                { result ->
+                    LinkHeader.next(
+                        result.headers.entries
+                            .firstOrNull { it.key.equals("link", ignoreCase = true) }
+                            ?.value,
+                    )
+                },
+                requestPath,
+            )
+
+        /**
+         * Creates a paginator that follows a next URL in the body of each page. Used by the generated
+         * `...Pages` methods.
+         *
+         * @param baseUrl the base URL of the client; a next URL that leaves its scheme, host or port is refused
+         * @param fetch sends the request for a URL (`null` for the first page) and returns its result
+         * @param items reads the items of a decoded page
+         * @param next reads the next URL from a decoded page; absent, `null` or empty ends the list
+         * @param requestPath the path of the operation, for errors
+         * @return the paginator
+         */
+        fun <T, B> ofNextUrl(
+            baseUrl: String,
+            fetch: suspend (String?) -> ApiResult<B>,
+            items: (B) -> List<T>?,
+            next: (B) -> String?,
+            requestPath: String,
+        ): Paginator<T, Unit> =
+            urlPages(
+                baseUrl,
+                fetch,
+                items,
+                { result -> result.data?.let(next)?.takeIf { it.isNotEmpty() } },
+                requestPath,
+            )
+
+        /** Whether a page with [count] items continues: it has items and its has_more flag is not `false`. */
+        private fun <B> continues(
+            count: Int,
+            hasMore: ((B) -> Boolean?)?,
+            body: B,
+        ): Boolean = count > 0 && hasMore?.invoke(body) != false
+
+        /** The pages of a cursor list: [following] reads the cursor after a page, given the cursor just sent. */
+        private fun <T, C : Any, B> cursorPages(
+            start: C?,
+            fetch: suspend (C?) -> ApiResult<B>,
+            items: (B) -> List<T>?,
+            following: (C?, B) -> C?,
+            requestPath: String,
+        ): Paginator<T, C> =
+            Paginator(
+                flow {
+                    var sent = start
+                    var done = false
+                    while (!done) {
+                        val result = fetch(sent)
+                        val body = result.data
+                        val list = body?.let(items).orEmpty()
+                        val next = body?.let { following(sent, it) }
+                        if (next == null || (next is CharSequence && next.isEmpty())) {
+                            done = true
+                            emit(Page(list, null, result))
+                        } else {
+                            emit(Page(list, next, result))
+                            // The page itself is good: it was delivered, and the next read raises.
+                            if (next == sent) {
+                                throw PaginationException(
+                                    "The server returned the cursor that was just sent, so the list cannot advance",
+                                    requestPath,
+                                )
+                            }
+                            sent = next
+                        }
+                    }
+                },
+            )
+
+        /** The pages of a list that is followed by a URL: [nextOf] reads the next URL from a page just read. */
+        private fun <T, B> urlPages(
+            baseUrl: String,
+            fetch: suspend (String?) -> ApiResult<B>,
+            items: (B) -> List<T>?,
+            nextOf: (ApiResult<B>) -> String?,
+            requestPath: String,
+        ): Paginator<T, Unit> =
             Paginator(
                 flow {
                     var url: String? = null
@@ -125,12 +259,7 @@ class Paginator<T, C> private constructor(
                     while (!done) {
                         val result = fetch(url)
                         val list = result.data?.let(items).orEmpty()
-                        val link =
-                            LinkHeader.next(
-                                result.headers.entries
-                                    .firstOrNull { it.key.equals("link", ignoreCase = true) }
-                                    ?.value,
-                            )
+                        val link = nextOf(result)
                         var target: String? = null
                         var refusal: PaginationException? = null
                         if (link != null) {

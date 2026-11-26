@@ -219,6 +219,72 @@ func sameOriginFeed(t *testing.T, pages int) *pagedServer {
 	})
 }
 
+/* petRange is the pets p[from] up to p[to-1] as a JSON array, for a server that holds five pets p0 to p4. */
+func petRange(from, to int) string {
+	var items []string
+	for i := from; i < to; i++ {
+		items = append(items, petJSON(fmt.Sprintf("p%d", i)))
+	}
+	return "[" + strings.Join(items, ",") + "]"
+}
+
+/* offsetServer answers the two pets from the offset it is sent, or from the start with none. */
+func offsetServer(t *testing.T) *pagedServer {
+	t.Helper()
+	return servePaged(t, func(r pagedRequest, n int) pagedReply {
+		from := 0
+		if offset := r.param("offset"); offset != "" {
+			from, _ = strconv.Atoi(offset)
+		}
+		return okReply(`{"items":` + petRange(from, min(from+2, 5)) + `}`)
+	})
+}
+
+/* pageNumberServer answers the two pets of the page it is sent, from page 1, and a has_more flag that stays true. */
+func pageNumberServer(t *testing.T) *pagedServer {
+	t.Helper()
+	return servePaged(t, func(r pagedRequest, n int) pagedReply {
+		page := 1
+		if value := r.param("page"); value != "" {
+			page, _ = strconv.Atoi(value)
+		}
+		from := (page - 1) * 2
+		return okReply(fmt.Sprintf(`{"items":%s,"has_more":true}`, petRange(from, min(from+2, 5))))
+	})
+}
+
+/* afterServer answers the two pets after the id it is sent, from the start with none, with the id of its last pet and a has_more flag. */
+func afterServer(t *testing.T) *pagedServer {
+	t.Helper()
+	return servePaged(t, func(r pagedRequest, n int) pagedReply {
+		from := 0
+		if after := r.param("starting_after"); after != "" {
+			index, _ := strconv.Atoi(strings.TrimPrefix(after, "p"))
+			from = index + 1
+		}
+		to := min(from+2, 5)
+		return okReply(fmt.Sprintf(`{"data":%s,"has_more":%t,"last_id":"p%d"}`, petRange(from, to), to < 5, to-1))
+	})
+}
+
+/* nextUrlServer answers one pet a page, with the URL of the next page in the body of every page but the last. */
+func nextUrlServer(t *testing.T, pages int) *pagedServer {
+	t.Helper()
+	var self *pagedServer
+	self = servePaged(t, func(r pagedRequest, n int) pagedReply {
+		index := 0
+		if p := r.param("p"); p != "" {
+			index, _ = strconv.Atoi(p)
+		}
+		next := ""
+		if index+1 < pages {
+			next = fmt.Sprintf(`,"next_url":"%s/pet/next?p=%d"`, self.url(""), index+1)
+		}
+		return okReply(`{"items":[` + petJSON(fmt.Sprintf("f%d", index)) + `]` + next + `}`)
+	})
+	return self
+}
+
 func TestBhvPagination001_Paginator_APagedOperationReadsNoPageUntilTheFirstRead(t *testing.T) {
 	t.Parallel()
 	server := catalogServer(t, 2, 2)
@@ -270,6 +336,39 @@ func TestBhvPagination003_Paginator_TheNextRequestIsSentOnlyWhenTheConsumerAsksF
 	}
 	if got := server.count(); got != 2 {
 		t.Errorf("expected the third item to need the second page, got %d requests", got)
+	}
+}
+
+func TestBhvPagination004_Paginator_AnOffsetAndLimitOperationAdvancesTheOffsetAndEndsOnAnEmptyPage(t *testing.T) {
+	t.Parallel()
+	server := offsetServer(t)
+
+	names, err := petNames(petApiFor(t, server, 0, nil).ListPetOffsetsPages(context.Background(), nil).Items())
+
+	wantNames(t, names, err, "p0", "p1", "p2", "p3", "p4")
+	wantParams(t, server.params("offset"), "", "2", "4", "5")
+}
+
+func TestBhvPagination005_Paginator_APageNumberOperationStartsAtTheSuppliedPageAndIncrementsIt(t *testing.T) {
+	t.Parallel()
+	server := pageNumberServer(t)
+
+	names, err := petNames(petApiFor(t, server, 0, nil).ListPetPageNumbersPages(context.Background(), nil).Items())
+
+	wantNames(t, names, err, "p0", "p1", "p2", "p3", "p4")
+	wantParams(t, server.params("page"), "", "2", "3", "4")
+}
+
+func TestBhvPagination006_Paginator_AnIdCursorOperationEndsWhenHasMoreIsFalse(t *testing.T) {
+	t.Parallel()
+	server := afterServer(t)
+
+	names, err := petNames(petApiFor(t, server, 0, nil).ListPetsAfterPages(context.Background(), nil).Items())
+
+	wantNames(t, names, err, "p0", "p1", "p2", "p3", "p4")
+	wantParams(t, server.params("starting_after"), "", "p1", "p3")
+	if got := server.count(); got != 3 {
+		t.Errorf("expected the page with has_more false to be the last request, got %d requests", got)
 	}
 }
 
@@ -712,7 +811,7 @@ func TestBhvPagination024_Paginator_AnOperationThatIsAmbiguousOrNotAGetGetsNoPag
 
 	got := pagesMethods(api)
 
-	if want := []string{"ListPetCatalogPages", "ListPetEventsPages", "ListPetFeedPages", "ListPetNotesPages"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"ListPetCatalogPages", "ListPetEventsPages", "ListPetFeedPages", "ListPetNextUrlPages", "ListPetNotesPages", "ListPetOffsetsPages", "ListPetPageNumbersPages", "ListPetsAfterPages"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("expected the paged methods %v, got %v", want, got)
 	}
 	if _, found := api.MethodByName("ListPetMatches"); !found {
@@ -796,6 +895,40 @@ func TestBhvPagination028_Paginator_TheNextCursorIsTakenFromTheAcceptedResponseN
 
 	wantNames(t, names, err, "p0-0", "p1-0")
 	wantParams(t, server.params("cursor"), "", "", "c1")
+}
+
+func TestBhvPagination029_Paginator_ANextUrlInTheBodyIsFollowedAndANextUrlOnAnotherOriginIsRefused(t *testing.T) {
+	t.Parallel()
+	server := nextUrlServer(t, 3)
+
+	names, err := petNames(petApiFor(t, server, 0, nil).ListPetNextUrlPages(context.Background(), nil).Items())
+
+	wantNames(t, names, err, "f0", "f1", "f2")
+	wantParams(t, server.params("p"), "", "1", "2")
+
+	elsewhere := servePaged(t, func(r pagedRequest, n int) pagedReply {
+		return okReply(`{"items":[` + petJSON("stolen") + `]}`)
+	})
+	origin := servePaged(t, func(r pagedRequest, n int) pagedReply {
+		return okReply(fmt.Sprintf(`{"items":[%s],"next_url":"%s/pet/next?p=1"}`, petJSON("f0"), elsewhere.url("")))
+	})
+	api := petApiFor(t, origin, 0, nil, func(b *TransportOptionsBuilder) { b.DefaultHeader("Authorization", "Bearer secret") })
+
+	names, err = petNames(api.ListPetNextUrlPages(context.Background(), nil).Items())
+
+	if len(names) != 1 || names[0] != "f0" {
+		t.Errorf("expected the page before the foreign URL to be delivered, got %v", names)
+	}
+	var refused *pkgerrors.PaginationError
+	if !errors.As(err, &refused) {
+		t.Fatalf("expected the URL on another origin to be refused, got %T: %v", err, err)
+	}
+	if strings.Contains(err.Error(), "p=1") {
+		t.Errorf("expected the message to hold no query, got %q", err.Error())
+	}
+	if elsewhere.count() != 0 {
+		t.Errorf("expected nothing sent to the other origin, got %d requests", elsewhere.count())
+	}
 }
 
 func TestBhvPagination030_Paginator_AVendorExtensionOnAnOperationIsReadAsAHintAndTheOverrideOptionWinsOverIt(t *testing.T) {

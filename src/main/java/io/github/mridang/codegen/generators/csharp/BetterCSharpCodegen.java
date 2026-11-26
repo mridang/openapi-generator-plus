@@ -1246,7 +1246,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         final Object opDecorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
         final Object pagination =
                 opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
-        if (pagination instanceof Map && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"))) {
+        if (pagination instanceof Map && cursorOptionStyle((Map<?, ?>) pagination)) {
             final Object cursor = ((Map<?, ?>) pagination).get("requestParam");
             context.put("hasCopy", true);
             context.put("cursorType", ((Map<?, ?>) pagination).get("cursorType") + "?");
@@ -1356,8 +1356,20 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * A style whose request carries a cursor option that the next page copies: a token or id cursor,
+     * or an offset or page number. The Options object gets {@code WithCursor} for these.
+     */
+    private static boolean cursorOptionStyle(final Map<?, ?> pagination) {
+        return Boolean.TRUE.equals(pagination.get("isToken"))
+                || Boolean.TRUE.equals(pagination.get("isId"))
+                || Boolean.TRUE.equals(pagination.get("isOffset"))
+                || Boolean.TRUE.equals(pagination.get("isPage"));
+    }
+
+    /**
      * A paged operation returns a {@code Paginator<Item, Cursor?>}: the cursor type argument is the
-     * type of the cursor parameter made nullable, and {@code string?} for a {@code Link} list, whose
+     * type of the cursor parameter made nullable (an int for an offset or page number), and
+     * {@code string?} for a URL-driven list (a {@code Link} header or a next URL in the body), whose
      * pages carry no cursor. The shared detector computes the rest.
      */
     @SuppressWarnings("unchecked")
@@ -1367,7 +1379,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             return;
         }
         final Map<String, Object> p = (Map<String, Object>) pagination;
-        final String cursor = Boolean.TRUE.equals(p.get("isLink")) ? "string" : String.valueOf(p.get("cursorType"));
+        final String cursor = Boolean.TRUE.equals(p.get("isUrlPaged")) ? "string" : String.valueOf(p.get("cursorType"));
         p.put("csCursorType", cursor + "?");
         if (p.get("requestParamName") != null) {
             p.put("csRequestParamPascal", NamingConvention.PASCAL_CASE.apply(String.valueOf(p.get("requestParamName"))));

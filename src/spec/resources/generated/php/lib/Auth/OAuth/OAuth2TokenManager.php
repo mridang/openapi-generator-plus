@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -283,7 +282,7 @@ final class OAuth2TokenManager
          * for application/x-www-form-urlencoded) but escapes '~' to %7E; RFC
          * 3986 keeps '~' unreserved, so map it back so every SDK emits
          * byte-identical bodies. */
-        $body = str_replace('%7E', '~', http_build_query($this->orderTokenForm($params)));
+        $body = str_replace('%7E', '~', http_build_query(self::orderTokenForm($params)));
 
         /* Gap 3.2: token POSTs must not transparently follow ANY 3xx
          * redirect (RFC 6749 §3.2 forbids redirects at the token
@@ -302,7 +301,7 @@ final class OAuth2TokenManager
              * `error_uri`. Parse them into the typed properties so callers
              * can recover. Fall back to the raw body when the response is
              * not a valid error object. */
-            throw $this->parseOAuth2ServerError($response->statusCode, $response->body);
+            throw self::parseOAuth2ServerError($response->statusCode, $response->body);
         }
 
         try {
@@ -314,8 +313,7 @@ final class OAuth2TokenManager
             throw new OAuth2TokenException('Token response is not a JSON object');
         }
         /** @var array<string, mixed> $responseBody */
-        if (
-            !isset($responseBody['access_token'])
+        if (!isset($responseBody['access_token'])
             || !is_string($responseBody['access_token'])
             || $responseBody['access_token'] === ''
         ) {
@@ -339,7 +337,7 @@ final class OAuth2TokenManager
              * parse digit strings; on anything unparseable or non-positive,
              * mark the token as immediately stale so the next call refetches
              * (preferable to caching a token of unknown lifetime forever). */
-            $expiresIn = $this->parseExpiresIn($responseBody['expires_in']);
+            $expiresIn = self::parseExpiresIn($responseBody['expires_in']);
             if ($expiresIn > 0) {
                 /* One margin only, applied here and never again when the token
                  * is read: min(60 s, half the lifetime), so a 60 s token is
@@ -373,7 +371,7 @@ final class OAuth2TokenManager
      * @param array<string, string> $params the token request parameters
      * @return array<string, string> the same parameters in the shared order
      */
-    private function orderTokenForm(array $params): array
+    private static function orderTokenForm(array $params): array
     {
         $ordered = [];
         foreach (self::TOKEN_FORM_KEY_ORDER as $key) {
@@ -391,7 +389,7 @@ final class OAuth2TokenManager
      * {@see OAuth2ServerException}. Falls back to a generic error using the raw
      * body when the body is not a valid OAuth2 error object.
      */
-    private function parseOAuth2ServerError(int $statusCode, string $body): OAuth2ServerException
+    private static function parseOAuth2ServerError(int $statusCode, string $body): OAuth2ServerException
     {
         $parsed = json_decode($body, true);
         if (is_array($parsed) && isset($parsed['error']) && is_string($parsed['error']) && $parsed['error'] !== '') {
@@ -406,7 +404,7 @@ final class OAuth2TokenManager
         return new OAuth2ServerException($statusCode, null, null, null, $body);
     }
 
-    private function parseExpiresIn(mixed $raw): int
+    private static function parseExpiresIn(mixed $raw): int
     {
         $ceiling = (float) self::MAX_EXPIRES_IN_SECONDS;
         if (is_int($raw)) {

@@ -3151,6 +3151,53 @@ extension TraceContextUtilTests {
         return server
     }
 
+    /// Five pets in total, served two at a time from the offset the request names.
+    private func offsetServer() throws -> RawServer {
+        return try pagedServer { request, _ in
+            let from = request.param("offset").flatMap { Int($0) } ?? 0
+            return .ok("{\"items\":[\(self.petsJSON(min(from, 5), min(from + 2, 5)))]}")
+        }
+    }
+
+    /// Five pets in total, two to a numbered page, from page 1.
+    private func pageNumberServer() throws -> RawServer {
+        return try pagedServer { request, _ in
+            let index = request.param("page").flatMap { Int($0) } ?? 1
+            let from = (index - 1) * 2
+            return .ok(
+                "{\"items\":[\(self.petsJSON(min(from, 5), min(from + 2, 5)))],\"has_more\":true}")
+        }
+    }
+
+    /// Five pets in total, two to a page, each page with the id of its last pet and a has_more flag.
+    private func afterServer() throws -> RawServer {
+        return try pagedServer { request, _ in
+            let from = request.param("starting_after").flatMap { Int($0.dropFirst()) }.map { $0 + 1 } ?? 0
+            let to = min(from + 2, 5)
+            return .ok(
+                "{\"data\":[\(self.petsJSON(from, to))],\"has_more\":\(to < 5),\"last_id\":\"p\(to - 1)\"}")
+        }
+    }
+
+    /// Three pets, one to a page, each page with the URL of the next one in its body.
+    private func nextUrlServer(_ pages: Int) throws -> RawServer {
+        let origin = LockedValue<String>("")
+        let server = try pagedServer { request, _ in
+            let index = request.param("p").flatMap { Int($0) } ?? 0
+            let next =
+                index + 1 < pages
+                ? ",\"next_url\":\"\(origin.get())/pet/next?p=\(index + 1)\"" : ""
+            return .ok("{\"items\":[\(self.pagedPet("f\(index)"))]\(next)}")
+        }
+        origin.set(server.origin)
+        return server
+    }
+
+    /// The pets p(from) up to p(to - 1), as JSON objects separated by commas.
+    private func petsJSON(_ from: Int, _ to: Int) -> String {
+        return (from..<max(from, to)).map { self.pagedPet("p\($0)") }.joined(separator: ",")
+    }
+
     private func pagedPetApi(
         _ server: RawServer, maxRetries: Int = 0, headers: [String: String] = [:],
         authenticator: Authenticator? = nil
@@ -3232,6 +3279,31 @@ extension TraceContextUtilTests {
         #expect(server.hits == 1, "both items of the first page came from one request")
         #expect(try await items.next() != nil)
         #expect(server.hits == 2, "the third item needed the second page")
+    }
+
+    /* An offset-and-limit operation advances the offset by the items received and ends on an empty page. */
+    @Test func testBhvPagination004AnOffsetAndLimitOperationAdvancesTheOffsetAndEndsOnAnEmptyPage() async throws {
+        let server = try offsetServer()
+        defer { server.stop() }
+        #expect(try await names(try pagedPetApi(server).listPetOffsetsPages().items()) == ["p0", "p1", "p2", "p3", "p4"])
+        #expect(paramsSeen(server, "offset") == [nil, "2", "4", "5"])
+    }
+
+    /* A page-number operation starts at the supplied page and increments it. */
+    @Test func testBhvPagination005APageNumberOperationStartsAtTheSuppliedPageAndIncrementsIt() async throws {
+        let server = try pageNumberServer()
+        defer { server.stop() }
+        #expect(try await names(try pagedPetApi(server).listPetPageNumbersPages().items()) == ["p0", "p1", "p2", "p3", "p4"])
+        #expect(paramsSeen(server, "page") == [nil, "2", "3", "4"])
+    }
+
+    /* An id-cursor operation ends when has_more is false. */
+    @Test func testBhvPagination006AnIdCursorOperationEndsWhenHasMoreIsFalse() async throws {
+        let server = try afterServer()
+        defer { server.stop() }
+        #expect(try await names(try pagedPetApi(server).listPetsAfterPages().items()) == ["p0", "p1", "p2", "p3", "p4"])
+        #expect(paramsSeen(server, "starting_after") == [nil, "p1", "p3"])
+        #expect(server.hits == 3, "the page with has_more false was the last request")
     }
 
     /* A Link-header operation follows rel=next and ends when it is absent. */
@@ -3587,6 +3659,25 @@ extension TraceContextUtilTests {
         defer { server.stop() }
         #expect(try await names(try pagedPetApi(server, maxRetries: 2).listPetCatalogPages().items()) == ["p0-0", "p1-0"])
         #expect(paramsSeen(server, "cursor") == [nil, nil, "c1"])
+    }
+
+    /* A next URL in the body is followed, and a next URL on another origin is refused and nothing is sent to it. */
+    @Test func testBhvPagination029ANextUrlInTheBodyIsFollowedAndANextUrlOnAnotherOriginIsRefused() async throws {
+        let server = try nextUrlServer(3)
+        defer { server.stop() }
+        #expect(try await names(try pagedPetApi(server).listPetNextUrlPages().items()) == ["f0", "f1", "f2"])
+        #expect(paramsSeen(server, "p") == [nil, "1", "2"])
+        let elsewhere = try pagedServer { _, _ in .ok("{\"items\":[\(self.pagedPet("stolen"))]}") }
+        defer { elsewhere.stop() }
+        let origin = try pagedServer { _, _ in
+            .ok("{\"items\":[\(self.pagedPet("f0"))],\"next_url\":\"\(elsewhere.origin)/pet/next?p=1\"}")
+        }
+        defer { origin.stop() }
+        var items = try pagedPetApi(origin, headers: ["Authorization": "Bearer secret"]).listPetNextUrlPages().items().makeAsyncIterator()
+        #expect(try await items.next()?.name == "f0", "the page before the foreign URL is delivered")
+        let error = await #expect(throws: PaginationError.self) { _ = try await items.next() }
+        #expect(error?.message.contains("p=1") == false)
+        #expect(elsewhere.hits == 0, "nothing was sent to the other origin")
     }
 
     /* A vendor extension on an operation is read as a hint, and the override option wins over it. */

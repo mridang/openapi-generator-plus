@@ -3325,6 +3325,74 @@ public class BaseApiTest
         return self;
     }
 
+    /// <summary>The pets from index <paramref name="from"/> up to <paramref name="to"/>, as JSON items.</summary>
+    private static string PetsJson(int from, int to)
+    {
+        return string.Join(",", Enumerable.Range(from, to - from).Select(i => PetJson($"p{i}")));
+    }
+
+    /// <summary>Five pets in total, served two at a time from the offset the request names.</summary>
+    private static PagedServer OffsetServer()
+    {
+        return new PagedServer(
+            (request, _) =>
+            {
+                string? offset = request.Param("offset");
+                int from = offset is null ? 0 : int.Parse(offset, System.Globalization.CultureInfo.InvariantCulture);
+                return Reply.Ok("{\"items\":[" + PetsJson(Math.Min(from, 5), Math.Min(from + 2, 5)) + "]}");
+            }
+        );
+    }
+
+    /// <summary>Five pets in total, two to a numbered page, from page 1.</summary>
+    private static PagedServer PageNumberServer()
+    {
+        return new PagedServer(
+            (request, _) =>
+            {
+                string? page = request.Param("page");
+                int index = page is null ? 1 : int.Parse(page, System.Globalization.CultureInfo.InvariantCulture);
+                int from = (index - 1) * 2;
+                return Reply.Ok(
+                    "{\"items\":[" + PetsJson(Math.Min(from, 5), Math.Min(from + 2, 5)) + "],\"has_more\":true}");
+            }
+        );
+    }
+
+    /// <summary>Five pets in total, two to a page, each page with the id of its last pet and a has_more flag.</summary>
+    private static PagedServer AfterServer()
+    {
+        return new PagedServer(
+            (request, _) =>
+            {
+                string? after = request.Param("starting_after");
+                int from = after is null ? 0 : int.Parse(after[1..], System.Globalization.CultureInfo.InvariantCulture) + 1;
+                int to = Math.Min(from + 2, 5);
+                string more = to < 5 ? "true" : "false";
+                return Reply.Ok(
+                    "{\"data\":[" + PetsJson(from, to) + "],\"has_more\":" + more + ",\"last_id\":\"p" + (to - 1) + "\"}");
+            }
+        );
+    }
+
+    /// <summary>Three pets, one to a page, each page with the URL of the next one in the body.</summary>
+    private static PagedServer NextUrlServer(int pages)
+    {
+        PagedServer? self = null;
+        self = new PagedServer(
+            (request, _) =>
+            {
+                string? p = request.Param("p");
+                int index = p is null ? 0 : int.Parse(p, System.Globalization.CultureInfo.InvariantCulture);
+                string next = index + 1 < pages
+                    ? ",\"next_url\":\"" + self!.Url + "/pet/next?p=" + (index + 1) + "\""
+                    : "";
+                return Reply.Ok("{\"items\":[" + PetJson($"f{index}") + "]" + next + "}");
+            }
+        );
+        return self;
+    }
+
     private static List<string?> ParamsSeen(PagedServer server, string name)
     {
         return [.. server.Seen.Select(request => request.Param(name))];
@@ -3369,6 +3437,34 @@ public class BaseApiTest
         Assert.Single(server.Seen);
         Assert.True(await items.MoveNextAsync());
         Assert.Equal(2, server.Seen.Count);
+    }
+
+    [Fact]
+    public async Task BhvPagination004AnOffsetAndLimitOperationAdvancesTheOffsetAndEndsOnAnEmptyPage()
+    {
+        using PagedServer server = OffsetServer();
+
+        Assert.Equal(["p0", "p1", "p2", "p3", "p4"], await NamesAsync(PetApiFor(server).ListPetOffsetsPagesAsync()));
+        Assert.Equal(new List<string?> { null, "2", "4", "5" }, ParamsSeen(server, "offset"));
+    }
+
+    [Fact]
+    public async Task BhvPagination005APageNumberOperationStartsAtTheSuppliedPageAndIncrementsIt()
+    {
+        using PagedServer server = PageNumberServer();
+
+        Assert.Equal(["p0", "p1", "p2", "p3", "p4"], await NamesAsync(PetApiFor(server).ListPetPageNumbersPagesAsync()));
+        Assert.Equal(new List<string?> { null, "2", "3", "4" }, ParamsSeen(server, "page"));
+    }
+
+    [Fact]
+    public async Task BhvPagination006AnIdCursorOperationEndsWhenHasMoreIsFalse()
+    {
+        using PagedServer server = AfterServer();
+
+        Assert.Equal(["p0", "p1", "p2", "p3", "p4"], await NamesAsync(PetApiFor(server).ListPetsAfterPagesAsync()));
+        Assert.Equal(new List<string?> { null, "p1", "p3" }, ParamsSeen(server, "starting_after"));
+        Assert.Equal(3, server.Seen.Count);
     }
 
     [Fact]
@@ -3778,6 +3874,25 @@ public class BaseApiTest
 
         Assert.Equal(["p0-0", "p1-0"], await NamesAsync(PetApiFor(server, maxRetries: 2).ListPetCatalogPagesAsync()));
         Assert.Equal(new List<string?> { null, null, "c1" }, ParamsSeen(server, "cursor"));
+    }
+
+    [Fact]
+    public async Task BhvPagination029ANextUrlInTheBodyIsFollowedAndANextUrlOnAnotherOriginIsRefused()
+    {
+        using PagedServer server = NextUrlServer(3);
+        Assert.Equal(["f0", "f1", "f2"], await NamesAsync(PetApiFor(server).ListPetNextUrlPagesAsync()));
+        Assert.Equal(new List<string?> { null, "1", "2" }, ParamsSeen(server, "p"));
+
+        using PagedServer elsewhere = new((_, _) => Reply.Ok("{\"items\":[" + PetJson("stolen") + "]}"));
+        using PagedServer origin = new(
+            (_, _) => Reply.Ok("{\"items\":[" + PetJson("f0") + "],\"next_url\":\"" + elsewhere.Url + "/pet/next?p=1\"}"));
+        await using IAsyncEnumerator<Pet> items = PetApiFor(origin).ListPetNextUrlPagesAsync().GetAsyncEnumerator();
+        Assert.True(await items.MoveNextAsync());
+        Assert.Equal("f0", items.Current.Name);
+        PaginationException refused = await Assert.ThrowsAsync<PaginationException>(() => items.MoveNextAsync().AsTask());
+
+        Assert.DoesNotContain("p=1", refused.Message, StringComparison.Ordinal);
+        Assert.Empty(elsewhere.Seen);
     }
 
     [Fact]

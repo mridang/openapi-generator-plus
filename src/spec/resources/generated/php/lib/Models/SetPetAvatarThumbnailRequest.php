@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -10,7 +9,6 @@
  */
 
 declare(strict_types=1);
-
 namespace PetstoreClient\Models;
 
 class SetPetAvatarThumbnailRequest implements \Ds\Hashable
@@ -30,8 +28,8 @@ class SetPetAvatarThumbnailRequest implements \Ds\Hashable
     private static function oneOfCandidates(): array
     {
         return [
-            \PetstoreClient\ObjectSerializer::decodeByteOneOfScalar(...),
-            \PetstoreClient\ObjectSerializer::decodeByteOneOfArray(...),
+            fn(mixed $d): string => \PetstoreClient\ObjectSerializer::decodeByteOneOfScalar($d),
+            fn(mixed $d): \Ds\Vector => \PetstoreClient\ObjectSerializer::decodeByteOneOfArray($d),
         ];
     }
 
@@ -88,7 +86,7 @@ class SetPetAvatarThumbnailRequest implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === static::class
+            && $other::class === $this::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -98,7 +96,7 @@ class SetPetAvatarThumbnailRequest implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [static::class];
+        $parts = [$this::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -107,4 +105,5 @@ class SetPetAvatarThumbnailRequest implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
+
 }

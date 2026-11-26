@@ -12,10 +12,30 @@
     /// the list starts, and the page after each one is requested with the
     /// <c>{{vendorExtensions.op.pagination.responsePropertyName}}</c> it returned.
 {{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+    /// The value of the <c>{{vendorExtensions.op.pagination.csRequestParamPascal}}</c> option is where
+    /// the list starts, the page after each one is requested with the
+    /// <c>{{vendorExtensions.op.pagination.responsePropertyName}}</c> it returned, and the list ends when
+    /// its <c>{{vendorExtensions.op.pagination.hasMorePropertyName}}</c> is false.
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+    /// The value of the <c>{{vendorExtensions.op.pagination.csRequestParamPascal}}</c> option is the offset
+    /// of the first item, and each page after one is requested at the offset past the items it received.
+    /// The list ends on an empty page{{#vendorExtensions.op.pagination.hasHasMore}} or when its has_more flag is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+    /// The value of the <c>{{vendorExtensions.op.pagination.csRequestParamPascal}}</c> option is the page
+    /// number of the first request, and each page after one is requested with the next page number.
+    /// The list ends on an empty page{{#vendorExtensions.op.pagination.hasHasMore}} or when its has_more flag is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isPage}}
 {{#vendorExtensions.op.pagination.isLink}}
     /// The page after each one is the <c>rel="next"</c> link of its <c>Link</c> header, followed only
     /// within the origin of the client.
 {{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+    /// The page after each one is the URL in its <c>{{vendorExtensions.op.pagination.nextUrlPropertyName}}</c>
+    /// property, followed only within the origin of the client.
+{{/vendorExtensions.op.pagination.isBody}}
     /// </remarks>
 {{#pathParams}}
     /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
@@ -35,8 +55,10 @@
 {{#vendorExtensions.op.optionsParamRequired}}
         ArgumentNullException.ThrowIfNull(options);
 {{/vendorExtensions.op.optionsParamRequired}}
-{{#vendorExtensions.op.pagination.isToken}}
+{{^vendorExtensions.op.pagination.isUrlPaged}}
         {{#vendorExtensions.op.signatureArgs}}{{#isOptions}}{{{dataType}}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}} pageOptions = options{{^vendorExtensions.op.optionsParamRequired}} ?? new {{#vendorExtensions.op.signatureArgs}}{{#isOptions}}{{{dataType}}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}(){{/vendorExtensions.op.optionsParamRequired}};
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{#vendorExtensions.op.pagination.isToken}}
         return {{{vendorExtensions.op.pagination.csPaginatorType}}}.OfCursor<{{{returnType}}}>(
             pageOptions.{{vendorExtensions.op.pagination.csRequestParamPascal}},
             (pageCursor, pageToken) =>
@@ -47,6 +69,52 @@
             cancellationToken
         );
 {{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+        return {{{vendorExtensions.op.pagination.csPaginatorType}}}.OfId<{{{returnType}}}>(
+            pageOptions.{{vendorExtensions.op.pagination.csRequestParamPascal}},
+            (pageCursor, pageToken) =>
+                {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}pageOptions.WithCursor(pageCursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}pageToken),
+            page => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+            page => page.{{vendorExtensions.op.pagination.responsePropertyName}},
+            page => page.{{vendorExtensions.op.pagination.hasMorePropertyName}} == true,
+            "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}",
+            cancellationToken
+        );
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+        return {{{vendorExtensions.op.pagination.csPaginatorType}}}.OfOffset<{{{returnType}}}>(
+            pageOptions.{{vendorExtensions.op.pagination.csRequestParamPascal}},
+            (pageCursor, pageToken) =>
+                {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}pageOptions.WithCursor(pageCursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}pageToken),
+            page => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+{{#vendorExtensions.op.pagination.hasHasMore}}
+            page => page.{{vendorExtensions.op.pagination.hasMorePropertyName}} == true,
+{{/vendorExtensions.op.pagination.hasHasMore}}
+{{^vendorExtensions.op.pagination.hasHasMore}}
+            null,
+{{/vendorExtensions.op.pagination.hasHasMore}}
+            (sent, count) => (sent ?? 0) + count,
+            "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}",
+            cancellationToken
+        );
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+        return {{{vendorExtensions.op.pagination.csPaginatorType}}}.OfPage<{{{returnType}}}>(
+            pageOptions.{{vendorExtensions.op.pagination.csRequestParamPascal}},
+            (pageCursor, pageToken) =>
+                {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}pageOptions.WithCursor(pageCursor){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.cancellationLeadComma}}, {{/vendorExtensions.op.cancellationLeadComma}}pageToken),
+            page => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+{{#vendorExtensions.op.pagination.hasHasMore}}
+            page => page.{{vendorExtensions.op.pagination.hasMorePropertyName}} == true,
+{{/vendorExtensions.op.pagination.hasHasMore}}
+{{^vendorExtensions.op.pagination.hasHasMore}}
+            null,
+{{/vendorExtensions.op.pagination.hasHasMore}}
+            (sent, _) => (sent ?? 1) + 1,
+            "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}",
+            cancellationToken
+        );
+{{/vendorExtensions.op.pagination.isPage}}
 {{#vendorExtensions.op.pagination.isLink}}
         return {{{vendorExtensions.op.pagination.csPaginatorType}}}.OfLink<{{{returnType}}}>(
             Config.BaseUrl,
@@ -62,4 +130,20 @@
             cancellationToken
         );
 {{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+        return {{{vendorExtensions.op.pagination.csPaginatorType}}}.OfNextUrl<{{{returnType}}}>(
+            Config.BaseUrl,
+            (pageUrl, pageToken) =>
+                {{operationId}}PageAsync({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}pageUrl, pageToken),
+            page => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+{{#vendorExtensions.op.pagination.nextUrlIsUri}}
+            page => page.{{vendorExtensions.op.pagination.nextUrlPropertyName}}?.ToString(),
+{{/vendorExtensions.op.pagination.nextUrlIsUri}}
+{{^vendorExtensions.op.pagination.nextUrlIsUri}}
+            page => page.{{vendorExtensions.op.pagination.nextUrlPropertyName}},
+{{/vendorExtensions.op.pagination.nextUrlIsUri}}
+            "{{#lambda.stringLiteral}}{{{path}}}{{/lambda.stringLiteral}}",
+            cancellationToken
+        );
+{{/vendorExtensions.op.pagination.isBody}}
     }

@@ -10,10 +10,29 @@
   /// The value of the `{{vendorExtensions.op.pagination.requestParam}}` option is where the list starts, and the
   /// page after each one is requested with the `{{vendorExtensions.op.pagination.responseProperty}}` it returned.
 {{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+  /// The value of the `{{vendorExtensions.op.pagination.requestParam}}` option is where the list starts, the
+  /// page after each one is requested with the `{{vendorExtensions.op.pagination.responseProperty}}` it returned,
+  /// and the list ends when its `{{vendorExtensions.op.pagination.hasMoreProperty}}` is false.
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+  /// The value of the `{{vendorExtensions.op.pagination.requestParam}}` option is the offset of the first
+  /// item, and each page after one is requested at the offset past the items it received. The list ends on an
+  /// empty page{{#vendorExtensions.op.pagination.hasHasMore}} or when its `{{vendorExtensions.op.pagination.hasMoreProperty}}` is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+  /// The value of the `{{vendorExtensions.op.pagination.requestParam}}` option is the page number of the first
+  /// request, and each page after one is requested with the next page number. The list ends on an empty
+  /// page{{#vendorExtensions.op.pagination.hasHasMore}} or when its `{{vendorExtensions.op.pagination.hasMoreProperty}}` is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isPage}}
 {{#vendorExtensions.op.pagination.isLink}}
   /// The page after each one is the `rel="next"` link of its `Link` header, followed only within
   /// the origin of the client.
 {{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+  /// The page after each one is the URL in its `{{vendorExtensions.op.pagination.nextUrlProperty}}` property,
+  /// followed only within the origin of the client.
+{{/vendorExtensions.op.pagination.isBody}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
   /// `options` {{#vendorExtensions.op.hasOptionsParam}}options for query, header, form, and cookie parameters{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}options carrying the per-call timeout, headers and retry budget{{/vendorExtensions.op.hasOptionsParam}}
@@ -38,6 +57,38 @@
       requestPath: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
     );
 {{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+    return Paginator.ofCursor<{{{vendorExtensions.op.pagination.itemType}}}, {{{vendorExtensions.op.pagination.cursorType}}}, {{{returnType}}}>(
+      start: pageOptions.{{vendorExtensions.op.pagination.requestParamName}},
+      fetch: (cursor) => {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}cursor == pageOptions.{{vendorExtensions.op.pagination.requestParamName}} ? pageOptions : pageOptions.withCursor(cursor!){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}),
+      items: (page) => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+      next: (page) => page.{{vendorExtensions.op.pagination.responsePropertyName}},
+      hasMore: (page) => page.{{vendorExtensions.op.pagination.hasMorePropertyName}},
+      requestPath: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
+    );
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+    return Paginator.ofOffset<{{{vendorExtensions.op.pagination.itemType}}}, {{{returnType}}}>(
+      start: pageOptions.{{vendorExtensions.op.pagination.requestParamName}},
+      fetch: (cursor) => {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}cursor == pageOptions.{{vendorExtensions.op.pagination.requestParamName}} ? pageOptions : pageOptions.withCursor(cursor!){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}),
+      items: (page) => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+{{#vendorExtensions.op.pagination.hasHasMore}}
+      hasMore: (page) => page.{{vendorExtensions.op.pagination.hasMorePropertyName}},
+{{/vendorExtensions.op.pagination.hasHasMore}}
+      requestPath: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
+    );
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+    return Paginator.ofPage<{{{vendorExtensions.op.pagination.itemType}}}, {{{returnType}}}>(
+      start: pageOptions.{{vendorExtensions.op.pagination.requestParamName}},
+      fetch: (cursor) => {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isOptions}}cursor == pageOptions.{{vendorExtensions.op.pagination.requestParamName}} ? pageOptions : pageOptions.withCursor(cursor!){{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}),
+      items: (page) => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+{{#vendorExtensions.op.pagination.hasHasMore}}
+      hasMore: (page) => page.{{vendorExtensions.op.pagination.hasMorePropertyName}},
+{{/vendorExtensions.op.pagination.hasHasMore}}
+      requestPath: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
+    );
+{{/vendorExtensions.op.pagination.isPage}}
 {{#vendorExtensions.op.pagination.isLink}}
     return Paginator.ofLink<{{{vendorExtensions.op.pagination.itemType}}}, {{{returnType}}}>(
       baseUrl: config.baseUrl,
@@ -51,4 +102,13 @@
       requestPath: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
     );
 {{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+    return Paginator.ofNextUrl<{{{vendorExtensions.op.pagination.itemType}}}, {{{returnType}}}>(
+      baseUrl: config.baseUrl,
+      fetch: (pageUrl) => _{{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{#isOptions}}pageOptions{{/isOptions}}{{^isOptions}}{{paramName}}{{/isOptions}}, {{/vendorExtensions.op.signatureArgs}}pageUrl),
+      items: (page) => page.{{vendorExtensions.op.pagination.itemsPropertyName}},
+      next: (page) => page.{{vendorExtensions.op.pagination.nextUrlPropertyName}}{{#vendorExtensions.op.pagination.nextUrlIsUri}}?.toString(){{/vendorExtensions.op.pagination.nextUrlIsUri}},
+      requestPath: '{{#lambda.dartString}}{{{path}}}{{/lambda.dartString}}',
+    );
+{{/vendorExtensions.op.pagination.isBody}}
   }

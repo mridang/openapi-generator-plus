@@ -363,24 +363,28 @@ module Petstore::Client
   class Paginator[T, C]
     include Enumerable[T]
     class CursorPages[T, C]
-      def initialize: (C?, ^(C?) -> ApiResult[untyped], ^(untyped) -> Array[T]?, ^(untyped) -> C?, String) -> void
+      def initialize: (C?, ^(C?) -> ApiResult[untyped], ^(untyped) -> Array[T]?, ^(C?, untyped, Array[T]) -> C?, String) -> void
       def next_page: () -> Page[T, C]?
       private
       def fetch_page: () -> ApiResult[untyped]
       def repeated_error: () -> Errors::PaginationError
     end
     class LinkPages[T]
-      def initialize: (String, ^(String?) -> ApiResult[untyped], ^(untyped) -> Array[T]?, String) -> void
+      def initialize: (String, ^(String?) -> ApiResult[untyped], ^(untyped) -> Array[T]?, ^(ApiResult[untyped]) -> String?, String) -> void
       def next_page: () -> Page[T, nil]?
+      def self.link_header_of: (Hash[String, String]) -> String?
       private
       def fetch_page: () -> ApiResult[untyped]
-      def link_header_of: (Hash[String, String]) -> String?
       def repeated_error: () -> Errors::PaginationError
       def resolve: (String) -> String
       def same_origin?: (URI::Generic, URI::Generic) -> bool
     end
-    def self.of_cursor: [T, C] (start: C?, fetch: ^(C?) -> ApiResult[untyped], items: untyped, next_cursor: untyped, request_path: String) -> Paginator[T, C]
+    def self.of_cursor: [T, C] (start: C?, fetch: ^(C?) -> ApiResult[untyped], items: untyped, next_cursor: untyped, request_path: String, ?has_more: untyped) -> Paginator[T, C]
+    def self.of_offset: [T] (start: Integer?, fetch: ^(Integer?) -> ApiResult[untyped], items: untyped, request_path: String, ?has_more: untyped) -> Paginator[T, Integer]
+    def self.of_page: [T] (start: Integer?, fetch: ^(Integer?) -> ApiResult[untyped], items: untyped, request_path: String, ?has_more: untyped) -> Paginator[T, Integer]
+    def self.counted: (untyped) { (untyped, untyped) -> untyped } -> ^(untyped, untyped, untyped) -> untyped
     def self.of_link: [T] (base_url: String, fetch: ^(String?) -> ApiResult[untyped], items: untyped, request_path: String) -> Paginator[T, nil]
+    def self.of_next_url: [T] (base_url: String, fetch: ^(String?) -> ApiResult[untyped], items: untyped, next_url: untyped, request_path: String) -> Paginator[T, nil]
     def initialize: (^() -> _PageWalker[T, C]) -> void
     def each: () { (T) -> void } -> self
             | () -> Enumerator[T, void]

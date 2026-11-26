@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -51,6 +50,7 @@ interface StoreApiInterface
     /**
      * Create an account
      * @param CreateAccountOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Account
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function createAccount(\PetstoreClient\Models\Account $account, ?CreateAccountOptions $options = null): \PetstoreClient\Models\Account;
@@ -95,6 +95,7 @@ interface StoreApiInterface
      * Read the audit trail, which needs a bearer token and an API key together
      * One security requirement that names two schemes, so a request carries both credentials.
      * @param GetAuditTrailOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getAuditTrail(?GetAuditTrailOptions $options = null): \PetstoreClient\Models\ApiResponse;
@@ -109,6 +110,7 @@ interface StoreApiInterface
     /**
      * Echoes a swatch supplied via path, query and header parameters.
      * @param GetBySwatchOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\Category
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getBySwatch(Swatch $pathSwatch, ?GetBySwatchOptions $options = null): \PetstoreClient\Models\Category;
@@ -123,6 +125,7 @@ interface StoreApiInterface
     /**
      * Returns a model exercising schema defaults on deserialize.
      * @param GetDefaultsOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Defaults
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getDefaults(?GetDefaultsOptions $options = null): \PetstoreClient\Models\Defaults;
@@ -137,6 +140,7 @@ interface StoreApiInterface
     /**
      * Returns a department (mutual-recursion codegen fixture).
      * @param GetDepartmentOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Department
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getDepartment(?GetDepartmentOptions $options = null): \PetstoreClient\Models\Department;
@@ -196,6 +200,7 @@ interface StoreApiInterface
     /**
      * Reads values of the formats the SDKs type natively.
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\NativeValues
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getNativeValues(?GetNativeValuesOptions $options = null): \PetstoreClient\Models\NativeValues;
@@ -211,6 +216,7 @@ interface StoreApiInterface
      * Find purchase order by ID
      * @param int $orderId ID of order to return
      * @param GetOrderByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
@@ -230,6 +236,7 @@ interface StoreApiInterface
     /**
      * Find purchase order by tracking id
      * @param GetOrderByTrackingIdOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getOrderByTrackingId(\Symfony\Component\Uid\Uuid $trackingId, ?GetOrderByTrackingIdOptions $options = null): \PetstoreClient\Models\Order;
@@ -244,6 +251,7 @@ interface StoreApiInterface
     /**
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
      * @param GetStockItemOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\StockItem
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getStockItem(?GetStockItemOptions $options = null): \PetstoreClient\Models\StockItem;
@@ -258,6 +266,7 @@ interface StoreApiInterface
     /**
      * Returns a bare enum (value-type response codegen fixture).
      * @param GetSwatchOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Swatch
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getSwatch(?GetSwatchOptions $options = null): \PetstoreClient\Models\Swatch;
@@ -302,6 +311,7 @@ interface StoreApiInterface
     /**
      * Returns a self-referential tree (recursive-type codegen fixture)
      * @param GetTreeOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\TreeNode
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getTree(?GetTreeOptions $options = null): \PetstoreClient\Models\TreeNode;
@@ -316,6 +326,7 @@ interface StoreApiInterface
     /**
      * Place an order for a pet
      * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
@@ -333,6 +344,7 @@ interface StoreApiInterface
      * Reserve stock, answering with the existing or a new reservation
      * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
      * @param ReserveStockOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\ReserveStockResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
@@ -378,4 +390,5 @@ interface StoreApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function watchOrdersStream(?WatchOrdersOptions $options = null, ?StreamOptions $streamOptions = null): SseStream;
+
 }

@@ -854,9 +854,21 @@ defmodule PetstoreClient.ClientTest do
     assert :list_pet_matches in pet_listed
     assert :list_pet_matches! in pet_listed
     assert :list_pet_matches_with_http_info in pet_listed
+    assert :list_pet_next_url in pet_listed
+    assert :list_pet_next_url! in pet_listed
+    assert :list_pet_next_url_with_http_info in pet_listed
     assert :list_pet_notes in pet_listed
     assert :list_pet_notes! in pet_listed
     assert :list_pet_notes_with_http_info in pet_listed
+    assert :list_pet_offsets in pet_listed
+    assert :list_pet_offsets! in pet_listed
+    assert :list_pet_offsets_with_http_info in pet_listed
+    assert :list_pet_page_numbers in pet_listed
+    assert :list_pet_page_numbers! in pet_listed
+    assert :list_pet_page_numbers_with_http_info in pet_listed
+    assert :list_pets_after in pet_listed
+    assert :list_pets_after! in pet_listed
+    assert :list_pets_after_with_http_info in pet_listed
     assert :set_pet_avatar in pet_listed
     assert :set_pet_avatar! in pet_listed
     assert :set_pet_avatar_with_http_info in pet_listed

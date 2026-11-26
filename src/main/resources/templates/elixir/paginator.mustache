@@ -13,6 +13,11 @@ defmodule {{moduleName}}.Paginator do
   each page. Each enumeration starts again from the starting position, so two loops read the list
   twice. Stopping early leaves nothing to close.
 
+  An id list ends when its `has_more` is false. An offset or page list ends on an empty page or when
+  its `has_more` is false, and each next request sends the offset past the items received or the next
+  page number. A next URL list takes the URL in the body of each page and follows it only within the
+  origin of the client.
+
   A failed page raises its SDK error from the read that needed it, after the items of the earlier
   pages were delivered, and ends that enumeration; it is never returned as a tuple. A cursor equal
   to the one just sent raises `#{inspect({{moduleName}}.Errors.PaginationError)}` from the next read, after the items of the page
@@ -22,15 +27,18 @@ defmodule {{moduleName}}.Paginator do
   alias {{moduleName}}.Errors.PaginationError
   alias {{moduleName}}.Page
 
+  # `next` reads the position of the next request from a decoded page, except for a :link list,
+  # where it reads the URL from the whole result (its headers, or the body for a next URL list).
   @enforce_keys [:kind, :fetch, :items, :path]
-  defstruct [:kind, :start, :fetch, :items, :next, :base_url, :path]
+  defstruct [:kind, :start, :fetch, :items, :next, :has_more, :base_url, :path]
 
   @type t :: %__MODULE__{
-          kind: :cursor | :link,
+          kind: :cursor | :offset | :page | :link,
           start: String.t() | integer() | nil,
           fetch: (term() -> {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}),
           items: (term() -> [term()] | nil),
           next: (term() -> String.t() | integer() | nil) | nil,
+          has_more: (term() -> boolean() | nil) | nil,
           base_url: String.t() | nil,
           path: String.t()
         }
@@ -48,14 +56,45 @@ defmodule {{moduleName}}.Paginator do
   end
 
   @doc false
-  @spec of_link(
-          String.t(),
-          (String.t() | nil -> {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}),
-          (term() -> [term()] | nil),
-          String.t()
-        ) :: t()
+  def of_id(start, fetch, items, next, has_more, path) do
+    ends = fn body -> not is_nil(has_more) and has_more.(body) == false end
+
+    %__MODULE__{
+      kind: :cursor,
+      start: start,
+      fetch: fetch,
+      items: items,
+      next: fn body -> if ends.(body), do: nil, else: next.(body) end,
+      path: path
+    }
+  end
+
+  @doc false
+  def of_offset(start, fetch, items, has_more, path) do
+    %__MODULE__{kind: :offset, start: start, fetch: fetch, items: items, has_more: has_more, path: path}
+  end
+
+  @doc false
+  def of_page(start, fetch, items, has_more, path) do
+    %__MODULE__{kind: :page, start: start, fetch: fetch, items: items, has_more: has_more, path: path}
+  end
+
+  @doc false
+  # The next URL is read from the decoded body of each page; a page without a body has none.
+  def of_next_url(base_url, fetch, items, next, path) do
+    %__MODULE__{
+      kind: :link,
+      base_url: base_url,
+      fetch: fetch,
+      items: items,
+      next: fn result -> if is_nil(result.data), do: nil, else: next.(result.data) end,
+      path: path
+    }
+  end
+
+  @doc false
   def of_link(base_url, fetch, items, path) do
-    %__MODULE__{kind: :link, base_url: base_url, fetch: fetch, items: items, path: path}
+    %__MODULE__{kind: :link, base_url: base_url, fetch: fetch, items: items, next: &next_link(&1.headers), path: path}
   end
 
   @doc """
@@ -83,11 +122,11 @@ defmodule {{moduleName}}.Paginator do
   defp next_page(_paginator, %{done: true} = state), do: {:halt, state}
   defp next_page(_paginator, %{repeated: %PaginationError{} = error}), do: raise(error)
 
-  defp next_page(%__MODULE__{kind: :cursor} = paginator, state) do
+  defp next_page(%__MODULE__{kind: kind} = paginator, state) when kind in [:cursor, :offset, :page] do
     result = fetch!(paginator, state.position)
     body = result.data
     list = items_of(paginator, body)
-    following = if is_nil(body), do: nil, else: paginator.next.(body)
+    following = following(paginator, state.position, body, list)
 
     cond do
       following in [nil, ""] ->
@@ -113,8 +152,8 @@ defmodule {{moduleName}}.Paginator do
     list = items_of(paginator, result.data)
     page = %Page{items: list, next_cursor: nil, result: result}
 
-    case next_link(result.headers) do
-      nil ->
+    case paginator.next.(result) do
+      link when link in [nil, ""] ->
         {[page], %{state | done: true}}
 
       link ->
@@ -131,6 +170,25 @@ defmodule {{moduleName}}.Paginator do
       {:ok, result} -> result
       {:error, error} -> raise error
     end
+  end
+
+  # The position of the next request, or nil when the list ends. An offset moves past the items
+  # received and a page number moves to the next page; neither can repeat, so only a cursor can.
+  defp following(%__MODULE__{kind: :cursor, next: next}, _position, body, _list) do
+    if is_nil(body), do: nil, else: next.(body)
+  end
+
+  defp following(%__MODULE__{kind: :offset} = paginator, position, body, list) do
+    if advances?(paginator, body, list), do: (position || 0) + length(list)
+  end
+
+  defp following(%__MODULE__{kind: :page} = paginator, position, body, list) do
+    if advances?(paginator, body, list), do: (position || 1) + 1
+  end
+
+  # A page continues when it has items and its has_more flag, if the list declares one, is not false.
+  defp advances?(paginator, body, list) do
+    list != [] and (is_nil(paginator.has_more) or paginator.has_more.(body) != false)
   end
 
   defp items_of(_paginator, nil), do: []

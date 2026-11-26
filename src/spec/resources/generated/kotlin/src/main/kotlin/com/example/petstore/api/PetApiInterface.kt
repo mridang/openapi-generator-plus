@@ -38,7 +38,11 @@ import com.example.petstore.api.options.ListPetCatalogOptions
 import com.example.petstore.api.options.ListPetEventsOptions
 import com.example.petstore.api.options.ListPetFeedOptions
 import com.example.petstore.api.options.ListPetMatchesOptions
+import com.example.petstore.api.options.ListPetNextUrlOptions
 import com.example.petstore.api.options.ListPetNotesOptions
+import com.example.petstore.api.options.ListPetOffsetsOptions
+import com.example.petstore.api.options.ListPetPageNumbersOptions
+import com.example.petstore.api.options.ListPetsAfterOptions
 import com.example.petstore.api.options.SetPetAvatarOptions
 import com.example.petstore.api.options.SetPetAvatarThumbnailOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
@@ -47,11 +51,15 @@ import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
 import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Pet
+import com.example.petstore.models.PetAfterPage
 import com.example.petstore.models.PetArchivePage
 import com.example.petstore.models.PetCatalogPage
 import com.example.petstore.models.PetEventPage
 import com.example.petstore.models.PetMatchPage
+import com.example.petstore.models.PetNextUrlPage
 import com.example.petstore.models.PetNotePage
+import com.example.petstore.models.PetOffsetPage
+import com.example.petstore.models.PetPageNumberPage
 import com.example.petstore.models.PetPassport
 import com.example.petstore.models.PetTreatment
 import com.example.petstore.models.Photo
@@ -414,6 +422,18 @@ interface PetApiInterface {
     /** The `listPetMatches` operation with its status code, headers and body. */
     suspend fun listPetMatchesWithHttpInfo(options: ListPetMatchesOptions? = null): ApiResult<PetMatchPage>
 
+    /** The `listPetNextUrl` operation. */
+    suspend fun listPetNextUrl(options: ListPetNextUrlOptions? = null): PetNextUrlPage
+
+    /** The `listPetNextUrl` operation with its status code, headers and body. */
+    suspend fun listPetNextUrlWithHttpInfo(options: ListPetNextUrlOptions? = null): ApiResult<PetNextUrlPage>
+
+    /**
+     * The `listPetNextUrl` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetNextUrlWithHttpInfo].
+     */
+    fun listPetNextUrlPages(options: ListPetNextUrlOptions? = null): Paginator<Pet, Unit>
+
     /** The `listPetNotes` operation. */
     suspend fun listPetNotes(options: ListPetNotesOptions? = null): PetNotePage
 
@@ -425,6 +445,42 @@ interface PetApiInterface {
      * items or its pages, and each page is an ordinary call of [listPetNotesWithHttpInfo].
      */
     fun listPetNotesPages(options: ListPetNotesOptions? = null): Paginator<String, String>
+
+    /** The `listPetOffsets` operation. */
+    suspend fun listPetOffsets(options: ListPetOffsetsOptions? = null): PetOffsetPage
+
+    /** The `listPetOffsets` operation with its status code, headers and body. */
+    suspend fun listPetOffsetsWithHttpInfo(options: ListPetOffsetsOptions? = null): ApiResult<PetOffsetPage>
+
+    /**
+     * The `listPetOffsets` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetOffsetsWithHttpInfo].
+     */
+    fun listPetOffsetsPages(options: ListPetOffsetsOptions? = null): Paginator<Pet, Int>
+
+    /** The `listPetPageNumbers` operation. */
+    suspend fun listPetPageNumbers(options: ListPetPageNumbersOptions? = null): PetPageNumberPage
+
+    /** The `listPetPageNumbers` operation with its status code, headers and body. */
+    suspend fun listPetPageNumbersWithHttpInfo(options: ListPetPageNumbersOptions? = null): ApiResult<PetPageNumberPage>
+
+    /**
+     * The `listPetPageNumbers` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetPageNumbersWithHttpInfo].
+     */
+    fun listPetPageNumbersPages(options: ListPetPageNumbersOptions? = null): Paginator<Pet, Int>
+
+    /** The `listPetsAfter` operation. */
+    suspend fun listPetsAfter(options: ListPetsAfterOptions? = null): PetAfterPage
+
+    /** The `listPetsAfter` operation with its status code, headers and body. */
+    suspend fun listPetsAfterWithHttpInfo(options: ListPetsAfterOptions? = null): ApiResult<PetAfterPage>
+
+    /**
+     * The `listPetsAfter` operation as a lazy [Paginator]: nothing is sent until you collect its
+     * items or its pages, and each page is an ordinary call of [listPetsAfterWithHttpInfo].
+     */
+    fun listPetsAfterPages(options: ListPetsAfterOptions? = null): Paginator<Pet, String>
 
     /** The `setPetAvatar` operation. */
     suspend fun setPetAvatar(

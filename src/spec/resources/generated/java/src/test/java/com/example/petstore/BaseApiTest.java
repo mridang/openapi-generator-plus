@@ -4815,6 +4815,79 @@ public class BaseApiTest {
     return out;
   }
 
+  /** The pets from index {@code from} up to {@code to}, as JSON items. */
+  private static String petsJson(int from, int to) {
+    StringBuilder out = new StringBuilder();
+    for (int i = from; i < to; i++) {
+      out.append(i == from ? "" : ",").append(petJson("p" + i));
+    }
+    return out.toString();
+  }
+
+  /** Five pets in total, served two at a time from the offset or page the request names. */
+  private static PagedServer offsetServer() {
+    return new PagedServer(
+        (request, number) -> {
+          String offset = request.param("offset");
+          int from = offset == null ? 0 : Integer.parseInt(offset);
+          return Reply.ok(
+              "{\"items\":[" + petsJson(Math.min(from, 5), Math.min(from + 2, 5)) + "]}");
+        });
+  }
+
+  /** Five pets in total, two to a numbered page, from page 1. */
+  private static PagedServer pageNumberServer() {
+    return new PagedServer(
+        (request, number) -> {
+          String page = request.param("page");
+          int index = page == null ? 1 : Integer.parseInt(page);
+          int from = (index - 1) * 2;
+          return Reply.ok(
+              "{\"items\":["
+                  + petsJson(Math.min(from, 5), Math.min(from + 2, 5))
+                  + "],"
+                  + "\"has_more\":true}");
+        });
+  }
+
+  /**
+   * Five pets in total, two to a page, each page with the id of its last pet and a has_more flag.
+   */
+  private static PagedServer afterServer() {
+    return new PagedServer(
+        (request, number) -> {
+          String after = request.param("starting_after");
+          int from = after == null ? 0 : Integer.parseInt(after.substring(1)) + 1;
+          int to = Math.min(from + 2, 5);
+          boolean more = to < 5;
+          return Reply.ok(
+              "{\"data\":["
+                  + petsJson(from, to)
+                  + "],\"has_more\":"
+                  + more
+                  + ",\"last_id\":\"p"
+                  + (to - 1)
+                  + "\"}");
+        });
+  }
+
+  /** Three pets, one to a page, each page with the URL of the next one in the body. */
+  private static PagedServer nextUrlServer(int pages) {
+    PagedServer[] self = new PagedServer[1];
+    self[0] =
+        new PagedServer(
+            (request, number) -> {
+              String p = request.param("p");
+              int index = p == null ? 0 : Integer.parseInt(p);
+              String next =
+                  index + 1 < pages
+                      ? ",\"next_url\":\"" + self[0].url() + "/pet/next?p=" + (index + 1) + "\""
+                      : "";
+              return Reply.ok("{\"items\":[" + petJson("f" + index) + "]" + next + "}");
+            });
+    return self[0];
+  }
+
   @Nested
   @DisplayName("paged lists")
   class PagedLists {
@@ -5262,7 +5335,14 @@ public class BaseApiTest {
       }
       assertEquals(
           java.util.Set.of(
-              "listPetCatalogPages", "listPetEventsPages", "listPetFeedPages", "listPetNotesPages"),
+              "listPetCatalogPages",
+              "listPetEventsPages",
+              "listPetFeedPages",
+              "listPetNotesPages",
+              "listPetOffsetsPages",
+              "listPetPageNumbersPages",
+              "listPetsAfterPages",
+              "listPetNextUrlPages"),
           paged);
       assertTrue(
           java.util.Arrays.stream(PetApi.class.getMethods())
@@ -5386,6 +5466,78 @@ public class BaseApiTest {
                                     .cursor("c1"))));
         assertInstanceOf(com.example.petstore.errors.PaginationException.class, failure);
         assertFalse(failure instanceof ApiException);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "an offset-and-limit operation advances the offset by the items received and ends on an"
+            + " empty page")
+    void bhvPagination004AnOffsetAndLimitOperationAdvancesTheOffsetAndEndsOnAnEmptyPage() {
+      try (PagedServer server = offsetServer()) {
+        assertEquals(
+            List.of("p0", "p1", "p2", "p3", "p4"), names(petApi(server).listPetOffsetsPages()));
+        assertEquals(java.util.Arrays.asList(null, "2", "4", "5"), paramsSeen(server, "offset"));
+      }
+    }
+
+    @Test
+    @DisplayName("a page-number operation starts at the supplied page and increments it")
+    void bhvPagination005APageNumberOperationStartsAtTheSuppliedPageAndIncrementsIt() {
+      try (PagedServer server = pageNumberServer()) {
+        assertEquals(
+            List.of("p0", "p1", "p2", "p3", "p4"), names(petApi(server).listPetPageNumbersPages()));
+        assertEquals(java.util.Arrays.asList(null, "2", "3", "4"), paramsSeen(server, "page"));
+      }
+    }
+
+    @Test
+    @DisplayName("an id-cursor operation ends when has_more is false")
+    void bhvPagination006AnIdCursorOperationEndsWhenHasMoreIsFalse() {
+      try (PagedServer server = afterServer()) {
+        assertEquals(
+            List.of("p0", "p1", "p2", "p3", "p4"), names(petApi(server).listPetsAfterPages()));
+        assertEquals(
+            java.util.Arrays.asList(null, "p1", "p3"), paramsSeen(server, "starting_after"));
+        assertEquals(3, server.seen.size(), "the page with has_more false was the last request");
+      }
+    }
+
+    @Test
+    @DisplayName("a next URL in the body is followed and a next URL on another origin is refused")
+    void bhvPagination029ANextUrlInTheBodyIsFollowedAndANextUrlOnAnotherOriginIsRefused() {
+      try (PagedServer server = nextUrlServer(3)) {
+        assertEquals(List.of("f0", "f1", "f2"), names(petApi(server).listPetNextUrlPages()));
+        assertEquals(java.util.Arrays.asList(null, "1", "2"), paramsSeen(server, "p"));
+      }
+      try (PagedServer elsewhere =
+              new PagedServer(
+                  (request, number) -> Reply.ok("{\"items\":[" + petJson("stolen") + "]}"));
+          PagedServer origin =
+              new PagedServer(
+                  (request, number) ->
+                      Reply.ok(
+                          "{\"items\":["
+                              + petJson("f0")
+                              + "],\"next_url\":\""
+                              + elsewhere.url()
+                              + "/pet/next?p=1\"}"))) {
+        PetApi api =
+            petApi(
+                origin,
+                TransportOptions.builder().maxRetries(0).build(),
+                Map.of("Authorization", "Bearer secret"));
+        java.util.Iterator<com.example.petstore.models.Pet> items =
+            api.listPetNextUrlPages().iterator();
+        assertEquals("f0", items.next().name, "the page before the foreign URL is delivered");
+        com.example.petstore.errors.PaginationException refused =
+            assertThrows(
+                com.example.petstore.errors.PaginationException.class,
+                items::hasNext,
+                "the URL on another origin is refused");
+        assertFalse(
+            String.valueOf(refused.getMessage()).contains("p=1"), "the message holds no query");
+        assertEquals(0, elsewhere.seen.size(), "nothing was sent to the other origin");
       }
     }
 

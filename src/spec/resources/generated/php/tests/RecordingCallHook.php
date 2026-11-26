@@ -53,20 +53,20 @@ final class RecordingCallHook implements CallHook
     public function start(CallInfo $info, array &$headers): ?CallObserver
     {
         $this->record('start:' . $this->name);
-        if ($this->failOnStart instanceof \Throwable) {
+        if ($this->failOnStart !== null) {
             throw $this->failOnStart;
         }
         $this->infos[] = $info;
         $this->headersSeen[] = $headers;
-        if ($this->edit instanceof \Closure) {
+        if ($this->edit !== null) {
             $headers = ($this->edit)($headers);
         }
         if (!$this->observe) {
             return null;
         }
 
-        return new readonly class ($this) implements CallObserver {
-            public function __construct(private RecordingCallHook $hook)
+        return new class ($this) implements CallObserver {
+            public function __construct(private readonly RecordingCallHook $hook)
             {
             }
 
@@ -74,7 +74,7 @@ final class RecordingCallHook implements CallHook
             {
                 $this->hook->record('finish:' . $this->hook->name);
                 $this->hook->outcomes[] = $outcome;
-                if ($this->hook->failOnFinish instanceof \Throwable) {
+                if ($this->hook->failOnFinish !== null) {
                     throw $this->hook->failOnFinish;
                 }
             }

@@ -98,11 +98,49 @@ macro_rules! plain_cursor {
 
 plain_cursor!(String, i32, i64, u32, u64);
 
+/// Reads the `has_more` flag of a decoded page, whether the property is optional or not.
+#[doc(hidden)]
+pub trait MoreOf {
+    /// Whether a further page follows; a flag that is absent does not end the list.
+    fn more_of(&self) -> bool;
+}
+
+impl MoreOf for bool {
+    fn more_of(&self) -> bool {
+        *self
+    }
+}
+
+impl MoreOf for Option<bool> {
+    fn more_of(&self) -> bool {
+        self.unwrap_or(true)
+    }
+}
+
+/// Reads the URL of the next page from a decoded page. An absent, `null` or empty URL ends the list.
+#[doc(hidden)]
+pub trait UrlOf {
+    /// The URL of the next page, or `None` when the page does not name one.
+    fn url_of(&self) -> Option<String>;
+}
+
+impl UrlOf for String {
+    fn url_of(&self) -> Option<String> {
+        Some(self.clone()).filter(|url| !url.is_empty())
+    }
+}
+
+impl UrlOf for Option<String> {
+    fn url_of(&self) -> Option<String> {
+        self.clone().filter(|url| !url.is_empty())
+    }
+}
+
 /// One page of a paged list: the items it holds, the cursor of the page after
 /// it, and the result of the request that returned it.
 ///
 /// `T` is the item type, `C` the type of the cursor request parameter (`()` for
-/// a list that is followed by a `Link` header) and `B` the type of the decoded
+/// a list that is followed by a `Link` header or a next URL in the body) and `B` the type of the decoded
 /// page body.
 #[derive(Debug, Clone)]
 pub struct Page<T, C, B> {
@@ -123,7 +161,7 @@ impl<T, C, B> Page<T, C, B> {
     }
 
     /// The cursor of the next page, or `None` on the last page; always `None`
-    /// for a list that is followed by a `Link` header.
+    /// for a list that is followed by a `Link` header or a next URL in the body.
     pub fn next_cursor(&self) -> Option<&C> {
         self.next_cursor.as_ref()
     }
@@ -149,7 +187,7 @@ impl<T, C, B> Page<T, C, B> {
 /// [`PaginationError`] after the items of the page that repeated it.
 ///
 /// `T` is the item type, `C` the type of the cursor request parameter (`()` for
-/// a list that is followed by a `Link` header) and `B` the type of the decoded
+/// a list that is followed by a `Link` header or a next URL in the body) and `B` the type of the decoded
 /// page body.
 pub struct Paginator<T, C, B> {
     open: Arc<dyn Fn() -> PageStream<T, C, B> + Send + Sync>,
@@ -216,27 +254,31 @@ where
     C: CursorValue,
     B: Send + 'static,
 {
-    /// Creates a paginator that follows a token cursor. Used by the generated
-    /// `_pages` methods.
+    /// Creates a paginator that follows a cursor: a token, the id of the last
+    /// item, an offset or a page number. Used by the generated `_pages` methods.
     ///
     /// `start` is the cursor of the first request (`None` starts at the
-    /// beginning), `fetch` sends the request for a cursor, `items` reads the
-    /// items of a decoded page and `next` reads the cursor of the next page from
-    /// it: absent or empty ends the list. `request_path` is the path of the
-    /// operation, for errors.
-    pub fn of_cursor<F, I, N>(
+    /// beginning), `fetch` sends the request for a cursor and `items` reads the
+    /// items of a decoded page. `next` reads the cursor of the page after it from
+    /// the page, the cursor that was sent for it (`None` for the first request)
+    /// and the number of items it held; an absent or empty cursor ends the list,
+    /// and so does a page after which `more` is false. `request_path` is the path
+    /// of the operation, for errors.
+    pub fn of_cursor<F, I, N, M>(
         start: Option<C>,
         fetch: F,
         items: I,
         next: N,
+        more: M,
         request_path: String,
     ) -> Self
     where
         F: Fn(Option<C>) -> PageFuture<B> + Send + Sync + 'static,
         I: Fn(&B) -> Vec<T> + Send + Sync + 'static,
-        N: Fn(&B) -> Option<C> + Send + Sync + 'static,
+        N: Fn(&B, Option<&C>, usize) -> Option<C> + Send + Sync + 'static,
+        M: Fn(&B) -> bool + Send + Sync + 'static,
     {
-        let shared = Arc::new((fetch, items, next, request_path));
+        let shared = Arc::new((fetch, items, next, more, request_path));
         Self::from_pages(move || {
             let shared = shared.clone();
             let state = CursorState {
@@ -254,7 +296,7 @@ where
                         state.done = true;
                         return Some((Err(Box::new(repeated) as Failure), state));
                     }
-                    let (fetch, items, next, request_path) = &*shared;
+                    let (fetch, items, next, more, request_path) = &*shared;
                     let result = match fetch(state.sent.clone()).await {
                         Ok(result) => result,
                         Err(failure) => {
@@ -263,7 +305,15 @@ where
                         }
                     };
                     let (list, following) = match result.data() {
-                        Some(body) => (items(body), next(body)),
+                        Some(body) => {
+                            let list = items(body);
+                            let following = if more(body) {
+                                next(body, state.sent.as_ref(), list.len())
+                            } else {
+                                None
+                            };
+                            (list, following)
+                        }
                         None => (Vec::new(), None),
                     };
                     let following = following.filter(|cursor| !cursor.is_blank());
@@ -292,7 +342,7 @@ where
     }
 }
 
-struct LinkState {
+struct UrlState {
     url: Option<String>,
     repeated: Option<PaginationError>,
     done: bool,
@@ -315,10 +365,60 @@ where
         F: Fn(Option<String>) -> PageFuture<B> + Send + Sync + 'static,
         I: Fn(&B) -> Vec<T> + Send + Sync + 'static,
     {
-        let shared = Arc::new((base_url, fetch, items, request_path));
+        Self::of_urls(
+            base_url,
+            fetch,
+            items,
+            |result: &ApiResult<B>| {
+                result
+                    .headers()
+                    .iter()
+                    .find(|(name, _)| name.eq_ignore_ascii_case("link"))
+                    .and_then(|(_, value)| crate::link_header::next(value))
+            },
+            request_path,
+        )
+    }
+
+    /// Creates a paginator that follows the URL that the body of each page names.
+    /// Used by the generated `_pages` methods.
+    ///
+    /// It is followed exactly as a `Link` list is: `next` reads the URL of the
+    /// next page from the decoded body, and a URL that is absent, `null` or
+    /// empty ends the list. A URL on another origin is refused.
+    pub fn of_next_url<F, I, N>(
+        base_url: String,
+        fetch: F,
+        items: I,
+        next: N,
+        request_path: String,
+    ) -> Self
+    where
+        F: Fn(Option<String>) -> PageFuture<B> + Send + Sync + 'static,
+        I: Fn(&B) -> Vec<T> + Send + Sync + 'static,
+        N: Fn(&B) -> Option<String> + Send + Sync + 'static,
+    {
+        Self::of_urls(
+            base_url,
+            fetch,
+            items,
+            move |result: &ApiResult<B>| result.data().and_then(|body| next(body)),
+            request_path,
+        )
+    }
+
+    /// The shared reader of the URL-driven lists: `next` reads the URL of the
+    /// page after the one just read from its result.
+    fn of_urls<F, I, N>(base_url: String, fetch: F, items: I, next: N, request_path: String) -> Self
+    where
+        F: Fn(Option<String>) -> PageFuture<B> + Send + Sync + 'static,
+        I: Fn(&B) -> Vec<T> + Send + Sync + 'static,
+        N: Fn(&ApiResult<B>) -> Option<String> + Send + Sync + 'static,
+    {
+        let shared = Arc::new((base_url, fetch, items, next, request_path));
         Self::from_pages(move || {
             let shared = shared.clone();
-            let state = LinkState {
+            let state = UrlState {
                 url: None,
                 repeated: None,
                 done: false,
@@ -333,7 +433,7 @@ where
                         state.done = true;
                         return Some((Err(Box::new(repeated) as Failure), state));
                     }
-                    let (base_url, fetch, items, request_path) = &*shared;
+                    let (base_url, fetch, items, next, request_path) = &*shared;
                     let result = match fetch(state.url.clone()).await {
                         Ok(result) => result,
                         Err(failure) => {
@@ -345,11 +445,7 @@ where
                         Some(body) => items(body),
                         None => Vec::new(),
                     };
-                    let link = result
-                        .headers()
-                        .iter()
-                        .find(|(name, _)| name.eq_ignore_ascii_case("link"))
-                        .and_then(|(_, value)| crate::link_header::next(value));
+                    let link = next(&result);
                     match link {
                         None => state.done = true,
                         Some(link) => {

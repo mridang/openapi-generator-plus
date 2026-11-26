@@ -907,8 +907,16 @@ void main() {
         expect(petInterface, contains(' listPetFeedWithHttpInfo('));
         expect(petInterface, contains(' listPetMatches('));
         expect(petInterface, contains(' listPetMatchesWithHttpInfo('));
+        expect(petInterface, contains(' listPetNextUrl('));
+        expect(petInterface, contains(' listPetNextUrlWithHttpInfo('));
         expect(petInterface, contains(' listPetNotes('));
         expect(petInterface, contains(' listPetNotesWithHttpInfo('));
+        expect(petInterface, contains(' listPetOffsets('));
+        expect(petInterface, contains(' listPetOffsetsWithHttpInfo('));
+        expect(petInterface, contains(' listPetPageNumbers('));
+        expect(petInterface, contains(' listPetPageNumbersWithHttpInfo('));
+        expect(petInterface, contains(' listPetsAfter('));
+        expect(petInterface, contains(' listPetsAfterWithHttpInfo('));
         expect(petInterface, contains(' setPetAvatar('));
         expect(petInterface, contains(' setPetAvatarWithHttpInfo('));
         expect(petInterface, contains(' setPetAvatarThumbnail('));

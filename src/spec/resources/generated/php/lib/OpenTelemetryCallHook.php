@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -55,9 +54,9 @@ use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
  */
 final class OpenTelemetryCallHook implements CallHook
 {
-    private const string SCOPE_NAME = 'openapi/petstoreclient';
+    private const SCOPE_NAME = 'openapi/petstoreclient';
 
-    private const string SCOPE_VERSION = '1.0.0';
+    private const SCOPE_VERSION = '1.0.0';
 
     private function __construct(
         private readonly ?TracerProviderInterface $tracerProvider,
@@ -151,7 +150,7 @@ final class OpenTelemetryCallHook implements CallHook
                 if ($outcome->statusCode > 0) {
                     $attributes['http.response.status_code'] = $outcome->statusCode;
                 }
-                $errorType = $this->errorType($outcome);
+                $errorType = self::errorType($outcome);
                 if ($errorType !== null) {
                     $attributes['error.type'] = $errorType;
                 }
@@ -164,13 +163,13 @@ final class OpenTelemetryCallHook implements CallHook
                 $this->histogram->record((hrtime(true) - $this->startedAt) / 1e9, $attributes);
             }
 
-            private function errorType(CallOutcome $outcome): ?string
+            private static function errorType(CallOutcome $outcome): ?string
             {
                 if ($outcome->statusCode >= 400) {
                     return (string) $outcome->statusCode;
                 }
                 $error = $outcome->error;
-                if (!$error instanceof \Throwable) {
+                if ($error === null) {
                     return null;
                 }
 

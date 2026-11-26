@@ -33,7 +33,7 @@ function hookTelemetryRun(
     $observer?->finish($outcome);
 
     /** @var list<SpanDataInterface> $exported */
-    $exported = $spans instanceof \OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter ? array_values($spans->getSpans()) : [];
+    $exported = $spans === null ? [] : array_values($spans->getSpans());
 
     return $exported;
 }
@@ -166,7 +166,7 @@ test('bhv telemetry 006 the span is a child of the active span and the tracepare
     $client = $exported[0];
     expect($client->getParentSpanId())->toBe($parent->getContext()->getSpanId());
     expect($client->getTraceId())->toBe($parent->getContext()->getTraceId());
-    $names = array_map(strtolower(...), array_keys($headers));
+    $names = array_map(static fn (string $name): string => strtolower($name), array_keys($headers));
     expect(array_count_values($names)['traceparent'])->toBe(1);
     $flags = sprintf('%02x', $client->getContext()->getTraceFlags());
     expect($headers['traceparent'])->toBe('00-' . $client->getTraceId() . '-' . $client->getSpanId() . '-' . $flags);

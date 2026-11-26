@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -142,7 +141,7 @@ test('bhv authbearer 013 debug output keeps the host and masks only the token', 
 
 test('bhv authbearer 006 every generated bearer wrapper sends the bearer header and masks the token', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, BearerAuthenticator::class)) {
             continue;
@@ -283,7 +282,7 @@ test('bhv authbearer 011 redacts the token in toString', function (): void {
 
 test('bhv authbearer 001 every generated bearer wrapper prints its own class name', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, BearerAuthenticator::class)) {
             continue;
@@ -319,7 +318,7 @@ function withBearerEnvValues(array $values, callable $body): void
 
 test('bhv authbearer 019 an empty environment value counts as unset and fails construction naming the variable', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, BearerAuthenticator::class)) {
             continue;
@@ -336,7 +335,7 @@ test('bhv authbearer 019 an empty environment value counts as unset and fails co
 
 test('bhv authbearer 023 generated bearer scheme wrappers emit a bearer header and keep their own name', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, BearerAuthenticator::class)) {
             continue;
@@ -344,14 +343,14 @@ test('bhv authbearer 023 generated bearer scheme wrappers emit a bearer header a
         $wrappers++;
         $auth = bearerWrapper($class, 'https://api.example.com', 'wrapper-token');
         expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Bearer wrapper-token']);
-        expect($auth::class)->toBe($class);
+        expect(get_class($auth))->toBe($class);
     }
     expect($wrappers)->toBeGreaterThan(0);
 });
 
 test('bhv authbearer 025 the environment variable is read once, at construction', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, BearerAuthenticator::class)) {
             continue;
@@ -416,7 +415,7 @@ test('bhv auth 023 an explicitly passed empty bearer token is refused and not re
 test('bhv misc 196 a bearer authenticator built with no token, no provider and no environment is refused', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com'))
         ->toThrow(\InvalidArgumentException::class, 'Bearer token is required');
-    expect(fn () => new BearerAuthenticator('https://api.example.com'))
+    expect(fn () => new BearerAuthenticator('https://api.example.com', null, null))
         ->toThrow(\InvalidArgumentException::class, 'Bearer token is required');
 });
 

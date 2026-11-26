@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -19,7 +18,7 @@ namespace PetstoreClient;
  *
  * @template T the item type
  * @template C the cursor type, which is the type of the cursor request parameter; `null` for a
- *             list that is followed by a `Link` header
+ *             list that is followed by a `Link` header or a next URL in the body
  *
  * @category Class
  * @package  PetstoreClient
@@ -29,7 +28,7 @@ final class Page
     /**
      * @param list<T>      $items      the items of this page, in order
      * @param C|null       $nextCursor the cursor of the next page, or null on the last page; always null
-     *                                 for a list that is followed by a `Link` header
+     *                                 for a list that is followed by a `Link` header or a next URL
      * @param ApiResult<mixed> $result what the matching `...WithHttpInfo` method returns for this page:
      *                                 the status, the headers, the raw body and the decoded body
      */

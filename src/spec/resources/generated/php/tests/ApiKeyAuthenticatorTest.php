@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -118,7 +117,7 @@ test('bhv authapikey 012 debug output keeps the non secret fields and masks only
 
 test('bhv authapikey 007 every generated api key wrapper emits its key at exactly one location and masks it', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
             continue;
@@ -146,7 +145,7 @@ test('bhv authapikey 007 every generated api key wrapper emits its key at exactl
 
 test('bhv authapikey 019 wrappers reject an empty key at construction', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
             continue;
@@ -162,7 +161,7 @@ test('bhv authapikey 019 wrappers reject an empty key at construction', function
 
 test('bhv authapikey 020 every api key wrapper validates eagerly and redacts the key', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
             continue;
@@ -399,7 +398,7 @@ function apiKeysSentBy(ApiKeyAuthenticator $auth): array
 function assertApiKeyWrappersRefuseEmptyVariable(string $where): void
 {
     $matched = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
             continue;
@@ -425,7 +424,7 @@ function assertApiKeyWrappersRefuseEmptyVariable(string $where): void
 
 test('bhv authapikey 021 an api key is read from the environment when none is passed and a passed key wins', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
             continue;
@@ -462,7 +461,7 @@ test('bhv authapikey 023 a cookie key accepts a non ascii value and is emitted o
 
 test('bhv authapikey 025 generated api key scheme wrappers mask the key in their debug output', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
             continue;
@@ -497,7 +496,7 @@ test('bhv auth 006 an api key sent in a header is keyed by the declared header n
 test('bhv auth 004 an api key authenticator built with no key and no provider is refused at construction', function (): void {
     expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER))
         ->toThrow(\InvalidArgumentException::class);
-    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER))
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', null, ApiKeyLocation::HEADER, null))
         ->toThrow(\InvalidArgumentException::class);
 });
 

@@ -24,17 +24,55 @@ module {{moduleName}}
   class Paginator
     include Enumerable
 
-    # Creates a paginator that follows a token cursor. Used by the generated
-    # +_pages+ methods.
+    # Creates a paginator that follows a token cursor, or an id cursor when
+    # +has_more+ is given. Used by the generated +_pages+ methods.
     #
     # @param start [Object, nil] the cursor of the first request, or nil to start at the beginning
     # @param fetch [#call] sends the request for a cursor (nil for none) and returns its {ApiResult}
     # @param items [#call] reads the items of a decoded page
     # @param next_cursor [#call] reads the cursor of the next page from a decoded page; absent, nil or empty ends the list
     # @param request_path [String] the path of the operation, for errors
+    # @param has_more [#call, nil] reads the has_more flag of a decoded page, or nil when the list does not declare one; false ends the list
     # @return [Paginator] the paginator
-    def self.of_cursor(start:, fetch:, items:, next_cursor:, request_path:)
-      new(-> { CursorPages.new(start, fetch, items, next_cursor, request_path) })
+    def self.of_cursor(start:, fetch:, items:, next_cursor:, request_path:, has_more: nil)
+      following = lambda do |_sent, body, _list|
+        next nil if has_more && has_more.call(body) == false
+
+        next_cursor.call(body)
+      end
+      new(-> { CursorPages.new(start, fetch, items, following, request_path) })
+    end
+
+    # Creates a paginator that follows an offset: the next offset is the offset
+    # sent plus the items received, and the list ends on an empty page or when
+    # the has_more flag of the page is false. Used by the generated +_pages+ methods.
+    #
+    # @param start [Integer, nil] the offset of the first request, or nil to send none
+    # @param fetch [#call] sends the request for an offset (nil for none) and returns its {ApiResult}
+    # @param items [#call] reads the items of a decoded page
+    # @param request_path [String] the path of the operation, for errors
+    # @param has_more [#call, nil] reads the has_more flag of a decoded page, or nil when the list does not declare one
+    # @return [Paginator] the paginator
+    def self.of_offset(start:, fetch:, items:, request_path:, has_more: nil)
+      following = counted(has_more) { |sent, list| (sent || 0) + list.size }
+      new(-> { CursorPages.new(start, fetch, items, following, request_path) })
+    end
+
+    # Creates a paginator that counts pages: the first request sends the page
+    # number given, or none (page 1 is the first), and each next request sends
+    # the page after the one it asked for. The list ends on an empty page or
+    # when the has_more flag of the page is false. Used by the generated
+    # +_pages+ methods.
+    #
+    # @param start [Integer, nil] the page number of the first request, or nil to send none
+    # @param fetch [#call] sends the request for a page number (nil for none) and returns its {ApiResult}
+    # @param items [#call] reads the items of a decoded page
+    # @param request_path [String] the path of the operation, for errors
+    # @param has_more [#call, nil] reads the has_more flag of a decoded page, or nil when the list does not declare one
+    # @return [Paginator] the paginator
+    def self.of_page(start:, fetch:, items:, request_path:, has_more: nil)
+      following = counted(has_more) { |sent, _list| (sent || 1) + 1 }
+      new(-> { CursorPages.new(start, fetch, items, following, request_path) })
     end
 
     # Creates a paginator that follows the +rel="next"+ link of the +Link+
@@ -46,8 +84,39 @@ module {{moduleName}}
     # @param request_path [String] the path of the operation, for errors
     # @return [Paginator] the paginator
     def self.of_link(base_url:, fetch:, items:, request_path:)
-      new(-> { LinkPages.new(base_url, fetch, items, request_path) })
+      following = ->(result) { LinkHeader.next_target(LinkPages.link_header_of(result.headers)) }
+      new(-> { LinkPages.new(base_url, fetch, items, following, request_path) })
     end
+
+    # Creates a paginator that follows a next URL in the body of each page. Used
+    # by the generated +_pages+ methods.
+    #
+    # @param base_url [String] the base URL of the client; a next URL that leaves its scheme, host or port is refused
+    # @param fetch [#call] sends the request for a URL (nil for the first page) and returns its {ApiResult}
+    # @param items [#call] reads the items of a decoded page
+    # @param next_url [#call] reads the next URL from a decoded page; absent, nil or empty ends the list
+    # @param request_path [String] the path of the operation, for errors
+    # @return [Paginator] the paginator
+    def self.of_next_url(base_url:, fetch:, items:, next_url:, request_path:)
+      following = lambda do |result|
+        body = result.data
+        url = body.nil? ? nil : next_url.call(body)
+        url == '' ? nil : url
+      end
+      new(-> { LinkPages.new(base_url, fetch, items, following, request_path) })
+    end
+
+    # The next offset or page number of a counted list, or nil when the page
+    # ends it: an empty page, or a has_more flag that is false.
+    #
+    # @api private
+    def self.counted(has_more, &next_value)
+      lambda do |sent, body, list|
+        continues = !list.empty? && !(has_more && has_more.call(body) == false)
+        continues ? next_value.call(sent, list) : nil
+      end
+    end
+    private_class_method :counted
 
     # @api private
     def initialize(walker)
@@ -88,15 +157,15 @@ module {{moduleName}}
       end
     end
 
-    # The pages of a token cursor list.
+    # The pages of a cursor list, an offset or a page number list.
     #
     # @api private
     class CursorPages
-      def initialize(start, fetch, items, next_cursor, request_path)
+      def initialize(start, fetch, items, following, request_path)
         @sent = start
         @fetch = fetch
         @items = items
-        @next_cursor = next_cursor
+        @following = following
         @request_path = request_path
         @repeated = nil
         @done = false
@@ -112,16 +181,16 @@ module {{moduleName}}
         end
         result = fetch_page
         body = result.data
-        list = body.nil? ? [] : @items.call(body) # : Array[untyped]?
-        following = body.nil? ? nil : @next_cursor.call(body)
+        list = body.nil? ? [] : Array(@items.call(body))
+        following = body.nil? ? nil : @following.call(@sent, body, list)
         if following.nil? || following == ''
           @done = true
-          return Page.new(items: list || [], next_cursor: nil, result: result)
+          return Page.new(items: list, next_cursor: nil, result: result)
         end
         # The page itself is good: it is delivered, and the next read raises.
         @repeated = repeated_error if following == @sent
         @sent = following
-        Page.new(items: list || [], next_cursor: following, result: result)
+        Page.new(items: list, next_cursor: following, result: result)
       end
 
       private
@@ -140,14 +209,16 @@ module {{moduleName}}
       end
     end
 
-    # The pages of a list that is followed by the Link header.
+    # The pages of a list that is followed by a next URL, from the Link header
+    # or from the body.
     #
     # @api private
     class LinkPages
-      def initialize(base_url, fetch, items, request_path)
+      def initialize(base_url, fetch, items, next_link, request_path)
         @base_url = base_url
         @fetch = fetch
         @items = items
+        @next_link = next_link
         @request_path = request_path
         @url = nil
         @repeated = nil
@@ -164,8 +235,8 @@ module {{moduleName}}
         end
         result = fetch_page
         body = result.data
-        list = body.nil? ? [] : @items.call(body) # : Array[untyped]?
-        link = LinkHeader.next_target(link_header_of(result.headers))
+        list = body.nil? ? [] : Array(@items.call(body))
+        link = @next_link.call(result)
         if link.nil?
           @done = true
         else
@@ -179,7 +250,15 @@ module {{moduleName}}
             @repeated = e
           end
         end
-        Page.new(items: list || [], next_cursor: nil, result: result)
+        Page.new(items: list, next_cursor: nil, result: result)
+      end
+
+      # The target of the rel="next" link of a Link header, or nil.
+      #
+      # @api private
+      def self.link_header_of(headers)
+        found = headers.find { |name, _value| name.to_s.casecmp?('link') }
+        found&.last
       end
 
       private
@@ -189,11 +268,6 @@ module {{moduleName}}
       rescue StandardError
         @done = true
         raise
-      end
-
-      def link_header_of(headers)
-        found = headers.find { |name, _value| name.to_s.casecmp?('link') }
-        found&.last
       end
 
       def repeated_error

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -10,7 +9,6 @@
  */
 
 declare(strict_types=1);
-
 namespace PetstoreClient\Models;
 
 /**
@@ -22,8 +20,8 @@ class ReserveStockResponse implements \Ds\Hashable
     private static function oneOfCandidates(): array
     {
         return [
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\Reservation::class)),
-            fn (mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName(\PetstoreClient\Models\ReservationReceipt::class)),
+            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('\PetstoreClient\Models\Reservation')),
+            fn(mixed $d): mixed => \PetstoreClient\ObjectSerializer::deserialize($d, \PetstoreClient\ObjectSerializer::qualifySchemaName('\PetstoreClient\Models\ReservationReceipt')),
         ];
     }
 
@@ -108,7 +106,7 @@ class ReserveStockResponse implements \Ds\Hashable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === static::class
+            && $other::class === $this::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -118,7 +116,7 @@ class ReserveStockResponse implements \Ds\Hashable
      */
     public function hash(): mixed
     {
-        $parts = [static::class];
+        $parts = [$this::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -127,4 +125,5 @@ class ReserveStockResponse implements \Ds\Hashable
 
         return md5(implode("\0", $parts));
     }
+
 }

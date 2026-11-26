@@ -561,10 +561,26 @@ describe 'Client' do
     _(listed).must_include 'list_pet_matches_with_http_info'
     _(group).must_respond_to :list_pet_matches
     _(group).must_respond_to :list_pet_matches_with_http_info
+    _(listed).must_include 'list_pet_next_url'
+    _(listed).must_include 'list_pet_next_url_with_http_info'
+    _(group).must_respond_to :list_pet_next_url
+    _(group).must_respond_to :list_pet_next_url_with_http_info
     _(listed).must_include 'list_pet_notes'
     _(listed).must_include 'list_pet_notes_with_http_info'
     _(group).must_respond_to :list_pet_notes
     _(group).must_respond_to :list_pet_notes_with_http_info
+    _(listed).must_include 'list_pet_offsets'
+    _(listed).must_include 'list_pet_offsets_with_http_info'
+    _(group).must_respond_to :list_pet_offsets
+    _(group).must_respond_to :list_pet_offsets_with_http_info
+    _(listed).must_include 'list_pet_page_numbers'
+    _(listed).must_include 'list_pet_page_numbers_with_http_info'
+    _(group).must_respond_to :list_pet_page_numbers
+    _(group).must_respond_to :list_pet_page_numbers_with_http_info
+    _(listed).must_include 'list_pets_after'
+    _(listed).must_include 'list_pets_after_with_http_info'
+    _(group).must_respond_to :list_pets_after
+    _(group).must_respond_to :list_pets_after_with_http_info
     _(listed).must_include 'set_pet_avatar'
     _(listed).must_include 'set_pet_avatar_with_http_info'
     _(group).must_respond_to :set_pet_avatar

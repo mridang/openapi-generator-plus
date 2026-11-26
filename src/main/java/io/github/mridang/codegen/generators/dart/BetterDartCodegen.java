@@ -1481,7 +1481,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         p.put(
                 "dartPaginatorType",
                 "Paginator<" + p.get("itemType") + ", "
-                        + (Boolean.TRUE.equals(p.get("isLink")) ? "void" : p.get("cursorType")) + ">");
+                        + (Boolean.TRUE.equals(p.get("isUrlPaged")) ? "void" : p.get("cursorType")) + ">");
     }
 
     /**
@@ -1903,7 +1903,10 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 opDecorators instanceof Map ? ((Map<?, ?>) opDecorators).get("pagination") : null;
         final boolean cursorCopy =
                 pagination instanceof Map
-                        && Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"));
+                        && (Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isToken"))
+                        || Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isId"))
+                        || Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isOffset"))
+                        || Boolean.TRUE.equals(((Map<?, ?>) pagination).get("isPage")));
         context.put("hasCursorCopy", cursorCopy);
         if (cursorCopy && pagination instanceof Map) {
             final Map<?, ?> plan = (Map<?, ?>) pagination;

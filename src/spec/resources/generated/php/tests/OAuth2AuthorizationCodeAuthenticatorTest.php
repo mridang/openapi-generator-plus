@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -747,7 +746,7 @@ test('bhv authoauthtwoauthcode 020 scheme wrapper sends the spec scopes and urls
 
 test('bhv authscheme 015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/OAuth/*.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/OAuth/*.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\OAuth\\' . basename($file, '.php');
         if (!is_subclass_of($class, OAuth2AuthorizationCodeAuthenticator::class)) {
             continue;

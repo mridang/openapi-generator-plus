@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -56,6 +55,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Create an account
      * @param CreateAccountOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Account
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -109,7 +109,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Account::class,
+            '\PetstoreClient\Models\Account',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -118,9 +118,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'createAccount',
             urlTemplate: '/store/account',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -198,9 +198,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'deleteOrder',
             urlTemplate: '/store/order/{orderId}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -241,10 +241,10 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'exportOrders',
             urlTemplate: '/store/orders/export',
-            itemType: \PetstoreClient\Models\Order::class,
+            securityRequirements: [],
+            itemType: '\PetstoreClient\Models\Order',
             streamOptions: $streamOptions,
         );
 
@@ -255,6 +255,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Read the audit trail, which needs a bearer token and an API key together
      * One security requirement that names two schemes, so a request carries both credentials.
      * @param GetAuditTrailOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -308,7 +309,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\ApiResponse::class,
+            '\PetstoreClient\Models\ApiResponse',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -316,9 +317,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBearer', 'apiKeyHeader']],
             operationId: 'getAuditTrail',
             urlTemplate: '/store/audit',
+            securityRequirements: [['petStoreBearer', 'apiKeyHeader']],
         );
         return $result;
     }
@@ -326,6 +327,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Echoes a swatch supplied via path, query and header parameters.
      * @param GetBySwatchOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\Category
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -386,7 +388,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\GetBySwatchOptions && $options->querySwatch instanceof \PetstoreClient\Models\Swatch) {
+        if ($options !== null && $options->querySwatch !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'querySwatch', ValueSerializer::serializeStyled(
                 'querySwatch',
                 $options->querySwatch,
@@ -398,7 +400,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             ));
         }
         $headerParams = [];
-        if ($options instanceof \PetstoreClient\Api\Options\GetBySwatchOptions && $options->preferredSwatch instanceof \PetstoreClient\Models\Swatch) {
+        if ($options !== null && $options->preferredSwatch !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'Preferred-Swatch',
@@ -422,7 +424,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Category::class,
+            '\PetstoreClient\Models\Category',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -431,9 +433,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getBySwatch',
             urlTemplate: '/store/by-swatch/{pathSwatch}',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -441,6 +443,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Returns a model exercising schema defaults on deserialize.
      * @param GetDefaultsOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Defaults
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -494,7 +497,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Defaults::class,
+            '\PetstoreClient\Models\Defaults',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -503,9 +506,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getDefaults',
             urlTemplate: '/store/defaults',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -513,6 +516,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Returns a department (mutual-recursion codegen fixture).
      * @param GetDepartmentOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Department
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -566,7 +570,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Department::class,
+            '\PetstoreClient\Models\Department',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -575,9 +579,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getDepartment',
             urlTemplate: '/store/department',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -648,9 +652,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getGroupedCategories',
             urlTemplate: '/store/grouped-categories',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -721,9 +725,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getInventory',
             urlTemplate: '/store/inventory',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -794,9 +798,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getMatrix',
             urlTemplate: '/store/matrix',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -804,6 +808,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Reads values of the formats the SDKs type natively.
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\NativeValues
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -845,7 +850,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->address4 !== null) {
+        if ($options !== null && $options->address4 !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'address4', ValueSerializer::serializeStyled(
                 'address4',
                 $options->address4,
@@ -856,7 +861,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
                 true,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->delay instanceof \DateInterval) {
+        if ($options !== null && $options->delay !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'delay', ValueSerializer::serializeStyled(
                 'delay',
                 $options->delay,
@@ -867,7 +872,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
                 true,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->amount !== null) {
+        if ($options !== null && $options->amount !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'amount', ValueSerializer::serializeStyled(
                 'amount',
                 $options->amount,
@@ -879,7 +884,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             ));
         }
         $headerParams = [];
-        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->xAddress6 !== null) {
+        if ($options !== null && $options->xAddress6 !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'X-Address6',
@@ -903,7 +908,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\NativeValues::class,
+            '\PetstoreClient\Models\NativeValues',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -912,9 +917,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getNativeValues',
             urlTemplate: '/store/native-values',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -923,6 +928,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Find purchase order by ID
      * @param int $orderId ID of order to return
      * @param GetOrderByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
@@ -1000,7 +1006,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Order::class,
+            '\PetstoreClient\Models\Order',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -1008,9 +1014,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'getOrderById',
             urlTemplate: '/store/order/{orderId}',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1018,6 +1024,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Find purchase order by tracking id
      * @param GetOrderByTrackingIdOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -1056,7 +1063,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             'trackingId',
             $trackingId,
             'path',
-            \Symfony\Component\Uid\Uuid::class,
+            '\Symfony\Component\Uid\Uuid',
             null,
             'simple',
             false,
@@ -1090,7 +1097,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Order::class,
+            '\PetstoreClient\Models\Order',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -1099,9 +1106,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getOrderByTrackingId',
             urlTemplate: '/store/order/by-tracking/{trackingId}',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1109,6 +1116,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
      * @param GetStockItemOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\StockItem
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -1150,7 +1158,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\GetStockItemOptions && $options->asOf instanceof \DateTime) {
+        if ($options !== null && $options->asOf !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'asOf', ValueSerializer::serializeStyled(
                 'asOf',
                 $options->asOf,
@@ -1173,7 +1181,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\StockItem::class,
+            '\PetstoreClient\Models\StockItem',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -1182,9 +1190,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getStockItem',
             urlTemplate: '/store/stock-item',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1192,6 +1200,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Returns a bare enum (value-type response codegen fixture).
      * @param GetSwatchOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Swatch
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -1245,7 +1254,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Swatch::class,
+            '\PetstoreClient\Models\Swatch',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -1254,9 +1263,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getSwatch',
             urlTemplate: '/store/swatch',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1327,9 +1336,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getSwatchGroups',
             urlTemplate: '/store/swatch-groups',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1400,9 +1409,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getTimestampGroups',
             urlTemplate: '/store/timestamp-groups',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1410,6 +1419,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Returns a self-referential tree (recursive-type codegen fixture)
      * @param GetTreeOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\TreeNode
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
@@ -1463,7 +1473,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\TreeNode::class,
+            '\PetstoreClient\Models\TreeNode',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -1472,9 +1482,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'getTree',
             urlTemplate: '/store/tree',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1482,6 +1492,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
     /**
      * Place an order for a pet
      * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
@@ -1537,7 +1548,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Order::class,
+            '\PetstoreClient\Models\Order',
             /* The security requirement is passed below as scheme ids; null lets
              * BaseApi pick the credential of the scheme the operation requires. */
             null,
@@ -1545,9 +1556,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'placeOrder',
             urlTemplate: '/store/order',
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
         );
         return $result;
     }
@@ -1556,6 +1567,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Reserve stock, answering with the existing or a new reservation
      * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
      * @param ReserveStockOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return \PetstoreClient\Models\ReserveStockResponse
      * @throws \PetstoreClient\Errors\ApiException
      * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
@@ -1611,7 +1623,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\ReserveStockResponse::class,
+            '\PetstoreClient\Models\ReserveStockResponse',
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -1620,13 +1632,13 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            successTypes: [
-                '200' => \PetstoreClient\Models\Reservation::class,
-                '201' => \PetstoreClient\Models\ReservationReceipt::class,
-            ],
-            securityRequirements: [],
             operationId: 'reserveStock',
             urlTemplate: '/store/reservation',
+            securityRequirements: [],
+            successTypes: [
+                '200' => '\PetstoreClient\Models\Reservation',
+                '201' => '\PetstoreClient\Models\ReservationReceipt',
+            ],
         );
         return $result;
     }
@@ -1676,21 +1688,21 @@ class StoreApi extends BaseApi implements StoreApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->q instanceof \PetstoreClient\Models\PhotoMetadata) {
+        if ($options !== null && $options->q !== null) {
             $queryParams['q'] = \PetstoreClient\ObjectSerializer::serialize($options->q);
         }
-        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->labels !== null) {
+        if ($options !== null && $options->labels !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'labels', ValueSerializer::serializeStyled(
                 'labels',
                 $options->labels,
                 'query',
-                \Ds\Set::class,
+                '\Ds\Set',
                 'multi',
                 'form',
                 true,
             ));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->at instanceof \DateTimeImmutable) {
+        if ($options !== null && $options->at !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'at', ValueSerializer::serializeStyled(
                 'at',
                 $options->at,
@@ -1702,7 +1714,8 @@ class StoreApi extends BaseApi implements StoreApiInterface
             ));
         }
         $headerParams = [];
-        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->xFilter !== null) {
+        if ($options !== null && $options->xFilter !== null) {
+            /** @var string $headerValue */
             $headerValue = \PetstoreClient\ObjectSerializer::serialize($options->xFilter);
             $headerParams['X-Filter'] = $headerValue;
         }
@@ -1726,9 +1739,9 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'searchStore',
             urlTemplate: '/store/search',
+            securityRequirements: [],
         );
         return $result;
     }
@@ -1769,9 +1782,11 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'watchNotices',
             urlTemplate: '/store/notices',
+            securityRequirements: [],
+            itemType: null,
+            terminator: null,
             streamOptions: $streamOptions,
         );
 
@@ -1797,7 +1812,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options instanceof \PetstoreClient\Api\Options\WatchOrdersOptions && $options->status !== null) {
+        if ($options !== null && $options->status !== null) {
             $queryParams = ValueSerializer::putQueryParam($queryParams, 'status', ValueSerializer::serializeStyled(
                 'status',
                 $options->status,
@@ -1825,10 +1840,11 @@ class StoreApi extends BaseApi implements StoreApiInterface
             timeout: $options?->timeout,
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
-            securityRequirements: [],
             operationId: 'watchOrders',
             urlTemplate: '/store/orders/events',
-            itemType: \PetstoreClient\Models\Order::class,
+            securityRequirements: [],
+            itemType: '\PetstoreClient\Models\Order',
+            terminator: null,
             streamOptions: $streamOptions,
         );
 

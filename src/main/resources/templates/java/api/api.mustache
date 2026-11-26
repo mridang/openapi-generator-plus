@@ -394,7 +394,7 @@ public class {{classname}} extends BaseApi implements {{classname}}Interface {
     private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}, @Nullable String requestContentType) {
 {{/vendorExtensions.hasMultipleConsumes}}
 {{^vendorExtensions.hasMultipleConsumes}}
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
     @Override
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
         return {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{paramName}}, {{/vendorExtensions.op.signatureArgs}}null);
@@ -402,19 +402,19 @@ public class {{classname}} extends BaseApi implements {{classname}}Interface {
 
     /* One page of the list: the first when pageUrl is null, else the URL the Link header named. */
     private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Page({{#vendorExtensions.op.signatureArgs}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}, {{/vendorExtensions.op.signatureArgs}}@Nullable String pageUrl) {
-{{/vendorExtensions.op.pagination.isLink}}
-{{^vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{^vendorExtensions.op.pagination.isUrlPaged}}
     @Override
     public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) {
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{/vendorExtensions.hasMultipleConsumes}}
 {{>api/operation_prelude}}
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
         if (pageUrl != null) {
             path = pageUrl;
             queryParams.clear();
         }
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{#vendorExtensions.op.hasMultiple2xx}}
         /* More than one 2xx response is declared with its own schema, so the body is
          * decoded as the schema of the status that arrived and wrapped in the union. */

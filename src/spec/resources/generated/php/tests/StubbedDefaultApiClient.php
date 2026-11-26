@@ -48,7 +48,7 @@ final class StubbedDefaultApiClient extends DefaultApiClient
     protected function pause(float $seconds): void
     {
         $this->pauses[] = $seconds;
-        if ($this->onPause instanceof \Closure) {
+        if ($this->onPause !== null) {
             ($this->onPause)($seconds);
         }
     }

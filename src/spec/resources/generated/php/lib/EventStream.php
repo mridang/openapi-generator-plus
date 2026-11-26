@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -82,7 +81,7 @@ final class EventStream
                     continue;
                 }
                 try {
-                    $item = $decoder instanceof \Closure ? $decoder($line) : $line;
+                    $item = $decoder === null ? $line : $decoder($line);
                 } catch (SerializationException $failure) {
                     throw (new SerializationException(
                         'Line ' . $number . ' of the JSON Lines response does not decode: ' . $failure->getMessage(),

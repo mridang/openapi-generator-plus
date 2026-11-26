@@ -29,7 +29,7 @@ test('bhv lifecycle 012 construct with authenticator only', function (): void {
 test('bhv lifecycle 010 construct with authenticator and null transport options', function (): void {
     // A null transport must fall back to the default builder output, so
     // constructing with an explicit null is equivalent to omitting it.
-    $client = new Client($this->authenticator);
+    $client = new Client($this->authenticator, null);
 
     expect($client)->toBeInstanceOf(Client::class);
 });
@@ -196,8 +196,8 @@ function newRecordingTransport(): array
     $counts = new \stdClass();
     $counts->sent = 0;
     $counts->closes = 0;
-    $transport = new readonly class ($counts) implements ApiClient {
-        public function __construct(private \stdClass $counts)
+    $transport = new class($counts) implements ApiClient {
+        public function __construct(private readonly \stdClass $counts)
         {
         }
 
@@ -375,8 +375,8 @@ function newCapturingTransport(): array
     $seen = new \stdClass();
     $seen->url = null;
     $seen->headers = [];
-    $transport = new readonly class ($seen) implements ApiClient {
-        public function __construct(private \stdClass $seen)
+    $transport = new class($seen) implements ApiClient {
+        public function __construct(private readonly \stdClass $seen)
         {
         }
 
@@ -561,7 +561,11 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($petListed)->toContain('listPetEvents')->toContain('listPetEventsWithHttpInfo');
     expect($petListed)->toContain('listPetFeed')->toContain('listPetFeedWithHttpInfo');
     expect($petListed)->toContain('listPetMatches')->toContain('listPetMatchesWithHttpInfo');
+    expect($petListed)->toContain('listPetNextUrl')->toContain('listPetNextUrlWithHttpInfo');
     expect($petListed)->toContain('listPetNotes')->toContain('listPetNotesWithHttpInfo');
+    expect($petListed)->toContain('listPetOffsets')->toContain('listPetOffsetsWithHttpInfo');
+    expect($petListed)->toContain('listPetPageNumbers')->toContain('listPetPageNumbersWithHttpInfo');
+    expect($petListed)->toContain('listPetsAfter')->toContain('listPetsAfterWithHttpInfo');
     expect($petListed)->toContain('setPetAvatar')->toContain('setPetAvatarWithHttpInfo');
     expect($petListed)->toContain('setPetAvatarThumbnail')->toContain('setPetAvatarThumbnailWithHttpInfo');
     expect($petListed)->toContain('setPetPreferences')->toContain('setPetPreferencesWithHttpInfo');
@@ -821,7 +825,7 @@ test('bhv misc 208 an empty environment variable is treated the same as an unset
 });
 
 test('bhv misc 071 a client level credential that needs http receives the clients transport', function (): void {
-    $credential = new class ('/api/v3', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
+    $credential = new class('/api/v3', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
         public ?ApiClient $received = null;
 
         public function setApiClient(ApiClient $apiClient): void
@@ -848,19 +852,19 @@ test('bhv misc 072 every api group holds the default credential and the scheme c
 });
 
 test('bhv misc 073 a wrapper class exists for every security scheme the spec declares', function (): void {
-    expect(class_exists(\PetstoreClient\Auth\PetStoreBasicAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\AdminBasicAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\PetStoreBearerAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\ServiceTokenAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\ApiKeyHeaderAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\InternalApiKeyAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\ApiKeyQueryAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\SessionCookieAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\OAuth\MachineAuthClientCredentialsAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\OAuth\LegacyAuthPasswordAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\OAuth\UserAuthAuthorizationCodeAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\OAuth\BrowserAuthImplicitAuthenticator::class))->toBeTrue();
-    expect(class_exists(\PetstoreClient\Auth\OAuth\SsoAuthAuthenticator::class))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\PetStoreBasicAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\AdminBasicAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\PetStoreBearerAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\ServiceTokenAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\ApiKeyHeaderAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\InternalApiKeyAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\ApiKeyQueryAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\SessionCookieAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\OAuth\\MachineAuthClientCredentialsAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\OAuth\\LegacyAuthPasswordAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\OAuth\\UserAuthAuthorizationCodeAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\OAuth\\BrowserAuthImplicitAuthenticator'))->toBeTrue();
+    expect(class_exists('PetstoreClient\\Auth\\OAuth\\SsoAuthAuthenticator'))->toBeTrue();
 });
 
 test('bhv misc 075 a credential keyed to an undeclared scheme is refused when the client is built', function (): void {

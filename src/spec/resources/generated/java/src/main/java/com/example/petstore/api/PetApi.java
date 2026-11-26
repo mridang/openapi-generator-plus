@@ -39,7 +39,11 @@ import com.example.petstore.api.options.ListPetCatalogOptions;
 import com.example.petstore.api.options.ListPetEventsOptions;
 import com.example.petstore.api.options.ListPetFeedOptions;
 import com.example.petstore.api.options.ListPetMatchesOptions;
+import com.example.petstore.api.options.ListPetNextUrlOptions;
 import com.example.petstore.api.options.ListPetNotesOptions;
+import com.example.petstore.api.options.ListPetOffsetsOptions;
+import com.example.petstore.api.options.ListPetPageNumbersOptions;
+import com.example.petstore.api.options.ListPetsAfterOptions;
 import com.example.petstore.api.options.SetPetAvatarOptions;
 import com.example.petstore.api.options.SetPetAvatarThumbnailOptions;
 import com.example.petstore.api.options.SetPetPreferencesOptions;
@@ -50,11 +54,15 @@ import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Pet;
+import com.example.petstore.models.PetAfterPage;
 import com.example.petstore.models.PetArchivePage;
 import com.example.petstore.models.PetCatalogPage;
 import com.example.petstore.models.PetEventPage;
 import com.example.petstore.models.PetMatchPage;
+import com.example.petstore.models.PetNextUrlPage;
 import com.example.petstore.models.PetNotePage;
+import com.example.petstore.models.PetOffsetPage;
+import com.example.petstore.models.PetPageNumberPage;
 import com.example.petstore.models.PetPassport;
 import com.example.petstore.models.PetTreatment;
 import com.example.petstore.models.Photo;
@@ -138,8 +146,20 @@ public class PetApi extends BaseApi implements PetApiInterface {
   private static final java.lang.reflect.Type listPetMatchesTypeRef =
       new TypeReference<PetMatchPage>() {}.getType();
 
+  private static final java.lang.reflect.Type listPetNextUrlTypeRef =
+      new TypeReference<PetNextUrlPage>() {}.getType();
+
   private static final java.lang.reflect.Type listPetNotesTypeRef =
       new TypeReference<PetNotePage>() {}.getType();
+
+  private static final java.lang.reflect.Type listPetOffsetsTypeRef =
+      new TypeReference<PetOffsetPage>() {}.getType();
+
+  private static final java.lang.reflect.Type listPetPageNumbersTypeRef =
+      new TypeReference<PetPageNumberPage>() {}.getType();
+
+  private static final java.lang.reflect.Type listPetsAfterTypeRef =
+      new TypeReference<PetAfterPage>() {}.getType();
 
   private static final java.lang.reflect.Type setPetPreferencesTypeRef =
       new TypeReference<ApiResponse>() {}.getType();
@@ -3259,6 +3279,141 @@ public class PetApi extends BaseApi implements PetApiInterface {
   }
 
   /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetNextUrlPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetNextUrlPage listPetNextUrl() {
+    return listPetNextUrl(null);
+  }
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetNextUrlPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetNextUrlPage> listPetNextUrlWithHttpInfo() {
+    return listPetNextUrlWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetNextUrlPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetNextUrlPage listPetNextUrl(@Nullable ListPetNextUrlOptions options) {
+    return requireBody(listPetNextUrlWithHttpInfo(options), "listPetNextUrl");
+  }
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetNextUrlPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetNextUrlPage> listPetNextUrlWithHttpInfo(
+      @Nullable ListPetNextUrlOptions options) {
+    return listPetNextUrlPage(options, null);
+  }
+
+  /* One page of the list: the first when pageUrl is null, else the URL the Link header named. */
+  private ApiResult<PetNextUrlPage> listPetNextUrlPage(
+      @Nullable ListPetNextUrlOptions options, @Nullable String pageUrl) {
+    String path = "/pet/next";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.limit() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "limit",
+          ValueSerializer.serializeStyled(
+              "limit", options.limit(), "query", "Integer", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    if (pageUrl != null) {
+      path = pageUrl;
+      queryParams.clear();
+    }
+    return invokeApiForResult(
+        "listPetNextUrl",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetNextUrlTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetNextUrl",
+        "/pet/next");
+  }
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetNextUrlWithHttpInfo}, with the same options on each page. The
+   * page after each one is the URL in its {@code next_url} property, followed only within the
+   * origin of the client.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, Void> listPetNextUrlPages(@Nullable ListPetNextUrlOptions options) {
+    final ListPetNextUrlOptions pageOptions =
+        options == null ? new ListPetNextUrlOptions() : options.copy();
+    return Paginator.<Pet, PetNextUrlPage>ofNextUrl(
+        config.getBaseUrl(),
+        pageUrl -> listPetNextUrlPage(pageOptions, pageUrl),
+        page -> page.items,
+        page -> page.nextUrl == null ? null : page.nextUrl.toString(),
+        "/pet/next");
+  }
+
+  /**
+   * Lists pets with the URL of the next page in the body
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, Void> listPetNextUrlPages() {
+    return listPetNextUrlPages(null);
+  }
+
+  /**
    * Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -3380,6 +3535,409 @@ public class PetApi extends BaseApi implements PetApiInterface {
   @Override
   public Paginator<String, String> listPetNotesPages() {
     return listPetNotesPages(null);
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetOffsetPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetOffsetPage listPetOffsets() {
+    return listPetOffsets(null);
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetOffsetPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetOffsetPage> listPetOffsetsWithHttpInfo() {
+    return listPetOffsetsWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetOffsetPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetOffsetPage listPetOffsets(@Nullable ListPetOffsetsOptions options) {
+    return requireBody(listPetOffsetsWithHttpInfo(options), "listPetOffsets");
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetOffsetPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetOffsetPage> listPetOffsetsWithHttpInfo(
+      @Nullable ListPetOffsetsOptions options) {
+    String path = "/pet/offsets";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.offset() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "offset",
+          ValueSerializer.serializeStyled(
+              "offset", options.offset(), "query", "Integer", null, "form", true),
+          false);
+    }
+    if (options != null && options.limit() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "limit",
+          ValueSerializer.serializeStyled(
+              "limit", options.limit(), "query", "Integer", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "listPetOffsets",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetOffsetsTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetOffsets",
+        "/pet/offsets");
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetOffsetsWithHttpInfo}, with the same options on each page. The
+   * value of the {@code offset} option is the offset of the first item, and each page after one is
+   * requested at the offset past the items it received. The list ends on an empty page or when its
+   * {@code hasMore} is false.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, Integer> listPetOffsetsPages(@Nullable ListPetOffsetsOptions options) {
+    final ListPetOffsetsOptions pageOptions =
+        options == null ? new ListPetOffsetsOptions() : options.copy();
+    return Paginator.<Pet, PetOffsetPage>ofOffset(
+        pageOptions.offset(),
+        pageOffset -> listPetOffsetsWithHttpInfo(pageOptions.copy().offset(pageOffset)),
+        page -> page.items,
+        page -> page.hasMore,
+        "/pet/offsets");
+  }
+
+  /**
+   * Lists pets by offset and limit; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, Integer> listPetOffsetsPages() {
+    return listPetOffsetsPages(null);
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetPageNumberPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetPageNumberPage listPetPageNumbers() {
+    return listPetPageNumbers(null);
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetPageNumberPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetPageNumberPage> listPetPageNumbersWithHttpInfo() {
+    return listPetPageNumbersWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetPageNumberPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetPageNumberPage listPetPageNumbers(@Nullable ListPetPageNumbersOptions options) {
+    return requireBody(listPetPageNumbersWithHttpInfo(options), "listPetPageNumbers");
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetPageNumberPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetPageNumberPage> listPetPageNumbersWithHttpInfo(
+      @Nullable ListPetPageNumbersOptions options) {
+    String path = "/pet/pages";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.page() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "page",
+          ValueSerializer.serializeStyled(
+              "page", options.page(), "query", "Integer", null, "form", true),
+          false);
+    }
+    if (options != null && options.perPage() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "per_page",
+          ValueSerializer.serializeStyled(
+              "per_page", options.perPage(), "query", "Integer", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "listPetPageNumbers",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetPageNumbersTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetPageNumbers",
+        "/pet/pages");
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetPageNumbersWithHttpInfo}, with the same options on each page.
+   * The value of the {@code page} option is the page number of the first request, and each page
+   * after one is requested with the next page number. The list ends on an empty page or when its
+   * {@code hasMore} is false.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, Integer> listPetPageNumbersPages(
+      @Nullable ListPetPageNumbersOptions options) {
+    final ListPetPageNumbersOptions pageOptions =
+        options == null ? new ListPetPageNumbersOptions() : options.copy();
+    return Paginator.<Pet, PetPageNumberPage>ofPage(
+        pageOptions.page(),
+        pageNumber -> listPetPageNumbersWithHttpInfo(pageOptions.copy().page(pageNumber)),
+        page -> page.items,
+        page -> page.hasMore,
+        "/pet/pages");
+  }
+
+  /**
+   * Lists pets one numbered page at a time; the list ends on an empty page
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, Integer> listPetPageNumbersPages() {
+    return listPetPageNumbersPages(null);
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code PetAfterPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetAfterPage listPetsAfter() {
+    return listPetsAfter(null);
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code PetAfterPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetAfterPage> listPetsAfterWithHttpInfo() {
+    return listPetsAfterWithHttpInfo(null);
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code PetAfterPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public PetAfterPage listPetsAfter(@Nullable ListPetsAfterOptions options) {
+    return requireBody(listPetsAfterWithHttpInfo(options), "listPetsAfter");
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code PetAfterPage}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<PetAfterPage> listPetsAfterWithHttpInfo(@Nullable ListPetsAfterOptions options) {
+    String path = "/pet/after";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.startingAfter() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "starting_after",
+          ValueSerializer.serializeStyled(
+              "starting_after", options.startingAfter(), "query", "String", null, "form", true),
+          false);
+    }
+    if (options != null && options.limit() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "limit",
+          ValueSerializer.serializeStyled(
+              "limit", options.limit(), "query", "Integer", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "listPetsAfter",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        listPetsAfterTypeRef,
+        resolveSchemeAuth("petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "listPetsAfter",
+        "/pet/after");
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * <p>Returns the items as a lazy {@link Paginator}: no request is sent until you first read an
+   * item or a page, and each next page is requested only when you ask for more. Every page is an
+   * ordinary call of {@link #listPetsAfterWithHttpInfo}, with the same options on each page. The
+   * value of the {@code starting_after} option is where the list starts, the page after each one is
+   * requested with the {@code last_id} it returned, and the list ends when its {@code hasMore} is
+   * false.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, String> listPetsAfterPages(@Nullable ListPetsAfterOptions options) {
+    final ListPetsAfterOptions pageOptions =
+        options == null ? new ListPetsAfterOptions() : options.copy();
+    return Paginator.<Pet, String, PetAfterPage>ofCursor(
+        pageOptions.startingAfter(),
+        pageCursor -> listPetsAfterWithHttpInfo(pageOptions.copy().startingAfter(pageCursor)),
+        page -> page.data,
+        page -> page.lastId,
+        page -> page.hasMore,
+        "/pet/after");
+  }
+
+  /**
+   * Lists pets after the id of the last one; the has_more flag says when the list ends
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; the list starts at
+   * its beginning and the client's configured settings apply.
+   *
+   * @return the paginator over the items
+   */
+  @Override
+  public Paginator<Pet, String> listPetsAfterPages() {
+    return listPetsAfterPages(null);
   }
 
   /**

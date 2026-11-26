@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -10,12 +9,11 @@
  */
 
 declare(strict_types=1);
-
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
-class Order implements \Ds\Hashable, \Stringable
+class Order implements \Ds\Hashable
 {
     /** @example 10 */
     #[SerializedName('id')]
@@ -76,8 +74,8 @@ class Order implements \Ds\Hashable, \Stringable
             quantity: $this->quantity,
             trackingId: $this->trackingId,
             shipDate: $this->shipDate,
-            status: $this->status,
             complete: $this->complete,
+            status: $this->status,
         );
     }
 
@@ -92,8 +90,8 @@ class Order implements \Ds\Hashable, \Stringable
             quantity: $this->quantity,
             trackingId: $this->trackingId,
             shipDate: $this->shipDate,
-            status: $this->status,
             complete: $this->complete,
+            status: $this->status,
         );
     }
 
@@ -108,8 +106,8 @@ class Order implements \Ds\Hashable, \Stringable
             quantity: $quantity,
             trackingId: $this->trackingId,
             shipDate: $this->shipDate,
-            status: $this->status,
             complete: $this->complete,
+            status: $this->status,
         );
     }
 
@@ -124,8 +122,8 @@ class Order implements \Ds\Hashable, \Stringable
             quantity: $this->quantity,
             trackingId: $trackingId,
             shipDate: $this->shipDate,
-            status: $this->status,
             complete: $this->complete,
+            status: $this->status,
         );
     }
 
@@ -140,8 +138,8 @@ class Order implements \Ds\Hashable, \Stringable
             quantity: $this->quantity,
             trackingId: $this->trackingId,
             shipDate: $shipDate,
-            status: $this->status,
             complete: $this->complete,
+            status: $this->status,
         );
     }
 
@@ -156,8 +154,8 @@ class Order implements \Ds\Hashable, \Stringable
             quantity: $this->quantity,
             trackingId: $this->trackingId,
             shipDate: $this->shipDate,
-            status: $this->status,
             complete: $complete,
+            status: $this->status,
         );
     }
 
@@ -172,8 +170,8 @@ class Order implements \Ds\Hashable, \Stringable
             quantity: $this->quantity,
             trackingId: $this->trackingId,
             shipDate: $this->shipDate,
-            status: $status,
             complete: $this->complete,
+            status: $status,
         );
     }
 
@@ -200,7 +198,7 @@ class Order implements \Ds\Hashable, \Stringable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === static::class
+            && $other::class === $this::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -210,7 +208,7 @@ class Order implements \Ds\Hashable, \Stringable
      */
     public function hash(): mixed
     {
-        $parts = [static::class];
+        $parts = [$this::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -219,4 +217,5 @@ class Order implements \Ds\Hashable, \Stringable
 
         return md5(implode("\0", $parts));
     }
+
 }

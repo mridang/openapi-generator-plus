@@ -13,10 +13,10 @@ package com.example.petstore
  *
  * @param T the item type
  * @param C the cursor type, which is the type of the cursor request parameter; [Unit] for a list
- *   that is followed by `Link` header
+ *   that is followed by a URL, from a `Link` header or the body
  * @property items the items of this page, in order (a read-only copy)
  * @property nextCursor the cursor of the next page, or `null` on the last page; always `null` for a
- *   list that is followed by `Link` header
+ *   list that is followed by a URL
  * @property result what the matching `...WithHttpInfo` method returns for this page: the status, the
  *   headers, the raw body and the decoded body
  */

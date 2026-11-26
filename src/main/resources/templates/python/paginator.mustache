@@ -27,7 +27,8 @@ class Paginator(Generic[T, C]):
     :class:`PaginationException` from the next read, after the items of the page that repeated it.
 
     ``T`` is the item type and ``C`` the cursor type, which is the type of the cursor request
-    parameter; it is ``None`` for a list that is followed by a ``Link`` header.
+    parameter (``int`` for an offset or a page number); it is ``None`` for a list that is followed by
+    a ``Link`` header or by a next URL in its body.
     """
 
     def __init__(self, source: Callable[[], AsyncIterator['Page[T, C]']]) -> None:
@@ -40,8 +41,10 @@ class Paginator(Generic[T, C]):
         items: Callable[[B], Optional[List[T]]],
         next_cursor: Callable[[B], Optional[C]],
         request_path: str,
+        has_more: Optional[Callable[[B], Optional[bool]]] = None,
     ) -> 'Paginator[T, C]':
-        """Create a paginator that follows a token cursor. Used by the generated ``..._pages`` methods.
+        """Create a paginator that follows a token cursor or an id cursor. Used by the generated
+        ``..._pages`` methods.
 
         Args:
             start: The cursor of the first request, or ``None`` to start at the beginning.
@@ -50,8 +53,50 @@ class Paginator(Generic[T, C]):
             next_cursor: Reads the cursor of the next page from a decoded page; absent, ``None`` or
                 empty ends the list.
             request_path: The path of the operation, for errors.
+            has_more: Reads the has_more flag of a decoded page, or ``None`` when the list does not
+                declare one; a page whose flag is false is the last.
         """
-        return Paginator(lambda: _CursorPages(start, fetch, items, next_cursor, request_path))
+        return Paginator(lambda: _CursorPages(start, fetch, items, _ending(next_cursor, has_more), request_path))
+
+    @staticmethod
+    def of_offset(
+        start: Optional[int],
+        fetch: Callable[[Optional[int]], Awaitable['ApiResult[B]']],
+        items: Callable[[B], Optional[List[T]]],
+        has_more: Optional[Callable[[B], Optional[bool]]],
+        request_path: str,
+    ) -> 'Paginator[T, int]':
+        """Create a paginator that follows an offset. Used by the generated ``..._pages`` methods.
+
+        Args:
+            start: The offset of the first request, or ``None`` to send none.
+            fetch: Sends the request for an offset (``None`` for none) and returns its result.
+            items: Reads the items of a decoded page.
+            has_more: Reads the has_more flag of a decoded page, or ``None`` when the list does not
+                declare one.
+            request_path: The path of the operation, for errors.
+        """
+        return Paginator(lambda: _CursorPages(start, fetch, items, _offset_following(items, has_more), request_path))
+
+    @staticmethod
+    def of_page(
+        start: Optional[int],
+        fetch: Callable[[Optional[int]], Awaitable['ApiResult[B]']],
+        items: Callable[[B], Optional[List[T]]],
+        has_more: Optional[Callable[[B], Optional[bool]]],
+        request_path: str,
+    ) -> 'Paginator[T, int]':
+        """Create a paginator that counts pages. Used by the generated ``..._pages`` methods.
+
+        Args:
+            start: The page number of the first request, or ``None`` to send none (page 1 is the first).
+            fetch: Sends the request for a page number (``None`` for none) and returns its result.
+            items: Reads the items of a decoded page.
+            has_more: Reads the has_more flag of a decoded page, or ``None`` when the list does not
+                declare one.
+            request_path: The path of the operation, for errors.
+        """
+        return Paginator(lambda: _CursorPages(start, fetch, items, _page_following(items, has_more), request_path))
 
     @staticmethod
     def of_link(
@@ -70,7 +115,28 @@ class Paginator(Generic[T, C]):
             items: Reads the items of a decoded page.
             request_path: The path of the operation, for errors.
         """
-        return Paginator(lambda: _LinkPages(base_url, fetch, items, request_path))
+        return Paginator(lambda: _LinkPages(base_url, fetch, items, _link_header_next, request_path))
+
+    @staticmethod
+    def of_next_url(
+        base_url: str,
+        fetch: Callable[[Optional[str]], Awaitable['ApiResult[B]']],
+        items: Callable[[B], Optional[List[T]]],
+        next_url: Callable[[B], Optional[str]],
+        request_path: str,
+    ) -> 'Paginator[T, None]':
+        """Create a paginator that follows a next URL in the body of each page. Used by the generated
+        ``..._pages`` methods.
+
+        Args:
+            base_url: The base URL of the client; a next URL that leaves its scheme, host or port is
+                refused.
+            fetch: Sends the request for a URL (``None`` for the first page) and returns its result.
+            items: Reads the items of a decoded page.
+            next_url: Reads the next URL from a decoded page; absent, ``None`` or empty ends the list.
+            request_path: The path of the operation, for errors.
+        """
+        return Paginator(lambda: _LinkPages(base_url, fetch, items, _body_next_url(next_url), request_path))
 
     def __aiter__(self) -> AsyncIterator[T]:
         """The items, starting at the starting position."""
@@ -107,20 +173,20 @@ class _ItemIterator(Generic[T, C]):
 
 
 class _CursorPages(Generic[T, C, B]):
-    """The pages of a token cursor list."""
+    """The pages of a list whose requests carry a cursor: a token, an id, an offset or a page number."""
 
     def __init__(
         self,
         start: Optional[C],
         fetch: Callable[[Optional[C]], Awaitable['ApiResult[B]']],
         items: Callable[[B], Optional[List[T]]],
-        next_cursor: Callable[[B], Optional[C]],
+        following: Callable[[Optional[C], B], Optional[C]],
         request_path: str,
     ) -> None:
         self._sent = start
         self._fetch = fetch
         self._items = items
-        self._next = next_cursor
+        self._following = following
         self._request_path = request_path
         self._repeated: Optional[PaginationException] = None
         self._done = False
@@ -141,7 +207,7 @@ class _CursorPages(Generic[T, C, B]):
             raise
         body = result.data
         entries = (self._items(body) if body is not None else None) or []
-        following = self._next(body) if body is not None else None
+        following = self._following(self._sent, body) if body is not None else None
         if following is None or (isinstance(following, str) and not following):
             self._done = True
             return Page(entries, None, result)
@@ -156,18 +222,20 @@ class _CursorPages(Generic[T, C, B]):
 
 
 class _LinkPages(Generic[T, B]):
-    """The pages of a list that is followed by the ``Link`` header."""
+    """The pages of a list that is followed by a link: the ``Link`` header or a next URL in the body."""
 
     def __init__(
         self,
         base_url: str,
         fetch: Callable[[Optional[str]], Awaitable['ApiResult[B]']],
         items: Callable[[B], Optional[List[T]]],
+        next_of: Callable[['ApiResult[B]'], Optional[str]],
         request_path: str,
     ) -> None:
         self._base_url = base_url
         self._fetch = fetch
         self._items = items
+        self._next_of = next_of
         self._request_path = request_path
         self._url: Optional[str] = None
         self._repeated: Optional[PaginationException] = None
@@ -189,11 +257,7 @@ class _LinkPages(Generic[T, B]):
             raise
         body = result.data
         entries = (self._items(body) if body is not None else None) or []
-        link: Optional[str] = None
-        for name, value in result.headers.items():
-            if name.lower() == 'link':
-                link = next_link(value)
-                break
+        link = self._next_of(result)
         if link is None:
             self._done = True
         else:
@@ -224,6 +288,69 @@ class _LinkPages(Generic[T, B]):
         except ValueError as malformed:
             raise PaginationException('The next link is not a valid URI', self._request_path) from malformed
         return target
+
+
+def _ending(
+    next_cursor: Callable[[B], Optional[C]],
+    has_more: Optional[Callable[[B], Optional[bool]]],
+) -> Callable[[Optional[C], B], Optional[C]]:
+    """The next cursor of a page, or none when the page says its has_more flag is false."""
+
+    def following(sent: Optional[C], body: B) -> Optional[C]:
+        if has_more is not None and has_more(body) is False:
+            return None
+        return next_cursor(body)
+
+    return following
+
+
+def _offset_following(
+    items: Callable[[B], Optional[List[T]]],
+    has_more: Optional[Callable[[B], Optional[bool]]],
+) -> Callable[[Optional[int], B], Optional[int]]:
+    """The offset past the items of a page: the offset sent (none counts as 0) plus the items it held.
+    An empty page, or a page whose has_more flag is false, is the last."""
+
+    def following(sent: Optional[int], body: B) -> Optional[int]:
+        batch = items(body)
+        if not batch or (has_more is not None and has_more(body) is False):
+            return None
+        return (0 if sent is None else sent) + len(batch)
+
+    return following
+
+
+def _page_following(
+    items: Callable[[B], Optional[List[T]]],
+    has_more: Optional[Callable[[B], Optional[bool]]],
+) -> Callable[[Optional[int], B], Optional[int]]:
+    """The number of the page after the one sent (none counts as page 1). An empty page, or a page
+    whose has_more flag is false, is the last."""
+
+    def following(sent: Optional[int], body: B) -> Optional[int]:
+        batch = items(body)
+        if not batch or (has_more is not None and has_more(body) is False):
+            return None
+        return (1 if sent is None else sent) + 1
+
+    return following
+
+
+def _link_header_next(result: 'ApiResult[B]') -> Optional[str]:
+    """The ``rel="next"`` target of the ``Link`` header of a page, or ``None`` when it names none."""
+    for name, value in result.headers.items():
+        if name.lower() == 'link':
+            return next_link(value)
+    return None
+
+
+def _body_next_url(next_url: Callable[[B], Optional[str]]) -> Callable[['ApiResult[B]'], Optional[str]]:
+    """The next URL a page names in its body, or ``None`` when the page has no body."""
+
+    def following(result: 'ApiResult[B]') -> Optional[str]:
+        return next_url(result.data) if result.data is not None else None
+
+    return following
 
 
 def _same_origin(first: str, second: str) -> bool:

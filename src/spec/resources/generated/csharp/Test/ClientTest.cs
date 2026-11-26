@@ -683,8 +683,16 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("ListPetFeedWithHttpInfoAsync", PetListed);
         Assert.Contains("ListPetMatchesAsync", PetListed);
         Assert.Contains("ListPetMatchesWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetNextUrlAsync", PetListed);
+        Assert.Contains("ListPetNextUrlWithHttpInfoAsync", PetListed);
         Assert.Contains("ListPetNotesAsync", PetListed);
         Assert.Contains("ListPetNotesWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetOffsetsAsync", PetListed);
+        Assert.Contains("ListPetOffsetsWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetPageNumbersAsync", PetListed);
+        Assert.Contains("ListPetPageNumbersWithHttpInfoAsync", PetListed);
+        Assert.Contains("ListPetsAfterAsync", PetListed);
+        Assert.Contains("ListPetsAfterWithHttpInfoAsync", PetListed);
         Assert.Contains("SetPetAvatarAsync", PetListed);
         Assert.Contains("SetPetAvatarWithHttpInfoAsync", PetListed);
         Assert.Contains("SetPetAvatarThumbnailAsync", PetListed);

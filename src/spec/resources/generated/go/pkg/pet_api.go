@@ -257,9 +257,21 @@ type PetApiInterface interface {
 	ListPetFeedPages(ctx context.Context, options *opts.ListPetFeedOptions, callOptions ...RequestOption) *Paginator[Pet, NoCursor]
 	ListPetMatches(ctx context.Context, options *opts.ListPetMatchesOptions, callOptions ...RequestOption) (*PetMatchPage, error)
 	ListPetMatchesWithHTTPInfo(ctx context.Context, options *opts.ListPetMatchesOptions, callOptions ...RequestOption) (*ApiResult[PetMatchPage], error)
+	ListPetNextUrl(ctx context.Context, options *opts.ListPetNextUrlOptions, callOptions ...RequestOption) (*PetNextUrlPage, error)
+	ListPetNextUrlWithHTTPInfo(ctx context.Context, options *opts.ListPetNextUrlOptions, callOptions ...RequestOption) (*ApiResult[PetNextUrlPage], error)
+	ListPetNextUrlPages(ctx context.Context, options *opts.ListPetNextUrlOptions, callOptions ...RequestOption) *Paginator[Pet, NoCursor]
 	ListPetNotes(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) (*PetNotePage, error)
 	ListPetNotesWithHTTPInfo(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) (*ApiResult[PetNotePage], error)
 	ListPetNotesPages(ctx context.Context, options *opts.ListPetNotesOptions, callOptions ...RequestOption) *Paginator[string, string]
+	ListPetOffsets(ctx context.Context, options *opts.ListPetOffsetsOptions, callOptions ...RequestOption) (*PetOffsetPage, error)
+	ListPetOffsetsWithHTTPInfo(ctx context.Context, options *opts.ListPetOffsetsOptions, callOptions ...RequestOption) (*ApiResult[PetOffsetPage], error)
+	ListPetOffsetsPages(ctx context.Context, options *opts.ListPetOffsetsOptions, callOptions ...RequestOption) *Paginator[Pet, int32]
+	ListPetPageNumbers(ctx context.Context, options *opts.ListPetPageNumbersOptions, callOptions ...RequestOption) (*PetPageNumberPage, error)
+	ListPetPageNumbersWithHTTPInfo(ctx context.Context, options *opts.ListPetPageNumbersOptions, callOptions ...RequestOption) (*ApiResult[PetPageNumberPage], error)
+	ListPetPageNumbersPages(ctx context.Context, options *opts.ListPetPageNumbersOptions, callOptions ...RequestOption) *Paginator[Pet, int32]
+	ListPetsAfter(ctx context.Context, options *opts.ListPetsAfterOptions, callOptions ...RequestOption) (*PetAfterPage, error)
+	ListPetsAfterWithHTTPInfo(ctx context.Context, options *opts.ListPetsAfterOptions, callOptions ...RequestOption) (*ApiResult[PetAfterPage], error)
+	ListPetsAfterPages(ctx context.Context, options *opts.ListPetsAfterOptions, callOptions ...RequestOption) *Paginator[Pet, string]
 	SetPetAvatar(ctx context.Context, petId int64, body *BodySource, callOptions ...RequestOption) error
 	SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body *BodySource, callOptions ...RequestOption) (*ApiResult[any], error)
 	SetPetAvatarThumbnail(ctx context.Context, petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest, callOptions ...RequestOption) error
@@ -3700,7 +3712,7 @@ func (a *PetApi) ListPetCatalogPages(ctx context.Context, options *opts.ListPetC
 		func(body PetCatalogPage) []Pet {
 			return pageItems[Pet](body.Items)
 		},
-		func(body PetCatalogPage) *string {
+		func(_ *string, body PetCatalogPage) *string {
 			return pageCursor[string](body.NextCursor)
 		})
 }
@@ -3876,7 +3888,7 @@ func (a *PetApi) ListPetEventsPages(ctx context.Context, options *opts.ListPetEv
 		func(body PetEventPage) []string {
 			return pageItems[string](body.Events)
 		},
-		func(body PetEventPage) *string {
+		func(_ *string, body PetEventPage) *string {
 			return pageCursor[string](body.Upto)
 		})
 }
@@ -4200,6 +4212,189 @@ func (a *PetApi) ListPetMatchesWithHTTPInfo(ctx context.Context, options *opts.L
 	}, nil
 }
 
+// ListPetNextUrl Lists pets with the URL of the next page in the body
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/next
+func (a *PetApi) ListPetNextUrl(ctx context.Context, options *opts.ListPetNextUrlOptions, callOptions ...RequestOption) (*PetNextUrlPage, error) {
+	result, err := a.ListPetNextUrlWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ListPetNextUrl", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ListPetNextUrlWithHTTPInfo performs the ListPetNextUrl operation and returns the full API result.
+func (a *PetApi) ListPetNextUrlWithHTTPInfo(ctx context.Context, options *opts.ListPetNextUrlOptions, callOptions ...RequestOption) (*ApiResult[PetNextUrlPage], error) {
+	return a.fetchListPetNextUrlPage(ctx, options, nil, callOptions...)
+}
+
+/* fetchListPetNextUrlPage sends one page of the list: the first when pageURL is nil,
+ * else the URL the Link header of the page before it named. */
+func (a *PetApi) fetchListPetNextUrlPage(ctx context.Context, options *opts.ListPetNextUrlOptions, pageURL *string, callOptions ...RequestOption) (_ *ApiResult[PetNextUrlPage], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/next"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Limit != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("limit", options.Limit, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["limit"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	if pageURL != nil {
+		path = *pageURL
+		queryParams = make(map[string]any)
+	}
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetNextUrl",
+		urlTemplate:  "/pet/next",
+		call:         call,
+		order:        []string{"limit"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "PetNextUrlPage",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data PetNextUrlPage
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetNextUrlPage
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetNextUrlPage]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetNextUrl: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[PetNextUrlPage]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// ListPetNextUrlPages Lists pets with the URL of the next page in the body
+//
+// It returns the items as a lazy *Paginator: no request is sent until you first
+// range over its items or pages, and each next page is requested only when you
+// ask for more. Every page is an ordinary call of ListPetNextUrlWithHTTPInfo, with
+// the same options on each page.
+// The page after each one is the next URL in the body of its response, followed
+// only within the origin of the client.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the page request in flight.
+// param options: Options for query, header, form, and cookie parameters; they are repeated on every page.
+// param callOptions: Per-call options, applied to every page request.
+//
+// GET /pet/next
+func (a *PetApi) ListPetNextUrlPages(ctx context.Context, options *opts.ListPetNextUrlOptions, callOptions ...RequestOption) *Paginator[Pet, NoCursor] {
+	return newNextURLPaginator(a.config.BaseURL(), "/pet/next",
+		func(pageURL *string) (*ApiResult[PetNextUrlPage], error) {
+			return a.fetchListPetNextUrlPage(ctx, options, pageURL, callOptions...)
+		},
+		func(body PetNextUrlPage) []Pet {
+			return pageItems[Pet](body.Items)
+		},
+		func(result *ApiResult[PetNextUrlPage]) (string, bool) {
+			if result.Data == nil {
+				return "", false
+			}
+			return pageNextURL(result.Data.NextUrl)
+		})
+}
+
 // ListPetNotes Lists pet notes; the names are not a known cursor, a vendor hint says it is paged
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
@@ -4371,8 +4566,563 @@ func (a *PetApi) ListPetNotesPages(ctx context.Context, options *opts.ListPetNot
 		func(body PetNotePage) []string {
 			return pageItems[string](body.Rows)
 		},
-		func(body PetNotePage) *string {
+		func(_ *string, body PetNotePage) *string {
 			return pageCursor[string](body.Following)
+		})
+}
+
+// ListPetOffsets Lists pets by offset and limit; the list ends on an empty page
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/offsets
+func (a *PetApi) ListPetOffsets(ctx context.Context, options *opts.ListPetOffsetsOptions, callOptions ...RequestOption) (*PetOffsetPage, error) {
+	result, err := a.ListPetOffsetsWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ListPetOffsets", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ListPetOffsetsWithHTTPInfo performs the ListPetOffsets operation and returns the full API result.
+func (a *PetApi) ListPetOffsetsWithHTTPInfo(ctx context.Context, options *opts.ListPetOffsetsOptions, callOptions ...RequestOption) (_ *ApiResult[PetOffsetPage], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/offsets"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Offset != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("offset", options.Offset, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["offset"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+	if options != nil && options.Limit != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("limit", options.Limit, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["limit"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetOffsets",
+		urlTemplate:  "/pet/offsets",
+		call:         call,
+		order:        []string{"offset", "limit"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "PetOffsetPage",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data PetOffsetPage
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetOffsetPage
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetOffsetPage]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetOffsets: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[PetOffsetPage]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// ListPetOffsetsPages Lists pets by offset and limit; the list ends on an empty page
+//
+// It returns the items as a lazy *Paginator: no request is sent until you first
+// range over its items or pages, and each next page is requested only when you
+// ask for more. Every page is an ordinary call of ListPetOffsetsWithHTTPInfo, with
+// the same options on each page.
+// The value of the Offset option is the offset where the list starts, and each next page
+// is requested with the offset past the items the page before it returned. The list ends on an empty page or when has_more is false.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the page request in flight.
+// param options: Options for query, header, form, and cookie parameters; they are repeated on every page.
+// param callOptions: Per-call options, applied to every page request.
+//
+// GET /pet/offsets
+func (a *PetApi) ListPetOffsetsPages(ctx context.Context, options *opts.ListPetOffsetsOptions, callOptions ...RequestOption) *Paginator[Pet, int32] {
+	var base opts.ListPetOffsetsOptions
+	if options != nil {
+		base = *options
+	}
+	return newOffsetPaginator(base.Offset, "/pet/offsets",
+		func(cursor *int32) (*ApiResult[PetOffsetPage], error) {
+			page := base
+			page.Offset = cursor
+			return a.ListPetOffsetsWithHTTPInfo(ctx, &page, callOptions...)
+		},
+		func(body PetOffsetPage) []Pet {
+			return pageItems[Pet](body.Items)
+		},
+		func(body PetOffsetPage) *bool { return pageFlag(body.HasMore) })
+}
+
+// ListPetPageNumbers Lists pets one numbered page at a time; the list ends on an empty page
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/pages
+func (a *PetApi) ListPetPageNumbers(ctx context.Context, options *opts.ListPetPageNumbersOptions, callOptions ...RequestOption) (*PetPageNumberPage, error) {
+	result, err := a.ListPetPageNumbersWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ListPetPageNumbers", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ListPetPageNumbersWithHTTPInfo performs the ListPetPageNumbers operation and returns the full API result.
+func (a *PetApi) ListPetPageNumbersWithHTTPInfo(ctx context.Context, options *opts.ListPetPageNumbersOptions, callOptions ...RequestOption) (_ *ApiResult[PetPageNumberPage], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/pages"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.Page != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("page", options.Page, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["page"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+	if options != nil && options.PerPage != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("per_page", options.PerPage, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["per_page"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetPageNumbers",
+		urlTemplate:  "/pet/pages",
+		call:         call,
+		order:        []string{"page", "per_page"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "PetPageNumberPage",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data PetPageNumberPage
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetPageNumberPage
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetPageNumberPage]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetPageNumbers: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[PetPageNumberPage]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// ListPetPageNumbersPages Lists pets one numbered page at a time; the list ends on an empty page
+//
+// It returns the items as a lazy *Paginator: no request is sent until you first
+// range over its items or pages, and each next page is requested only when you
+// ask for more. Every page is an ordinary call of ListPetPageNumbersWithHTTPInfo, with
+// the same options on each page.
+// The value of the Page option is the page number where the list starts (none sends
+// the server's first page), and each next page is requested with the page after the one before it. The list ends on an empty page
+// or when has_more is false.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the page request in flight.
+// param options: Options for query, header, form, and cookie parameters; they are repeated on every page.
+// param callOptions: Per-call options, applied to every page request.
+//
+// GET /pet/pages
+func (a *PetApi) ListPetPageNumbersPages(ctx context.Context, options *opts.ListPetPageNumbersOptions, callOptions ...RequestOption) *Paginator[Pet, int32] {
+	var base opts.ListPetPageNumbersOptions
+	if options != nil {
+		base = *options
+	}
+	return newPagePaginator(base.Page, "/pet/pages",
+		func(cursor *int32) (*ApiResult[PetPageNumberPage], error) {
+			page := base
+			page.Page = cursor
+			return a.ListPetPageNumbersWithHTTPInfo(ctx, &page, callOptions...)
+		},
+		func(body PetPageNumberPage) []Pet {
+			return pageItems[Pet](body.Items)
+		},
+		func(body PetPageNumberPage) *bool { return pageFlag(body.HasMore) })
+}
+
+// ListPetsAfter Lists pets after the id of the last one; the has_more flag says when the list ends
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /pet/after
+func (a *PetApi) ListPetsAfter(ctx context.Context, options *opts.ListPetsAfterOptions, callOptions ...RequestOption) (*PetAfterPage, error) {
+	result, err := a.ListPetsAfterWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("ListPetsAfter", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// ListPetsAfterWithHTTPInfo performs the ListPetsAfter operation and returns the full API result.
+func (a *PetApi) ListPetsAfterWithHTTPInfo(ctx context.Context, options *opts.ListPetsAfterOptions, callOptions ...RequestOption) (_ *ApiResult[PetAfterPage], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/pet/after"
+
+	queryParams := make(map[string]any)
+	if options != nil && options.StartingAfter != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("starting_after", options.StartingAfter, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["starting_after"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+	if options != nil && options.Limit != nil {
+		{
+			styledValue, styledErr := serializeStyledChecked("limit", options.Limit, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["limit"] = maybeAllowReserved(styledValue, false)
+		}
+	}
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "listPetsAfter",
+		urlTemplate:  "/pet/after",
+		call:         call,
+		order:        []string{"starting_after", "limit"},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "PetAfterPage",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer"},
+		schemeGroups: [][]string{{"petStoreBearer"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data PetAfterPage
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *PetAfterPage
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetAfterPage]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.ListPetsAfter: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[PetAfterPage]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// ListPetsAfterPages Lists pets after the id of the last one; the has_more flag says when the list ends
+//
+// It returns the items as a lazy *Paginator: no request is sent until you first
+// range over its items or pages, and each next page is requested only when you
+// ask for more. Every page is an ordinary call of ListPetsAfterWithHTTPInfo, with
+// the same options on each page.
+// The value of the StartingAfter option is where the list starts, and the page after
+// each one is requested with the LastId it returned. The list ends when has_more is false.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the page request in flight.
+// param options: Options for query, header, form, and cookie parameters; they are repeated on every page.
+// param callOptions: Per-call options, applied to every page request.
+//
+// GET /pet/after
+func (a *PetApi) ListPetsAfterPages(ctx context.Context, options *opts.ListPetsAfterOptions, callOptions ...RequestOption) *Paginator[Pet, string] {
+	var base opts.ListPetsAfterOptions
+	if options != nil {
+		base = *options
+	}
+	return newCursorPaginator(base.StartingAfter, "/pet/after",
+		func(cursor *string) (*ApiResult[PetAfterPage], error) {
+			page := base
+			page.StartingAfter = cursor
+			return a.ListPetsAfterWithHTTPInfo(ctx, &page, callOptions...)
+		},
+		func(body PetAfterPage) []Pet {
+			return pageItems[Pet](body.Data)
+		},
+		func(_ *string, body PetAfterPage) *string {
+			if !pageMore(pageFlag(body.HasMore)) {
+				return nil
+			}
+			return pageCursor[string](body.LastId)
 		})
 }
 

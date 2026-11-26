@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -408,7 +407,9 @@ class ApiException extends OpenAPIException
      */
     public function isRetryable(): bool
     {
-        return in_array($this->statusCode, [408, 409, 429], true)
+        return $this->statusCode === 408
+            || $this->statusCode === 409
+            || $this->statusCode === 429
             || ($this->statusCode >= 500 && $this->statusCode < 600 && $this->statusCode !== 501);
     }
 

@@ -1479,8 +1479,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * A paged operation returns a {@code Paginator<Item, Cursor>} ({@code Unit} as the cursor of a
-     * {@code Link} list) from a plain method named {@code <operation>Pages}. The type is handed to the
+     * A paged operation returns a {@code Paginator<Item, Cursor>} ({@code Unit} as the cursor of a list
+     * followed by a URL) from a plain method named {@code <operation>Pages}. The type is handed to the
      * templates as {@code kotlinPaginatorType}, and the item model is imported when the API class does
      * not already import it.
      *
@@ -1502,7 +1502,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         p.put(
                 "kotlinPaginatorType",
                 "Paginator<" + p.get("itemType") + ", "
-                        + (Boolean.TRUE.equals(p.get("isLink")) ? "Unit" : p.get("cursorType")) + ">");
+                        + (Boolean.TRUE.equals(p.get("isUrlPaged")) ? "Unit" : p.get("cursorType")) + ">");
         final Object model = p.get("itemModel");
         if (model != null) {
             final String name = modelPackage() + "." + model;

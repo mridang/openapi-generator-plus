@@ -2675,6 +2675,37 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
 
     @impl true
+    def list_pet_next_url(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_next_url, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_next_url!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_next_url!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pet_next_url_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_next_url_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_next_url_pages(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_next_url_pages, []})
+
+      PetstoreClient.Paginator.of_cursor(
+        nil,
+        fn _cursor -> {:error, failure()} end,
+        fn _page -> [] end,
+        fn _page -> nil end,
+        "/"
+      )
+    end
+
+    @impl true
     def list_pet_notes(_api, _options \\ nil, _opts \\ []) do
       send(self(), {:called, :list_pet_notes, []})
       {:error, failure()}
@@ -2695,6 +2726,99 @@ defmodule PetstoreClient.Api.PetApiTest do
     @impl true
     def list_pet_notes_pages(_api, _options \\ nil, _opts \\ []) do
       send(self(), {:called, :list_pet_notes_pages, []})
+
+      PetstoreClient.Paginator.of_cursor(
+        nil,
+        fn _cursor -> {:error, failure()} end,
+        fn _page -> [] end,
+        fn _page -> nil end,
+        "/"
+      )
+    end
+
+    @impl true
+    def list_pet_offsets(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_offsets, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_offsets!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_offsets!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pet_offsets_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_offsets_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_offsets_pages(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_offsets_pages, []})
+
+      PetstoreClient.Paginator.of_cursor(
+        nil,
+        fn _cursor -> {:error, failure()} end,
+        fn _page -> [] end,
+        fn _page -> nil end,
+        "/"
+      )
+    end
+
+    @impl true
+    def list_pet_page_numbers(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_page_numbers, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_page_numbers!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_page_numbers!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pet_page_numbers_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_page_numbers_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pet_page_numbers_pages(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pet_page_numbers_pages, []})
+
+      PetstoreClient.Paginator.of_cursor(
+        nil,
+        fn _cursor -> {:error, failure()} end,
+        fn _page -> [] end,
+        fn _page -> nil end,
+        "/"
+      )
+    end
+
+    @impl true
+    def list_pets_after(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pets_after, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pets_after!(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pets_after!, []})
+      raise failure()
+    end
+
+    @impl true
+    def list_pets_after_with_http_info(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pets_after_with_http_info, []})
+      {:error, failure()}
+    end
+
+    @impl true
+    def list_pets_after_pages(_api, _options \\ nil, _opts \\ []) do
+      send(self(), {:called, :list_pets_after_pages, []})
 
       PetstoreClient.Paginator.of_cursor(
         nil,

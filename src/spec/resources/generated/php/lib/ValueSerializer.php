@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -49,7 +48,8 @@ final class ValueSerializer
         string $location,
         string $schemaType,
         ?string $collectionFormat = null,
-    ): string|array|null {
+    ): string|array|null
+    {
         $value = self::expandCollection($value);
 
         if ($value === null) {
@@ -117,7 +117,7 @@ final class ValueSerializer
     public static function formatDateOnly(mixed $value): mixed
     {
         if (is_array($value)) {
-            return array_map(self::formatDateOnly(...), $value);
+            return array_map(static fn (mixed $item): mixed => self::formatDateOnly($item), $value);
         }
 
         return $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : $value;
@@ -248,7 +248,7 @@ final class ValueSerializer
         }
         if (
             $location === 'path'
-            && (in_array($style, [null, '', 'simple'], true))
+            && ($style === null || $style === '' || $style === 'simple')
             && ($value === '.' || $value === '..')
         ) {
             /* A dot segment would be collapsed by URL resolution and silently
@@ -303,7 +303,7 @@ final class ValueSerializer
             if ($location === 'path') {
                 /* An item is encoded in full, so a comma inside it is %2C and only the
                  * structural separators that are added between items stay literal. */
-                $items = array_map(rawurlencode(...), $items);
+                $items = array_map(static fn (string $item): string => rawurlencode($item), $items);
             }
         } else {
             $scalar = $stringifier($value);
@@ -442,7 +442,7 @@ final class ValueSerializer
                 : ObjectSerializer::stringify($v);
         }
 
-        return ObjectSerializer::stringify(...);
+        return [ObjectSerializer::class, 'stringify'];
     }
 
     /**

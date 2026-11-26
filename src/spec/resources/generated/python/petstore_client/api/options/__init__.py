@@ -35,7 +35,13 @@ from .list_pet_catalog_options import ListPetCatalogOptions as ListPetCatalogOpt
 from .list_pet_events_options import ListPetEventsOptions as ListPetEventsOptions
 from .list_pet_feed_options import ListPetFeedOptions as ListPetFeedOptions
 from .list_pet_matches_options import ListPetMatchesOptions as ListPetMatchesOptions
+from .list_pet_next_url_options import ListPetNextUrlOptions as ListPetNextUrlOptions
 from .list_pet_notes_options import ListPetNotesOptions as ListPetNotesOptions
+from .list_pet_offsets_options import ListPetOffsetsOptions as ListPetOffsetsOptions
+from .list_pet_page_numbers_options import (
+    ListPetPageNumbersOptions as ListPetPageNumbersOptions,
+)
+from .list_pets_after_options import ListPetsAfterOptions as ListPetsAfterOptions
 from .set_pet_avatar_options import SetPetAvatarOptions as SetPetAvatarOptions
 from .set_pet_avatar_thumbnail_options import (
     SetPetAvatarThumbnailOptions as SetPetAvatarThumbnailOptions,

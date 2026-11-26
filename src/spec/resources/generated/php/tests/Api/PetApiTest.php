@@ -456,7 +456,7 @@ test('bhv operations 085 the multi server operation offers a fixed and a templat
 
     try {
         $api->getMultiServerPetInfo(1, new GetMultiServerPetInfoServerPrimary());
-    } catch (\Exception) {
+    } catch (\Exception $e) {
         // The capturing client answers with an empty body; only the request URL matters here.
     }
     expect($client->capturedUrl)->toBe('https://primary.example.com/v1/pet/1/multi');
@@ -464,7 +464,7 @@ test('bhv operations 085 the multi server operation offers a fixed and a templat
     foreach (GetMultiServerPetInfoServerRegionalRegion::cases() as $region) {
         try {
             $api->getMultiServerPetInfo(2, new GetMultiServerPetInfoServerRegional($region));
-        } catch (\Exception) {
+        } catch (\Exception $e) {
             // Same as above: the URL is the assertion.
         }
         expect($client->capturedUrl)->toBe("https://{$region->value}.example.com/v1/pet/2/multi");
@@ -494,7 +494,7 @@ test('bhv operations 068 get pet tag serializes optional array query params as s
 
     try {
         $api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
-    } catch (\Throwable) {
+    } catch (\Throwable $e) {
         // The capturing client returns a canned non-Pet body, so deserializing
         // the Pet-typed result may fail. That is irrelevant: the query string is
         // captured during sendRequest, before any deserialization happens.
@@ -516,7 +516,7 @@ test('bhv operations 068 get pet tag serializes optional array query params as s
     // NEVER leak onto the wire. None of these tokens may appear in the URL.
     expect($captured->url)->not->toContain('Array');
     expect($decoded)->not->toContain('Array');
-    expect($decoded)->not->toContain(\Ds\Vector::class);
+    expect($decoded)->not->toContain('Ds\\Vector');
     expect($decoded)->not->toContain('[blue');
     expect($decoded)->not->toContain('blue black]');
     expect($decoded)->not->toContain('&[blue');
@@ -749,8 +749,8 @@ function newBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private \stdClass $captured)
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
         {
         }
 
@@ -842,7 +842,7 @@ test('bhv langphp 029 date only query param serialises without time component', 
         $api->findPetsByStatus(new FindPetsByStatusOptions(
             bornAfter: new \DateTime('2024-01-01T10:30:45+00:00'),
         ));
-    } catch (\Throwable) {
+    } catch (\Throwable $e) {
         /* The capturing client returns a canned non-list body; the URL is
          * captured during sendRequest, before any deserialization. */
     }
@@ -861,7 +861,7 @@ test('bhv operations 069 date only header param serialises without time componen
         $api->findPetsByStatus(new FindPetsByStatusOptions(
             reportDate: new \DateTime('2024-01-01T10:30:45+00:00'),
         ));
-    } catch (\Throwable) {
+    } catch (\Throwable $e) {
         /* Only the captured request headers matter here. */
     }
 
@@ -1040,8 +1040,8 @@ function newRawBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private \stdClass $captured)
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
         {
         }
 
@@ -1367,8 +1367,8 @@ function newHeaderCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private \stdClass $captured)
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
         {
         }
 
@@ -1407,8 +1407,8 @@ function newSchemeCapturingPetApi(array $schemes): array
     $captured = new \stdClass();
     $captured->headers = [];
 
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private \stdClass $captured)
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
         {
         }
 
@@ -1438,8 +1438,8 @@ test('bhv operations 079 the credential of the scheme the operation requires is 
     /** @var array<string, string> $none */
     $none = [];
     $captured->headers = $none;
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private \stdClass $captured)
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
         {
         }
 
@@ -1533,7 +1533,7 @@ test('bhv operations 080 uses the first declared scheme the client holds a crede
 test('bhv operations 086 unsecured operation options has no auth field', function (): void {
     /* getPetById is unsecured, so its options object carries only the per-call
      * timeout, headers and retry count and never gains an auth field. */
-    $unsecured = new \ReflectionClass(\PetstoreClient\Api\Options\GetPetByIdOptions::class);
+    $unsecured = new \ReflectionClass('PetstoreClient\\Api\\Options\\GetPetByIdOptions');
     expect($unsecured->hasProperty('auth'))->toBeFalse();
     expect($unsecured->hasProperty('timeout'))->toBeTrue();
     expect($unsecured->hasProperty('headers'))->toBeTrue();
@@ -1645,7 +1645,7 @@ test('bhv operations 157 get pet by note sends a null required nullable query pa
             default => (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('raw-bytes'),
         };
 
-        $binaryApi->call('POST', '/test/echo', [], [], $body, ['application/json'], 'application/octet-stream');
+        $binaryApi->call('POST', '/test/echo', [], [], $body, ['application/json'], 'application/octet-stream', null);
 
         expect($binaryClient->capturedBody)->toBe('raw-bytes');
         fclose($resource);
@@ -2035,7 +2035,7 @@ test('bhv lifecycle 042 an api built on a caller supplied transport sends its re
 
     try {
         $api->addPetWithHttpInfo(new Pet('Rex', new \Ds\Set(['http://example.com/rex.png'])));
-    } catch (\Exception) {
+    } catch (\Exception $e) {
         // Response deserialization may fail; we only care about the captured request
     }
 

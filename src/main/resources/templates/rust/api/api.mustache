@@ -12,9 +12,15 @@ use crate::api_client::MultipartValue;
 use crate::body_source::BodySource;
 {{/hasBodySource}}
 {{#hasPagedOps}}
-{{#hasTokenPagedOps}}
+{{#hasCursorPagedOps}}
 use crate::paginator::CursorOf;
-{{/hasTokenPagedOps}}
+{{/hasCursorPagedOps}}
+{{#hasMorePagedOps}}
+use crate::paginator::MoreOf;
+{{/hasMorePagedOps}}
+{{#hasBodyPagedOps}}
+use crate::paginator::UrlOf;
+{{/hasBodyPagedOps}}
 use crate::paginator::{ItemsOf, PageFuture, Paginator};
 {{/hasPagedOps}}
 use crate::errors::api_error::ApiError;
@@ -332,9 +338,9 @@ impl {{classname}} {
 {{^consumes.1}}
             "{{vendorExtensions.op.effectiveConsumes}}",
 {{/consumes.1}}
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
             None,
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
         )
         .await
     }
@@ -354,9 +360,9 @@ impl {{classname}} {
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}        options: Option<&{{{dataType}}}>,
 {{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
         request_content_type: &str,
-{{#vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
         page_url: Option<&str>,
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
 {{#vendorExtensions.op.streamOnly}}
         stream_options: Option<&StreamOptions>,
     ) -> Result<{{{returnType}}}, Box<dyn std::error::Error + Send + Sync>> {
@@ -1063,14 +1069,14 @@ impl {{classname}} {
 {{/bodyParam}}
 {{/hasFormParams}}
 
-{{#vendorExtensions.op.pagination.isLink}}
-        /* A page after the first is the URL the Link header named: it replaces
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+        /* A page after the first is the URL the Link header or the body named: it replaces
          * the path, and its own query replaces the query of the operation. */
         if let Some(url) = page_url {
             path = url.to_string();
             query_params.clear();
         }
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
         let params = InvokeApiParams {
             operation: "{{classname}}.{{operationId}}",
             method: "{{httpMethod}}",
@@ -1191,10 +1197,26 @@ impl {{classname}} {
     /// The `{{vendorExtensions.op.pagination.requestParamName}}` of the options is where the list starts, and
     /// the page after each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}` it returned.
 {{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+    /// The `{{vendorExtensions.op.pagination.requestParamName}}` of the options is where the list starts, and
+    /// the page after each one is requested with the `{{vendorExtensions.op.pagination.responsePropertyName}}` it returned.
+    /// The list ends when `{{vendorExtensions.op.pagination.hasMorePropertyName}}` is false.
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+    /// The `{{vendorExtensions.op.pagination.requestParamName}}` of the options is the offset where the list starts,
+    /// and the offset of each next page is the offset plus the items received. The list ends on an empty page{{#vendorExtensions.op.pagination.hasHasMore}} or when `{{vendorExtensions.op.pagination.hasMorePropertyName}}` is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+    /// The `{{vendorExtensions.op.pagination.requestParamName}}` of the options is the page where the list starts,
+    /// and the page after each one is the page after the one just read. The list ends on an empty page{{#vendorExtensions.op.pagination.hasHasMore}} or when `{{vendorExtensions.op.pagination.hasMorePropertyName}}` is false{{/vendorExtensions.op.pagination.hasHasMore}}.
+{{/vendorExtensions.op.pagination.isPage}}
 {{#vendorExtensions.op.pagination.isLink}}
     /// The page after each one is the `rel="next"` link of its `Link` header,
     /// followed only within the origin of the client.
 {{/vendorExtensions.op.pagination.isLink}}
+{{#vendorExtensions.op.pagination.isBody}}
+    /// The page after each one is the URL that its body names, followed only within the origin of the client.
+{{/vendorExtensions.op.pagination.isBody}}
 {{#isDeprecated}}
     #[deprecated]
 {{/isDeprecated}}
@@ -1218,7 +1240,7 @@ impl {{classname}} {
 {{#consumes.1}}
         let request_content_type: Option<String> = request_content_type.map(str::to_string);
 {{/consumes.1}}
-{{#vendorExtensions.op.pagination.isToken}}
+{{^vendorExtensions.op.pagination.isUrlPaged}}
         Paginator::of_cursor(
             base_options.as_ref().and_then(|options| options.{{vendorExtensions.op.pagination.requestParamName}}.clone()),
             move |cursor: Option<{{{vendorExtensions.op.pagination.cursorType}}}>| -> PageFuture<{{{returnType}}}> {
@@ -1264,12 +1286,34 @@ impl {{classname}} {
                 })
             },
             |page: &{{{returnType}}}| page.{{vendorExtensions.op.pagination.itemsPropertyName}}.items_of(),
-            |page: &{{{returnType}}}| page.{{vendorExtensions.op.pagination.responsePropertyName}}.cursor_of(),
+{{#vendorExtensions.op.pagination.isToken}}
+            |page: &{{{returnType}}}, _: Option<&{{{vendorExtensions.op.pagination.cursorType}}}>, _: usize| page.{{vendorExtensions.op.pagination.responsePropertyName}}.cursor_of(),
+{{/vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.isId}}
+            |page: &{{{returnType}}}, _: Option<&{{{vendorExtensions.op.pagination.cursorType}}}>, _: usize| page.{{vendorExtensions.op.pagination.responsePropertyName}}.cursor_of(),
+{{/vendorExtensions.op.pagination.isId}}
+{{#vendorExtensions.op.pagination.isOffset}}
+            |_: &{{{returnType}}}, sent: Option<&{{{vendorExtensions.op.pagination.cursorType}}}>, count: usize| if count == 0 { None } else { Some(sent.copied().unwrap_or(0) + count as {{{vendorExtensions.op.pagination.cursorType}}}) },
+{{/vendorExtensions.op.pagination.isOffset}}
+{{#vendorExtensions.op.pagination.isPage}}
+            |_: &{{{returnType}}}, sent: Option<&{{{vendorExtensions.op.pagination.cursorType}}}>, count: usize| if count == 0 { None } else { Some(sent.copied().unwrap_or(1) + 1) },
+{{/vendorExtensions.op.pagination.isPage}}
+{{#vendorExtensions.op.pagination.isToken}}
+            |_: &{{{returnType}}}| true,
+{{/vendorExtensions.op.pagination.isToken}}
+{{^vendorExtensions.op.pagination.isToken}}
+{{#vendorExtensions.op.pagination.hasHasMore}}
+            |page: &{{{returnType}}}| page.{{vendorExtensions.op.pagination.hasMorePropertyName}}.more_of(),
+{{/vendorExtensions.op.pagination.hasHasMore}}
+{{^vendorExtensions.op.pagination.hasHasMore}}
+            |_: &{{{returnType}}}| true,
+{{/vendorExtensions.op.pagination.hasHasMore}}
+{{/vendorExtensions.op.pagination.isToken}}
             "{{#lambda.rustString}}{{{path}}}{{/lambda.rustString}}".to_string(),
         )
-{{/vendorExtensions.op.pagination.isToken}}
-{{#vendorExtensions.op.pagination.isLink}}
-        Paginator::of_link(
+{{/vendorExtensions.op.pagination.isUrlPaged}}
+{{#vendorExtensions.op.pagination.isUrlPaged}}
+        Paginator::{{#vendorExtensions.op.pagination.isLink}}of_link{{/vendorExtensions.op.pagination.isLink}}{{#vendorExtensions.op.pagination.isBody}}of_next_url{{/vendorExtensions.op.pagination.isBody}}(
             self.base.base_url().to_string(),
             move |page_url: Option<String>| -> PageFuture<{{{returnType}}}> {
                 let api = api.clone();
@@ -1313,9 +1357,12 @@ impl {{classname}} {
 {{^vendorExtensions.op.pagination.itemsFromBody}}
             |page: &{{{returnType}}}| page.{{vendorExtensions.op.pagination.itemsPropertyName}}.items_of(),
 {{/vendorExtensions.op.pagination.itemsFromBody}}
+{{#vendorExtensions.op.pagination.isBody}}
+            |page: &{{{returnType}}}| page.{{vendorExtensions.op.pagination.nextUrlPropertyName}}.url_of(),
+{{/vendorExtensions.op.pagination.isBody}}
             "{{#lambda.rustString}}{{{path}}}{{/lambda.rustString}}".to_string(),
         )
-{{/vendorExtensions.op.pagination.isLink}}
+{{/vendorExtensions.op.pagination.isUrlPaged}}
     }
 {{/vendorExtensions.op.hasPagesMethod}}
 {{/operation}}

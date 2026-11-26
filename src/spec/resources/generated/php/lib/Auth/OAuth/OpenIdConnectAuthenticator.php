@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -120,10 +119,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
      */
     private function getDelegate(): OAuth2AuthorizationCodeAuthenticator
     {
-        if (
-            $this->delegate instanceof OAuth2AuthorizationCodeAuthenticator
-            && time() < $this->discoveryExpiry
-        ) {
+        if ($this->delegate instanceof OAuth2AuthorizationCodeAuthenticator
+            && time() < $this->discoveryExpiry) {
             return $this->delegate;
         }
 
@@ -193,7 +190,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
          * endpoints: refuse clear text unless the host is a loopback address
          * (RFC 8252 section 8.3). */
         foreach (['authorization_endpoint' => $authorizationEndpoint, 'token_endpoint' => $tokenEndpoint] as $name => $endpoint) {
-            $this->assertSecureEndpoint($name, $endpoint);
+            self::assertSecureEndpoint($name, $endpoint);
         }
 
         /* The session (tokens and the exchanged flag) lives in the token manager,
@@ -202,7 +199,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
          * around the previous token manager, so refreshing the discovery cache
          * never discards the code exchange. */
         $endpoints = $authorizationEndpoint . "\n" . $tokenEndpoint;
-        if (!$this->delegate instanceof \PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator) {
+        if ($this->delegate === null) {
             $this->delegate = new OAuth2AuthorizationCodeAuthenticator(
                 $this->host,
                 $this->clientId,
@@ -239,7 +236,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
      *
      * @throws SerializationException when the endpoint would send credentials in clear text
      */
-    private function assertSecureEndpoint(string $name, string $endpoint): void
+    private static function assertSecureEndpoint(string $name, string $endpoint): void
     {
         $parts = parse_url($endpoint);
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));

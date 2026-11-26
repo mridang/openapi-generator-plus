@@ -122,9 +122,21 @@ module Petstore::Client
       def list_pet_feed_pages: (?Options::ListPetFeedOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, nil]
       def list_pet_matches: (?Options::ListPetMatchesOptions? options) -> Models::PetMatchPage
       def list_pet_matches_with_http_info: (?Options::ListPetMatchesOptions? options) -> ::Petstore::Client::ApiResult[Models::PetMatchPage]
+      def list_pet_next_url: (?Options::ListPetNextUrlOptions? options) -> Models::PetNextUrlPage
+      def list_pet_next_url_with_http_info: (?Options::ListPetNextUrlOptions? options) -> ::Petstore::Client::ApiResult[Models::PetNextUrlPage]
+      def list_pet_next_url_pages: (?Options::ListPetNextUrlOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, nil]
       def list_pet_notes: (?Options::ListPetNotesOptions? options) -> Models::PetNotePage
       def list_pet_notes_with_http_info: (?Options::ListPetNotesOptions? options) -> ::Petstore::Client::ApiResult[Models::PetNotePage]
       def list_pet_notes_pages: (?Options::ListPetNotesOptions? options) -> ::Petstore::Client::Paginator[String, String]
+      def list_pet_offsets: (?Options::ListPetOffsetsOptions? options) -> Models::PetOffsetPage
+      def list_pet_offsets_with_http_info: (?Options::ListPetOffsetsOptions? options) -> ::Petstore::Client::ApiResult[Models::PetOffsetPage]
+      def list_pet_offsets_pages: (?Options::ListPetOffsetsOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, Integer]
+      def list_pet_page_numbers: (?Options::ListPetPageNumbersOptions? options) -> Models::PetPageNumberPage
+      def list_pet_page_numbers_with_http_info: (?Options::ListPetPageNumbersOptions? options) -> ::Petstore::Client::ApiResult[Models::PetPageNumberPage]
+      def list_pet_page_numbers_pages: (?Options::ListPetPageNumbersOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, Integer]
+      def list_pets_after: (?Options::ListPetsAfterOptions? options) -> Models::PetAfterPage
+      def list_pets_after_with_http_info: (?Options::ListPetsAfterOptions? options) -> ::Petstore::Client::ApiResult[Models::PetAfterPage]
+      def list_pets_after_pages: (?Options::ListPetsAfterOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, String]
       def set_pet_avatar: (Integer pet_id, ::Petstore::Client::BodySource body, ?Options::SetPetAvatarOptions? options, ?request_content_type: String?) -> void
       def set_pet_avatar_with_http_info: (Integer pet_id, ::Petstore::Client::BodySource body, ?Options::SetPetAvatarOptions? options, ?request_content_type: String?) -> ::Petstore::Client::ApiResult[nil]
       def set_pet_avatar_thumbnail: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request, ?Options::SetPetAvatarThumbnailOptions? options) -> void
@@ -194,9 +206,22 @@ module Petstore::Client
       def list_pet_feed_pages: (?Options::ListPetFeedOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, nil]
       def list_pet_matches: (?Options::ListPetMatchesOptions? options) -> Models::PetMatchPage
       def list_pet_matches_with_http_info: (?Options::ListPetMatchesOptions? options) -> ::Petstore::Client::ApiResult[Models::PetMatchPage]
+      def list_pet_next_url: (?Options::ListPetNextUrlOptions? options) -> Models::PetNextUrlPage
+      def list_pet_next_url_with_http_info: (?Options::ListPetNextUrlOptions? options) -> ::Petstore::Client::ApiResult[Models::PetNextUrlPage]
+      def list_pet_next_url_page: (?Options::ListPetNextUrlOptions? options, ?page_url: String?) -> ::Petstore::Client::ApiResult[Models::PetNextUrlPage]
+      def list_pet_next_url_pages: (?Options::ListPetNextUrlOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, nil]
       def list_pet_notes: (?Options::ListPetNotesOptions? options) -> Models::PetNotePage
       def list_pet_notes_with_http_info: (?Options::ListPetNotesOptions? options) -> ::Petstore::Client::ApiResult[Models::PetNotePage]
       def list_pet_notes_pages: (?Options::ListPetNotesOptions? options) -> ::Petstore::Client::Paginator[String, String]
+      def list_pet_offsets: (?Options::ListPetOffsetsOptions? options) -> Models::PetOffsetPage
+      def list_pet_offsets_with_http_info: (?Options::ListPetOffsetsOptions? options) -> ::Petstore::Client::ApiResult[Models::PetOffsetPage]
+      def list_pet_offsets_pages: (?Options::ListPetOffsetsOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, Integer]
+      def list_pet_page_numbers: (?Options::ListPetPageNumbersOptions? options) -> Models::PetPageNumberPage
+      def list_pet_page_numbers_with_http_info: (?Options::ListPetPageNumbersOptions? options) -> ::Petstore::Client::ApiResult[Models::PetPageNumberPage]
+      def list_pet_page_numbers_pages: (?Options::ListPetPageNumbersOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, Integer]
+      def list_pets_after: (?Options::ListPetsAfterOptions? options) -> Models::PetAfterPage
+      def list_pets_after_with_http_info: (?Options::ListPetsAfterOptions? options) -> ::Petstore::Client::ApiResult[Models::PetAfterPage]
+      def list_pets_after_pages: (?Options::ListPetsAfterOptions? options) -> ::Petstore::Client::Paginator[Models::Pet, String]
       def set_pet_avatar: (Integer pet_id, ::Petstore::Client::BodySource body, ?Options::SetPetAvatarOptions? options, ?request_content_type: String?) -> void
       def set_pet_avatar_with_http_info: (Integer pet_id, ::Petstore::Client::BodySource body, ?Options::SetPetAvatarOptions? options, ?request_content_type: String?) -> ::Petstore::Client::ApiResult[nil]
       def set_pet_avatar_thumbnail: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request, ?Options::SetPetAvatarThumbnailOptions? options) -> void

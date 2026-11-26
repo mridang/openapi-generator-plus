@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -10,7 +9,6 @@
  */
 
 declare(strict_types=1);
-
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
@@ -20,7 +18,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
  *
  * @deprecated This schema is deprecated.
  */
-class Tag implements \Ds\Hashable, \Stringable
+class Tag implements \Ds\Hashable
 {
     #[SerializedName('id')]
     public readonly ?int $id;
@@ -83,7 +81,7 @@ class Tag implements \Ds\Hashable, \Stringable
     public function equals(mixed $other): bool
     {
         return is_object($other)
-            && $other::class === static::class
+            && $other::class === $this::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
     }
 
@@ -93,7 +91,7 @@ class Tag implements \Ds\Hashable, \Stringable
      */
     public function hash(): mixed
     {
-        $parts = [static::class];
+        $parts = [$this::class];
         foreach (get_object_vars($this) as $name => $value) {
             if (is_string($value) || is_int($value) || is_bool($value)) {
                 $parts[] = $name . '=' . var_export($value, true);
@@ -102,4 +100,5 @@ class Tag implements \Ds\Hashable, \Stringable
 
         return md5(implode("\0", $parts));
     }
+
 }

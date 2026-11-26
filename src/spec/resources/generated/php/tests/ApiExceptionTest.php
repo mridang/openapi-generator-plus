@@ -52,6 +52,7 @@ test('bhv errors 004 exposes status code, message, body, headers and error body'
         'not found',
         ['content-type' => 'application/json'],
         '{"id":7,"name":"missing"}',
+        null,
     );
 
     expect($ex->getStatusCode())->toBe(404);
@@ -68,6 +69,8 @@ test('bhv errors 021 null headers and body mark transport-no-response', function
     $ex = new ApiException(
         0,
         'connection reset',
+        null,
+        null,
     );
 
     expect($ex->getResponseHeaders())->toBeNull();
@@ -434,14 +437,14 @@ test('bhv errors 053 each named error pins its own status code', function (strin
     \assert($error instanceof \PetstoreClient\Errors\ApiException);
     expect($error->getStatusCode())->toBe($status);
 })->with([
-    [\PetstoreClient\Errors\BadRequestException::class, 400],
-    [\PetstoreClient\Errors\UnauthorizedException::class, 401],
-    [\PetstoreClient\Errors\ForbiddenException::class, 403],
-    [\PetstoreClient\Errors\NotFoundException::class, 404],
-    [\PetstoreClient\Errors\ConflictException::class, 409],
-    [\PetstoreClient\Errors\UnprocessableEntityException::class, 422],
-    [\PetstoreClient\Errors\TooManyRequestsException::class, 429],
-    [\PetstoreClient\Errors\InternalServerErrorException::class, 500],
+    ['\PetstoreClient\Errors\BadRequestException', 400],
+    ['\PetstoreClient\Errors\UnauthorizedException', 401],
+    ['\PetstoreClient\Errors\ForbiddenException', 403],
+    ['\PetstoreClient\Errors\NotFoundException', 404],
+    ['\PetstoreClient\Errors\ConflictException', 409],
+    ['\PetstoreClient\Errors\UnprocessableEntityException', 422],
+    ['\PetstoreClient\Errors\TooManyRequestsException', 429],
+    ['\PetstoreClient\Errors\InternalServerErrorException', 500],
 ]);
 
 test('bhv errors 055 status error constructors default the response context to null', function (): void {
@@ -788,7 +791,7 @@ test('bhv errors 087 credential and challenge headers are masked in the rendered
         'Cookie' => 'sid=1',
         'WWW-Authenticate' => 'Basic realm=x',
         'Proxy-Authenticate' => 'Basic realm=y',
-    ]);
+    ], null);
 
     expect((string) $ex)->toContain('***');
     expect((string) $ex)->not->toContain('Bearer abc');
