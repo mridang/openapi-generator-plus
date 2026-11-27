@@ -113,12 +113,20 @@ module {{moduleName}}
     # Mixed into the connection pool. The pool reads each response on a
     # +Net::HTTP+ connection that it owns and does not expose +ignore_eof+, so
     # the flag is set on that connection as it is checked out. A body that ends
-    # before its Content-Length is a failed transfer, not a short 200.
+    # before its Content-Length is a failed transfer, not a short 200. A call
+    # that leaves the block without finishing (an exception, or its thread
+    # killed by a cancellation or a closed stream) closes the socket at once,
+    # so the pool never hands out a connection with a response half read.
     module StrictEof
       def connection_for(uri, &block)
-        super(uri) do |connection|
+        super do |connection|
           connection.http.ignore_eof = false
-          block.call(connection)
+          completed = false
+          result = block.call(connection)
+          completed = true
+          result
+        ensure
+          connection.finish unless completed
         end
       end
     end
