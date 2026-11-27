@@ -2,6 +2,10 @@
 
 package options
 
+import (
+	"cloud.google.com/go/civil"
+)
+
 // FindPetsByStatusStatus is the typed enum of the Status parameter of FindPetsByStatus.
 type FindPetsByStatusStatus string
 
@@ -26,8 +30,8 @@ type FindPetsByStatusOptions struct {
 	/* Filter Filter criteria as key-value pairs */
 	Filter *map[string]string
 	/* BornAfter Only return pets born on or after this date */
-	BornAfter *string
+	BornAfter *civil.Date
 	N2ndPage  *int32
 	/* ReportDate Reference date for the report */
-	ReportDate *string
+	ReportDate *civil.Date
 }

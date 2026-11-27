@@ -14,7 +14,7 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 |---|---|---|
 | `string` | `string` | Also used for `email`, `hostname`, `password` and unknown formats. |
 | `string` / `ipv4`, `ipv6` | `netip.Addr` | A leading zero, a prefix length, a zone id, brackets, whitespace and the wrong family fail the decode with a `*SerializationError`; an address is written in canonical text. |
-| `string` / `date` | `string` | The standard library has no calendar-date type. The value is not validated. |
+| `string` / `date` | `civil.Date` | A calendar date from `cloud.google.com/go/civil`. The text form is `YYYY-MM-DD`, and a value that is not a real date (`2024-02-30`) fails the decode. |
 | `string` / `date-time` | `models.DateTime` | A `time.Time` wrapper. The wire form has a numeric offset (never `Z`) and a fixed three-digit millisecond fraction. |
 | `string` / `time` | `string` | No standard library type. `iso8601.go` ships `FormatTimeOfDay` and `ParseTimeOfDay` for callers who want a `time.Time`. |
 | `string` / `duration` | `models.Duration` | A `time.Duration` wrapper. The wire form is the protobuf-JSON string such as `"3600s"`, not ISO 8601. |
@@ -46,6 +46,7 @@ Runtime modules, from the generated `go.mod`:
 | `github.com/andybalholm/brotli` | v1.2.1 | Decoding `br` responses |
 | `github.com/klauspost/compress` | v1.18.6 | Decoding `zstd` responses |
 | `github.com/google/uuid` | v1.6.0 | The `uuid` type |
+| `cloud.google.com/go` | v0.121.4 | The `civil.Date` type for `format: date` (the `civil` package imports only the standard library) |
 | `go.opentelemetry.io/otel`, `otel/metric` and `otel/trace` | v1.47.0 | Trace-context propagation, and the `pkg/otelhook` adapter (the core package imports none of them) |
 
 HTTP is the standard library. Other requirements in the manifest are for the generated tests and tooling (`testcontainers-go`, the OpenTelemetry SDK, and a `tool` block with `gotestsum`, `staticcheck`, `gofumpt` and `gocover-cobertura`). Dependencies that need cgo are not accepted.
@@ -164,7 +165,7 @@ An operation whose success response is `application/x-ndjson`, `application/json
 
 ## Known limits
 
-- `format: date` and `format: time` are plain strings, so they are not validated.
+- `format: time` is a plain string, so it is not validated. `format: date` is a `civil.Date` and is validated when it is decoded.
 - `format: decimal` and `number` are `float64` and lose exactness.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client. The server owns validation.
 - `allOf` with a discriminator is not implemented yet. Only `oneOf` with a discriminator is.
@@ -179,7 +180,7 @@ An operation whose success response is `application/x-ndjson`, `application/json
 
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
 
-- Add SDK-owned `models.Date` and `models.TimeOfDay` types so `date` and `time` are validated. This needs agreement with the other SDKs because it adds public API.
+- Add an SDK-owned `models.TimeOfDay` type so `time` is validated. This needs agreement with the other SDKs because it adds public API.
 - `url.URL` for `uri`, once it is shown to keep the text unchanged.
 - Replace `google/uuid` with the `uuid` package the review says Go 1.27 adds. The review could not confirm its API, and using it would raise the floor to 1.27, so it is not before Go 1.26 reaches end of life.
 - Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on.

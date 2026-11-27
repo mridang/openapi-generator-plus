@@ -12,6 +12,8 @@ package models
 import (
 	"encoding/json"
 	"net/netip"
+
+	"cloud.google.com/go/civil"
 )
 
 // NativeValues is a model class generated from the OpenAPI schema.
@@ -30,7 +32,7 @@ type NativeValues struct {
 	// Example: 3600s
 	Wait *Duration `json:"wait,omitempty"`
 	// Example: 2024-02-29
-	Since *string `json:"since,omitempty"`
+	Since *civil.Date `json:"since,omitempty"`
 	// Example: example.com
 	Host *string `json:"host,omitempty"`
 	// Example: a@example.com
@@ -150,7 +152,7 @@ func (o NativeValues) WithoutWait() NativeValues {
 }
 
 // WithSince returns a copy of the model with Since replaced; the receiver is unchanged.
-func (o NativeValues) WithSince(value string) NativeValues {
+func (o NativeValues) WithSince(value civil.Date) NativeValues {
 	o.Since = &value
 	return o
 }

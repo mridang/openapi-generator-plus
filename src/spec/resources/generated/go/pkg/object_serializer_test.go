@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/google/uuid"
 
 	"fmt"
@@ -1938,25 +1939,29 @@ func TestBhvSerializationobject106_ObjectSerializer_Stringify_FractionalFloatRen
 
 // ── #21 format:date path/query value uses date-only format ──
 
-func TestBhvSerializationobject157_ObjectSerializer_StringifyDate_TimeValueReturnsDateOnly(t *testing.T) {
+func TestBhvSerializationobject157_ObjectSerializer_StringifyDate_CivilDateWritesDateOnly(t *testing.T) {
 	t.Parallel()
-	when := time.Date(2024, 1, 15, 13, 45, 22, 0, time.UTC)
+	when := civil.Date{Year: 2024, Month: time.January, Day: 15}
 	if got := stringifyDate(when); got != "2024-01-15" {
 		t.Errorf("expected '2024-01-15', got %q", got)
 	}
 }
 
-func TestBhvSerializationobject114_ObjectSerializer_StringifyDate_StringPassesThrough(t *testing.T) {
+func TestBhvSerializationobject114_ObjectSerializer_Deserialize_DateFieldAcceptsARealDate(t *testing.T) {
 	t.Parallel()
-	if got := stringifyDate("2024-12-31"); got != "2024-12-31" {
-		t.Errorf("expected '2024-12-31', got %q", got)
+	values, err := decodeNativeValues(t, `{"since":"2024-02-29"}`)
+	if err != nil {
+		t.Fatalf("expected a real calendar date to decode, got %v", err)
+	}
+	if got := encodeNativeValues(t, values); got != `{"since":"2024-02-29"}` {
+		t.Errorf("expected the date written back as YYYY-MM-DD, got %s", got)
 	}
 }
 
-func TestBhvSerializationobject136_ObjectSerializer_StringifyDate_NilReturnsEmpty(t *testing.T) {
+func TestBhvSerializationobject136_ObjectSerializer_Deserialize_DateFieldRefusesAnImpossibleDate(t *testing.T) {
 	t.Parallel()
-	if got := stringifyDate(nil); got != "" {
-		t.Errorf("expected empty string for nil, got %q", got)
+	if _, err := decodeNativeValues(t, `{"since":"2024-02-30"}`); err == nil {
+		t.Error("expected 2024-02-30, which is not a calendar date, to be refused")
 	}
 }
 
@@ -4056,25 +4061,6 @@ func TestBhvSerialization040_ObjectSerializer_ToFormValue_CanonicalWireText(t *t
 	}
 }
 
-// A date-only or time string is passed through exactly as it was given.
-func TestBhvSerialization042_ObjectSerializer_StringifyDate_DateOnlyOrTimeStringPassesThroughExactly(t *testing.T) {
-	t.Parallel()
-	for _, in := range []string{"2024-1-5", "07:08:09Z"} {
-		if got := stringifyDate(in); got != in {
-			t.Errorf("expected %q unchanged, got %q", in, got)
-		}
-	}
-}
-
-// A date-time given for a date parameter is written as its calendar date only, with no time or offset.
-func TestBhvSerialization044_ObjectSerializer_StringifyDate_DateTimeWritesCalendarDateOnly(t *testing.T) {
-	t.Parallel()
-	local := time.Date(2024, 3, 9, 23, 30, 0, 0, time.FixedZone("minus five", -5*60*60))
-	if got := stringifyDate(local); got != "2024-03-09" {
-		t.Errorf("expected 2024-03-09, got %q", got)
-	}
-}
-
 // A duration outside a model, as a header value, is written as its protobuf-JSON seconds string.
 func TestBhvSerialization048_ObjectSerializer_ToHeaderValue_DurationIsProtobufSeconds(t *testing.T) {
 	t.Parallel()
@@ -5085,7 +5071,7 @@ func TestBhvMisc287_ObjectSerializer_AWireKeyNamedAdditionalPropertiesIsKeptAsAn
 // A date-only value is written as yyyy-mm-dd with no time part.
 func TestBhvMisc236_ObjectSerializer_DateOnlyIsWrittenAsYyyyMmDd(t *testing.T) {
 	t.Parallel()
-	day := time.Date(2024, 3, 9, 0, 0, 0, 0, time.UTC)
+	day := civil.Date{Year: 2024, Month: time.March, Day: 9}
 	if got := stringifyDate(day); got != "2024-03-09" {
 		t.Errorf("expected 2024-03-09, got %q", got)
 	}

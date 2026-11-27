@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -1674,7 +1675,7 @@ func TestBhvMisc081_BaseApi_StringResultUnderBinaryContentTypeIsTheDecodedBody(t
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
-	got, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-01", &options.GetPetSummaryOptions{Session: "s"})
+	got, err := api.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2024, Month: 1, Day: 1}, &options.GetPetSummaryOptions{Session: "s"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1692,7 +1693,7 @@ func TestBhvOperations161_BaseApi_TextPlainResponseIsReturnedRaw(t *testing.T) {
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
-	got, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-01", &options.GetPetSummaryOptions{Session: "s"})
+	got, err := api.GetPetSummary(context.Background(), int64(1), civil.Date{Year: 2024, Month: 1, Day: 1}, &options.GetPetSummaryOptions{Session: "s"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1993,7 +1994,7 @@ func TestBhvOperations043_BaseApi_FormatDatePathParamIsDateOnly(t *testing.T) {
 	client := &queryCapturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
-	_, _ = api.FindPetsBornOn(context.Background(), "2024-01-01")
+	_, _ = api.FindPetsBornOn(context.Background(), civil.Date{Year: 2024, Month: 1, Day: 1})
 	if client.capturedURL != "http://localhost/pet/born-on/2024-01-01" {
 		t.Errorf("expected the date-only path /pet/born-on/2024-01-01, got %q", client.capturedURL)
 	}
@@ -2107,7 +2108,7 @@ func TestBhvOperations019_BaseApi_DateOnlyFormFieldSerializesAsYYYYMMDD(t *testi
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
-	renewal := "2024-01-02"
+	renewal := civil.Date{Year: 2024, Month: 1, Day: 2}
 	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{
 		Nickname:    "a",
 		RenewalDate: &renewal,
@@ -2124,7 +2125,7 @@ func TestBhvOperations069_BaseApi_DateQueryAndHeaderParamsAreYYYYMMDD(t *testing
 	client := &capturingApiClient{}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
-	bornAfter, reportDate := "2024-01-01", "2024-01-02"
+	bornAfter, reportDate := civil.Date{Year: 2024, Month: 1, Day: 1}, civil.Date{Year: 2024, Month: 1, Day: 2}
 	_, _ = api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{
 		BornAfter:  &bornAfter,
 		ReportDate: &reportDate,
@@ -2222,7 +2223,8 @@ func TestBhvRetries003_BaseApi_QueryFormAndMultipartPartsKeepTheSpecDeclarationO
 		t.Errorf("expected query order %v, got %v", want, queryKeys)
 	}
 
-	tags, note, renewal := []string{"x"}, "n", "2024-01-02"
+	tags, note := []string{"x"}, "n"
+	renewal := civil.Date{Year: 2024, Month: 1, Day: 2}
 	_, _ = api.SetPetPreferences(context.Background(), int64(1), &options.SetPetPreferencesOptions{
 		Nickname: "a", Tags: &tags, Note: &note, RenewalDate: &renewal,
 	})
@@ -2731,7 +2733,7 @@ func TestBhvErrors036_BaseApi_StatusErrorCarriesTheRequestMethodAndPathWithoutTh
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
 
-	bornAfter := "2020-01-01"
+	bornAfter := civil.Date{Year: 2020, Month: 1, Day: 1}
 	_, err := api.FindPetsByStatus(context.Background(), &options.FindPetsByStatusOptions{BornAfter: &bornAfter})
 
 	var notFound *apierrors.NotFoundError

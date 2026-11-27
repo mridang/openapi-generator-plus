@@ -271,6 +271,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 **Consequences.** The catalogue ids pagination004, 005, 006 and 029 are covered by one test per language on the petstore operations `listPetOffsets`, `listPetPageNumbers`, `listPetsAfter` and `listPetNextUrl`, with the fake transport. The design page section 4.2 is the source of the detection rules. D128 stands for tier 1 and tier 3 and is superseded for tiers 2, 4 and 5 only.
 
 
+## D130: A date is a calendar date type in Go
+
+**Decision.** In Go a `format: date` value is `civil.Date` from `cloud.google.com/go/civil`, in every position: a path, query, header or cookie parameter, a form field, an option, a model field and an array of dates. Its text form is `YYYY-MM-DD` both ways. Decoding refuses a value that is not a real calendar date, such as `2024-02-30`, with the SDK's `SerializationError`, and a required date path parameter that is left at its zero value is refused as a missing parameter before anything is sent. `civil` has no clock and no location, so a date never shifts with the time zone of the machine that sends it.
+
+**Consequences.** Every date parameter, option and field of the Go SDK changes its type from `string` to `civil.Date`, which is a breaking change for Go callers and nothing else. The package is part of `cloud.google.com/go`, whose only dependency for this use is the standard library, so the SDK adds one module to its requirements and no transitive code. `format: time` stays a plain string, because Go's standard library has no time-of-day type that the SDK must not reimplement. This is the owner's choice of #126 over an SDK-owned date type.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -319,7 +325,7 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **A typed error from Rust operations (#113).** Every Rust operation returns `Box<dyn Error>`. A concrete error type is a public API break for that SDK alone.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
 * **Object-valued query and header parameters (#109), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
-* **A date type for Go (#126), keep-alive connections in the Ruby client (#127) and escaping of reserved property names in Swift and Elixir (#128).** Each is one language and waits for an owner decision on the shape.
+* **Keep-alive connections in the Ruby client (#127) and escaping of reserved property names in Swift and Elixir (#128).** Each is one language and waits for an owner decision on the shape.
 
 ### Settled differences between languages
 
@@ -358,7 +364,6 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#123](https://github.com/mridang/openapi-generator-plus/issues/123): generate a typed error hierarchy per status and per declared error schema.
 * [#124](https://github.com/mridang/openapi-generator-plus/issues/124): sweep the build, lint, format, test and docs logs of every SDK for warnings.
 * [#163](https://github.com/mridang/openapi-generator-plus/issues/163): generate a paged method for every paged operation (built, decisions D123, D124 and D128).
-* [#126](https://github.com/mridang/openapi-generator-plus/issues/126): type `format: date` values in the Go SDK.
 * [#127](https://github.com/mridang/openapi-generator-plus/issues/127): keep connections alive in the Ruby client.
 * [#128](https://github.com/mridang/openapi-generator-plus/issues/128): stop escaping reserved property names that need no escape in the Swift and Elixir SDKs.
 * [#129](https://github.com/mridang/openapi-generator-plus/issues/129): re-check the audit leads that were deferred without an issue.

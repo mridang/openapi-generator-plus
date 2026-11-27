@@ -135,7 +135,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         typeMapping.put("double", "float64");
         typeMapping.put("number", "float64");
         typeMapping.put("decimal", "float64");
-        typeMapping.put("date", "string");
+        // format:date maps to civil.Date from cloud.google.com/go/civil, a
+        // calendar date whose text form is YYYY-MM-DD. Parsing rejects a value
+        // that is not a real date (2024-02-30), so no caller can send one.
+        typeMapping.put("date", "civil.Date");
         // format:date-time maps to the generated models.DateTime, a time.Time
         // whose JSON and parameter form is the canonical wire string
         // (YYYY-MM-DDTHH:MM:SS.mmm+HH:MM: numeric offset, never "Z", and a
@@ -179,6 +182,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                                 "any",
                                 "error",
                                 "uuid.UUID",
+                                "civil.Date",
                                 "netip.Addr"));
 
         reservedWords = loadReservedWords("/reserved-words/go.txt");
@@ -965,6 +969,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return Map.ofEntries(
                 Map.entry("type:uuid.UUID", "hasUuidImport"),
                 Map.entry("type:netip.Addr", "hasNetipImport"),
+                Map.entry("type:civil.Date", "hasCivilImport"),
                 Map.entry("type:[]byte", "hasByteFields"),
                 Map.entry("oneOfAnyOf", "hasFmtImport"),
                 Map.entry("isEnum", "hasFmtImport"),
@@ -983,6 +988,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 "type:io.Reader", "hasIoImport",
                 "type:uuid.UUID", "hasUuidImport",
                 "type:netip.Addr", "hasNetipImport",
+                "type:civil.Date", "hasCivilImport",
                 "servers", "hasStringsImport",
                 "cookieParams", "hasStringsImport");
     }
@@ -1008,6 +1014,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         boolean hasIoImport = false;
         boolean hasUuidImport = false;
         boolean hasNetipImport = false;
+        boolean hasCivilImport = false;
         boolean hasIntEnum = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
@@ -1092,11 +1099,14 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 hasUuidImport = true;
             } else if (dataType != null && dataType.contains("netip.Addr")) {
                 hasNetipImport = true;
+            } else if (dataType != null && dataType.contains("civil.Date")) {
+                hasCivilImport = true;
             } else if (!p.isPrimitiveType
                     && dataType != null
                     && !goPrimitives.contains(baseType)
                     && !baseType.startsWith("map[")
-                    && !baseType.equals("uuid.UUID")) {
+                    && !baseType.equals("uuid.UUID")
+                    && !baseType.equals("civil.Date")) {
                 hasModelImport = true;
             }
         }
@@ -1119,6 +1129,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if (hasNetipImport) {
             context.put("hasNetipImport", true);
+        }
+        if (hasCivilImport) {
+            context.put("hasCivilImport", true);
         }
         return renderOptionsTemplate("api/options.mustache", context);
     }
