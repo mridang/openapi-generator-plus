@@ -409,6 +409,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** Text written once on a path is shown on every operation under it. The path item's text is not shown in addition to an operation's own text.
 
+## D156: Text written beside a reference overrides the referenced text
+
+**Decision.** The `description` (and, for an example, the `summary`) written next to a `$ref` overrides the text of the component it points to, for that use only, as the Reference Object of OpenAPI 3.1 and 3.2 says. It applies to the parameters of a path item and an operation, request bodies, responses, response headers and media-type examples: the generator replaces such a reference with a copy of its target that carries the overriding text, so the generated documentation of that operation shows it, and every other use of the component keeps the component's own text. A reference without sibling text, or one that does not resolve inside the document, is left as it is. A path item reference already lets the referencing item's fields win (D155). A schema `$ref` is a JSON Schema keyword, not a Reference Object, and is not changed (#81).
+
+**Consequences.** The text is documentation only; no request or response changes.
+
 ## D158: An Example Object's `dataValue` and `serializedValue` become its value
 
 **Decision.** In a 3.2 document an Example Object's `dataValue` becomes its `value`, which is what the generated README examples and documentation read. Without a `dataValue`, a `serializedValue` under a JSON media type is parsed into the value (and kept as a string when it is not valid JSON); a `serializedValue` of a parameter, a header or a non-JSON media type is not turned into a value, because it is the serialised form and not the data. An explicit `value` always wins (#79).

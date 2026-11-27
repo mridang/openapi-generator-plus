@@ -3747,7 +3747,9 @@ components:
       # of its own and no description, so each one takes this description.
       description: Revisions of one memo, read and changed with the less common HTTP methods.
       parameters:
+        # The description beside the reference overrides the component's (#81).
         - $ref: '#/components/parameters/MemoId'
+          description: The memo whose revisions are read or changed
       patch:
         tags: [store]
         summary: Changes a memo with a PATCH request

@@ -240,7 +240,9 @@ class OpenApi32ParserExtensionTest {
                             () -> assertTrue(all.contains("main-region") && all.contains("spare-region"),
                                     "the server names are missing"),
                             () -> assertTrue(all.contains("One ledger book"),
-                                    "the path item summary is missing"));
+                                    "the path item summary is missing"),
+                            () -> assertTrue(all.contains("The code of the ledger book to read"),
+                                    "the reference description override is missing"));
                 }));
     }
 

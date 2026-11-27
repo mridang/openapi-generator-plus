@@ -72,6 +72,7 @@ import org.openapitools.codegen.meta.features.WireFormatFeature;
 import org.openapitools.codegen.utils.ModelUtils;
 
 import io.github.mridang.codegen.OpenApi32ParserExtension;
+import io.github.mridang.codegen.rules.ApplyReferenceOverridesRule;
 import io.github.mridang.codegen.rules.ContentEncodingRule;
 import io.github.mridang.codegen.rules.DropInternalOperationsRule;
 import io.github.mridang.codegen.rules.MultipleSuccessResponsesRule;
@@ -822,6 +823,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         WarnUnsupportedKeywordsRule.check(openAPI, LOGGER);
         new InlinePathItemReferencesRule()
+                .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        // D156: the summary and description written beside a $ref override the target's text.
+        new ApplyReferenceOverridesRule()
                 .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeNullTypeRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeTypeArrayRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
