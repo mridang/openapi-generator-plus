@@ -1091,6 +1091,18 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && !Array.isArray(this.{{name}}) && !((this.{{name}} as unknown) instanceof Set)) {
       throw new TypeError(`{{name}} must be an array, got ${typeof this.{{name}}}`);
     }
+{{#vendorExtensions.isIpv4Items}}
+    /* Each `format: ipv4` element stays the text as given, read strictly. */
+    if (this.{{name}} != null && [...this.{{name}}].some((item) => typeof item !== 'string' || !isIpv4Address(item))) {
+      throw new TypeError(`{{name}} must hold IPv4 addresses, got ${JSON.stringify([...this.{{name}}])}`);
+    }
+{{/vendorExtensions.isIpv4Items}}
+{{#vendorExtensions.isIpv6Items}}
+    /* Each `format: ipv6` element stays the text as given, read strictly. */
+    if (this.{{name}} != null && [...this.{{name}}].some((item) => typeof item !== 'string' || !isIpv6Address(item))) {
+      throw new TypeError(`{{name}} must hold IPv6 addresses, got ${JSON.stringify([...this.{{name}}])}`);
+    }
+{{/vendorExtensions.isIpv6Items}}
 {{#items}}
 {{#isByteArray}}
     /**

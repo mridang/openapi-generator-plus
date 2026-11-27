@@ -724,7 +724,8 @@ describe('ObjectSerializer', () => {
     expect(fromEmpty!.greeting).toBe(
       'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b',
     );
-    expect(fromEmpty!.ratio).toBe('1.5');
+    expect(fromEmpty!.ratio).toBeInstanceOf(Decimal);
+    expect(fromEmpty!.ratio!.toFixed()).toBe('1.5');
     expect(fromEmpty!.scale).toBe(0.25);
     expect(fromEmpty!.weight).toBe(2.0);
     expect(fromEmpty!.ceiling).toBe(9000000000);

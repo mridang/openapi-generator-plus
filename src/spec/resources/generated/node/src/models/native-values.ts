@@ -170,6 +170,17 @@ export class NativeValues {
         `addresses must be an array, got ${typeof this.addresses}`,
       );
     }
+    /* Each `format: ipv6` element stays the text as given, read strictly. */
+    if (
+      this.addresses != null &&
+      [...this.addresses].some(
+        (item) => typeof item !== "string" || !isIpv6Address(item),
+      )
+    ) {
+      throw new TypeError(
+        `addresses must hold IPv6 addresses, got ${JSON.stringify([...this.addresses])}`,
+      );
+    }
     if (this.homepage != null && typeof this.homepage !== "string") {
       throw new TypeError(
         `homepage must be a string, got ${typeof this.homepage}`,
