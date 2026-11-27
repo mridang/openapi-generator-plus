@@ -37,7 +37,8 @@ pub mod {{snakeName}};
 {{/errorSchemas}}
 
 pub use {{errorPrefixSnake}}_error::{{errorPrefix}}Error;
-pub use {{errorPrefixSnake}}_error::{{errorPrefix}}ErrorExt;
+pub use {{errorPrefixSnake}}_error::Error;
+pub(crate) use {{errorPrefixSnake}}_error::api_error_of;
 pub use api_error::{ApiError, ApiErrorFields, ApiErrorInfo, ApiErrorKind, ErrorFactory};
 pub use client_error::ClientError;
 pub use server_error::ServerError;

@@ -1,9 +1,12 @@
 {{>api_info}}
 
+use std::fmt;
+
 use crate::errors::api_error::{ApiError, ApiErrorInfo, ApiErrorKind};
 use crate::errors::bad_gateway_error::BadGatewayError;
 use crate::errors::bad_request_error::BadRequestError;
 use crate::errors::client_error::ClientError;
+use crate::errors::configuration_error::ConfigurationError;
 use crate::errors::conflict_error::ConflictError;
 use crate::errors::forbidden_error::ForbiddenError;
 use crate::errors::gateway_timeout_error::GatewayTimeoutError;
@@ -15,6 +18,7 @@ use crate::errors::network_error::NetworkError;
 use crate::errors::network_timeout_error::NetworkTimeoutError;
 use crate::errors::not_found_error::NotFoundError;
 use crate::errors::not_implemented_error::NotImplementedError;
+use crate::errors::oauth2_authorization_code_error::OAuth2AuthorizationCodeError;
 use crate::errors::oauth2_server_error::OAuth2ServerError;
 use crate::errors::oauth2_token_error::OAuth2TokenError;
 use crate::errors::pagination_error::PaginationError;
@@ -187,120 +191,384 @@ impl ApiErrorInfo for StreamError {
     }
 }
 
-/// Lets a caller match on the SDK's HTTP errors without downcasting by hand.
+/// The error every operation returns.
 ///
-/// Every operation returns `Box<dyn std::error::Error + Send + Sync>`; this
-/// extension trait is implemented for that trait object, so the helpers are
-/// called straight on the boxed error. A named wrapper such as
-/// [`NotFoundError`] resolves to the [`ApiError`] it wraps.
+/// One variant per kind of failure, the same kinds the other SDKs raise: a
+/// variant for each HTTP status the SDK names, [`Client`](Self::Client) and
+/// [`Server`](Self::Server) for any other 4xx and 5xx, [`Api`](Self::Api) for
+/// any other status, the failures with no response ([`Network`](Self::Network),
+/// [`NetworkTimeout`](Self::NetworkTimeout), [`Stream`](Self::Stream)), the
+/// errors raised before or after the exchange, one variant per error schema the
+/// API declares, and [`Other`](Self::Other) for anything else, such as an error
+/// a custom [`ApiClient`](crate::ApiClient) returns. The enum is
+/// `#[non_exhaustive]`, so a later kind is not a breaking change; a `match`
+/// ends with a wildcard arm.
+///
+/// Each variant boxes its error so that a `Result` stays small. `Error`
+/// implements [`std::error::Error`], so `?` turns it into a
+/// `Box<dyn std::error::Error + Send + Sync>` or any error type with a
+/// `From<Error>`; [`Display`](std::fmt::Display) and
+/// [`source`](std::error::Error::source) are those of the error it holds.
 ///
 /// ```ignore
-/// if let Err(err) = api.get_item(id).await {
-///     if let Some(api_error) = err.as_api_error() {
-///         eprintln!("HTTP {}", api_error.status_code());
-///     }
+/// match api.get_item(id).await {
+///     Ok(item) => println!("{item:?}"),
+///     Err(Error::NotFound(e)) => println!("not found: {e}"),
+///     Err(e) if e.api_error().is_some() => println!("HTTP error: {e}"),
+///     Err(e) => return Err(e.into()),
 /// }
 /// ```
-pub trait {{errorPrefix}}ErrorExt {
-    /// The [`ApiError`] this error is or wraps: the root error, a status
-    /// wrapper (400, 404, 5xx and so on), a [`ClientError`], a [`ServerError`],
-    /// a [`NetworkError`] or a [`NetworkTimeoutError`]. `None` for any other error.
-    fn as_api_error(&self) -> Option<&ApiError>;
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum Error {
+    /// HTTP 400 Bad Request.
+    BadRequest(Box<BadRequestError>),
+    /// HTTP 401 Unauthorized.
+    Unauthorized(Box<UnauthorizedError>),
+    /// HTTP 403 Forbidden.
+    Forbidden(Box<ForbiddenError>),
+    /// HTTP 404 Not Found.
+    NotFound(Box<NotFoundError>),
+    /// HTTP 409 Conflict.
+    Conflict(Box<ConflictError>),
+    /// HTTP 422 Unprocessable Entity.
+    UnprocessableEntity(Box<UnprocessableEntityError>),
+    /// HTTP 429 Too Many Requests.
+    TooManyRequests(Box<TooManyRequestsError>),
+    /// HTTP 402 Payment Required.
+    PaymentRequired(Box<PaymentRequiredError>),
+    /// HTTP 405 Method Not Allowed.
+    MethodNotAllowed(Box<MethodNotAllowedError>),
+    /// HTTP 408 Request Timeout.
+    RequestTimeout(Box<RequestTimeoutError>),
+    /// HTTP 410 Gone.
+    Gone(Box<GoneError>),
+    /// HTTP 413 Payload Too Large.
+    PayloadTooLarge(Box<PayloadTooLargeError>),
+    /// HTTP 415 Unsupported Media Type.
+    UnsupportedMediaType(Box<UnsupportedMediaTypeError>),
+    /// HTTP 423 Locked.
+    Locked(Box<LockedError>),
+    /// Any other 4xx status.
+    Client(Box<ClientError>),
+    /// HTTP 500 Internal Server Error.
+    InternalServerError(Box<InternalServerError>),
+    /// HTTP 501 Not Implemented.
+    NotImplemented(Box<NotImplementedError>),
+    /// HTTP 502 Bad Gateway.
+    BadGateway(Box<BadGatewayError>),
+    /// HTTP 503 Service Unavailable.
+    ServiceUnavailable(Box<ServiceUnavailableError>),
+    /// HTTP 504 Gateway Timeout.
+    GatewayTimeout(Box<GatewayTimeoutError>),
+    /// Any other 5xx status.
+    Server(Box<ServerError>),
+    /// A response with any other status, or a success with no body to decode.
+    Api(Box<ApiError>),
+{{#errorSchemas}}
+    /// A response whose body is the declared error schema of its status.
+    {{className}}(Box<{{className}}>),
+{{/errorSchemas}}
+    /// No HTTP response arrived: the connection was refused, reset or failed.
+    Network(Box<NetworkError>),
+    /// The call ran out of its time budget before a response arrived.
+    NetworkTimeout(Box<NetworkTimeoutError>),
+    /// The connection failed while a streamed response body was being read.
+    Stream(Box<StreamError>),
+    /// A request could not be encoded or a response could not be decoded.
+    Serialization(Box<SerializationError>),
+    /// A paged list cannot be followed.
+    Pagination(Box<PaginationError>),
+    /// The token endpoint answered with an OAuth2 error.
+    OAuth2Server(Box<OAuth2ServerError>),
+    /// A token could not be obtained from the token endpoint.
+    OAuth2Token(Box<OAuth2TokenError>),
+    /// The authorization code flow was used before its code was exchanged.
+    OAuth2AuthorizationCode(Box<OAuth2AuthorizationCodeError>),
+    /// The call was refused before it was sent: an argument or the
+    /// configuration is not valid.
+    Configuration(Box<ConfigurationError>),
+    /// Any other error.
+    Other(Box<dyn std::error::Error + Send + Sync>),
+}
 
-    /// Whether [`as_api_error`](Self::as_api_error) finds an [`ApiError`].
-    fn is_api_error(&self) -> bool {
-        self.as_api_error().is_some()
+impl Error {
+    /// The [`ApiError`] this error holds or wraps: every HTTP status variant,
+    /// [`Network`](Self::Network), [`NetworkTimeout`](Self::NetworkTimeout) and
+    /// [`Stream`](Self::Stream). `None` for any other variant.
+    pub fn api_error(&self) -> Option<&ApiError> {
+        match self {
+            Self::BadRequest(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::Unauthorized(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::Forbidden(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::NotFound(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::Conflict(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::UnprocessableEntity(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::TooManyRequests(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::PaymentRequired(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::MethodNotAllowed(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::RequestTimeout(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::Gone(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::PayloadTooLarge(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::UnsupportedMediaType(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::Locked(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::Client(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::InternalServerError(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::NotImplemented(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::BadGateway(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::ServiceUnavailable(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::GatewayTimeout(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::Server(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::Api(e) => Some(e.as_ref()),
+{{#errorSchemas}}
+            Self::{{className}}(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+{{/errorSchemas}}
+            Self::Network(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::NetworkTimeout(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            Self::Stream(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
+            _ => None,
+        }
     }
 
-    /// The pattern-matching [`ApiErrorKind`] view of the error, or `None` when
-    /// it is not an [`ApiError`] or a wrapper of one.
-    fn api_error_kind(&self) -> Option<ApiErrorKind> {
-        self.as_api_error().cloned().map(ApiErrorKind::from)
+    /// The pattern-matching [`ApiErrorKind`] view of [`api_error`](Self::api_error),
+    /// or `None` when this error holds no [`ApiError`].
+    pub fn api_error_kind(&self) -> Option<ApiErrorKind> {
+        self.api_error().cloned().map(ApiErrorKind::from)
+    }
+
+    /// Whether the error this variant holds is a `T`.
+    pub fn is<T: std::error::Error + 'static>(&self) -> bool {
+        self.inner().is::<T>()
+    }
+
+    /// The error this variant holds as a `T`, or `None` when it is another
+    /// type: the way to reach the error an [`Other`](Self::Other) holds.
+    pub fn downcast_ref<T: std::error::Error + 'static>(&self) -> Option<&T> {
+        self.inner().downcast_ref::<T>()
+    }
+
+    /// The error this variant holds, as a trait object.
+    fn inner(&self) -> &(dyn std::error::Error + Send + Sync + 'static) {
+        match self {
+            Self::BadRequest(e) => e.as_ref(),
+            Self::Unauthorized(e) => e.as_ref(),
+            Self::Forbidden(e) => e.as_ref(),
+            Self::NotFound(e) => e.as_ref(),
+            Self::Conflict(e) => e.as_ref(),
+            Self::UnprocessableEntity(e) => e.as_ref(),
+            Self::TooManyRequests(e) => e.as_ref(),
+            Self::PaymentRequired(e) => e.as_ref(),
+            Self::MethodNotAllowed(e) => e.as_ref(),
+            Self::RequestTimeout(e) => e.as_ref(),
+            Self::Gone(e) => e.as_ref(),
+            Self::PayloadTooLarge(e) => e.as_ref(),
+            Self::UnsupportedMediaType(e) => e.as_ref(),
+            Self::Locked(e) => e.as_ref(),
+            Self::Client(e) => e.as_ref(),
+            Self::InternalServerError(e) => e.as_ref(),
+            Self::NotImplemented(e) => e.as_ref(),
+            Self::BadGateway(e) => e.as_ref(),
+            Self::ServiceUnavailable(e) => e.as_ref(),
+            Self::GatewayTimeout(e) => e.as_ref(),
+            Self::Server(e) => e.as_ref(),
+            Self::Api(e) => e.as_ref(),
+{{#errorSchemas}}
+            Self::{{className}}(e) => e.as_ref(),
+{{/errorSchemas}}
+            Self::Network(e) => e.as_ref(),
+            Self::NetworkTimeout(e) => e.as_ref(),
+            Self::Stream(e) => e.as_ref(),
+            Self::Serialization(e) => e.as_ref(),
+            Self::Pagination(e) => e.as_ref(),
+            Self::OAuth2Server(e) => e.as_ref(),
+            Self::OAuth2Token(e) => e.as_ref(),
+            Self::OAuth2AuthorizationCode(e) => e.as_ref(),
+            Self::Configuration(e) => e.as_ref(),
+            Self::Other(e) => e.as_ref(),
+        }
     }
 }
 
-impl {{errorPrefix}}ErrorExt for dyn std::error::Error + Send + Sync + 'static {
-    fn as_api_error(&self) -> Option<&ApiError> {
-        if let Some(e) = self.downcast_ref::<ApiError>() {
-            return Some(e);
-        }
-{{#errorSchemas}}
-        if let Some(e) = self.downcast_ref::<{{className}}>() {
-            return Some(ApiErrorInfo::api_error(e));
-        }
-{{/errorSchemas}}
-        if let Some(e) = self.downcast_ref::<ClientError>() {
-            return Some(e.api_error());
-        }
-        if let Some(e) = self.downcast_ref::<ServerError>() {
-            return Some(e.api_error());
-        }
-        if let Some(e) = self.downcast_ref::<NetworkError>() {
-            return Some(e.api_error());
-        }
-        if let Some(e) = self.downcast_ref::<NetworkTimeoutError>() {
-            return Some(e.network_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<StreamError>() {
-            return Some(e.network_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<BadRequestError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<UnauthorizedError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<ForbiddenError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<NotFoundError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<ConflictError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<UnprocessableEntityError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<TooManyRequestsError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<PaymentRequiredError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<MethodNotAllowedError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<RequestTimeoutError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<GoneError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<PayloadTooLargeError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<UnsupportedMediaTypeError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<LockedError>() {
-            return Some(e.client_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<NotImplementedError>() {
-            return Some(e.server_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<BadGatewayError>() {
-            return Some(e.server_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<ServiceUnavailableError>() {
-            return Some(e.server_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<GatewayTimeoutError>() {
-            return Some(e.server_error().api_error());
-        }
-        if let Some(e) = self.downcast_ref::<InternalServerError>() {
-            return Some(e.server_error().api_error());
-        }
-        None
+/// The error a variant holds, as a trait object.
+impl AsRef<dyn std::error::Error + Send + Sync + 'static> for Error {
+    fn as_ref(&self) -> &(dyn std::error::Error + Send + Sync + 'static) {
+        self.inner()
     }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.inner(), f)
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.inner().source()
+    }
+}
+
+impl {{errorPrefix}}Error for Error {}
+
+/// Implements `From<T> for Error` for each SDK error type and the variant
+/// that holds it, so `?` lifts any of them into [`Error`].
+macro_rules! error_from {
+    ($($variant:ident($error:ty)),+ $(,)?) => {
+        $(
+            impl From<$error> for Error {
+                fn from(error: $error) -> Self {
+                    Self::$variant(Box::new(error))
+                }
+            }
+        )+
+    };
+}
+
+error_from!(
+    BadRequest(BadRequestError),
+    Unauthorized(UnauthorizedError),
+    Forbidden(ForbiddenError),
+    NotFound(NotFoundError),
+    Conflict(ConflictError),
+    UnprocessableEntity(UnprocessableEntityError),
+    TooManyRequests(TooManyRequestsError),
+    PaymentRequired(PaymentRequiredError),
+    MethodNotAllowed(MethodNotAllowedError),
+    RequestTimeout(RequestTimeoutError),
+    Gone(GoneError),
+    PayloadTooLarge(PayloadTooLargeError),
+    UnsupportedMediaType(UnsupportedMediaTypeError),
+    Locked(LockedError),
+    Client(ClientError),
+    InternalServerError(InternalServerError),
+    NotImplemented(NotImplementedError),
+    BadGateway(BadGatewayError),
+    ServiceUnavailable(ServiceUnavailableError),
+    GatewayTimeout(GatewayTimeoutError),
+    Server(ServerError),
+    Api(ApiError),
+{{#errorSchemas}}
+    {{className}}({{className}}),
+{{/errorSchemas}}
+    Network(NetworkError),
+    NetworkTimeout(NetworkTimeoutError),
+    Stream(StreamError),
+    Serialization(SerializationError),
+    Pagination(PaginationError),
+    OAuth2Server(OAuth2ServerError),
+    OAuth2Token(OAuth2TokenError),
+    OAuth2AuthorizationCode(OAuth2AuthorizationCodeError),
+    Configuration(ConfigurationError),
+);
+
+/// Sorts a boxed error into its variant: an SDK error type lands in the
+/// variant that names it, and any other error in [`Error::Other`].
+impl From<Box<dyn std::error::Error + Send + Sync>> for Error {
+    fn from(error: Box<dyn std::error::Error + Send + Sync>) -> Self {
+        let mut error = match error.downcast::<Error>() {
+            Ok(error) => return *error,
+            Err(error) => error,
+        };
+        /* Tries each type in turn; a miss hands the box back for the next. */
+        macro_rules! sort {
+            ($($variant:ident($kind:ty)),+ $(,)?) => {
+                $(
+                    error = match error.downcast::<$kind>() {
+                        Ok(found) => return Self::$variant(found),
+                        Err(other) => other,
+                    };
+                )+
+            };
+        }
+        sort!(
+            BadRequest(BadRequestError),
+            Unauthorized(UnauthorizedError),
+            Forbidden(ForbiddenError),
+            NotFound(NotFoundError),
+            Conflict(ConflictError),
+            UnprocessableEntity(UnprocessableEntityError),
+            TooManyRequests(TooManyRequestsError),
+            PaymentRequired(PaymentRequiredError),
+            MethodNotAllowed(MethodNotAllowedError),
+            RequestTimeout(RequestTimeoutError),
+            Gone(GoneError),
+            PayloadTooLarge(PayloadTooLargeError),
+            UnsupportedMediaType(UnsupportedMediaTypeError),
+            Locked(LockedError),
+            Client(ClientError),
+            InternalServerError(InternalServerError),
+            NotImplemented(NotImplementedError),
+            BadGateway(BadGatewayError),
+            ServiceUnavailable(ServiceUnavailableError),
+            GatewayTimeout(GatewayTimeoutError),
+            Server(ServerError),
+            Api(ApiError),
+{{#errorSchemas}}
+            {{className}}({{className}}),
+{{/errorSchemas}}
+            Network(NetworkError),
+            NetworkTimeout(NetworkTimeoutError),
+            Stream(StreamError),
+            Serialization(SerializationError),
+            Pagination(PaginationError),
+            OAuth2Server(OAuth2ServerError),
+            OAuth2Token(OAuth2TokenError),
+            OAuth2AuthorizationCode(OAuth2AuthorizationCodeError),
+            Configuration(ConfigurationError),
+        );
+        Self::Other(error)
+    }
+}
+
+/// The [`ApiError`] a boxed SDK error is or wraps, or `None`. The crate's own
+/// transport layer still passes errors boxed; this reads them without taking
+/// ownership.
+pub(crate) fn api_error_of<'a>(error: &'a (dyn std::error::Error + Send + Sync + 'static)) -> Option<&'a ApiError> {
+    if let Some(e) = error.downcast_ref::<Error>() {
+        return e.api_error();
+    }
+    if let Some(e) = error.downcast_ref::<ApiError>() {
+        return Some(e);
+    }
+{{#errorSchemas}}
+    if let Some(e) = error.downcast_ref::<{{className}}>() {
+        return Some(ApiErrorInfo::api_error(e));
+    }
+{{/errorSchemas}}
+    macro_rules! wrapped {
+        ($($error:ty),+ $(,)?) => {
+            $(
+                if let Some(e) = error.downcast_ref::<$error>() {
+                    return Some(ApiErrorInfo::api_error(e));
+                }
+            )+
+        };
+    }
+    wrapped!(
+        ClientError,
+        ServerError,
+        NetworkError,
+        NetworkTimeoutError,
+        StreamError,
+        BadRequestError,
+        UnauthorizedError,
+        ForbiddenError,
+        NotFoundError,
+        ConflictError,
+        UnprocessableEntityError,
+        TooManyRequestsError,
+        PaymentRequiredError,
+        MethodNotAllowedError,
+        RequestTimeoutError,
+        GoneError,
+        PayloadTooLargeError,
+        UnsupportedMediaTypeError,
+        LockedError,
+        NotImplementedError,
+        BadGatewayError,
+        ServiceUnavailableError,
+        GatewayTimeoutError,
+        InternalServerError,
+    );
+    None
 }

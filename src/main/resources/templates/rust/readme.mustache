@@ -59,10 +59,12 @@ use {{packageName}}::{{clientClassName}};
 ```
 
 Every operation is an `async` method on a typed API group, for example
-`client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`; call it with `.await`. Errors are
-`Box<dyn std::error::Error + Send + Sync>` values whose root is an SDK error:
-the `{{errorPrefix}}ErrorExt` trait gives `as_api_error()`, `is_api_error()` and
-`api_error_kind()`. `NetworkError` and `NetworkTimeoutError` mean no HTTP
+`client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`; call it with `.await`. Every operation returns
+`Result<T, {{packageName}}::Error>`, a `#[non_exhaustive]` enum with one variant
+per kind of error, such as `Error::NotFound`, `Error::Network` and
+`Error::TooManyRequests`, and `Error::Other` for anything else. It implements
+`std::error::Error`, so `?` works, and `api_error()` returns the `ApiError` of
+any HTTP failure. `NetworkError` and `NetworkTimeoutError` mean no HTTP
 response arrived, and `TooManyRequestsError` is HTTP 429. See
 [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
 
@@ -257,7 +259,7 @@ async fn read_everything(
     {{paramName}}: {{#nullable}}Option<{{/nullable}}{{{dataType}}}{{#nullable}}>{{/nullable}},
 {{/isBody}}
 {{/vendorExtensions.op.signatureArgs}}
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), {{packageName}}::Error> {
     let list = client.{{#pagedGroup}}{{clientPropertyName}}{{/pagedGroup}}.{{vendorExtensions.op.pagesMethodName}}({{#vendorExtensions.op.signatureArgs}}{{^isServer}}{{^isOptions}}{{paramName}}, {{/isOptions}}{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}None{{/isOptions}}{{/vendorExtensions.op.signatureArgs}});
     let mut items = list.items();
     while let Some(item) = items.next().await {

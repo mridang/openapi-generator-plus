@@ -307,6 +307,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** Go, Rust, Dart, PHP and Elixir change the public type of a decimal field and parameter from a float to the decimal type, and Node's `Decimal` changes from a branded string to the decimal.js class; these are breaking changes for those SDKs. A value the decimal type cannot hold fails the decode with the `SerializationError` instead of being rounded (C# and Rust about 28 digits, Swift 38). Ruby and Dart keep no trailing zero, so `12.50` is written back as `12.5`. A bare `type: number` with no format is unchanged (D83).
 
+## D136: Rust operations return a typed error enum
+
+**Decision.** Every Rust operation, its `_with_http_info` variant, its `_stream` method and the pages of its paginator return `Result<T, <crate>::Error>`. `Error` is a `#[non_exhaustive]` enum with one variant per error kind the other eleven SDKs raise: a variant for each named HTTP status (`NotFound`, `TooManyRequests` and so on), `Client` and `Server` for any other 4xx and 5xx, `Api` for any other status, `Network`, `NetworkTimeout` and `Stream` for a failure with no response, `Serialization`, `Pagination`, `Configuration` and the three OAuth2 errors, one variant per error schema the API declares, and `Other(Box<dyn std::error::Error + Send + Sync>)` for anything else, such as an error a custom transport returns. It implements `std::error::Error` and `Display`, so `?` works into a boxed error or any error type with a `From`, and `api_error()` returns the `ApiError` of any HTTP failure. This matches the AWS SDK for Rust, progenitor, async-openai, octocrab and async-stripe (#113, owner decision).
+
+**Consequences.** This is a breaking change for the Rust SDK: code that downcast the boxed error now matches the variant instead, and the `ErrorExt` helpers and the source-chain walk that the generated `SKILLS.md` used to show are gone. Each variant boxes its error so that a `Result` stays small. The items of a byte, JSON Lines or event stream still fail with a boxed error, because they are read after the operation has returned; `Error::from` sorts one into its variant.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -352,7 +358,6 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **Validating the `id_token` and sending a nonce in the OIDC authenticator (#110).** PKCE is in place for the authorization-code flow, but replay of an `id_token` is not detected by the client.
 * **A maximum response size (#112).** No transport limits how much it reads or decompresses, so a hostile server can make a client read a very large body. The option and its default must be the same in all twelve.
 * **An end-to-end timeout that holds while the body is read (#116).** The default is a 10 second budget for the whole call, and a per-call timeout is in the options for a single call. Python and Ruby still apply the timeout per socket read, which needs a streaming reader, so a server that trickles a body can hold a call past the budget.
-* **A typed error from Rust operations (#113).** Every Rust operation returns `Box<dyn Error>`. A concrete error type is a public API break for that SDK alone.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
 * **Object-valued query and header parameters (#109), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
 
@@ -382,7 +387,6 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#110](https://github.com/mridang/openapi-generator-plus/issues/110): generate a nonce and validate `id_token` claims in the OIDC authenticator.
 * [#111](https://github.com/mridang/openapi-generator-plus/issues/111): compile the README and `SKILLS.md` code fences and test the minimum supported runtimes.
 * [#112](https://github.com/mridang/openapi-generator-plus/issues/112): add a maximum response size transport option.
-* [#113](https://github.com/mridang/openapi-generator-plus/issues/113): return a typed error from Rust operations instead of `Box<dyn Error>`.
 * [#114](https://github.com/mridang/openapi-generator-plus/issues/114): support streaming responses and uploads in the generated clients (built, decisions D118 to D122, D125 to D127).
 * [#115](https://github.com/mridang/openapi-generator-plus/issues/115): cover the Dart browser client and derive the keyword lists from the toolchains.
 * [#116](https://github.com/mridang/openapi-generator-plus/issues/116): add a per-call timeout and make the end-to-end timeout hold while the body is read.
