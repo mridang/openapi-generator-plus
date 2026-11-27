@@ -34,10 +34,10 @@ import Testing
     @Test func testBhvAuthbasic018PasswordMayContainColonAndMayBeEmpty() async throws {
         let withColon = try BasicAuthenticator(
             host: "https://api.example.com", username: "alice", password: "a:b")
-        #expect(try await withColon.authHeaders()["Authorization"] == "Basic YWxpY2U6YTpi")
+        #expect(await withColon.authHeaders()["Authorization"] == "Basic YWxpY2U6YTpi")
         let empty = try BasicAuthenticator(
             host: "https://api.example.com", username: "alice", password: "")
-        #expect(try await empty.authHeaders()["Authorization"] == "Basic YWxpY2U6")
+        #expect(await empty.authHeaders()["Authorization"] == "Basic YWxpY2U6")
     }
 
     /* Each rejection names the offending field exactly. */
@@ -140,7 +140,7 @@ import Testing
     @Test(arguments: ["AdminBasic", "PetStoreBasic"])
     func testBhvAuthbasic002SchemeWrapperSendsBasicHeaderAndMasksThePassword(scheme: String) async throws {
         let auth = try Self.schemeWrapper(scheme, username: "alice", password: "s3cret")
-        #expect(try await auth.authHeaders() == ["Authorization": "Basic YWxpY2U6czNjcmV0"])
+        #expect(await auth.authHeaders() == ["Authorization": "Basic YWxpY2U6czNjcmV0"])
         #expect(auth.queryParams().isEmpty)
         #expect(auth.cookieParams().isEmpty)
         #expect(
@@ -158,10 +158,10 @@ import Testing
         do {
             let fromEnvironment = try {{className}}(host: "https://api.example.com", username: nil, password: nil, environment: [{{#envVars}}"{{envName}}": "env-{{field}}"{{^-last}}, {{/-last}}{{/envVars}}])
             let envEncoded = Data("env-username:env-password".utf8).base64EncodedString()
-            #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Basic \(envEncoded)"])
+            #expect(await fromEnvironment.authHeaders() == ["Authorization": "Basic \(envEncoded)"])
             let explicit = try {{className}}(host: "https://api.example.com", username: "alice", password: "explicit-value", environment: [{{#envVars}}"{{envName}}": "env-{{field}}"{{^-last}}, {{/-last}}{{/envVars}}])
             let explicitEncoded = Data("alice:explicit-value".utf8).base64EncodedString()
-            #expect(try await explicit.authHeaders() == ["Authorization": "Basic \(explicitEncoded)"])
+            #expect(await explicit.authHeaders() == ["Authorization": "Basic \(explicitEncoded)"])
         }
 {{/isBasicScheme}}
 {{/perSchemeAuthEntries}}
@@ -205,9 +205,9 @@ import Testing
     @Test(arguments: ["AdminBasic", "PetStoreBasic"])
     func testBhvAuthbasic019SchemeWrapperEmitsTheSameBasicHeaderAsTheBaseAuthenticator(scheme: String) async throws {
         let base = try BasicAuthenticator(host: "https://api.example.com", username: "alice", password: "s3cret")
-        let expected = try await base.authHeaders()
+        let expected = await base.authHeaders()
         let wrapper = try Self.schemeWrapper(scheme, username: "alice", password: "s3cret")
-        #expect(try await wrapper.authHeaders() == expected)
+        #expect(await wrapper.authHeaders() == expected)
     }
 
     private static func schemeWrapper(_ scheme: String, username: String, password: String) throws -> BasicAuthenticator {
@@ -272,7 +272,7 @@ import Testing
 {{#isBasicScheme}}
         do {
             let wrapper = try {{className}}(host: "https://api.example.com", username: "user", password: "pass")
-            #expect(try await wrapper.authHeaders() == basicExpected)
+            #expect(await wrapper.authHeaders() == basicExpected)
             #expect(throws: ConfigurationError.invalidArgument("Basic auth username must not contain ':' (RFC 7617 \u{A7}2)")) {
                 _ = try {{className}}(host: "https://api.example.com", username: "us:er", password: "pass")
             }

@@ -22,16 +22,22 @@ private final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendabl
     @available(*, deprecated, message: "This operation is deprecated.")
 {{/isDeprecated}}
     public func {{vendorExtensions.op.streamMethodName}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}{{#vendorExtensions.op.signatureArgs.0}}, {{/vendorExtensions.op.signatureArgs.0}}streamOptions: StreamOptions?) async throws -> {{{returnType}}} {
-        var parts: [String] = []
+        let parts: [String] = [
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}
-        parts.append(String(describing: {{paramName}}))
+            String(describing: {{paramName}}),
 {{/isPath}}
 {{/vendorExtensions.op.signatureArgs}}
+        ]
         var call = "{{vendorExtensions.op.streamMethodName}}(" + parts.joined(separator: ",") + ")"
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
+{{^vendorExtensions.op.optionsParamRequired}}
         call += options == nil ? " options=none" : " options=set"
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        call += " options=set"
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
         record(call)
@@ -44,16 +50,22 @@ private final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendabl
     @available(*, deprecated, message: "This operation is deprecated.")
 {{/isDeprecated}}
     public func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
-        var parts: [String] = []
+        let parts: [String] = [
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}
-        parts.append(String(describing: {{paramName}}))
+            String(describing: {{paramName}}),
 {{/isPath}}
 {{/vendorExtensions.op.signatureArgs}}
+        ]
         var call = "{{operationId}}(" + parts.joined(separator: ",") + ")"
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
+{{^vendorExtensions.op.optionsParamRequired}}
         call += options == nil ? " options=none" : " options=set"
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        call += " options=set"
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
         record(call)
@@ -64,16 +76,22 @@ private final class Fake{{classname}}: {{classname}}Protocol, @unchecked Sendabl
     @available(*, deprecated, message: "This operation is deprecated.")
 {{/isDeprecated}}
     public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}?{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String?{{/-first}}{{/-last}}{{/consumes}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
-        var parts: [String] = []
+        let parts: [String] = [
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}
-        parts.append(String(describing: {{paramName}}))
+            String(describing: {{paramName}}),
 {{/isPath}}
 {{/vendorExtensions.op.signatureArgs}}
+        ]
         var call = "{{operationId}}WithHTTPInfo(" + parts.joined(separator: ",") + ")"
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
+{{^vendorExtensions.op.optionsParamRequired}}
         call += options == nil ? " options=none" : " options=set"
+{{/vendorExtensions.op.optionsParamRequired}}
+{{#vendorExtensions.op.optionsParamRequired}}
+        call += " options=set"
+{{/vendorExtensions.op.optionsParamRequired}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
         record(call)

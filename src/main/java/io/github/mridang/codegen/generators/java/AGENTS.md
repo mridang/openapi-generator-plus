@@ -8,7 +8,7 @@ The java generator (`java-plus`) emits a Maven project for Java 21 or newer (the
 - [Repository root rules](../../../../../../../../../AGENTS.md).
 - Codegen class: [BetterJavaCodegen.java](BetterJavaCodegen.java).
 - Templates: `src/main/resources/templates/java/` (the pointer file there leads back to this one).
-- Spec classes: `src/spec/java/io/github/mridang/codegen/spec/java/` (`JavaSpec`, `JavaBuildSpec`, `JavaClientSpec`, `JavaStaticAnalysisSpec`, `JavaFormattingSpec`, `JavaReservedWordsSpec`).
+- Spec classes: `src/spec/java/io/github/mridang/codegen/spec/java/` (`JavaSpec`, `JavaBuildSpec`, `JavaClientSpec`, `JavaStaticAnalysisSpec`, `JavaRewriteSpec`, `JavaFormattingSpec`, `JavaReservedWordsSpec`).
 - Golden: `src/spec/resources/generated/java/` (never hand-edit; regenerate).
 
 ## Layout
@@ -383,7 +383,7 @@ F215 (`ObjectSerializerTest` `requiredNullableKeepsExplicitNull`, `requiredNulla
 
 ## Gate lessons (what broke the gate and how to avoid it)
 
-Generated Java is verified only by the Docker specs (`JavaBuildSpec`, `JavaClientSpec`, `JavaStaticAnalysisSpec`, `JavaFormattingSpec`, plus the lint and type specs). `JavaClientSpec` alone proves little. Run the whole set with `etc/ci-local.sh check Java` before any push; a compile error hides later Checkstyle and SpotBugs findings, so re-run everything after fixing one.
+Generated Java is verified only by the Docker specs (`JavaBuildSpec`, `JavaClientSpec`, `JavaStaticAnalysisSpec`, `JavaRewriteSpec` (the OpenRewrite `UpgradeToJava25` dry run must change nothing, D182), `JavaFormattingSpec`, plus the lint and type specs). `JavaClientSpec` alone proves little. Run the whole set with `etc/ci-local.sh check Java` before any push; a compile error hides later Checkstyle and SpotBugs findings, so re-run everything after fixing one.
 - Keep the generator class at Java 11 syntax: no `record`, no pattern-matching `instanceof`, no switch expressions, no `Stream.toList()`. Example: `AbstractBetterCodegen` failed with "switch expressions are not supported in -source 11". Catch it with `etc/ci-local.sh mvn -o compile` after every codegen edit.
 - Pattern matching is the opposite inside generated Java: Error Prone `PatternMatchingInstanceof` fires on `getClass()`/cast equals, and `EqualsGetClass` fires on the other form. Use `instanceof X other` directly in `model.mustache`. Catch it with `JavaBuildSpec`.
 - Generated code and tests run with `-Werror` plus Error Prone, so any warning is a build error. Examples: `CanonicalDuration` (`Duration.ofMinutes(2)`, not `ofSeconds(120)`), `GetClassOnEnum`, `EmptyCatch`, `DuplicateBranches`, `OperatorPrecedence` (parenthesise mixed operators), `BooleanLiteral`, an unchecked `<T> T deserialize(...)` assigned to a concrete type. Catch with `JavaBuildSpec`; re-run without `-q`, which hides the warning text, and grep `WARNING.*\.java`.

@@ -378,7 +378,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     @Test func testBhvMisc066ATokenProviderValueIsSentAsTheBearer() async throws {
         let host = "https://provider-066.example.com"
         let client = try {{clientClassName}}(
-            authenticator: try BearerAuthenticator(host: host, tokenProvider: { "provider-token" }),
+            authenticator: BearerAuthenticator(host: host, tokenProvider: { "provider-token" }),
             transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
             callHook: nil)
         defer { client.close() }
@@ -392,7 +392,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     /* When a token provider throws, the request fails with that same error. */
     @Test func testBhvMisc067AProviderErrorIsTheRequestError() async throws {
         let client = try {{clientClassName}}(
-            authenticator: try BearerAuthenticator(
+            authenticator: BearerAuthenticator(
                 host: "https://provider-067.example.com", tokenProvider: { throw ProviderBoom() }),
             transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
             callHook: nil)
@@ -872,7 +872,7 @@ private final class SchemeTransportProbe: BaseAuthenticator, HttpAwareAuthentica
 
 /* Answers every request with an empty JSON object and remembers the last one,
  * so a test can read the headers a call actually sent. */
-private final class ClientStubProtocol: URLProtocol, @unchecked Sendable {
+private final class ClientStubProtocol: URLProtocol {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var lastByHost: [String: URLRequest] = [:]
 

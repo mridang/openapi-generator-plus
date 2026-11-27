@@ -1671,6 +1671,18 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return result;
     }
 
+    /** The java.time classes the JDK marks value-based, by simple name. */
+    private static final java.util.Set<String> VALUE_BASED_TIME_TYPES =
+            java.util.Set.of(
+                    "Duration",
+                    "Instant",
+                    "LocalDate",
+                    "LocalDateTime",
+                    "LocalTime",
+                    "OffsetDateTime",
+                    "OffsetTime",
+                    "ZonedDateTime");
+
     /**
      * Records the per-property equality strategy on {@code prop} and reports
      * whether the property forces hand-written {@code equals}/{@code hashCode}.
@@ -1708,6 +1720,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         prop.vendorExtensions.put("eqDecimalMap", decimalMap);
         prop.vendorExtensions.put("eqDecimalContainer", decimalList || decimalSet || decimalMap);
         prop.vendorExtensions.put("eqDecimalNullable", !prop.required || prop.isNullable);
+        // java.time types are value-based: Kotlin 2.2 warns that `==` on a nullable one is an
+        // identity-sensitive operation, so a nullable field is compared with an explicit null
+        // check and equals() instead (#124).
+        final String simple = bare.startsWith("java.time.") ? bare.substring("java.time.".length()) : bare;
+        prop.vendorExtensions.put(
+                "eqValueBased",
+                VALUE_BASED_TIME_TYPES.contains(simple) && (!prop.required || prop.isNullable));
         return byteArray
                 || array
                 || listByteArray

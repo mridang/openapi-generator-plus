@@ -1244,7 +1244,16 @@ data class {{classname}}(
 {{^vendorExtensions.eqMapByteArray}}
 {{^vendorExtensions.eqDecimal}}
 {{^vendorExtensions.eqDecimalContainer}}
+{{#vendorExtensions.eqValueBased}}
+    if ({{name}} == null) {
+      if (other.{{name}} != null) return false
+    } else if (!{{name}}.equals(other.{{name}})) {
+      return false
+    }
+{{/vendorExtensions.eqValueBased}}
+{{^vendorExtensions.eqValueBased}}
     if ({{name}} != other.{{name}}) return false
+{{/vendorExtensions.eqValueBased}}
 {{/vendorExtensions.eqDecimalContainer}}
 {{/vendorExtensions.eqDecimal}}
 {{/vendorExtensions.eqMapByteArray}}

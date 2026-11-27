@@ -1666,7 +1666,10 @@ class TestConstructionKeepsWhatItIsGiven:
     def test_bhv_lang_python_138_an_unknown_enum_string_becomes_the_catch_all_member(self) -> None:
         from {{packageName}}.models.pet import PetStatusEnum
 
-        assert self._built(status='bogus').status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        # Reading a field the spec marks deprecated warns; the warning is part of the contract.
+        with pytest.deprecated_call():
+            status = self._built(status='bogus').status
+        assert status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
 
     def test_bhv_lang_python_139_a_valid_value_is_still_coerced(self) -> None:
         assert self._built(photoUrls=['a', 'b']).photo_urls == {'a', 'b'}
@@ -1726,7 +1729,9 @@ class TestDecodeValidates:
         from {{packageName}}.models.pet import PetStatusEnum
 
         pet = ObjectSerializer().deserialize('{"name":"Fido","photoUrls":[],"status":"bogus"}', 'Pet')
-        assert pet.status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        with pytest.deprecated_call():
+            status = pet.status
+        assert status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
 
     def test_bhv_lang_python_216_a_value_outside_the_declared_constraints_is_rejected(self) -> None:
         with pytest.raises(SerializationException):

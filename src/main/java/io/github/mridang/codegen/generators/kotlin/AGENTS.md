@@ -217,6 +217,7 @@ Test: generated `ObjectSerializerTest`.
 ### Equality and string form of models (D23, D24)
 Rule: models with a `ByteArray`, `Array`, `List<ByteArray>`, `Map<String, ByteArray>` or `BigDecimal` property, or an additionalProperties bucket, get a hand-written `equals`/`hashCode` (`contentEquals`, per-key comparison for maps, numeric comparison for `BigDecimal`, the `@Transient` bucket folded in); such models also get a field-dumping `toString` that is element-wise for byte arrays and appends the bucket; union wrappers get `equals`/`hashCode` too.
 Why: the synthesized data-class `equals` compares arrays by identity and excludes the `@Transient` bucket (which is now a constructor parameter, see batch 6, so `copy()` carries it). `List<BigDecimal>` and `Map<String, BigDecimal>` fields still compare scale-sensitively because `eqDecimal` covers only a direct `BigDecimal` property; that is open (needs a spec), see Known limitations.
+A nullable `java.time` field (`eqValueBased`) is compared with a null check and `equals()`, because Kotlin 2.2 reports `==` on a nullable value-based type as an identity-sensitive operation (D182).
 Where: `BetterKotlinCodegen.postProcessModels`, `models/model.mustache`.
 Test: generated `ObjectSerializerTest` and the model tests.
 

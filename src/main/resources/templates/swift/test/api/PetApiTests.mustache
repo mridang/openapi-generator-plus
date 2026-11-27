@@ -1934,7 +1934,7 @@ final class PetApiTests {
         mockClient.responseHeaders = ["Content-Type": "application/json"]
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
-        try await api.uploadPetDocument(
+        _ = try await api.uploadPetDocument(
             petId: 1, options: UploadPetDocumentOptions(file: Data("document-bytes".utf8)))
         let sent = mockClient.lastBody ?? Data()
         #expect(sent.range(of: Data("document-bytes".utf8)) != nil)
@@ -1993,7 +1993,7 @@ final class PetApiTests {
         mockClient.responseHeaders = ["Content-Type": "application/json"]
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
-        try await api.uploadPetDocument(
+        _ = try await api.uploadPetDocument(
             petId: 1, options: UploadPetDocumentOptions(file: Data("file-content-echo".utf8)))
         let sent = mockClient.lastBody ?? Data()
         #expect(sent.range(of: Data("file-content-echo".utf8)) != nil)
