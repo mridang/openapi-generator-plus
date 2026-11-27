@@ -9,6 +9,13 @@ import (
 {{#hasNetipImport}}
 	"net/netip"
 {{/hasNetipImport}}
+{{#hasDurationImport}}
+	"time"
+{{/hasDurationImport}}
+{{#hasProtoDurationImport}}
+
+	"{{packageName}}/pkg/internal/protoduration"
+{{/hasProtoDurationImport}}
 {{#hasUuidImport}}
 
 	"github.com/google/uuid"
@@ -413,6 +420,12 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+{{#vendorExtensions.hasDurationFields}}
+	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
+	if b, err = protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}}); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDurationFields}}
 	extras := withoutDeclaredKeys(o.AdditionalProperties{{#vars}}, "{{baseName}}"{{/vars}})
 	if len(extras) == 0 {
 		return b, nil
@@ -421,6 +434,11 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+{{#vendorExtensions.hasDurationAdditionalProperties}}
+	if extra, err = protoduration.EncodeJSON(extra); err != nil {
+		return nil, err
+	}
+{{/vendorExtensions.hasDurationAdditionalProperties}}
 	/* Merge the two JSON objects. When every struct field is omitted the
 	   base marshals to "{}" (len 2); replacing its closing brace with a
 	   comma would yield invalid JSON ("{,...}"), so return the extras
@@ -463,6 +481,13 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/hasByteFields}}
+{{#vendorExtensions.hasDurationFields}}
+	/* A protobuf-JSON duration string becomes the nanosecond count encoding/json reads into a time.Duration. */
+	data, durationErr := protoduration.DecodeFields(data{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}})
+	if durationErr != nil {
+		return durationErr
+	}
+{{/vendorExtensions.hasDurationFields}}
 	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
@@ -493,6 +518,12 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{/vendorExtensions.additionalPropertiesValue.isNullable}}
 {{/vendorExtensions.hasTypedAdditionalProperties}}
 			var v {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}
+{{#vendorExtensions.hasDurationAdditionalProperties}}
+			val, err := protoduration.DecodeJSON(val)
+			if err != nil {
+				return err
+			}
+{{/vendorExtensions.hasDurationAdditionalProperties}}
 			if err := json.Unmarshal(val, &v); err != nil {
 				return err
 			}
@@ -540,7 +571,17 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
+{{#vendorExtensions.hasDurationFields}}
+	b, err := marshalJSON((Alias)(o))
+	if err != nil {
+		return nil, err
+	}
+	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
+	return protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}})
+{{/vendorExtensions.hasDurationFields}}
+{{^vendorExtensions.hasDurationFields}}
 	return marshalJSON((Alias)(o))
+{{/vendorExtensions.hasDurationFields}}
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -576,6 +617,13 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/hasByteFields}}
+{{#vendorExtensions.hasDurationFields}}
+	/* A protobuf-JSON duration string becomes the nanosecond count encoding/json reads into a time.Duration. */
+	data, durationErr := protoduration.DecodeFields(data{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}})
+	if durationErr != nil {
+		return durationErr
+	}
+{{/vendorExtensions.hasDurationFields}}
 	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
@@ -636,7 +684,17 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
+{{#vendorExtensions.hasDurationFields}}
+	b, err := marshalJSON((Alias)(o))
+	if err != nil {
+		return nil, err
+	}
+	/* encoding/json writes a time.Duration as nanoseconds; the wire form is the protobuf-JSON string. */
+	return protoduration.EncodeFields(b{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}})
+{{/vendorExtensions.hasDurationFields}}
+{{^vendorExtensions.hasDurationFields}}
 	return marshalJSON((Alias)(o))
+{{/vendorExtensions.hasDurationFields}}
 }
 
 {{#hasRequired}}
@@ -675,6 +733,13 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/hasByteFields}}
+{{#vendorExtensions.hasDurationFields}}
+	/* A protobuf-JSON duration string becomes the nanosecond count encoding/json reads into a time.Duration. */
+	data, durationErr := protoduration.DecodeFields(data{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}})
+	if durationErr != nil {
+		return durationErr
+	}
+{{/vendorExtensions.hasDurationFields}}
 	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
@@ -775,6 +840,13 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/hasByteFields}}
+{{#vendorExtensions.hasDurationFields}}
+	/* A protobuf-JSON duration string becomes the nanosecond count encoding/json reads into a time.Duration. */
+	data, durationErr := protoduration.DecodeFields(data{{#vars}}{{#vendorExtensions.isDurationField}}, "{{baseName}}"{{/vendorExtensions.isDurationField}}{{/vars}})
+	if durationErr != nil {
+		return durationErr
+	}
+{{/vendorExtensions.hasDurationFields}}
 	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}

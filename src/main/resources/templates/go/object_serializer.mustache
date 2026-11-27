@@ -15,6 +15,7 @@ import (
 
 	"cloud.google.com/go/civil"
 	errors_pkg "{{packageName}}/pkg/errors"
+	"{{packageName}}/pkg/internal/protoduration"
 	"{{packageName}}/pkg/models"
 )
 
@@ -51,13 +52,110 @@ func serialize(object any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(object); err != nil {
+	if err := enc.Encode(withProtoDurations(object)); err != nil {
 		return nil, newSerializationError(
 			fmt.Sprintf("failed to serialize object to JSON: %v", err),
 			err,
 		)
 	}
 	return unescapeLineSeparators(bytes.TrimRight(buf.Bytes(), "\n")), nil
+}
+
+// durationType is the reflect type of a time.Duration.
+var durationType = reflect.TypeOf(time.Duration(0))
+
+// withProtoDurations returns value with every time.Duration it holds outside a
+// model (on its own, behind a pointer, or inside a slice, array, map or any)
+// replaced by its protobuf-JSON string, because encoding/json writes a
+// time.Duration as nanoseconds. A model, or any other value with its own JSON
+// or text form, is kept as it is: a model rewrites its own duration fields. A
+// value that holds no duration is returned unchanged, without a copy.
+func withProtoDurations(value any) any {
+	converted, changed := convertDurations(reflect.ValueOf(value))
+	if !changed {
+		return value
+	}
+	return converted
+}
+
+var (
+	jsonMarshalerType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+	textMarshalerType = reflect.TypeOf((*interface{ MarshalText() ([]byte, error) })(nil)).Elem()
+)
+
+func convertDurations(rv reflect.Value) (any, bool) {
+	if !rv.IsValid() {
+		return nil, false
+	}
+	if rv.Type() == durationType {
+		return protoduration.Format(time.Duration(rv.Int())), true
+	}
+	if rv.Type().Implements(jsonMarshalerType) || rv.Type().Implements(textMarshalerType) {
+		return nil, false
+	}
+	switch rv.Kind() {
+	case reflect.Interface, reflect.Pointer:
+		if rv.IsNil() {
+			return nil, false
+		}
+		return convertDurations(rv.Elem())
+	case reflect.Slice, reflect.Array:
+		if rv.Kind() == reflect.Slice && (rv.IsNil() || rv.Type().Elem().Kind() == reflect.Uint8) {
+			return nil, false
+		}
+		items := make([]any, rv.Len())
+		changed := false
+		for i := range items {
+			item, itemChanged := convertDurations(rv.Index(i))
+			if itemChanged {
+				changed = true
+			} else {
+				item = rv.Index(i).Interface()
+			}
+			items[i] = item
+		}
+		return items, changed
+	case reflect.Map:
+		if rv.IsNil() || rv.Type().Key().Kind() != reflect.String {
+			return nil, false
+		}
+		entries := make(map[string]any, rv.Len())
+		changed := false
+		iter := rv.MapRange()
+		for iter.Next() {
+			item, itemChanged := convertDurations(iter.Value())
+			if itemChanged {
+				changed = true
+			} else {
+				item = iter.Value().Interface()
+			}
+			entries[iter.Key().String()] = item
+		}
+		return entries, changed
+	default:
+		return nil, false
+	}
+}
+
+// holdsDuration reports whether t is a time.Duration, or a pointer, slice,
+// array or map whose elements eventually are, so a decode into it must first
+// turn the protobuf-JSON strings into nanoseconds. A model is not: it rewrites
+// its own duration fields.
+func holdsDuration(t reflect.Type) bool {
+	if t == nil {
+		return false
+	}
+	for {
+		if t == durationType {
+			return true
+		}
+		switch t.Kind() {
+		case reflect.Pointer, reflect.Slice, reflect.Array, reflect.Map:
+			t = t.Elem()
+		default:
+			return false
+		}
+	}
 }
 
 // unescapeLineSeparators turns the \u2028 and \u2029 escapes that
@@ -143,6 +241,17 @@ func deserialize(data []byte, target any) error {
 
 	if err := checkNullElements(data, reflect.TypeOf(target)); err != nil {
 		return err
+	}
+
+	if holdsDuration(reflect.TypeOf(target)) {
+		decoded, err := protoduration.DecodeJSON(data)
+		if err != nil {
+			return newSerializationError(
+				fmt.Sprintf("failed to deserialize JSON: %v", err),
+				err,
+			)
+		}
+		data = decoded
 	}
 
 	if err := json.Unmarshal(data, target); err != nil {
@@ -283,6 +392,13 @@ func stringify(value any) string {
 			return "true"
 		}
 		return "false"
+	case time.Duration:
+		return protoduration.Format(v)
+	case *time.Duration:
+		if v == nil {
+			return ""
+		}
+		return protoduration.Format(*v)
 	case models.DateTime:
 		return v.String()
 	case *models.DateTime:

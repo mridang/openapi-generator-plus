@@ -748,6 +748,10 @@ internal enum ObjectSerializer {
         case let uuid as UUID:
             /* RFC 9562 requires lowercase output; `uuidString` is uppercase. */
             return uuid.uuidString.lowercased()
+        case let duration as Duration:
+            /* `format: duration` parameters are the protobuf-JSON form; without
+             * this branch `Duration.description` would yield `3600.0 seconds`. */
+            return (try? formatProtobufDuration(duration)) ?? "\(duration)"
         case let desc as CustomStringConvertible:
             return desc.description
         default:
@@ -771,20 +775,19 @@ internal enum ObjectSerializer {
         return stringify(value)
     }
 
-    /// Encodes a `TimeInterval` (seconds) as a canonical protobuf-JSON
-    /// duration literal (e.g. ``3600s``, ``1.500s``). Used by generated
-    /// models when a property's OpenAPI schema is ``format: duration`` —
-    /// the underlying wire type is a String even though the Swift type is
-    /// TimeInterval. See ``ISO8601Duration.swift`` for the formatter.
-    /// Throws ``SerializationError`` when the interval is NaN, infinite or
-    /// out of range.
-    static func encodeDuration(_ interval: TimeInterval) throws -> String {
-        return try formatProtobufDuration(interval)
+    /// Encodes a `Duration` as a canonical protobuf-JSON duration literal
+    /// (e.g. ``3600s``, ``1.500s``). Used by generated models when a
+    /// property's OpenAPI schema is ``format: duration``: the wire type is a
+    /// String even though the Swift type is the standard library `Duration`.
+    /// See ``ISO8601Duration.swift`` for the formatter. Throws
+    /// ``SerializationError`` when the duration is outside the protobuf range.
+    static func encodeDuration(_ duration: Duration) throws -> String {
+        return try formatProtobufDuration(duration)
     }
 
-    /// Decodes a protobuf-JSON duration literal into a `TimeInterval`.
+    /// Decodes a protobuf-JSON duration literal into a `Duration`.
     /// Throws ``SerializationError`` when the literal is malformed.
-    static func decodeDuration(_ literal: String) throws -> TimeInterval {
+    static func decodeDuration(_ literal: String) throws -> Duration {
         return try parseProtobufDuration(literal)
     }
 

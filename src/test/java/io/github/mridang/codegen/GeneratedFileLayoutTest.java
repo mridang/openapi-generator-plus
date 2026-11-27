@@ -290,7 +290,7 @@ class GeneratedFileLayoutTest {
 
     allow(ALLOWED_FILE, "elixir", "lib/petstore_client/models/models_module.ex", "namespace module of the models");
     allow(ALLOWED_FILE, "go", "pkg/models/date_time.go", "go date-time model helper");
-    allow(ALLOWED_FILE, "go", "pkg/models/duration.go", "go duration model helper");
+    allow(ALLOWED_FILE, "go", "pkg/internal/protoduration/protoduration.go", "go protobuf-JSON duration codec, internal to the module");
     allow(ALLOWED_FILE, "go", "pkg/models/json_marshal.go", "go JSON marshalling helper of the models");
     allow(ALLOWED_FILE, "go", "pkg/models/set.go", "go set type used by the models");
     allow(ALLOWED_FILE, "rust", "src/models/base64_serde.rs", "rust serde helper for base64 fields");

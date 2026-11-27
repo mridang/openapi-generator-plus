@@ -74,7 +74,7 @@ Verdicts: BETTER means better than the other side for a Go user; EQUAL means com
 | Enums | named type, constants, `AllValues()`, validated on decode; an unknown value in a response is an error (`validate: invalid: kind (invalid value: huge)`) | same loud failure, `SerializationError` naming the value | EQUAL | ogen: probe `200ok`; ours: probe `200enum`; docs/decisions.md "Unknown enum values fail loudly" |
 | `format: date` | `time.Time` (`OptDate`) | `string`, not validated (#126) | ogen better | ogen: `typesapi` `Day OptDate`; docs/languages/go.md |
 | `format: time` | `time.Time` (`OptTime`) | `string` | ogen better | ogen: `OptTime`; docs/languages/go.md |
-| `format: duration` | `time.Duration`; the docs say it uses Go's duration text, not RFC 3339 | `models.Duration`, protobuf-JSON `"3600s"` | DIFFERENT; ogen wire form UNVERIFIED | ogen: `T.D time.Duration`; https://ogen.dev/docs/features ("Incompatibility"); docs/languages/go.md |
+| `format: duration` | `time.Duration`; the docs say it uses Go's duration text, not RFC 3339 | `time.Duration` (D133), protobuf-JSON `"3600s"` | SAME type; ogen wire form UNVERIFIED | ogen: `T.D time.Duration`; https://ogen.dev/docs/features ("Incompatibility"); docs/languages/go.md |
 | `ipv4`, `uri` | `netip.Addr`, `url.URL` | `string` | ogen better (our own review item) | ogen: `OptIPv4`, `OptURI`; docs/languages/go.md "Under review" |
 | Integer without format | `int` (`OptInt`) | `int32`, a larger value fails to decode | ogen better | ogen: `T.Big OptInt`; docs/languages/go.md "Known limits" |
 | `format: decimal` | `decimal.Decimal` (shopspring) | `float64`, lossy | ogen better | ogen: `OptDecimal`; docs/languages/go.md |

@@ -1,8 +1,7 @@
 {{>api_info}}
 import Foundation
 
-/// Parses a protobuf-JSON duration literal into a `TimeInterval`
-/// (seconds, possibly fractional).
+/// Parses a protobuf-JSON duration literal into a `Duration`.
 ///
 /// Accepts the `google.protobuf.Duration` JSON grammar
 /// `-?\d+(\.\d{1,9})?s`, i.e. a decimal second count suffixed with
@@ -12,7 +11,7 @@ import Foundation
 /// recover nanoseconds; digits finer than a nanosecond are cut off toward zero, never rounded or refused, and the sign is applied to the whole value.
 ///
 /// Throws ``SerializationError`` for malformed input.
-public func parseProtobufDuration(_ input: String) throws -> TimeInterval {
+public func parseProtobufDuration(_ input: String) throws -> Duration {
     let pattern = "^-?[0-9]+(\\.[0-9]+)?s$"
     guard input.range(of: pattern, options: .regularExpression) != nil else {
         throw SerializationError(message: "invalid protobuf duration: \(input)")
@@ -24,63 +23,53 @@ public func parseProtobufDuration(_ input: String) throws -> TimeInterval {
     }
 
     let secsStr: Substring
-    var nanos: Double = 0
+    var nanos: Int64 = 0
     if let dot = body.firstIndex(of: ".") {
         secsStr = body[body.startIndex..<dot]
         let fracStr = String(body[body.index(after: dot)...])
         let padded = (fracStr + "000000000").prefix(9)
-        nanos = Double(padded) ?? 0
+        nanos = Int64(padded) ?? 0
     } else {
         secsStr = body
     }
 
-    guard let secs = Double(secsStr) else {
-        throw SerializationError(message: "invalid protobuf duration: \(input)")
-    }
     /* The protobuf-JSON range is +-315 576 000 000 seconds, bound included. */
-    guard secs < 315_576_000_000 || (secs == 315_576_000_000 && nanos == 0) else {
+    guard let secs = Int64(secsStr), secs < 315_576_000_000 || (secs == 315_576_000_000 && nanos == 0) else {
         throw SerializationError(message: "protobuf duration out of range: \(input)")
     }
-    let total = secs + nanos / 1_000_000_000
-    return negative ? -total : total
+    let total = Duration.seconds(secs) + Duration.nanoseconds(nanos)
+    return negative ? .zero - total : total
 }
 
-/// Formats a `TimeInterval` (seconds) as a canonical protobuf-JSON
-/// duration literal.
+/// Formats a `Duration` as a canonical protobuf-JSON duration literal.
 ///
 /// Follows the `google.protobuf.Duration` JSON mapping: a decimal
 /// second count suffixed with `s`. Fractional seconds, when present,
 /// are emitted with 3, 6, or 9 digits — the smallest of those that
 /// preserves every non-zero nanosecond digit (e.g. `3600s`,
-/// `1.500s`, `3600.000000001s`). Negative intervals get a leading
-/// `-`. The value is decomposed into whole seconds and an absolute
-/// nanosecond remainder so the sign stays coherent.
+/// `1.500s`, `3600.000000001s`). A part finer than a nanosecond is cut
+/// off toward zero. Negative durations get a leading `-`. The value is
+/// decomposed into whole seconds and an absolute nanosecond remainder so
+/// the sign stays coherent.
 ///
-/// Throws ``SerializationError`` when the interval is NaN, infinite, or
-/// too large for its whole seconds to fit in an `Int`, instead of trapping.
-public func formatProtobufDuration(_ interval: TimeInterval) throws -> String {
-    guard interval.isFinite else {
-        throw SerializationError(message: "cannot encode \(interval) as a protobuf duration")
+/// Throws ``SerializationError`` when the duration is outside the
+/// protobuf-JSON range of plus or minus 315 576 000 000 seconds.
+public func formatProtobufDuration(_ duration: Duration) throws -> String {
+    /* Checked before taking the components: the whole seconds of a larger
+       magnitude may not fit in an Int64. */
+    let bound = Duration.seconds(315_576_000_000)
+    guard duration <= bound && duration >= .zero - bound else {
+        throw SerializationError(message: "cannot encode \(duration) as a protobuf duration: out of range")
     }
-    let negative = interval < 0
+    let negative = duration < .zero
     let sign = negative ? "-" : ""
-    let absInterval = abs(interval)
-    let secs = absInterval.rounded(.towardZero)
-    /* Double(Int.max) rounds up to 2^63, which Int(_:) cannot represent, so
-       the bound must be exclusive. */
-    guard secs < Double(Int.max) else {
-        throw SerializationError(message: "cannot encode \(interval) as a protobuf duration: out of range")
-    }
-    var nanos = Int(((absInterval - secs) * 1_000_000_000).rounded())
-    var wholeSecs = Int(secs)
-    if nanos >= 1_000_000_000 {
-        wholeSecs += 1
-        nanos -= 1_000_000_000
-    }
+    let magnitude = negative ? .zero - duration : duration
+    let (wholeSecs, attoseconds) = magnitude.components
+    let nanos = attoseconds / 1_000_000_000
     if nanos == 0 {
         return "\(sign)\(wholeSecs)s"
     }
-    var frac = String(format: "%09d", nanos)
+    var frac = String(format: "%09lld", nanos)
     var len = 9
     while len > 3 && frac[frac.index(frac.startIndex, offsetBy: len - 1)] == "0" {
         len -= 1

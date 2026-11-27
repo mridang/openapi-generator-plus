@@ -21,7 +21,7 @@ The package runs on Node and on runtimes that have only `fetch`: Deno, Bun, Clou
 | `string` with `format: date` | `string` | A plain `YYYY-MM-DD` string, because a `Date` would carry a time and a zone the wire value never had. |
 | `string` with `format: date-time` | `Date` | Millisecond precision. A wire value that is not an RFC 3339 date-time with an offset fails when the response is decoded. |
 | `string` with `format: time` | `Temporal.PlainTime` | From `temporal-polyfill`. |
-| `string` with `format: duration` | `Temporal.Duration` | From `temporal-polyfill`. The wire form is the protobuf-JSON form such as `3600s`. |
+| `string` with `format: duration` | `Temporal.Duration` | From `temporal-polyfill`, the documented fallback: Node has no standard library duration type at the Node 22 floor (D133). The wire form is the protobuf-JSON form such as `3600s`. |
 | `string` with `format: uuid` | `UUID` (a branded string) | Decoding validates the canonical 8-4-4-4-12 form. |
 | `string` with `format: uri` | `URI` (a branded string) | Absolute URIs only. `uri-reference` and `uri-template` stay `string`. |
 | `string` with `format: email` | `Email` (a branded string) | |
@@ -165,7 +165,6 @@ The SDK already depends on `temporal-polyfill` and uses it for `format: time` an
 - Map `format: date` to `Temporal.PlainDate`. It needs `@Transform` wiring like the one for `PlainTime`, serializer and README changes, and a golden regeneration. It changes the public type of every date field, so it is an API change.
 - For `format: date-time`, `Date` stays the least surprising choice with class-transformer. `Temporal.Instant` would keep nanoseconds and `Temporal.ZonedDateTime` would keep the offset, but only if sub-millisecond or offset fidelity is wanted.
 - Native Temporal arrives in Node 26 (on by default), but Node 22 and Node 24 lack it. So `temporal-polyfill` would have to stay until Node 24 is end of life (2028-04-30) at the earliest, and the web transport needs it as well because browsers do not all ship Temporal. The review does not suggest raising `engines.node`.
-- The review also asks the owner to confirm whether `duration` should stay protobuf-JSON (`3600s`, which every language uses today) or follow ISO 8601 as the OpenAPI format describes.
 
 ### Other ideas
 

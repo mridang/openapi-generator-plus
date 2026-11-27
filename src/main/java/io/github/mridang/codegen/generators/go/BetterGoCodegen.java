@@ -72,11 +72,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterGoCodegen.class);
 
     /**
-     * Matches a Go data type that names one of the generated {@code models} wrapper
-     * types ({@code DateTime}, {@code Duration}) as a whole word, including inside
-     * {@code []}, {@code *} and {@code map[...]} compositions.
+     * Matches a Go data type that names the generated {@code models} wrapper
+     * type {@code DateTime} as a whole word, including inside {@code []},
+     * {@code *} and {@code map[...]} compositions.
      */
-    private static final Pattern WRAPPER_TYPE = Pattern.compile("\\b(DateTime|Duration)\\b");
+    private static final Pattern WRAPPER_TYPE = Pattern.compile("\\bDateTime\\b");
 
     /**
      * The behaviour id of the environment-failure test of each named scheme authenticator:
@@ -150,12 +150,13 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         // just for a struct. The generated iso8601.go ships FormatTimeOfDay /
         // ParseTimeOfDay for callers who want a time.Time.
         //
-        // format:duration maps to the generated models.Duration, a
-        // time.Duration whose JSON form is the protobuf-JSON
-        // google.protobuf.Duration string ("3600s"). time.Duration itself
-        // JSON-encodes as int64 nanoseconds, which no protobuf-JSON API accepts.
+        // format:duration maps to the standard library's time.Duration (D133).
+        // encoding/json writes a time.Duration as int64 nanoseconds, so the
+        // models and the serializer rewrite it to and from the protobuf-JSON
+        // google.protobuf.Duration string ("3600s") through the generated
+        // internal protoduration package.
         typeMapping.put("time", "string");
-        typeMapping.put("duration", "Duration");
+        typeMapping.put("duration", "time.Duration");
         typeMapping.put("ipv4", "netip.Addr");
         typeMapping.put("ipv6", "netip.Addr");
         typeMapping.put("array", "[]");
@@ -183,7 +184,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                                 "error",
                                 "uuid.UUID",
                                 "civil.Date",
-                                "netip.Addr"));
+                                "netip.Addr",
+                                "time.Duration"));
 
         reservedWords = loadReservedWords("/reserved-words/go.txt");
 
@@ -779,7 +781,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec(
                         "models/json_marshal.mustache", "pkg/models", "json_marshal.go"),
                 new SupportingFileSpec(
-                        "models/duration.mustache", "pkg/models", "duration.go"),
+                        "internal/protoduration.mustache",
+                        "pkg/internal/protoduration",
+                        "protoduration.go"),
                 new SupportingFileSpec(
                         "models/date_time.mustache", "pkg/models", "date_time.go"));
     }
@@ -970,6 +974,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 Map.entry("type:uuid.UUID", "hasUuidImport"),
                 Map.entry("type:netip.Addr", "hasNetipImport"),
                 Map.entry("type:civil.Date", "hasCivilImport"),
+                Map.entry("type:time.Duration", "hasDurationImport"),
                 Map.entry("type:[]byte", "hasByteFields"),
                 Map.entry("oneOfAnyOf", "hasFmtImport"),
                 Map.entry("isEnum", "hasFmtImport"),
@@ -989,6 +994,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 "type:uuid.UUID", "hasUuidImport",
                 "type:netip.Addr", "hasNetipImport",
                 "type:civil.Date", "hasCivilImport",
+                "type:time.Duration", "hasTimeImport",
                 "servers", "hasStringsImport",
                 "cookieParams", "hasStringsImport");
     }
@@ -1015,6 +1021,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         boolean hasUuidImport = false;
         boolean hasNetipImport = false;
         boolean hasCivilImport = false;
+        boolean hasTimeImport = false;
         boolean hasIntEnum = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
@@ -1080,8 +1087,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 }
             }
             params.add(param);
-            // A date-time / duration options param emits the generated
-            // models.DateTime / models.Duration wrapper, which is reported as a
+            // A date-time options param emits the generated
+            // models.DateTime wrapper, which is reported as a
             // primitive (or sits inside a map) and would otherwise skip the model
             // import. Detected on the raw dataType, as a whole word so a user model
             // that merely ends in "DateTime" does not match.
@@ -1101,12 +1108,15 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 hasNetipImport = true;
             } else if (dataType != null && dataType.contains("civil.Date")) {
                 hasCivilImport = true;
+            } else if (dataType != null && dataType.contains("time.Duration")) {
+                hasTimeImport = true;
             } else if (!p.isPrimitiveType
                     && dataType != null
                     && !goPrimitives.contains(baseType)
                     && !baseType.startsWith("map[")
                     && !baseType.equals("uuid.UUID")
-                    && !baseType.equals("civil.Date")) {
+                    && !baseType.equals("civil.Date")
+                    && !baseType.equals("time.Duration")) {
                 hasModelImport = true;
             }
         }
@@ -1132,6 +1142,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if (hasCivilImport) {
             context.put("hasCivilImport", true);
+        }
+        if (hasTimeImport) {
+            context.put("hasTimeImport", true);
         }
         return renderOptionsTemplate("api/options.mustache", context);
     }
@@ -1521,6 +1534,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
                 final CodegenModel model = modelMap.getModel();
+                markDurationFields(modelsMap, model);
                 if (Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
                     final Set<String> variants = new LinkedHashSet<>();
                     for (final CodegenDiscriminator.MappedModel mapped :
@@ -1532,6 +1546,46 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             }
         }
         return result;
+    }
+
+    /**
+     * Marks each property whose Go type holds a {@code time.Duration} (alone or in
+     * a list, map or set) with {@code isDurationField}, and the model with
+     * {@code hasDurationFields} and, for a typed additional-properties bucket of
+     * durations, {@code hasDurationAdditionalProperties}. encoding/json writes a
+     * {@code time.Duration} as nanoseconds, so the model template rewrites these
+     * keys to and from the protobuf-JSON string (D133). The file then imports the
+     * internal codec, flagged as {@code hasProtoDurationImport}. Enums and unions
+     * have no such fields of their own and are left unmarked.
+     *
+     * @param modelsMap the file context of the model
+     * @param model the model to mark
+     */
+    private static void markDurationFields(final ModelsMap modelsMap, final CodegenModel model) {
+        if (model.isEnum
+                || (model.oneOf != null && !model.oneOf.isEmpty())
+                || (model.anyOf != null && !model.anyOf.isEmpty())) {
+            return;
+        }
+        boolean any = false;
+        for (final CodegenProperty property : model.vars) {
+            final boolean duration =
+                    property.dataType != null && property.dataType.contains("time.Duration");
+            property.vendorExtensions.put("isDurationField", duration);
+            any |= duration;
+        }
+        if (any) {
+            model.vendorExtensions.put("hasDurationFields", true);
+            modelsMap.put("hasProtoDurationImport", true);
+        }
+        final Object bucket = model.vendorExtensions.get("additionalPropertiesValue");
+        if (model.isAdditionalPropertiesTrue
+                && bucket instanceof CodegenProperty
+                && ((CodegenProperty) bucket).dataType != null
+                && ((CodegenProperty) bucket).dataType.contains("time.Duration")) {
+            model.vendorExtensions.put("hasDurationAdditionalProperties", true);
+            modelsMap.put("hasProtoDurationImport", true);
+        }
     }
 
     /**

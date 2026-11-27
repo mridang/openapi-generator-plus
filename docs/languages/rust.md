@@ -17,7 +17,7 @@ The crate forbids `unsafe` code (`unsafe_code = "forbid"`).
 | `string` / `date` | `chrono::NaiveDate` | |
 | `string` / `date-time` | `crate::date_time::DateTime` | An SDK newtype over `chrono::DateTime<FixedOffset>`. The offset is kept. The wire form has a numeric offset (never `Z`) and a fixed three-digit millisecond fraction. |
 | `string` / `time` | `chrono::NaiveTime` | A time string with a zone offset does not round trip. |
-| `string` / `duration` | `chrono::TimeDelta` | Serialised through `crate::proto_duration` as the protobuf-JSON string such as `"3600s"`, not ISO 8601. |
+| `string` / `duration` | `chrono::TimeDelta` | Serialised through `crate::proto_duration` as the protobuf-JSON string such as `"3600s"`, not ISO 8601. The standard library's `std::time::Duration` is unsigned and cannot hold a negative duration, so `chrono` is the documented fallback (D133). |
 | `string` / `uuid` | `uuid::Uuid` | |
 | `string` / `byte` | `Vec<u8>` | Base64 through a serde adapter. |
 | `string` / `binary`, file bodies | `BodySource` for a raw request body (a multipart file part stays `Vec<u8>`); `ByteStream` (a `Stream` of `Bytes`) for a response | The response body is read as you consume it and the request body is sent as it is read, see Streaming. |

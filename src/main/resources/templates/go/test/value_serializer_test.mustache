@@ -1516,7 +1516,7 @@ func TestBhvSerialization118_ValueSerializer_ADateTimeQueryKeepsItsTime(t *testi
 // A nanosecond-precision duration is written with a nine-digit fraction.
 func TestBhvSerialization129_ValueSerializer_ANanosecondDurationHasANineDigitFraction(t *testing.T) {
 	t.Parallel()
-	d := models.Duration(123456789 * time.Nanosecond)
+	d := 123456789 * time.Nanosecond
 	data, err := serialize(models.EdgeCases{RetryAfter: &d})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

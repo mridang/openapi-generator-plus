@@ -17,7 +17,7 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 | `string` / `date` | `civil.Date` | A calendar date from `cloud.google.com/go/civil`. The text form is `YYYY-MM-DD`, and a value that is not a real date (`2024-02-30`) fails the decode. |
 | `string` / `date-time` | `models.DateTime` | A `time.Time` wrapper. The wire form has a numeric offset (never `Z`) and a fixed three-digit millisecond fraction. |
 | `string` / `time` | `string` | No standard library type. `iso8601.go` ships `FormatTimeOfDay` and `ParseTimeOfDay` for callers who want a `time.Time`. |
-| `string` / `duration` | `models.Duration` | A `time.Duration` wrapper. The wire form is the protobuf-JSON string such as `"3600s"`, not ISO 8601. |
+| `string` / `duration` | `time.Duration` | The standard library type (D133). The models and the serializer write it as the protobuf-JSON string such as `"3600s"`, not ISO 8601 and not `encoding/json`'s nanosecond count. |
 | `string` / `uuid` | `uuid.UUID` | From `github.com/google/uuid`. Written in lower case. |
 | `string` / `byte` | `[]byte` | `encoding/json` encodes it as padded standard base64. |
 | `string` / `binary`, file bodies | `*ByteStream` (an `io.ReadCloser`) for downloads, `*BodySource` for a raw upload (a multipart file part stays `io.Reader`) | The response body is read as you consume it and the request body is sent as it is read, see Streaming. |
@@ -184,7 +184,6 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - `url.URL` for `uri`, once it is shown to keep the text unchanged.
 - Replace `google/uuid` with the `uuid` package the review says Go 1.27 adds. The review could not confirm its API, and using it would raise the floor to 1.27, so it is not before Go 1.26 reaches end of life.
 - Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on.
-- Whether the duration wire form should stay protobuf-JSON or move to ISO 8601, across all languages.
 
 Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `InjectTraceContext(ctx, headers)` hands the call context to the propagator; Go has no ambient context.
 

@@ -21,7 +21,7 @@ A review of the type mapping (see "Under review") found that Ruby 3.2 reached en
 | `string` with `format: date` | `Date` | |
 | `string` with `format: date-time` | `Time` | Decoded with `Time.iso8601`. |
 | `string` with `format: time` | `Tod::TimeOfDay` | From the `tod` gem. |
-| `string` with `format: duration` | `ISO8601::Duration` | From the `iso8601` gem. The wire form is the protobuf-JSON form such as `3600s`. |
+| `string` with `format: duration` | `ISO8601::Duration` | From the `iso8601` gem, the documented fallback: Ruby's standard library has no duration type (D133). The wire form is the protobuf-JSON form such as `3600s`. |
 | `string` with `format: uuid` | `String` | Validated against the canonical 8-4-4-4-12 form and written in lowercase. Ruby has no UUID class. |
 | `string` with `format: uri` | `String` | Validated, not parsed into a `URI` object. |
 | `string` with `format: email`, `hostname`, `ipv4`, `ipv6` | `String` | |

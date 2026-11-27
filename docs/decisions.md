@@ -289,6 +289,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** Some Swift and Elixir property names carry an escape that is not strictly required. This is not a defect: do not raise it in reviews or audits, and do not open an issue for it.
 
+## D133: A duration is the language's own duration type
+
+**Decision.** A `format: duration` value is the duration type of the language's standard library wherever the standard library has one, and the wire form stays the protobuf JSON string such as `3600s`, byte for byte the same in all twelve SDKs. Where the native type's own text form differs, the SDK encodes it itself. Go therefore uses the plain `time.Duration` in every model field, parameter, option and form field, in place of the SDK-owned `models.Duration`, and Swift uses the standard library `Duration` in place of `TimeInterval`. Java, Kotlin, C#, PHP, Python, Dart and Elixir already used their standard library type and are unchanged. Rust keeps `chrono::TimeDelta`, because `std::time::Duration` is unsigned and cannot hold a negative duration. Ruby and Node have no standard library duration type at their supported floors, so they keep the `iso8601` gem and `temporal-polyfill`, and the type table says so (#155, owner decision, following D130).
+
+**Consequences.** Go callers pass and read a `time.Duration` directly; `models.Duration` is removed, and the protobuf codec moves to an internal package that the models and the serializer share, so `encoding/json` never writes a duration as nanoseconds. Swift's `Duration` keeps every nanosecond instead of rounding through a `Double`, and it raises the Swift package's platform minimums to macOS 13, iOS 16, tvOS 16 and watchOS 9. Both are breaking changes for callers of those two SDKs only.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

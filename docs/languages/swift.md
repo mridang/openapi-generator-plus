@@ -4,7 +4,7 @@ The `swift-plus` generator (`BetterSwiftCodegen`) produces a Swift package. Mode
 
 ## Versions and support policy
 
-The generated `Package.swift` uses `swift-tools-version: 6.0` and declares these platform minimums: macOS 12, iOS 15, tvOS 15 and watchOS 8. The package builds in the Swift 5 language mode (`swiftLanguageModes: [.v5]`), because the authenticator and `AnyCodable` classes are not yet clean under Swift 6 strict concurrency. The generated README says Swift 6.0 or newer.
+The generated `Package.swift` uses `swift-tools-version: 6.0` and declares these platform minimums: macOS 13, iOS 16, tvOS 16 and watchOS 9, the first releases with the standard library `Duration` that `format: duration` uses (D133). The package builds in the Swift 5 language mode (`swiftLanguageModes: [.v5]`), because the authenticator and `AnyCodable` classes are not yet clean under Swift 6 strict concurrency. The generated README says Swift 6.0 or newer.
 
 Swift has no end-of-life policy for toolchains. Tools version 6.0 is the oldest the generated code and its Swift Testing based tests need, so it is the floor. A toolchain or platform that its vendor stops supporting is dropped in a major release. The generator builds and lints the golden package in a Swift 6.2 image.
 
@@ -18,7 +18,7 @@ On Linux the package uses `FoundationNetworking`.
 | `string` / `date` | `String` | Foundation has no calendar-date type. The value is not validated. |
 | `string` / `date-time` | `Date` | An instant. The original UTC offset is not kept. |
 | `string` / `time` | `String` | Foundation has no wall-clock time type. |
-| `string` / `duration` | `TimeInterval` | Seconds as a `Double`. The wire form is the protobuf-JSON string such as `"3600s"`, converted by `parseProtobufDuration` and `formatProtobufDuration`. |
+| `string` / `duration` | `Duration` | The standard library type, exact to the nanosecond. The wire form is the protobuf-JSON string such as `"3600s"`, converted by `parseProtobufDuration` and `formatProtobufDuration`. |
 | `string` / `uuid` | `UUID` | |
 | `string` / `byte` | `Data` | Base64 through the standard coder. |
 | `string` / `binary`, file bodies | `Data` for a request body; `ByteStream` (an `AsyncSequence` of `Data`) for a response | the response body is read as you consume it, see Streaming |
@@ -172,7 +172,6 @@ do {
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
 
 - SDK-owned `LocalDate` and `LocalTime` types for `date` and `time`, so those values are validated. This needs no dependency and no floor change.
-- `Swift.Duration` for `duration`. It is integer-backed with no rounding, but it needs macOS 13 and iOS 16, so it depends on a decision to raise the platform minimums.
 - `Foundation.Decimal` for `decimal`, only after a test proves an exact JSON round trip.
 - `URL` for `uri`. The review recommends keeping `String`, because `URL` parsing differs between Apple platforms and Linux and rejects link templates.
 - Renaming `ISO8601Duration.swift`, since the wire form it handles is protobuf-JSON and not ISO 8601.
