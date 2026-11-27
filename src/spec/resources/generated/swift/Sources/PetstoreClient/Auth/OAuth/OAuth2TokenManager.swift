@@ -50,7 +50,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
   /// previous `.distantPast` sentinel made every no-expiry token look stale,
   /// so it was refetched on every request.
   private var tokenExpiry: TimeInterval?
-  /// Set once an explicit ``exchange(tokenURL:params:extraHeaders:)`` succeeds.
+  /// Set once an explicit ``exchange(tokenURL:params:extraHeaders:idTokenCheck:)`` succeeds.
   private var _exchanged: Bool = false
   /// Set by ``stop()``; every later token request fails with ``OAuth2TokenError/stopped``.
   private var _stopped: Bool = false
@@ -315,7 +315,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     }
   }
 
-  /// Whether ``exchange(tokenURL:params:extraHeaders:)`` has completed
+  /// Whether ``exchange(tokenURL:params:extraHeaders:idTokenCheck:)`` has completed
   /// successfully at least once.
   public var exchanged: Bool {
     lock.withLock { _exchanged }
@@ -354,7 +354,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
   /// Merges a grant response into the cached session (caller holds `lock`):
   /// a missing `refresh_token` keeps the stored one and a missing
   /// `expires_in` clears the expiry, so the token is cached until it is
-  /// invalidated, exactly as ``exchange(tokenURL:params:extraHeaders:)`` and
+  /// invalidated, exactly as ``exchange(tokenURL:params:extraHeaders:idTokenCheck:)`` and
   /// the first fetch treat it.
   private func apply(_ result: TokenResult) {
     self.accessToken = result.accessToken

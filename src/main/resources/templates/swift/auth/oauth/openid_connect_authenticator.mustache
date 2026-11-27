@@ -128,8 +128,8 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
             throw OAuth2TokenError.invalidResponse(
                 "The id_token audience does not contain the client id")
         }
-        // JSONSerialization reads a JSON boolean as an NSNumber of objCType "c";
-        // a boolean exp is malformed, as in the other SDKs.
+        /* JSONSerialization reads a JSON boolean as an NSNumber of objCType "c";
+         * a boolean exp is malformed, as in the other SDKs. */
         guard let exp = claims["exp"] as? NSNumber, String(cString: exp.objCType) != "c" else {
             throw OAuth2TokenError.invalidResponse("The id_token is malformed")
         }
