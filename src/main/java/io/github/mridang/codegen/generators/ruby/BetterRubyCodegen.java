@@ -1207,6 +1207,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                         "camelize",
                         (fragment, writer) -> writer.write(NamingConvention.PASCAL_CASE.apply(fragment.execute())))
                 .put(
+                        "noSpaces",
+                        (fragment, writer) -> writer.write(fragment.execute().replaceAll("\\s+", "")))
+                .put(
                         "rubySnake",
                         (fragment, writer) -> writer.write(NamingConvention.SNAKE_CASE.apply(fragment.execute())))
                 .put(

@@ -953,6 +953,30 @@ void main() {
       expect(written['location'], equals([1.5, 2.5, 'label']));
     });
 
+    test('bhv models 700 a type array of scalars decodes each type into its union and writes it back', () {
+      final text = deserialize<Reading>('{"level":"high","inlineLevel":3}', Reading.fromJson)!;
+      expect(text.level.actualInstance, equals('high'));
+      expect(text.inlineLevel!.actualInstance, equals(3));
+      expect((jsonDecode(serialize(text)) as Map<String, dynamic>)['level'], equals('high'));
+      final number = deserialize<Reading>('{"level":7}', Reading.fromJson)!;
+      expect(number.level.actualInstance, equals(7));
+      expect((jsonDecode(serialize(number)) as Map<String, dynamic>)['level'], equals(7));
+    });
+
+    test('bhv models 701 a type array of array and object decodes both shapes and writes them back', () {
+      final list = deserialize<Reading>('{"level":1,"shape":["a","b"]}', Reading.fromJson)!;
+      expect(list.shape!.actualInstance, equals(['a', 'b']));
+      expect((jsonDecode(serialize(list)) as Map<String, dynamic>)['shape'], equals(['a', 'b']));
+      final map = deserialize<Reading>('{"level":1,"shape":{"k":"v"}}', Reading.fromJson)!;
+      expect(map.shape!.actualInstance, equals({'k': 'v'}));
+      expect((jsonDecode(serialize(map)) as Map<String, dynamic>)['shape'], equals({'k': 'v'}));
+    });
+
+    test('bhv models 702 a property of type null accepts null', () {
+      final reading = deserialize<Reading>('{"level":1,"nothing":null}', Reading.fromJson)!;
+      expect(reading.nothing, isNull);
+    });
+
     test('bhv serializationobject 006 a JSON object with a duplicate key resolves to the last value', () {
       expect(deserializeRaw('{"a":1,"a":2}'), equals({'a': 2}));
       expect(deserializeRaw('{"o":{"k":1,"k":2}}'), equals({'o': {'k': 2}}));

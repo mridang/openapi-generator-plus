@@ -71,6 +71,36 @@ class NormalizeTypeArrayRuleTest extends BaseRuleTest<NormalizeTypeArrayRule> {
                 ? Set.of(schema.getType()) : schema.getTypes()));
     }
 
+    @Test
+    @DisplayName("the stock normaliser's int32 anyOf is rebuilt so an unformatted integer keeps no format")
+    void theStockAnyOfIsRebuilt() {
+        final OpenAPI api = new OpenAPIV3Parser().readContents(
+                "openapi: 3.1.0\ninfo: {title: t, version: '1'}\npaths: {}\n"
+                        + "components:\n  schemas:\n    U: {type: [string, integer]}\n",
+                null, null).getOpenAPI();
+        final Schema<?> schema = nn(api.getComponents().getSchemas().get("U"));
+        schema.addAnyOfItem(new io.swagger.v3.oas.models.media.StringSchema());
+        schema.addAnyOfItem(new io.swagger.v3.oas.models.media.IntegerSchema());
+        rule.apply(api, Map.of(), logger);
+
+        assertNull(schema.getTypes());
+        assertEquals(2, schema.getAnyOf().size());
+        assertEquals("integer", ((Schema<?>) schema.getAnyOf().get(1)).getType());
+        assertNull(((Schema<?>) schema.getAnyOf().get(1)).getFormat());
+    }
+
+    @Test
+    @DisplayName("an anyOf written next to a type array is left alone")
+    void aWrittenAnyOfIsLeftAlone() {
+        final Schema<?> schema = nn(run("    U:\n      type: [string, integer]\n"
+                        + "      anyOf: [{type: string, minLength: 1}, {$ref: '#/components/schemas/V'}]\n"
+                        + "    V: {type: integer}\n")
+                .getComponents().getSchemas().get("U"));
+
+        assertEquals(2, schema.getAnyOf().size());
+        assertEquals("#/components/schemas/V", ((Schema<?>) schema.getAnyOf().get(1)).get$ref());
+    }
+
     private static <T> T nn(@Nullable T value) {
         return Objects.requireNonNull(value);
     }

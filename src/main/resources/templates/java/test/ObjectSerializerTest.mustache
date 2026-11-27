@@ -2543,6 +2543,41 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvModels700 a type array of scalars decodes each type into its union and writes it back")
+        void bhvModels700ScalarTypeArrayDecodesEachType() {
+            {{modelPackage}}.Reading text = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"level\":\"high\",\"inlineLevel\":3}", {{modelPackage}}.Reading.class));
+            assertEquals("high", text.level.getActualInstance());
+            assertEquals(Long.valueOf(3), java.util.Objects.requireNonNull(text.inlineLevel).getActualInstance());
+            assertTrue(serializer.serialize(text).contains("\"level\":\"high\""));
+            {{modelPackage}}.Reading number = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"level\":7}", {{modelPackage}}.Reading.class));
+            assertEquals(Long.valueOf(7), number.level.getActualInstance());
+            assertTrue(serializer.serialize(number).contains("\"level\":7"));
+        }
+
+        @Test
+        @DisplayName("bhvModels701 a type array of array and object decodes both shapes and writes them back")
+        void bhvModels701ArrayAndObjectTypeArrayDecodesBothShapes() {
+            {{modelPackage}}.Reading list = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"level\":1,\"shape\":[\"a\",\"b\"]}", {{modelPackage}}.Reading.class));
+            assertEquals(java.util.List.of("a", "b"), java.util.Objects.requireNonNull(list.shape).getActualInstance());
+            assertTrue(serializer.serialize(list).contains("\"shape\":[\"a\",\"b\"]"));
+            {{modelPackage}}.Reading map = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"level\":1,\"shape\":{\"k\":\"v\"}}", {{modelPackage}}.Reading.class));
+            assertEquals(java.util.Map.of("k", "v"), java.util.Objects.requireNonNull(map.shape).getActualInstance());
+            assertTrue(serializer.serialize(map).contains("\"shape\":{\"k\":\"v\"}"));
+        }
+
+        @Test
+        @DisplayName("bhvModels702 a property of type null accepts null")
+        void bhvModels702NullTypePropertyAcceptsNull() {
+            {{modelPackage}}.Reading reading = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"level\":1,\"nothing\":null}", {{modelPackage}}.Reading.class));
+            assertNull(reading.nothing);
+        }
+
+        @Test
         @DisplayName("bhvSerializationObject002 a bare type: number is exact and written in plain notation")
         void bhvSerializationObject002DecimalIsExactAndPlain() {
             {{modelPackage}}.Pet pet = java.util.Objects.requireNonNull(serializer.deserialize(

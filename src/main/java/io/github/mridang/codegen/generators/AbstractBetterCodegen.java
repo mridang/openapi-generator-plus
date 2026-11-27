@@ -2163,6 +2163,32 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Returns {@code true} when {@code typeName} names a generated model that is a
+     * {@code oneOf} or {@code anyOf} wrapper, so a property of that type holds the
+     * union's wire value (a scalar, an array or an object) rather than an object.
+     */
+    protected static boolean isUnionModel(@Nullable String typeName, List<Object> allModels) {
+        if (typeName == null) {
+            return false;
+        }
+        for (final Object candidate : allModels) {
+            if (!(candidate instanceof CodegenModel)) {
+                continue;
+            }
+            final CodegenModel model = (CodegenModel) candidate;
+            if (typeName.equals(model.classname)) {
+                final org.openapitools.codegen.CodegenComposedSchemas composed = model.getComposedSchemas();
+                return (model.oneOf != null && !model.oneOf.isEmpty())
+                        || (model.anyOf != null && !model.anyOf.isEmpty())
+                        || (composed != null
+                                && ((composed.getOneOf() != null && !composed.getOneOf().isEmpty())
+                                        || (composed.getAnyOf() != null && !composed.getAnyOf().isEmpty())));
+            }
+        }
+        return false;
+    }
+
+    /**
      * Post-processes generated models to strip primitive parents,
      * apply enum naming conventions, sanitize byte-array example
      * values, and run all declarative post-processing hooks
@@ -5543,6 +5569,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // class-transformer's @Type(() => X), which needs a class constructor).
         // Surface enum-ness of the referenced type so templates can suppress it.
         d.put("complexTypeIsEnum", isEnumModel(property.complexType));
+        // A property whose type is a oneOf or anyOf wrapper (a union component, or
+        // the union an OAS 3.1 type array becomes) holds a wire value that need not
+        // be an object, so a template decodes it through the union rules (#98).
+        d.put("complexTypeIsUnion", isUnionModel(property.complexType, allModels));
         final boolean itemsComplexTypeIsEnum =
                 property.items != null && isEnumModel(property.items.complexType);
         d.put("itemsComplexTypeIsEnum", itemsComplexTypeIsEnum);

@@ -1913,6 +1913,36 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvModels700 a type array of scalars decodes each type into its union and writes it back")
+        fun scalarTypeArrayDecodesEachType() {
+            val text = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":\"high\",\"inlineLevel\":3}")!!
+            assertEquals("high", text.level.actualInstance)
+            assertEquals(3L, text.inlineLevel!!.actualInstance)
+            assertTrue(serializer.serialize(text).contains("\"level\":\"high\""))
+            val number = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":7}")!!
+            assertEquals(7L, number.level.actualInstance)
+            assertTrue(serializer.serialize(number).contains("\"level\":7"))
+        }
+
+        @Test
+        @DisplayName("bhvModels701 a type array of array and object decodes both shapes and writes them back")
+        fun arrayAndObjectTypeArrayDecodesBothShapes() {
+            val list = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":1,\"shape\":[\"a\",\"b\"]}")!!
+            assertEquals(listOf("a", "b"), list.shape!!.actualInstance)
+            assertTrue(serializer.serialize(list).contains("\"shape\":[\"a\",\"b\"]"))
+            val map = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":1,\"shape\":{\"k\":\"v\"}}")!!
+            assertEquals(mapOf("k" to "v"), map.shape!!.actualInstance)
+            assertTrue(serializer.serialize(map).contains("\"shape\":{\"k\":\"v\"}"))
+        }
+
+        @Test
+        @DisplayName("bhvModels702 a property of type null accepts null")
+        fun nullTypePropertyAcceptsNull() {
+            val reading = serializer.deserialize<{{modelPackage}}.Reading>("{\"level\":1,\"nothing\":null}")!!
+            assertNull(reading.nothing)
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject003 a date-time without an offset is rejected, never completed from the host time zone")
         fun dateTimeWithoutOffsetIsRejected() {
             // D57/F080, F1163: the host time zone must never fill the missing offset in.

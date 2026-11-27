@@ -183,11 +183,11 @@ class {{classname}} implements \Ds\Hashable
             fn(mixed $d): \Ds\Vector => \{{invokerPackage}}\ObjectSerializer::decodeByteOneOfArray($d),
 {{/items.isByteArray}}
 {{^items.isByteArray}}
-            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
+            fn(mixed $d): mixed => is_array($d) && !array_is_list($d) ? throw new \UnexpectedValueException('A JSON object is not a list') : \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
 {{/items.isByteArray}}
 {{/isArray}}
 {{^isArray}}
-            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
+            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize(is_string($d) ? json_encode($d, JSON_THROW_ON_ERROR) : $d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
 {{/isArray}}
 {{/isByteArray}}
 {{/composedSchemas.oneOf}}
@@ -319,9 +319,16 @@ class {{classname}} implements \Ds\Hashable
     {
         return [
 {{! Declaration order (D64): composedSchemas.anyOf keeps the order the spec
-    lists the variants in; the bare anyOf set is alphabetical. }}
+    lists the variants in; the bare anyOf set is alphabetical. A candidate gets
+    the decoded value, and deserialize reads a PHP string as JSON text, so a
+    string value is encoded back to its JSON text first. }}
 {{#composedSchemas.anyOf}}
-            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
+{{#isArray}}
+            fn(mixed $d): mixed => is_array($d) && !array_is_list($d) ? throw new \UnexpectedValueException('A JSON object is not a list') : \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
+{{/isArray}}
+{{^isArray}}
+            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize(is_string($d) ? json_encode($d, JSON_THROW_ON_ERROR) : $d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
+{{/isArray}}
 {{/composedSchemas.anyOf}}
         ];
     }

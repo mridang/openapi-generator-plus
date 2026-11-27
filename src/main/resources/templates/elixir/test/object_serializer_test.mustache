@@ -2056,6 +2056,32 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert decoded.location == [1.5, 2.5, "label"]
     end
 
+    test "bhv models 700 a type array of scalars decodes each type into its union and writes it back" do
+      text = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":"high","inlineLevel":3}), "Reading")
+      assert {{moduleName}}.Models.ReadingLevel.actual_instance(text.level) == "high"
+      assert {{moduleName}}.Models.ReadingInlineLevel.actual_instance(text.inline_level) == 3
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(text))["level"] == "high"
+
+      number = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":7}), "Reading")
+      assert {{moduleName}}.Models.ReadingLevel.actual_instance(number.level) == 7
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(number))["level"] == 7
+    end
+
+    test "bhv models 701 a type array of array and object decodes both shapes and writes them back" do
+      list = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":1,"shape":["a","b"]}), "Reading")
+      assert {{moduleName}}.Models.ReadingShape.actual_instance(list.shape) == ["a", "b"]
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(list))["shape"] == ["a", "b"]
+
+      map = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":1,"shape":{"k":"v"}}), "Reading")
+      assert {{moduleName}}.Models.ReadingShape.actual_instance(map.shape) == %{"k" => "v"}
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(map))["shape"] == %{"k" => "v"}
+    end
+
+    test "bhv models 702 a property of type null accepts null" do
+      reading = {{moduleName}}.ObjectSerializer.deserialize(~s({"level":1,"nothing":null}), "Reading")
+      assert reading.nothing == nil
+    end
+
     test "bhv serializationobject 117 a digit-leading and a keyword-named property keep their wire keys" do
       edge = %{{moduleName}}.Models.EdgeCases{n2fa: true, class: "c", return: "r", _and: true, _or: false, _not: true}
       data = Jason.decode!({{moduleName}}.ObjectSerializer.serialize(edge))

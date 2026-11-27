@@ -99,7 +99,7 @@ module {{moduleName}}
             Array<ByteArray>
         {{/items.isByteArray}}
         {{^items.isByteArray}}
-            {{{dataType}}}
+            {{#lambda.noSpaces}}{{{dataType}}}{{/lambda.noSpaces}}
         {{/items.isByteArray}}
         {{/isByteArray}}
         {{/composedSchemas.oneOf}}
@@ -341,7 +341,7 @@ module {{moduleName}}
         def openapi_any_of
           %i[
         {{#composedSchemas.anyOf}}
-            {{#isAnyType}}AnyType{{/isAnyType}}{{^isAnyType}}{{{dataType}}}{{/isAnyType}}
+            {{#isAnyType}}AnyType{{/isAnyType}}{{^isAnyType}}{{#lambda.noSpaces}}{{{dataType}}}{{/lambda.noSpaces}}{{/isAnyType}}
         {{/composedSchemas.anyOf}}
         {{^composedSchemas.anyOf}}
         {{#anyOf}}

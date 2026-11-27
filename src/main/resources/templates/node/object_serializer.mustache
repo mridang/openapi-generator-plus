@@ -532,6 +532,69 @@ function revalidateNestedFields(holder: Record<string, unknown>): void {
  * `{"a":{"a":...}}` payload would stack-overflow / DoS. All twelve SDKs
  * use the same cap.
  */
+/** Marks a union variant that the JSON value does not match. */
+const NO_VARIANT_MATCH: unique symbol = Symbol('noVariantMatch');
+
+/**
+ * Decodes a JSON value as one variant of a union whose variants are not all
+ * generated models, such as the union an OAS 3.1 type array becomes: a scalar,
+ * an array or a map of a declared TypeScript shape, or a model by name. Returns
+ * {@link NO_VARIANT_MATCH} when the value is not that variant.
+ */
+function decodePlainVariant(json: unknown, schemaName: string): unknown {
+  const name = schemaName.trim();
+  if (name === 'string' || name === 'boolean' || name === 'number') {
+    return typeof json === name ? json : NO_VARIANT_MATCH;
+  }
+  if (name === 'unknown' || name === 'any') {
+    return json;
+  }
+  const array = /^Array<(.+)>$/.exec(name);
+  if (array) {
+    if (!Array.isArray(json)) {
+      return NO_VARIANT_MATCH;
+    }
+    const items: unknown[] = [];
+    for (const element of json) {
+      const item = decodePlainVariant(element, array[1]);
+      if (item === NO_VARIANT_MATCH) {
+        return NO_VARIANT_MATCH;
+      }
+      items.push(item);
+    }
+    return items;
+  }
+  const map = /^\{ \[key: string\]: (.+) \}$/.exec(name);
+  if (map) {
+    if (json === null || typeof json !== 'object' || Array.isArray(json)) {
+      return NO_VARIANT_MATCH;
+    }
+    const entries: Record<string, unknown> = {};
+    for (const [key, element] of Object.entries(json as Record<string, unknown>)) {
+      const item = decodePlainVariant(element, map[1]);
+      if (item === NO_VARIANT_MATCH) {
+        return NO_VARIANT_MATCH;
+      }
+      entries[key] = item;
+    }
+    return entries;
+  }
+  const modelCls = (models as Record<string, unknown>)[name] as ClassConstructor<unknown> | undefined;
+  if (modelCls) {
+    try {
+      return ObjectSerializer.deserialize(json, modelCls);
+    } catch {
+      return NO_VARIANT_MATCH;
+    }
+  }
+  return NO_VARIANT_MATCH;
+}
+
+/** Whether a union variant name is a generated model class. */
+function isModelVariant(schemaName: string): boolean {
+  return (models as Record<string, unknown>)[schemaName.trim()] !== undefined;
+}
+
 const MAX_JSON_DEPTH = 1000;
 
 /**
@@ -1104,6 +1167,32 @@ export class ObjectSerializer {
           );
         }
         return ObjectSerializer.deserialize(json, targetCls);
+      }
+
+      /**
+       * A union with a variant that is not a generated model (the union an OAS
+       * 3.1 type array becomes: a string, a number, an array or a map) matches
+       * the JSON value against each declared shape in order: a oneOf keeps the
+       * first match, an anyOf every match.
+       */
+      if (schemas && !(discProp && discMapping) && !schemas.every(isModelVariant)) {
+        const matchedPlain: unknown[] = [];
+        for (const schemaName of schemas) {
+          const value = decodePlainVariant(json, schemaName);
+          if (value === NO_VARIANT_MATCH) {
+            continue;
+          }
+          if (anyOfSchemas === undefined) {
+            return new (cls as unknown as new (i: unknown) => T)(value);
+          }
+          matchedPlain.push(value);
+        }
+        if (matchedPlain.length > 0) {
+          return new (cls as unknown as new (i: unknown) => T)(matchedPlain);
+        }
+        throw new SerializationError(
+          `Value does not match any of the declared schemas (${schemas.join(', ')}).`
+        );
       }
 
       if (schemas && json && typeof json === 'object') {

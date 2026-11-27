@@ -3097,6 +3097,39 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvModels700ScalarTypeArrayDecodesEachType()
+        {
+            Reading text = _serializer.Deserialize<Reading>("{\"level\":\"high\",\"inlineLevel\":3}")!;
+
+            Assert.Equal("high", text.Level.AsString());
+            Assert.Equal((long?)3L, text.InlineLevel!.AsLong());
+            Assert.Contains("\"level\":\"high\"", _serializer.Serialize(text), StringComparison.Ordinal);
+            Reading number = _serializer.Deserialize<Reading>("{\"level\":7}")!;
+            Assert.Equal((long?)7L, number.Level.AsLong());
+            Assert.Contains("\"level\":7", _serializer.Serialize(number), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvModels701ArrayAndObjectTypeArrayDecodesBothShapes()
+        {
+            Reading list = _serializer.Deserialize<Reading>("{\"level\":1,\"shape\":[\"a\",\"b\"]}")!;
+
+            Assert.Equal("a,b", string.Join(",", list.Shape!.AsListString()!));
+            Assert.Contains("\"shape\":[\"a\",\"b\"]", _serializer.Serialize(list), StringComparison.Ordinal);
+            Reading map = _serializer.Deserialize<Reading>("{\"level\":1,\"shape\":{\"k\":\"v\"}}")!;
+            Assert.Equal("v", map.Shape!.AsDictionaryStringString()!["k"]);
+            Assert.Contains("\"shape\":{\"k\":\"v\"}", _serializer.Serialize(map), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvModels702NullTypePropertyAcceptsNull()
+        {
+            Reading reading = _serializer.Deserialize<Reading>("{\"level\":1,\"nothing\":null}")!;
+
+            Assert.Null(reading.Nothing);
+        }
+
+        [Fact]
         public void BhvSerializationobject006DuplicateKeyKeepsTheLastValue()
         {
             Order? order = _serializer.Deserialize<Order>("{\"id\":1,\"quantity\":3,\"id\":2}");

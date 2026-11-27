@@ -642,7 +642,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}'] as {{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}String{{/isLong}}{{/isInteger}}),
 {{/isEnumRef}}
 {{^isEnumRef}}
-      {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>),
+      {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}']{{^vendorExtensions.prop.complexTypeIsUnion}} as Map<String, dynamic>{{/vendorExtensions.prop.complexTypeIsUnion}}),
 {{/isEnumRef}}
 {{/isPrimitiveType}}
 {{/isByteArray}}
@@ -817,10 +817,10 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       /* Cross-cutting `default-applies-only-when-absent`: apply the default
          solely when the key is OMITTED; an explicit `null` is preserved as
          null per the JSON-Schema contract. */
-      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>) : null) : {{{defaultValue}}},
+      {{name}}: json.containsKey('{{baseName}}') ? (json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}']{{^vendorExtensions.prop.complexTypeIsUnion}} as Map<String, dynamic>{{/vendorExtensions.prop.complexTypeIsUnion}}) : null) : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
-      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>) : null,
+      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}']{{^vendorExtensions.prop.complexTypeIsUnion}} as Map<String, dynamic>{{/vendorExtensions.prop.complexTypeIsUnion}}) : null,
 {{/defaultValue}}
 {{/isEnumRef}}
 {{/isPrimitiveType}}
@@ -1227,12 +1227,24 @@ class {{classname}} {
 {{/items}}
 {{/isArray}}
 {{^isArray}}
+{{#isMap}}
+{{#items}}
+{{#isPrimitiveType}}
+        (json as Map).map((k, v) => MapEntry(k as String, v as {{{dataType}}})),
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        (json as Map).map((k, v) => MapEntry(k as String, {{{dataType}}}.fromJson(v as Map<String, dynamic>))),
+{{/isPrimitiveType}}
+{{/items}}
+{{/isMap}}
+{{^isMap}}
 {{#isPrimitiveType}}
         json as {{{dataType}}},
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
         {{{dataType}}}.fromJson(json as Map<String, dynamic>),
 {{/isPrimitiveType}}
+{{/isMap}}
 {{/isArray}}
 {{/isByteArray}}
       );
@@ -1343,12 +1355,24 @@ class {{classname}} {
 {{/items}}
 {{/isArray}}
 {{^isArray}}
+{{#isMap}}
+{{#items}}
+{{#isPrimitiveType}}
+        (json as Map).map((k, v) => MapEntry(k as String, v as {{{dataType}}})),
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+        (json as Map).map((k, v) => MapEntry(k as String, {{{dataType}}}.fromJson(v as Map<String, dynamic>))),
+{{/isPrimitiveType}}
+{{/items}}
+{{/isMap}}
+{{^isMap}}
 {{#isPrimitiveType}}
         json as {{{dataType}}},
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
         {{{dataType}}}.fromJson(json as Map<String, dynamic>),
 {{/isPrimitiveType}}
+{{/isMap}}
 {{/isArray}}
 {{/isByteArray}}
       );

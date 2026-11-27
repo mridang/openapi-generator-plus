@@ -3207,6 +3207,43 @@ components:
           format: double
         - type: string
 
+    # OAS 3.1 type arrays and the null type (#98). The generator rewrites a type array
+    # into an anyOf of one schema per type (NormalizeTypeArrayRule) and `type: 'null'`
+    # into an untyped nullable schema (NormalizeNullTypeRule). chasm 1.3.0 cannot load
+    # a type array of two non-null types, so ReadingLevel, ReadingShape and inlineLevel
+    # declare the anyOf the rule produces for `type: [string, integer]` and
+    # `type: [array, object]`; the rewrite itself is covered by NormalizeTypeArrayRuleTest.
+    # None is referenced by an operation.
+    Reading:
+      type: object
+      required:
+        - level
+      properties:
+        level:
+          $ref: '#/components/schemas/ReadingLevel'
+        shape:
+          $ref: '#/components/schemas/ReadingShape'
+        inlineLevel:
+          anyOf:
+            - type: string
+            - type: integer
+        nothing:
+          type: 'null'
+
+    ReadingLevel:
+      anyOf:
+        - type: string
+        - type: integer
+
+    ReadingShape:
+      anyOf:
+        - type: array
+          items:
+            type: string
+        - type: object
+          additionalProperties:
+            type: string
+
     # Standalone string-enum component (NOT an inline property enum like
     # Order.status). Exercises the top-level enum template path: in Java that
     # path emits @JsonValue / @JsonCreator and must self-import the Jackson

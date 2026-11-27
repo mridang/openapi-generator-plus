@@ -1147,6 +1147,61 @@ fn test_bhv_serializationobject_012_pet_location_tuple_round_trips_as_an_open_li
     );
 }
 
+/* -- an OAS 3.1 type array of scalars is a union of its types (#98) -- */
+
+#[test]
+fn test_bhv_models_700_reading_scalar_type_array_decodes_each_type() {
+    let text: Reading = serde_json::from_str(r#"{"level":"high","inlineLevel":3}"#).expect("failed to decode Reading");
+    assert_eq!(Some("high".to_string()), text.level.string);
+    assert_eq!(Some(3), text.inline_level.as_ref().expect("inlineLevel must decode").i64);
+    assert_eq!(
+        serde_json::json!("high"),
+        serde_json::to_value(&text).expect("failed to encode Reading")["level"]
+    );
+    let number: Reading = serde_json::from_str(r#"{"level":7}"#).expect("failed to decode Reading");
+    assert_eq!(Some(7), number.level.i64);
+    assert_eq!(
+        serde_json::json!(7),
+        serde_json::to_value(&number).expect("failed to encode Reading")["level"]
+    );
+}
+
+/* -- an OAS 3.1 type array of array and object decodes both shapes (#98) -- */
+
+#[test]
+fn test_bhv_models_701_reading_array_and_object_type_array_decodes_both_shapes() {
+    let list: Reading = serde_json::from_str(r#"{"level":1,"shape":["a","b"]}"#).expect("failed to decode Reading");
+    assert_eq!(
+        Some(vec!["a".to_string(), "b".to_string()]),
+        list.shape.as_ref().expect("shape must decode").vec_string
+    );
+    assert_eq!(
+        serde_json::json!(["a", "b"]),
+        serde_json::to_value(&list).expect("failed to encode Reading")["shape"]
+    );
+    let map: Reading = serde_json::from_str(r#"{"level":1,"shape":{"k":"v"}}"#).expect("failed to decode Reading");
+    assert_eq!(
+        Some("v"),
+        map.shape
+            .as_ref()
+            .and_then(|shape| shape.std_collections_hash_map_string_string.as_ref())
+            .and_then(|entries| entries.get("k"))
+            .map(String::as_str)
+    );
+    assert_eq!(
+        serde_json::json!({"k": "v"}),
+        serde_json::to_value(&map).expect("failed to encode Reading")["shape"]
+    );
+}
+
+/* -- a property of type null accepts null (#98) -- */
+
+#[test]
+fn test_bhv_models_702_reading_null_type_property_accepts_null() {
+    let reading: Reading = serde_json::from_str(r#"{"level":1,"nothing":null}"#).expect("failed to decode Reading");
+    assert!(reading.nothing.is_none());
+}
+
 /* -- a protobuf-JSON duration decodes and re-encodes (F1149) -- */
 
 #[test]

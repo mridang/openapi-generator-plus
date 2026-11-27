@@ -491,6 +491,15 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             for (int i = 0; i < sliceDepth; i++) {
                                 clean += "Slice";
                             }
+                            if (!clean.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                                // A map or other composite type (an OAS 3.1 type array
+                                // of array and object) is no identifier: name it after
+                                // its variant, as the constructors are.
+                                final String variant = variantName(type);
+                                clean = variant.isEmpty()
+                                        ? ""
+                                        : Character.toLowerCase(variant.charAt(0)) + variant.substring(1);
+                            }
                             if (clean.isEmpty()) {
                                 clean = "val";
                             }

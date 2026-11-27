@@ -391,6 +391,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** The log scan with a reviewed allow list that the issue asks for is not built yet: it reads the captured output of every spec and needs a spec run to settle its list, so it follows the D180 guard. Kotlin's `allWarningsAsErrors` is armed once a run shows its compile output clean.
 
+## D183: An OpenAPI 3.1 type array is a union of its types
+
+**Decision.** A schema whose `type` is an array of several types, such as `[string, integer]` or `[array, object]`, becomes a union with one variant per type, the same wrapper a `oneOf` or `anyOf` gets in each language, and `null` in the array makes it nullable. A schema whose only type is `null` is an untyped value that may be null. An integer member without a format is a 64-bit integer, as everywhere else (D113). A model property whose type is such a union, or any other `oneOf` or `anyOf`, holds the value the wire carries, which may be a string, a number, a list or a map rather than an object: every SDK decodes it through the union's own rules and writes it back as the value it holds (#98).
+
+**Consequences.** A union is now usable as a property of another model in all twelve SDKs; before, no fixture used one and several SDKs failed to compile it, to decode a scalar into it or to write it back. An `anyOf` whose matched variant is a scalar or a list writes that value as is, since only objects can be merged field by field. The mock server used by the tests cannot load a type array of two non-null types, so the test fixture declares the `anyOf` the generator produces for one, and the rewrite itself is tested in the generator.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

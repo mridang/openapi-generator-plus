@@ -617,7 +617,9 @@ pub struct {{classname}} {
     in declaration order and a later member OVERWRITES a shared key, so a
     collision resolves to the last-declared member's value and every key is
     emitted exactly once (never a duplicate JSON key, which a per-member
-    `#[serde(flatten)]` would produce). }}
+    `#[serde(flatten)]` would produce). A member that is not an object (a scalar
+    or an array, as an OAS 3.1 type array declares) cannot be merged and is
+    written as the whole value, as the other SDKs do. }}
 impl serde::Serialize for {{classname}} {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -627,10 +629,9 @@ impl serde::Serialize for {{classname}} {
         let mut merged = serde_json::Map::new();
 {{#composedSchemas.anyOf}}
         if let Some(ref variant) = self.{{#lambda.snakecase}}{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}{{/lambda.snakecase}} {
-            if let serde_json::Value::Object(map) =
-                serde_json::to_value(variant).map_err(S::Error::custom)?
-            {
-                merged.extend(map);
+            match serde_json::to_value(variant).map_err(S::Error::custom)? {
+                serde_json::Value::Object(map) => merged.extend(map),
+                other => return other.serialize(serializer),
             }
         }
 {{/composedSchemas.anyOf}}

@@ -325,6 +325,17 @@ class ObjectSerializer
      *
      * @return mixed sanitized form of $data
      */
+    /**
+     * The wire value of a oneOf or anyOf wrapper held by a model property, built
+     * by the same rules as a top-level union.
+     *
+     * @internal
+     */
+    public static function unionWireValue(object $union): mixed
+    {
+        return self::sanitizeForSerialization($union);
+    }
+
     private static function sanitizeForSerialization(mixed $data): mixed
     {
         /* A self-referencing array (or model) would recurse until PHP's stack is exhausted, which
@@ -414,16 +425,19 @@ class ObjectSerializer
                 $keyed = false;
                 foreach ($instances as $instance) {
                     $sanitized = self::sanitizeForSerialization($instance);
+                    if (!is_array($sanitized) && !$sanitized instanceof \ArrayObject) {
+                        /* A scalar variant (an OAS 3.1 type array) cannot be
+                         * merged field by field; it is the whole value. */
+                        return $sanitized;
+                    }
                     if ($sanitized instanceof \ArrayObject) {
                         $keyed = true;
                         $sanitized = $sanitized->getArrayCopy();
                     }
-                    if (is_array($sanitized)) {
-                        /* array_replace keeps integer keys where array_merge
-                         * would renumber them, so numeric additionalProperties
-                         * keys survive the union. */
-                        $merged = array_replace($merged, $sanitized);
-                    }
+                    /* array_replace keeps integer keys where array_merge
+                     * would renumber them, so numeric additionalProperties
+                     * keys survive the union. */
+                    $merged = array_replace($merged, $sanitized);
                 }
                 return $keyed ? self::asJsonObject($merged) : $merged;
             }

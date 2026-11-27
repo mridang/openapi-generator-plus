@@ -1704,6 +1704,37 @@ test('bhv serializationobject 012 a prefixItems array of mixed element types rou
     expect(ObjectSerializer::serialize($pet))->toContain('"location":[1.5,2.5,"here"]');
 });
 
+test('bhv models 700 a type array of scalars decodes each type into its union and writes it back', function (): void {
+    /** @var \{{modelPackage}}\Reading $text */
+    $text = ObjectSerializer::deserialize('{"level":"high","inlineLevel":3}', \{{modelPackage}}\Reading::class);
+    expect($text->level->getActualInstance())->toBe('high');
+    expect($text->inlineLevel?->getActualInstance())->toBe(3);
+    expect(ObjectSerializer::serialize($text))->toContain('"level":"high"');
+
+    /** @var \{{modelPackage}}\Reading $number */
+    $number = ObjectSerializer::deserialize('{"level":7}', \{{modelPackage}}\Reading::class);
+    expect($number->level->getActualInstance())->toBe(7);
+    expect(ObjectSerializer::serialize($number))->toContain('"level":7');
+});
+
+test('bhv models 701 a type array of array and object decodes both shapes and writes them back', function (): void {
+    /** @var \{{modelPackage}}\Reading $list */
+    $list = ObjectSerializer::deserialize('{"level":1,"shape":["a","b"]}', \{{modelPackage}}\Reading::class);
+    expect($list->shape)->not->toBeNull();
+    expect(ObjectSerializer::serialize($list))->toContain('"shape":["a","b"]');
+
+    /** @var \{{modelPackage}}\Reading $map */
+    $map = ObjectSerializer::deserialize('{"level":1,"shape":{"k":"v"}}', \{{modelPackage}}\Reading::class);
+    expect($map->shape)->not->toBeNull();
+    expect(ObjectSerializer::serialize($map))->toContain('"shape":{"k":"v"}');
+});
+
+test('bhv models 702 a property of type null accepts null', function (): void {
+    /** @var \{{modelPackage}}\Reading $reading */
+    $reading = ObjectSerializer::deserialize('{"level":1,"nothing":null}', \{{modelPackage}}\Reading::class);
+    expect($reading->nothing)->toBeNull();
+});
+
 test('bhv serializationobject 161 every separator enum value decodes to its own case and re-encodes', function (): void {
     $cases = [];
     foreach ([' ', '@@', 'a-b', 'a_b'] as $wire) {

@@ -211,7 +211,11 @@ export class {{classname}} {
    * variant that validated. At least one instance is always retained.
    */
   constructor(instance: {{classname}}Type | {{classname}}Type[]) {
-    this.matchedInstances = Array.isArray(instance) ? instance : [instance];
+    /* A variant may itself be an array (an OAS 3.1 type array of array and
+     * object), so the cast names the list form the deserializer passes. */
+    this.matchedInstances = Array.isArray(instance)
+      ? (instance as {{classname}}Type[])
+      : [instance];
   }
 
   /**
@@ -280,9 +284,14 @@ export class {{classname}} {
    * co-satisfied composite emits the UNION of all variants' fields (lossless
    * round-trip), not just the first variant's.
    */
-  toJSON(): Record<string, unknown> {
+  toJSON(): unknown {
     const merged: Record<string, unknown> = {};
     for (const inst of this.matchedInstances) {
+      /* A scalar or array variant (an OAS 3.1 type array) cannot be merged
+       * field by field; it is the whole value, as in the other SDKs. */
+      if (inst === null || typeof inst !== 'object' || Array.isArray(inst)) {
+        return inst;
+      }
       Object.assign(merged, inst as unknown as Record<string, unknown>);
     }
     return merged;
@@ -591,6 +600,18 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{^isEnum}}
 {{^vendorExtensions.prop.complexTypeIsEnum}}
 {{^isFreeFormObject}}
+{{#vendorExtensions.prop.complexTypeIsUnion}}
+  /* A oneOf or anyOf value may be a scalar or an array, so it is decoded through
+   * the union rules of the serializer rather than as a nested object. */
+  @Transform(
+    ({ obj }) => {
+      const wire = (obj as Record<string, unknown>)['{{baseName}}'];
+      return wire === undefined || wire === null ? wire : ObjectSerializer.deserialize(wire, {{complexType}});
+    },
+    { toClassOnly: true }
+  )
+{{/vendorExtensions.prop.complexTypeIsUnion}}
+{{^vendorExtensions.prop.complexTypeIsUnion}}
   @Type(() => {{complexType}})
 {{#isModel}}
   /* A nested model that declares additionalProperties keeps its free-form
@@ -600,6 +621,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     { toClassOnly: true }
   )
 {{/isModel}}
+{{/vendorExtensions.prop.complexTypeIsUnion}}
 {{/isFreeFormObject}}
 {{/vendorExtensions.prop.complexTypeIsEnum}}
 {{/isEnum}}
@@ -1157,9 +1179,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#complexType}}
 {{^vendorExtensions.prop.complexTypeIsEnum}}
 {{^isFreeFormObject}}
+{{^vendorExtensions.prop.complexTypeIsUnion}}
     if (this.{{name}} != null && (typeof this.{{name}} !== 'object' || Array.isArray(this.{{name}}))) {
       throw new TypeError(`{{name}} must be an object, got ${Array.isArray(this.{{name}}) ? 'array' : typeof this.{{name}}}`);
     }
+{{/vendorExtensions.prop.complexTypeIsUnion}}
 {{/isFreeFormObject}}
 {{/vendorExtensions.prop.complexTypeIsEnum}}
 {{/complexType}}

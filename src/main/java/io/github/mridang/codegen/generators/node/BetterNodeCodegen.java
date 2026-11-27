@@ -2184,7 +2184,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (nestsModel) {
                     serializerImports.add("reattachAdditionalProperties");
                 }
-                if (model.vendorExtensions.get("additionalPropertiesValue") != null) {
+                if (model.vendorExtensions.get("additionalPropertiesValue") != null
+                        || model.vars.stream().anyMatch(BetterNodeCodegen::holdsUnion)) {
                     serializerImports.add("ObjectSerializer");
                 }
                 if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainNumberDecimal)) {
@@ -2297,16 +2298,29 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      */
     @Override
     protected boolean needsTypeDecorator(CodegenProperty prop) {
-        if (isPlainDate(prop)) {
+        if (isPlainDate(prop) || holdsUnion(prop)) {
             return false;
         }
         return super.needsTypeDecorator(prop);
     }
 
+    /**
+     * Whether the property's type is a oneOf or anyOf wrapper class, whose wire value
+     * may be a scalar or an array: it is decoded through {@code ObjectSerializer}
+     * rather than class-transformer's {@code @Type} (#98).
+     */
+    @SuppressWarnings("unchecked")
+    private static boolean holdsUnion(CodegenProperty prop) {
+        final Object decorators = prop.vendorExtensions.get("prop");
+        return decorators instanceof Map
+                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("complexTypeIsUnion"));
+    }
+
     /** Whether the model template emits an {@code @Transform} for the property. */
     private static boolean hasTransform(CodegenProperty prop) {
         final Map<String, Object> ext = prop.vendorExtensions;
-        return Boolean.TRUE.equals(ext.get("isTimeFormat"))
+        return holdsUnion(prop)
+                || Boolean.TRUE.equals(ext.get("isTimeFormat"))
                 || Boolean.TRUE.equals(ext.get("isDurationFormat"))
                 || Boolean.TRUE.equals(ext.get("isPlainNumberDecimal"))
                 || Boolean.TRUE.equals(ext.get("isPlainNumberDecimalArray"))
@@ -2323,6 +2337,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * {@code additionalProperties}, which class-transformer would drop.
      */
     private static boolean nestsModel(CodegenProperty prop) {
+        if (holdsUnion(prop)) {
+            return false;
+        }
         if (prop.isArray) {
             return prop.items != null && prop.items.isModel;
         }

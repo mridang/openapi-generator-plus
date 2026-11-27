@@ -14,7 +14,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, EdgeCasesPhaseEnum, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Ledger, Roster, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum, Swatch } from '../src/models/index{{importFileExtension}}';
+import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, EdgeCasesPhaseEnum, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Ledger, Roster, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum, Swatch, Reading } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -2986,6 +2986,33 @@ describe('toBinary', () => {
       expect(typeof pet.location![0]).toBe('number');
       expect(typeof pet.location![2]).toBe('string');
       expect(JSON.parse(ObjectSerializer.serialize(pet)).location).toEqual([1.5, 2, 'hq']);
+    });
+
+    test('bhv models 700 a type array of scalars decodes each type into its union and writes it back', () => {
+      const text = ObjectSerializer.deserialize({ level: 'high', inlineLevel: 3 }, Reading)!;
+
+      expect(text.level.getActualInstance()).toBe('high');
+      expect(text.inlineLevel!.getActualInstance()).toBe(3);
+      expect(JSON.parse(ObjectSerializer.serialize(text)).level).toBe('high');
+      const number = ObjectSerializer.deserialize({ level: 7 }, Reading)!;
+      expect(number.level.getActualInstance()).toBe(7);
+      expect(JSON.parse(ObjectSerializer.serialize(number)).level).toBe(7);
+    });
+
+    test('bhv models 701 a type array of array and object decodes both shapes and writes them back', () => {
+      const list = ObjectSerializer.deserialize({ level: 1, shape: ['a', 'b'] }, Reading)!;
+
+      expect(list.shape!.getActualInstance()).toEqual(['a', 'b']);
+      expect(JSON.parse(ObjectSerializer.serialize(list)).shape).toEqual(['a', 'b']);
+      const map = ObjectSerializer.deserialize({ level: 1, shape: { k: 'v' } }, Reading)!;
+      expect(map.shape!.getActualInstance()).toEqual({ k: 'v' });
+      expect(JSON.parse(ObjectSerializer.serialize(map)).shape).toEqual({ k: 'v' });
+    });
+
+    test('bhv models 702 a property of type null accepts null', () => {
+      const reading = ObjectSerializer.deserialize({ level: 1, nothing: null }, Reading)!;
+
+      expect(reading.nothing ?? null).toBeNull();
     });
 
     test('bhv serializationobject 006 a duplicate object key resolves to the last value', () => {

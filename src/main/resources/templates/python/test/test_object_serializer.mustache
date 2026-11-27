@@ -1219,6 +1219,43 @@ class TestFixtureModelsOnTheWire:
         assert pet.location == [1.5, 2, 'deck']
         assert json.loads(ObjectSerializer().serialize(pet))['location'] == [1.5, 2, 'deck']
 
+    def test_bhv_models_700_a_type_array_of_scalars_decodes_each_type_into_its_union(self) -> None:
+        import json
+        from {{packageName}}.models.reading import Reading
+
+        text = ObjectSerializer().deserialize('{"level":"high","inlineLevel":3}', 'Reading')
+        assert isinstance(text, Reading)
+        assert text.level.actual_instance == 'high'
+        assert text.inline_level is not None
+        assert text.inline_level.actual_instance == 3
+        assert json.loads(ObjectSerializer().serialize(text))['level'] == 'high'
+        number = ObjectSerializer().deserialize('{"level":7}', 'Reading')
+        assert isinstance(number, Reading)
+        assert number.level.actual_instance == 7
+        assert json.loads(ObjectSerializer().serialize(number))['level'] == 7
+
+    def test_bhv_models_701_a_type_array_of_array_and_object_decodes_both_shapes(self) -> None:
+        import json
+        from {{packageName}}.models.reading import Reading
+
+        listed = ObjectSerializer().deserialize('{"level":1,"shape":["a","b"]}', 'Reading')
+        assert isinstance(listed, Reading)
+        assert listed.shape is not None
+        assert listed.shape.actual_instance == ['a', 'b']
+        assert json.loads(ObjectSerializer().serialize(listed))['shape'] == ['a', 'b']
+        mapped = ObjectSerializer().deserialize('{"level":1,"shape":{"k":"v"}}', 'Reading')
+        assert isinstance(mapped, Reading)
+        assert mapped.shape is not None
+        assert mapped.shape.actual_instance == {'k': 'v'}
+        assert json.loads(ObjectSerializer().serialize(mapped))['shape'] == {'k': 'v'}
+
+    def test_bhv_models_702_a_property_of_type_null_accepts_null(self) -> None:
+        from {{packageName}}.models.reading import Reading
+
+        reading = ObjectSerializer().deserialize('{"level":1,"nothing":null}', 'Reading')
+        assert isinstance(reading, Reading)
+        assert reading.nothing is None
+
     def test_bhv_serializationobject_117_properties_named_after_keywords_and_literals_keep_their_wire_keys(self) -> None:
         import json
         from {{packageName}}.models.edge_cases import EdgeCases
