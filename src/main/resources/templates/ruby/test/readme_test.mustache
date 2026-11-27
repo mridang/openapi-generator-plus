@@ -15,7 +15,7 @@ describe 'README' do
     _(readme).wont_include 'TransportOptions.proxy()'
   end
 
-  it 'has an API information section for the spec metadata' do
+  it 'bhv_metadata_001 has an API information section for the spec metadata' do
     _(readme).must_include "\n## API information\n"
   end
 

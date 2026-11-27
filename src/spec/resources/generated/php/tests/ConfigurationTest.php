@@ -267,7 +267,7 @@ test('bhv options 044 the README names the builder setter that rejects a SOCKS p
     expect(substr($readme, (int) $section, 400))->toContain('`TransportOptions::builder()->proxy()`');
 });
 
-test('the README has an API information section for the spec metadata', function (): void {
+test('bhv metadata 001 the README has an API information section for the spec metadata', function (): void {
     $readme = (string) file_get_contents(__DIR__ . '/../README.md');
 
     expect($readme)->toContain("\n## API information\n");

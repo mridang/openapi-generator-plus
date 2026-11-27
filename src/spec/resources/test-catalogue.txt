@@ -1402,6 +1402,7 @@ models021 | Each member of an integer-backed enum carries its declared number as
 models022 | A generated model whose schema allows undeclared properties reports that it does.
 models023 | Undeclared keys whose names match the SDK's own method or internal names are kept as additional properties and not treated as methods or internals.
 models024 | A newly built model leaves its optional properties unset.
+metadata001 | The README carries an API information section with the spec metadata.
 misc001 | Replacing the access token while other callers read authentication headers is race-free, and each read gets one complete token that was set, which is then the token used.
 misc002 | A trace propagator the caller registers is the one used to inject trace context into requests, and headers already present on the request are kept.
 servers025 | Changing the variables map a server configuration was built from, after building it, does not change that configuration.
@@ -2647,6 +2648,9 @@ langphp073 | The README Usage fence and the quickstart hold the same statements,
 langphp074 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
 langphp075 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
 langphp076 | The SDK Makefile has an examples target that builds every file under examples
+langphp077 | A format byte model field holding malformed base64 fails decoding with a serialization error.
+langphp078 | A format byte list element of a model holding malformed base64 fails decoding with a serialization error.
+langphp079 | A format byte model field holding url-safe base64 fails decoding with a serialization error.
 langjava001 | Closing a client leaves a transport the caller injected open, so another client can reuse it.
 langjava002 | A default header the caller sets wins over the SDK header of the same name, whatever the case of the name.
 langjava003 | The sensitive header names the SDK masks are stored lowercased so that lookups ignore case.
@@ -2985,6 +2989,9 @@ langruby094 | Every fence in README.md and SKILLS.md tagged with the SDK languag
 langruby095 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
 langruby096 | The SDK Makefile has an examples target that builds every file under examples
 langruby097 | The SHA-256 implementation is loaded with the authorization code authenticator, because loading it on first use races between threads
+langruby098 | Several calls to one host share one kept-alive socket.
+langruby099 | Closing the client closes the kept-alive socket it holds.
+langruby100 | A body shorter than its Content-Length on a kept-alive connection is a network error, not a short success.
 langgo001 | Multipart model part uses wire keys.
 langgo002 | Multipart file part content type from extension.
 langgo003 | Upload field accepts an io reader.

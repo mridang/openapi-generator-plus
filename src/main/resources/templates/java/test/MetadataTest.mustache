@@ -330,7 +330,7 @@ class MetadataTest {
     }
 
     @Test
-    void readmeHasTheApiInformationSection() throws IOException {
+    void bhvMetadata001ReadmeHasTheApiInformationSection() throws IOException {
         String readme = Files.readString(Path.of("README.md"));
         assertThat(readme).contains("## API information");
     }

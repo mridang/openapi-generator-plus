@@ -108,6 +108,11 @@ func TestBhvLanggo089_Readme_HasTheSharedSectionsInTheSharedOrder(t *testing.T) 
 	if !strings.Contains(readme, "go get {{packageName}}") {
 		t.Errorf("expected the README to carry the install command")
 	}
+}
+
+func TestBhvMetadata001_Readme_HasTheApiInformationSection(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
 	if !strings.Contains(readme, "\n## API information\n") {
 		t.Errorf("expected the README to carry the API information section")
 	}

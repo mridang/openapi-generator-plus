@@ -20,7 +20,7 @@ defmodule {{moduleName}}.ReadmeTest do
     assert section =~ "@behaviour"
   end
 
-  test "the README has an API information section" do
+  test "bhv metadata 001 the README has an API information section" do
     assert File.read!("README.md") =~ "\n## API information\n"
   end
 {{#generateExamples}}

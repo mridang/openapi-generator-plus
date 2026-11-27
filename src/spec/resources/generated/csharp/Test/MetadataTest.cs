@@ -285,7 +285,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void ReadmeHasTheApiInformationSection()
+    public void BhvMetadata001ReadmeHasTheApiInformationSection()
     {
         var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
 

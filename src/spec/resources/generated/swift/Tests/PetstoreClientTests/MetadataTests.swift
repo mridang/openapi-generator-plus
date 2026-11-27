@@ -422,7 +422,7 @@ import Testing
     #expect(try readme().contains("- License: Apache-2.0"))
   }
 
-  @Test func testReadmeHasTheApiInformationSection() throws {
+  @Test func testBhvMetadata001ReadmeHasTheApiInformationSection() throws {
     #expect(try readme().contains("\n## API information\n"))
   }
 

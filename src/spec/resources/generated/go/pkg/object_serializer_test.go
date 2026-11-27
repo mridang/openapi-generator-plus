@@ -4061,6 +4061,20 @@ func TestBhvSerialization040_ObjectSerializer_ToFormValue_CanonicalWireText(t *t
 	}
 }
 
+// A date-only or time string is passed through exactly as it was given, and a
+// calendar date is written as its date alone.
+func TestBhvSerialization042_ObjectSerializer_ToPathValue_DateOnlyOrTimeStringPassesThroughExactly(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{"2024-1-5", "07:08:09Z"} {
+		if got := toPathValue(in); got != in {
+			t.Errorf("expected %q unchanged, got %q", in, got)
+		}
+	}
+	if got := stringifyDate(civil.Date{Year: 2024, Month: time.January, Day: 15}); got != "2024-01-15" {
+		t.Errorf("expected 2024-01-15, got %q", got)
+	}
+}
+
 // A duration outside a model, as a header value, is written as its protobuf-JSON seconds string.
 func TestBhvSerialization048_ObjectSerializer_ToHeaderValue_DurationIsProtobufSeconds(t *testing.T) {
 	t.Parallel()

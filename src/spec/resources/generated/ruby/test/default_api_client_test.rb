@@ -1261,7 +1261,7 @@ describe Petstore::Client::DefaultApiClient do
       [server, thread, accepted, closed, "http://127.0.0.1:#{server.addr[1]}/items"]
     end
 
-    it 'bhv_transport_120 several calls to one host share one kept-alive socket' do
+    it 'bhv_langruby_098 several calls to one host share one kept-alive socket' do
       server, thread, accepted, _closed, url = keep_alive_server
       client = Petstore::Client::DefaultApiClient.new
       3.times { _(client.send_request(:GET, url, {}, nil).status_code).must_equal 200 }
@@ -1272,7 +1272,7 @@ describe Petstore::Client::DefaultApiClient do
       thread&.join(2)
     end
 
-    it 'bhv_transport_121 closing the client closes the kept-alive socket it holds' do
+    it 'bhv_langruby_099 closing the client closes the kept-alive socket it holds' do
       server, thread, _accepted, closed, url = keep_alive_server
       client = Petstore::Client::DefaultApiClient.new
       _(client.send_request(:GET, url, {}, nil).status_code).must_equal 200
@@ -1283,7 +1283,7 @@ describe Petstore::Client::DefaultApiClient do
       thread&.join(2)
     end
 
-    it 'bhv_transport_122 a body shorter than its Content-Length is a network error, not a short success' do
+    it 'bhv_langruby_100 a body shorter than its Content-Length is a network error, not a short success' do
       server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       thread = Thread.new do
         conn = server.accept
