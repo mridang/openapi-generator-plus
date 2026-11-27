@@ -1230,7 +1230,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         additionalProperties.put("hasCredentialEnvVars", !read.isEmpty());
         additionalProperties.put("credentialSchemes", credentialSchemes(read));
         additionalProperties.put("clientSchemes", clientSchemes(openAPI));
+        additionalProperties.put("metadataUrlSchemes", metadataUrlSchemes);
     }
+
+    /** The first per-scheme authenticator that declares an oauth2MetadataUrl, for authscheme700. */
+    private final List<Map<String, Object>> metadataUrlSchemes = new ArrayList<>();
 
     /**
      * Lists the credentials the client accepts (F857): one per distinct security scheme, named
@@ -1848,6 +1852,18 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         }
 
         final Map<String, Object> ctx = baseSchemeContext(spec);
+        final Object metadataUrl = ctx.get("oauth2MetadataUrl");
+        if (metadataUrl != null) {
+            final String literal = "'" + escapeDartString(String.valueOf(metadataUrl)) + "'";
+            ctx.put("metadataUrlLiteral", literal);
+            /* D190: authscheme700 reads the metadata URL of the first scheme that declares one. */
+            if (metadataUrlSchemes.isEmpty()) {
+                final Map<String, Object> entry = new HashMap<>();
+                entry.put("className", ctx.get("className"));
+                entry.put("metadataUrlLiteral", literal);
+                metadataUrlSchemes.add(entry);
+            }
+        }
         ctx.put("envVars", environmentArguments(spec.baseClass(), ctx.get("envVars")));
         ctx.put("imports", imports);
         ctx.put("constructorSignature", constructorSig);

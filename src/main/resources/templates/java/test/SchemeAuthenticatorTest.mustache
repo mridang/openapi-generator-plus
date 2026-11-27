@@ -568,6 +568,13 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
+    void bhvAuthScheme700ExposesTheDeclaredOAuth2MetadataUrlAsAConstant() {
+        {{#oauth2MetadataUrlSchemes}}
+        assertEquals("{{{oauth2MetadataUrlLiteral}}}", {{qualifiedClassName}}.METADATA_URL);
+        {{/oauth2MetadataUrlSchemes}}
+    }
+
+    @Test
     void bhvAuthScheme001ReadsOnlyItsOwnVariable() {
         {{#hasBearerAuth}}
         {

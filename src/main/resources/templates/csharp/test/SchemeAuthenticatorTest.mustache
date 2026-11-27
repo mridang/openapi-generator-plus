@@ -199,6 +199,16 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
+    public void BhvAuthscheme700ASchemeExposesItsDeclaredMetadataUrlAsAConstant()
+    {
+{{#schemeAuthTests}}
+{{#hasOAuth2MetadataUrl}}
+        Assert.Equal("{{{oauth2MetadataUrlLiteral}}}", {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}.MetadataUrl);
+{{/hasOAuth2MetadataUrl}}
+{{/schemeAuthTests}}
+    }
+
+    [Fact]
     public void BhvAuthscheme010AnEmptyBearerVariableIsUnsetAndIsNamed()
     {
 {{#schemeAuthTests}}

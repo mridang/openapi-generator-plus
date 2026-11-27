@@ -1256,6 +1256,10 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         entry.put("isApiKeyScheme", apiKey);
         /* One catalogue id per behaviour: the id-carrying tests name only the first scheme of
          * their kind, and the empty-variable failure carries the id of the scheme it is named for. */
+        /* D190: authscheme700 reads the metadata URL of the first scheme that declares one. */
+        entry.put("metadataUrlTest", Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))
+                && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("metadataUrlTest"))));
+        entry.put("oauth2MetadataUrl", ctx.get("oauth2MetadataUrl"));
         entry.put("isFirstApiKeyScheme", apiKey && perSchemeAuthEntries.stream()
                 .noneMatch(e -> Boolean.TRUE.equals(e.get("isApiKeyScheme"))));
         entry.put("isFirstBearerScheme", "BearerAuthenticator".equals(spec.baseClass())

@@ -2507,6 +2507,7 @@ components:
     adminBasic:
       type: http
       scheme: basic
+      deprecated: true
     petStoreBearer:
       type: http
       scheme: bearer
@@ -2532,6 +2533,8 @@ components:
       name: SESSION_ID
     machineAuth:
       type: oauth2
+      # OpenAPI 3.2 fields swagger-models has no field for (D190, #91): read from the raw document.
+      oauth2MetadataUrl: https://auth.example.com/.well-known/oauth-authorization-server
       flows:
         clientCredentials:
           tokenUrl: https://auth.example.com/oauth/token

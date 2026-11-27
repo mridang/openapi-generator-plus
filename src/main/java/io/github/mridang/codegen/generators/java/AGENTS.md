@@ -598,3 +598,5 @@ Test: `BaseApiTest$PagedLists` (`bhvPagination007`, `008`, `023`, `027`).
 ### Build lesson: the JDK 25 Unsafe notice
 Rule: NullAway runs data-flow analysis for some constructs (a local assigned `null`, a nullable field read after a check), which loads Guava's cache and makes the forked javac print a `sun.misc.Unsafe` notice that `failOnWarning` counts. The generated pom passes `-J--sun-misc-unsafe-memory-access=allow` to the forked compiler, so such code no longer fails the build; a real warning hidden behind that notice (an unused field, for example) shows once the flag is set.
 Where: `pom.mustache`.
+
+- **D190 (security scheme 3.2 fields).** `auth/scheme_authenticator.mustache` adds a plain sentence to the doc comment of a scheme marked `deprecated: true` (`schemeDeprecated`; never a deprecation attribute) and exposes a declared `oauth2MetadataUrl` as `public static final String METADATA_URL` (`oauth2MetadataUrlLiteral`, escaped in `renderSchemeAuthenticator`). Test: `SchemeAuthenticatorTest` (`bhvAuthScheme700`).

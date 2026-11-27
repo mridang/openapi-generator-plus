@@ -1059,7 +1059,14 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         if (namespaceSuffix != null) {
             ctx.put("namespaceSuffix", namespaceSuffix);
         }
-        recordSchemeAuthTest(spec, namespaceSuffix, envVars);
+        /* D190: the declared metadata URL becomes a const on the class and a test row. */
+        final String metadataUrlLiteral = Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))
+                ? escapeStringLiteralBody(String.valueOf(ctx.get("oauth2MetadataUrl")))
+                : null;
+        if (metadataUrlLiteral != null) {
+            ctx.put("oauth2MetadataUrlLiteral", metadataUrlLiteral);
+        }
+        recordSchemeAuthTest(spec, namespaceSuffix, envVars, metadataUrlLiteral);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
@@ -1080,7 +1087,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     /**
      * Records what {@code SchemeAuthenticatorTest} needs to exercise one per-scheme authenticator:
-     * its class, its base kind and its environment variables.
+     * its class, its base kind, its environment variables and its declared metadata URL literal.
      */
     @SuppressFBWarnings(
             value = "IMPROPER_UNICODE",
@@ -1088,9 +1095,14 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     private void recordSchemeAuthTest(
             final SchemeAuthSpec spec,
             @Nullable final String namespaceSuffix,
-            final List<Map<String, Object>> envVars) {
+            final List<Map<String, Object>> envVars,
+            @Nullable final String metadataUrlLiteral) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        entry.put("hasOAuth2MetadataUrl", metadataUrlLiteral != null);
+        if (metadataUrlLiteral != null) {
+            entry.put("oauth2MetadataUrlLiteral", metadataUrlLiteral);
+        }
         final String emptyVariableBhv = EMPTY_VARIABLE_BHV.getOrDefault((String) entry.get("className"), "");
         entry.put("emptyVariableBhv", emptyVariableBhv);
         entry.put("hasEmptyVariableBhv", !emptyVariableBhv.isEmpty());

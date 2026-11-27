@@ -15,9 +15,17 @@ namespace {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespa
 /// <item><description><c>{{envName}}</c> for <c>{{field}}</c></description></item>
 {{/envVars}}
 /// </list>
+{{#schemeDeprecated}}
+/// <para>Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.</para>
+{{/schemeDeprecated}}
 /// </summary>
 public sealed class {{className}} : {{baseClass}}
 {
+{{#hasOAuth2MetadataUrl}}
+    /// <summary>The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.</summary>
+    public const string MetadataUrl = "{{{oauth2MetadataUrlLiteral}}}";
+
+{{/hasOAuth2MetadataUrl}}
     /// <summary>Creates the authenticator, reading each credential left null from the environment.</summary>
     /// <param name="host">API base URL.</param>
 {{#credentialParams}}

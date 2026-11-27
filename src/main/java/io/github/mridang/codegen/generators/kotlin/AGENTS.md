@@ -522,3 +522,4 @@ Rule: a token page calls `<op>WithHttpInfo` with `pageOptions.copy(<cursor> = pa
 Where: `api/api.mustache`, `base_api.mustache`, `paginator.mustache`, `link_header.mustache`.
 Test: `BaseApiTest$PagedLists` (`bhvPagination007`, `008`, `023`, `027`).
 
+- **D190 (security scheme 3.2 fields).** `auth/scheme_authenticator.mustache` adds a plain sentence to the doc comment of a scheme marked `deprecated: true` (`schemeDeprecated`; never a deprecation attribute) and exposes a declared `oauth2MetadataUrl` as companion `const val METADATA_URL` (`oauth2MetadataUrlLiteral`, escaped in `renderSchemeAuthenticator`). Test: `OAuth2ClientCredentialsAuthenticatorTest` (`bhvAuthscheme700`).

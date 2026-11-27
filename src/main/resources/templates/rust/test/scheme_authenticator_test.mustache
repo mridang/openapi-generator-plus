@@ -83,6 +83,13 @@ mod {{module}} {
     }
 {{/commonBhvOnce}}
 
+{{#metadataUrlTest}}
+    #[test]
+    fn test_bhv_authscheme_700_a_scheme_that_declares_oauth2_metadata_url_exposes_it_as_a_constant() {
+        assert_eq!({{className}}::METADATA_URL, {{{metadataUrlLiteral}}});
+    }
+
+{{/metadataUrlTest}}
 {{#explicitWinsOnce}}
     #[test]
     fn test_bhv_authscheme_009_a_passed_credential_wins_over_its_environment_variable() {

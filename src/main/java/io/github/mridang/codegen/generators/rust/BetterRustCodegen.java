@@ -1770,6 +1770,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         ctx.put("constructorParams", credentialParams);
         ctx.put("envParams", envParams);
+        final Object metadataUrl = ctx.get("oauth2MetadataUrl");
+        if (metadataUrl != null) {
+            ctx.put("metadataUrlLiteral", toRustStringLiteral(String.valueOf(metadataUrl)));
+        }
         final boolean bearer = "BearerAuthenticator".equals(spec.baseClass());
         ctx.put("isBearer", bearer);
         final String stem =
@@ -1793,6 +1797,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         /* The scheme-independent env tests (catalogue authbasic001, authbasic003, authscheme001 and
          * authscheme002) are rendered by every scheme, so only the first scheme carries their ids. */
         entry.put("commonBhvOnce", bhvIdsClaimed.add("common_env"));
+        /* D190: authscheme700 reads the metadata URL of the first scheme that declares one. */
+        entry.put("metadataUrlTest", metadataUrl != null && bhvIdsClaimed.add("metadata_url"));
+        entry.put("metadataUrlLiteral", ctx.get("metadataUrlLiteral"));
         /* The explicit-wins test (authscheme 009) carries its catalogue id in one module only. */
         final boolean explicitWins = bhvIdsClaimed.add("explicit_wins");
         entry.put("explicitWinsOnce", explicitWins);

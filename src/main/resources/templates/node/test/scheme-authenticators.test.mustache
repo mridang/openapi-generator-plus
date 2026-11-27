@@ -16,6 +16,14 @@ describe('SchemeAuthenticators', () => {
     }
   });
 
+{{#oauth2MetadataUrlSchemes.0}}
+  it('bhv authscheme 700 a scheme that declares oauth2MetadataUrl exposes that URL as a constant', () => {
+{{#oauth2MetadataUrlSchemes}}
+    expect({{className}}.METADATA_URL).toBe({{{oauth2MetadataUrlLiteral}}});
+{{/oauth2MetadataUrlSchemes}}
+  });
+
+{{/oauth2MetadataUrlSchemes.0}}
   it('bhv misc 073 a wrapper class exists for every declared scheme', () => {
     const wrappers: unknown[] = [
 {{#perSchemeAuthEntries}}

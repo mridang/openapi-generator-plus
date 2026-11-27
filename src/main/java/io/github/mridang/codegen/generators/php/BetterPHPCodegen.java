@@ -1458,7 +1458,28 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
         ctx.put("superArgs", superArgs);
         ctx.put("hasCustomConstructor", !isPassthroughConstructor(constructorParams, superArgs));
+        recordOAuth2MetadataUrl(ctx);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /** The per-scheme authenticators that declare an oauth2MetadataUrl, for the test template (D190). */
+    private final List<Map<String, Object>> oauth2MetadataUrlSchemes = new ArrayList<>();
+
+    /**
+     * Adds the quoted {@code oauth2MetadataUrlLiteral} to a scheme context that declares a metadata
+     * URL and lists the scheme under {@code oauth2MetadataUrlSchemes} for the generated test (D190).
+     */
+    private void recordOAuth2MetadataUrl(Map<String, Object> ctx) {
+        if (!Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))) {
+            return;
+        }
+        final String literal = toPhpStringLiteral(String.valueOf(ctx.get("oauth2MetadataUrl")));
+        ctx.put("oauth2MetadataUrlLiteral", literal);
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("qualifiedClassName", "\\" + ctx.get("package") + "\\" + ctx.get("className"));
+        entry.put("oauth2MetadataUrlLiteral", literal);
+        oauth2MetadataUrlSchemes.add(entry);
+        additionalProperties.put("oauth2MetadataUrlSchemes", oauth2MetadataUrlSchemes);
     }
 
     /**

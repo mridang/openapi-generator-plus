@@ -430,6 +430,14 @@ void main() {
 {{/credentialSchemes}}
   });
 {{/hasCredentialEnvVars}}
+{{#metadataUrlSchemes}}
+
+  group('per-scheme metadata url', () {
+    test('bhv authscheme 700 a scheme that declares oauth2MetadataUrl exposes that URL as a constant on its generated per-scheme authenticator', () {
+      expect({{className}}.metadataUrl, equals({{{metadataUrlLiteral}}}));
+    });
+  });
+{{/metadataUrlSchemes}}
 
     test('bhv auth 003 an empty environment variable counts as no value, so the next source is used', () {
       final auth = BearerAuthenticator(

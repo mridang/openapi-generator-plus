@@ -405,6 +405,14 @@ describe 'scheme authenticators' do
     end
   end
 
+{{#schemeEnvironmentEntries}}
+{{#metadataUrlTest}}
+  it 'bhv_authscheme_700 exposes the metadata url the scheme declares as a constant' do
+    _(scheme_class('{{className}}')::METADATA_URL).must_equal {{{metadataUrlLiteral}}}
+  end
+
+{{/metadataUrlTest}}
+{{/schemeEnvironmentEntries}}
   it 'bhv_authoauthtwoimplicit_006 an implicit wrapper builds its authorization url with its spec scopes' do
     wrappers_of({{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator).each do |klass|
       url = klass.new('https://api.example.com', 'wrapper_id').build_authorization_url

@@ -110,6 +110,21 @@ def test_bhv_authscheme_008_the_ssoauth_scheme_treats_an_empty_variable_as_unset
     _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
 
 
+# (module, class name, declared oauth2MetadataUrl) for each scheme that declares one
+METADATA_URL_SCHEMES: List[Tuple[str, str, str]] = [
+{{#oauth2MetadataUrlSchemes}}
+    ('{{module}}', '{{className}}', "{{{oauth2MetadataUrlLiteral}}}"),
+{{/oauth2MetadataUrlSchemes}}
+]
+
+
+@pytest.mark.parametrize('module,name,url', METADATA_URL_SCHEMES)
+def test_bhv_authscheme_700_a_scheme_that_declares_a_metadata_url_exposes_it_as_a_constant(
+    module: str, name: str, url: str
+) -> None:
+    assert _scheme_class(module, name).METADATA_URL == url
+
+
 def test_bhv_misc_073_a_wrapper_class_exists_for_every_declared_scheme() -> None:
     for module, name, _variables, _bearer, _basic, _api_key in SCHEMES:
         assert _scheme_class(module, name) is not None

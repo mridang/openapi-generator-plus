@@ -1177,6 +1177,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         }
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildElixirSuperArgs(spec));
+        final Object metadataUrl = ctx.get("oauth2MetadataUrl");
+        if (metadataUrl != null) {
+            ctx.put("metadataUrlLiteral", toElixirStringLiteral(String.valueOf(metadataUrl)));
+        }
         if (!credentials.isEmpty()) {
             final String className = spec.schemeClass() + spec.oauthSuffix() + "Authenticator";
             final Map<String, Object> entry = new HashMap<>();
@@ -1188,6 +1192,12 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             entry.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
             entry.put("isBasic", "BasicAuthenticator".equals(spec.baseClass()));
             entry.put("isApiKey", "ApiKeyAuthenticator".equals(spec.baseClass()));
+            /* D190: authscheme700 reads the metadata URL of the first scheme that declares one. */
+            entry.put(
+                    "metadataUrlTest",
+                    metadataUrl != null
+                            && perSchemeAuthEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("metadataUrlTest"))));
+            entry.put("metadataUrlLiteral", ctx.get("metadataUrlLiteral"));
             perSchemeAuthEntries.add(entry);
         }
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);

@@ -4,6 +4,10 @@ defmodule {{package}}.{{className}} do
   @moduledoc """
   Authenticator for the `{{{schemeName}}}` security scheme.
   Delegates to `#{inspect({{package}}.{{baseClass}})}`.
+{{#schemeDeprecated}}
+
+  Deprecated: the API marks the security scheme '{{{schemeName}}}' as deprecated.
+{{/schemeDeprecated}}
 {{#hasEnvVars}}
 
   Every credential not passed is read, once, when the authenticator is built, from the
@@ -17,6 +21,14 @@ defmodule {{package}}.{{className}} do
 {{/hasEnvVars}}
   """
 
+{{#hasOAuth2MetadataUrl}}
+  @doc """
+  The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+  """
+  @spec metadata_url() :: String.t()
+  def metadata_url, do: {{{metadataUrlLiteral}}}
+
+{{/hasOAuth2MetadataUrl}}
   @doc """
   Creates an authenticator for the `{{{schemeName}}}` security scheme.
   """

@@ -8,9 +8,18 @@ use super::ApiKeyLocation;
 /// Scheme-specific authenticator for the {{schemeName}} security scheme.
 ///
 /// Delegates to [`{{baseClass}}`].
+{{#schemeDeprecated}}
+///
+/// Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
+{{/schemeDeprecated}}
 pub struct {{className}}({{baseClass}});
 
 impl {{className}} {
+{{#hasOAuth2MetadataUrl}}
+    /// The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+    pub const METADATA_URL: &'static str = {{{metadataUrlLiteral}}};
+
+{{/hasOAuth2MetadataUrl}}
     /// Creates an authenticator for the {{schemeName}} security scheme.
     ///
     /// Each credential is optional. A value passed here wins, even an empty one

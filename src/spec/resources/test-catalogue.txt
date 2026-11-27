@@ -1117,6 +1117,7 @@ authscheme013 | An empty environment variable for the client credentials scheme 
 authscheme014 | An empty environment variable for the password scheme credential is treated as unset and fails naming the variable
 authscheme015 | An empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable
 authscheme016 | An empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable
+authscheme700 | A scheme that declares oauth2MetadataUrl exposes that URL as a constant on its generated per-scheme authenticator
 config018 | A default constructed or built configuration uses the base URL from the spec
 config019 | The default configuration factory returns the spec base URL
 config020 | A configuration builder chain sets the base URL and default headers in one configuration

@@ -226,6 +226,14 @@ defmodule {{moduleName}}.SchemeAuthenticatorTest do
     assert_empty_variables_are_named({{moduleName}}.Auth.OAuth.SsoAuthAuthenticator)
   end
 
+{{#perSchemeAuthEntries}}
+{{#metadataUrlTest}}
+  test "bhv authscheme 700 a scheme that declares oauth2MetadataUrl exposes that URL as a constant on its generated per-scheme authenticator" do
+    assert {{{module}}}.metadata_url() == {{{metadataUrlLiteral}}}
+  end
+
+{{/metadataUrlTest}}
+{{/perSchemeAuthEntries}}
   describe "generated basic scheme wrappers" do
     test "bhv authbasic 019 generated basic scheme wrappers emit the same Basic header as the base authenticator" do
       refute @basic_schemes == []

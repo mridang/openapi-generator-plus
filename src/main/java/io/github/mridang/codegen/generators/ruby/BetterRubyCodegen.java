@@ -1446,7 +1446,17 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         ctx.put("resolutions", ctor.resolutions);
         ctx.put("hasResolutions", !ctor.resolutions.isEmpty());
         ctx.put("rbsSignature", ctor.rbsSignature);
+        final Object metadataUrl = ctx.get("oauth2MetadataUrl");
+        if (metadataUrl != null) {
+            ctx.put("metadataUrlLiteral", toRubyStringLiteral(String.valueOf(metadataUrl)));
+        }
         final Map<String, Object> entry = new HashMap<>();
+        /* D190: authscheme700 reads the metadata URL constant of the first scheme that declares one. */
+        entry.put(
+                "metadataUrlTest",
+                metadataUrl != null
+                        && schemeEnvironmentEntries.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("metadataUrlTest"))));
+        entry.put("metadataUrlLiteral", ctx.get("metadataUrlLiteral"));
         entry.put("className", ctx.get("className"));
         entry.put("namespace", spec.isOAuth() ? "Auth::OAuth" : "Auth");
         entry.put("isOAuth", spec.isOAuth());

@@ -451,3 +451,4 @@ Where the id, offset and page-number runtime lives: `ofCursor(..., hasMore:)`, `
 - Trace context from the caller (#136): the hook runs in the operation's own task after the credential await, so a task-local context is intact; the base-api tests prove this with a test-owned `@TaskLocal` (D95).
 
 - **F15 (typed `additionalProperties`, #103).** The bucket is `[String: V]` (`V?` when nullable) and the decode loop uses `V.self`, so `Codable` rejects a wrong type and a null.
+- D190 (#91): `auth/scheme_authenticator.mustache` adds the deprecated-scheme sentence to the class doc comment when `schemeDeprecated` (never `@available(*, deprecated)`), and `public static let metadataUrl` when `hasOAuth2MetadataUrl`. Test: `testBhvAuthscheme700...` in `ClientTests` (first scheme with a metadata URL, `metadataUrlTest`).

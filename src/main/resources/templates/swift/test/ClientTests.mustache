@@ -508,6 +508,14 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 {{/perSchemeAuthEntries}}
     }
 
+{{#perSchemeAuthEntries}}
+{{#metadataUrlTest}}
+    @Test func testBhvAuthscheme700ASchemeThatDeclaresOAuth2MetadataUrlExposesItAsAConstant() {
+        #expect({{className}}.metadataUrl == "{{{oauth2MetadataUrl}}}")
+    }
+
+{{/metadataUrlTest}}
+{{/perSchemeAuthEntries}}
     /* The credential keyword is optional: the public initializer takes the host alone. */
     @Test func testBhvLifecycle015EverySchemeCredentialKeywordCanBeOmitted() {
 {{#perSchemeAuthEntries}}

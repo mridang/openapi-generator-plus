@@ -1387,7 +1387,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         // return (T, error); the scheme wrapper forwards that error.
         ctx.put("fallible", Set.of("BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
                 .contains(spec.baseClass()));
-        recordSchemeAuthTest(spec, envVars, isBearer);
+        recordSchemeAuthTest(spec, envVars, isBearer, ctx);
         final Map<String, Object> credentialScheme = new HashMap<>();
         credentialScheme.put("schemeId", spec.schemeName());
         credentialScheme.put("fieldName", goIdentifier(NamingConvention.PASCAL_CASE.apply(spec.schemeName())));
@@ -1402,9 +1402,16 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     private void recordSchemeAuthTest(
             final SchemeAuthSpec spec,
             final List<Map<String, Object>> envVars,
-            final boolean isBearer) {
+            final boolean isBearer,
+            final Map<String, Object> ctx) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        /* D190: authscheme700 reads the metadata URL constant of the first scheme that declares one. */
+        entry.put(
+                "metadataUrlTest",
+                Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))
+                        && schemeAuthTests.stream().noneMatch(e -> Boolean.TRUE.equals(e.get("metadataUrlTest"))));
+        entry.put("oauth2MetadataUrl", ctx.get("oauth2MetadataUrl"));
         entry.put("failsNamingId", nullIfEmpty(FAILS_NAMING_IDS.getOrDefault((String) entry.get("className"), "")));
         entry.put("package", spec.isOAuth() ? "oauth" : "auth");
         final boolean isBasic = "BasicAuthenticator".equals(spec.baseClass());

@@ -7,6 +7,10 @@ import {{.}}
 
 /**
  * Authenticator for the `{{schemeName}}` security scheme.
+{{#schemeDeprecated}}
+ *
+ * Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
+{{/schemeDeprecated}}
  */
 class {{className}} : {{baseClass}} {
     /**
@@ -20,4 +24,11 @@ class {{className}} : {{baseClass}} {
 {{/hasEnvVars}}
      */
     constructor({{#constructorParams}}{{name}}: {{{type}}}{{^-last}}, {{/-last}}{{/constructorParams}}) : super({{#superArgs}}{{{.}}}{{^-last}}, {{/-last}}{{/superArgs}})
+{{#hasOAuth2MetadataUrl}}
+
+    companion object {
+        /** The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme. */
+        const val METADATA_URL: String = "{{{oauth2MetadataUrlLiteral}}}"
+    }
+{{/hasOAuth2MetadataUrl}}
 }

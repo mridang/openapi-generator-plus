@@ -1723,7 +1723,32 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         ctx.put("envVars", own);
         ctx.put("hasEnvVars", !own.isEmpty());
+        // D190: the OpenAPI 3.2 scheme fields swagger-models drops, read from the raw document.
+        final RawSpecReader.RawSecurityScheme raw = rawSecuritySchemes().get(spec.schemeName());
+        ctx.put("schemeDeprecated", raw != null && raw.deprecated());
+        final String metadataUrl = raw == null ? null : raw.oauth2MetadataUrl();
+        ctx.put("hasOAuth2MetadataUrl", metadataUrl != null);
+        if (metadataUrl != null) {
+            ctx.put("oauth2MetadataUrl", metadataUrl);
+        }
         return ctx;
+    }
+
+    /** The raw OpenAPI 3.2 security scheme fields, read once per generation (D190, D191). */
+    @Nullable private Map<String, RawSpecReader.RawSecurityScheme> rawSecuritySchemes;
+
+    /**
+     * Returns the OpenAPI 3.2 fields of every security scheme (deprecated, oauth2MetadataUrl,
+     * the device authorization flow), read from the document as written because swagger-models
+     * 2.2 has no field for them.
+     */
+    protected final Map<String, RawSpecReader.RawSecurityScheme> rawSecuritySchemes() {
+        Map<String, RawSpecReader.RawSecurityScheme> raw = rawSecuritySchemes;
+        if (raw == null) {
+            raw = RawSpecReader.securitySchemes(getInputSpec());
+            rawSecuritySchemes = raw;
+        }
+        return raw;
     }
 
     /**

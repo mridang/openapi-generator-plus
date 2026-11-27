@@ -1816,7 +1816,34 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         final boolean bearer = "BearerAuthenticator".equals(spec.baseClass());
         ctx.put("isBearer", bearer);
         recordSchemeAuthenticator(spec, constructorParams, bearer);
+        recordOAuth2MetadataUrl(spec, ctx);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /** The per-scheme authenticators that declare an oauth2MetadataUrl, for the test template (D190). */
+    private final List<Map<String, Object>> oauth2MetadataUrlSchemes = new ArrayList<>();
+
+    /**
+     * Adds the escaped {@code oauth2MetadataUrlLiteral} (the body of a double-quoted string) to a
+     * scheme context that declares a metadata URL and lists the scheme under
+     * {@code oauth2MetadataUrlSchemes} for the generated test (D190).
+     */
+    private void recordOAuth2MetadataUrl(SchemeAuthSpec spec, Map<String, Object> ctx) {
+        if (!Boolean.TRUE.equals(ctx.get("hasOAuth2MetadataUrl"))) {
+            return;
+        }
+        final String literal = String.valueOf(ctx.get("oauth2MetadataUrl"))
+                .replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
+        ctx.put("oauth2MetadataUrlLiteral", literal);
+        final String className = String.valueOf(ctx.get("className"));
+        final Map<String, Object> entry = new HashMap<>();
+        entry.put("className", className);
+        entry.put("module", packageName + (spec.isOAuth() ? ".auth.oauth." : ".auth.")
+                + NamingConvention.SNAKE_CASE.apply(className));
+        entry.put("oauth2MetadataUrlLiteral", literal);
+        oauth2MetadataUrlSchemes.add(entry);
+        additionalProperties.put("oauth2MetadataUrlSchemes", oauth2MetadataUrlSchemes);
     }
 
     /**

@@ -524,3 +524,4 @@ Rule: an id list (`of_id/6`) passes the `last_id` or `next_cursor` of each page 
 Where: `paginator.mustache`, `api/api.mustache` (one branch per style; the `isId`, `isOffset`, `isPage` and `isBody` blocks), `readme.mustache`, `skills.mustache`.
 Test: `bhv pagination 004` (offset), `005` (page number), `006` (id cursor), `029` (next URL in the body and a refused foreign origin), `024` (the paged function names).
 Language impossibility: none. Elixir needs no runtime type for the cursor, so the offset and page styles are plain integers.
+- D190 (#91): `auth/scheme_authenticator.mustache` adds the deprecated-scheme sentence to the `@moduledoc` when `schemeDeprecated` (never `@deprecated`), and `metadata_url/0` with `@doc` and `@spec` (a `toElixirStringLiteral` literal) when `hasOAuth2MetadataUrl`. Test: `bhv authscheme 700` in `scheme_authenticator_test` (first scheme with a metadata URL, `metadataUrlTest`).

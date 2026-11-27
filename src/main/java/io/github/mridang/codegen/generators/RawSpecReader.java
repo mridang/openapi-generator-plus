@@ -116,6 +116,109 @@ public final class RawSpecReader {
         return defaults;
     }
 
+    /**
+     * The OpenAPI 3.2 fields of a Security Scheme Object that swagger-models 2.2 has no field for:
+     * {@code deprecated}, {@code oauth2MetadataUrl} and the {@code deviceAuthorization} flow
+     * (issues 91 and 92).
+     */
+    public static final class RawSecurityScheme {
+        private final boolean deprecated;
+        @Nullable private final String oauth2MetadataUrl;
+        @Nullable private final String deviceAuthorizationUrl;
+        @Nullable private final String deviceTokenUrl;
+        @Nullable private final String deviceRefreshUrl;
+        private final Map<String, String> deviceScopes;
+
+        RawSecurityScheme(boolean deprecated, @Nullable String oauth2MetadataUrl,
+                @Nullable String deviceAuthorizationUrl, @Nullable String deviceTokenUrl,
+                @Nullable String deviceRefreshUrl, Map<String, String> deviceScopes) {
+            this.deprecated = deprecated;
+            this.oauth2MetadataUrl = oauth2MetadataUrl;
+            this.deviceAuthorizationUrl = deviceAuthorizationUrl;
+            this.deviceTokenUrl = deviceTokenUrl;
+            this.deviceRefreshUrl = deviceRefreshUrl;
+            this.deviceScopes = deviceScopes;
+        }
+
+        /** Whether the scheme is marked {@code deprecated: true}. */
+        public boolean deprecated() {
+            return deprecated;
+        }
+
+        /** The scheme's {@code oauth2MetadataUrl} (RFC 8414), or null. */
+        @Nullable public String oauth2MetadataUrl() {
+            return oauth2MetadataUrl;
+        }
+
+        /** Whether the scheme declares a device authorization flow with both of its URLs. */
+        public boolean hasDeviceFlow() {
+            return deviceAuthorizationUrl != null && deviceTokenUrl != null;
+        }
+
+        /** The device flow's {@code deviceAuthorizationUrl}, or null. */
+        @Nullable public String deviceAuthorizationUrl() {
+            return deviceAuthorizationUrl;
+        }
+
+        /** The device flow's {@code tokenUrl}, or null. */
+        @Nullable public String deviceTokenUrl() {
+            return deviceTokenUrl;
+        }
+
+        /** The device flow's {@code refreshUrl}, or null. */
+        @Nullable public String deviceRefreshUrl() {
+            return deviceRefreshUrl;
+        }
+
+        /** The device flow's scopes in declaration order. */
+        public Map<String, String> deviceScopes() {
+            return deviceScopes;
+        }
+    }
+
+    /**
+     * Returns the OpenAPI 3.2 fields of every security scheme declared inline under {@code
+     * components.securitySchemes}, in document order. A scheme held behind a {@code $ref} is not
+     * read.
+     *
+     * @param location the path of the specification file, or null
+     * @return the fields per scheme name, empty when the location is null or unreadable
+     */
+    public static Map<String, RawSecurityScheme> securitySchemes(@Nullable final String location) {
+        final Map<String, RawSecurityScheme> out = new LinkedHashMap<>();
+        final JsonNode root = read(location);
+        final JsonNode components = root == null ? null : root.get("components");
+        final JsonNode schemes = components == null ? null : components.get("securitySchemes");
+        if (schemes == null || !schemes.isObject()) {
+            return out;
+        }
+        for (final Map.Entry<String, JsonNode> entry : schemes.properties()) {
+            final JsonNode scheme = entry.getValue();
+            final JsonNode deprecated = scheme.get("deprecated");
+            final JsonNode flows = scheme.get("flows");
+            final JsonNode device = flows == null ? null : flows.get("deviceAuthorization");
+            final Map<String, String> scopes = new LinkedHashMap<>();
+            final JsonNode scopeNode = device == null ? null : device.get("scopes");
+            if (scopeNode != null && scopeNode.isObject()) {
+                for (final Map.Entry<String, JsonNode> scope : scopeNode.properties()) {
+                    scopes.put(scope.getKey(), scope.getValue().asText(""));
+                }
+            }
+            out.put(entry.getKey(), new RawSecurityScheme(
+                    deprecated != null && deprecated.asBoolean(false),
+                    text(scheme.get("oauth2MetadataUrl")),
+                    text(device == null ? null : device.get("deviceAuthorizationUrl")),
+                    text(device == null ? null : device.get("tokenUrl")),
+                    text(device == null ? null : device.get("refreshUrl")),
+                    java.util.Collections.unmodifiableMap(scopes)));
+        }
+        return out;
+    }
+
+    @Nullable private static String text(@Nullable final JsonNode node) {
+        return node != null && node.isTextual() && !node.asText().isBlank() ? node.asText().trim() : null;
+    }
+
     @SuppressFBWarnings(
             value = "PATH_TRAVERSAL_IN",
             justification = "The location is the input specification the generator was asked to read")

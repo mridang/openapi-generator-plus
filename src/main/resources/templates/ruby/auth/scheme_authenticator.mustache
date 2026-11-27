@@ -11,7 +11,15 @@ module {{moduleName}}
 {{#isOAuth}}
     module OAuth
       # Scheme-specific authenticator for the {{schemeName}} security scheme.
+{{#schemeDeprecated}}
+      # Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
+{{/schemeDeprecated}}
       class {{className}} < {{baseClass}}
+{{#hasOAuth2MetadataUrl}}
+        # The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+        METADATA_URL = {{{metadataUrlLiteral}}}
+
+{{/hasOAuth2MetadataUrl}}
         # Every credential not given here is read, once, from the environment
         # variable of this scheme; an empty variable counts as unset, and a
         # credential still missing fails here with an ArgumentError.
@@ -33,7 +41,15 @@ module {{moduleName}}
 {{/isOAuth}}
 {{^isOAuth}}
     # Scheme-specific authenticator for the {{schemeName}} security scheme.
+{{#schemeDeprecated}}
+    # Deprecated: the API marks the security scheme '{{schemeName}}' as deprecated.
+{{/schemeDeprecated}}
     class {{className}} < {{baseClass}}
+{{#hasOAuth2MetadataUrl}}
+      # The OAuth 2.0 authorization server metadata URL (RFC 8414) the API declares for this scheme.
+      METADATA_URL = {{{metadataUrlLiteral}}}
+
+{{/hasOAuth2MetadataUrl}}
       # A credential not given here is read, once, from the environment variable
       # of this scheme (an empty variable counts as unset), then from the token
       # provider where the scheme has one; one still missing fails here with an
