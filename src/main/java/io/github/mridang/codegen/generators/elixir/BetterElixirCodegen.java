@@ -256,7 +256,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         typeMapping.put("float", "float()");
         typeMapping.put("double", "float()");
         typeMapping.put("number", "float()");
-        typeMapping.put("decimal", "float()");
+        // format: decimal (number or string shaped) is the exact `Decimal.t()` of the
+        // hex `decimal` package (#157). ObjectSerializer reads its digits from the
+        // JSON text without passing through a float.
+        typeMapping.put("decimal", "Decimal.t()");
         // Elixir's built-in Date/DateTime types preserve calendar
         // semantics that String.t() loses. ObjectSerializer can
         // pipe ISO-8601 wire strings through Date.from_iso8601!/1
@@ -306,6 +309,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                                 // them or wrap them in Module.t() etc.
                                 "Time.t()",
                                 "Duration.t()",
+                                "Decimal.t()",
                                 ":inet.ip4_address()",
                                 ":inet.ip6_address()"));
 
@@ -819,6 +823,13 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             // diverging from the present-property path.
             if (resolved.getEnum() != null && !resolved.getEnum().isEmpty()) {
                 return ":\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+            } else if ("decimal".equals(resolved.getFormat())) {
+                // A Decimal default is built from its exact text, never from a float literal.
+                final Object raw = resolved.getDefault();
+                final String text = raw instanceof java.math.BigDecimal
+                        ? ((java.math.BigDecimal) raw).toPlainString()
+                        : String.valueOf(raw);
+                return "Decimal.new(\"" + escapeText(text) + "\")";
             } else if (ModelUtils.isStringSchema(resolved)) {
                 // The shared literal escape, so #{ cannot interpolate and the
                 // default is exactly the spec string.

@@ -370,13 +370,20 @@ A model is a struct, and a struct never changes in place. Make a changed copy wi
 
 ### Decimal / `format: number` precision
 
-`format: decimal` / `format: number` values are decoded into Elixir
-`float` (IEEE-754 double), so they lose exact decimal representation.
-`0.1 + 0.2` in Elixir is `0.30000000000000004`.
+`format: decimal` values are `Decimal.t()` from the `decimal` package.
+Their digits are read from the JSON text without passing through a
+float, and they are written back with every digit: a `type: number`
+decimal as a bare JSON number in plain notation, a `type: string`
+decimal as a JSON string that keeps its decimal places (`"12.50"`). A
+number with more than 34 significant digits after a decimal point, which
+the `decimal` package refuses to parse, fails with a
+`SerializationError` instead of being rounded.
 
-Do not do arithmetic on prices, balances, or other money-typed fields.
-If you need exact decimal arithmetic, parse the raw response body
-yourself (e.g. with `Jason.decode/2`) and use the `Decimal` library.
+A bare `type: number` with no format, `format: float` and
+`format: double` are decoded into Elixir `float` (IEEE-754 double), so
+they lose exact decimal representation. `0.1 + 0.2` in Elixir is
+`0.30000000000000004`. Do not do arithmetic on prices, balances, or
+other money-typed fields typed that way.
 
 `format: int64` is unaffected — Elixir integers are arbitrary-precision
 and represent the full 64-bit range without loss.

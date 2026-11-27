@@ -1,6 +1,6 @@
 # Elixir
 
-The `elixir-plus` generator (`BetterElixirCodegen`) produces a Mix project with one module per API group, model, error and authenticator. It uses Req for HTTP and Jason for JSON. For the rules shared by all twelve languages see [how it works](../how-it-works.md), for the type table across languages see [types](../types.md), and for settled cross-language choices see [decisions](../decisions.md).
+The `elixir-plus` generator (`BetterElixirCodegen`) produces a Mix project with one module per API group, model, error and authenticator. It uses Req for HTTP, Jason for JSON and the `decimal` package for exact decimals. For the rules shared by all twelve languages see [how it works](../how-it-works.md), for the type table across languages see [types](../types.md), and for settled cross-language choices see [decisions](../decisions.md).
 
 ## Versions and support policy
 
@@ -24,7 +24,8 @@ Types are the typespecs that appear in the generated modules.
 | `string` / `uri` | `String.t()` | Checked as an absolute URI on decode. Not `URI.t()`, because `URI.to_string/1` lowercases the scheme and drops a default port, and `URI.new/1` refuses a square bracket in a path, so the text would not round-trip (D134). |
 | `integer` (any format) | `integer()` | BEAM integers are unbounded. `int32` and `int64` are not range checked. |
 | `number` / `float`, `double`, and no format | `float()` | |
-| `number` / `decimal` | `float()` | Lossy for exact decimal values such as money. Parse the body with the `Decimal` package if you need exactness. |
+| `number` / `decimal` | `Decimal.t()` | Exact (D135). The digits are read from the JSON text, never through a float, and written back as a bare JSON number in plain notation with every digit. A number with more than 34 significant digits after a decimal point, which the `decimal` package refuses to parse, fails with `SerializationError` instead of being rounded; an integer of any length is exact. |
+| `string` / `decimal` | `Decimal.t()` | The same `Decimal`, read only from a JSON string (a bare JSON number fails with `SerializationError`) and written back as a JSON string that keeps its decimal places (`"12.50"`). |
 | `boolean` | `boolean()` | |
 | `array` | `[T]` | |
 | `array` with `uniqueItems` | `MapSet.t(T)` | Sent in the `MapSet`'s own order. |
@@ -42,6 +43,7 @@ Runtime dependencies, from the generated `mix.exs`:
 |---|---|---|
 | `req` | ~> 0.5 | HTTP client (on Finch and Mint) |
 | `jason` | ~> 1.4 | JSON |
+| `decimal` | ~> 3.2 | `format: decimal` values |
 | `mime` | ~> 2.0 | Content types |
 | `brotli` | ~> 0.3 | Optional, `prod` only: decoding `br` responses |
 
@@ -141,7 +143,7 @@ result.raw_body
 ## Known limits
 
 - `format: date-time` decoding returns UTC. See the table note above.
-- `format: decimal` and `number` are `float()` and lose exactness.
+- A bare `number` with no format, `float` and `double` are `float()` and lose exactness; `format: decimal` is the exact `Decimal.t()`. An array of `type: string` decimals is read as numbers, like an array of `type: number` decimals.
 - Building a struct never validates anything: a wrong-typed scalar or an atom that is no enum member builds fine. The checks run when a response is decoded (a wrong type and a missing required property raise `SerializationError`, and an unknown enum string decodes to `:unknown_default_open_api`, D117) and when a body is encoded (an inline enum atom outside its members, the catch-all included, raises).
 - Fractional and quoted numbers are rejected when decoding. There is no 32-bit or 64-bit range check, because the typespec is the width-less `integer()`.
 - A body with a charset other than UTF-8 (such as `shift_jis` or the `iso-8859-x` family) is not decoded. Erlang's `:unicode` module does not cover it.
@@ -161,7 +163,6 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - Check that `DateTime` and `Time` decoding does not silently convert a value such as `+05:30` to UTC where the generated README claims a round trip, and add a test for it.
 - Tighten typespecs: `number()` instead of `float()` for a bare `number`, because Jason decodes `1` as an integer, and `%{optional(String.t()) => T}` for `additionalProperties`.
 - A documentation-only `@type uuid :: String.t()` alias in the models module. The review advises against adding a UUID dependency.
-- `Decimal.t()` for `decimal` would need the `decimal` package as a dependency, so the README guidance stays unless that is accepted.
 - No floor change is required by any of these ideas.
 
 Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `:otel_propagator_text_map.inject` reads the process's context; the headers are built in the calling process (`Tracer.with_span`).

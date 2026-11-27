@@ -2577,6 +2577,49 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert {{moduleName}}.ObjectSerializer.serialize(native_values(json)) == json
     end
 
+    test "bhv serializationobject 410 a number keeps every digit and is written in plain notation" do
+      json = ~s({"amount":12.345678901234567890123})
+      values = native_values(json)
+
+      assert Decimal.equal?(values.amount, Decimal.new("12.345678901234567890123"))
+      assert {{moduleName}}.ObjectSerializer.serialize(values) == json
+    end
+
+    test "bhv serializationobject 411 a string decimal is written as a JSON string and rejects a bare number" do
+      values = native_values(~s({"ledger":"12.50"}))
+
+      assert Decimal.to_string(values.ledger, :normal) == "12.50"
+      assert {{moduleName}}.ObjectSerializer.serialize(values) == ~s({"ledger":"12.50"})
+
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        native_values(~s({"ledger":12.50}))
+      end
+    end
+
+    test "bhv serializationobject 412 a forty digit number is exact and never rounded" do
+      digits = "1234567890123456789012345678901234567890"
+      values = native_values(~s({"amount":#{digits}}))
+
+      assert Decimal.equal?(values.amount, digits |> String.to_integer() |> Decimal.new())
+      assert {{moduleName}}.ObjectSerializer.serialize(values) == ~s({"amount":#{digits}})
+    end
+
+    test "bhv serializationobject 413 a decimal field of either shape is the exact Decimal and never a float" do
+      values = native_values(~s({"amount":0.1,"ledger":"0.1"}))
+
+      assert %Decimal{} = values.amount
+      assert %Decimal{} = values.ledger
+      assert Decimal.to_string(values.amount, :normal) == "0.1"
+      assert Decimal.to_string(values.ledger, :normal) == "0.1"
+    end
+
+    test "bhv misc 087 a decimal in a loosely built body is written as a bare JSON number" do
+      assert {{moduleName}}.ObjectSerializer.serialize(%{"weightKg" => Decimal.new("12.5")}) == ~s({"weightKg":12.5})
+    end
+
+    test "bhv misc 088 a decimal decoded from text keeps the decimal places it was written with" do
+      assert native_values(~s({"ledger":"1.50"})).ledger.exp == -2
+    end
   end
 
   describe "enum member names and descriptions" do
