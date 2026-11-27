@@ -1,6 +1,6 @@
 # Call hook and OpenTelemetry adapter (issues #158 and #108)
 
-Status: proposal for owner review. Nothing here is built, and no existing file is changed by this document. Facts about the repository carry the file they were read in; a statement marked "not verified" was not read or run in this session. OpenTelemetry maturity was read from opentelemetry.io and the package registries on 2026-11-18 and should be re-checked on the day the work starts.
+Status: built in all twelve SDKs and settled as D141 in `docs/decisions.md`. The text below is the design as proposed and is kept for its reasoning; where it differs from the generated code, the code and the language pages win.
 
 ## 1. Goal
 
