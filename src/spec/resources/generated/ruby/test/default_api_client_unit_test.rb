@@ -4491,7 +4491,7 @@ describe 'DefaultApiClientUnit' do
     server&.close
   end
 
-  it 'bhv_transport_095 a body past max_response_bytes raises ResponseTooLargeError with the status and the limit' do
+  it 'bhv_transport_095 a body past max_response_bytes raises ResponseTooLargeError and is whole without a limit' do
     server = RawServer.serve do |_self_server, socket, _hit, _head|
       RawHttp.head(socket, 200, 'Content-Type: text/plain', 'Transfer-Encoding: chunked')
       RawHttp.chunk(socket, 'x' * 4096)
@@ -4505,18 +4505,8 @@ describe 'DefaultApiClientUnit' do
     _(error.status_code).must_equal 200
     _(error.limit).must_equal 1024
     _(error.detail_message).must_equal 'Response body exceeds the limit of 1024 bytes'
-  ensure
-    server&.close
-  end
-
-  it 'bhv_transport_095 the same body without a limit is returned whole' do
-    server = RawServer.serve do |_self_server, socket, _hit, _head|
-      RawHttp.head(socket, 200, 'Content-Type: text/plain', 'Transfer-Encoding: chunked')
-      RawHttp.chunk(socket, 'x' * 4096)
-      RawHttp.finish(socket)
-    end
-    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.build)
-    response = client.send_request('GET', server.url('/items/blob'), {}, nil)
+    unlimited = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.build)
+    response = unlimited.send_request('GET', server.url('/items/blob'), {}, nil)
     _(response.status_code).must_equal 200
     _(response.body).must_equal 'x' * 4096
   ensure

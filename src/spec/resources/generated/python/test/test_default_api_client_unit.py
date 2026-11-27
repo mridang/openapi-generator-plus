@@ -3696,7 +3696,7 @@ class TestTransportBehaviours:
         assert url == "https://api.example.test/v1/items?limit=2"
         assert kwargs["headers"]["X-Caller"] == "a"
 
-    def test_bhv_transport_095_a_body_past_max_response_bytes_raises_response_too_large(
+    def test_bhv_transport_095_a_body_past_max_response_bytes_raises_response_too_large_and_is_whole_without_one(
         self, raw_server: Any
     ) -> None:
         def script(connection: Any) -> None:
@@ -3706,33 +3706,21 @@ class TestTransportBehaviours:
             connection.chunk(b"x" * 4096)
             connection.end()
 
-        server = raw_server(script)
-        client = DefaultApiClient(
+        limited = DefaultApiClient(
             TransportOptions.builder().max_response_bytes(1024).build()
         )
-
         with pytest.raises(ResponseTooLargeException) as raised:
-            client.send_request("GET", server.url("/items/blob"), {}, None)
+            limited.send_request("GET", raw_server(script).url("/items/blob"), {}, None)
 
         assert type(raised.value) is ResponseTooLargeException
         assert raised.value.status_code == 200
         assert raised.value.limit == 1024
         assert raised.value.message == "Response body exceeds the limit of 1024 bytes"
 
-    def test_bhv_transport_095_the_same_body_without_a_limit_is_returned_whole(
-        self, raw_server: Any
-    ) -> None:
-        def script(connection: Any) -> None:
-            connection.head(
-                200, "Content-Type: text/plain", "Transfer-Encoding: chunked"
-            )
-            connection.chunk(b"x" * 4096)
-            connection.end()
-
-        server = raw_server(script)
-        client = DefaultApiClient(TransportOptions.builder().build())
-
-        response = client.send_request("GET", server.url("/items/blob"), {}, None)
+        unlimited = DefaultApiClient(TransportOptions.builder().build())
+        response = unlimited.send_request(
+            "GET", raw_server(script).url("/items/blob"), {}, None
+        )
 
         assert response.status_code == 200
         assert response.body == "x" * 4096

@@ -528,29 +528,24 @@ class TestTransportOptionsBehaviours:
 
         assert "max_retries=3" in repr(opts)
 
-    def test_bhv_options_069_max_response_bytes_defaults_to_none(self) -> None:
+    def test_bhv_options_069_max_response_bytes_defaults_to_none_round_trips_and_refuses_a_non_positive_value(
+        self,
+    ) -> None:
         assert TransportOptions.builder().build().max_response_bytes is None
         assert TransportOptions().max_response_bytes is None
 
-    def test_bhv_options_069_a_positive_max_response_bytes_round_trips_through_the_builder(
-        self,
-    ) -> None:
         opts = TransportOptions.builder().max_response_bytes(1024).build()
-
         assert opts.max_response_bytes == 1024
         assert "max_response_bytes=1024" in repr(opts)
 
-    @pytest.mark.parametrize("value", [0, -1])
-    def test_bhv_options_069_a_non_positive_max_response_bytes_is_refused_with_the_canonical_message(
-        self, value: int
-    ) -> None:
-        message = f"Invalid maxResponseBytes: must be a positive number of bytes (got {value})"
-        with pytest.raises(ValueError) as exc_info:
-            TransportOptions.builder().max_response_bytes(value)
-        assert str(exc_info.value) == message
-        with pytest.raises(ValueError) as direct:
-            TransportOptions(max_response_bytes=value)
-        assert str(direct.value) == message
+        for value in (0, -1):
+            message = f"Invalid maxResponseBytes: must be a positive number of bytes (got {value})"
+            with pytest.raises(ValueError) as exc_info:
+                TransportOptions.builder().max_response_bytes(value)
+            assert str(exc_info.value) == message
+            with pytest.raises(ValueError) as direct:
+                TransportOptions(max_response_bytes=value)
+            assert str(direct.value) == message
 
     def test_bhv_transport_080_a_proxy_the_client_cannot_apply_fails_construction(
         self,

@@ -531,18 +531,12 @@ describe Petstore::Client::TransportOptions, 'builder entry point and printable 
     _(Petstore::Client::TransportOptions.builder.build.proxy).must_be_nil
   end
 
-  it 'bhv_options_069 max_response_bytes defaults to none' do
+  it 'bhv_options_069 max_response_bytes defaults to none, round-trips and refuses a zero or negative value' do
     _(Petstore::Client::TransportOptions.builder.build.max_response_bytes).must_be_nil
-  end
-
-  it 'bhv_options_069 a positive max_response_bytes round-trips through the builder' do
     opts = Petstore::Client::TransportOptions.builder.max_response_bytes(1024).build
 
     _(opts.max_response_bytes).must_equal 1024
     _(opts.inspect).must_include 'max_response_bytes=1024'
-  end
-
-  it 'bhv_options_069 a zero or negative max_response_bytes is refused with the canonical message' do
     err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_response_bytes(0) }
     _(err.message).must_equal 'Invalid maxResponseBytes: must be a positive number of bytes (got 0)'
     err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_response_bytes(-1) }
