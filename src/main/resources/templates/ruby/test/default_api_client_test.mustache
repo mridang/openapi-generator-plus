@@ -1229,6 +1229,84 @@ describe {{moduleName}}::DefaultApiClient do
     end
   end
 
+  describe 'connection reuse' do
+    # A server that answers every request on a connection it accepted, and
+    # reports each accepted connection and each one the client closed.
+    def keep_alive_server
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      accepted = Queue.new
+      closed = Queue.new
+      thread = Thread.new do
+        loop do
+          conn = server.accept
+          accepted << true
+          Thread.new(conn) do |socket|
+            loop do
+              head = []
+              while (line = socket.gets) && !line.strip.empty?
+                head << line
+              end
+              break if head.empty?
+
+              socket.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+            end
+          rescue IOError, SystemCallError
+            nil
+          ensure
+            closed << true
+            socket.close unless socket.closed?
+          end
+        end
+      rescue IOError, SystemCallError
+        nil
+      end
+      [server, thread, accepted, closed, "http://127.0.0.1:#{server.addr[1]}/items"]
+    end
+
+    it 'bhv_transport_120 several calls to one host share one kept-alive socket' do
+      server, thread, accepted, _closed, url = keep_alive_server
+      client = {{moduleName}}::DefaultApiClient.new
+      3.times { _(client.send_request(:GET, url, {}, nil).status_code).must_equal 200 }
+      _(accepted.size).must_equal 1
+    ensure
+      client&.close
+      server&.close
+      thread&.join(2)
+    end
+
+    it 'bhv_transport_121 closing the client closes the kept-alive socket it holds' do
+      server, thread, _accepted, closed, url = keep_alive_server
+      client = {{moduleName}}::DefaultApiClient.new
+      _(client.send_request(:GET, url, {}, nil).status_code).must_equal 200
+      client.close
+      _(closed.pop(timeout: 5)).must_equal true
+    ensure
+      server&.close
+      thread&.join(2)
+    end
+
+    it 'bhv_transport_122 a body shorter than its Content-Length is a network error, not a short success' do
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      thread = Thread.new do
+        conn = server.accept
+        while (line = conn.gets) && !line.strip.empty?
+          nil
+        end
+        conn.write("HTTP/1.1 200 OK\r\nContent-Length: 10\r\nConnection: close\r\n\r\nok")
+        conn.close
+      end
+      transport = {{moduleName}}::TransportOptions.builder.max_retries(0).build
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      _ do
+        client.send_request(:GET, "http://127.0.0.1:#{server.addr[1]}/items", {}, nil)
+      end.must_raise {{moduleName}}::Errors::NetworkError
+    ensure
+      client&.close
+      server&.close
+      thread&.join(2)
+    end
+  end
+
   # ── Gap N1 — body-replay guard fires ONLY on 307/308, not every 3xx ──
   #
   # Canonical cross-SDK scenario for an HTTPS -> HTTP (TLS downgrade)

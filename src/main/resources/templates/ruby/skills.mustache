@@ -381,7 +381,7 @@ The generator finds a paged operation by its names and shape. The operation must
 
 ### Custom HTTP client
 
-Supply your own `Faraday::Connection` to control the adapter or middleware. The SDK still applies its timeouts, user agent, redirect policy and query encoding on top, and never closes a connection you supplied. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(false)` raises `ArgumentError`; configure those on the connection instead.
+Supply your own `Faraday::Connection` to control the adapter or middleware. The SDK still applies its timeouts, user agent, redirect policy and query encoding on top, and never closes a connection you supplied. The SDK's own connection keeps up to 100 sockets alive between calls through `faraday-net_http_persistent`, closing each after 5 seconds idle. A connection you supply can use any Faraday adapter, and its pool is yours to manage. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(false)` raises `ArgumentError`; configure those on the connection instead.
 
 ```ruby file
 require '{{gemName}}'

@@ -3,6 +3,7 @@
 {{>api_info}}
 
 require 'faraday'
+require 'faraday/net_http_persistent'
 require 'json'
 require 'securerandom'
 require 'openssl'
@@ -88,15 +89,15 @@ module {{moduleName}}
     StreamSpec = Struct.new(:idle_ms)
     private_constant :StreamSpec
 
-    # Mixed into the +Net::HTTP+ object of a streamed call. It reports the
+    # Mixed into the connection pool of a streamed call. It reports the
     # response head to the producer thread's {StreamBody} the moment the
     # headers are read, so the call returns at the headers even when the first
     # body byte is still to come.
     module HeadSignal
-      def request(req, body = nil, &block)
+      def request(uri, req = nil, &block)
         # A streamed request body has been read once: the library must not send
         # it again of its own accord after a dropped connection.
-        send(:max_retries=, 0) if req.body_stream
+        send(:max_retries=, 0) if req&.body_stream
         sink = Thread.current[StreamBody::SINK_KEY]
         return super unless sink && block
 
@@ -104,10 +105,24 @@ module {{moduleName}}
           sink.push_head(response.code.to_i, response.each_header.to_h)
           block.call(response)
         end
-        super(req, body, &reporting)
+        super(uri, req, &reporting)
       end
     end
     private_constant :HeadSignal
+
+    # Mixed into the connection pool. The pool reads each response on a
+    # +Net::HTTP+ connection that it owns and does not expose +ignore_eof+, so
+    # the flag is set on that connection as it is checked out. A body that ends
+    # before its Content-Length is a failed transfer, not a short 200.
+    module StrictEof
+      def connection_for(uri, &block)
+        super(uri) do |connection|
+          connection.http.ignore_eof = false
+          block.call(connection)
+        end
+      end
+    end
+    private_constant :StrictEof
 
     EXTRA_SENSITIVE_HEADER_NAMES = %w[{{#apiKeyHeaderNames}} {{nameLower}}{{/apiKeyHeaderNames}}].freeze
 
@@ -247,10 +262,10 @@ module {{moduleName}}
     # Closes the client gracefully. It is marked closed at once, so a request
     # started afterwards raises a RuntimeError; a request already in flight
     # finishes, and the Faraday connection the SDK built is released when the
-    # last of them completes (at once when none is running). The default
-    # +net_http+ adapter opens a socket per request, so there is no pooled
-    # socket to release. It is safe to call this method repeatedly
-    # (idempotent): a second call changes nothing.
+    # last of them completes (at once when none is running). Releasing it shuts
+    # the connection pool, which closes every socket the SDK kept alive. It is
+    # safe to call this method repeatedly (idempotent): a second call changes
+    # nothing.
     #
     # Streams that are still open are cancelled, not waited for: their next
     # read raises the RuntimeError of a closed client.
@@ -422,9 +437,10 @@ module {{moduleName}}
       release_connection if release
     end
 
-    # Drops the Faraday connection this client built. A connection supplied
-    # through {TransportOptions::Builder#connection} is the caller's and is
-    # never closed here.
+    # Closes the Faraday connection this client built, which shuts its
+    # connection pool. A connection supplied through
+    # {TransportOptions::Builder#connection} is the caller's and is never
+    # closed here.
     def release_connection
       conn = @lock.synchronize do
         built = @connection
@@ -1052,11 +1068,14 @@ module {{moduleName}}
           f.options.write_timeout = timeout_secs
         end
 
-        # A body that ends before its Content-Length is a failed transfer, not a
-        # short 200: Net::HTTP ignores the early EOF unless told otherwise.
-        f.adapter :net_http do |http|
-          http.ignore_eof = false
-          http.extend(HeadSignal)
+        # Sockets are kept alive between calls (faraday-net_http_persistent).
+        # The pool holds at most 100 connections, and an idle one is closed
+        # after 5 seconds, the gem's own bound, so a server that drops idle
+        # sockets early is not met with a reused one.
+        f.adapter :net_http_persistent, pool_size: 100 do |pool|
+          pool.idle_timeout = 5
+          pool.extend(StrictEof)
+          pool.extend(HeadSignal)
         end
 
         # Gap BH: do not register the Faraday follow_redirects middleware
