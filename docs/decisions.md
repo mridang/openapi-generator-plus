@@ -132,7 +132,7 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Decision.** Go operations take `ctx` first, before the path parameters, the body and the options. No code changes were needed; the issue is answered by S7 and this record.
 
-**Consequences.** A caller that has no context passes `context.Background()`. The trace context comes from the same argument (D101).
+**Consequences.** A caller that has no context passes `context.Background()`. The trace context comes from the same argument (D101), and the `otelhook` adapter records its request count and duration in it too, so a metric exemplar names the caller's span, as the ambient context does in the other SDKs.
 
 ## D115: Header parameters named Accept, Content-Type or Authorization are ignored
 

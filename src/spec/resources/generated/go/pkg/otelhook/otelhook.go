@@ -116,11 +116,14 @@ func (h *Hook) Start(ctx context.Context, info petstore.CallInfo, headers map[st
 		propagator = otel.GetTextMapPropagator()
 	}
 	propagator.Inject(spanContext, propagation.MapCarrier(headers))
-	return &observer{hook: h, info: info, span: span, started: started}, nil
+	return &observer{hook: h, ctx: ctx, info: info, span: span, started: started}, nil
 }
 
+// observer keeps the caller's context so the metrics are recorded in it, the
+// way the other SDKs record them in the ambient context of the call.
 type observer struct {
 	hook    *Hook
+	ctx     context.Context
 	info    petstore.CallInfo
 	span    trace.Span
 	started time.Time
@@ -138,7 +141,10 @@ func (o *observer) Finish(outcome petstore.CallOutcome) {
 	}
 	o.span.SetAttributes(attributes...)
 	o.span.End()
-	ctx := context.Background()
+	ctx := o.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	set := metric.WithAttributes(attributes...)
 	o.hook.count.Add(ctx, 1, set)
 	o.hook.duration.Record(ctx, time.Since(o.started).Seconds(), set)
