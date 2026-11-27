@@ -483,7 +483,13 @@ module Petstore::Client
 
       # Reads a memo from the server its path declares
       # @param memo_id [String] The memo to address
+      # Example for +memo_id+ — Example: m1
       # @param options [GetMemoOptions] per-call options: the optional timeout, headers and max_retries
+      #
+      # Response 200 example: A short memo
+      # <tt>{"memoId":"m1","text":"Restock</tt> on <tt>Friday"}</tt>
+      #
+      # Extension x-audience: internal-tools
       # @return [Memo]
       # @raise [ApiError] if fails to make API call
       def get_memo(memo_id, options = nil, server: nil)
@@ -950,7 +956,9 @@ module Petstore::Client
       end
 
       # Checks that a memo exists with a HEAD request
-      # @param memo_id [String] The memo to address
+      # Revisions of one memo, read and changed with the less common HTTP methods.
+      # @param memo_id [String] The memo whose revisions are read or changed
+      # Example for +memo_id+ — Example: m1
       # @param options [HeadMemoOptions] per-call options: the optional timeout, headers and max_retries
       # @return [nil]
       # @raise [ApiError] if fails to make API call
@@ -992,7 +1000,9 @@ module Petstore::Client
       end
 
       # Lists the methods a memo accepts with an OPTIONS request
-      # @param memo_id [String] The memo to address
+      # Revisions of one memo, read and changed with the less common HTTP methods.
+      # @param memo_id [String] The memo whose revisions are read or changed
+      # Example for +memo_id+ — Example: m1
       # @param options [OptionsMemoOptions] per-call options: the optional timeout, headers and max_retries
       # @return [nil]
       # @raise [ApiError] if fails to make API call
@@ -1034,9 +1044,18 @@ module Petstore::Client
       end
 
       # Changes a memo with a PATCH request
-      # @param memo_id [String] The memo to address
+      # Revisions of one memo, read and changed with the less common HTTP methods.
+      # @param memo_id [String] The memo whose revisions are read or changed
+      # Example for +memo_id+ — Example: m1
       # @param memo [Memo] The fields of the memo to change
       # @param options [PatchMemoOptions] per-call options: the optional timeout, headers and max_retries
+      #
+      # Request body example: A short memo
+      # <tt>{"memoId":"m1","text":"Restock</tt> on <tt>Friday"}</tt>
+      # Request body example: A memo kept as a file
+      # https://example.com/memos/m1.json
+      # Response 200 example: A short memo
+      # <tt>{"memoId":"m1","text":"Restock</tt> on <tt>Friday"}</tt>
       # @return [Memo]
       # @raise [ApiError] if fails to make API call
       def patch_memo(memo_id, memo, options = nil)
@@ -1264,7 +1283,9 @@ module Petstore::Client
       end
 
       # Echoes a memo request with a TRACE request
-      # @param memo_id [String] The memo to address
+      # Revisions of one memo, read and changed with the less common HTTP methods.
+      # @param memo_id [String] The memo whose revisions are read or changed
+      # Example for +memo_id+ — Example: m1
       # @param options [TraceMemoOptions] per-call options: the optional timeout, headers and max_retries
       # @return [nil]
       # @raise [ApiError] if fails to make API call

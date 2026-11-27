@@ -24,3 +24,8 @@ export * from "./get-native-values-options.js";
 export * from "./get-stock-item-options.js";
 export * from "./search-store-options.js";
 export * from "./watch-orders-options.js";
+export * from "./list-pet-feed-response-headers.js";
+export * from "./get-memo-response-headers.js";
+export * from "./head-memo-response-headers.js";
+export * from "./options-memo-response-headers.js";
+export * from "./patch-memo-response-headers.js";

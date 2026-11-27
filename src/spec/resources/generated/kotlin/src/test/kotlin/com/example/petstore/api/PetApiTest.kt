@@ -10,10 +10,12 @@ package com.example.petstore.api
 import com.example.petstore.*
 import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
+import com.example.petstore.api.options.AttachPetFilesOptions
 import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.api.options.GetPetByNameOptions
 import com.example.petstore.api.options.GetPetByNoteOptions
+import com.example.petstore.api.options.GetPetPhotoOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
@@ -634,6 +636,24 @@ class PetApiTest {
             runBlocking { api.getPetPhoto(1L, 1L) }.use { result ->
                 assertNotNull(result)
             }
+        }
+
+        @Test
+        @DisplayName("bhvOperations501 a per-call Accept header picks one of the declared response media types")
+        fun bhvOperations501PerCallAcceptPicksOneDeclaredMediaType() {
+            var accepts: List<String>? = null
+            val api =
+                capturingPetApi("png", "image/png") { request, _ ->
+                    accepts = request.headers.getAll("Accept")
+                }
+
+            runBlocking {
+                api
+                    .getPetPhoto(1L, 1L, options = GetPetPhotoOptions(headers = mapOf("Accept" to "image/png")))
+                    .use { it.readAll() }
+            }
+
+            assertEquals(listOf("image/png"), accepts)
         }
 
         @Test
@@ -2179,6 +2199,107 @@ class PetApiTest {
             }
 
             assertEquals("nickname=n&tags=x&tags=y&note=m&renewalDate=2025-01-02", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire501 an allowReserved form field keeps reserved characters literal on the wire")
+        fun bhvSerializationwire501AllowReservedFormFieldKeepsReservedLiteral() {
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(
+                        nickname = "rex",
+                        route = "v1.0/beta:rc1 a#b",
+                    ),
+                )
+            }
+
+            assertEquals("nickname=rex&route=v1.0/beta:rc1%20a%23b", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire502 a form field with an Encoding Object style is written with the query styling")
+        fun bhvSerializationwire502StyledFormFieldUsesQueryStyling() {
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(
+                        nickname = "rex",
+                        aliases = listOf("a b", "c"),
+                    ),
+                )
+            }
+
+            assertEquals("nickname=rex&aliases=a+b%7Cc", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire503 a multipart part carries its declared Content-Type and part headers")
+        fun bhvSerializationwire503MultipartPartCarriesDeclaredEncoding() {
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.attachPetFiles(
+                    1L,
+                    AttachPetFilesOptions(
+                        _file = "img".toByteArray(Charsets.UTF_8),
+                        caption = "hello",
+                    ),
+                )
+            }
+
+            val body = capturedBody!!
+            assertTrue(
+                body.contains(
+                    "Content-Disposition: form-data; name=\"caption\"\r\n" +
+                        "Content-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello",
+                ),
+                body,
+            )
+            assertTrue(
+                body.contains(
+                    "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" +
+                        "Content-Type: application/octet-stream\r\n\r\nimg\r\n",
+                ),
+                body,
+            )
         }
 
         @Test

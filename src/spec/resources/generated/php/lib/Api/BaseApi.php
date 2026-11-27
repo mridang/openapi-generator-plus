@@ -26,6 +26,7 @@ use PetstoreClient\CallObserver;
 use PetstoreClient\CallOutcome;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
+use PetstoreClient\EncodedPart;
 use PetstoreClient\EventStream;
 use PetstoreClient\HeaderSelector;
 use PetstoreClient\ClientLifecycle;
@@ -858,7 +859,7 @@ class BaseApi
         $statusCode = 0;
         $responseHeaders = null;
         try {
-            $serializedBody = $this->serializeBody($body, $contentType, $isMultipart, $rawBody);
+            $serializedBody = $this->serializeBody($body, $contentType, $isMultipart, $rawBody, $allowReservedKeys);
 
             if ($stream) {
                 $result = $this->openStream(
@@ -1495,6 +1496,8 @@ class BaseApi
      * @param string|null $contentType Content type
      * @param bool        $isMultipart Whether the request is multipart
      * @param bool        $rawBody     Whether the body is a `format: binary` value
+     * @param array<string, bool> $allowReservedKeys Set of allow-reserved parameter
+     *                                     names; a form field is under a `form:` prefix
      *
      * @return mixed Serialized body
      */
@@ -1502,7 +1505,8 @@ class BaseApi
         mixed $body,
         ?string $contentType,
         bool $isMultipart,
-        bool $rawBody = false
+        bool $rawBody = false,
+        array $allowReservedKeys = []
     ): mixed {
         if ($body === null) {
             return null;
@@ -1513,7 +1517,9 @@ class BaseApi
             return $body;
         }
 
-        if ($isMultipart) {
+        /* A multipart body of any subtype (form-data, mixed, related) is a part map that the
+         * transport encodes, keeping the declared subtype. */
+        if ($isMultipart || (is_array($body) && str_starts_with(strtolower($contentType ?? ''), 'multipart/'))) {
             return $body;
         }
 
@@ -1581,6 +1587,8 @@ class BaseApi
 
         if ($contentType === 'application/x-www-form-urlencoded') {
             assert(is_array($body));
+            /* A part encoding only applies to a multipart body: the form encoder sends the value. */
+            $body = array_map(EncodedPart::unwrap(...), $body);
             /** @var array<string, mixed> $body */
             foreach ($body as $name => $value) {
                 $values = is_array($value) && array_is_list($value) ? $value : [$value];
@@ -1595,7 +1603,16 @@ class BaseApi
                     }
                 }
             }
-            return $this->buildQuery($body, true);
+            /* A form field whose Encoding Object sets allowReserved is in the
+             * set under a `form:` prefix; it keeps its reserved characters
+             * literal, every other field is encoded as before. */
+            $formReservedKeys = [];
+            foreach ($allowReservedKeys as $key => $flag) {
+                if (str_starts_with($key, 'form:')) {
+                    $formReservedKeys[substr($key, 5)] = $flag;
+                }
+            }
+            return $this->buildQuery($body, true, $formReservedKeys);
         }
 
         return ObjectSerializer::serialize($body);
@@ -1630,6 +1647,7 @@ class BaseApi
     private function extractBinaryPart(array $body): mixed
     {
         foreach ($body as $value) {
+            $value = EncodedPart::unwrap($value);
             if (
                 $value instanceof \SplFileObject
                 || is_resource($value)

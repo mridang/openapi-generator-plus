@@ -947,6 +947,29 @@ func TestBhvOperations055_PetApi_GetPetPhoto(t *testing.T) {
 	}
 }
 
+// A per-call Accept header picks one of the declared response media types and replaces the declared list on the wire.
+func TestBhvOperations501_PetApi_GetPetPhotoSendsOnlyThePerCallAccept(t *testing.T) {
+	t.Parallel()
+	var accepts []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		accepts = r.Header.Values("Accept")
+		w.Header().Set("Content-Type", "image/png")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte{0x89, 0x50})
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	stream, err := api.GetPetPhoto(context.Background(), int64(1), int64(1), petstore.WithHeaders(map[string]string{"Accept": "image/png"}))
+	if err != nil {
+		t.Fatalf("GetPetPhoto failed: %v", err)
+	}
+	_ = stream.Close()
+	if len(accepts) != 1 || accepts[0] != "image/png" {
+		t.Errorf("expected exactly one Accept header image/png, got %q", accepts)
+	}
+}
+
 // A format:byte query and header parameter is base64 (standard alphabet, with
 // padding) before the normal query and header encoding.
 func TestBhvOperations059_PetApi_GetPetTagSendsByteParametersAsBase64(t *testing.T) {

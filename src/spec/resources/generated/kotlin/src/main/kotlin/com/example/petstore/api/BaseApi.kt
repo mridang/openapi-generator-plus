@@ -485,12 +485,27 @@ abstract class BaseApi {
                             body is BodySource ||
                             contentType.startsWith("image/") ||
                             "application/octet-stream" == contentType -> body
-                        "multipart/form-data" == contentType && body is Map<*, *> -> body
+                        contentType.startsWith("multipart/") && body is Map<*, *> ->
+                            /* allowReserved has no effect on a multipart part: send the value unchanged.
+                             * A declared part encoding stays wrapped for the multipart writer. */
+                            body.mapValues { (_, value) ->
+                                if (value is ValueSerializer.AllowReservedValue) value.value else value
+                            }
                         "text/plain" == contentType -> body.toString()
                         "application/x-www-form-urlencoded" == contentType && body is Map<*, *> -> {
                             val formParams = body as Map<String, Any?>
                             val parts = mutableListOf<String>()
-                            for ((key, value) in formParams) {
+                            for ((key, rawValue) in formParams) {
+                                /* A field whose Encoding Object sets allowReserved arrives
+                                 * wrapped; its value keeps RFC 3986 reserved characters literal. */
+                                var value = rawValue
+                                var allowReserved = false
+                                if (value is ValueSerializer.AllowReservedValue) {
+                                    value = value.value
+                                    allowReserved = true
+                                }
+                                // A multipart part encoding has no meaning in a form-urlencoded body.
+                                value = ValueSerializer.unwrapFormValue(value)
                                 // Optional/absent fields are passed as null and must be
                                 // OMITTED from the wire body (parity rule 2), not encoded
                                 // as the literal string "null".
@@ -502,11 +517,11 @@ abstract class BaseApi {
                                     for (item in value) {
                                         if (item == null) continue
                                         requireFormScalar(key, item)
-                                        parts.add("${encode(key)}=${encode(objectSerializer.stringify(item))}")
+                                        parts.add("${encode(key)}=${encodeFormValue(objectSerializer.stringify(item), allowReserved)}")
                                     }
                                 } else {
                                     requireFormScalar(key, value)
-                                    parts.add("${encode(key)}=${encode(objectSerializer.stringify(value))}")
+                                    parts.add("${encode(key)}=${encodeFormValue(objectSerializer.stringify(value), allowReserved)}")
                                 }
                             }
                             parts.joinToString("&")
@@ -1103,7 +1118,8 @@ abstract class BaseApi {
      * @throws IllegalArgumentException if no binary part is present
      */
     private fun extractBinaryPart(formBody: Map<*, *>): Any {
-        for (value in formBody.values) {
+        for (wrapped in formBody.values) {
+            val value = ValueSerializer.unwrapFormValue(wrapped)
             if (value is ByteArray) {
                 return value
             }
@@ -1242,6 +1258,19 @@ abstract class BaseApi {
      * @return URL-encoded string
      */
     internal fun encode(value: String): String = value.encodeURLParameter(spaceToPlus = true)
+
+    /**
+     * Encode a form-urlencoded field value, preserving RFC 3986 reserved
+     * characters when the field's Encoding Object declared `allowReserved: true`.
+     *
+     * @param value the value to encode
+     * @param allowReserved whether reserved characters are left literal
+     * @return the encoded value
+     */
+    private fun encodeFormValue(
+        value: String,
+        allowReserved: Boolean,
+    ): String = if (allowReserved) ValueSerializer.encodeQueryAllowingReserved(value) else encode(value)
 
     /**
      * Rejects a form-urlencoded field value that has no defined encoding. Only

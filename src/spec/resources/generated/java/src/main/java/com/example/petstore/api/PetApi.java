@@ -595,7 +595,9 @@ public class PetApi extends BaseApi implements PetApiInterface {
     Map<String, String> headerParams = new HashMap<>();
     Map<String, Object> formBody = new LinkedHashMap<>();
     formBody.put("files", options.files());
-    formBody.put("metadata", options.metadata());
+    formBody.put(
+        "metadata",
+        ValueSerializer.encodedPart(options.metadata(), "application/json", java.util.List.of()));
 
     Integer callTimeout = options.timeout();
     Integer callMaxRetries = options.maxRetries();
@@ -773,7 +775,12 @@ public class PetApi extends BaseApi implements PetApiInterface {
     Map<String, Object> formBody = new LinkedHashMap<>();
     formBody.put("file", options.file());
     if (options.caption() != null) {
-      formBody.put("caption", options.caption());
+      formBody.put(
+          "caption",
+          ValueSerializer.encodedPart(
+              options.caption(),
+              "text/markdown",
+              java.util.List.of(java.util.Map.entry("X-Caption-Format", "commonmark"))));
     }
 
     Integer callTimeout = options.timeout();
@@ -2272,6 +2279,8 @@ public class PetApi extends BaseApi implements PetApiInterface {
    * Get a {@literal <}plain{@literal >} "text" summary {@literal &} it's short Returns '''plain'''
    * text for /pets/#{id} and {@literal <}b{@literal >} {@literal &} "c" it's done
    *
+   * <p>Response 200 example: Example {@code hello}
+   *
    * @param petId (required)
    * @param asOf Summary date, sent as a matrix-style path segment (required)
    * @param options options for query, header, form, and cookie parameters
@@ -2287,6 +2296,8 @@ public class PetApi extends BaseApi implements PetApiInterface {
   /**
    * Get a {@literal <}plain{@literal >} "text" summary {@literal &} it's short Returns '''plain'''
    * text for /pets/#{id} and {@literal <}b{@literal >} {@literal &} "c" it's done
+   *
+   * <p>Response 200 example: Example {@code hello}
    *
    * @param petId (required)
    * @param asOf Summary date, sent as a matrix-style path segment (required)
@@ -4310,6 +4321,17 @@ public class PetApi extends BaseApi implements PetApiInterface {
     }
     if (options.snooze() != null) {
       formBody.put("snooze", options.snooze());
+    }
+    if (options.route() != null) {
+      formBody.put("route", ValueSerializer.maybeAllowReserved(options.route(), true));
+    }
+    if (options.aliases() != null) {
+      ValueSerializer.putQuery(
+          formBody,
+          "aliases",
+          ValueSerializer.serializeStyled(
+              "aliases", options.aliases(), "query", "List<String>", null, "pipeDelimited", false),
+          false);
     }
 
     Integer callTimeout = options.timeout();

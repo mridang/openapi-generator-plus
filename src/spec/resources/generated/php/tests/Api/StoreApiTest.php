@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Test\Api;
 
 use PetstoreClient\Api\Options\GetInventoryOptions;
+use PetstoreClient\Api\Options\GetMemoResponseHeaders;
 use PetstoreClient\Api\StoreApi;
 use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
@@ -22,6 +23,7 @@ use PetstoreClient\Errors\UnauthorizedException;
 use PetstoreClient\Errors\UnprocessableEntityException;
 use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\BadGatewayException;
+use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Order;
@@ -762,6 +764,19 @@ test('bhv servers 031 an operation under a path item that declares its own serve
     expect($memo->memoId)->toBe('m1');
     expect($recorded->urls)->toHaveCount(1);
     expect($recorded->urls[0])->toStartWith('https://memos.example.com/v1/store/memos/m1');
+});
+
+test('bhv headers 501 the typed response headers read each declared header in its type whatever its case', function (): void {
+    $headers = GetMemoResponseHeaders::from(['x-revision' => '7', 'X-LABELS' => 'a, b']);
+
+    expect($headers->xRevision)->toBe(7);
+    expect($headers->xLabels)->toBe(['a', 'b']);
+    expect($headers->xArchived)->toBeNull();
+});
+
+test('bhv headers 502 a response header that does not parse as its type raises a serialization error', function (): void {
+    expect(fn (): GetMemoResponseHeaders => GetMemoResponseHeaders::from(['x-revision' => 'seven']))
+        ->toThrow(SerializationException::class, "Response header 'X-Revision' is not a valid integer: 'seven'");
 });
 
 test('bhv operations 166 a patch, head, options or trace operation is sent with its own http method', function (): void {

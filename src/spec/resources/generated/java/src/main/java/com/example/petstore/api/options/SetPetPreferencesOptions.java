@@ -18,6 +18,8 @@ public final class SetPetPreferencesOptions {
   @Nullable private Double ratio;
   @Nullable private Boolean urgent;
   @Nullable private Duration snooze;
+  @Nullable private String route;
+  @Nullable private List<String> aliases;
   @Nullable private Integer timeout;
   @Nullable private Integer maxRetries;
   @Nullable private Map<String, String> headers;
@@ -206,6 +208,48 @@ public final class SetPetPreferencesOptions {
   @Nullable
   public Duration snooze() {
     return snooze;
+  }
+
+  /**
+   * Sets the {@code route} parameter.
+   *
+   * @param route the {@code route} parameter
+   * @return this options instance for chaining
+   */
+  public SetPetPreferencesOptions route(String route) {
+    this.route = route;
+    return this;
+  }
+
+  /**
+   * Returns the {@code route} parameter.
+   *
+   * @return the {@code route} parameter, or {@code null} if unset
+   */
+  @Nullable
+  public String route() {
+    return route;
+  }
+
+  /**
+   * Sets the {@code aliases} parameter.
+   *
+   * @param aliases the {@code aliases} parameter
+   * @return this options instance for chaining
+   */
+  public SetPetPreferencesOptions aliases(List<String> aliases) {
+    this.aliases = aliases == null ? null : java.util.List.copyOf(aliases);
+    return this;
+  }
+
+  /**
+   * Returns the {@code aliases} parameter.
+   *
+   * @return the {@code aliases} parameter, or {@code null} if unset
+   */
+  @Nullable
+  public List<String> aliases() {
+    return aliases;
   }
 
   /**

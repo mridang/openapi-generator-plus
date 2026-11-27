@@ -158,6 +158,18 @@ describe Petstore::Client::ServerConfiguration do
     _(err.message).must_equal "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]"
   end
 
+  it 'bhv_servers_501 keeps the name of a server and has none for a server built without one' do
+    named = Petstore::Client::ServerConfiguration.new(url_template: 'https://api.example.com', name: 'primary')
+    unnamed = Petstore::Client::ServerConfiguration.new(url_template: 'https://api.example.com')
+    _(named.name).must_equal 'primary'
+    _(unnamed.name).must_be_nil
+  end
+
+  it 'bhv_servers_502 rejects an unknown server name and lists the known names' do
+    err = _(-> { Petstore::Client::Servers.by_name('missing') }).must_raise ArgumentError
+    _(err.message).must_equal "Unknown server name 'missing'. Known names: []"
+  end
+
   it 'bhv_servers_004 rejects a default value that is not in the variable enum' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',

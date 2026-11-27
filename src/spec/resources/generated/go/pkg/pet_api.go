@@ -494,7 +494,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 	formBody := make(map[string]any)
 	if options != nil {
 		formBody["files"] = options.Files
-		formBody["metadata"] = options.Metadata
+		formBody["metadata"] = newEncodedPart(options.Metadata, "application/json")
 	}
 	var requestBody any = formBody
 
@@ -803,7 +803,7 @@ func (a *PetApi) AttachPetFilesWithHTTPInfo(ctx context.Context, petId int64, op
 	if options != nil {
 		formBody["file"] = options.File
 		if options.Caption != nil {
-			formBody["caption"] = *options.Caption
+			formBody["caption"] = newEncodedPart(*options.Caption, "text/markdown", [2]string{"X-Caption-Format", "commonmark"})
 		}
 	}
 	var requestBody any = formBody
@@ -2782,6 +2782,9 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 // param asOf: Summary date, sent as a matrix-style path segment
 // param options: Options for query, header, form, and cookie parameters.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Response 200 example: Example
+// hello
 //
 // Declared errors:
 //   - HTTP 404: *NotFoundError
@@ -5417,6 +5420,21 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 		if options.Snooze != nil {
 			formBody["snooze"] = *options.Snooze
 		}
+		if options.Route != nil {
+			formBody["route"] = maybeAllowReserved(*options.Route, true)
+		}
+		if options.Aliases != nil {
+			{
+				/* The field's Encoding Object declares style or explode: the value is
+				 * styled exactly as a query parameter, and the form encoder writes the
+				 * result (a joined string, or a list that repeats the key). */
+				styledValue, styledErr := serializeStyledChecked("aliases", *options.Aliases, "query", "[]string", "", "pipeDelimited", false)
+				if styledErr != nil {
+					return nil, styledErr
+				}
+				formBody["aliases"] = maybeAllowReserved(styledValue, false)
+			}
+		}
 	}
 	var requestBody any = formBody
 
@@ -5426,7 +5444,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 		operationID:  "setPetPreferences",
 		urlTemplate:  "/pet/{petId}/preferences",
 		call:         call,
-		order:        []string{"nickname", "tags", "note", "renewalDate", "reminder", "intervalDays", "ratio", "urgent", "snooze"},
+		order:        []string{"nickname", "tags", "note", "renewalDate", "reminder", "intervalDays", "ratio", "urgent", "snooze", "route", "aliases"},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,

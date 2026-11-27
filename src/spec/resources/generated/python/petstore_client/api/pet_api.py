@@ -1022,7 +1022,9 @@ class PetApi(BaseApi):
         if options is not None:
             body["files"] = options.files
         if options is not None:
-            body["metadata"] = options.metadata
+            body["metadata"] = ValueSerializer.encoded_part(
+                options.metadata, "application/json", {}
+            )
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -1189,7 +1191,9 @@ class PetApi(BaseApi):
         if options is not None:
             body["file"] = options.file
         if options is not None and options.caption is not None:
-            body["caption"] = options.caption
+            body["caption"] = ValueSerializer.encoded_part(
+                options.caption, "text/markdown", {"X-Caption-Format": "commonmark"}
+            )
         return await self._invoke_api_for_result(
             "POST",
             path,
@@ -2423,6 +2427,9 @@ class PetApi(BaseApi):
         :return: StrictStr
         :raises ApiException: if fails to make API call
         :raises NotFoundException: on HTTP 404
+
+        Response 200 example: Example
+        # >>> hello
         """
         result = await self.get_pet_summary_with_http_info(
             pet_id,
@@ -4204,6 +4211,27 @@ class PetApi(BaseApi):
             body["urgent"] = options.urgent
         if options is not None and options.snooze is not None:
             body["snooze"] = options.snooze
+        if options is not None and options.route is not None:
+            body["route"] = ValueSerializer.maybe_allow_reserved(options.route, True)
+        if options is not None and options.aliases is not None:
+            # The Encoding Object sets style or explode: the field is written with the query rules.
+            body.update(
+                ValueSerializer.query_entries(
+                    "aliases",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "aliases",
+                            options.aliases,
+                            "query",
+                            "List[StrictStr]",
+                            None,
+                            "pipeDelimited",
+                            False,
+                        ),
+                        False,
+                    ),
+                )
+            )
         return await self._invoke_api_for_result(
             "POST",
             path,

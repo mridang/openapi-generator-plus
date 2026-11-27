@@ -287,7 +287,7 @@ module Petstore::Client
         # @type var request_body: Hash[String, untyped]
         request_body = {}
         request_body['files'] = options.files
-        request_body['metadata'] = options.metadata
+        request_body['metadata'] = ::Petstore::Client::ValueSerializer.encoded_part(options.metadata, 'application/json', [])
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
@@ -410,7 +410,7 @@ module Petstore::Client
         # @type var request_body: Hash[String, untyped]
         request_body = {}
         request_body['file'] = options.file
-        request_body['caption'] = options.caption unless options.caption.nil?
+        request_body['caption'] = ::Petstore::Client::ValueSerializer.encoded_part(options.caption, 'text/markdown', [['X-Caption-Format', 'commonmark']]) unless options.caption.nil?
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
@@ -1226,6 +1226,9 @@ module Petstore::Client
       # @param pet_id [Integer]
       # @param as_of [Date] Summary date, sent as a matrix-style path segment
       # @param options [GetPetSummaryOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      #
+      # Response 200 example: Example
+      # hello
       # @return [String]
       # @raise [ApiError] if fails to make API call
       # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
@@ -2416,6 +2419,17 @@ module Petstore::Client
         request_body['ratio'] = options.ratio unless options.ratio.nil?
         request_body['urgent'] = options.urgent unless options.urgent.nil?
         request_body['snooze'] = options.snooze unless options.snooze.nil?
+        request_body['route'] = ::Petstore::Client::ValueSerializer.maybe_allow_reserved(options.route, true) unless options.route.nil?
+        # The field's Encoding Object sets style or explode, so the value is
+        # written with the query-parameter styling and then form-encoded.
+        unless options.aliases.nil?
+          request_body.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'aliases', options.aliases, 'Array<String>', nil, 'pipeDelimited', false,
+              false
+            )
+          )
+        end
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],

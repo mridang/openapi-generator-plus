@@ -10,6 +10,7 @@ from typing import Any, Dict
 from petstore_client.api_http_response import ApiHttpResponse
 from pydantic import SecretStr
 from petstore_client.api.options.get_by_swatch_options import GetBySwatchOptions
+from petstore_client.api.options.get_memo_response_headers import GetMemoResponseHeaders
 from petstore_client.api.options.search_store_options import SearchStoreOptions
 from petstore_client.api.store_api import StoreApi
 from petstore_client.configuration import Configuration
@@ -756,3 +757,29 @@ class TestStoreApiMemoOperations:
         await api.trace_memo("m1")
 
         assert client.methods == ["PATCH", "HEAD", "OPTIONS", "TRACE"]
+
+
+class TestGetMemoResponseHeaders:
+    """The typed response headers of get_memo read the raw response header map."""
+
+    def test_bhv_headers_501_typed_response_headers_are_read_in_any_case_and_an_absent_one_is_empty(
+        self,
+    ) -> None:
+        headers = GetMemoResponseHeaders.from_headers(
+            {"x-revision": "7", "X-LABELS": "a, b"}
+        )
+
+        assert headers.x_revision == 7
+        assert headers.x_labels == ["a", "b"]
+        assert headers.x_archived is None
+
+    def test_bhv_headers_502_a_response_header_that_does_not_parse_raises_a_serialization_error(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException) as excinfo:
+            GetMemoResponseHeaders.from_headers({"x-revision": "seven"})
+
+        assert (
+            excinfo.value.message
+            == "Response header 'X-Revision' is not a valid integer: 'seven'"
+        )

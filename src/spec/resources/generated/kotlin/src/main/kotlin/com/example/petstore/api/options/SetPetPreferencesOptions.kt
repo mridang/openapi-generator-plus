@@ -18,6 +18,8 @@ class SetPetPreferencesOptions(
     val ratio: Double? = null,
     val urgent: Boolean? = null,
     val snooze: Duration? = null,
+    val route: String? = null,
+    val aliases: List<String>? = null,
     /**
      * The end-to-end timeout of this call in milliseconds, in place of the client's
      * `TransportOptions.timeout`; null keeps the client's setting.

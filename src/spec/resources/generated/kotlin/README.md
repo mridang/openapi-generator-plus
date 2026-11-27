@@ -232,7 +232,7 @@ A new operation in the API adds a method to the interface, so a fake that implem
 
 Every operation has a `*WithHttpInfo` variant that returns an `ApiResult`
 holding the status code, the response headers (lower-cased names) and the
-decoded body; use it when you need to read a header.
+decoded body; use it when you need to read a header. An operation whose success response declares headers also has a `<Operation>ResponseHeaders` type; `<Operation>ResponseHeaders.from(result.headers)` reads them in their declared types.
 
 `TransportOptions.timeout` is in milliseconds (default 60000) and is one
 end-to-end budget for the whole call: connection, every redirect hop and the

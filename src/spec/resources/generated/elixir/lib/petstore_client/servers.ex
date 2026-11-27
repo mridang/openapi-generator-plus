@@ -32,7 +32,8 @@ defmodule PetstoreClient.Servers do
     %PetstoreClient.ServerConfiguration{
       url_template: "/api/v3",
       description: "Relative URL (no variables)",
-      variables: %{}
+      variables: %{},
+      name: nil
     }
   end
 
@@ -57,7 +58,8 @@ defmodule PetstoreClient.Servers do
           description: "API version",
           enum_values: ["v2", "v3"]
         }
-      }
+      },
+      name: nil
     }
   end
 
@@ -77,7 +79,8 @@ defmodule PetstoreClient.Servers do
           description: "Tenant's \"id\"",
           enum_values: ["o'neil", "a&b"]
         }
-      }
+      },
+      name: nil
     }
   end
 
@@ -91,5 +94,26 @@ defmodule PetstoreClient.Servers do
       server_1(),
       server_2()
     ]
+  end
+
+  @doc """
+  The server the specification gives the name `name` (OpenAPI 3.2 `name`).
+
+  ## Raises
+
+    `ArgumentError` if no server has that name; the message lists the known names.
+  """
+  @spec by_name(String.t()) :: PetstoreClient.ServerConfiguration.t()
+  def by_name(name) when is_binary(name) do
+    case Enum.find(all(), &(&1.name == name)) do
+      nil ->
+        known = all() |> Enum.map(& &1.name) |> Enum.reject(&is_nil/1)
+
+        raise ArgumentError,
+              "Unknown server name '#{name}'. Known names: [#{Enum.join(known, ", ")}]"
+
+      server ->
+        server
+    end
   end
 end

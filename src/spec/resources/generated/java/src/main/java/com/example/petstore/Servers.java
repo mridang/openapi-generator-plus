@@ -8,6 +8,7 @@
 
 package com.example.petstore;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -37,7 +38,7 @@ public final class Servers {
    * <p>Relative URL (no variables)
    */
   public static final ServerConfiguration SERVER_0 =
-      new ServerConfiguration("/api/v3", "Relative URL (no variables)", Map.of());
+      new ServerConfiguration("/api/v3", "Relative URL (no variables)", Map.of(), null);
 
   /**
    * Server 1: {@code https://{environment}.example.com/api/{version}}
@@ -52,7 +53,8 @@ public final class Servers {
               "environment",
                   new ServerVariable(
                       "api", "API environment", List.of("api", "staging", "sandbox")),
-              "version", new ServerVariable("v3", "API version", List.of("v2", "v3"))));
+              "version", new ServerVariable("v3", "API version", List.of("v2", "v3"))),
+          null);
 
   /**
    * Server 2: {@code https://{tenant}.example.com/api}
@@ -64,10 +66,32 @@ public final class Servers {
           "https://{tenant}.example.com/api",
           "Bob's \"sandbox\" & co: $5 #{x} a*/b",
           Map.of(
-              "tenant", new ServerVariable("o'neil", "Tenant's \"id\"", List.of("o'neil", "a&b"))));
+              "tenant", new ServerVariable("o'neil", "Tenant's \"id\"", List.of("o'neil", "a&b"))),
+          null);
 
   /** All server configurations in declaration order. */
   public static final List<ServerConfiguration> ALL = List.of(SERVER_0, SERVER_1, SERVER_2);
+
+  /**
+   * The server the specification gives the name {@code name} (OpenAPI 3.2 {@code name}).
+   *
+   * @param name the server name
+   * @return the server with that name
+   * @throws IllegalArgumentException if no server has that name; the message lists the known names
+   */
+  public static ServerConfiguration byName(String name) {
+    List<String> known = new ArrayList<>();
+    for (ServerConfiguration server : ALL) {
+      String serverName = server.getName();
+      if (serverName != null) {
+        if (serverName.equals(name)) {
+          return server;
+        }
+        known.add(serverName);
+      }
+    }
+    throw new IllegalArgumentException("Unknown server name '" + name + "'. Known names: " + known);
+  }
 
   private Servers() {}
 }

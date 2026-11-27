@@ -1026,7 +1026,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   /**
    * Reads a memo from the server its path declares
    *
-   * @param memoId The memo to address (required)
+   * <p>Response 200 example: A short memo {@code {"memoId":"m1","text":"Restock on Friday"}}
+   *
+   * <p>Extension x-audience: internal-tools
+   *
+   * @param memoId The memo to address (required) Example — Example: {@code m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Memo}
    * @throws ApiException if fails to make API call
@@ -1039,7 +1043,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   /**
    * Reads a memo from the server its path declares
    *
-   * @param memoId The memo to address (required)
+   * <p>Response 200 example: A short memo {@code {"memoId":"m1","text":"Restock on Friday"}}
+   *
+   * <p>Extension x-audience: internal-tools
+   *
+   * @param memoId The memo to address (required) Example — Example: {@code m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Memo}
    * @throws ApiException if fails to make API call
@@ -1056,7 +1064,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo to address (required) Example — Example: {@code m1}
    * @return {@code Memo}
    * @throws ApiException if fails to make API call
    */
@@ -1072,7 +1080,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo to address (required) Example — Example: {@code m1}
    * @return the API result wrapping {@code Memo}
    * @throws ApiException if fails to make API call
    */
@@ -1084,7 +1092,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   /**
    * Reads a memo from the server its path declares
    *
-   * @param memoId The memo to address (required)
+   * <p>Response 200 example: A short memo {@code {"memoId":"m1","text":"Restock on Friday"}}
+   *
+   * <p>Extension x-audience: internal-tools
+   *
+   * @param memoId The memo to address (required) Example — Example: {@code m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return {@code Memo}
@@ -1099,7 +1111,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   /**
    * Reads a memo from the server its path declares
    *
-   * @param memoId The memo to address (required)
+   * <p>Response 200 example: A short memo {@code {"memoId":"m1","text":"Restock on Friday"}}
+   *
+   * <p>Extension x-audience: internal-tools
+   *
+   * @param memoId The memo to address (required) Example — Example: {@code m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @param server the server to send the request to, or {@code null} for the default
    * @return the API result wrapping {@code Memo}
@@ -1874,7 +1890,8 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @throws ApiException if fails to make API call
    */
   @Override
@@ -1889,7 +1906,8 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
@@ -1899,9 +1917,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
-   * Checks that a memo exists with a HEAD request
+   * Checks that a memo exists with a HEAD request Revisions of one memo, read and changed with the
+   * less common HTTP methods.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @throws ApiException if fails to make API call
    */
@@ -1911,9 +1931,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
-   * Checks that a memo exists with a HEAD request
+   * Checks that a memo exists with a HEAD request Revisions of one memo, read and changed with the
+   * less common HTTP methods.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
@@ -1965,7 +1987,8 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @throws ApiException if fails to make API call
    */
   @Override
@@ -1980,7 +2003,8 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
@@ -1990,9 +2014,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
-   * Lists the methods a memo accepts with an OPTIONS request
+   * Lists the methods a memo accepts with an OPTIONS request Revisions of one memo, read and
+   * changed with the less common HTTP methods.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @throws ApiException if fails to make API call
    */
@@ -2002,9 +2028,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
-   * Lists the methods a memo accepts with an OPTIONS request
+   * Lists the methods a memo accepts with an OPTIONS request Revisions of one memo, read and
+   * changed with the less common HTTP methods.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
@@ -2057,7 +2085,8 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param memo The fields of the memo to change (required)
    * @return {@code Memo}
    * @throws ApiException if fails to make API call
@@ -2074,7 +2103,8 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param memo The fields of the memo to change (required)
    * @return the API result wrapping {@code Memo}
    * @throws ApiException if fails to make API call
@@ -2085,9 +2115,15 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
-   * Changes a memo with a PATCH request
+   * Changes a memo with a PATCH request Revisions of one memo, read and changed with the less
+   * common HTTP methods.
    *
-   * @param memoId The memo to address (required)
+   * <p>Request body example: A short memo {@code {"memoId":"m1","text":"Restock on Friday"}}
+   * Request body example: A memo kept as a file {@code https://example.com/memos/m1.json} Response
+   * 200 example: A short memo {@code {"memoId":"m1","text":"Restock on Friday"}}
+   *
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param memo The fields of the memo to change (required)
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Memo}
@@ -2099,9 +2135,15 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
-   * Changes a memo with a PATCH request
+   * Changes a memo with a PATCH request Revisions of one memo, read and changed with the less
+   * common HTTP methods.
    *
-   * @param memoId The memo to address (required)
+   * <p>Request body example: A short memo {@code {"memoId":"m1","text":"Restock on Friday"}}
+   * Request body example: A memo kept as a file {@code https://example.com/memos/m1.json} Response
+   * 200 example: A short memo {@code {"memoId":"m1","text":"Restock on Friday"}}
+   *
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param memo The fields of the memo to change (required)
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Memo}
@@ -2479,7 +2521,8 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @throws ApiException if fails to make API call
    */
   @Override
@@ -2494,7 +2537,8 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
    * parameters and the per-call timeout, retry count and headers stay unset, so the client's
    * configured settings apply.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
    */
@@ -2504,9 +2548,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
-   * Echoes a memo request with a TRACE request
+   * Echoes a memo request with a TRACE request Revisions of one memo, read and changed with the
+   * less common HTTP methods.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @throws ApiException if fails to make API call
    */
@@ -2516,9 +2562,11 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
   }
 
   /**
-   * Echoes a memo request with a TRACE request
+   * Echoes a memo request with a TRACE request Revisions of one memo, read and changed with the
+   * less common HTTP methods.
    *
-   * @param memoId The memo to address (required)
+   * @param memoId The memo whose revisions are read or changed (required) Example — Example: {@code
+   *     m1}
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call

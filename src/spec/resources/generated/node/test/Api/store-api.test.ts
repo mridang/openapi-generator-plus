@@ -7,6 +7,7 @@
 
 import * as http from "node:http";
 import { GetMemoServerMemos, StoreApi } from "../../src/api/store-api.js";
+import { GetMemoResponseHeaders } from "../../src/api/options/index.js";
 import { Configuration } from "../../src/configuration.js";
 import { DefaultApiClient } from "../../src/default-api-client.js";
 import { TransportOptions } from "../../src/transport-options.js";
@@ -61,6 +62,33 @@ describe("StoreApi", () => {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
+  });
+
+  test("bhv headers 501 GetMemoResponseHeaders reads the declared headers by name in any case and in their declared types", () => {
+    const headers = GetMemoResponseHeaders.from({
+      "x-revision": "7",
+      "X-LABELS": "a, b",
+    });
+
+    expect([headers.xRevision, headers.xLabels, headers.xArchived]).toEqual([
+      7,
+      ["a", "b"],
+      undefined,
+    ]);
+  });
+
+  test("bhv headers 502 GetMemoResponseHeaders raises SerializationError for a header that does not parse", () => {
+    let failure: unknown;
+    try {
+      GetMemoResponseHeaders.from({ "x-revision": "seven" });
+    } catch (error: unknown) {
+      failure = error;
+    }
+
+    expect(failure).toBeInstanceOf(SerializationError);
+    expect((failure as SerializationError).message).toBe(
+      "Response header 'X-Revision' is not a valid integer: 'seven'",
+    );
   });
 
   test("bhv operations 102 getInventory", async () => {

@@ -1271,18 +1271,23 @@ module Petstore::Client
       # @type var parts: Array[String]
       parts = []
       form_parts.each do |name, value|
+        # A part whose Encoding Object declares its Content-Type or headers
+        # arrives wrapped; a list applies that encoding to each item.
+        encoding = value.is_a?(ValueSerializer::EncodedPart) ? value : nil
+        value = encoding.value if encoding
         if value.is_a?(Array)
-          value.each { |item| parts << multipart_part(name, item, boundary).b }
+          value.each { |item| parts << multipart_part(name, item, boundary, encoding).b }
         else
-          parts << multipart_part(name, value, boundary).b
+          parts << multipart_part(name, value, boundary, encoding).b
         end
       end
       parts.push("--#{boundary}--\r\n".b)
       parts.join
     end
 
-    def multipart_part(name, value, boundary)
+    def multipart_part(name, value, boundary, encoding = nil)
       safe_name = sanitize_multipart_field_name(name)
+      extra = encoded_part_headers(encoding)
       if value.respond_to?(:read)
         filename = if value.respond_to?(:path) && value.path
                      File.basename(value.path.to_s)
@@ -1292,9 +1297,9 @@ module Petstore::Client
         # The caller owns the stream: it is read here, never closed.
         data = value.read
         disposition = build_content_disposition(safe_name, filename)
-        part_mime = sniff_part_mime(filename)
+        part_mime = encoding&.content_type || sniff_part_mime(filename)
         header = "--#{boundary}\r\n#{disposition}\r\n" \
-                 "Content-Type: #{part_mime}\r\n\r\n"
+                 "Content-Type: #{part_mime}\r\n#{extra}\r\n"
         header.b + data.b + "\r\n".b
       elsif value.respond_to?(:to_hash)
         # Route the model part through the configured ObjectSerializer
@@ -1306,13 +1311,25 @@ module Petstore::Client
         # keys (isEnabled/recordedAt) and formatting as the JSON-body path.
         json_str = ObjectSerializer.serialize(value)
         "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n" \
-          "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
+          "Content-Type: #{encoding&.content_type || 'application/json'}\r\n#{extra}\r\n#{json_str}\r\n"
       else
-        # A primitive is a plain text part (no part Content-Type) carrying
-        # the canonical stringify form, the same one query and form values use.
+        # A primitive is a plain text part (no part Content-Type unless the
+        # Encoding Object declares one) carrying the canonical stringify form,
+        # the same one query and form values use.
         text = ObjectSerializer.stringify(value)
-        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n\r\n#{text}\r\n"
+        content_type = encoding&.content_type
+        type_line = content_type ? "Content-Type: #{content_type}\r\n" : ''
+        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n" \
+          "#{type_line}#{extra}\r\n#{text}\r\n"
       end
+    end
+
+    # The part header lines an Encoding Object declares, as +Name: value+ in
+    # declaration order, or an empty string when the part has none.
+    def encoded_part_headers(encoding)
+      return '' if encoding.nil?
+
+      encoding.headers.map { |header, text| "#{header}: #{text}\r\n" }.join
     end
 
     # Gap W2: validate and escape a multipart form field name before

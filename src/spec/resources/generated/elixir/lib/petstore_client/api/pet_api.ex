@@ -1466,7 +1466,13 @@ defmodule PetstoreClient.Api.PetApi do
     header_params = %{}
     request_body = []
     request_body = request_body ++ [{"files", Enum.map(options.files, &{:raw, &1})}]
-    request_body = request_body ++ [{"metadata", options.metadata}]
+
+    request_body =
+      request_body ++
+        [
+          {"metadata",
+           PetstoreClient.ValueSerializer.encoded_part(options.metadata, "application/json", [])}
+        ]
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
@@ -1774,7 +1780,14 @@ defmodule PetstoreClient.Api.PetApi do
 
     request_body =
       if not is_nil(options) and not is_nil(options.caption),
-        do: request_body ++ [{"caption", options.caption}],
+        do:
+          request_body ++
+            [
+              {"caption",
+               PetstoreClient.ValueSerializer.encoded_part(options.caption, "text/markdown", [
+                 {"X-Caption-Format", "commonmark"}
+               ])}
+            ],
         else: request_body
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
@@ -4048,6 +4061,10 @@ defmodule PetstoreClient.Api.PetApi do
     * `opts` - Keyword list.
 
   `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  Response 200 example: Example
+
+      hello
 
   ## Returns
 
@@ -7018,6 +7035,31 @@ defmodule PetstoreClient.Api.PetApi do
     request_body =
       if not is_nil(options) and not is_nil(options.snooze),
         do: request_body ++ [{"snooze", options.snooze}],
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.route),
+        do:
+          request_body ++
+            [{"route", PetstoreClient.ValueSerializer.maybe_allow_reserved(options.route, true)}],
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.aliases),
+        do:
+          request_body ++
+            [
+              {"aliases",
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "aliases",
+                 options.aliases,
+                 :query,
+                 "[String.t()]",
+                 nil,
+                 "pipeDelimited",
+                 false
+               )}
+            ],
         else: request_body
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(

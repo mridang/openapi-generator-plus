@@ -562,6 +562,26 @@ final class PetApiTests {
     _ = try await api.getPetPhoto(petId: 1, photoId: 1).readAll()
   }
 
+  /* A per-call Accept header replaces the media types the operation declares, so exactly one Accept header is sent. */
+  @Test func testBhvOperations501PerCallAcceptPicksTheResponseMediaType() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "png"
+    mockClient.responseHeaders = ["Content-Type": "image/png"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetPhoto(
+      petId: 1, photoId: 1, options: GetPetPhotoOptions(headers: ["Accept": "image/png"])
+    ).readAll()
+
+    let accept = mockClient.lastHeaders.filter {
+      $0.key.caseInsensitiveCompare("Accept") == .orderedSame
+    }
+    #expect(accept.count == 1)
+    #expect(accept.first?.value == "image/png")
+  }
+
   @Test func testBhvOperations058GetPetTag() async throws {
     let api = petApiForIntegration()
     let options = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S", "M"])
@@ -1135,6 +1155,65 @@ final class PetApiTests {
     #expect(body.contains("nickname=Good+Boy"), "space must encode as +, got: \(body)")
     #expect(body.contains("note=be+kind"), "space must encode as +, got: \(body)")
     #expect(!body.contains("%20"), "space must not encode as %20, got: \(body)")
+  }
+
+  /* A form field whose encoding sets allowReserved keeps the reserved characters literal and writes a space as %20. */
+  @Test func testBhvSerializationwire501FormFieldWithAllowReservedKeepsReservedCharacters()
+    async throws
+  {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let options = SetPetPreferencesOptions(nickname: "rex", route: "v1.0/beta:rc1 a#b")
+    _ = try await api.setPetPreferences(petId: 1, options: options)
+
+    let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(body == "nickname=rex&route=v1.0/beta:rc1%20a%23b")
+  }
+
+  /* A form field whose encoding sets a style is joined by that style and then form-encoded as one field. */
+  @Test func testBhvSerializationwire502FormFieldWithEncodingStyleIsJoinedByTheStyle() async throws
+  {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let options = SetPetPreferencesOptions(nickname: "rex", aliases: ["a b", "c"])
+    _ = try await api.setPetPreferences(petId: 1, options: options)
+
+    let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(body == "nickname=rex&aliases=a+b%7Cc")
+  }
+
+  /* A multipart field whose encoding declares a Content-Type and headers sends them after its Content-Disposition; the file part is unchanged. */
+  @Test func testBhvSerializationwire503MultipartPartWithEncodingSendsDeclaredHeaders() async throws
+  {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let options = AttachPetFilesOptions(file: Data("content".utf8), caption: "hello")
+    _ = try await api.attachPetFiles(petId: 1, options: options)
+
+    let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(
+      body.contains(
+        "Content-Disposition: form-data; name=\"caption\"\r\nContent-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello"
+      ))
+    #expect(
+      body.contains(
+        "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\ncontent\r\n"
+      ))
   }
 
   /* A date-time form field is sent in the canonical stringify form. */

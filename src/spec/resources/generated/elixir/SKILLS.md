@@ -192,7 +192,7 @@ end
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`, plus a `PetstoreClient.Servers.all/0` list. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`, plus a `PetstoreClient.Servers.all/0` list. A server the spec gives a name is also found by that name with `Servers.by_name("name")`, which fails with `ArgumentError` when no server has the name. Pass the desired server's URL to the client:
 
 ```elixir file
 defmodule ServerClient do

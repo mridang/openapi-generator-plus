@@ -252,7 +252,7 @@ OAuth2ClientCredentialsAuthenticator newAuthenticator() {
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated library exposes each as a `ServerConfiguration` constant (e.g., `server0`, `server1`, ...) plus an `allServers` list. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated library exposes each as a `ServerConfiguration` constant (e.g., `server0`, `server1`, ...) plus an `allServers` list. A server the spec gives a name is also found by that name with `serverByName('name')`, which fails with `ArgumentError` when no server has the name. Pass the desired server's URL to the client:
 
 ```dart file
 import 'package:petstore_client/petstore_client.dart';

@@ -1,6 +1,16 @@
 /// Options for the findPetsByStatus operation.
 class FindPetsByStatusOptions {
   /// Status values that need to be considered for filter
+  /// ### `status` — Available only
+  /// Show only pets currently in stock
+  /// ```json
+  /// available
+  /// ```
+  /// ### `status` — Sold pets
+  /// Show pets that have been sold
+  /// ```json
+  /// sold
+  /// ```
   @Deprecated('This parameter is deprecated.')
   final String? status;
 

@@ -14,6 +14,7 @@ use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\GetPetByNameOptions;
 use PetstoreClient\Api\Options\GetPetByNoteOptions;
+use PetstoreClient\Api\Options\GetPetPhotoOptions;
 use PetstoreClient\Api\Options\GetPetSummaryOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
@@ -395,6 +396,23 @@ test('bhv operations 055 get pet photo', function (): void {
 
     expect($result)->toBeInstanceOf(ByteStream::class);
     $result->close();
+});
+
+test('bhv operations 501 a per call accept header replaces the declared response media types', function (): void {
+    $client = new \PetstoreClient\Test\ScriptedApiClient([
+        new \PetstoreClient\ApiHttpResponse(200, 'png', ['Content-Type' => 'image/png']),
+    ]);
+    $config = Configuration::builder()->baseUrl('http://localhost:9999')->build();
+    $api = new PetApi(apiClient: $client, config: $config);
+
+    $api->getPetPhoto(1, 1, new GetPetPhotoOptions(headers: ['Accept' => 'image/png']))->close();
+
+    $accepts = array_values(array_filter(
+        $client->requests[0]['headers'],
+        static fn (string $name): bool => strcasecmp($name, 'Accept') === 0,
+        ARRAY_FILTER_USE_KEY
+    ));
+    expect($accepts)->toBe(['image/png']);
 });
 
 test('bhv operations 061 get external pet info uses per operation server url', function (): void {

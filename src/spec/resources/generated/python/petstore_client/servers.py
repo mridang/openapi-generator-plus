@@ -28,6 +28,7 @@ SERVER_0: ServerConfiguration = ServerConfiguration(
     url_template="/api/v3",
     description="Relative URL (no variables)",
     variables={},
+    name=None,
 )
 """Server 0: /api/v3
 
@@ -56,6 +57,7 @@ SERVER_1: ServerConfiguration = ServerConfiguration(
             ),
         ),
     },
+    name=None,
 )
 """Server 1: https://{environment}.example.com/api/{version}
 
@@ -75,6 +77,7 @@ SERVER_2: ServerConfiguration = ServerConfiguration(
             ),
         ),
     },
+    name=None,
 )
 """Server 2: https://{tenant}.example.com/api
 
@@ -87,3 +90,22 @@ ALL: Tuple[ServerConfiguration, ...] = (
     SERVER_2,
 )
 """All server configurations in declaration order, as an immutable tuple."""
+
+
+def by_name(name: str) -> ServerConfiguration:
+    """Return the server the specification gives the name ``name`` (OpenAPI 3.2 ``name``).
+
+    Args:
+        name: The server name.
+
+    Returns:
+        The server with that name.
+
+    Raises:
+        ValueError: If no server has that name; the message lists the known names.
+    """
+    known = [server.name for server in ALL if server.name is not None]
+    for server in ALL:
+        if server.name == name:
+            return server
+    raise ValueError(f"Unknown server name '{name}'. Known names: [{', '.join(known)}]")

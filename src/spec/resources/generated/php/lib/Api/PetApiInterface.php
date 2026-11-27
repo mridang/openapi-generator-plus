@@ -349,6 +349,9 @@ interface PetApiInterface
     /**
      * Get a <plain> "text" summary & it's short
      * Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done
+     *
+     * Response 200 example: Example
+     * hello
      * @param \DateTime $asOf Summary date, sent as a matrix-style path segment
      * @param GetPetSummaryOptions $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException

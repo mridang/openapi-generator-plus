@@ -30,6 +30,7 @@ public final class ServerConfiguration {
   private final String urlTemplate;
   @Nullable private final String description;
   private final Map<String, ServerVariable> variables;
+  @Nullable private final String name;
 
   /**
    * Create a server configuration with no description and no variables.
@@ -59,9 +60,26 @@ public final class ServerConfiguration {
    */
   public ServerConfiguration(
       String urlTemplate, @Nullable String description, Map<String, ServerVariable> variables) {
+    this(urlTemplate, description, variables, null);
+  }
+
+  /**
+   * Create a new server configuration with a name.
+   *
+   * @param urlTemplate the URL template, possibly containing {@code {variable}} placeholders
+   * @param description human-readable description of this server, or {@code null}
+   * @param variables map of variable names to their definitions
+   * @param name the name the specification gives this server, or {@code null}
+   */
+  public ServerConfiguration(
+      String urlTemplate,
+      @Nullable String description,
+      Map<String, ServerVariable> variables,
+      @Nullable String name) {
     this.urlTemplate = urlTemplate;
     this.description = description;
     this.variables = Collections.unmodifiableMap(new HashMap<>(variables));
+    this.name = name;
   }
 
   /**
@@ -81,6 +99,16 @@ public final class ServerConfiguration {
   @Nullable
   public String getDescription() {
     return description;
+  }
+
+  /**
+   * The name the specification gives this server (OpenAPI 3.2 {@code name}).
+   *
+   * @return the name, or {@code null} if the server has none
+   */
+  @Nullable
+  public String getName() {
+    return name;
   }
 
   /**

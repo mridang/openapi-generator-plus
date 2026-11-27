@@ -907,6 +907,40 @@ void main() {
       await result.close();
     });
 
+    test(
+      'bhv operations 501 getPetPhoto sends only the media type the per-call Accept header names',
+      () async {
+        List<String>? accept;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          accept = request.headers[HttpHeaders.acceptHeader];
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType('image', 'png')
+            ..add([1, 2, 3])
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          final result = await api.getPetPhoto(
+            1,
+            1,
+            const GetPetPhotoOptions(headers: {'Accept': 'image/png'}),
+          );
+          await result.close();
+
+          expect(accept, equals(['image/png']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('bhv operations 058 getPetTag', () async {
       final api = _newPetApiForIntegration();
       final result = await api.getPetTag(

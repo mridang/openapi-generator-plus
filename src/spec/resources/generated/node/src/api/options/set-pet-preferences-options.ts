@@ -13,4 +13,6 @@ export interface SetPetPreferencesOptions {
   readonly ratio?: number;
   readonly urgent?: boolean;
   readonly snooze?: Temporal.Duration;
+  readonly route?: string;
+  readonly aliases?: Array<string>;
 }

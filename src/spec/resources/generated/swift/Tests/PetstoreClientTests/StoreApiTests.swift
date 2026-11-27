@@ -343,6 +343,25 @@ import Testing
     #expect(mockClient.lastURL.hasPrefix("https://memos.example.com/v1/store/memos/m1"))
   }
 
+  /* The typed response headers read each declared header whatever its casing, in its declared type, and leave an absent one nil. */
+  @Test func testBhvHeaders501TypedResponseHeadersReadTheDeclaredHeaders() throws {
+    let headers = try GetMemoResponseHeaders.from(["x-revision": "7", "X-LABELS": "a, b"])
+
+    #expect(headers.xRevision == 7)
+    #expect(headers.xLabels == ["a", "b"])
+    #expect(headers.xArchived == nil)
+  }
+
+  /* A declared response header whose value does not parse raises a SerializationError naming the header. */
+  @Test func testBhvHeaders502TypedResponseHeaderThatDoesNotParseRaisesSerializationError() throws {
+    do {
+      _ = try GetMemoResponseHeaders.from(["x-revision": "seven"])
+      Issue.record("Expected a SerializationError")
+    } catch let error as SerializationError {
+      #expect(error.message == "Response header 'X-Revision' is not a valid integer: 'seven'")
+    }
+  }
+
   /* A PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method. */
   @Test func testBhvOperations166PatchHeadOptionsAndTraceAreSentWithTheirOwnMethod() async throws {
     let mockClient = MockApiClient()

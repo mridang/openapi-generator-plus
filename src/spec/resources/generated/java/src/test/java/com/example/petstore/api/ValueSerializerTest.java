@@ -1378,4 +1378,46 @@ class ValueSerializerTest {
     ValueSerializer.putQuery(query, "filter", styled, false);
     assertEquals(Map.of("filter", "x"), query);
   }
+
+  @Test
+  @DisplayName("bhvSerializationParam501 cookiePairs builds the style cookie fragment")
+  void bhvSerializationParam501CookiePairsBuildsTheStyleCookieFragment() {
+    Map<String, String> fields = new java.util.LinkedHashMap<>();
+    fields.put("k1", "v1");
+    fields.put("k2", "v2");
+    assertEquals("region=eu", ValueSerializer.cookiePairs("region", "eu", true));
+    assertEquals("region=a,b", ValueSerializer.cookiePairs("region", List.of("a", "b"), false));
+    assertEquals(
+        "region=a; region=b", ValueSerializer.cookiePairs("region", List.of("a", "b"), true));
+    assertEquals("region=k1,v1,k2,v2", ValueSerializer.cookiePairs("region", fields, false));
+    assertEquals("k1=v1; k2=v2", ValueSerializer.cookiePairs("region", fields, true));
+    assertEquals("region=a%2Cb", ValueSerializer.cookiePairs("region", "a%2Cb", true));
+    assertEquals("", ValueSerializer.cookiePairs("region", null, true));
+  }
+
+  @Test
+  @DisplayName("bhvSerializationParam502 cookiePairs refuses a value outside the cookie-octet set")
+  void bhvSerializationParam502CookiePairsRefusesAValueOutsideTheCookieOctetSet() {
+    List<Runnable> calls =
+        List.of(
+            () -> ValueSerializer.cookiePairs("region", List.of("a b"), false),
+            () -> ValueSerializer.cookiePairs("region", "a;b", true),
+            () -> ValueSerializer.cookiePairs("region", List.of("a,b"), true));
+    for (Runnable call : calls) {
+      IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, call::run);
+      assertTrue(ex.getMessage().contains("'region'"));
+    }
+  }
+
+  @Test
+  @DisplayName("bhvSerializationParam503 allowReservedInPath restores only the reserved characters")
+  void bhvSerializationParam503AllowReservedInPathRestoresOnlyTheReservedCharacters() {
+    assertEquals(
+        "v1.0/beta:rc1@x",
+        ValueSerializer.allowReservedInPath(ValueSerializer.encodePathSegment("v1.0/beta:rc1@x")));
+    assertEquals(
+        "a%3Fb%23c%5Bd%5De%25f%20g",
+        ValueSerializer.allowReservedInPath(ValueSerializer.encodePathSegment("a?b#c[d]e%f g")));
+    assertEquals("/", ValueSerializer.allowReservedInPath("%2f"));
+  }
 }

@@ -75,4 +75,30 @@ public static class Servers
     /// All server configurations in declaration order.
     /// </summary>
     public static readonly IReadOnlyList<ServerConfiguration> All = [Server0, Server1, Server2];
+
+    /// <summary>
+    /// The server the specification gives the name <paramref name="name"/> (OpenAPI 3.2 <c>name</c>).
+    /// </summary>
+    /// <param name="name">The server name.</param>
+    /// <returns>The server with that name.</returns>
+    /// <exception cref="ArgumentException">If no server has that name; the message lists the known names.</exception>
+    public static ServerConfiguration ByName(string name)
+    {
+        List<string> known = [];
+        foreach (ServerConfiguration server in All)
+        {
+            if (server.Name is null)
+            {
+                continue;
+            }
+            if (server.Name == name)
+            {
+                return server;
+            }
+            known.Add(server.Name);
+        }
+        throw new ArgumentException(
+            $"Unknown server name '{name}'. Known names: [{string.Join(", ", known)}]"
+        );
+    }
 }

@@ -151,6 +151,36 @@ fn test_bhv_servers_014_variable_without_an_enum_accepts_any_override() {
 }
 
 #[test]
+fn test_bhv_servers_501_a_server_keeps_its_name_and_one_without_a_name_has_none() {
+    let named = ServerConfiguration::new(
+        "https://api.example.com".to_string(),
+        String::new(),
+        HashMap::new(),
+    )
+    .with_name("primary".to_string());
+    let unnamed = ServerConfiguration::new(
+        "https://api.example.com".to_string(),
+        String::new(),
+        HashMap::new(),
+    );
+
+    assert_eq!(named.name(), "primary");
+    assert_eq!(unnamed.name(), "");
+}
+
+#[test]
+fn test_bhv_servers_502_an_unknown_server_name_is_rejected_with_the_known_names() {
+    let result = petstore::servers::by_name("missing");
+
+    assert_eq!(
+        result.err(),
+        Some(ConfigurationError::InvalidArgument(
+            "Unknown server name 'missing'. Known names: []".to_string()
+        ))
+    );
+}
+
+#[test]
 fn test_bhv_servers_012_url_rejection_message_names_the_value_the_variable_and_the_allowed_values()
 {
     let server = server_with_vars();

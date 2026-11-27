@@ -19,6 +19,10 @@ import (
 // variable override is outside the variable's enum. Match it with errors.Is.
 var ErrInvalidServerVariable = errors.New("invalid server variable")
 
+// ErrUnknownServer is returned by ServerByName when no server has the given
+// name. Match it with errors.Is.
+var ErrUnknownServer = errors.New("unknown server")
+
 // ServerVariable represents a server variable from the OpenAPI specification.
 //
 // Server variables define substitution parameters in server URL templates.
@@ -98,6 +102,7 @@ type ServerConfiguration struct {
 	urlTemplate string
 	description string
 	variables   map[string]ServerVariable
+	name        string
 }
 
 // NewServerConfiguration creates a new server configuration.
@@ -119,6 +124,21 @@ func NewServerConfiguration(urlTemplate, description string, variables map[strin
 		description: description,
 		variables:   varsCopy,
 	}
+}
+
+// NewNamedServerConfiguration creates a new server configuration that carries
+// the name the specification gives the server (OpenAPI 3.2 name). The other
+// parameters are those of NewServerConfiguration.
+func NewNamedServerConfiguration(name, urlTemplate, description string, variables map[string]ServerVariable) *ServerConfiguration {
+	server := NewServerConfiguration(urlTemplate, description, variables)
+	server.name = name
+	return server
+}
+
+// Name returns the name the specification gives this server (OpenAPI 3.2
+// name), or an empty string if it has none.
+func (s *ServerConfiguration) Name() string {
+	return s.name
 }
 
 // URLTemplate returns the raw URL template before variable substitution.

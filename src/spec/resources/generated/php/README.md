@@ -70,7 +70,7 @@ Closing the client is graceful: a request already sent finishes, every later req
 
 ### Raw responses
 
-Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with the public properties `statusCode`, `data`, `rawBody` and the lower-cased `headers`. It is the way to read a response header; a header repeated by the server arrives as one value joined with `, `.
+Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with the public properties `statusCode`, `data`, `rawBody` and the lower-cased `headers`. It is the way to read a response header; a header repeated by the server arrives as one value joined with `, `. An operation whose success response declares headers also has a `<Operation>ResponseHeaders` class in `Api\Options`; `<Operation>ResponseHeaders::from($result->headers)` reads them in their declared types.
 
 ### Timeouts
 

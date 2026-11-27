@@ -9,6 +9,8 @@
 
 package petstore
 
+import "fmt"
+
 // Generated server configurations from the OpenAPI specification.
 //
 // Each variable corresponds to a server entry defined in the spec's
@@ -28,7 +30,8 @@ package petstore
 var (
 	/* Server0 is the server configuration for: /api/v3
 	 * Relative URL (no variables) */
-	Server0 = NewServerConfiguration(
+	Server0 = NewNamedServerConfiguration(
+		"",
 		"/api/v3",
 		"Relative URL (no variables)",
 		map[string]ServerVariable{},
@@ -36,7 +39,8 @@ var (
 
 	/* Server1 is the server configuration for: https://{environment}.example.com/api/{version}
 	 * Main API server with variables */
-	Server1 = NewServerConfiguration(
+	Server1 = NewNamedServerConfiguration(
+		"",
 		"https://{environment}.example.com/api/{version}",
 		"Main API server with variables",
 		map[string]ServerVariable{
@@ -55,7 +59,8 @@ var (
 
 	/* Server2 is the server configuration for: https://{tenant}.example.com/api
 	 * Bob's "sandbox" & co: $5 #{x} a*\/b */
-	Server2 = NewServerConfiguration(
+	Server2 = NewNamedServerConfiguration(
+		"",
 		"https://{tenant}.example.com/api",
 		"Bob's \"sandbox\" & co: $5 #{x} a*/b",
 		map[string]ServerVariable{
@@ -73,4 +78,21 @@ var AllServers = []*ServerConfiguration{
 	Server0,
 	Server1,
 	Server2,
+}
+
+// ServerByName returns the server the specification gives the name name
+// (OpenAPI 3.2 name). When no server has that name it returns
+// ErrUnknownServer, and the message lists the known names.
+func ServerByName(name string) (*ServerConfiguration, error) {
+	known := make([]string, 0, len(AllServers))
+	for _, server := range AllServers {
+		if server.name == "" {
+			continue
+		}
+		if server.name == name {
+			return server, nil
+		}
+		known = append(known, server.name)
+	}
+	return nil, fmt.Errorf("%w: unknown server name '%s'. Known names: %s", ErrUnknownServer, name, bracketedList(known))
 }

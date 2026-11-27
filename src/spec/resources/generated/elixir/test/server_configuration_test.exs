@@ -108,6 +108,20 @@ defmodule PetstoreClient.ServerConfigurationTest do
                    fn -> ServerConfiguration.url(config, %{"env" => "dev"}) end
     end
 
+    test "bhv servers 501 a server keeps its name and a server built without one has none" do
+      named = %ServerConfiguration{url_template: "https://api.example.com", name: "primary"}
+      unnamed = %ServerConfiguration{url_template: "https://api.example.com"}
+
+      assert named.name == "primary"
+      assert unnamed.name == nil
+    end
+
+    test "bhv servers 502 an unknown server name is rejected with the known names" do
+      assert_raise ArgumentError,
+                   ~s(Unknown server name 'missing'. Known names: []),
+                   fn -> PetstoreClient.Servers.by_name("missing") end
+    end
+
     test "bhv langelixir 019 the allowed values of a three-element enum render as a bracketed comma list" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",

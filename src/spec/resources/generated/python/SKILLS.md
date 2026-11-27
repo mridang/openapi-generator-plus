@@ -198,7 +198,7 @@ Every operation takes an optional trailing `options` argument, an Options object
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `petstore_client.servers` module exposes each as a `ServerConfiguration` (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` list. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `petstore_client.servers` module exposes each as a `ServerConfiguration` (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` list. A server the spec gives a name is also found by that name with `by_name("name")`, which fails with `ValueError` when no server has the name. Pass the desired server's URL to the client:
 
 ```python file
 from petstore_client.servers import SERVER_0

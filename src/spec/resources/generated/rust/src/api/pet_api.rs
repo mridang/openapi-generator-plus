@@ -458,6 +458,9 @@ impl PetApi {
          *   - text arrays               -> List(Text ...) (repeated parts);
          *   - objects / scalars         -> Text;
          *   - absent optional fields    -> omitted entirely.
+         * A field whose Encoding Object declares a part Content-Type or part
+         * headers is wrapped in MultipartValue::Encoded, which the client writes
+         * in place of the Content-Type it would choose (D166).
          * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
         let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
         /* Required multipart request body: the parts come from the Options
@@ -483,7 +486,11 @@ impl PetApi {
         ));
         multipart.push((
             "metadata".to_string(),
-            MultipartValue::Json(object_serializer::serialize(&opts.metadata)?),
+            MultipartValue::encoded(
+                MultipartValue::Json(object_serializer::serialize(&opts.metadata)?),
+                Some("application/json"),
+                &[],
+            ),
         ));
         let request_body: Option<Vec<u8>> = None;
         let multipart = Some(multipart);
@@ -716,6 +723,9 @@ impl PetApi {
          *   - text arrays               -> List(Text ...) (repeated parts);
          *   - objects / scalars         -> Text;
          *   - absent optional fields    -> omitted entirely.
+         * A field whose Encoding Object declares a part Content-Type or part
+         * headers is wrapped in MultipartValue::Encoded, which the client writes
+         * in place of the Content-Type it would choose (D166).
          * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
         let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
         /* Required multipart request body: the parts come from the Options
@@ -734,7 +744,11 @@ impl PetApi {
         if let Some(ref val) = opts.caption {
             multipart.push((
                 "caption".to_string(),
-                MultipartValue::Text(object_serializer::stringify(val)),
+                MultipartValue::encoded(
+                    MultipartValue::Text(object_serializer::stringify(val)),
+                    Some("text/markdown"),
+                    &[("X-Caption-Format", r#"commonmark"#)],
+                ),
             ));
         }
         let request_body: Option<Vec<u8>> = None;
@@ -2567,6 +2581,11 @@ impl PetApi {
     ///
     /// The status that arrived picks the variant of [`Error`](crate::Error), which holds:
     /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
+    ///
+    /// Response 200 example: Example
+    /// ```json
+    /// hello
+    /// ```
     pub async fn get_pet_summary(
         &self,
         pet_id: i64,
@@ -5290,8 +5309,10 @@ impl PetApi {
         /* application/x-www-form-urlencoded. The body is an ordered list of
          * [key, value] pairs (spec-declaration order). Array values are emitted
          * as repeated keys by serialize_body; null/absent optional fields are
-         * omitted entirely; spaces are encoded as `+`. */
-        let mut form_pairs: Vec<(String, serde_json::Value)> = Vec::new();
+         * omitted entirely; spaces are encoded as `+`. The third element marks
+         * a field whose Encoding Object sets allowReserved: its value keeps the
+         * reserved characters literal. */
+        let mut form_pairs: Vec<(String, serde_json::Value, bool)> = Vec::new();
         if let Some(opts) = options {
             if opts.nickname.is_empty() {
                 return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling PetApi.set_pet_preferences", "nickname"))));
@@ -5299,30 +5320,51 @@ impl PetApi {
             form_pairs.push((
                 "nickname".to_string(),
                 serde_json::to_value(&opts.nickname)?,
+                false,
             ));
             if let Some(ref val) = opts.tags {
-                form_pairs.push(("tags".to_string(), serde_json::to_value(val)?));
+                form_pairs.push(("tags".to_string(), serde_json::to_value(val)?, false));
             }
             if let Some(ref val) = opts.note {
-                form_pairs.push(("note".to_string(), serde_json::to_value(val)?));
+                form_pairs.push(("note".to_string(), serde_json::to_value(val)?, false));
             }
             if let Some(ref val) = opts.renewal_date {
-                form_pairs.push(("renewalDate".to_string(), serde_json::to_value(val)?));
+                form_pairs.push(("renewalDate".to_string(), serde_json::to_value(val)?, false));
             }
             if let Some(ref val) = opts.reminder {
-                form_pairs.push(("reminder".to_string(), serde_json::to_value(val)?));
+                form_pairs.push(("reminder".to_string(), serde_json::to_value(val)?, false));
             }
             if let Some(ref val) = opts.interval_days {
-                form_pairs.push(("intervalDays".to_string(), serde_json::to_value(val)?));
+                form_pairs.push((
+                    "intervalDays".to_string(),
+                    serde_json::to_value(val)?,
+                    false,
+                ));
             }
             if let Some(ref val) = opts.ratio {
-                form_pairs.push(("ratio".to_string(), serde_json::to_value(val)?));
+                form_pairs.push(("ratio".to_string(), serde_json::to_value(val)?, false));
             }
             if let Some(ref val) = opts.urgent {
-                form_pairs.push(("urgent".to_string(), serde_json::to_value(val)?));
+                form_pairs.push(("urgent".to_string(), serde_json::to_value(val)?, false));
             }
             if let Some(ref val) = opts.snooze {
-                form_pairs.push(("snooze".to_string(), serde_json::to_value(val)?));
+                form_pairs.push(("snooze".to_string(), serde_json::to_value(val)?, false));
+            }
+            if let Some(ref val) = opts.route {
+                form_pairs.push(("route".to_string(), serde_json::to_value(val)?, true));
+            }
+            if let Some(ref val) = opts.aliases {
+                /* D165: styled like a query parameter, see the required branch. */
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+                for (k, v) in value_serializer::styled_form_pairs(
+                    "aliases",
+                    val,
+                    Some(&items),
+                    "pipeDelimited",
+                    false,
+                )? {
+                    form_pairs.push((k, serde_json::Value::String(v), false));
+                }
             }
         }
         let request_body = Some(serde_json::to_vec(&form_pairs)?);
@@ -5555,6 +5597,9 @@ impl PetApi {
          *   - text arrays               -> List(Text ...) (repeated parts);
          *   - objects / scalars         -> Text;
          *   - absent optional fields    -> omitted entirely.
+         * A field whose Encoding Object declares a part Content-Type or part
+         * headers is wrapped in MultipartValue::Encoded, which the client writes
+         * in place of the Content-Type it would choose (D166).
          * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
         let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
         /* Required multipart request body: the parts come from the Options
@@ -5709,6 +5754,9 @@ impl PetApi {
          *   - text arrays               -> List(Text ...) (repeated parts);
          *   - objects / scalars         -> Text;
          *   - absent optional fields    -> omitted entirely.
+         * A field whose Encoding Object declares a part Content-Type or part
+         * headers is wrapped in MultipartValue::Encoded, which the client writes
+         * in place of the Content-Type it would choose (D166).
          * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
         let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
         /* Required multipart request body: the parts come from the Options

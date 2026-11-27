@@ -621,6 +621,65 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOperations501GetPetPhotoSendsOnlyTheAcceptHeaderTheCallerNames()
+    {
+        var client = new StreamHeaderCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await using ByteStream photo = await api.GetPetPhotoAsync(
+            1L,
+            100L,
+            new GetPetPhotoOptions
+            {
+                Headers = new Dictionary<string, string> { ["accept"] = "image/png" },
+            }
+        );
+
+        var accept = Assert.Single(
+            client.CapturedHeaders,
+            header => string.Equals(header.Key, "Accept", StringComparison.OrdinalIgnoreCase)
+        );
+        Assert.Equal("image/png", accept.Value);
+    }
+
+    private sealed class StreamHeaderCapturingApiClient : IApiClient
+    {
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+
+        public Task<PetstoreClient.ApiStreamResponse> SendStreamingAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            int? idleTimeout,
+            CancellationToken cancellationToken
+        )
+        {
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            return Task.FromResult(
+                new PetstoreClient.ApiStreamResponse(
+                    200,
+                    new Dictionary<string, string> { { "content-type", "image/png" } },
+                    new MemoryStream(System.Text.Encoding.UTF8.GetBytes("png"))
+                )
+            );
+        }
+
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            throw new NotSupportedException("only the streaming path is expected");
+        }
+    }
+
+    [Fact]
     public async Task BhvOperations053TestGetPetPassport()
     {
         var result = await _api.GetPetPassportAsync(1L);
@@ -2211,6 +2270,65 @@ public class PetApiTest
 
         Assert.NotNull(client.CapturedBody);
         Assert.Equal("nickname=a+b", client.CapturedBody!.ToString());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire501FormFieldWithAllowReservedKeepsReservedCharacters()
+    {
+        var client = new BodyCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.SetPetPreferencesWithHttpInfoAsync(
+            1L,
+            new SetPetPreferencesOptions { Nickname = "rex", Route = "v1.0/beta:rc1 a#b" }
+        );
+
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("nickname=rex&route=v1.0/beta:rc1%20a%23b", client.CapturedBody!.ToString());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire502FormFieldWithEncodingStyleIsSentStyled()
+    {
+        var client = new BodyCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.SetPetPreferencesWithHttpInfoAsync(
+            1L,
+            new SetPetPreferencesOptions { Nickname = "rex", Aliases = ["a b", "c"] }
+        );
+
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("nickname=rex&aliases=a+b%7Cc", client.CapturedBody!.ToString());
+    }
+
+    [Fact]
+    public async Task BhvSerializationwire503MultipartPartCarriesItsEncodingContentTypeAndHeaders()
+    {
+        using var handler = new MultipartCapturingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var api = new PetApi(
+            new DefaultApiClient(transport),
+            Configuration.Builder().BaseUrl("http://localhost").Build()
+        );
+        using var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
+
+        await api.AttachPetFilesAsync(
+            1L,
+            new AttachPetFilesOptions { File = fileData, Caption = "hello" }
+        );
+
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"caption\"\r\nContent-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello",
+            handler.Body,
+            StringComparison.Ordinal
+        );
+        Assert.Matches(
+            "Content-Disposition: form-data; name=\"file\"; [^\r\n]*\r\nContent-Type: application/octet-stream\r\n\r\n",
+            handler.Body
+        );
     }
 
     [Fact]

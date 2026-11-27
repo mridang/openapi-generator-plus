@@ -230,6 +230,33 @@ defmodule PetstoreClient.ValueSerializer do
   def maybe_allow_reserved(value, false), do: value
 
   @doc """
+  Wrap a multipart field value with the part Content-Type and part headers its
+  Encoding Object declares.
+
+  Returns `nil` unchanged; otherwise tags the value with `:encoded_part`. The
+  multipart encoder writes the declared Content-Type in place of the one it
+  would choose and then each header as `Name: value`, in the given order; for
+  a list value it applies the encoding to every item. Every other body
+  encoder sends the plain value.
+
+  ## Parameters
+
+    * `value` - The field value.
+    * `content_type` - The declared part Content-Type, or `nil` for none.
+    * `headers` - The declared part headers as ordered `{name, value}` pairs.
+
+  ## Returns
+
+    The value, wrapped unless it is `nil`.
+  """
+  @spec encoded_part(term(), String.t() | nil, [{String.t(), String.t()}]) ::
+          {:encoded_part, term(), String.t() | nil, [{String.t(), String.t()}]} | nil
+  def encoded_part(nil, _content_type, _headers), do: nil
+
+  def encoded_part(value, content_type, headers),
+    do: {:encoded_part, value, content_type, headers}
+
+  @doc """
   Percent-encode a query value while leaving RFC 3986 reserved characters
   literal (OAS `allowReserved: true`).
 
@@ -242,6 +269,112 @@ defmodule PetstoreClient.ValueSerializer do
   @spec encode_query_allowing_reserved(String.t()) :: String.t()
   def encode_query_allowing_reserved(value) do
     URI.encode(value, fn c -> URI.char_unreserved?(c) or c in ~c":/?@!$&'()*+,;=" end)
+  end
+
+  @doc """
+  Turn the percent-encoded reserved characters of an already path-encoded value
+  back into their literal form (OAS 3.2 `allowReserved: true` on a path
+  parameter).
+
+  Only `%2F %3A %40 %21 %24 %26 %27 %28 %29 %2A %2B %2C %3B %3D` (either hex
+  case) are decoded, to `/ : @ ! $ & ' ( ) * + , ; =`. Everything else stays
+  as the path encoder wrote it, so `?`, `#`, `[`, `]`, a space and `%25` (a
+  literal percent sign) remain encoded.
+
+  ## Parameters
+
+    * `encoded` - The value after the normal path-segment encoding.
+
+  ## Returns
+
+    The value with the reserved characters left literal.
+  """
+  @spec allow_reserved_in_path(String.t()) :: String.t()
+  def allow_reserved_in_path(encoded) do
+    Regex.replace(~r/%(2[146-9A-CFa-cf]|3[ABDabd]|40)/, encoded, fn _match, hex ->
+      <<String.to_integer(hex, 16)>>
+    end)
+  end
+
+  @doc """
+  Build the `Cookie` header fragment for one `style: cookie` parameter
+  (OpenAPI 3.2).
+
+  A scalar becomes `name=value`; an array becomes `name=a,b` (explode false)
+  or `name=a; name=b` (explode true); an object becomes `name=k1,v1,k2,v2`
+  (explode false) or `k1=v1; k2=v2` (explode true). Values are never
+  percent-encoded. `nil`, an empty array and an empty object give the empty
+  string, which means nothing is sent.
+
+  ## Parameters
+
+    * `name` - The cookie parameter name.
+    * `value` - The value to write (may be `nil`).
+    * `explode` - The parameter's explode flag.
+    * `schema_type` - The OpenAPI schema type, used to write an enum by its
+      wire value and a `format: date` value as a calendar date (may be `nil`).
+
+  ## Returns
+
+    The fragment, or the empty string when there is nothing to send.
+
+  ## Raises
+
+    `ArgumentError` if an item, a key or a value contains a character outside
+    the RFC 6265 cookie-octet set.
+  """
+  @spec cookie_pairs(String.t(), term(), boolean(), String.t() | nil) :: String.t()
+  def cookie_pairs(name, value, explode, schema_type \\ nil) do
+    value =
+      value
+      |> set_to_list()
+      |> resolve_enum_wire_values(schema_type)
+      |> date_only_value(schema_type)
+
+    value
+    |> cookie_segments(name, explode)
+    |> Enum.map_join("; ", fn {key, text} -> "#{key}=#{text}" end)
+  end
+
+  defp cookie_segments(nil, _name, _explode), do: []
+  defp cookie_segments([], _name, _explode), do: []
+
+  defp cookie_segments(value, name, true) when is_object(value) do
+    Enum.map(object_pairs(value), fn {key, val} ->
+      {cookie_octets!(name, key), cookie_octets!(name, val)}
+    end)
+  end
+
+  defp cookie_segments(value, name, false) when is_object(value) do
+    case object_pairs(value) do
+      [] ->
+        []
+
+      pairs ->
+        [{name, pairs |> flatten_object() |> Enum.map_join(",", &cookie_octets!(name, &1))}]
+    end
+  end
+
+  defp cookie_segments(value, name, true) when is_list(value) do
+    Enum.map(value, fn item -> {name, cookie_octets!(name, cookie_text(item))} end)
+  end
+
+  defp cookie_segments(value, name, false) when is_list(value) do
+    [{name, Enum.map_join(value, ",", fn item -> cookie_octets!(name, cookie_text(item)) end)}]
+  end
+
+  defp cookie_segments(value, name, _explode),
+    do: [{name, cookie_octets!(name, cookie_text(value))}]
+
+  defp cookie_text(value), do: PetstoreClient.ObjectSerializer.stringify(value)
+
+  # RFC 6265 cookie-octets: the same check the operation applies to a cookie value.
+  defp cookie_octets!(name, text) do
+    unless text =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
+      raise ArgumentError, "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
+    end
+
+    text
   end
 
   @doc """

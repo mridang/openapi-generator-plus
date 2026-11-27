@@ -282,7 +282,7 @@ A cookie parameter goes into the `Cookie` header exactly as given when every cha
 
 ### Raw responses, request id and logging
 
-Every operation has a `_with_http_info` variant that returns the status, headers and body as an `ApiResult`. With `inject_request_id: true` on `TransportOptions`, the SDK sends an `X-Request-ID` it generates, unless the caller already set one. It does not log: wrap a call, or give `TransportOptions` a Req `:adapter` or step through `req_options`, to log requests.
+Every operation has a `_with_http_info` variant that returns the status, headers and body as an `ApiResult`. An operation whose success response declares headers also has a `<Operation>ResponseHeaders` struct in `Api.ResponseHeaders`; `<Operation>ResponseHeaders.from_headers(result.headers)` reads them in their declared types. With `inject_request_id: true` on `TransportOptions`, the SDK sends an `X-Request-ID` it generates, unless the caller already set one. It does not log: wrap a call, or give `TransportOptions` a Req `:adapter` or step through `req_options`, to log requests.
 
 An error carries the request it answers: `request_method` and `request_path` (the path without the query string), and its message has a `Request: GET /path` line after the status line.
 

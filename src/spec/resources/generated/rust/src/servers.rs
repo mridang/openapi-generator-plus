@@ -9,6 +9,7 @@
 
 use std::collections::HashMap;
 
+use crate::errors::configuration_error::ConfigurationError;
 use crate::server_configuration::{ServerConfiguration, ServerVariable};
 
 /// Generated server configurations from the OpenAPI specification.
@@ -105,4 +106,29 @@ pub fn server_2() -> ServerConfiguration {
 /// All server configurations in declaration order.
 pub fn all_servers() -> Vec<ServerConfiguration> {
     vec![server_0(), server_1(), server_2()]
+}
+
+/// The server the specification gives the name `name` (OpenAPI 3.2 `name`).
+///
+/// # Errors
+///
+/// Returns [`ConfigurationError::InvalidArgument`] when no server has that
+/// name; the message lists the known names.
+pub fn by_name(name: &str) -> Result<ServerConfiguration, ConfigurationError> {
+    let servers = all_servers();
+    let known: Vec<&str> = servers
+        .iter()
+        .map(ServerConfiguration::name)
+        .filter(|server_name| !server_name.is_empty())
+        .collect();
+    let message = format!(
+        "Unknown server name '{}'. Known names: [{}]",
+        name,
+        known.join(", ")
+    );
+    servers
+        .iter()
+        .find(|server| !server.name().is_empty() && server.name() == name)
+        .cloned()
+        .ok_or(ConfigurationError::InvalidArgument(message))
 }

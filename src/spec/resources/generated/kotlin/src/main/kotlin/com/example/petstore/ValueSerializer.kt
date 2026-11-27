@@ -22,6 +22,11 @@ import java.nio.charset.StandardCharsets
 internal object ValueSerializer {
     private val serializer = ObjectSerializer()
 
+    private const val HEX_RADIX = 16
+
+    /** The percent-encoded octets [allowReservedInPath] turns back into `/ : @ ! $ & ' ( ) * + , ; =`. */
+    private val pathReservedOctet = Regex("%(2[146-9A-Ca-cFf]|3[ABDabd]|40)")
+
     /**
      * Serialize a value for use in an HTTP request parameter.
      *
@@ -153,6 +158,53 @@ internal object ValueSerializer {
     }
 
     /**
+     * Wraps a multipart field value whose Encoding Object declares the part's
+     * Content-Type or fixed part headers. Produced by [encodedPart] and
+     * unwrapped by the multipart writer, which sends [contentType] in place of
+     * the Content-Type it would choose and then each of [headers] in order. A
+     * list value applies the encoding to every item.
+     *
+     * @property value the field value (a scalar, a file's bytes or a list of them)
+     * @property contentType the declared part Content-Type, or null to keep the SDK's choice
+     * @property headers the declared part headers, in declaration order
+     */
+    data class EncodedPart(
+        val value: Any,
+        val contentType: String?,
+        val headers: Map<String, String>,
+    )
+
+    /**
+     * Wraps [value] in an [EncodedPart]; a null value stays null so the field is omitted.
+     *
+     * @param value the multipart field value
+     * @param contentType the declared part Content-Type, or null
+     * @param headers the declared part headers, in declaration order
+     * @return the wrapped value, or null
+     */
+    @JvmStatic
+    fun encodedPart(
+        value: Any?,
+        contentType: String?,
+        headers: Map<String, String>,
+    ): Any? = if (value == null) null else EncodedPart(value, contentType, headers)
+
+    /**
+     * Returns the value inside an [AllowReservedValue] or [EncodedPart]
+     * wrapper, or [value] itself when it is not wrapped.
+     *
+     * @param value a form field value
+     * @return the unwrapped value
+     */
+    @JvmStatic
+    fun unwrapFormValue(value: Any?): Any? =
+        when (value) {
+            is AllowReservedValue -> value.value
+            is EncodedPart -> value.value
+            else -> value
+        }
+
+    /**
      * Percent-encodes a query value while leaving RFC 3986 reserved characters
      * literal (OAS `allowReserved: true`).
      *
@@ -189,6 +241,92 @@ internal object ValueSerializer {
             .replace("%2C", ",")
             .replace("%3B", ";")
             .replace("%3D", "=")
+    }
+
+    /**
+     * Turns the percent-encoded RFC 3986 reserved characters of an already
+     * path-encoded value back into their literal form, for a path parameter
+     * that declares `allowReserved: true` (OpenAPI 3.2). `?`, `#`, `[`, `]`,
+     * `%` (as `%25`) and spaces stay encoded, so a value the caller already
+     * percent-encoded keeps its `%25` and is never decoded twice.
+     *
+     * @param encoded the value after [encodePathSegment] or the styled path serializer
+     * @return the value with `/ : @ ! $ & ' ( ) * + , ; =` literal
+     */
+    @JvmStatic
+    fun allowReservedInPath(encoded: String): String =
+        pathReservedOctet.replace(encoded) { match ->
+            match.groupValues[1]
+                .toInt(HEX_RADIX)
+                .toChar()
+                .toString()
+        }
+
+    /**
+     * Builds the Cookie header fragment for one parameter declared with
+     * OpenAPI 3.2 `style: cookie`. A scalar is `name=value`; an array is
+     * `name=a,b` (explode false) or `name=a; name=b` (explode true); an object
+     * is `name=k1,v1,k2,v2` (explode false) or `k1=v1; k2=v2` (explode true).
+     * Values are never percent-encoded, so every item, key and value must
+     * consist only of RFC 6265 cookie-octets.
+     *
+     * @param name the cookie parameter name
+     * @param value the value to serialize (may be null)
+     * @param explode whether to explode arrays and objects into separate pairs
+     * @return the header fragment, or the empty string when nothing is sent
+     * @throws IllegalArgumentException when a value holds a character outside
+     *   the RFC 6265 cookie-octet set
+     */
+    @JvmStatic
+    fun cookiePairs(
+        name: String,
+        value: Any?,
+        explode: Boolean,
+    ): String {
+        if (value == null) {
+            return ""
+        }
+        val fields = serializer.toWireMap(value)
+        if (fields != null) {
+            fields.forEach { (key, field) -> requireCookieOctets(name, listOf(key, field)) }
+            return when {
+                fields.isEmpty() -> ""
+                explode -> fields.entries.joinToString("; ") { "${it.key}=${it.value}" }
+                else -> "$name=${fields.entries.joinToString(",") { "${it.key},${it.value}" }}"
+            }
+        }
+        val items = toStringList(value)
+        requireCookieOctets(name, items)
+        return when {
+            items.isEmpty() -> ""
+            explode -> items.joinToString("; ") { "$name=$it" }
+            else -> "$name=${items.joinToString(",")}"
+        }
+    }
+
+    /**
+     * Rejects a cookie value part that holds a character outside the RFC 6265
+     * cookie-octet set (%x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E), with
+     * the same message the operation's cookie check raises.
+     */
+    private fun requireCookieOctets(
+        name: String,
+        parts: List<String>,
+    ) {
+        val valid =
+            parts.all { part ->
+                part.all { c ->
+                    val code = c.code
+                    code == 0x21 ||
+                        code in 0x23..0x2B ||
+                        code in 0x2D..0x3A ||
+                        code in 0x3C..0x5B ||
+                        code in 0x5D..0x7E
+                }
+            }
+        require(valid) {
+            "Cookie value for '$name' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it"
+        }
     }
 
     /**

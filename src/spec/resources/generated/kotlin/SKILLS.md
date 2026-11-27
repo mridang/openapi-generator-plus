@@ -217,7 +217,7 @@ val authenticator = OAuth2ClientCredentialsAuthenticator(
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `Servers` object exposes each as a `ServerConfiguration` property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `Servers` object exposes each as a `ServerConfiguration` property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. A server the spec gives a name is also found by that name with `Servers.byName("name")`, which fails with `IllegalArgumentException` when no server has the name. Pass the desired server's URL to the client:
 
 ```kotlin statements
 import com.example.petstore.Client

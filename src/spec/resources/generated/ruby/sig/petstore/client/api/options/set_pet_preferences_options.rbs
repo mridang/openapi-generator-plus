@@ -15,7 +15,9 @@ module Petstore::Client
         attr_reader ratio: Float?
         attr_reader urgent: bool?
         attr_reader snooze: ISO8601::Duration?
-        def initialize: (nickname: String, ?tags: Array[String]?, ?note: String?, ?renewal_date: Date?, ?reminder: Time?, ?interval_days: Integer?, ?ratio: Float?, ?urgent: bool?, ?snooze: ISO8601::Duration?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
+        attr_reader route: String?
+        attr_reader aliases: Array[String]?
+        def initialize: (nickname: String, ?tags: Array[String]?, ?note: String?, ?renewal_date: Date?, ?reminder: Time?, ?interval_days: Integer?, ?ratio: Float?, ?urgent: bool?, ?snooze: ISO8601::Duration?, ?route: String?, ?aliases: Array[String]?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
       end
     end
   end

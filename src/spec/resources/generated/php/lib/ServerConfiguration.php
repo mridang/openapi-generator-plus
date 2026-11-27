@@ -34,11 +34,13 @@ final class ServerConfiguration
      * @param string                         $urlTemplate the URL template, possibly containing {variable} placeholders
      * @param string|null                    $description human-readable description of this server, or null
      * @param array<string, ServerVariable>  $variables   map of variable names to their definitions
+     * @param string|null                    $name        the name the specification gives this server (OpenAPI 3.2), or null
      */
     public function __construct(
         public readonly string $urlTemplate,
         public readonly ?string $description = null,
         public readonly array $variables = [],
+        public readonly ?string $name = null,
     ) {
     }
 

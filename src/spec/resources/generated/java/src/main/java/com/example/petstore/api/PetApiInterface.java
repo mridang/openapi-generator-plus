@@ -1001,6 +1001,8 @@ public interface PetApiInterface {
    * Get a {@literal <}plain{@literal >} "text" summary {@literal &} it's short Returns '''plain'''
    * text for /pets/#{id} and {@literal <}b{@literal >} {@literal &} "c" it's done
    *
+   * <p>Response 200 example: Example {@code hello}
+   *
    * @param petId (required)
    * @param asOf Summary date, sent as a matrix-style path segment (required)
    * @param options options for query, header, form, and cookie parameters
@@ -1013,6 +1015,8 @@ public interface PetApiInterface {
   /**
    * Get a {@literal <}plain{@literal >} "text" summary {@literal &} it's short Returns '''plain'''
    * text for /pets/#{id} and {@literal <}b{@literal >} {@literal &} "c" it's done
+   *
+   * <p>Response 200 example: Example {@code hello}
    *
    * @param petId (required)
    * @param asOf Summary date, sent as a matrix-style path segment (required)
