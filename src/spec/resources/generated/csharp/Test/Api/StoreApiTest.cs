@@ -1096,6 +1096,8 @@ public class StoreApiTest
         );
     }
 
+    private static readonly string[] MemoMethods = { "PATCH", "HEAD", "OPTIONS", "TRACE" };
+
     [Fact]
     public async Task BhvOperations166PatchHeadOptionsAndTraceAreSentWithTheirOwnMethod()
     {
@@ -1107,7 +1109,7 @@ public class StoreApiTest
         await api.OptionsMemoAsync("m1");
         await api.TraceMemoAsync("m1");
 
-        Assert.Equal(new[] { "PATCH", "HEAD", "OPTIONS", "TRACE" }, client.Methods);
+        Assert.Equal(MemoMethods, client.Methods);
     }
 
     private sealed class MethodRecordingApiClient : IApiClient
