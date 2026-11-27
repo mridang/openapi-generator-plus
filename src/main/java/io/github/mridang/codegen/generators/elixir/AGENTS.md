@@ -197,7 +197,7 @@ Rule: every API group has an interface and the client has one where the language
 - Charsets: `shift_jis` and the other `iso-8859-x` labels return the raw bytes, because Erlang's `:unicode` has no multi-charset support (partial).
 - Struct fields are not validated on construction beyond inline enums: untyped fields and wrong-typed scalars pass.
 - Fractional and quoted values are rejected on decode, in containers too (wave 2). An int32 or int64 range check is not possible: the descriptor is the width-less `integer()`.
-- Object-valued query and header parameters, `format: time` sub-millisecond truncation and `format: uri` validation are parked or not reached.
+- `format: time` sub-millisecond truncation and `format: uri` validation are parked or not reached. Object-valued query and header parameters are done (D47, D139).
 - The warnings-fatal docs build is not run by any spec (deferred): `makefile.mustache` runs `mix docs --warnings-as-errors`, but no `ElixirLintingSpec` step does.
 - Spec gates differ from the client `Makefile`: `make build` and `make lint` run plain `mix compile`, while `ElixirLintingSpec` adds `--warnings-as-errors`. The client suite does not use `--warnings-as-errors` because it calls deprecated operations.
 - SOCKS proxies are rejected at construction (README).

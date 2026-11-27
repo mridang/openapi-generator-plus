@@ -325,6 +325,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** Nothing changes until a caller sets the option. Streamed responses are read by the caller and are not counted, and a custom `ApiClient` is untouched. PHP and Elixir decode Brotli and zstd bodies whole and check the size afterwards, because those decoders have no incremental API there; Node and Swift count the decoded bytes, because `fetch` and `URLSession` decompress before the SDK sees the body, and check the wire size through `Content-Length`.
 
+## D139: Object-valued query and header parameters follow their style
+
+**Decision.** A query or header parameter whose value is an object, a generated model or a map, is written by its wire names as the OpenAPI style rules say, in all twelve SDKs: `form` with `explode: true` sends one `key=value` query entry per property (`breed=lab&min_age=3`), `form` with `explode: false` sends one entry under the parameter's name with keys and values joined by commas (`criteriaCsv=breed,lab,min_age,3`), and `simple`, the header style, sends `breed,lab,min_age,3`. A model's properties keep their declaration order and an unset property is left out; a map's entries are written in the map's own order (sorted where the language's map has no order) and a `null` entry is left out. A property that is itself an object has no form in these styles and fails with the SDK's `SerializationError` before anything is sent. The wire forms are the ones the OpenAPI specification defines, so nothing had to be chosen (#109).
+
+**Consequences.** A model passed as a query or header parameter was already expanded in every SDK (D47); C# and PHP now expand a dictionary, a `\Ds\Map` or an associative array the same way, where they used to write it as one opaque value. `deepObject` and `content` parameters are unchanged.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -369,7 +375,7 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **Streaming responses and uploads (#114).** The transport contract reads a whole response and sends a whole body in all twelve SDKs, so server-sent events, JSON Lines and very large files cannot be expressed. The shape has to be chosen once for all twelve, so nothing was built in one language first. Until then you can pass your own HTTP client.
 * **Validating the `id_token` and sending a nonce in the OIDC authenticator (#110).** PKCE is in place for the authorization-code flow, but replay of an `id_token` is not detected by the client.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
-* **Object-valued query and header parameters (#109), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
+* **Classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
 
 ### Settled differences between languages
 
@@ -393,7 +399,6 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#105](https://github.com/mridang/openapi-generator-plus/issues/105): run a vulnerability and unused-dependency audit on every generated SDK.
 * [#107](https://github.com/mridang/openapi-generator-plus/issues/107): decode Go models in a single pass.
 * [#108](https://github.com/mridang/openapi-generator-plus/issues/108): add optional tracer and meter providers to the Go client.
-* [#109](https://github.com/mridang/openapi-generator-plus/issues/109): serialize object-valued query and header parameters per the OpenAPI style rules.
 * [#110](https://github.com/mridang/openapi-generator-plus/issues/110): generate a nonce and validate `id_token` claims in the OIDC authenticator.
 * [#111](https://github.com/mridang/openapi-generator-plus/issues/111): compile the README and `SKILLS.md` code fences and test the minimum supported runtimes.
 * [#114](https://github.com/mridang/openapi-generator-plus/issues/114): support streaming responses and uploads in the generated clients (built, decisions D118 to D122, D125 to D127).

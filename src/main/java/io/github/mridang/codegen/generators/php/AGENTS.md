@@ -270,7 +270,7 @@ Where: `default_api_client.mustache`, `abstract_api_client.mustache`.
 Test: `DefaultApiClientTest`, `DefaultApiClientUnitTest` (brotli and zstd tests run in the container where the extensions are installed).
 
 ### Parameter encoding (D47, D48, D49, D50, D51, D81, D82)
-Rule: object-valued query and header parameters go through `ObjectSerializer` into a wire-keyed map before expansion (`toWireMap`, widen `serializeDeepObject`, pending in the golden); a path value of exactly `.` or `..` throws; `allowReserved` leaves only the RFC 3986 query-legal reserved set literal (PSR-7 already encodes `# [ ]`); `format: byte` parameters are `base64_encode`d; `format: time` is `H:i:s` plus `.v` only when non-zero (pending in the golden); a `\Ds\Set` or `\Ds\Collection` parameter expands like an array via `toArray()`.
+Rule: object-valued query and header parameters (a model, a `\Ds\Map` or an associative array) become a wire-keyed map in `serializeObjectStyled` (a model through `ObjectSerializer`, null entries left out) and expand per the style (D139); a path value of exactly `.` or `..` throws; `allowReserved` leaves only the RFC 3986 query-legal reserved set literal (PSR-7 already encodes `# [ ]`); `format: byte` parameters are `base64_encode`d; `format: time` is `H:i:s` plus `.v` only when non-zero (pending in the golden); a `\Ds\Set` or `\Ds\Collection` parameter expands like an array via `toArray()`.
 Why: one wire rule per type in all twelve.
 Where: `value_serializer.mustache`, `object_serializer.mustache`, `api/api.mustache`.
 Test: `ValueSerializerTest`, `ObjectSerializerTest`.

@@ -299,7 +299,8 @@ Rule: every API group has an interface and the client has one where the language
 
 - Ambient proxy settings are still honoured because `UseProxy` is not set to false when no proxy is configured (D74,  open).
 - A non-JSON success Content-Type on a model-returning operation (D32) and the Model prefix for colliding model names (D45) are open.
-- Object-valued query and header parameters (D47), `format: time` stringify (D81), a default on a `$ref` enum (D60), an absent required discriminator and integer-enum member casing, which come out as `NUMBER_1`, are parked.
+- `format: time` stringify (D81), a default on a `$ref` enum (D60), an absent required discriminator and integer-enum member casing, which come out as `NUMBER_1`, are parked.
+- Object-valued query and header parameters are done (D47, D139): a generated model (`ModelFields`) or any `IDictionary` (`DictionaryFields`, insertion order, null entries left out, a nested dictionary refused) expands per its style.
 - Model `ToString` appends collections raw, so it prints the collection type name (parked); `uniqueItems` order is deliberately unspecified (S6).
 - A `format: binary` response is a `ByteStream` (D119), not bytes; a raw binary request body is a `BodySource`, and a multipart file part stays `System.IO.Stream`.
 - Multipart request bodies, and a bare `Stream` handed to a custom caller of the transport, are buffered whole in memory when redirects are followed (too big); a `BodySource` never is.

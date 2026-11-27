@@ -223,8 +223,8 @@ Where: `AbstractBetterCodegen.escapeEnumStringValue`, `BetterRustCodegen.formatE
 Test: the enum golden and `EdgeCases` rows.
 
 ### Object-valued query and header parameters (D47)
-Rule (intended): a model or free-form map parameter becomes a wire-keyed map through `serde_json::to_value` (with `preserve_order` or a `Vec<(String,String)>`), then expands per the style/explode row in declaration order, with nested values a `SerializationError`.
-Why: the same expansion in all twelve; object-valued parameters are #109.
+Rule: a model or free-form map parameter becomes a wire-keyed map through `serde_json::to_value` (with `preserve_order` or a `Vec<(String,String)>`), then expands per the style/explode row in declaration order, with nested values a `SerializationError` (D139).
+Why: the same expansion in all twelve (#109).
 Where: `value_serializer.mustache`, `object_serializer.mustache`.
 Test: `test/value_serializer_test.mustache`.
 
