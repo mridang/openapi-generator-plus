@@ -116,6 +116,9 @@ func TestBhvLanggo089_Readme_HasTheSharedSectionsInTheSharedOrder(t *testing.T) 
 	if !strings.Contains(readme, "go get petstore") {
 		t.Errorf("expected the README to carry the install command")
 	}
+	if !strings.Contains(readme, "\n## API information\n") {
+		t.Errorf("expected the README to carry the API information section")
+	}
 }
 
 func TestBhvLanggo090_Readme_Skills_ConfigurationHasTheSharedSubsectionsInTheSharedOrder(t *testing.T) {

@@ -92,6 +92,9 @@ module {{moduleName}}
 {{#notes}}
       # {{#lambda.rubyDocComment}}{{{notes}}}{{/lambda.rubyDocComment}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+      # {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
+{{/vendorExtensions.op.responseSummaries}}
 {{>api/operation_doc_args}}
       # @param stream_options [StreamOptions, nil] the stream settings (idle timeout, reconnects, event size), or nil for the defaults
       # @return [{{{returnType}}}] the open stream; close it when you stop early
@@ -119,6 +122,9 @@ module {{moduleName}}
 {{#notes}}
       # {{#lambda.rubyDocComment}}{{{notes}}}{{/lambda.rubyDocComment}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+      # {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
+{{/vendorExtensions.op.responseSummaries}}
 {{>api/operation_doc_args}}
       # @return [{{#isResponseFile}}StringIO{{/isResponseFile}}{{^isResponseFile}}{{{returnType}}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}]
       # @raise [ApiError] if fails to make API call

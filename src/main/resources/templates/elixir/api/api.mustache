@@ -167,6 +167,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
   {{{.}}}
   {{/notes}}
+  {{#vendorExtensions.op.responseSummaries}}
+
+  {{#lambda.elixirHeredoc}}{{{.}}}{{/lambda.elixirHeredoc}}
+  {{/vendorExtensions.op.responseSummaries}}
   {{#isDeprecated}}
 
   **Deprecated**: This operation is deprecated.
@@ -756,6 +760,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
   {{{.}}}
   {{/notes}}
+  {{#vendorExtensions.op.responseSummaries}}
+
+  {{#lambda.elixirHeredoc}}{{{.}}}{{/lambda.elixirHeredoc}}
+  {{/vendorExtensions.op.responseSummaries}}
   {{#isDeprecated}}
 
   **Deprecated**: This operation is deprecated.

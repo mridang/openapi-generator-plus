@@ -250,6 +250,14 @@ public class MetadataTest
     }
 
     [Fact]
+    public void ReadmeHasTheApiInformationSection()
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+
+        Assert.Contains("## API information", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BhvOptions044ReadmeSocksNoteNamesTheBuilderSetter()
     {
         var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));

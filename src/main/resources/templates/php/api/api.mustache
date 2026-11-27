@@ -49,6 +49,9 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
 {{#notes}}
      * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#pathParams}}
 {{#description}}
      * @param {{{dataType}}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}

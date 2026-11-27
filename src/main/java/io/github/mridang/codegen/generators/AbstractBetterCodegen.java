@@ -12,6 +12,9 @@ import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.servers.ServerVariable;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.tags.Tag;
 import java.io.BufferedReader;
 import java.io.File;
@@ -792,6 +795,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put(
                 "appNameBase",
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
+        putInfoMetadata(openAPI.getInfo());
+        responseSummaries = RawSpecReader.responseSummaries(getInputSpec());
+        System.err.println("DBG76 spec=" + getInputSpec() + " n=" + responseSummaries.size());
         computeSchemeEnvVars(openAPI);
         // Webhooks are out of scope (S11); the stock generator would write each one into an API
         // class as an ordinary operation and overwrite the untagged operations of the document.
@@ -802,17 +808,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     String.join(", ", openAPI.getWebhooks().keySet()));
             openAPI.setWebhooks(null);
         }
-        if (openAPI.getInfo() != null
-                && openAPI.getInfo().getLicense() != null
-                && !licenseIdExplicit
-                && openAPI.getInfo().getLicense().getIdentifier() != null) {
-            final String identifier = openAPI.getInfo().getLicense().getIdentifier();
+        final License declaredLicense = openAPI.getInfo() == null ? null : openAPI.getInfo().getLicense();
+        final String identifier = declaredLicenseIdentifier(declaredLicense);
+        if (declaredLicense != null && identifier != null && !licenseIdExplicit) {
             additionalProperties.put("licenseId", identifier);
             if (!licenseUrlExplicit) {
                 additionalProperties.put(
                         "licenseUrl",
-                        openAPI.getInfo().getLicense().getUrl() != null
-                                ? openAPI.getInfo().getLicense().getUrl()
+                        declaredLicense.getUrl() != null
+                                ? declaredLicense.getUrl()
                                 : "https://spdx.org/licenses/" + identifier + ".html");
             }
         }
@@ -1925,6 +1929,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /** Whether the user supplied {@code licenseUrl}. */
     private boolean licenseUrlExplicit;
+
+    /**
+     * Response Object summaries read from the raw document, keyed by {@code "METHOD path"}; see
+     * {@link RawSpecReader}. Empty until {@link #processOpenAPI} runs.
+     */
+    private Map<String, Map<String, String>> responseSummaries = Map.of();
 
     /** HTTP methods that never change server state (RFC 9110 and the QUERY draft). */
     private static final Set<String> SAFE_HTTP_METHODS =
@@ -6086,6 +6096,68 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
     }
 
+    /**
+     * Puts the Info Object values that templates print under plain names: the summary, the
+     * contact (name, email, URL), the license name and the terms of service. A summary stands in
+     * for the description when the document has none, and {@code hasInfoBlock} says whether any
+     * of them is present, so a template prints the section only when there is something in it.
+     */
+    private void putInfoMetadata(final Info info) {
+        final String summary = info == null ? null : nonBlank(info.getSummary());
+        final Contact contact = info == null ? null : info.getContact();
+        final License license = info == null ? null : info.getLicense();
+        final String contactName = contact == null ? null : nonBlank(contact.getName());
+        final String contactEmail = contact == null ? null : nonBlank(contact.getEmail());
+        final String contactUrl = contact == null ? null : nonBlank(contact.getUrl());
+        final String licenseName = license == null ? null : nonBlank(license.getName());
+        final String termsOfService = info == null ? null : nonBlank(info.getTermsOfService());
+        putOrRemove("appSummary", summary == null ? null : htmlUnescape(summary));
+        if (summary != null
+                && nonBlank(info.getDescription()) == null
+                && additionalProperties.get("appDescription") == null) {
+            additionalProperties.put("appDescription", htmlUnescape(summary));
+        }
+        putOrRemove("infoContactName", contactName == null ? null : htmlUnescape(contactName));
+        putOrRemove("infoContactEmail", contactEmail);
+        putOrRemove("infoContactUrl", contactUrl);
+        putOrRemove("licenseName", licenseName == null ? null : htmlUnescape(licenseName));
+        putOrRemove(
+                "infoTermsOfService", termsOfService == null ? null : htmlUnescape(termsOfService));
+        additionalProperties.put(
+                "hasInfoBlock",
+                summary != null
+                        || contactName != null
+                        || contactEmail != null
+                        || contactUrl != null
+                        || licenseName != null
+                        || termsOfService != null);
+    }
+
+    /**
+     * The SPDX identifier the document declares for its license. The parsed model drops the 3.1
+     * {@code identifier}, so when the model has none the value is read from the document as
+     * written.
+     */
+    @Nullable private String declaredLicenseIdentifier(@Nullable final License license) {
+        if (license == null) {
+            return null;
+        }
+        final String fromModel = nonBlank(license.getIdentifier());
+        return fromModel != null ? fromModel : RawSpecReader.licenseIdentifier(getInputSpec());
+    }
+
+    private void putOrRemove(final String key, @Nullable final String value) {
+        if (value == null) {
+            additionalProperties.remove(key);
+        } else {
+            additionalProperties.put(key, value);
+        }
+    }
+
+    @Nullable private static String nonBlank(@Nullable final String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     private static String htmlUnescape(String input) {
         return StringEscapeUtils.unescapeHtml4(input);
     }
@@ -6962,6 +7034,17 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
         if (operation.getSecurity() == null) {
             globalAuthOperationIds.add(op.operationId);
+        }
+        System.err.println("DBG76 key=" + httpMethod + " " + path + " known=" + responseSummaries.keySet());
+        final Map<String, String> summaries =
+                responseSummaries.get(httpMethod.toUpperCase(Locale.ROOT) + " " + path);
+        if (summaries != null) {
+            if (op.vendorExtensions == null) {
+                op.vendorExtensions = new HashMap<>();
+            }
+            final List<String> lines = new ArrayList<>();
+            summaries.forEach((code, summary) -> lines.add("Response " + code + ": " + summary));
+            decoratorMap(op.vendorExtensions, OP_DECORATOR_NS).put("responseSummaries", lines);
         }
         // No-auth sentinel gate. The sentinel that suppresses the client
         // authenticator must fire ONLY for an EXPLICIT empty security list: an

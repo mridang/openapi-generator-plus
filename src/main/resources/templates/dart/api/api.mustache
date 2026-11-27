@@ -126,6 +126,9 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#notes}}
   /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#allParams}}
 {{#description}}
   /// `{{paramName}}` {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
@@ -209,6 +212,9 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#notes}}
   /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/notes}}
+{{#vendorExtensions.op.responseSummaries}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+{{/vendorExtensions.op.responseSummaries}}
 {{#allParams}}
 {{#description}}
   /// `{{paramName}}` {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}

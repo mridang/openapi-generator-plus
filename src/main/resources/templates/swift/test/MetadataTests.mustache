@@ -388,6 +388,10 @@ import Testing
     @Test func testBhvLangswift046ReadmeListsTheLicenseInThePackageSection() throws {
         #expect(try readme().contains("- License: {{licenseId}}"))
     }
+
+    @Test func testReadmeHasTheApiInformationSection() throws {
+        #expect(try readme().contains("\n## API information\n"))
+    }
 {{#generateExamples}}
 
     // MARK: - Compiled examples

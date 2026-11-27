@@ -44,6 +44,7 @@ describe("Metadata", () => {
         path.resolve(__dirname, "..", "README.md"),
         "utf-8",
       );
+      expect(readme).toContain("\n## API information\n");
       const start = readme.indexOf("\n### Testing your code\n");
       expect(start).toBeGreaterThanOrEqual(0);
       const end = readme.indexOf("\n### ", start + 4);

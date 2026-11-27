@@ -771,6 +771,16 @@ fn test_bhv_serialization_121_a_model_sent_as_a_multipart_part_uses_wire_names_a
     );
 }
 
+#[test]
+fn test_readme_has_the_api_information_section() {
+    let readme_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("README.md");
+    let readme = std::fs::read_to_string(&readme_path).expect("failed to read README.md");
+    assert!(
+        readme.contains("\n## API information\n"),
+        "the README has an API information section"
+    );
+}
+
 fn read_root_file(name: &str) -> String {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(name);
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("failed to read {name}: {e}"))

@@ -323,6 +323,9 @@ class TestReadmeAndSkillsText:
     def test_bhv_lang_python_089_readme_package_name_is_the_manifest_name(self) -> None:
         assert f"- Name: `{self._manifest_name()}`\n" in self._read("README.md")
 
+    def test_readme_has_an_api_information_section_for_the_spec_metadata(self) -> None:
+        assert "\n## API information\n" in self._read("README.md")
+
     def test_bhv_lang_python_090_skills_install_command_uses_the_manifest_name(
         self,
     ) -> None:
