@@ -522,3 +522,7 @@ Rule: an id list (`of_id/6`) passes the `last_id` or `next_cursor` of each page 
 Where: `paginator.mustache`, `api/api.mustache` (one branch per style; the `isId`, `isOffset`, `isPage` and `isBody` blocks), `readme.mustache`, `skills.mustache`.
 Test: `bhv pagination 004` (offset), `005` (page number), `006` (id cursor), `029` (next URL in the body and a refused foreign origin), `024` (the paged function names).
 Language impossibility: none. Elixir needs no runtime type for the cursor, so the offset and page styles are plain integers.
+
+### Response media type and typed response headers (D167, D168)
+
+Rule: a caller picks the response media type with the per-call `Accept` header (`headers: %{"Accept" => "image/png"}`), which `BaseApi.put_header/3` puts in place of the declared list in any letter case, so exactly one Accept is sent. An operation whose 2xx responses declare headers gets `<Module>.Api.ResponseHeaders.<Operation>ResponseHeaders` (`lib/<package>/api/response_headers/`, rendered from `api/response_headers.mustache` by `BetterElixirCodegen.writeResponseHeadersFile`), whose `from_headers/1` reads `ApiResult.headers` case-insensitively into typed `nil`-able fields and raises `SerializationError` for a value that does not parse; only the parse functions a struct needs are emitted. Why: shared decisions. Where: `base_api.mustache`, `api/response_headers.mustache`. Test: `test/api/pet_api_test.mustache` (`operations 501`), `test/api/store_api_test.mustache` (`headers 501`, `headers 502`).

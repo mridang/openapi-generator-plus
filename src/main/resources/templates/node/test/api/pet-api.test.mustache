@@ -7,6 +7,7 @@ import { GetExternalPetInfoServer, GetExternalPetInfoServerServer0, GetMultiServ
 import type { UploadPetDocumentOptions, SetPetPreferencesOptions } from '../../src/api/options/index{{importFileExtension}}';
 import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
+import { ApiStreamResponse } from '../../src/api-stream-response{{importFileExtension}}';
 import { ApiKeyAuthenticator } from '../../src/auth/api-key-authenticator{{importFileExtension}}';
 import { ApiKeyLocation } from '../../src/auth/api-key-location{{importFileExtension}}';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{importFileExtension}}';
@@ -180,6 +181,30 @@ describe('PetApi', () => {
 
     expect(result).toBeDefined();
     await result.close();
+  });
+
+  test('bhv operations 501 getPetPhoto with a per-call Accept header sends exactly that one Accept header', async () => {
+    const sent: Record<string, string>[] = [];
+    const capturingClient: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        return { statusCode: 200, body: '', headers: {} };
+      },
+      async sendStreaming(_method: string, _url: string, headers: Record<string, string>): Promise<ApiStreamResponse> {
+        sent.push({ ...headers });
+        return new ApiStreamResponse(200, { 'content-type': 'image/png' }, new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }));
+      },
+    };
+    const capturingApi = new PetApi(capturingClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
+
+    const result = await capturingApi.getPetPhoto(1, 100, { headers: { Accept: 'image/png' } });
+    await result.close();
+
+    const accepts = Object.entries(sent[0]!).filter(([name]) => name.toLowerCase() === 'accept');
+    expect(accepts).toEqual([['Accept', 'image/png']]);
   });
 
   test('bhv operations 073 setPetAvatar streams raw bytes with declared content type', async () => {

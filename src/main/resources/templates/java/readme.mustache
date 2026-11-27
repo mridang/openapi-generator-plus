@@ -79,6 +79,8 @@ HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See
 Every operation has a `...WithHttpInfo` variant returning an `ApiResult<T>`
 with `statusCode()`, `data()`, `rawBody()` and the lower-cased `headers()`.
 It is the way to read a response header.
+An operation whose success response declares headers also has a `<Operation>ResponseHeaders` type;
+`<Operation>ResponseHeaders.from(result.headers())` reads them in their declared types.
 
 ### Timeouts
 

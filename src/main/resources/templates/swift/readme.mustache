@@ -275,7 +275,10 @@ A new operation in the API adds a requirement to the interface, so a fake that c
 
 Every operation has a `*WithHTTPInfo` variant that returns an `ApiResult`
 holding the status code, the response headers, the raw body and the decoded
-data; use it when you need to read a header.
+data; use it when you need to read a header. An operation whose success
+response declares headers also has a `<Operation>ResponseHeaders` type;
+`<Operation>ResponseHeaders.from(result.headers)` reads them in their declared
+types.
 
 `TransportOptionsBuilder.timeout(_:)` is in milliseconds (default 60000) and is
 one end-to-end budget for the whole call: connection, every redirect hop and

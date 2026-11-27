@@ -240,6 +240,10 @@ Why: fixture-only, needs per-field metadata the schema lacks (for the free-form 
 Where: `object_serializer.mustache`, `auth/oauth/*.mustache`.
 Test: none beyond the golden.
 
+### Response media type and typed response headers (D167, D168)
+D167: the per-call `headers` of `RequestOptions` replace the SDK's own `Accept` case-insensitively (the `overlay` in `BaseApi`), so `{ headers: { Accept: 'image/png' } }` sends exactly that one Accept header; test `bhv operations 501` in `test/api/pet-api.test.mustache`.
+D168: `BetterNodeCodegen.writeResponseHeadersFile` renders `api/response_headers.mustache` to `src/api/options/<operation>-response-headers.ts` (re-exported by the options barrel), a class with one `readonly <field>: T | undefined` per declared header (T from the value kind, so a date or uuid header stays `string`) and a static `from(headers)`; tests `bhv headers 501` and `502` in `test/api/store-api.test.mustache`.
+
 ### Mock seam (mocking001 to 009, issue #122 and the Invoker line of #131)
 Rule: every API group has an interface and the client has one where the language can state it, additive next to the existing classes, using only SDK and standard-library types. `<Group>ApiInterface` in each group file and `ClientInterface` in `client.ts`, both exported from the entry point. The classes have protected members, so TypeScript treats them nominally and an object literal cannot stand in for them; the interface is what a fake satisfies. Tests: test/client.test.mustache (001, 002, 007, 008), test/api/pet-api.test.mustache (003 to 006). Where: the templates named above, `BetterNodeCodegen`, the README template (`Testing your code`), `docs/languages/node.md`.
 

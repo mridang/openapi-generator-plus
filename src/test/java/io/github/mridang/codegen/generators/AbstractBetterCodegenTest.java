@@ -1486,4 +1486,54 @@ class AbstractBetterCodegenTest {
                 () -> assertNull(Objects.requireNonNull(params.get("image")).vendorExtensions.get("partEncoded")),
                 () -> assertNull(Objects.requireNonNull(params.get("free")).vendorExtensions.get("partEncoded")));
     }
+
+    @Test
+    @DisplayName("the headers of the success responses become typed response header rows (D168)")
+    @SuppressWarnings("unchecked")
+    void successResponseHeadersBecomeTypedRows() {
+        final io.swagger.v3.oas.models.OpenAPI api = parseYaml(String.join("\n",
+                "openapi: 3.1.0",
+                "info: {title: t, version: '1'}",
+                "paths:",
+                "  /items:",
+                "    get:",
+                "      operationId: readItem",
+                "      responses:",
+                "        '200':",
+                "          description: ok",
+                "          headers:",
+                "            X-Count: {description: How many, schema: {type: integer, format: int32}}",
+                "            X-Tags: {schema: {type: array, items: {type: string}}}",
+                "            Content-Type: {schema: {type: string}}",
+                "        '201':",
+                "          description: made",
+                "          headers:",
+                "            x-count: {schema: {type: string}}",
+                "            X-Done: {schema: {type: boolean}}",
+                "        '404':",
+                "          description: missing",
+                "          headers:",
+                "            X-Error: {schema: {type: string}}"));
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.setOpenAPI(api);
+        final io.swagger.v3.oas.models.Operation operation =
+                Objects.requireNonNull(Objects.requireNonNull(api.getPaths().get("/items")).getGet());
+        final org.openapitools.codegen.CodegenOperation op =
+                codegen.fromOperation("/items", "get", operation, new ArrayList<>());
+        codegen.populateOperationDecorators(op);
+        final Map<String, Object> deco =
+                Objects.requireNonNull((Map<String, Object>) op.vendorExtensions.get("op"));
+        final List<Map<String, Object>> rows =
+                Objects.requireNonNull((List<Map<String, Object>>) deco.get("responseHeaders"));
+        assertAll(
+                () -> assertEquals(true, deco.get("hasResponseHeaders")),
+                () -> assertEquals("ReadItemResponseHeaders", deco.get("responseHeadersClassName")),
+                () -> assertEquals(List.of("X-Count", "X-Tags", "X-Done"),
+                        rows.stream().map(r -> r.get("wireName")).collect(Collectors.toList())),
+                () -> assertEquals("integer", rows.get(0).get("kind")),
+                () -> assertEquals("How many", rows.get(0).get("description")),
+                () -> assertEquals("string", rows.get(1).get("kind")),
+                () -> assertEquals(true, rows.get(1).get("isArray")),
+                () -> assertEquals("boolean", rows.get(2).get("kind")));
+    }
 }

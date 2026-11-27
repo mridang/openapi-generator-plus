@@ -252,6 +252,11 @@ Rule: one `<Model>Exception` per distinct declared error schema, written by `err
 Where: `api_error.mustache`, `errors/ErrorFactory.mustache`, `errors/SchemaException.mustache`, `errors/SerializationException.mustache`, `base_api.mustache`, `api/api.mustache`, `BetterCSharpCodegen.errorSchemaTemplate`.
 Test: `ApiExceptionTest.mustache` (`BhvErrors201` to `BhvErrors204`), `BaseApiTest.mustache` (`BhvErrors205`).
 
+### Response media type and typed response headers (D167, D168)
+Rule: D167 needs no csharp code: `BaseApi` sends every declared response media type in `Accept`, and a per-call `Accept` header in the Options `Headers` replaces it case-insensitively, so the request carries exactly the caller's value. D168: `BetterCSharpCodegen.writeResponseHeadersFile` renders `api/response_headers.mustache` into `Api/Options/<Operation>ResponseHeaders.cs` (namespace `Api.Options`, beside the Options record) for every operation whose 2xx responses declare headers: a sealed class with one nullable `private init` property per header (a header read as a string is typed `string` whatever its format) and `From(IReadOnlyDictionary<string, string>)`, which takes `ApiResult<T>.Headers`, matches names case-insensitively and raises `SerializationException` with the D168 message for a value that does not parse.
+Where: `base_api.mustache`, `api/response_headers.mustache`, `BetterCSharpCodegen.writeResponseHeadersFile`, `readme.mustache`.
+Test: `Test/Api/PetApiTest.mustache` (`BhvOperations501`), `Test/Api/StoreApiTest.mustache` (`BhvHeaders501`, `BhvHeaders502`).
+
 ### Required parameter messages (D25, D26)
 Rule: a null required Options object throws `ArgumentNullException` with the canonical "Missing the required parameter '<x>' when calling <Class>.<operation>" (via `BaseApi.RequireOption`), and so does each missing required field; an optional body defaults to `null` unless a required Options argument follows (C# forbids a default before a required parameter).
 Why: one message in all twelve; `ThrowIfNull` gave no canonical text.

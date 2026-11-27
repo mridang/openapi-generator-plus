@@ -475,6 +475,18 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** The petstore `attachPetFiles` (multipart/mixed) declares a `text/markdown` caption with the header `X-Caption-Format: commonmark` (`serializationwire503` in all twelve). Java, Kotlin, PHP, Ruby and Elixir sent a `multipart/mixed` body as JSON before; every `multipart/*` subtype now goes through the multipart encoder.
 
+## D167: The caller picks the response media type with the per-call Accept header
+
+**Decision.** An operation whose success response declares several media types sends them all in `Accept`, in declaration order, as before. To ask for one of them, the caller passes `Accept` in the per-call headers every operation already takes (D21: a caller header replaces the SDK's header of the same name, compared without case), and exactly that value is sent. No separate response-type argument is added: the per-call header already does the job in all twelve SDKs, and a second selector would be a new argument on every such operation with nothing to add. The response is decoded by the operation's declared return type, as before; the SDK does not check the value against the declared types, since `Accept` is the caller's to send (#73).
+
+**Consequences.** Java merged per-call headers case-sensitively, so a lower-case `accept` was sent beside the SDK's own; it now replaces it like the other eleven. Test `operations501` in all twelve (`getPetPhoto`).
+
+## D168: Declared response headers are read through a typed headers type
+
+**Decision.** Every operation whose 2xx responses declare headers gets one more public type, `<Operation>ResponseHeaders`, beside its Options type, with one optional, read-only field per declared header (Content-Type left out; the first declaration of a name wins across statuses) and a constructor from the raw response headers the result already exposes (`from`, `from_headers` or `New<Operation>ResponseHeadersFrom`, in each language's idiom). A header is found by name without regard to case; an absent header leaves its field empty. A field is typed by its schema: integer, 64-bit integer, number, boolean or string, or an array of one of them, written comma-separated and trimmed; any other schema (a date, a UUID, an object) is read as a string. A value that does not parse raises the SDK's serialization error with `Response header '<name>' is not a valid <kind>: '<value>'`. The return types of the operations are unchanged, so the type is additive: a caller reads `result.headers()` (or its spelling) through it when it wants typed values (#77).
+
+**Consequences.** The petstore `getMemo` response declares `X-Revision`, `X-Labels` and `X-Archived` (`headers501`, `headers502` in all twelve). The README section on raw responses names the type. The description of a header reached through `$ref` is not carried to the field's documentation yet.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

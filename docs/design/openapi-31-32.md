@@ -80,11 +80,11 @@ Every 3.1 and 3.2 construct, what happens today, and the plan. "Shared" means on
 | C21 | `components.mediaTypes` and `$ref` to a media type | 3.2 | cannot load | the loader inlines each reference and drops the map; shared | #57 |
 | C22 | media type `itemSchema` | 3.2 | cannot load | the loader sets `schema` to the item schema (the streaming design types `T` as the schema of the media type) and carries `x-oas32-sequential`; behaviour is the streaming design's `<op>Stream` | #68 |
 | C23 | sequential media types (`application/jsonl`, `application/x-ndjson`, `application/json-seq`, `text/event-stream`) | 3.2 | `OnlyAllowJsonRule` strips them | exactly `docs/design/streaming.md`; this plan adds only the `itemSchema` mapping and the `ONLY_ALLOW_JSON` exemption it already lists | #71, #72 |
-| C24 | response media type chosen among several | 3.0 | `effectiveMediaType` picks the first (`AbstractBetterCodegen.java:3645`) | new per-call choice; needs its own design (R9) | #73 |
+| C24 | response media type chosen among several | 3.0 | `effectiveMediaType` picks the first (`AbstractBetterCodegen.java:3645`) | new per-call choice; needs its own design (R9) | #73; done as D167 (per-call Accept) |
 | C25 | `prefixEncoding`, `itemEncoding` (ordered multipart) | 3.2 | cannot load | carriers; needs its own multipart design (R9) | #69 |
 | C26 | Encoding Object `headers`; `style`, `explode`, `allowReserved` | 3.0 | contentType only | needs its own design (R9) | #74, #75; done as D165 (style, explode) and D166 (contentType, headers) |
 | C27 | Response Object `summary` | 3.2 | cannot load | carrier; docs only; a response with no `description` is accepted; shared | #76 |
-| C28 | response `headers` as typed fields | 3.0 | raw map only (`ApiHttpResponse.headers`) | needs its own design (R9) | #77 |
+| C28 | response `headers` as typed fields | 3.0 | raw map only (`ApiHttpResponse.headers`) | needs its own design (R9) | #77; done as D168 |
 | C29 | Reference Object `summary` and `description` | 3.1 | a schema `$ref` keeps the sibling `description` (run, python); other reference kinds not verified | docs only; shared | #81 |
 | C30 | Tag `summary`, `parent`, `kind` | 3.2 | cannot load | carriers consumed by `injectTagMetadata` (`AbstractBetterCodegen.java:~4903`); docs and API grouping only; shared | #80 |
 | C31 | Server `name` | 3.2 | cannot load | carrier `x-oas32-name`; `processServers` adds `serverName`; per language: `name` accessor and a lookup by name (section 6) | #55 |

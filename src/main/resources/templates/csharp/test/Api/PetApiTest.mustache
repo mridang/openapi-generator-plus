@@ -566,6 +566,52 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvOperations501GetPetPhotoSendsOnlyTheAcceptHeaderTheCallerNames()
+    {
+        var client = new StreamHeaderCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await using ByteStream photo = await api.GetPetPhotoAsync(1L, 100L, new GetPetPhotoOptions
+        {
+            Headers = new Dictionary<string, string> { ["accept"] = "image/png" },
+        });
+
+        var accept = Assert.Single(
+            client.CapturedHeaders,
+            header => string.Equals(header.Key, "Accept", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("image/png", accept.Value);
+    }
+
+    private sealed class StreamHeaderCapturingApiClient : IApiClient
+    {
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+
+        public Task<{{packageName}}.ApiStreamResponse> SendStreamingAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body,
+            Func<Task<Dictionary<string, string>>>? refreshHeaders,
+            int? timeout,
+            int? maxRetries,
+            int? idleTimeout,
+            CancellationToken cancellationToken)
+        {
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            return Task.FromResult(new {{packageName}}.ApiStreamResponse(
+                200,
+                new Dictionary<string, string> { { "content-type", "image/png" } },
+                new MemoryStream(System.Text.Encoding.UTF8.GetBytes("png"))));
+        }
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            throw new NotSupportedException("only the streaming path is expected");
+        }
+    }
+
+    [Fact]
     public async Task BhvOperations053TestGetPetPassport()
     {
         var result = await _api.GetPetPassportAsync(1L);

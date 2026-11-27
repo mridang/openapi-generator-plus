@@ -794,6 +794,29 @@ public class StoreApiTest
     }
 
     [Fact]
+    public void BhvHeaders501TheTypedResponseHeadersReadEachDeclaredHeaderInItsTypeWhateverTheCase()
+    {
+        var headers = GetMemoResponseHeaders.From(new Dictionary<string, string>
+        {
+            ["x-revision"] = "7",
+            ["X-LABELS"] = "a, b",
+        });
+
+        Assert.Equal(7, headers.XRevision);
+        Assert.Collection(headers.XLabels!, label => Assert.Equal("a", label), label => Assert.Equal("b", label));
+        Assert.Null(headers.XArchived);
+    }
+
+    [Fact]
+    public void BhvHeaders502AResponseHeaderThatDoesNotParseRaisesSerializationException()
+    {
+        var error = Assert.Throws<{{packageName}}.Errors.SerializationException>(() => GetMemoResponseHeaders.From(
+            new Dictionary<string, string> { ["x-revision"] = "seven" }));
+
+        Assert.Equal("Response header 'X-Revision' is not a valid integer: 'seven'", error.Message);
+    }
+
+    [Fact]
     public async Task BhvLangcsharp045AnOperationWithNoParametersAndNoSecurityLeavesTheTransportSettingsAloneWithoutOptions()
     {
         var client = new CallOptionsApiClient { Body = "{}" };

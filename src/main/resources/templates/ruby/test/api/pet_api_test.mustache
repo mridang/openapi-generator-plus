@@ -81,14 +81,16 @@ describe {{moduleName}}::Api::PetApi do
       end
       request_line = client.gets.to_s.strip
       headers = {}
+      header_names = []
       while (line = client.gets)
         break if line.strip.empty?
 
         name, value = line.split(':', 2)
+        header_names << name.to_s.strip.downcase
         headers[name.to_s.strip.downcase] = value.to_s.strip
       end
       length = headers.fetch('content-length', '0').to_i
-      captured << { request_line: request_line, headers: headers,
+      captured << { request_line: request_line, headers: headers, header_names: header_names,
                     body: length.positive? ? client.read(length).to_s : '' }
       client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
                    "Content-Length: #{response_body.bytesize}\r\nConnection: close\r\n\r\n#{response_body}")
@@ -815,6 +817,22 @@ describe {{moduleName}}::Api::PetApi do
 
       _(result).wont_be_nil
       result.close
+    end
+
+    it 'bhv_operations_501 sends only the media type the caller names in the per-call Accept header' do
+      api, server, thread, captured = capture_wire_request('{}')
+      begin
+        api.get_pet_photo(
+          1, 1, {{moduleName}}::Api::Options::GetPetPhotoOptions.new(headers: { 'Accept' => 'image/png' })
+        ).close
+        request = captured.pop
+
+        _(request[:header_names].count('accept')).must_equal 1
+        _(request[:headers]['accept']).must_equal 'image/png'
+      ensure
+        server.close
+        thread.join(2)
+      end
     end
   end
 

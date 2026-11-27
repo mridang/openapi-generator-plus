@@ -989,6 +989,37 @@ func TestBhvServers031_StoreApi_APathItemServerSendsTheCallToItsUrl(t *testing.T
 	}
 }
 
+// The typed response headers read each declared header in its declared type, whatever the case of its name, and leave an absent one nil.
+func TestBhvHeaders501_StoreApi_GetMemoResponseHeadersReadTheDeclaredHeadersInTheirTypes(t *testing.T) {
+	t.Parallel()
+	headers, err := options.NewGetMemoResponseHeadersFrom(map[string]string{"x-revision": "7", "X-LABELS": "a, b"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if revision := headers.XRevision(); revision == nil || *revision != 7 {
+		t.Errorf("expected revision 7, got %v", revision)
+	}
+	if labels := headers.XLabels(); len(labels) != 2 || labels[0] != "a" || labels[1] != "b" {
+		t.Errorf("expected labels [a b], got %q", labels)
+	}
+	if archived := headers.XArchived(); archived != nil {
+		t.Errorf("expected archived to be nil, got %v", *archived)
+	}
+}
+
+// A declared response header whose value does not parse as its type is a SerializationError naming the header.
+func TestBhvHeaders502_StoreApi_GetMemoResponseHeadersRefuseAValueThatDoesNotParse(t *testing.T) {
+	t.Parallel()
+	_, err := options.NewGetMemoResponseHeadersFrom(map[string]string{"x-revision": "seven"})
+	var serErr *pkgerrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if got := serErr.Error(); got != "Response header 'X-Revision' is not a valid integer: 'seven'" {
+		t.Errorf("unexpected message %q", got)
+	}
+}
+
 // A PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method.
 func TestBhvOperations166_StoreApi_EachMethodIsSentAsItself(t *testing.T) {
 	t.Parallel()

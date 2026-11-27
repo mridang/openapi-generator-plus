@@ -451,6 +451,33 @@ async fn test_bhv_operations_004_base_api_explicit_accept_header_beats_default_a
     );
 }
 
+/* operations501: a per-call Accept picks one of the media types the success response declares,
+ * and it is the only Accept header on the wire. */
+#[tokio::test]
+async fn test_bhv_operations_501_base_api_per_call_accept_picks_one_declared_response_media_type() {
+    let server = RawServer::serve(|conn| {
+        let _ = conn.head(200, &["Content-Type: image/png", "Content-Length: 3"]);
+        let _ = conn.write(b"png");
+    });
+    let opts = GetPetPhotoOptions::new().header("Accept", "image/png");
+
+    let mut photo = raw_server_api(&server, 0)
+        .get_pet_photo(1, 2, Some(&opts))
+        .await
+        .expect("the photo call");
+    photo.close();
+
+    let heads = server.heads();
+    let accepts: Vec<&str> = heads[0]
+        .split("\r\n")
+        .skip(1)
+        .filter_map(|line| line.split_once(':'))
+        .filter(|(name, _)| name.trim().eq_ignore_ascii_case("accept"))
+        .map(|(_, value)| value.trim())
+        .collect();
+    assert_eq!(vec!["image/png"], accepts);
+}
+
 // -- Auth Option<>: falling back to the client-level authenticator --
 
 #[tokio::test]

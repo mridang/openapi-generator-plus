@@ -503,6 +503,11 @@ Recorded, not implemented here:
 - F866 (`$ref` sibling default) is landed in dart: `BetterDartCodegen.applySiblingEnumDefault` feeds the shared `siblingDefault` to `resolveEnumRefDefault`, so `StockItem.availability` starts at `Availability.onHold`, decodes to it when the key is absent and encodes it. Test: `object_serializer_test` and `BetterDartCodegenTest`.
 - F868 for collections: the lists and maps inside a model stay mutable; a `copyWith` shares them.
 
+## OpenAPI 3.2 round 2 (D167, D168)
+
+- D167: an operation sends every declared response media type in `Accept`, and a per-call `Accept` in the Options `headers` replaces it whatever its case (`BaseApi._mergeHeaders`), so the wire carries exactly the one the caller names. Test: `pet_api_test` (bhv operations 501).
+- D168: an operation whose 2xx responses declare headers gets `<OperationId>ResponseHeaders` in `lib/src/api/options/` (template `api/response_headers.mustache`, written by `BetterDartCodegen.writeResponseHeadersFile` and exported from the barrel), with a nullable `final` field per header typed by its kind (`String`, `int`, `double`, `bool` or a `List` of one) and `factory .from(Map<String, String> headers)` that reads each header case-insensitively and raises `SerializationException` on a value that does not parse. Test: `store_api_test` (bhv headers 501, 502).
+
 ## Gate lessons (what broke the gate and how to avoid it)
 
 - Generated code is verified only by the Docker specs. Run `etc/ci-local.sh check Dart` before every push; the quick per-language checks skip the lint specs, which is how Dart lint failed on CI. Never run only `DartClientSpec`.

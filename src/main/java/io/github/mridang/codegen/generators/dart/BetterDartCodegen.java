@@ -55,6 +55,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterDartCodegen.class);
 
+    /** D168: the ResponseHeaders classes written so far, exported from the package barrel. */
+    private final List<String> responseHeadersClasses = new ArrayList<>();
+
     protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
 
@@ -1428,6 +1431,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                     opDeco.put("hasMultipleConsumes", hasMultipleConsumes);
                     markBinaryStream(op, opDeco);
                     markPaginator(opDeco);
+                    writeResponseHeadersFile(op, opDeco);
                     final Object sigArgs = opDeco.get("signatureArgs");
                     if (sigArgs instanceof List) {
                         opDeco.put(
@@ -1997,6 +2001,73 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 .toString();
     }
 
+    /**
+     * D168: writes the {@code <OperationId>ResponseHeaders} class of an operation whose success
+     * response declares headers, next to its Options class under {@code lib/src/api/options/},
+     * and records it for the package barrel. A field is typed by the header's value kind
+     * (String, int, double, bool, or a List of one), the type its parser returns.
+     */
+    @SuppressWarnings("unchecked")
+    private void writeResponseHeadersFile(CodegenOperation op, Map<String, Object> opDeco) {
+        if (!Boolean.TRUE.equals(opDeco.get("hasResponseHeaders"))) {
+            return;
+        }
+        final String className = Objects.requireNonNull((String) opDeco.get("responseHeadersClassName"));
+        final List<Map<String, Object>> declared =
+                Objects.requireNonNull((List<Map<String, Object>>) opDeco.get("responseHeaders"));
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        boolean usesSplit = false;
+        boolean usesInteger = false;
+        boolean usesNumber = false;
+        boolean usesBoolean = false;
+        for (final Map<String, Object> source : declared) {
+            final Map<String, Object> row = new HashMap<>(source);
+            final String kind = Objects.requireNonNull((String) row.get("kind"));
+            final String itemType;
+            final String parser;
+            switch (kind) {
+                case "integer":
+                case "long":
+                    itemType = "int";
+                    parser = "_integer";
+                    usesInteger = true;
+                    break;
+                case "number":
+                    itemType = "double";
+                    parser = "_number";
+                    usesNumber = true;
+                    break;
+                case "boolean":
+                    itemType = "bool";
+                    parser = "_boolean";
+                    usesBoolean = true;
+                    break;
+                default:
+                    itemType = "String";
+                    parser = "";
+                    break;
+            }
+            final boolean isArray = Boolean.TRUE.equals(row.get("isArray"));
+            usesSplit |= isArray;
+            row.put("parser", parser);
+            row.put("hasParser", !parser.isEmpty());
+            row.put("dartType", isArray ? "List<" + itemType + ">" : itemType);
+            rows.add(row);
+        }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("rows", rows);
+        context.put("usesSplit", usesSplit);
+        context.put("usesInteger", usesInteger);
+        context.put("usesNumber", usesNumber);
+        context.put("usesBoolean", usesBoolean);
+        final String filePath = getOptionsFilePath(op.operationId, className);
+        writeFile(filePath, renderOptionsTemplate("api/response_headers.mustache", context));
+        postProcessFile(Path.of(filePath).toFile(), "source");
+        responseHeadersClasses.add(className);
+    }
+
     /** {@inheritDoc} */
     @Override
     public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
@@ -2006,6 +2077,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         final List<Map<String, String>> exports = new ArrayList<>();
         for (final Map<String, String> meta : optionsFiles) {
             final String className = Objects.requireNonNull(meta.get("optionsClassName"));
+            final Map<String, String> e = new HashMap<>();
+            e.put("fileName", NamingConvention.SNAKE_CASE.apply(className));
+            exports.add(e);
+        }
+        for (final String className : responseHeadersClasses) {
             final Map<String, String> e = new HashMap<>();
             e.put("fileName", NamingConvention.SNAKE_CASE.apply(className));
             exports.add(e);

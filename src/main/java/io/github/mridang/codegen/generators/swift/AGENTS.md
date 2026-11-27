@@ -156,6 +156,10 @@ Why: unique types; the caller's header wins.
 Where: `api/api.mustache`, `BetterSwiftCodegen`/`AbstractBetterCodegen.enrichOperationServers`, `default_api_client.mustache` (`caseInsensitiveCompare`).
 Test: `DefaultApiClientUnitTests` template (the proxy and TLS tests that need Apple's URLSession sit in `DefaultApiClientAppleStubTests`, `#if !os(Linux)`).
 
+### Response media type and typed response headers (D167, D168)
+Rule (D167): a per-call `Accept` header replaces the declared media types through `BaseApi.mergeHeaders` (case-insensitive, per-call layer last), so exactly one `Accept` goes out. Test: `PetApiTests` `operations501`.
+Rule (D168): `BetterSwiftCodegen.writeResponseHeadersFile` renders `api/response_headers.mustache` into `Api/Options/<Operation>ResponseHeaders.swift` after the shared decorator pass, a struct with optional `let` properties and `static func from(_ headers: [String: String]) throws`. Test: `StoreApiTests` `headers501`, `headers502`.
+
 ### Redirect rules are the SDK's on every platform (swift-corelibs differences)
 Rule: the SDK follows only 301, 302, 303, 307 and 308 (a 300 or 305 is the response), resolves the `Location` itself against the URL of the response (RFC 3986) instead of taking the request URLSession proposes, and drops the transport default headers on a cross-origin hop together with the credential headers. The body of each request is kept per task, so a redirect that keeps its method sends it again. On Linux a 307 or 308 that keeps its method and has a body is not followed by URLSession: the delegate records the follow-up and `sendOnce` sends it as a new task that carries the hop count.
 Why: swift-corelibs follows a 305, resolves a relative `Location` against the host only (`../x` and `?page=2` lose their path), turns a non-HTTP(S) `Location` into a path on the same host, and clears the body of the task when it follows a redirect (the next transfer starts from the task's known body, not from the request the delegate returns), so a followed 307 sent an empty body. It also reads a redirect's whole body before it asks the delegate.

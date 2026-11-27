@@ -164,6 +164,8 @@ Rule: `User-Agent` and `X-Request-ID` are injected only when no `equalsIgnoreCas
 Why: RFC 9110 5.1; the published package name is the identifier users can look up. An explicit `artifactId` option still overrides the derived one.
 Where: `default_api_client.mustache`, `transport_options.mustache`, `BetterJavaCodegen` (`artifactId`, `userAgentDefault`).
 Test: `DefaultApiClientTest`, `TransportOptionsTest`.
+D167: `BaseApi.invokeCall` merges the operation's header parameters and per-call headers over the negotiated ones by `equalsIgnoreCase`, so a per-call `Accept` (any case) replaces the declared media-type list and is sent once (test `bhvOperations501` in `BaseApiTest`).
+D168: an operation whose 2xx responses declare headers gets `<Operation>ResponseHeaders` in the `options` package beside its Options class (`api/response_headers.mustache`, written by `BetterJavaCodegen.writeResponseHeadersFile`), with a nullable record-style accessor per header and `from(Map<String, String>)` that finds each header without regard to case and raises `SerializationException` on a value that does not parse (tests `bhvHeaders501`/`502` in `StoreApiTest`).
 
 ### Models: string form, equality, any-properties (D23, D24, D63)
 Rule: `toString` dumps `ClassName{prop=value, ...}` over all vars plus the additionalProperties bucket, a top-level `byte[]` through `Arrays.toString` and containers through `ObjectSerializer.structuralToString`; oneOf/anyOf wrappers delegate equality and hash to the held variant with `Objects.deepEquals`; the `@JsonAnyGetter` omits keys that equal declared property names so the declared value wins and the key is written once; a composed scheme wrapper prints the redacted base repr under its own class name.

@@ -4950,6 +4950,70 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             new java.util.LinkedHashMap<>();
 
     /**
+     * D168: the response headers the operation's 2xx responses declare, merged in status order
+     * (the first declaration of a name wins, names compared without case; Content-Type is left
+     * out). Each row gives the wire name ({@code wireName}), the language's field name
+     * ({@code varName}), the language's type ({@code dataType}, and {@code itemDataType} for an
+     * array), the value kind ({@code kind}: string, integer, long, number or boolean, the
+     * array's item kind for an array, any other schema read as string), {@code isArray} and
+     * {@code description}. {@code hasResponseHeaders} and {@code responseHeadersClassName}
+     * ({@code <OperationId>ResponseHeaders}) go with it.
+     */
+    private void populateResponseHeaders(CodegenOperation op, Map<String, Object> d, String pascal) {
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        final Set<String> seen = new HashSet<>();
+        if (op.responses != null) {
+            for (final CodegenResponse response : op.responses) {
+                if (response == null || !response.is2xx || response.headers == null) {
+                    continue;
+                }
+                for (final CodegenProperty header : response.headers) {
+                    if (header == null || header.baseName == null) {
+                        continue;
+                    }
+                    final String lower = header.baseName.toLowerCase(Locale.ROOT);
+                    if ("content-type".equals(lower) || !seen.add(lower)) {
+                        continue;
+                    }
+                    final CodegenProperty value = header.isArray && header.items != null
+                            ? header.items : header;
+                    final String kind;
+                    if (value.isBoolean) {
+                        kind = "boolean";
+                    } else if (value.isLong) {
+                        kind = "long";
+                    } else if (value.isInteger) {
+                        kind = "integer";
+                    } else if (value.isNumber || value.isFloat || value.isDouble) {
+                        kind = "number";
+                    } else {
+                        kind = "string";
+                    }
+                    final Map<String, Object> row = new HashMap<>();
+                    row.put("wireName", header.baseName);
+                    row.put("varName", header.name);
+                    row.put("dataType", header.dataType);
+                    row.put("itemDataType", header.isArray && header.items != null
+                            ? header.items.dataType : header.dataType);
+                    row.put("kind", kind);
+                    row.put("isString", "string".equals(kind));
+                    row.put("isInteger", "integer".equals(kind));
+                    row.put("isLong", "long".equals(kind));
+                    row.put("isNumber", "number".equals(kind));
+                    row.put("isBoolean", "boolean".equals(kind));
+                    row.put("isArray", header.isArray);
+                    row.put("description", header.description == null ? "" : header.description);
+                    row.put("hasDescription", header.description != null && !header.description.isEmpty());
+                    rows.add(row);
+                }
+            }
+        }
+        d.put("responseHeaders", rows);
+        d.put("hasResponseHeaders", !rows.isEmpty());
+        d.put("responseHeadersClassName", pascal + "ResponseHeaders");
+    }
+
+    /**
      * Exposes the error responses an operation declares on its decorator map:
      * {@code errorResponses} (one row per distinct status, a default response
      * last: {@code status}, {@code statusClass}, {@code statusClassName},
@@ -5177,6 +5241,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
         // Declared error responses: the status class and schema of each non-2xx response.
         populateErrorResponses(op, d);
+
+        // D168: the headers the success responses declare, read through a typed headers type.
+        populateResponseHeaders(op, d, pascal);
 
         // O10 — Return kind classification
         d.put("returnKind", deriveReturnKind(op));

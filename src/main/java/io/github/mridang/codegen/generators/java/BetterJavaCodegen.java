@@ -229,10 +229,88 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 for (final CodegenOperation op : ops) {
                     op.vendorExtensions.put("hasOptionalBodyOnly", hasOptionalBodyOnly(op));
                     markBinaryStream(op);
+                    writeResponseHeadersFile(op);
                 }
             }
         }
         return processed;
+    }
+
+    /**
+     * D168: writes the {@code <Operation>ResponseHeaders} class of an operation whose success
+     * responses declare headers, beside its Options class. Each row gets the Java type of its
+     * field ({@code javaType}) and the name of the parser of one value ({@code parser}); a header
+     * whose schema has no parser of its own (a date, a UUID) is read as a string.
+     */
+    @SuppressWarnings("unchecked")
+    private void writeResponseHeadersFile(CodegenOperation op) {
+        final Object decorators = op.vendorExtensions.get("op");
+        if (!(decorators instanceof Map)
+                || !Boolean.TRUE.equals(((Map<String, Object>) decorators).get("hasResponseHeaders"))) {
+            return;
+        }
+        final Map<String, Object> d = (Map<String, Object>) decorators;
+        final Object className = d.get("responseHeadersClassName");
+        final Object declaredRows = d.get("responseHeaders");
+        if (!(className instanceof String) || !(declaredRows instanceof List)) {
+            return;
+        }
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        final Set<String> parsers = new LinkedHashSet<>();
+        boolean hasArray = false;
+        boolean hasBigDecimal = false;
+        for (final Map<String, Object> source : (List<Map<String, Object>>) declaredRows) {
+            final Map<String, Object> row = new HashMap<>(source);
+            final String item;
+            switch (String.valueOf(source.get("kind"))) {
+                case "integer":
+                    item = "Integer";
+                    break;
+                case "long":
+                    item = "Long";
+                    break;
+                case "boolean":
+                    item = "Boolean";
+                    break;
+                case "number":
+                    final String declared = String.valueOf(source.get("itemDataType"));
+                    item = "Float".equals(declared) || "BigDecimal".equals(declared) ? declared : "Double";
+                    break;
+                default:
+                    item = "String";
+                    break;
+            }
+            final boolean isArray = Boolean.TRUE.equals(source.get("isArray"));
+            hasArray |= isArray;
+            hasBigDecimal |= "BigDecimal".equals(item);
+            row.put("javaType", isArray ? "List<" + item + ">" : item);
+            row.put("parser", "parse" + item);
+            if (source.get("description") instanceof String && !((String) source.get("description")).isBlank()) {
+                row.put("javadoc", endWithPeriod(((String) source.get("description")).strip()));
+            }
+            parsers.add(item);
+            rows.add(row);
+        }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("package", apiPackage() + ".options");
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("headers", rows);
+        context.put("hasArray", hasArray);
+        context.put("hasBigDecimal", hasBigDecimal);
+        for (final String item : new String[] {"Integer", "Long", "Boolean", "Float", "Double", "BigDecimal"}) {
+            context.put("uses" + item, parsers.contains(item));
+        }
+        final boolean usesIntegral = parsers.contains("Integer") || parsers.contains("Long");
+        final boolean usesDecimal =
+                parsers.contains("Float") || parsers.contains("Double") || parsers.contains("BigDecimal");
+        context.put("usesIntegral", usesIntegral);
+        context.put("usesDecimal", usesDecimal);
+        context.put("usesPattern", usesIntegral || usesDecimal);
+        context.put("usesParsed", usesIntegral || usesDecimal || parsers.contains("Boolean"));
+        final String filePath = getOptionsFilePath(op.operationId, (String) className);
+        writeFile(filePath, renderOptionsTemplate("api/response_headers.mustache", context));
+        postProcessFile(Path.of(filePath).toFile(), "source");
     }
 
     /**

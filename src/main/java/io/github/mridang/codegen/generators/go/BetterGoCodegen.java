@@ -1959,7 +1959,98 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         reorderServerBeforeOptions(processed);
         markBinaryStreams(processed);
         markPagination(processed);
+        writeResponseHeadersFiles(processed);
         return processed;
+    }
+
+    /**
+     * D168: writes one {@code pkg/options/<op>_response_headers.go} per operation whose success
+     * responses declare headers, next to that operation's Options struct. Each row of the shared
+     * {@code responseHeaders} decorator gets its Go item type ({@code int32}, {@code int64},
+     * {@code float32} or {@code float64}, {@code bool}, else {@code string}: a header of any other
+     * schema is read as a string), the unexported field and exported getter names, and the
+     * lower-cased name it is looked up by.
+     *
+     * @param objs the processed operations map
+     */
+    @SuppressWarnings("unchecked")
+    private void writeResponseHeadersFiles(final OperationsMap objs) {
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations == null) {
+            return;
+        }
+        final List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null) {
+            return;
+        }
+        for (final CodegenOperation op : ops) {
+            final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get("op");
+            if (!(decorators instanceof Map)) {
+                continue;
+            }
+            final Map<String, Object> d = (Map<String, Object>) decorators;
+            if (!Boolean.TRUE.equals(d.get("hasResponseHeaders"))) {
+                continue;
+            }
+            final String className = String.valueOf(d.get("responseHeadersClassName"));
+            final List<Map<String, Object>> rows = new ArrayList<>();
+            boolean hasParsed = false;
+            boolean hasNumeric = false;
+            boolean hasArray = false;
+            final Object declared = d.get("responseHeaders");
+            if (!(declared instanceof List)) {
+                continue;
+            }
+            for (final Map<String, Object> source : (List<Map<String, Object>>) declared) {
+                final Map<String, Object> row = new HashMap<>(source);
+                final String kind = String.valueOf(source.get("kind"));
+                final String itemType;
+                if ("integer".equals(kind)) {
+                    itemType = "int32";
+                } else if ("long".equals(kind)) {
+                    itemType = "int64";
+                } else if ("number".equals(kind)) {
+                    itemType = "float32".equals(source.get("itemDataType")) ? "float32" : "float64";
+                } else if ("boolean".equals(kind)) {
+                    itemType = "bool";
+                } else {
+                    itemType = "string";
+                }
+                final boolean isArray = Boolean.TRUE.equals(source.get("isArray"));
+                final String getter = String.valueOf(source.get("varName"));
+                String field = getter.isEmpty()
+                        ? "value"
+                        : getter.substring(0, 1).toLowerCase(Locale.ROOT) + getter.substring(1);
+                if (reservedWords.contains(field.toLowerCase(Locale.ROOT))) {
+                    field = field + "Value";
+                }
+                row.put("goItemType", itemType);
+                row.put("goFieldType", isArray ? "[]" + itemType : "*" + itemType);
+                row.put("goGetterName", getter);
+                row.put("goFieldName", field);
+                row.put("goLookupName", String.valueOf(source.get("wireName")).toLowerCase(Locale.ROOT));
+                row.put("goBitSize", "float32".equals(itemType) || "int32".equals(itemType) ? "32" : "64");
+                row.put("goItemIsString", "string".equals(itemType));
+                hasParsed |= !"string".equals(itemType);
+                hasNumeric |= !"string".equals(itemType) && !"bool".equals(itemType);
+                hasArray |= isArray;
+                rows.add(row);
+            }
+            final Map<String, Object> context = new HashMap<>();
+            context.put("className", className);
+            context.put("packageName", "options");
+            context.put("operationId", op.operationId);
+            context.put("rows", rows);
+            context.put("hasParsedHeaders", hasParsed);
+            context.put("hasNumericHeaders", hasNumeric);
+            context.put("hasArrayHeaders", hasArray);
+            context.put("moduleName", packageName);
+            final String filePath = Path.of(
+                    getOutputDir(), "pkg", "options",
+                    NamingConvention.SNAKE_CASE.apply(className) + ".go").toString();
+            writeFile(filePath, renderOptionsTemplate("api/response_headers.mustache", context));
+            postProcessFile(Path.of(filePath).toFile(), "source");
+        }
     }
 
     /**

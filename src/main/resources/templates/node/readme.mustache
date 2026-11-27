@@ -81,7 +81,9 @@ constructs every API group.
 
 Every operation has a `...WithHttpInfo` variant returning an `ApiResult<T>` with
 `statusCode`, `data`, `rawBody` and the lower-cased `headers` (a frozen copy). It
-is the way to read a response header.
+is the way to read a response header. An operation whose success response
+declares headers also has a `<Operation>ResponseHeaders` type;
+`<Operation>ResponseHeaders.from(result.headers)` reads them in their declared types.
 
 ### Timeouts
 

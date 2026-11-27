@@ -3712,6 +3712,17 @@ components:
       headers:
         X-Revision:
           $ref: '#/components/headers/Revision'
+        # D168: read through the typed response headers of getMemo.
+        X-Labels:
+          description: The labels of the memo
+          schema:
+            type: array
+            items:
+              type: string
+        X-Archived:
+          description: Whether the memo is archived
+          schema:
+            type: boolean
       content:
         application/json:
           schema:

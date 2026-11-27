@@ -16,6 +16,7 @@ import {{apiPackage}}.options.DeletePetOptions
 import {{apiPackage}}.options.FindPetsByStatusOptions
 import {{apiPackage}}.options.GetPetByNameOptions
 import {{apiPackage}}.options.GetPetByNoteOptions
+import {{apiPackage}}.options.GetPetPhotoOptions
 import {{apiPackage}}.options.GetPetTagOptions
 import {{apiPackage}}.options.SetPetPreferencesOptions
 import {{apiPackage}}.options.UploadPetCertificateOptions
@@ -615,6 +616,24 @@ class PetApiTest {
             runBlocking { api.getPetPhoto(1L, 1L) }.use { result ->
                 assertNotNull(result)
             }
+        }
+
+        @Test
+        @DisplayName("bhvOperations501 a per-call Accept header picks one of the declared response media types")
+        fun bhvOperations501PerCallAcceptPicksOneDeclaredMediaType() {
+            var accepts: List<String>? = null
+            val api =
+                capturingPetApi("png", "image/png") { request, _ ->
+                    accepts = request.headers.getAll("Accept")
+                }
+
+            runBlocking {
+                api
+                    .getPetPhoto(1L, 1L, options = GetPetPhotoOptions(headers = mapOf("Accept" to "image/png")))
+                    .use { it.readAll() }
+            }
+
+            assertEquals(listOf("image/png"), accepts)
         }
 
         @Test

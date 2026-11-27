@@ -526,6 +526,24 @@ final class PetApiTests {
         _ = try await api.getPetPhoto(petId: 1, photoId: 1).readAll()
     }
 
+    /* A per-call Accept header replaces the media types the operation declares, so exactly one Accept header is sent. */
+    @Test func testBhvOperations501PerCallAcceptPicksTheResponseMediaType() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "png"
+        mockClient.responseHeaders = ["Content-Type": "image/png"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.getPetPhoto(
+            petId: 1, photoId: 1, options: GetPetPhotoOptions(headers: ["Accept": "image/png"])
+        ).readAll()
+
+        let accept = mockClient.lastHeaders.filter { $0.key.caseInsensitiveCompare("Accept") == .orderedSame }
+        #expect(accept.count == 1)
+        #expect(accept.first?.value == "image/png")
+    }
+
     @Test func testBhvOperations058GetPetTag() async throws {
         let api = petApiForIntegration()
         let options = GetPetTagOptions(colors: ["blue", "black"], sizes: ["S", "M"])

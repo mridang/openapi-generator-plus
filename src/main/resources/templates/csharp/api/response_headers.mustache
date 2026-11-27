@@ -1,0 +1,70 @@
+#nullable enable
+namespace {{packageName}}.Api.Options;
+
+/// <summary>
+/// The response headers the success responses of the {{operationId}} operation declare, read in
+/// their declared types.
+/// </summary>
+public sealed class {{className}}
+{
+    private {{className}}() { }
+{{#rows}}
+
+{{#hasDescription}}
+    /// <summary>{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</summary>
+{{/hasDescription}}
+{{^hasDescription}}
+    /// <summary>The {{{wireName}}} response header, or null when the response does not carry it.</summary>
+{{/hasDescription}}
+    public {{{fieldType}}}? {{propertyName}} { get; private init; }
+{{/rows}}
+
+    /// <summary>
+    /// Reads the declared headers from the raw response headers, such as
+    /// <see cref="ApiResult{T}.Headers"/>. A header name is matched whatever its case, and a
+    /// header the response does not carry stays null.
+    /// </summary>
+    /// <param name="headers">The response headers.</param>
+    /// <returns>The declared headers in their declared types.</returns>
+    /// <exception cref="{{packageName}}.Errors.SerializationException">A header value does not parse as its declared type.</exception>
+    public static {{className}} From(IReadOnlyDictionary<string, string> headers)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+        return new {{className}}
+        {
+{{#rows}}
+            {{propertyName}} = Find(headers, "{{{wireName}}}") is string {{localName}}
+{{#isArray}}
+                ? [.. {{localName}}.Split(',').Select(item => item.Trim()){{^isString}}.Select(item => {{#isInteger}}{{{itemType}}}.TryParse(item, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out {{{itemType}}} {{localName}}Value) ? {{localName}}Value : throw Invalid("{{{wireName}}}", "integer", item){{/isInteger}}{{#isLong}}{{{itemType}}}.TryParse(item, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out {{{itemType}}} {{localName}}Value) ? {{localName}}Value : throw Invalid("{{{wireName}}}", "long", item){{/isLong}}{{#isNumber}}{{{itemType}}}.TryParse(item, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out {{{itemType}}} {{localName}}Value) ? {{localName}}Value : throw Invalid("{{{wireName}}}", "number", item){{/isNumber}}{{#isBoolean}}item switch { "true" => true, "false" => false, _ => throw Invalid("{{{wireName}}}", "boolean", item) }{{/isBoolean}}){{/isString}}]
+{{/isArray}}
+{{^isArray}}
+                ? {{#isString}}{{localName}}{{/isString}}{{^isString}}{{#isInteger}}{{{itemType}}}.TryParse({{localName}}, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out {{{itemType}}} {{localName}}Value) ? {{localName}}Value : throw Invalid("{{{wireName}}}", "integer", {{localName}}){{/isInteger}}{{#isLong}}{{{itemType}}}.TryParse({{localName}}, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out {{{itemType}}} {{localName}}Value) ? {{localName}}Value : throw Invalid("{{{wireName}}}", "long", {{localName}}){{/isLong}}{{#isNumber}}{{{itemType}}}.TryParse({{localName}}, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out {{{itemType}}} {{localName}}Value) ? {{localName}}Value : throw Invalid("{{{wireName}}}", "number", {{localName}}){{/isNumber}}{{#isBoolean}}{{localName}} switch { "true" => true, "false" => false, _ => throw Invalid("{{{wireName}}}", "boolean", {{localName}}) }{{/isBoolean}}{{/isString}}
+{{/isArray}}
+                : null,
+{{/rows}}
+        };
+    }
+
+    /// <summary>The value of the header with the given name, compared without case, or null.</summary>
+    private static string? Find(IReadOnlyDictionary<string, string> headers, string name)
+    {
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            if (string.Equals(header.Key, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return header.Value;
+            }
+        }
+        return null;
+    }
+{{#hasParsed}}
+
+    /// <summary>The error raised for a header value that does not parse as its declared type.</summary>
+    private static {{packageName}}.Errors.SerializationException Invalid(string name, string kind, string value)
+    {
+        return new {{packageName}}.Errors.SerializationException(
+            "Response header '" + name + "' is not a valid " + kind + ": '" + value + "'"
+        );
+    }
+{{/hasParsed}}
+}

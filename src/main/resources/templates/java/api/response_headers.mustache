@@ -1,0 +1,194 @@
+package {{package}};
+
+{{#usesParsed}}
+import {{invokerPackage}}.errors.SerializationException;
+{{/usesParsed}}
+{{#hasBigDecimal}}
+import java.math.BigDecimal;
+{{/hasBigDecimal}}
+{{#hasArray}}
+import java.util.ArrayList;
+import java.util.List;
+{{/hasArray}}
+import java.util.Map;
+import java.util.function.BiFunction;
+{{#usesPattern}}
+import java.util.regex.Pattern;
+{{/usesPattern}}
+import javax.annotation.Nullable;
+
+/**
+ * The response headers the {{operationId}} operation declares, read in their declared types.
+ *
+ * <p>Build it from the headers of a raw response with {@link #from(Map)}. A header the response
+ * does not carry is {@code null}.
+ */
+public final class {{className}} {
+{{#usesDecimal}}
+    /** A decimal number: an optional sign, digits, an optional fraction and exponent. */
+    private static final Pattern DECIMAL =
+            Pattern.compile("[+-]?(\\d+(\\.\\d*)?|\\.\\d+)([eE][+-]?\\d+)?");
+{{/usesDecimal}}
+{{#usesIntegral}}
+
+    /** A base-10 integer with an optional sign. */
+    private static final Pattern INTEGRAL = Pattern.compile("[+-]?\\d+");
+{{/usesIntegral}}
+{{#headers}}
+
+    /** The {@code {{wireName}}} header. */
+    @Nullable private final {{{javaType}}} {{varName}};
+{{/headers}}
+
+    private {{className}}(Map<String, String> headers) {
+{{#headers}}
+{{#isArray}}
+        this.{{varName}} = readList(headers, "{{wireName}}", {{#isString}}(name, value) -> value{{/isString}}{{^isString}}{{className}}::{{parser}}{{/isString}});
+{{/isArray}}
+{{^isArray}}
+        this.{{varName}} = read(headers, "{{wireName}}", {{#isString}}(name, value) -> value{{/isString}}{{^isString}}{{className}}::{{parser}}{{/isString}});
+{{/isArray}}
+{{/headers}}
+    }
+
+    /**
+     * Reads the declared headers from the headers of a raw response, matching the names without
+     * regard to case.
+     *
+     * @param headers the response headers, as {@code ApiResult.headers()} returns them
+     * @return the typed headers; a header the response does not carry is {@code null}
+{{#usesParsed}}
+     * @throws SerializationException if a header value does not parse as its declared type
+{{/usesParsed}}
+     */
+    public static {{className}} from(Map<String, String> headers) {
+        return new {{className}}(headers);
+    }
+{{#headers}}
+
+    /**
+     * Returns the {@code {{wireName}}} header.
+{{#javadoc}}
+     *
+     * <p>{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{javadoc}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
+{{/javadoc}}
+     *
+     * @return the value, or {@code null} when the response does not carry the header
+     */
+    @Nullable
+    public {{{javaType}}} {{varName}}() {
+        return {{varName}};
+    }
+{{/headers}}
+
+    @Nullable
+    private static String find(Map<String, String> headers, String name) {
+        for (Map.Entry<String, String> header : headers.entrySet()) {
+            if (header.getKey().equalsIgnoreCase(name)) {
+                return header.getValue();
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private static <T> T read(
+            Map<String, String> headers, String name, BiFunction<String, String, T> parser) {
+        String value = find(headers, name);
+        return value == null ? null : parser.apply(name, value);
+    }
+{{#hasArray}}
+
+    @Nullable
+    private static <T> List<T> readList(
+            Map<String, String> headers, String name, BiFunction<String, String, T> parser) {
+        String value = find(headers, name);
+        if (value == null) {
+            return null;
+        }
+        List<T> items = new ArrayList<>();
+        for (String item : value.split(",", -1)) {
+            items.add(parser.apply(name, item.trim()));
+        }
+        return List.copyOf(items);
+    }
+{{/hasArray}}
+{{#usesParsed}}
+
+    private static SerializationException invalid(String name, String kind, String value) {
+        return invalid(name, kind, value, null);
+    }
+
+    private static SerializationException invalid(
+            String name, String kind, String value, @Nullable Throwable cause) {
+        return new SerializationException(
+                "Response header '" + name + "' is not a valid " + kind + ": '" + value + "'",
+                cause, 0, null, null, null, null);
+    }
+{{/usesParsed}}
+{{#usesInteger}}
+
+    private static Integer parseInteger(String name, String value) {
+        if (!INTEGRAL.matcher(value).matches()) {
+            throw invalid(name, "integer", value);
+        }
+        try {
+            return Integer.valueOf(value);
+        } catch (NumberFormatException e) {
+            throw invalid(name, "integer", value, e);
+        }
+    }
+{{/usesInteger}}
+{{#usesLong}}
+
+    private static Long parseLong(String name, String value) {
+        if (!INTEGRAL.matcher(value).matches()) {
+            throw invalid(name, "long", value);
+        }
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException e) {
+            throw invalid(name, "long", value, e);
+        }
+    }
+{{/usesLong}}
+{{#usesBoolean}}
+
+    private static Boolean parseBoolean(String name, String value) {
+        if ("true".equals(value)) {
+            return Boolean.TRUE;
+        }
+        if ("false".equals(value)) {
+            return Boolean.FALSE;
+        }
+        throw invalid(name, "boolean", value);
+    }
+{{/usesBoolean}}
+{{#usesFloat}}
+
+    private static Float parseFloat(String name, String value) {
+        if (!DECIMAL.matcher(value).matches()) {
+            throw invalid(name, "number", value);
+        }
+        return Float.valueOf(value);
+    }
+{{/usesFloat}}
+{{#usesDouble}}
+
+    private static Double parseDouble(String name, String value) {
+        if (!DECIMAL.matcher(value).matches()) {
+            throw invalid(name, "number", value);
+        }
+        return Double.valueOf(value);
+    }
+{{/usesDouble}}
+{{#usesBigDecimal}}
+
+    private static BigDecimal parseBigDecimal(String name, String value) {
+        if (!DECIMAL.matcher(value).matches()) {
+            throw invalid(name, "number", value);
+        }
+        return new BigDecimal(value);
+    }
+{{/usesBigDecimal}}
+}

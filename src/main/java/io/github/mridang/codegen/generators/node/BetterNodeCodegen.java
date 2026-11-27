@@ -459,6 +459,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     /** Unique class names the per-scheme unit test imports from the entry point. */
     private final List<Map<String, String>> perSchemeAuthImports = new ArrayList<>();
 
+    /** D168: the per-operation response headers types written so far, re-exported by the options barrel. */
+    private final List<String> responseHeadersClassNames = new ArrayList<>();
+
     @Override
     public void processOpts() {
         // `license` is the SPDX identifier under its package-metadata name; the shared
@@ -1045,6 +1048,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                         }
                     }
                     populateRequestWrapper(op);
+                    writeResponseHeadersFile(op);
                 }
                 boolean hasDeepInputBody = false;
                 for (final CodegenOperation op : ops) {
@@ -2110,13 +2114,102 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return Path.of(outputFolder, "src", "api", "options", fileName + ".ts").toString();
     }
 
+    /**
+     * D168: an operation whose success response declares headers gets a
+     * {@code <Operation>ResponseHeaders} class next to its Options interface, with a static
+     * {@code from(headers)} that reads each declared header by name in its declared type.
+     */
+    private void writeResponseHeadersFile(final CodegenOperation op) {
+        final Object decorator = op.vendorExtensions.get("op");
+        if (!(decorator instanceof Map)) {
+            return;
+        }
+        final Map<?, ?> d = (Map<?, ?>) decorator;
+        if (!Boolean.TRUE.equals(d.get("hasResponseHeaders"))) {
+            return;
+        }
+        final String className = String.valueOf(d.get("responseHeadersClassName"));
+        final Object declared = d.get("responseHeaders");
+        if (!(declared instanceof List)) {
+            return;
+        }
+        final List<?> rows = (List<?>) declared;
+        final List<Map<String, Object>> headers = new ArrayList<>();
+        boolean usesInteger = false;
+        boolean usesNumber = false;
+        boolean usesBoolean = false;
+        for (final Object row : rows) {
+            final Map<String, Object> header = new HashMap<>();
+            for (final Map.Entry<?, ?> entry : ((Map<?, ?>) row).entrySet()) {
+                header.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+            /* The field type follows the value kind: a header is text on the wire, so a
+             * format the kind does not parse (a date, a uuid) stays a string. */
+            final String kind = String.valueOf(header.get("kind"));
+            final String itemType;
+            final String parser;
+            if ("integer".equals(kind) || "long".equals(kind)) {
+                itemType = "number";
+                parser = "parseIntegerHeader";
+                usesInteger = true;
+            } else if ("number".equals(kind)) {
+                itemType = "number";
+                parser = "parseNumberHeader";
+                usesNumber = true;
+            } else if ("boolean".equals(kind)) {
+                itemType = "boolean";
+                parser = "parseBooleanHeader";
+                usesBoolean = true;
+            } else {
+                itemType = "string";
+                parser = null;
+            }
+            final boolean isArray = Boolean.TRUE.equals(header.get("isArray"));
+            header.put("tsType", isArray ? "Array<" + itemType + ">" : itemType);
+            header.put("fieldName", toParamName(String.valueOf(header.get("wireName"))));
+            header.put("parser", parser);
+            header.put("hasParser", parser != null);
+            headers.add(header);
+        }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("headers", headers);
+        context.put("usesInteger", usesInteger);
+        context.put("usesNumber", usesNumber);
+        context.put("usesBoolean", usesBoolean);
+        context.put("usesParser", usesInteger || usesNumber || usesBoolean);
+        final String content = renderOptionsTemplate("api/response_headers.mustache", context);
+        final String fileName = NamingConvention.KEBAB_CASE.apply(className);
+        final String filePath =
+                Path.of(outputFolder, "src", "api", "options", fileName + ".ts").toString();
+        writeFile(filePath, content);
+        postProcessFile(Path.of(filePath).toFile(), "source");
+        responseHeadersClassNames.add(className);
+        additionalProperties.put("hasAnyOptionsClasses", true);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void postProcess() {
+        /* The shared pass writes the barrel only when an Options file exists; the
+         * response headers types need it as well. */
+        if (getAccumulatedOptionsFiles().isEmpty() && !responseHeadersClassNames.isEmpty()) {
+            emitBarrelFiles(new ArrayList<>());
+        }
+        super.postProcess();
+    }
+
     /** {@inheritDoc} */
     @Override
     public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
-        final List<Map<String, String>> exports = new ArrayList<>();
+        final List<String> classNames = new ArrayList<>();
         for (final Map<String, String> meta : optionsFiles) {
-            final String className =
-                    Objects.requireNonNull(meta.get("optionsClassName"));
+            classNames.add(Objects.requireNonNull(meta.get("optionsClassName")));
+        }
+        classNames.addAll(responseHeadersClassNames);
+        final List<Map<String, String>> exports = new ArrayList<>();
+        for (final String className : classNames) {
             final Map<String, String> export = new HashMap<>();
             export.put("fileName", NamingConvention.KEBAB_CASE.apply(className));
             exports.add(export);

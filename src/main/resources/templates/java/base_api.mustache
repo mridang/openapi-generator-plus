@@ -754,8 +754,13 @@ public abstract class BaseApi {
             headers.keySet().removeIf(name -> name.equalsIgnoreCase(defaultHeader.getKey()));
             headers.put(defaultHeader.getKey(), defaultHeader.getValue());
         }
+        /* A per-call header replaces the SDK's own one of the same name in any case, so a caller's
+         * Accept picks one of the declared response media types instead of joining the list. */
         if (headerParams != null) {
-            headers.putAll(headerParams);
+            for (Map.Entry<String, String> callHeader : headerParams.entrySet()) {
+                headers.keySet().removeIf(name -> name.equalsIgnoreCase(callHeader.getKey()));
+                headers.put(callHeader.getKey(), callHeader.getValue());
+            }
         }
         Map<String, String> sentAuthHeaders = Map.of();
         if (effectiveAuth != null) {
