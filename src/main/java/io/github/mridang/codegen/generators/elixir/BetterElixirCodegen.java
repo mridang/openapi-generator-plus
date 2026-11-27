@@ -545,6 +545,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "network_error.ex"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "network_timeout_error.ex"),
             new SupportingFileSpec("errors/stream_error.mustache", errorsDir, "stream_error.ex"),
+            new SupportingFileSpec("errors/response_too_large_error.mustache", errorsDir, "response_too_large_error.ex"),
             new SupportingFileSpec("errors/pagination_error.mustache", errorsDir, "pagination_error.ex"),
             new SupportingFileSpec("errors/root_error.mustache", errorsDir, errorPrefixSnake() + "_error.ex"),
             new SupportingFileSpec("header_selector.mustache", libDir, "header_selector.ex"),

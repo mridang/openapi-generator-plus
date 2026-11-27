@@ -769,6 +769,10 @@ func isRetryableTransportError(err error) bool {
 	if errors.Is(err, context.Canceled) || errors.Is(err, ErrClientClosed) {
 		return false
 	}
+	var tooLarge *errors_pkg.ResponseTooLargeError
+	if errors.As(err, &tooLarge) {
+		return false
+	}
 	var certErr *tls.CertificateVerificationError
 	var unknownAuthority x509.UnknownAuthorityError
 	var hostnameErr x509.HostnameError

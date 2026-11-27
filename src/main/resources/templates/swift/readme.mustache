@@ -297,6 +297,8 @@ not fit in what is left is skipped. Every retry is a fresh request that asks the
 authenticator for its headers again. A single-use `BodySource` and the OAuth2 token request
 are never retried, and a request that timed out is not retried.
 
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
+
 ## Per-call options
 
 Every operation takes an options struct (`<Operation>Options`) as its last

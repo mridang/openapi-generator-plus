@@ -729,6 +729,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec(
                         "errors/stream_error.mustache", "pkg/errors", "stream_error.go"),
                 new SupportingFileSpec(
+                        "errors/response_too_large_error.mustache",
+                        "pkg/errors",
+                        "response_too_large_error.go"),
+                new SupportingFileSpec(
                         "errors/pagination_error.mustache", "pkg/errors", "pagination_error.go"),
                 new SupportingFileSpec(
                         "errors/serialization_error.mustache",

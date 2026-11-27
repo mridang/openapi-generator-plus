@@ -172,6 +172,20 @@ defmodule {{moduleName}}.TransportOptionsTest do
                  fn -> {{moduleName}}.TransportOptions.new(timeout: -5) end
   end
 
+  test "bhv options 069 max_response_bytes defaults to none, keeps a positive value and refuses the rest" do
+    assert {{moduleName}}.TransportOptions.new().max_response_bytes == nil
+    assert {{moduleName}}.TransportOptions.new(max_response_bytes: 1024).max_response_bytes == 1024
+
+    for bad <- [0, -1] do
+      err =
+        assert_raise ArgumentError, fn ->
+          {{moduleName}}.TransportOptions.new(max_response_bytes: bad)
+        end
+
+      assert err.message == "Invalid maxResponseBytes: must be a positive number of bytes (got #{bad})"
+    end
+  end
+
   test "bhv options 051 a proxy URL with a scheme other than http or https is rejected" do
     assert_raise ArgumentError,
                  "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",

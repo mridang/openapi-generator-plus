@@ -25,6 +25,7 @@ use crate::errors::pagination_error::PaginationError;
 use crate::errors::payload_too_large_error::PayloadTooLargeError;
 use crate::errors::payment_required_error::PaymentRequiredError;
 use crate::errors::request_timeout_error::RequestTimeoutError;
+use crate::errors::response_too_large_error::ResponseTooLargeError;
 use crate::errors::serialization_error::SerializationError;
 use crate::errors::server_error::ServerError;
 use crate::errors::stream_error::StreamError;
@@ -44,7 +45,8 @@ use crate::errors::{{snakeName}}::{{className}};
 /// modelled here as a marker trait. Every error type this client produces —
 /// the transport/API root [`ApiError`] and its per-status wrappers
 /// ([`ClientError`]/[`ServerError`] and the concrete 4xx/5xx types,
-/// [`NetworkError`]/[`NetworkTimeoutError`]/[`StreamError`] for failures with no response), the
+/// [`NetworkError`]/[`NetworkTimeoutError`]/[`StreamError`] for failures with no response,
+/// [`ResponseTooLargeError`] for a buffered body past the size limit), the
 /// pattern-matching [`ApiErrorKind`] view, the (de)serialization
 /// [`SerializationError`], the [`PaginationError`] of a list that cannot be followed, and the token-endpoint [`OAuth2ServerError`] and
 /// [`OAuth2TokenError`] — has an explicit `impl {{errorPrefix}}Error`, so a single
@@ -100,6 +102,7 @@ impl {{errorPrefix}}Error for InternalServerError {}
 impl {{errorPrefix}}Error for NetworkError {}
 impl {{errorPrefix}}Error for NetworkTimeoutError {}
 impl {{errorPrefix}}Error for StreamError {}
+impl {{errorPrefix}}Error for ResponseTooLargeError {}
 impl {{errorPrefix}}Error for SerializationError {}
 impl {{errorPrefix}}Error for PaginationError {}
 impl {{errorPrefix}}Error for OAuth2ServerError {}
@@ -191,12 +194,19 @@ impl ApiErrorInfo for StreamError {
     }
 }
 
+impl ApiErrorInfo for ResponseTooLargeError {
+    fn api_error(&self) -> &ApiError {
+        ResponseTooLargeError::api_error(self)
+    }
+}
+
 /// The error every operation returns.
 ///
 /// One variant per kind of failure, the same kinds the other SDKs raise: a
 /// variant for each HTTP status the SDK names, [`Client`](Self::Client) and
 /// [`Server`](Self::Server) for any other 4xx and 5xx, [`Api`](Self::Api) for
-/// any other status, the failures with no response ([`Network`](Self::Network),
+/// any other status, [`ResponseTooLarge`](Self::ResponseTooLarge) for a body
+/// past the size limit, the failures with no response ([`Network`](Self::Network),
 /// [`NetworkTimeout`](Self::NetworkTimeout), [`Stream`](Self::Stream)), the
 /// errors raised before or after the exchange, one variant per error schema the
 /// API declares, and [`Other`](Self::Other) for anything else, such as an error
@@ -265,6 +275,8 @@ pub enum Error {
     Server(Box<ServerError>),
     /// A response with any other status, or a success with no body to decode.
     Api(Box<ApiError>),
+    /// A buffered response body passed the transport's `max_response_bytes`.
+    ResponseTooLarge(Box<ResponseTooLargeError>),
 {{#errorSchemas}}
     /// A response whose body is the declared error schema of its status.
     {{className}}(Box<{{className}}>),
@@ -294,8 +306,9 @@ pub enum Error {
 
 impl Error {
     /// The [`ApiError`] this error holds or wraps: every HTTP status variant,
-    /// [`Network`](Self::Network), [`NetworkTimeout`](Self::NetworkTimeout) and
-    /// [`Stream`](Self::Stream). `None` for any other variant.
+    /// [`ResponseTooLarge`](Self::ResponseTooLarge), [`Network`](Self::Network),
+    /// [`NetworkTimeout`](Self::NetworkTimeout) and [`Stream`](Self::Stream).
+    /// `None` for any other variant.
     pub fn api_error(&self) -> Option<&ApiError> {
         match self {
             Self::BadRequest(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
@@ -320,6 +333,7 @@ impl Error {
             Self::GatewayTimeout(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
             Self::Server(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
             Self::Api(e) => Some(e.as_ref()),
+            Self::ResponseTooLarge(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
 {{#errorSchemas}}
             Self::{{className}}(e) => Some(ApiErrorInfo::api_error(e.as_ref())),
 {{/errorSchemas}}
@@ -372,6 +386,7 @@ impl Error {
             Self::GatewayTimeout(e) => e.as_ref(),
             Self::Server(e) => e.as_ref(),
             Self::Api(e) => e.as_ref(),
+            Self::ResponseTooLarge(e) => e.as_ref(),
 {{#errorSchemas}}
             Self::{{className}}(e) => e.as_ref(),
 {{/errorSchemas}}
@@ -447,6 +462,7 @@ error_from!(
     GatewayTimeout(GatewayTimeoutError),
     Server(ServerError),
     Api(ApiError),
+    ResponseTooLarge(ResponseTooLargeError),
 {{#errorSchemas}}
     {{className}}({{className}}),
 {{/errorSchemas}}
@@ -503,6 +519,7 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for Error {
             GatewayTimeout(GatewayTimeoutError),
             Server(ServerError),
             Api(ApiError),
+            ResponseTooLarge(ResponseTooLargeError),
 {{#errorSchemas}}
             {{className}}({{className}}),
 {{/errorSchemas}}
@@ -550,6 +567,7 @@ pub(crate) fn api_error_of<'a>(error: &'a (dyn std::error::Error + Send + Sync +
         NetworkError,
         NetworkTimeoutError,
         StreamError,
+        ResponseTooLargeError,
         BadRequestError,
         UnauthorizedError,
         ForbiddenError,

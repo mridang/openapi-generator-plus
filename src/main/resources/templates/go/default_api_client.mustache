@@ -455,10 +455,22 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		return nil, replayRefusal(resp)
 	}
 
+	/* D138: with MaxResponseBytes set, a body is read only up to the limit,
+	 * on the wire and after decompression. A declared Content-Length past it
+	 * fails before anything is read; the deferred Close then drops the
+	 * connection without draining the rest. */
+	var limit int64
+	if maxBytes := c.transportOptions.MaxResponseBytes(); maxBytes != nil {
+		limit = *maxBytes
+	}
+	if limit > 0 && resp.ContentLength > limit {
+		return nil, errors_pkg.NewResponseTooLargeError(resp.StatusCode, lowerCaseHeaders(resp.Header), limit)
+	}
+
 	// A failure reading the body AFTER headers were received (connection reset,
 	// truncated chunked encoding, a timeout) is a transport failure like a
 	// send-phase one.
-	rawBody, err := io.ReadAll(resp.Body)
+	rawBody, tooLarge, err := readBounded(resp.Body, limit)
 	if err != nil {
 		if errors.Is(ctx.Err(), context.Canceled) {
 			return nil, c.cancellationError()
@@ -467,11 +479,17 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	}
 
 	respHeaders := lowerCaseHeaders(resp.Header)
+	if tooLarge {
+		return nil, errors_pkg.NewResponseTooLargeError(resp.StatusCode, respHeaders, limit)
+	}
 
 	// A body that arrived but cannot be decompressed is not a network
 	// failure: the server answered, so it is an *ApiError carrying the
 	// response's real status code.
-	respBody, err := decompressBody(resp.Header.Get("Content-Encoding"), rawBody)
+	respBody, tooLarge, err := decompressBody(resp.Header.Get("Content-Encoding"), rawBody, limit)
+	if tooLarge {
+		return nil, errors_pkg.NewResponseTooLargeError(resp.StatusCode, respHeaders, limit)
+	}
 	if err != nil {
 		return nil, errors_pkg.NewApiError(
 			resp.StatusCode,
@@ -1226,14 +1244,32 @@ func supportedEncodings() string {
 	return "gzip, deflate, br, zstd"
 }
 
+// readBounded reads r to its end. With a positive limit it stops as soon as
+// more than limit bytes arrived and reports tooLarge instead, so an oversized
+// body is never held in full; a limit of zero reads without a bound.
+func readBounded(r io.Reader, limit int64) (data []byte, tooLarge bool, err error) {
+	if limit <= 0 {
+		data, err = io.ReadAll(r)
+		return data, false, err
+	}
+	data, err = io.ReadAll(io.LimitReader(r, limit+1))
+	if int64(len(data)) > limit {
+		return nil, true, nil
+	}
+	return data, false, err
+}
+
 // decompressBody decodes a response body that was already read in full, so a
-// failure here is always a corrupt body and never a transport failure.
-func decompressBody(contentEncoding string, raw []byte) ([]byte, error) {
+// failure here is always a corrupt body and never a transport failure. With a
+// positive limit the decoder stops as soon as its output passes limit bytes
+// and tooLarge is reported, so a small body that inflates hugely is never
+// inflated in full.
+func decompressBody(contentEncoding string, raw []byte, limit int64) ([]byte, bool, error) {
 	// An empty body (a legitimate 204/304/HEAD or empty 200) carries nothing to
 	// decompress, so it passes through unchanged for any declared encoding,
 	// matching java/kotlin/python/ruby/php/rust.
 	if len(raw) == 0 {
-		return raw, nil
+		return raw, false, nil
 	}
 
 	encoding := strings.ToLower(contentEncoding)
@@ -1242,34 +1278,34 @@ func decompressBody(contentEncoding string, raw []byte) ([]byte, error) {
 	case "gzip", "x-gzip":
 		reader, err := gzip.NewReader(bytes.NewReader(raw))
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		defer func() { _ = reader.Close() }()
-		return io.ReadAll(reader)
+		return readBounded(reader, limit)
 	case "deflate":
 		reader, err := zlib.NewReader(bytes.NewReader(raw))
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		defer func() { _ = reader.Close() }()
-		return io.ReadAll(reader)
+		return readBounded(reader, limit)
 	case "br":
-		return io.ReadAll(brotli.NewReader(bytes.NewReader(raw)))
+		return readBounded(brotli.NewReader(bytes.NewReader(raw)), limit)
 	case "zstd":
 		reader, err := zstd.NewReader(bytes.NewReader(raw))
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		defer reader.Close()
-		return io.ReadAll(reader)
+		return readBounded(reader, limit)
 	case "", "identity":
-		return raw, nil
+		return raw, false, nil
 	default:
 		// An unrecognised (or multi-value) Content-Encoding is a response the
 		// client cannot honour. Return an error — the caller wraps it in an
 		// ApiError carrying the response status (matching csharp/elixir and the
 		// documented contract) rather than handing back still-encoded bytes.
-		return nil, fmt.Errorf("unsupported Content-Encoding '%s'", contentEncoding)
+		return nil, false, fmt.Errorf("unsupported Content-Encoding '%s'", contentEncoding)
 	}
 }
 

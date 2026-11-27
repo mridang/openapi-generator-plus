@@ -133,6 +133,11 @@ Why: the budget used to apply per hop; redirects could multiply it.
 Where: `default_api_client.mustache`, `transport_options.mustache`, `errors/configuration_error.mustache`.
 Test: `test/default_api_client_test.mustache`, `test/default_api_client_unit_test.mustache`, `test/transport_options_test.mustache`.
 
+### Response size cap (D138)
+Rule: `TransportOptionsBuilder::max_response_bytes(Option<u64>)` (`None`, the default, is no limit; `Some(0)` fails `build()` with `ConfigurationError::InvalidMaxResponseBytes(0)`, displayed `Invalid maxResponseBytes: must be a positive number of bytes (got 0)`; a negative value cannot be written). `DefaultApiClient` fails a buffered response whose `content_length()` passes it, otherwise reads the body chunk by chunk and stops as soon as it passes the limit; `decompress_body` reads the decoder through `Read::take(limit + 1)`, so a small body that inflates hugely is never inflated in full. Returning drops the response and aborts the connection. The error is `ResponseTooLargeError` (wraps an `ApiError` with the status and lower-cased headers, empty body, `limit()`, `is_retryable()` false), the variant `Error::ResponseTooLarge`, covered by `api_error()`, the `From` impls and `attach_request`; it is not a `NetworkError`, so it is never retried. Streams are not capped. `ApiErrorKind` has no variant for it (a 200 maps to `Other`).
+Where: `transport_options.mustache`, `default_api_client.mustache`, `errors/response_too_large_error.mustache`, `errors/root_error.mustache`, `errors/configuration_error.mustache`.
+Test: `test_bhv_options_069_*` in `test/transport_options_test.mustache`, `test_bhv_transport_095_*`/`096_*` in `test/default_api_client_unit_test.mustache`.
+
 ### OIDC rediscovery keeps the session (D01)
 Rule: `OAuth2TokenManager` owns tokens and the exchanged flag (an `AtomicBool` with `mark_exchanged`/`is_exchanged`); the auth-code authenticator holds an `Arc<OAuth2TokenManager>` and gains `pub(crate) with_token_manager`; on rediscovery the OIDC authenticator builds the replacement around the previous manager, and discovery is serialised (single-flight).
 Why: replacing the delegate reset the session, so every call after the discovery max-age failed with "Must call exchange_code()". 11 of 12 SDKs had the bug; elixir was already correct.
@@ -393,7 +398,7 @@ The audit's own proposal was used as the default where no owner decision existed
 - **Object-valued parameters are expanded (D47).** A model or map parameter in form style with explode is one `name=value` pair per property (`object_serializer::object_query_pairs`); other styles join `k,v,k,v` (`k=v,k=v` for `simple` with explode, a space or `|` for the delimited styles) through `stringify_param`; a nested value is a `SerializationError`. Models keep declaration order because `serde_json` now has `preserve_order`; a map is sorted by key. Matrix and label styles with explode are not expanded per property. Test: `test_object_valued_parameters_expand_per_style` (in-crate) and `test_pet_api_get_pet_tag_object_valued_params_expand_per_style`.
 - **Map properties are written in key order.** Optional, required and nullable map properties use `object_serializer::sorted_map`.
 - **SKILLS.md documents the whole error tree.** Test: `test_skills_error_section_documents_the_full_error_tree`.
-- **Still skipped in batch 7:** per-scheme credentials (an owner decision on the Client shape), a response size limit, the caller-supplied `reqwest::Client` redirect guard (a client's redirect policy cannot be read back), cancellation, and the shared-Java findings.
+- **Still skipped in batch 7:** per-scheme credentials (an owner decision on the Client shape), a response size limit (since landed as D138), the caller-supplied `reqwest::Client` redirect guard (a client's redirect policy cannot be read back), cancellation, and the shared-Java findings.
 
 ### Decisions taken in batch 9
 

@@ -144,6 +144,11 @@ Why: the budget used to apply per hop; redirects could multiply it.
 Where: `default_api_client.mustache`, `transport_options.mustache`.
 Test: `test/transport_options_test.mustache`, `test/default_api_client_test.mustache`.
 
+### Response size cap (D138)
+Rule: `TransportOptionsBuilder.MaxResponseBytes(*int64)` (nil, the default, is no limit; `Build()` refuses zero or a negative value with `ErrInvalidMaxResponseBytes`, text `invalid maxResponseBytes: must be a positive number of bytes (got N)`, lower-cased like `ErrInvalidTimeout`). `DefaultApiClient` fails a buffered response whose `Content-Length` passes it before reading, reads the body through `io.LimitReader(limit+1)` (`readBounded`) and decodes it through the same bound (`decompressBody`), so neither the wire bytes nor the inflated bytes go past limit+1; the deferred `Body.Close()` drops the unread rest. The error is `*ResponseTooLargeError` (an `*ApiError`, status and lower-cased headers, empty body, `Limit()`, `IsRetryable()` false), never retried (`isRetryableTransportError`). Streams are not capped.
+Where: `transport_options.mustache`, `default_api_client.mustache`, `base_api.mustache`, `errors/response_too_large_error.mustache`.
+Test: `TestBhvOptions069_*` in `test/transport_options_test.mustache`, `TestBhvTransport095_*`/`096_*` in `test/default_api_client_unit_test.mustache`.
+
 ### OIDC rediscovery keeps the session (D01)
 Rule (intended): the token manager owns the exchanged flag (an `atomic.Bool`), and `resolveDelegate` builds the replacement authenticator around the previous delegate's `*OAuth2TokenManager`; the mutex is already held across the discovery fetch.
 Why: replacing the delegate reset the session, so every call after the discovery max-age failed with "Must call ExchangeCode()".
@@ -316,7 +321,7 @@ The audit's own proposal was the default wherever no owner decision existed.
 - Trace propagator (race part): `traceContextPropagator` is an `atomic.Pointer`, so `SetTraceContextPropagator` may run while requests are in flight. Per-operation spans and metrics are not added. `InjectTraceContext(ctx, headers)` takes the call context and hands it to the propagator, so a span carried by the operation's `ctx` reaches `traceparent` and `tracestate` (F06, #131); the other eleven read the ambient context (D101). Tests: the span cases of `trace_context_util_test` pass the span through the call context, and `TestBhvTracing013`, `015` and `016` in `base_api_test` drive an operation under a real span. Test: `TestSetTraceContextPropagator_ConcurrentSetAndInjectIsRaceFree` (the suite runs with `-race`).
 - F844 is already conforming: this file exists.
 
-Deferred from batch 6 and not landed since: single-pass model decode (#107) and a response size limit option (#112). The rest of that list, a per-call content type, the context-aware auth method, named inline parameter enums, values instead of pointers, typed union constructors and accessors, the per-group interface, exported enum value lists and the operation doc comment layout, landed in the later batches described below.
+Deferred from batch 6 and not landed since: single-pass model decode (#107) (the response size limit, #112, landed as D138). The rest of that list, a per-call content type, the context-aware auth method, named inline parameter enums, values instead of pointers, typed union constructors and accessors, the per-group interface, exported enum value lists and the operation doc comment layout, landed in the later batches described below.
 
 ## Decisions taken in batch 7
 
@@ -334,7 +339,7 @@ The audit's own proposal was the default wherever no owner decision existed.
 - apiKey names: the redirect allowlist and its tests render a spec apiKey header name through `goStringLiteral`, so a quote or backslash cannot break the file. Test: `BetterGoCodegenTest.escapesQuoteBackslashAndControlCharactersInAnApiKeyName`.
 - More tests only: F1133 (redirect chain budget, chasm), F1161 (multi-value response headers and the typed status routes), F1069 (lowercase uuid path), F1158 (deepObject filter and matrix/label path), F1175 (prefixItems).
 - Already conforming or settled in go: F824 (`Client.Close`, batch 5), F826 (`io.Reader`, batch 5), F229 (done), F803 (S8), F056 (S3), F090 (ambient proxy ignored by design), F149 (`TestBinaryResponse_TextPlainBodyForModelReturnIsASerializationError`), F1150 (go sets no `Proxy-Authorization` header itself; the transport proxy authenticates every hop).
-- Not done in go: 401 replay (F855, since landed for the OAuth authenticators in batch 9), the response size limit option (#112), a `String`/`GoString` on every model with a password field (F867: it needs a template flag for the field type, pointer or not, that cannot be verified without the gate), and more charsets (they need `golang.org/x/text`).
+- Not done in go: 401 replay (F855, since landed for the OAuth authenticators in batch 9), the response size limit option (#112, since landed as D138), a `String`/`GoString` on every model with a password field (F867: it needs a template flag for the field type, pointer or not, that cannot be verified without the gate), and more charsets (they need `golang.org/x/text`).
 
 ## Decisions taken in batch 9
 

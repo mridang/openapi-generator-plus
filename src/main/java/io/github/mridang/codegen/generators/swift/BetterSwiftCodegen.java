@@ -828,6 +828,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/network_error.mustache", errorsDir, "NetworkError.swift"),
             new SupportingFileSpec("errors/network_timeout_error.mustache", errorsDir, "NetworkTimeoutError.swift"),
             new SupportingFileSpec("errors/stream_error.mustache", errorsDir, "StreamError.swift"),
+            new SupportingFileSpec("errors/response_too_large_error.mustache", errorsDir, "ResponseTooLargeError.swift"),
             new SupportingFileSpec("errors/serialization_error.mustache", errorsDir, "SerializationError.swift"),
             new SupportingFileSpec("errors/oauth2_server_error.mustache", errorsDir, "OAuth2ServerError.swift"),
             new SupportingFileSpec("errors/oauth2_token_error.mustache", errorsDir, "OAuth2TokenError.swift"),

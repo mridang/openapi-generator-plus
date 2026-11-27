@@ -964,6 +964,7 @@ fn test_bhv_langrust_073_package_root_exports_the_whole_error_tree() {
     assert_type_is_{{errorPrefixSnake}}_error::<{{packageName}}::NetworkError>();
     assert_type_is_{{errorPrefixSnake}}_error::<{{packageName}}::NetworkTimeoutError>();
     assert_type_is_{{errorPrefixSnake}}_error::<{{packageName}}::StreamError>();
+    assert_type_is_{{errorPrefixSnake}}_error::<{{packageName}}::ResponseTooLargeError>();
     assert_type_is_{{errorPrefixSnake}}_error::<{{packageName}}::SerializationError>();
     assert_type_is_{{errorPrefixSnake}}_error::<{{packageName}}::OAuth2ServerError>();
     assert_type_is_{{errorPrefixSnake}}_error::<{{packageName}}::OAuth2TokenError>();
@@ -1149,6 +1150,10 @@ fn test_bhv_errors_044_every_error_lives_in_errors_and_the_root_exports_it() {
     assert_eq!(TypeId::of::<errors::NetworkError>(), TypeId::of::<{{packageName}}::NetworkError>());
     assert_eq!(TypeId::of::<errors::NetworkTimeoutError>(), TypeId::of::<{{packageName}}::NetworkTimeoutError>());
     assert_eq!(TypeId::of::<errors::StreamError>(), TypeId::of::<{{packageName}}::StreamError>());
+    assert_eq!(
+        TypeId::of::<errors::ResponseTooLargeError>(),
+        TypeId::of::<{{packageName}}::ResponseTooLargeError>()
+    );
     assert_eq!(TypeId::of::<errors::OAuth2ServerError>(), TypeId::of::<{{packageName}}::OAuth2ServerError>());
     assert_eq!(TypeId::of::<errors::OAuth2TokenError>(), TypeId::of::<{{packageName}}::OAuth2TokenError>());
     assert_eq!(
@@ -1532,6 +1537,7 @@ fn test_bhv_misc_283_package_root_exports_the_whole_error_tree() {
     exported::<{{packageName}}::NetworkError>();
     exported::<{{packageName}}::NetworkTimeoutError>();
     exported::<{{packageName}}::StreamError>();
+    exported::<{{packageName}}::ResponseTooLargeError>();
     exported::<{{packageName}}::BadRequestError>();
     exported::<{{packageName}}::UnauthorizedError>();
     exported::<{{packageName}}::ForbiddenError>();

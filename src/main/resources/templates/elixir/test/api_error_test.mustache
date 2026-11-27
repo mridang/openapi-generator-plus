@@ -293,7 +293,8 @@ defmodule {{moduleName}}.ApiErrorTest do
       {{moduleName}}.Errors.ServerError,
       {{moduleName}}.Errors.InternalServerError,
       {{moduleName}}.Errors.NetworkError,
-      {{moduleName}}.Errors.NetworkTimeoutError
+      {{moduleName}}.Errors.NetworkTimeoutError,
+      {{moduleName}}.Errors.ResponseTooLargeError
     ]
 
     for module <- modules do
@@ -564,6 +565,7 @@ defmodule {{moduleName}}.ApiErrorTest do
       assert {{moduleName}}.Errors.ApiError in modules
       assert {{moduleName}}.Errors.BadRequestError in modules
       assert {{moduleName}}.Errors.SerializationError in modules
+      assert {{moduleName}}.Errors.ResponseTooLargeError in modules
     end
 
     test "bhv errors 044 every error lives under the Errors namespace and the package root lists the whole tree" do
@@ -658,6 +660,12 @@ defmodule {{moduleName}}.ApiErrorTest do
       assert {{moduleName}}.Errors.NetworkError.network_error?(timeout)
       assert {{moduleName}}.Errors.ApiError.api_error?(timeout)
       refute {{moduleName}}.Errors.NetworkError.network_error?({{moduleName}}.Errors.ApiError.exception(message: "x"))
+
+      too_large = {{moduleName}}.Errors.ResponseTooLargeError.exception(status_code: 200, limit: 1024)
+      assert {{moduleName}}.Errors.ApiError.api_error?(too_large)
+      refute {{moduleName}}.Errors.NetworkError.network_error?(too_large)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(too_large)
+      assert too_large.message == "Response body exceeds the limit of 1024 bytes"
 
       serialization = %{{moduleName}}.Errors.SerializationError{message: "bad"}
       refute {{moduleName}}.Errors.ApiError.api_error?(serialization)

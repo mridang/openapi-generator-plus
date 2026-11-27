@@ -1012,6 +1012,37 @@ func TestBhvOptions068_TransportOptions_ASocksProxyIsRefusedAtConstruction(t *te
 	}
 }
 
+// The response size limit is off by default, a positive value round-trips through the builder, and zero or a negative value is refused with the canonical message.
+func TestBhvOptions069_TransportOptions_MaxResponseBytesDefaultsToNoneRoundTripsAndRefusesANonPositiveValue(t *testing.T) {
+	t.Parallel()
+	defaults, err := {{packageName}}.NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.MaxResponseBytes() != nil {
+		t.Errorf("expected no MaxResponseBytes by default, got %d", *defaults.MaxResponseBytes())
+	}
+	limit := int64(1024)
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().MaxResponseBytes(&limit).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.MaxResponseBytes() == nil || *opts.MaxResponseBytes() != 1024 {
+		t.Errorf("expected MaxResponseBytes 1024, got %v", opts.MaxResponseBytes())
+	}
+	for _, value := range []int64{0, -1} {
+		value := value
+		_, err := {{packageName}}.NewTransportOptionsBuilder().MaxResponseBytes(&value).Build()
+		if !errors.Is(err, {{packageName}}.ErrInvalidMaxResponseBytes) {
+			t.Fatalf("maxResponseBytes %d: expected ErrInvalidMaxResponseBytes, got %v", value, err)
+		}
+		want := fmt.Sprintf("invalid maxResponseBytes: must be a positive number of bytes (got %d)", value)
+		if err.Error() != want {
+			t.Errorf("maxResponseBytes %d: expected %q, got %q", value, want, err.Error())
+		}
+	}
+}
+
 // A CA certificate path that does not exist fails with an error that names the certificate and wraps the not-found cause.
 func TestBhvErrors098_TransportOptions_AMissingCaCertificateNamesThePathAndWrapsTheCause(t *testing.T) {
 	t.Parallel()

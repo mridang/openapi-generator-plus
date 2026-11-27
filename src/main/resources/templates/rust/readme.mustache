@@ -80,6 +80,8 @@ It is the way to read a response header.
 milliseconds for the whole call, redirects and retries included. A call that
 exceeds it fails with `NetworkTimeoutError`. The default is 60000 ms.
 
+`TransportOptions::builder().max_response_bytes(Some(n))` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeError` and is never retried. A streamed response is not bounded by it.
+
 ### Automatic retries
 
 

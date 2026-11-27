@@ -722,6 +722,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFileSpec(
                         "errors/stream_error.mustache", "src/errors", "stream_error.rs"),
                 new SupportingFileSpec(
+                        "errors/response_too_large_error.mustache",
+                        "src/errors",
+                        "response_too_large_error.rs"),
+                new SupportingFileSpec(
                         "errors/pagination_error.mustache", "src/errors", "pagination_error.rs"),
                 new SupportingFileSpec("paginator.mustache", "src", "paginator.rs"),
                 new SupportingFileSpec("link_header.mustache", "src", "link_header.rs"),

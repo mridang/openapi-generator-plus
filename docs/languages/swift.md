@@ -82,6 +82,7 @@ Response bodies are decoded by `URLSession`, with a bundled inflater for gzip an
 - Error types end in `Error`. Caller mistakes throw `ConfigurationError` and `OAuth2AuthorizationCodeError`. The underlying cause is available as `underlyingError`.
 - The default configuration is `Configuration.default`.
 - Pass your own `URLSession` with `TransportOptions.session(_:)`.
+- `TransportOptions` takes `maxResponseBytes` (off by default): a buffered response whose body, raw or decompressed, passes it fails with `ResponseTooLargeError` (D138); a zero or negative value throws `ConfigurationError.invalidMaxResponseBytes` at `build()`. The body is read through a delegate that counts each chunk URLSession delivers (decoded when it decoded gzip or deflate) and the task's received bytes, refuses a larger `Content-Length` up front, and cancels the task as soon as a count passes the limit; with the limit set, a session the SDK built is copied per call so the counting delegate can be its delegate.
 - The SDK never advertises a `Content-Encoding` and never raises on an unknown one. `URLSession` negotiates and decodes.
 - Initialisms are upper case (`URL`, `ID`, `HTTP`).
 - Models have a `copy(...)` method instead of a builder. For an optional property the argument is double optional, so `.some(nil)` clears it and a bare `nil` keeps it.
