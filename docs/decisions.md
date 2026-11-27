@@ -403,6 +403,12 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A reference to a media type that does not exist is left in place and the 3.1 reader reports it.
 
+## D155: A path item's summary and description document its operations
+
+**Decision.** A Path Item Object's `summary` and `description` are the summary and description of each operation under it that has none of its own; an operation's own text wins. A path item that is a `$ref` (to `components.pathItems` or another path) is inlined first, with the referencing item's own fields winning over the target's, so its text reaches the operations the same way. No template changes: every SDK already prints the operation summary and description in its generated documentation (#58).
+
+**Consequences.** Text written once on a path is shown on every operation under it. The path item's text is not shown in addition to an operation's own text.
+
 ## D158: An Example Object's `dataValue` and `serializedValue` become its value
 
 **Decision.** In a 3.2 document an Example Object's `dataValue` becomes its `value`, which is what the generated README examples and documentation read. Without a `dataValue`, a `serializedValue` under a JSON media type is parsed into the value (and kept as a string when it is not valid JSON); a `serializedValue` of a parameter, a header or a non-JSON media type is not turned into a value, because it is the serialised form and not the data. An explicit `value` always wins (#79).

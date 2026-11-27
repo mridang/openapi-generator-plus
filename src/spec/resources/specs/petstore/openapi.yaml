@@ -3743,6 +3743,9 @@ components:
 
   pathItems:
     MemoRevisions:
+      # The path item's own text (#58): every operation below has a summary
+      # of its own and no description, so each one takes this description.
+      description: Revisions of one memo, read and changed with the less common HTTP methods.
       parameters:
         - $ref: '#/components/parameters/MemoId'
       patch:

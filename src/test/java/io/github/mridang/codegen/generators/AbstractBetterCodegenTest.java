@@ -1370,4 +1370,22 @@ class AbstractBetterCodegenTest {
                 () -> assertEquals("main", configs.get(0).get("serverName")),
                 () -> assertNull(configs.get(1).get("serverName")));
     }
+
+    @Test
+    @DisplayName("a path item's summary and description reach an operation that has none, and an operation's own text wins")
+    void pathItemTextReachesOperationsWithoutTheirOwn() {
+        final AbstractBetterCodegen codegen = codegen("java");
+        final io.swagger.v3.oas.models.Operation bare = new io.swagger.v3.oas.models.Operation();
+        final io.swagger.v3.oas.models.Operation own = new io.swagger.v3.oas.models.Operation()
+                .summary("Own summary").description("Own description");
+        final io.swagger.v3.oas.models.OpenAPI openAPI = new io.swagger.v3.oas.models.OpenAPI()
+                .path("/items", new io.swagger.v3.oas.models.PathItem()
+                        .summary("Item summary").description("Item description").get(bare).post(own));
+        codegen.preprocessOpenAPI(openAPI);
+        assertAll(
+                () -> assertEquals("Item summary", bare.getSummary()),
+                () -> assertEquals("Item description", bare.getDescription()),
+                () -> assertEquals("Own summary", own.getSummary()),
+                () -> assertEquals("Own description", own.getDescription()));
+    }
 }

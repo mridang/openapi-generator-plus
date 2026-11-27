@@ -222,7 +222,9 @@ class OpenApi32ParserExtensionTest {
     void parameterReferenceIsParsed() throws URISyntaxException {
         final OpenAPI api = parse(fixturePath());
         final Parameter parameter = nn(api.getPaths().get("/ledgers/{code}")).getParameters().get(0);
-        assertEquals("#/components/parameters/LedgerCode", parameter.get$ref());
+        assertAll(
+                () -> assertEquals("#/components/parameters/LedgerCode", parameter.get$ref()),
+                () -> assertEquals("The code of the ledger book to read", parameter.getDescription()));
     }
 
     @TestFactory
@@ -236,7 +238,9 @@ class OpenApi32ParserExtensionTest {
                             () -> assertTrue(all.toLowerCase(java.util.Locale.ROOT).replace("_", "")
                                     .contains("auditledger"), "the operation is missing"),
                             () -> assertTrue(all.contains("main-region") && all.contains("spare-region"),
-                                    "the server names are missing"));
+                                    "the server names are missing"),
+                            () -> assertTrue(all.contains("One ledger book"),
+                                    "the path item summary is missing"));
                 }));
     }
 
