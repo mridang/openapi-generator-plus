@@ -85,7 +85,7 @@ It is the way to read a response header.
 `TransportOptions.builder().timeout(5000)` sets one end-to-end budget in
 milliseconds (a positive integer) for the whole call, redirects and the one
 stale-connection retry included. A call that exceeds it fails with
-`NetworkTimeoutException`; there is no default timeout.
+`NetworkTimeoutException`; the default is 60000 ms.
 
 ### Automatic retries
 
@@ -99,6 +99,8 @@ end-to-end `timeout` and never extend it: when the remaining time cannot cover
 the wait, the last response or error is returned. A thread interrupt during the
 wait raises `CancellationException`. A request whose body is a single-use `BodySource` is never
 retried, and every retry is a fresh request with the same headers.
+
+`TransportOptions.builder().maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
 
 ### Expired tokens
 
