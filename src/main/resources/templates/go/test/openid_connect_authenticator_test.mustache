@@ -1132,7 +1132,9 @@ func oidcClaims(nonce string, overrides map[string]any) map[string]any {
 // code exchange with the id_token that idTokenFor makes from the URL's nonce.
 func oidcAuthenticatorReturning(t *testing.T, idTokenFor func(nonce string) string) *oauth.OpenIdConnectAuthenticator {
 	t.Helper()
-	client := &fakeOIDCClient{responses: []fakeOIDCResponse{{body: oidcIssuerDiscovery, statusCode: 200}}}
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: oidcIssuerDiscovery, statusCode: 200},
+	}}
 	authObj := createOpenIdConnectAuthenticator()
 	authObj.SetApiClient(client)
 	authorizeURL, err := authObj.BuildAuthorizationURL("s")
@@ -1166,7 +1168,9 @@ func requireOAuth2TokenError(t *testing.T, err error, message string) {
 
 func TestBhvAuthoidc034_OpenIdConnectAuthenticator_EachAuthorizationUrlCarriesAFreshNonce(t *testing.T) {
 	t.Parallel()
-	client := &fakeOIDCClient{responses: []fakeOIDCResponse{{body: oidcIssuerDiscovery, statusCode: 200}}}
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: oidcIssuerDiscovery, statusCode: 200},
+	}}
 	authObj := createOpenIdConnectAuthenticator()
 	authObj.SetApiClient(client)
 
