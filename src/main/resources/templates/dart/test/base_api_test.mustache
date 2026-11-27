@@ -2386,6 +2386,78 @@ void main() {
       }
     });
 
+    test('bhv serializationwire 502 a form field with an Encoding Object style is joined and form-encoded', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String receivedBody = '';
+      server.listen((request) async {
+        receivedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"code":200,"type":"","message":"ok"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.setPetPreferences(
+          1,
+          const SetPetPreferencesOptions(
+            nickname: 'rex',
+            aliases: ['a b', 'c'],
+          ),
+        );
+
+        expect(receivedBody, equals('nickname=rex&aliases=a+b%7Cc'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv serializationwire 503 a multipart part carries its declared Content-Type and part headers', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String receivedBody = '';
+      server.listen((request) async {
+        receivedBody = await latin1.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"code":200,"type":"","message":"ok"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.attachPetFiles(
+          1,
+          AttachPetFilesOptions(
+            file: Uint8List.fromList([1, 2, 3]),
+            caption: 'hello',
+          ),
+        );
+
+        expect(
+            receivedBody,
+            contains('Content-Disposition: form-data; name="caption"\r\n'
+                'Content-Type: text/markdown\r\n'
+                'X-Caption-Format: commonmark\r\n\r\nhello'));
+        expect(
+            receivedBody,
+            contains('Content-Disposition: form-data; name="file"; filename="file"\r\n'
+                'Content-Type: application/octet-stream\r\n\r\n'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv operations 075 form date-time field uses the canonical stringify form', () async {
       final client = _CapturingApiClient();
       final api = PetApi(

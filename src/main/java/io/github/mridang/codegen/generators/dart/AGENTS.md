@@ -166,7 +166,7 @@ Where: `abstract_api_client.mustache` (`_proxyAuthHeader`).
 Test: `default_api_client_unit_test.mustache`.
 
 ### Query encoding is RFC 3986 with `%20` (D52, D49, D78)
-Rule: query and form-body components keep exactly `A-Za-z0-9-._~` literal and percent-encode `* ! ' ( )`; spaces are `%20` in queries. `allowReserved` leaves only the RFC 3986 query-legal reserved set literal, with `#`, `[` and `]` percent-encoded. `encodeRfc3986QueryComponent` in `value_serializer.mustache` is the one encoder; the OAuth copies are to be deleted (intended).
+Rule: query and form-body components keep exactly `A-Za-z0-9-._~` literal and percent-encode `* ! ' ( )`; spaces are `%20` in queries. `allowReserved` leaves only the RFC 3986 query-legal reserved set literal, with `#`, `[` and `]` percent-encoded. `encodeRfc3986QueryComponent` in `value_serializer.mustache` is the one encoder; the OAuth copies are to be deleted (intended). A form-urlencoded field whose Encoding Object sets `style` or `explode` is styled by `serializeStyled` like a query parameter and then form-encoded (D165); a multipart field whose Encoding Object declares a part Content-Type or fixed part headers is wrapped in `EncodedPart` (`encodedPart`), which `_buildMultipartBody` writes in place of the chosen Content-Type, followed by the headers in order (D166).
 Why: dart was the one SDK still diverging (D52). Forced exception (D78): `dart:core Uri` rewrites a literal `[`, `]` and `'` on dispatch, so the encoder output is the contract, not the final wire bytes.
 Where: `value_serializer.mustache`, `base_api.mustache`, `auth/oauth/*`.
 Test: `value_serializer_test.mustache`, `base_api_test.mustache`.

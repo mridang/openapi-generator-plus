@@ -15,6 +15,7 @@ use {{invokerPackage}}\CallObserver;
 use {{invokerPackage}}\CallOutcome;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
+use {{invokerPackage}}\EncodedPart;
 use {{invokerPackage}}\EventStream;
 use {{invokerPackage}}\HeaderSelector;
 use {{invokerPackage}}\ClientLifecycle;
@@ -1503,7 +1504,9 @@ class BaseApi
             return $body;
         }
 
-        if ($isMultipart) {
+        /* A multipart body of any subtype (form-data, mixed, related) is a part map that the
+         * transport encodes, keeping the declared subtype. */
+        if ($isMultipart || (is_array($body) && str_starts_with(strtolower($contentType ?? ''), 'multipart/'))) {
             return $body;
         }
 
@@ -1571,6 +1574,8 @@ class BaseApi
 
         if ($contentType === 'application/x-www-form-urlencoded') {
             assert(is_array($body));
+            /* A part encoding only applies to a multipart body: the form encoder sends the value. */
+            $body = array_map(static fn (mixed $value): mixed => EncodedPart::unwrap($value), $body);
             /** @var array<string, mixed> $body */
             foreach ($body as $name => $value) {
                 $values = is_array($value) && array_is_list($value) ? $value : [$value];
@@ -1629,6 +1634,7 @@ class BaseApi
     private function extractBinaryPart(array $body): mixed
     {
         foreach ($body as $value) {
+            $value = EncodedPart::unwrap($value);
             if (
                 $value instanceof \SplFileObject
                 || is_resource($value)

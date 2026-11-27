@@ -14,7 +14,7 @@ import { BodySource } from './body-source{{importFileExtension}}';
 import type { OpenedBody } from './body-source{{importFileExtension}}';
 import { ObjectSerializer, isTemporalValue } from './object-serializer{{importFileExtension}}';
 import { TransportOptions } from './transport-options{{importFileExtension}}';
-import { AllowReservedValue } from './value-serializer{{importFileExtension}}';
+import { AllowReservedValue, EncodedPart } from './value-serializer{{importFileExtension}}';
 
 /**
  * Header names that MUST be stripped when following a cross-origin
@@ -1662,16 +1662,20 @@ export abstract class AbstractApiClient implements ApiClient {
    */
   private async buildMultipartBody(formParts: Record<string, unknown>, boundary: string): Promise<Buffer> {
     const parts: Buffer[] = [];
-    for (const [name, rawValue] of Object.entries(formParts)) {
+    for (const [name, field] of Object.entries(formParts)) {
+      /* A part with a declared Content-Type or part headers (D166) arrives
+       * wrapped; a list applies the encoding to each item. */
+      const encoding = field instanceof EncodedPart ? field : null;
+      const rawValue: unknown = EncodedPart.unwrap(field);
       /* allowReserved has no effect on a multipart body: a wrapped field is
        * unwrapped and sent unchanged. */
       const value: unknown = rawValue instanceof AllowReservedValue ? rawValue.value : rawValue;
       if (Array.isArray(value)) {
         for (const item of value) {
-          parts.push(await this.multipartPart(name, item, boundary));
+          parts.push(await this.multipartPart(name, item, boundary, encoding));
         }
       } else {
-        parts.push(await this.multipartPart(name, value, boundary));
+        parts.push(await this.multipartPart(name, value, boundary, encoding));
       }
     }
     parts.push(Buffer.from(`--${boundary}--\r\n`, 'utf-8'));
@@ -1684,13 +1688,20 @@ export abstract class AbstractApiClient implements ApiClient {
    * @param name the field name
    * @param value the field value
    * @param boundary the multipart boundary string
+   * @param encoding the part Content-Type and headers the field's Encoding
+   *   Object declares, or null
    * @returns the assembled part as a Buffer
    */
-  private async multipartPart(name: string, value: unknown, boundary: string): Promise<Buffer> {
+  private async multipartPart(
+    name: string,
+    value: unknown,
+    boundary: string,
+    encoding: EncodedPart | null = null
+  ): Promise<Buffer> {
     if (Buffer.isBuffer(value)) {
       const disposition = AbstractApiClient.buildContentDisposition(name, name);
       const mimeType = AbstractApiClient.mimeTypeForFilename(name);
-      const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\nContent-Type: ${mimeType}\r\n\r\n`;
+      const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\n${AbstractApiClient.partHeaders(mimeType, encoding)}\r\n`;
       return Buffer.concat([Buffer.from(header, 'utf-8'), value, Buffer.from('\r\n', 'utf-8')]);
     }
     if (value instanceof Blob) {
@@ -1700,7 +1711,7 @@ export abstract class AbstractApiClient implements ApiClient {
       const mimeType = value.type && value.type.length > 0
         ? value.type
         : AbstractApiClient.mimeTypeForFilename(filename);
-      const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\nContent-Type: ${mimeType}\r\n\r\n`;
+      const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\n${AbstractApiClient.partHeaders(mimeType, encoding)}\r\n`;
       return Buffer.concat([Buffer.from(header, 'utf-8'), buf, Buffer.from('\r\n', 'utf-8')]);
     }
     /* A date, date-time, time or duration is a primitive in the schema, so
@@ -1722,16 +1733,42 @@ export abstract class AbstractApiClient implements ApiClient {
        */
       const json = ObjectSerializer.serialize(value);
       return Buffer.from(
-        `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\nContent-Type: application/json\r\n\r\n${json}\r\n`,
+        `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n${AbstractApiClient.partHeaders('application/json', encoding)}\r\n${json}\r\n`,
         'utf-8'
       );
     }
     AbstractApiClient.assertNoControlChars(name, 'multipart field name');
     const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n\r\n${ObjectSerializer.stringify(value)}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n${AbstractApiClient.partHeaders(null, encoding)}\r\n${ObjectSerializer.stringify(value)}\r\n`,
       'utf-8'
     );
+  }
+
+  /**
+   * The header lines of a multipart part after its Content-Disposition, each
+   * ending in CRLF: the Content-Type (the one the Encoding Object declares in
+   * place of the one the SDK chose; none for a plain text part without one),
+   * then each declared part header as `Name: value` in declaration order.
+   *
+   * @param chosenType the Content-Type the SDK chose for the part, or null
+   * @param encoding the field's declared part encoding, or null
+   * @returns the header lines
+   * @throws TypeError when a declared header holds a control character
+   */
+  private static partHeaders(chosenType: string | null, encoding: EncodedPart | null): string {
+    const contentType = encoding?.contentType ?? chosenType;
+    let lines = '';
+    if (contentType != null) {
+      AbstractApiClient.assertNoControlChars(contentType, 'multipart part Content-Type');
+      lines += `Content-Type: ${contentType}\r\n`;
+    }
+    for (const [headerName, headerValue] of encoding?.headers ?? []) {
+      AbstractApiClient.assertNoControlChars(headerName, 'multipart part header name');
+      AbstractApiClient.assertNoControlChars(headerValue, 'multipart part header value');
+      lines += `${headerName}: ${headerValue}\r\n`;
+    }
+    return lines;
   }
 
   /**

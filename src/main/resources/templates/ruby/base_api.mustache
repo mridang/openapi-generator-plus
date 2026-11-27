@@ -745,10 +745,11 @@ module {{moduleName}}
         # A body source is sent as it is read, never buffered.
         return body if body.is_a?(::{{moduleName}}::BodySource)
 
-        if content_type == 'multipart/form-data'
+        if content_type&.start_with?('multipart/')
           # allowReserved has no effect on a multipart body: each part is sent
-          # unchanged.
-          body.is_a?(Hash) ? body.transform_values { |value| unwrap_allow_reserved(value) } : body
+          # unchanged. A part's declared Content-Type and headers (an
+          # EncodedPart) stay with it for the multipart encoder.
+          body.is_a?(Hash) ? body.transform_values { |value| unwrap_multipart_value(value) } : body
         elsif raw_body || content_type&.start_with?('image/') ||
               content_type == 'application/octet-stream'
           # A format: binary body (raw_body) is the caller's bytes under
@@ -774,6 +775,7 @@ module {{moduleName}}
           pairs = body.compact.flat_map do |key, value|
             # A field whose Encoding Object sets allowReserved keeps the RFC
             # 3986 reserved characters literal, as an allowReserved query value.
+            value = unwrap_encoded_part(value)
             allow_reserved = value.is_a?(::{{moduleName}}::ValueSerializer::AllowReservedValue)
             value = unwrap_allow_reserved(value)
             items = value.is_a?(Array) || value.is_a?(Set) ? value.to_a : [value]
@@ -812,6 +814,20 @@ module {{moduleName}}
         value.is_a?(::{{moduleName}}::ValueSerializer::AllowReservedValue) ? value.value : value
       end
 
+      # The value an {::{{moduleName}}::ValueSerializer::EncodedPart} carries,
+      # or +value+ itself when it is not wrapped.
+      def unwrap_encoded_part(value)
+        value.is_a?(::{{moduleName}}::ValueSerializer::EncodedPart) ? value.value : value
+      end
+
+      # A multipart part value without its allowReserved wrapper, keeping a
+      # declared part encoding around the unwrapped value.
+      def unwrap_multipart_value(value)
+        return unwrap_allow_reserved(value) unless value.is_a?(::{{moduleName}}::ValueSerializer::EncodedPart)
+
+        ::{{moduleName}}::ValueSerializer::EncodedPart.new(unwrap_allow_reserved(value.value), value.content_type, value.headers)
+      end
+
       # Extract the single binary part from a multipart form-parts Hash so it
       # can be sent as a raw (non-multipart) request body. Operations that
       # accept both multipart/form-data and a raw binary content-type assemble
@@ -820,8 +836,9 @@ module {{moduleName}}
       # (responds to +read+) — the uploaded file — and fall back to the first
       # value when no IO-like part is present.
       def binary_part_from_form_body(form_body)
-        io_part = form_body.values.find { |v| v.respond_to?(:read) }
-        io_part || form_body.values.first
+        values = form_body.values.map { |v| unwrap_allow_reserved(unwrap_encoded_part(v)) }
+        io_part = values.find { |v| v.respond_to?(:read) }
+        io_part || values.first
       end
 
       # The type name to decode a response of +status+ into: +return_type+ itself,

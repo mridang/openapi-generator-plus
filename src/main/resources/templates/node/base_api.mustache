@@ -21,7 +21,7 @@ import { Configuration } from '../configuration{{importFileExtension}}';
 import { DefaultApiClient } from '#transport';
 import { HeaderSelector } from '../header-selector{{importFileExtension}}';
 import { ObjectSerializer, isTemporalValue } from '../object-serializer{{importFileExtension}}';
-import { AllowReservedValue, ExplodedObject, ValueSerializer } from '../value-serializer{{importFileExtension}}';
+import { AllowReservedValue, EncodedPart, ExplodedObject, ValueSerializer } from '../value-serializer{{importFileExtension}}';
 import { injectTraceContext } from '../trace-context-util{{importFileExtension}}';
 
 /**
@@ -1143,7 +1143,9 @@ export abstract class BaseApi {
         !(body instanceof Blob) &&
         !(body instanceof Uint8Array)
       ) {
-        for (const value of Object.values(body as Record<string, unknown>)) {
+        for (const field of Object.values(body as Record<string, unknown>)) {
+          /* A part with a declared encoding is wrapped; its bytes are the value. */
+          const value = EncodedPart.unwrap(field);
           if (Buffer.isBuffer(value) || value instanceof Blob || value instanceof Uint8Array) {
             return value as Buffer;
           }
@@ -1200,8 +1202,9 @@ export abstract class BaseApi {
         /* A field whose Encoding Object sets allowReserved: true arrives
          * wrapped; its values keep the RFC 3986 reserved characters literal
          * (the query allow-reserved encoder, a space as %20), and its key is
-         * encoded like any other. */
-        let value: unknown = rawValue;
+         * encoded like any other. A part encoding (D166) only shapes a
+         * multipart body, so it is unwrapped and ignored here. */
+        let value: unknown = EncodedPart.unwrap(rawValue);
         let allowReserved = false;
         if (value instanceof AllowReservedValue) {
           value = value.value;
@@ -1215,7 +1218,13 @@ export abstract class BaseApi {
           const text = scalar(key, item);
           return allowReserved ? ValueSerializer.encodeQueryAllowingReserved(text) : encodeComponent(text);
         };
-        if (Array.isArray(value)) {
+        if (value instanceof ExplodedObject) {
+          /* A styled (D165) object field exploded into one pair per property,
+           * under the property's own name. */
+          for (const [name, entry] of value.entries) {
+            pairs.push(`${encodeComponent(wellFormed(name))}=${encodeValue(entry)}`);
+          }
+        } else if (Array.isArray(value)) {
           for (const item of value) {
             if (item == null) {
               continue;

@@ -1709,6 +1709,33 @@ class DefaultApiClient:
                 disposition += f"; filename*={rfc5987}"
         return disposition
 
+    @staticmethod
+    def _apply_part_encoding(part: bytes, content_type: Optional[str], headers: Mapping[str, str]) -> bytes:
+        """Write a part's declared Content-Type and part headers (its Encoding Object).
+
+        The declared Content-Type replaces the one the part was built with, or
+        is added when it had none; each declared header then follows it, in
+        declaration order.
+
+        Args:
+            part: The encoded MIME part.
+            content_type: The declared part Content-Type, or ``None`` to keep the part's own.
+            headers: The declared part headers.
+
+        Returns:
+            The encoded MIME part with those headers.
+        """
+        head, separator, payload = part.partition(b'\r\n\r\n')
+        lines = head.decode('utf-8').split('\r\n')
+        kept = [line for line in lines if not line.lower().startswith('content-type:')]
+        own = [line for line in lines if line.lower().startswith('content-type:')]
+        if content_type is not None:
+            kept.append(f'Content-Type: {content_type}')
+        else:
+            kept.extend(own)
+        kept.extend(f'{header_name}: {header_value}' for header_name, header_value in headers.items())
+        return '\r\n'.join(kept).encode('utf-8') + separator + payload
+
     @classmethod
     def _multipart_part(cls, name: str, value: Any, boundary: str) -> bytes:
         """Build a single MIME part for multipart encoding.
@@ -1730,6 +1757,14 @@ class DefaultApiClient:
             ValueError: If the filename contains CR, LF, or NUL characters.
             TypeError: If a ``str`` is supplied where binary content is expected.
         """
+        # A part whose Encoding Object declares a Content-Type or part headers.
+        # Imported lazily for the same cycle as the model branch below.
+        from {{packageName}}.value_serializer import EncodedPart
+
+        if isinstance(value, EncodedPart):
+            return cls._apply_part_encoding(
+                cls._multipart_part(name, value.value, boundary), value.content_type, value.headers
+            )
         # (filename, content) tuples explicitly carry a filename
         if isinstance(value, tuple) and len(value) == 2:
             filename, content = value

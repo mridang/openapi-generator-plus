@@ -5409,22 +5409,173 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (resolved == null || resolved.getContent() == null) {
             return params;
         }
+        applyMultipartEncoding(resolved, params);
         final io.swagger.v3.oas.models.media.MediaType form =
                 resolved.getContent().get("application/x-www-form-urlencoded");
         if (form == null || form.getEncoding() == null) {
             return params;
         }
+        final boolean alsoMultipart = multipartMediaType(resolved) != null;
         for (final CodegenParameter param : params) {
             final io.swagger.v3.oas.models.media.Encoding encoding =
                     form.getEncoding().get(param.baseName);
-            if (encoding != null && Boolean.TRUE.equals(encoding.getAllowReserved())) {
-                if (param.vendorExtensions == null) {
-                    param.vendorExtensions = new HashMap<>();
-                }
+            if (encoding == null) {
+                continue;
+            }
+            if (param.vendorExtensions == null) {
+                param.vendorExtensions = new HashMap<>();
+            }
+            if (Boolean.TRUE.equals(encoding.getAllowReserved())) {
                 param.vendorExtensions.put("allowReserved", true);
+            }
+            // D165: style and explode of the Encoding Object write the field with the query
+            // rules. deepObject is not applied (the field keeps the default form style), and a
+            // body that may also be sent as multipart keeps the plain value, which the
+            // multipart encoder needs. The parser fills a missing style with form, which with
+            // no explode is the default form encoding, so only a different style or an
+            // explicit explode changes the field.
+            final boolean styled = encoding.getExplode() != null
+                    || (encoding.getStyle() != null
+                            && encoding.getStyle() != io.swagger.v3.oas.models.media.Encoding.StyleEnum.FORM);
+            if (styled && !alsoMultipart) {
+                final String style =
+                        encoding.getStyle() == null ? "form" : encoding.getStyle().toString();
+                if (!"deepObject".equals(style)) {
+                    param.style = style;
+                    param.isExplode = encoding.getExplode() != null
+                            ? encoding.getExplode()
+                            : "form".equals(style);
+                    param.vendorExtensions.put("formStyled", true);
+                }
             }
         }
         return params;
+    }
+
+    /** The first {@code multipart/*} media type of a request body, or null. */
+    @Nullable
+    private static io.swagger.v3.oas.models.media.MediaType multipartMediaType(
+            io.swagger.v3.oas.models.parameters.RequestBody body) {
+        if (body.getContent() == null) {
+            return null;
+        }
+        for (final Map.Entry<String, io.swagger.v3.oas.models.media.MediaType> entry
+                : body.getContent().entrySet()) {
+            if (entry.getKey().toLowerCase(Locale.ROOT).startsWith("multipart/")) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * D166: the Encoding Object of a multipart part. A single concrete {@code contentType}
+     * (no list, no wildcard) becomes the part's Content-Type ({@code partContentType}), and
+     * each declared part header with a value the document fixes (its schema's
+     * {@code default}, {@code const} or single {@code enum} value) is sent with that value
+     * ({@code partHeaders}). Content-Type and Content-Disposition in {@code headers} are
+     * ignored (the specification describes them elsewhere), and a header without a fixed
+     * value, or with a name or value that cannot be written as a header, is not sent.
+     */
+    private void applyMultipartEncoding(
+            io.swagger.v3.oas.models.parameters.RequestBody body, List<CodegenParameter> params) {
+        final io.swagger.v3.oas.models.media.MediaType multipart = multipartMediaType(body);
+        if (multipart == null || multipart.getEncoding() == null) {
+            return;
+        }
+        for (final CodegenParameter param : params) {
+            final io.swagger.v3.oas.models.media.Encoding encoding =
+                    multipart.getEncoding().get(param.baseName);
+            if (encoding == null) {
+                continue;
+            }
+            String contentType = null;
+            if (encoding.getContentType() != null) {
+                final String declared = encoding.getContentType().trim();
+                if (!declared.isEmpty() && !declared.contains(",") && !declared.contains("*")
+                        && isHeaderValue(declared)) {
+                    contentType = declared;
+                }
+            }
+            final List<Map<String, Object>> headers = new ArrayList<>();
+            if (encoding.getHeaders() != null) {
+                for (final Map.Entry<String, io.swagger.v3.oas.models.headers.Header> entry
+                        : encoding.getHeaders().entrySet()) {
+                    final String name = entry.getKey();
+                    if ("content-type".equalsIgnoreCase(name)
+                            || "content-disposition".equalsIgnoreCase(name)
+                            || !name.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+")) {
+                        continue;
+                    }
+                    final String value = fixedHeaderValue(entry.getValue());
+                    if (value == null || !isHeaderValue(value)) {
+                        continue;
+                    }
+                    final Map<String, Object> header = new LinkedHashMap<>();
+                    header.put("name", name);
+                    header.put("value", value);
+                    headers.add(header);
+                }
+            }
+            if (contentType == null && headers.isEmpty()) {
+                continue;
+            }
+            if (param.vendorExtensions == null) {
+                param.vendorExtensions = new HashMap<>();
+            }
+            param.vendorExtensions.put("partEncoded", true);
+            if (contentType != null) {
+                param.vendorExtensions.put("partContentType", contentType);
+            }
+            param.vendorExtensions.put("partHeaders", headers);
+        }
+    }
+
+    /** The value a header's schema fixes: its default, const or single enum value. */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    private String fixedHeaderValue(io.swagger.v3.oas.models.headers.Header header) {
+        io.swagger.v3.oas.models.headers.Header resolved = header;
+        if (header.get$ref() != null) {
+            resolved = org.openapitools.codegen.utils.ModelUtils.getReferencedHeader(openAPI, header);
+        }
+        if (resolved == null || resolved.getSchema() == null) {
+            return null;
+        }
+        final Schema schema = org.openapitools.codegen.utils.ModelUtils.getReferencedSchema(
+                openAPI, resolved.getSchema());
+        if (schema == null) {
+            return null;
+        }
+        Object value = schema.getDefault();
+        if (value == null) {
+            value = schema.getConst();
+        }
+        if (value == null && schema.getEnum() != null && schema.getEnum().size() == 1) {
+            value = schema.getEnum().get(0);
+        }
+        if (value == null || value instanceof Map || value instanceof List) {
+            return null;
+        }
+        return String.valueOf(value);
+    }
+
+    /**
+     * Whether a string can be written as a header value and as a string literal of every SDK:
+     * visible ASCII, space and tab, without a quote, backslash, dollar, hash, backtick or brace
+     * (which start an escape or an interpolation in one of the twelve languages).
+     */
+    private static boolean isHeaderValue(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            if (c != '\t' && (c < 0x20 || c > 0x7e)) {
+                return false;
+            }
+            if ("\"'\\$#`{}".indexOf(c) >= 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -5547,6 +5698,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final boolean allowReserved = Boolean.TRUE.equals(param.vendorExtensions.get("allowReserved"));
         d.put("pathAllowReserved", allowReserved && param.isPathParam && isOpenApi32Document());
         d.put("formAllowReserved", allowReserved && param.isFormParam);
+        // D165: a form-urlencoded field whose Encoding Object sets style or explode is written
+        // with the query rules ({{style}} and {{isExplode}} hold the encoding's values).
+        d.put("formStyled", param.isFormParam
+                && Boolean.TRUE.equals(param.vendorExtensions.get("formStyled")));
+        // D166: a multipart part with a declared Content-Type or fixed part headers.
+        final boolean partEncoded = param.isFormParam
+                && Boolean.TRUE.equals(param.vendorExtensions.get("partEncoded"));
+        d.put("partEncoded", partEncoded);
+        d.put("partContentType", partEncoded ? param.vendorExtensions.get("partContentType") : null);
+        d.put("partHeaders", partEncoded
+                ? param.vendorExtensions.get("partHeaders")
+                : Collections.emptyList());
 
         // P2 / P3 — Path serialisation kind + encoding requirement
         d.put("pathSerialisationKind", derivePathSerialisationKind(param));

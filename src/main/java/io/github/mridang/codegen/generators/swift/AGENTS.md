@@ -145,10 +145,10 @@ Where: `oauth2_token_manager.mustache`, `openid_connect_authenticator.mustache`.
 Test: `OAuth2TokenManagerTests` template.
 
 ### Request body, multipart and form encoding (D35, D36, D39, D48,  partial)
-Rule: a `format: binary` body (`rawBody`) is sent verbatim whatever the Content-Type; multipart primitives (Bool, numbers, Date, UUID, enums) are plain text parts using `ObjectSerializer.stringify` and only models become JSON parts; a form-urlencoded field that is a model, map or array of objects throws `SerializationError`; a simple-style path value of `.` or `..` throws `ConfigurationError.invalidArgument`.
+Rule: a `format: binary` body (`rawBody`) is sent verbatim whatever the Content-Type; multipart primitives (Bool, numbers, Date, UUID, enums) are plain text parts using `ObjectSerializer.stringify` and only models become JSON parts; a form-urlencoded field that is a model, map or array of objects throws `SerializationError`; a simple-style path value of `.` or `..` throws `ConfigurationError.invalidArgument`. D165: a form-urlencoded field whose Encoding Object sets `style` or `explode` (`formStyled`) is styled in the operation prelude by `ValueSerializer.serializeStyled` as for a query parameter, then form-encoded (a joined value is one field, an exploded list repeats the key). D166: a multipart field whose Encoding Object declares a part Content-Type or part headers (`partEncoded`) is wrapped in `ValueSerializer.EncodedPart`, and `BaseApi.appendMultipartField` writes the declared Content-Type in place of the chosen one and then each header in declaration order; every other reader of the form map unwraps it through `ValueSerializer.unwrapFormField`.
 Why: one rule in all twelve.
 Where: `base_api.mustache` (`isMultipartPrimitive`, `buildContentDisposition`), `value_serializer.mustache` (`requirePathParam`), `api/api.mustache`.
-Test: `BaseApiTests`, `ValueSerializerTests` templates.
+Test: `BaseApiTests`, `ValueSerializerTests` templates; D165 and D166 in `PetApiTests` (`serializationwire502`, `serializationwire503`).
 
 ### Per-operation servers and request headers (D21, D42)
 Rule: a server variable name used by two or more variants of one operation is prefixed with the variant name (petstore: `RegionalRegion`, `MirrorRegion`, `Channel`); a caller's `User-Agent` or `X-Request-ID` in any case suppresses injection.

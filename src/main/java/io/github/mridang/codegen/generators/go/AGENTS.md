@@ -217,6 +217,7 @@ Test: `test/base_api_test.mustache`.
 
 ### Form values and multipart scalars (D39, D53)
 Rule: a map, struct or array of composites in a form-urlencoded body is a `*SerializationError` ("form-urlencoded field <name> must be a scalar or array of scalars"), values with a `String` method (time, `DateTime`, uuid) count as scalars; in multipart a scalar (including date-time through `isTemporalScalar`) is a plain text part written with `stringify(v)` and only maps and model structs become `application/json` parts. Landed (batches 5 and 6).
+D165: a form field with `formStyled` goes through `serializeStyledChecked(..., "query", ...)` in the prelude and the form encoder writes the result (`TestBhvSerializationwire502...`). D166: a `partEncoded` field is wrapped with `newEncodedPart(value, contentType, [2]string{name, value}...)`; `unwrapFormValue` sees through it and `allowReservedValue`, and `createOrderedPart` writes Content-Type and the declared headers in order, because `multipart.Writer.CreatePart` sorts header names (`TestBhvSerializationwire503...`).
 Why: `%v` emitted go-specific repr text.
 Where: `base_api.mustache`.
 Test: `test/base_api_test.mustache`, pet API tests for `setPetPreferences` and `uploadPetDocument`.

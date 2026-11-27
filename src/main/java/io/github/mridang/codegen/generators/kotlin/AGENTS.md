@@ -144,7 +144,7 @@ Where: `KotlinSpec.java`.
 Test: the spec run itself.
 
 ### Multipart parts carry only Content-Disposition and Content-Type (D89)
-Rule: no `Content-Transfer-Encoding` and no per-part `Content-Length`; the field name is `name="..."` with `\` and `"` backslash-escaped; filename directive follows the one rule of D90 and iterates code points.
+Rule: no `Content-Transfer-Encoding` and no per-part `Content-Length`; the field name is `name="..."` with `\` and `"` backslash-escaped; filename directive follows the one rule of D90 and iterates code points. A field whose Encoding Object declares a part Content-Type or fixed part headers (D166) arrives as `ValueSerializer.EncodedPart`; `MultipartWriter` writes the declared Content-Type in place of its own and then each declared header in order. A form-urlencoded field whose Encoding Object sets `style` or `explode` (D165) is written through `ValueSerializer.serializeStyled` and `putQuery` like a query parameter, then encoded with the form rules.
 Why: Ktor's `formData()` and `FormBuilder.append` inject a per-part Content-Length, so kotlin writes the body itself in `MultipartWriter` and buffers it so the request has one Content-Length. This replaces the earlier D38 plan to declare the Content-Length forced; it is not a forced divergence any more.
 Where: `default_api_client.mustache` (`MultipartWriter`, `buildFilenameDirective`).
 Test: generated `DefaultApiClientTest`. The test sees the body structurally, not byte for byte, because Ktor's multipart object is opaque; this depth limit is accepted (root AGENTS.md second audit tail).

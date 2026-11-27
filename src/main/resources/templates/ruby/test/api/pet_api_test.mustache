@@ -1717,6 +1717,40 @@ describe {{moduleName}}::Api::PetApi do
       end
     end
 
+    # A form field whose Encoding Object sets style is written with the
+    # query-parameter styling, then form-encoded as one field.
+    it 'bhv_serializationwire_502 writes a styled form field through the query styling' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'rex', aliases: ['a b', 'c']
+        )
+        api.set_pet_preferences(1, options)
+        _(captured.pop).must_equal 'nickname=rex&aliases=a+b%7Cc'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # A multipart part whose Encoding Object declares a Content-Type and a
+    # part header carries both after its Content-Disposition line.
+    it 'bhv_serializationwire_503 writes the declared part Content-Type and headers of a multipart part' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = {{moduleName}}::Api::Options::AttachPetFilesOptions.new(
+          file: StringIO.new('bin'), caption: 'hello'
+        )
+        api.attach_pet_files(1, options)
+        sent = captured.pop
+        _(sent).must_include "name=\"caption\"\r\nContent-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello\r\n"
+        _(sent).must_include "name=\"file\"; filename=\"file\"\r\nContent-Type: application/octet-stream\r\n\r\nbin\r\n"
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     # Canonical behavior 2 — optional `tags`/`note` left absent are omitted
     # from the body entirely; only the required `nickname` is sent.
     it 'bhv_langruby_005 omits absent optional form properties' do

@@ -11,6 +11,7 @@ import {{invokerPackage}}.auth.Authenticator
 import {{invokerPackage}}.auth.PetStoreBearerAuthenticator
 import {{apiPackage}}.options.AddPetOptions
 import {{apiPackage}}.options.AddPetPhotosOptions
+import {{apiPackage}}.options.AttachPetFilesOptions
 import {{apiPackage}}.options.DeletePetOptions
 import {{apiPackage}}.options.FindPetsByStatusOptions
 import {{apiPackage}}.options.GetPetByNameOptions
@@ -2170,6 +2171,78 @@ class PetApiTest {
             }
 
             assertEquals("nickname=rex&route=v1.0/beta:rc1%20a%23b", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire502 a form field with an Encoding Object style is written with the query styling")
+        fun bhvSerializationwire502StyledFormFieldUsesQueryStyling() {
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(
+                        nickname = "rex",
+                        aliases = listOf("a b", "c"),
+                    ),
+                )
+            }
+
+            assertEquals("nickname=rex&aliases=a+b%7Cc", capturedBody)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationwire503 a multipart part carries its declared Content-Type and part headers")
+        fun bhvSerializationwire503MultipartPartCarriesDeclaredEncoding() {
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"saved"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.attachPetFiles(
+                    1L,
+                    AttachPetFilesOptions(
+                        _file = "img".toByteArray(Charsets.UTF_8),
+                        caption = "hello",
+                    ),
+                )
+            }
+
+            val body = capturedBody!!
+            assertTrue(
+                body.contains(
+                    "Content-Disposition: form-data; name=\"caption\"\r\n" +
+                        "Content-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello",
+                ),
+                body,
+            )
+            assertTrue(
+                body.contains(
+                    "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" +
+                        "Content-Type: application/octet-stream\r\n\r\nimg\r\n",
+                ),
+                body,
+            )
         }
 
         @Test

@@ -481,6 +481,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("raw_http_response.mustache", invokerFolder, "RawHttpResponse.php"),
             new SupportingFileSpec("raw_stream_response.mustache", invokerFolder, "RawStreamResponse.php"),
             new SupportingFileSpec("body_source.mustache", invokerFolder, "BodySource.php"),
+            new SupportingFileSpec("encoded_part.mustache", invokerFolder, "EncodedPart.php"),
             new SupportingFileSpec("paginator.mustache", invokerFolder, "Paginator.php"),
             new SupportingFileSpec("page.mustache", invokerFolder, "Page.php"),
             new SupportingFileSpec("link_header.mustache", invokerFolder, "LinkHeader.php"),

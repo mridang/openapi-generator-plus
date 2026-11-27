@@ -383,26 +383,31 @@ class Psr18ApiClient extends AbstractApiClient
             $quotedName = self::escapeMultipartFieldName((string) $name);
             $values = is_array($value) ? $value : [$value];
             foreach ($values as $v) {
-                $out .= '--' . $boundary . $crlf;
+                /* A part whose Encoding Object declares a Content-Type or part headers. */
+                $encoding = null;
+                if ($v instanceof EncodedPart) {
+                    $encoding = $v;
+                    $v = $v->value;
+                }
+                $disposition = 'form-data; name="' . $quotedName . '"';
+                $partType = null;
                 /* A primitive (scalar, date-time, enum, uuid, duration) is a plain
                  * text part in its stringify form with no part Content-Type; only
                  * a model or map is an application/json part. */
                 if (ObjectSerializer::isPrimitiveValue($v)) {
-                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
-                    $out .= ObjectSerializer::stringify($v) . $crlf;
+                    $content = ObjectSerializer::stringify($v);
                 } elseif (
                     is_object($v)
                     && !($v instanceof \SplFileObject)
                     && !($v instanceof \Psr\Http\Message\StreamInterface)
                 ) {
-                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf;
-                    $out .= 'Content-Type: application/json' . $crlf . $crlf;
-                    $out .= ObjectSerializer::serialize($v) . $crlf;
+                    $partType = 'application/json';
+                    $content = ObjectSerializer::serialize($v);
                 } elseif ($v instanceof \SplFileObject) {
                     $path = $v->getRealPath();
                     $filename = $v->getFilename();
                     self::validateMultipartFilename($filename);
-                    $mime = $this->guessMimeType($path !== false ? $path : null, $filename);
+                    $partType = $this->guessMimeType($path !== false ? $path : null, $filename);
                     $source = $path !== false ? $path : $v->getPathname();
                     $content = @file_get_contents($source);
                     if ($content === false) {
@@ -410,10 +415,7 @@ class Psr18ApiClient extends AbstractApiClient
                             sprintf('Failed to read multipart file "%s"', $source)
                         );
                     }
-                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"; '
-                        . self::buildFilenameDirective($filename) . $crlf;
-                    $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
-                    $out .= $content . $crlf;
+                    $disposition .= '; ' . self::buildFilenameDirective($filename);
                 } elseif (
                     is_resource($v)
                     || $v instanceof \Psr\Http\Message\StreamInterface
@@ -430,15 +432,25 @@ class Psr18ApiClient extends AbstractApiClient
                      * multipart contract. */
                     $filename = (string) $name;
                     self::validateMultipartFilename($filename);
-                    $mime = $this->guessMimeType(null, $filename);
-                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"; '
-                        . self::buildFilenameDirective($filename) . $crlf;
-                    $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
-                    $out .= $content . $crlf;
+                    $partType = $this->guessMimeType(null, $filename);
+                    $disposition .= '; ' . self::buildFilenameDirective($filename);
                 } else {
-                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
-                    $out .= $crlf;
+                    $content = '';
                 }
+                /* A declared part Content-Type replaces the chosen one, and the declared
+                 * part headers follow it in declaration order. */
+                if ($encoding !== null && $encoding->contentType !== null) {
+                    $partType = $encoding->contentType;
+                }
+                $out .= '--' . $boundary . $crlf;
+                $out .= 'Content-Disposition: ' . $disposition . $crlf;
+                if ($partType !== null) {
+                    $out .= 'Content-Type: ' . $partType . $crlf;
+                }
+                foreach ($encoding !== null ? $encoding->headers : [] as $headerName => $headerValue) {
+                    $out .= $headerName . ': ' . $headerValue . $crlf;
+                }
+                $out .= $crlf . $content . $crlf;
             }
         }
         $out .= '--' . $boundary . '--' . $crlf;

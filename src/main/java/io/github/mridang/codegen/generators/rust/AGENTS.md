@@ -193,7 +193,7 @@ Where: `base_api.mustache`, `api/api.mustache`.
 Test: `test/base_api_test.mustache`.
 
 ### Form values and multipart order (D39, D53)
-Rule: `form_scalar_to_string` returns a `Result` and rejects an object or nested array with `SerializationError` "form-urlencoded field <name> must be a scalar or array of scalars"; null array elements are skipped. Multipart parts are an ordered `Vec<(String, MultipartValue)>`, not a `HashMap`.
+Rule: `form_scalar_to_string` returns a `Result` and rejects an object or nested array with `SerializationError` "form-urlencoded field <name> must be a scalar or array of scalars"; null array elements are skipped. Multipart parts are an ordered `Vec<(String, MultipartValue)>`, not a `HashMap`. A form field whose Encoding Object declares `style`/`explode` (D165) is styled by `value_serializer::styled_form_pairs` (the query rules) and the result is form-encoded as text (`serializationwire_502`). A multipart field whose Encoding Object declares a part Content-Type or fixed part headers (D166) is wrapped in `MultipartValue::Encoded` (built by `MultipartValue::encoded`), whose Content-Type replaces the one `append_multipart_part` would choose and whose headers follow it in order (`serializationwire_503`).
 Why: `other.to_string()` emitted rust-specific repr; `HashMap` made part order nondeterministic.
 Where: `base_api.mustache`, `api_client.mustache`, `default_api_client.mustache`, `api/api.mustache`.
 Test: `test/base_api_test.mustache`, pet API tests for `setPetPreferences`.

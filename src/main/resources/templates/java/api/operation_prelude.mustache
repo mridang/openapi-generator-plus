@@ -150,11 +150,21 @@
         Map<String, Object> formBody = new LinkedHashMap<>();
 {{#formParams}}
 {{#required}}
-        formBody.put("{{baseName}}", {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options.{{paramName}}(), true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}(){{/vendorExtensions.param.formAllowReserved}});
+{{#vendorExtensions.param.formStyled}}
+        ValueSerializer.putQuery(formBody, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", null, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}});
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+        formBody.put("{{baseName}}", {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart(options.{{paramName}}(), {{#vendorExtensions.param.partContentType}}"{{#lambda.javaString}}{{{vendorExtensions.param.partContentType}}}{{/lambda.javaString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, java.util.List.of({{#vendorExtensions.param.partHeaders}}java.util.Map.entry("{{#lambda.javaString}}{{{name}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{value}}}{{/lambda.javaString}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}})){{/vendorExtensions.param.partEncoded}}{{^vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options.{{paramName}}(), true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}(){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.partEncoded}});
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
-            formBody.put("{{baseName}}", {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options.{{paramName}}(), true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}(){{/vendorExtensions.param.formAllowReserved}});
+{{#vendorExtensions.param.formStyled}}
+            ValueSerializer.putQuery(formBody, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", null, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}});
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+            formBody.put("{{baseName}}", {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart(options.{{paramName}}(), {{#vendorExtensions.param.partContentType}}"{{#lambda.javaString}}{{{vendorExtensions.param.partContentType}}}{{/lambda.javaString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, java.util.List.of({{#vendorExtensions.param.partHeaders}}java.util.Map.entry("{{#lambda.javaString}}{{{name}}}{{/lambda.javaString}}", "{{#lambda.javaString}}{{{value}}}{{/lambda.javaString}}"){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}})){{/vendorExtensions.param.partEncoded}}{{^vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options.{{paramName}}(), true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}(){{/vendorExtensions.param.formAllowReserved}}{{/vendorExtensions.param.partEncoded}});
+{{/vendorExtensions.param.formStyled}}
         }
 {{/required}}
 {{/formParams}}

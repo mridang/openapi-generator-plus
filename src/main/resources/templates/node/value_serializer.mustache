@@ -501,6 +501,26 @@ export class ValueSerializer {
   }
 
   /**
+   * Wraps a multipart field value in an {@link EncodedPart} carrying the
+   * part Content-Type and part headers its Encoding Object declares
+   * (OpenAPI `encoding.contentType` and `encoding.headers`). The multipart
+   * encoder unwraps it; every other consumer of the form map sees the value.
+   *
+   * @param value the field value (a list applies the encoding to each item)
+   * @param contentType the declared part Content-Type, or null to keep the
+   *   one the SDK chooses
+   * @param headers the declared part headers, in declaration order
+   * @returns the wrapped value
+   */
+  static encodedPart(
+    value: unknown,
+    contentType: string | null,
+    headers: ReadonlyArray<readonly [string, string]>
+  ): EncodedPart {
+    return new EncodedPart(value, contentType, headers);
+  }
+
+  /**
    * Serialize a deepObject-style query parameter.
    *
    * Produces a record of flattened keys in the form `paramName[key]` to
@@ -536,6 +556,31 @@ export class ValueSerializer {
  */
 export class AllowReservedValue {
   constructor(readonly value: string | string[] | ExplodedObject) {}
+}
+
+/**
+ * A multipart field value with the part Content-Type and part headers its
+ * Encoding Object declares. Produced by {@link ValueSerializer.encodedPart};
+ * the multipart encoder writes the declared Content-Type in place of the one
+ * it would choose, then each header as `Name: value` in declaration order.
+ */
+export class EncodedPart {
+  constructor(
+    readonly value: unknown,
+    readonly contentType: string | null,
+    readonly headers: ReadonlyArray<readonly [string, string]>
+  ) {}
+
+  /**
+   * The field value without the part encoding, for any consumer of the form
+   * map other than the multipart encoder.
+   *
+   * @param value a form map value, wrapped or not
+   * @returns the value inside an {@link EncodedPart}, or `value` itself
+   */
+  static unwrap(value: unknown): unknown {
+    return value instanceof EncodedPart ? value.value : value;
+  }
 }
 
 /**

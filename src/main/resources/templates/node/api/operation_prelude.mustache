@@ -143,7 +143,12 @@
     const formBody: Record<string, unknown> = {};
 {{#formParams}}
     if (options?.{{paramName}} != null) {
-      formBody['{{baseName}}'] = {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', {{/vendorExtensions.param.formAllowReserved}}{{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}{{#vendorExtensions.param.formAllowReserved}}, 'form', '{{{dataType}}}', null, 'form', true), true){{/vendorExtensions.param.formAllowReserved}};
+{{#vendorExtensions.param.formStyled}}
+      formBody['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}, 'query', '{{{dataType}}}', null, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}});
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+      formBody['{{baseName}}'] = {{#vendorExtensions.param.partEncoded}}ValueSerializer.encodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', {{/vendorExtensions.param.formAllowReserved}}{{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}{{#items}}{{#isDate}}ValueSerializer.stringifyDates({{/isDate}}{{/items}}options.{{paramName}}{{#items}}{{#isDate}}){{/isDate}}{{/items}}{{/isDate}}{{#vendorExtensions.param.formAllowReserved}}, 'form', '{{{dataType}}}', null, 'form', true), true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}'{{{vendorExtensions.param.partContentType}}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}['{{name}}', '{{{value}}}']{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}};
+{{/vendorExtensions.param.formStyled}}
     }
 {{/formParams}}
 {{#vendorExtensions.op.hasContentTypeSelector}}

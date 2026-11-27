@@ -437,8 +437,9 @@ abstract class BaseApi {
                             body is BodySource ||
                             contentType.startsWith("image/") ||
                             "application/octet-stream" == contentType -> body
-                        "multipart/form-data" == contentType && body is Map<*, *> ->
-                            // allowReserved has no effect on a multipart part: send the value unchanged.
+                        contentType.startsWith("multipart/") && body is Map<*, *> ->
+                            /* allowReserved has no effect on a multipart part: send the value unchanged.
+                             * A declared part encoding stays wrapped for the multipart writer. */
                             body.mapValues { (_, value) ->
                                 if (value is ValueSerializer.AllowReservedValue) value.value else value
                             }
@@ -455,6 +456,8 @@ abstract class BaseApi {
                                     value = value.value
                                     allowReserved = true
                                 }
+                                // A multipart part encoding has no meaning in a form-urlencoded body.
+                                value = ValueSerializer.unwrapFormValue(value)
                                 // Optional/absent fields are passed as null and must be
                                 // OMITTED from the wire body (parity rule 2), not encoded
                                 // as the literal string "null".
@@ -991,7 +994,8 @@ abstract class BaseApi {
      * @throws IllegalArgumentException if no binary part is present
      */
     private fun extractBinaryPart(formBody: Map<*, *>): Any {
-        for (value in formBody.values) {
+        for (wrapped in formBody.values) {
+            val value = ValueSerializer.unwrapFormValue(wrapped)
             if (value is ByteArray) {
                 return value
             }

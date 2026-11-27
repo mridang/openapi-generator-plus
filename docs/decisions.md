@@ -463,6 +463,18 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** The petstore's form operation `setPetPreferences` gained the optional field `route` with that encoding (`serializationwire501` in all twelve); the path rule is tested on the serializer (`serializationparam503`) and rendered from the 3.2 fixture.
 
+## D165: A form field's Encoding Object `style` and `explode` are applied
+
+**Decision.** A field of an `application/x-www-form-urlencoded` body whose Encoding Object declares `explode`, or a `style` other than `form`, is written in all twelve SDKs with the styling a query parameter of that style and explode uses (`form`, `spaceDelimited`, `pipeDelimited`), and the result is then encoded with the form rules: a joined value is one field (`aliases=a+b%7Cc` for `pipeDelimited`), an exploded list repeats the key. `allowReserved` still applies as in D164. A field without such an encoding keeps the canonical form encoding. `deepObject` is not applied (the field keeps the default form style), and a body that also declares a multipart media type keeps its plain values, because the same field map feeds the multipart encoder. The parser fills a missing `style` with `form`, so a lone `style: form` is the default and changes nothing (#75).
+
+**Consequences.** The petstore form operation `setPetPreferences` gained the field `aliases` with `style: pipeDelimited` (`serializationwire502` in all twelve).
+
+## D166: A multipart part carries its declared Content-Type and fixed part headers
+
+**Decision.** A part of a `multipart/*` body whose Encoding Object declares one concrete `contentType` (not a list, no wildcard) is sent with that Content-Type in all twelve SDKs, replacing the type the SDK would choose (a text part, which has none, gets it; a file part's detected type is replaced). Each part header the Encoding Object declares is sent after the Content-Type, in declaration order, when the document fixes its value: the schema's `default`, its `const` or a single `enum` value. A header without such a value is not sent, since a call has no argument for it; `Content-Type` and `Content-Disposition` in `headers` are ignored, as the specification says; a name that is not a token, or a value with a control character, a quote, a backslash, `$`, `#`, a backtick or a brace, is not sent (the value is written into each SDK as a string literal). A list part applies the encoding to each item. The generator wraps such a value in each language's encoded-part wrapper, beside the D164 allow-reserved wrapper, and every other consumer of the field map sees through it. Caller-supplied part header values would need a new argument per part header in every SDK and are left for a later, additive change (#74).
+
+**Consequences.** The petstore `attachPetFiles` (multipart/mixed) declares a `text/markdown` caption with the header `X-Caption-Format: commonmark` (`serializationwire503` in all twelve). Java, Kotlin, PHP, Ruby and Elixir sent a `multipart/mixed` body as JSON before; every `multipart/*` subtype now goes through the multipart encoder.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with a missing required property or a `format: uri` that is not absolute fails when it is decoded; an enum value the SDK does not know decodes to the catch-all member. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

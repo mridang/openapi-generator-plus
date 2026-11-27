@@ -3349,3 +3349,5 @@ serializationparam501 | A style: cookie value is written as RFC 6265 pairs and n
 serializationparam502 | A style: cookie value holding a character outside the RFC 6265 cookie-octet set, such as a space, a semicolon or a comma inside an item, is refused with the error that names the parameter
 serializationparam503 | A path value with allowReserved keeps '/' and the other path-legal reserved characters literal, and still percent-encodes '?', '#', '[', ']', '%' and a space
 serializationwire501 | A form-urlencoded field whose Encoding Object sets allowReserved keeps the query-legal reserved characters literal, while the other fields of the form are encoded as before
+serializationwire502 | A form-urlencoded field whose Encoding Object declares a style, such as pipeDelimited, is written with that style's separator and the form rules, while the other fields of the form are encoded as before
+serializationwire503 | A multipart part whose Encoding Object declares a Content-Type and a part header with a fixed value is sent with that Content-Type and that header after its Content-Disposition

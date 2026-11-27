@@ -224,11 +224,41 @@
         val formBody = mutableMapOf<String, Any?>()
 {{#formParams}}
 {{#required}}
+{{#vendorExtensions.param.formStyled}}
+        ValueSerializer.putQuery(formBody, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", null, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}})
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+{{#vendorExtensions.param.partEncoded}}
+        formBody["{{baseName}}"] =
+            ValueSerializer.encodedPart(
+                options.{{paramName}},
+                {{#vendorExtensions.param.partContentType}}"{{#lambda.kotlinString}}{{{vendorExtensions.param.partContentType}}}{{/lambda.kotlinString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}},
+                linkedMapOf({{#vendorExtensions.param.partHeaders}}"{{#lambda.kotlinString}}{{{name}}}{{/lambda.kotlinString}}" to "{{#lambda.kotlinString}}{{{value}}}{{/lambda.kotlinString}}"{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}),
+            )
+{{/vendorExtensions.param.partEncoded}}
+{{^vendorExtensions.param.partEncoded}}
         formBody["{{baseName}}"] = {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options.{{paramName}}, true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options.{{paramName}}{{/vendorExtensions.param.formAllowReserved}}
+{{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{^required}}
         if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
+{{#vendorExtensions.param.formStyled}}
+            ValueSerializer.putQuery(formBody, "{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "query", "{{{dataType}}}", null, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}})
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+{{#vendorExtensions.param.partEncoded}}
+            formBody["{{baseName}}"] =
+                ValueSerializer.encodedPart(
+                    options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}},
+                    {{#vendorExtensions.param.partContentType}}"{{#lambda.kotlinString}}{{{vendorExtensions.param.partContentType}}}{{/lambda.kotlinString}}"{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}null{{/vendorExtensions.param.partContentType}},
+                    linkedMapOf({{#vendorExtensions.param.partHeaders}}"{{#lambda.kotlinString}}{{{name}}}{{/lambda.kotlinString}}" to "{{#lambda.kotlinString}}{{{value}}}{{/lambda.kotlinString}}"{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}),
+                )
+{{/vendorExtensions.param.partEncoded}}
+{{^vendorExtensions.param.partEncoded}}
             formBody["{{baseName}}"] = {{#vendorExtensions.param.formAllowReserved}}ValueSerializer.maybeAllowReserved(options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, true){{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}{{/vendorExtensions.param.formAllowReserved}}
+{{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
         }
 {{/required}}
 {{/formParams}}

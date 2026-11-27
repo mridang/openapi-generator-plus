@@ -311,7 +311,9 @@ Test: `test_default_api_client.mustache` (`TestHttpCompression`), `test_default_
 
 ### multipart/* bodies
 Rule: every `multipart/*` content type builds the parts envelope; the transport writes `<declared type>; boundary=...` (only a token matching `multipart/[a-z0-9!#$&^_.+-]+` is taken over from the caller header, anything else falls back to `multipart/form-data`). The header selector passes a non-form-data multipart subtype through to the transport.
-Where: `base_api.mustache`, `header_selector.mustache`, `default_api_client.mustache`.
+D165: a form-urlencoded field whose Encoding Object sets `style` or `explode` (`formStyled`) is written by the operation prelude through `serialize_styled(..., 'query', ...)` and `query_entries`, so a joined value is one field encoded with the form rules and an exploded list repeats the key.
+D166: a multipart field whose Encoding Object declares a Content-Type or fixed part headers (`partEncoded`) is wrapped in `EncodedPart` (`value_serializer`, beside `AllowReservedValue`); `DefaultApiClient._apply_part_encoding` writes the declared Content-Type in place of the part's own and then each header, a list applies it per item, and the form-urlencoded encoder, the binary-part extraction and `_is_replayable` see the plain value.
+Where: `base_api.mustache`, `header_selector.mustache`, `default_api_client.mustache`, `api/operation_prelude.mustache`, `value_serializer.mustache`.
 Test: `test_base_api.mustache`, `test_header_selector.mustache`, `test_default_api_client_unit.mustache`.
 
 ### File header

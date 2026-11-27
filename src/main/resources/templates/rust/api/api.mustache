@@ -919,6 +919,9 @@ impl {{classname}} {
          *   - text arrays               -> List(Text ...) (repeated parts);
          *   - objects / scalars         -> Text;
          *   - absent optional fields    -> omitted entirely.
+         * A field whose Encoding Object declares a part Content-Type or part
+         * headers is wrapped in MultipartValue::Encoded, which the client writes
+         * in place of the Content-Type it would choose (D166).
          * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
         let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
 {{#vendorExtensions.op.requiredMultipartBody}}
@@ -937,26 +940,26 @@ impl {{classname}} {
 {{#required}}
 {{#isArray}}
 {{#items.isFile}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::List(opts.{{paramName}}.iter().map(|b| MultipartValue::Bytes(b.clone())).collect())));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::List(opts.{{paramName}}.iter().map(|b| MultipartValue::Bytes(b.clone())).collect()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/items.isFile}}
 {{^items.isFile}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::List(opts.{{paramName}}.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect())));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::List(opts.{{paramName}}.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/items.isFile}}
 {{/isArray}}
 {{^isArray}}
 {{#isFile}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::Bytes(opts.{{paramName}}.clone())));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Bytes(opts.{{paramName}}.clone()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isFile}}
 {{^isFile}}
 {{#isPrimitiveType}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}}))));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}})){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isEnumRef}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}}))));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Text(object_serializer::stringify(&opts.{{paramName}})){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isEnumRef}}
 {{^isEnumRef}}
-            multipart.push(("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(&opts.{{paramName}})?)));
+            multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Json(object_serializer::serialize(&opts.{{paramName}})?){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isEnumRef}}
 {{/isPrimitiveType}}
 {{/isFile}}
@@ -966,26 +969,26 @@ impl {{classname}} {
             if let Some(ref val) = opts.{{paramName}} {
 {{#isArray}}
 {{#items.isFile}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::List(val.iter().map(|b| MultipartValue::Bytes(b.clone())).collect())));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::List(val.iter().map(|b| MultipartValue::Bytes(b.clone())).collect()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/items.isFile}}
 {{^items.isFile}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::List(val.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect())));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::List(val.iter().map(|v| MultipartValue::Text(object_serializer::stringify(v))).collect()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/items.isFile}}
 {{/isArray}}
 {{^isArray}}
 {{#isFile}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::Bytes(val.clone())));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Bytes(val.clone()){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isFile}}
 {{^isFile}}
 {{#isPrimitiveType}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(val))));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Text(object_serializer::stringify(val)){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
 {{#isEnumRef}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::Text(object_serializer::stringify(val))));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Text(object_serializer::stringify(val)){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isEnumRef}}
 {{^isEnumRef}}
-                multipart.push(("{{baseName}}".to_string(), MultipartValue::Json(object_serializer::serialize(val)?)));
+                multipart.push(("{{baseName}}".to_string(), {{#vendorExtensions.param.partEncoded}}MultipartValue::encoded({{/vendorExtensions.param.partEncoded}}MultipartValue::Json(object_serializer::serialize(val)?){{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}Some("{{{.}}}"){{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}None{{/vendorExtensions.param.partContentType}}, &[{{#vendorExtensions.param.partHeaders}}("{{name}}", r#"{{{value}}}"#){{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}));
 {{/isEnumRef}}
 {{/isPrimitiveType}}
 {{/isFile}}
@@ -1045,11 +1048,34 @@ impl {{classname}} {
                 return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
             }
 {{/isString}}
+{{#vendorExtensions.param.formStyled}}
+            /* D165: the Encoding Object declares style/explode, so the field is
+             * styled like a query parameter and the result goes in as text. */
+{{#isArray}}
+            let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+            for (k, v) in value_serializer::styled_form_pairs("{{baseName}}", &opts.{{paramName}}, {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}}, "{{style}}", {{isExplode}})? {
+                form_pairs.push((k, serde_json::Value::String(v), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
+            }
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
             form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(&opts.{{paramName}})?, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{^required}}
             if let Some(ref val) = opts.{{paramName}} {
+{{#vendorExtensions.param.formStyled}}
+                /* D165: styled like a query parameter, see the required branch. */
+{{#isArray}}
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+{{/isArray}}
+                for (k, v) in value_serializer::styled_form_pairs("{{baseName}}", val, {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}}, "{{style}}", {{isExplode}})? {
+                    form_pairs.push((k, serde_json::Value::String(v), {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
+                }
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
                 form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(val)?, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}));
+{{/vendorExtensions.param.formStyled}}
             }
 {{/required}}
 {{/formParams}}

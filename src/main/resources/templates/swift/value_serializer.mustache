@@ -264,6 +264,50 @@ internal enum ValueSerializer {
         return AllowReservedValue(value: value)
     }
 
+    /// Wraps a multipart field whose Encoding Object declares a part
+    /// Content-Type or part headers. Produced by
+    /// ``encodedPart(_:contentType:headers:)`` and unwrapped by the multipart
+    /// encoder, which writes `contentType` in place of the Content-Type it would
+    /// choose and then each header, in declaration order, after it. A list
+    /// value applies the encoding to each of its parts.
+    struct EncodedPart {
+        let value: Any
+        let contentType: String?
+        let headers: [(name: String, value: String)]
+    }
+
+    /// Wraps `value` in an ``EncodedPart``; a nil value stays nil.
+    ///
+    /// - Parameters:
+    ///   - value: The form field value, possibly already wrapped.
+    ///   - contentType: The declared part Content-Type, or nil to keep the one
+    ///     the encoder chooses.
+    ///   - headers: The declared part headers, in declaration order.
+    /// - Returns: The value wrapped for the multipart encoder, or nil.
+    static func encodedPart(
+        _ value: Any?, contentType: String?, headers: [(name: String, value: String)]
+    ) -> Any? {
+        guard let value = value else {
+            return nil
+        }
+        return EncodedPart(value: value, contentType: contentType, headers: headers)
+    }
+
+    /// Returns the value inside the ``EncodedPart`` and ``AllowReservedValue``
+    /// wrappers of a form field, with the part encoding when there is one.
+    ///
+    /// - Parameter field: The form field as the operation stored it.
+    /// - Returns: The bare value, whether it allows reserved characters, and
+    ///   the part encoding.
+    static func unwrapFormField(_ field: Any) -> (value: Any, allowReserved: Bool, part: EncodedPart?) {
+        let part = field as? EncodedPart
+        let inner = part?.value ?? field
+        if let reserved = inner as? AllowReservedValue {
+            return (reserved.value, true, part)
+        }
+        return (inner, false, part)
+    }
+
     /// Wraps a query value of an `allowEmptyValue` parameter so the query-string
     /// builder sends an empty string as `key=` instead of leaving the key out.
     struct AllowEmptyValue {

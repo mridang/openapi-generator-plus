@@ -1384,7 +1384,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     /**
      * Whether any operation serializes a parameter through ValueSerializer:
      * every path, header and cookie parameter does, and so does every query
-     * parameter except one sent as JSON content.
+     * parameter except one sent as JSON content, and so does a form field that
+     * is a date, allows reserved characters, is styled (D165) or carries a part
+     * encoding (D166).
      */
     @SuppressWarnings("unchecked")
     private static boolean usesValueSerializer(OperationsMap objs) {
@@ -1398,6 +1400,15 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             }
             for (final CodegenParameter p : op.queryParams) {
                 if (p.getContent() == null || p.getContent().isEmpty()) {
+                    return true;
+                }
+            }
+            for (final CodegenParameter p : op.formParams) {
+                if (p.isDate
+                        || (p.items != null && p.items.isDate)
+                        || Boolean.TRUE.equals(p.vendorExtensions.get("allowReserved"))
+                        || Boolean.TRUE.equals(p.vendorExtensions.get("formStyled"))
+                        || Boolean.TRUE.equals(p.vendorExtensions.get("partEncoded"))) {
                     return true;
                 }
             }

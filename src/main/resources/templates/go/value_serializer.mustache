@@ -151,6 +151,47 @@ func maybeAllowReserved(value any, allowReserved bool) any {
 	return allowReservedValue{value: value}
 }
 
+// encodedPart wraps a multipart field value with what the field's Encoding
+// Object declares: the part Content-Type (empty when none is declared) and the
+// part headers, in declaration order. The multipart encoder writes them on the
+// part (on each part, for a list value); every other reader of the form map
+// sees through the wrapper to the value.
+type encodedPart struct {
+	value       any
+	contentType string
+	headers     [][2]string
+}
+
+// newEncodedPart wraps value in an encodedPart. A nil value is never wrapped,
+// so it is still omitted from the body.
+func newEncodedPart(value any, contentType string, headers ...[2]string) any {
+	if value == nil {
+		return nil
+	}
+	return encodedPart{value: value, contentType: contentType, headers: headers}
+}
+
+// unwrapFormValue returns the value of a form field with its allowReserved and
+// encodedPart wrappers removed, whether allowReserved was set, and the part
+// encoding (nil when none is declared).
+func unwrapFormValue(value any) (any, bool, *encodedPart) {
+	allowReserved := false
+	var part *encodedPart
+	for {
+		switch wrapped := value.(type) {
+		case allowReservedValue:
+			allowReserved = true
+			value = wrapped.value
+		case encodedPart:
+			declared := wrapped
+			part = &declared
+			value = wrapped.value
+		default:
+			return value, allowReserved, part
+		}
+	}
+}
+
 // pathReservedOctets maps the upper-case hex of each percent-encoded octet that
 // allowReservedInPath turns back into its literal reserved character.
 var pathReservedOctets = map[string]byte{

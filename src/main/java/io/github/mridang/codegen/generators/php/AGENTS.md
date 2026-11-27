@@ -247,9 +247,10 @@ Test: `BaseApiTest`.
 
 ### Request bodies and multipart (D35, D36, D39, D89, R-multipart-filename)
 Rule: a binary request body is a `BodySource` and is sent verbatim, as it is read, for any content type (see "Streaming: uploads"; the `\SplFileObject` or resource drain runs only for a binary part of a multipart map); multipart scalar parts are plain text parts, `DateTimeInterface`, `BackedEnum` and uuid objects count as scalars and only models are `application/json` parts; no part carries `Content-Transfer-Encoding` (a `DataPart` subclass overrides the prepared headers); x-www-form-urlencoded rejects nested objects; file parts send a real filename and sniffed MIME.
+A form-urlencoded field whose Encoding Object sets `style` or `explode` (`formStyled`, D165) is written into the form map through `ValueSerializer::serializeStyled(..., 'query', ...)` and `putQueryParam`, so a joined value is one field encoded with the form rules and an exploded list repeats the key. A multipart field whose Encoding Object declares a Content-Type or fixed part headers (`partEncoded`, D166) is wrapped by `ValueSerializer::encodedPart` in `EncodedPart` (item by item for a list); both transports write the declared Content-Type in place of the chosen one and then each header in declaration order, the form encoder and `extractBinaryPart` look through it with `EncodedPart::unwrap`, and `serializeBody` hands a part map of any `multipart/*` subtype to the transport.
 Why: identical multipart bytes; changing file handles to `application/octet-stream` would break php's published `Options` API.
-Where: `base_api.mustache`, `default_api_client.mustache`, `psr18_api_client.mustache`.
-Test: `BaseApiTest`, `DefaultApiClientTest`, `MultipartModelPart` fixture.
+Where: `base_api.mustache`, `default_api_client.mustache`, `psr18_api_client.mustache`, `encoded_part.mustache`, `api/operation_prelude.mustache` (and its copy in `api/api.mustache`).
+Test: `BaseApiTest` (serializationwire 502, 503), `DefaultApiClientTest`, `MultipartModelPart` fixture.
 
 ### Required string parameters and error naming (D28, R-empty-required)
 Rule: a required string parameter (path, query, header, form, cookie) must be non-empty, else `\InvalidArgumentException("Missing the required parameter '<name>' when calling <Class>.<operation>")`, naming the caller-facing `{{paramName}}`; the exception is a query parameter with `allowEmptyValue: true`. A null required Options object reports the same message.

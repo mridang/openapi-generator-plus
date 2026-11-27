@@ -125,6 +125,41 @@ internal static class ValueSerializer
     public sealed record AllowReservedValue(object Value);
 
     /// <summary>
+    /// Wraps a multipart field value whose Encoding Object declares a part
+    /// Content-Type and/or part headers. The multipart encoder unwraps it: the
+    /// declared Content-Type replaces the one the SDK would choose, and each
+    /// header is written after it, in declaration order. A list value applies
+    /// the encoding to each item. Every other reader of the form map unwraps it
+    /// and uses <c>Value</c> unchanged.
+    /// </summary>
+    /// <param name="Value">The field value (possibly an <see cref="AllowReservedValue"/>).</param>
+    /// <param name="ContentType">The declared part Content-Type, or null to keep the SDK's choice.</param>
+    /// <param name="Headers">The declared part headers, in declaration order.</param>
+    public sealed record EncodedPart(
+        object Value,
+        string? ContentType,
+        IReadOnlyList<KeyValuePair<string, string>> Headers);
+
+    /// <summary>
+    /// Removes the <see cref="EncodedPart"/> and <see cref="AllowReservedValue"/>
+    /// wrappers from a form field value.
+    /// </summary>
+    /// <param name="value">The form field value, wrapped or not.</param>
+    /// <returns>The bare value.</returns>
+    public static object? UnwrapFormValue(object? value)
+    {
+        if (value is EncodedPart part)
+        {
+            value = part.Value;
+        }
+        if (value is AllowReservedValue reserved)
+        {
+            value = reserved.Value;
+        }
+        return value;
+    }
+
+    /// <summary>
     /// Wraps <paramref name="value"/> in an <see cref="AllowReservedValue"/> when
     /// the parameter declares <c>allowReserved: true</c>; otherwise returns it
     /// unchanged.

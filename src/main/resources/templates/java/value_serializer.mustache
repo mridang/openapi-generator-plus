@@ -354,6 +354,31 @@ final class ValueSerializer {
     }
 
     /**
+     * Wraps a multipart part value with its declared Content-Type and part
+     * headers (OAS Encoding Object {@code contentType} and {@code headers}).
+     *
+     * @param value       the part value
+     * @param contentType the declared part Content-Type, or {@code null}
+     * @param headers     the declared part headers as name and value pairs, in order
+     * @return the wrapped value ({@link ObjectSerializer.EncodedPart}), or
+     *     {@code null} when {@code value} is null
+     */
+    @Nullable
+    public static Object encodedPart(
+            @Nullable Object value,
+            @Nullable String contentType,
+            List<Map.Entry<String, String>> headers) {
+        if (value == null) {
+            return null;
+        }
+        Map<String, String> ordered = new LinkedHashMap<>();
+        for (Map.Entry<String, String> header : headers) {
+            ordered.put(header.getKey(), header.getValue());
+        }
+        return new ObjectSerializer.EncodedPart(value, contentType, java.util.Collections.unmodifiableMap(ordered));
+    }
+
+    /**
      * Percent-encodes a query value while leaving RFC 3986 reserved characters
      * literal (OAS {@code allowReserved: true}).
      *

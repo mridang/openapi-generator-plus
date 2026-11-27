@@ -451,6 +451,32 @@ public final class ObjectSerializer {
     }
 
     /**
+     * A multipart part value with the Content-Type and the part headers its
+     * OpenAPI Encoding Object declares. The API layer wraps such a form field;
+     * the multipart body writer sends the declared Content-Type in place of the
+     * one it would choose and each header after it, in order, and every other
+     * consumer of the form fields uses the plain {@link #value()}. A list value
+     * applies the encoding to each of its items.
+     *
+     * @param value       the part value (a list sends one part per item)
+     * @param contentType the declared part Content-Type, or {@code null} to keep the default
+     * @param headers     the declared part headers, in declaration order
+     */
+    public record EncodedPart(Object value, @Nullable String contentType, Map<String, String> headers) {}
+
+    /**
+     * The plain value of a form field: an {@link EncodedPart} is unwrapped,
+     * anything else is returned unchanged.
+     *
+     * @param value the form field value (may be null)
+     * @return the value without its multipart encoding
+     */
+    @Nullable
+    public static Object withoutPartEncoding(@Nullable Object value) {
+        return value instanceof EncodedPart part ? part.value() : value;
+    }
+
+    /**
      * Convert a value to a representation suitable for use as a form parameter.
      *
      * @param value the value to convert (may be null)

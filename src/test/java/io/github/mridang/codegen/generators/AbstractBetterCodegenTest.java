@@ -41,6 +41,7 @@ import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
 import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.model.ModelMap;
@@ -1387,5 +1388,102 @@ class AbstractBetterCodegenTest {
                 () -> assertEquals("Item description", bare.getDescription()),
                 () -> assertEquals("Own summary", own.getSummary()),
                 () -> assertEquals("Own description", own.getDescription()));
+    }
+
+    /** Parses an inline YAML document with references resolved. */
+    private static io.swagger.v3.oas.models.OpenAPI parseYaml(final String yaml) {
+        final io.swagger.v3.parser.core.models.ParseOptions options =
+                new io.swagger.v3.parser.core.models.ParseOptions();
+        options.setResolve(true);
+        return new io.swagger.parser.OpenAPIParser().readContents(yaml, null, options).getOpenAPI();
+    }
+
+    /** The form parameters of the request body of the only POST operation under /items. */
+    private static Map<String, CodegenParameter> formParameters(final String content) {
+        final io.swagger.v3.oas.models.OpenAPI api = parseYaml(String.join("\n",
+                "openapi: 3.1.0",
+                "info: {title: t, version: '1'}",
+                "paths:",
+                "  /items:",
+                "    post:",
+                "      operationId: send",
+                "      requestBody:",
+                "        content:",
+                content,
+                "      responses:",
+                "        '204': {description: ok}"));
+        final AbstractBetterCodegen codegen = codegen("java");
+        codegen.setOpenAPI(api);
+        final io.swagger.v3.oas.models.parameters.RequestBody body =
+                Objects.requireNonNull(Objects.requireNonNull(api.getPaths().get("/items")).getPost()).getRequestBody();
+        return codegen.fromRequestBodyToFormParameters(body, new java.util.HashSet<>()).stream()
+                .collect(Collectors.toMap(p -> p.baseName, p -> p));
+    }
+
+    @Test
+    @DisplayName("the style and explode of a form field's Encoding Object become its style (D165)")
+    void formEncodingStyleAndExplodeBecomeTheFieldStyle() {
+        final Map<String, CodegenParameter> params = formParameters(String.join("\n",
+                "          application/x-www-form-urlencoded:",
+                "            schema:",
+                "              type: object",
+                "              properties:",
+                "                piped: {type: array, items: {type: string}}",
+                "                joined: {type: array, items: {type: string}}",
+                "                deep: {type: object}",
+                "                plain: {type: array, items: {type: string}}",
+                "                reserved: {type: string}",
+                "            encoding:",
+                "              reserved: {allowReserved: true}",
+                "              piped: {style: pipeDelimited}",
+                "              joined: {explode: false}",
+                "              deep: {style: deepObject}"));
+        final CodegenParameter piped = Objects.requireNonNull(params.get("piped"));
+        final CodegenParameter joined = Objects.requireNonNull(params.get("joined"));
+        assertAll(
+                () -> assertEquals("pipeDelimited", piped.style),
+                () -> assertFalse(piped.isExplode),
+                () -> assertEquals(true, piped.vendorExtensions.get("formStyled")),
+                () -> assertEquals("form", joined.style),
+                () -> assertFalse(joined.isExplode),
+                () -> assertNull(Objects.requireNonNull(params.get("deep")).vendorExtensions.get("formStyled")),
+                () -> assertNull(Objects.requireNonNull(params.get("plain")).vendorExtensions.get("formStyled")),
+                () -> assertNull(Objects.requireNonNull(params.get("reserved")).vendorExtensions.get("formStyled")),
+                () -> assertEquals(true, Objects.requireNonNull(params.get("reserved")).vendorExtensions.get("allowReserved")));
+    }
+
+    @Test
+    @DisplayName("a multipart part's Encoding Object gives its Content-Type and fixed part headers (D166)")
+    @SuppressWarnings("unchecked")
+    void multipartEncodingGivesThePartContentTypeAndHeaders() {
+        final Map<String, CodegenParameter> params = formParameters(String.join("\n",
+                "          multipart/form-data:",
+                "            schema:",
+                "              type: object",
+                "              properties:",
+                "                note: {type: string}",
+                "                image: {type: string, format: binary}",
+                "                free: {type: string}",
+                "            encoding:",
+                "              note:",
+                "                contentType: text/markdown",
+                "                headers:",
+                "                  X-Format: {schema: {type: string, default: commonmark}}",
+                "                  X-Level: {schema: {type: integer, enum: [2]}}",
+                "                  X-Open: {schema: {type: string}}",
+                "                  Content-Type: {schema: {type: string, default: text/plain}}",
+                "              image: {contentType: 'image/png, image/jpeg'}",
+                "              free: {contentType: 'text/*'}"));
+        final CodegenParameter note = Objects.requireNonNull(params.get("note"));
+        final List<Map<String, Object>> headers =
+                (List<Map<String, Object>>) note.vendorExtensions.get("partHeaders");
+        assertAll(
+                () -> assertEquals(true, note.vendorExtensions.get("partEncoded")),
+                () -> assertEquals("text/markdown", note.vendorExtensions.get("partContentType")),
+                () -> assertEquals(List.of(
+                        Map.of("name", "X-Format", "value", "commonmark"),
+                        Map.of("name", "X-Level", "value", "2")), headers),
+                () -> assertNull(Objects.requireNonNull(params.get("image")).vendorExtensions.get("partEncoded")),
+                () -> assertNull(Objects.requireNonNull(params.get("free")).vendorExtensions.get("partEncoded")));
     }
 }

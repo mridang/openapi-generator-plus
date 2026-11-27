@@ -938,8 +938,11 @@ public abstract class BaseApi {
                     || contentType.startsWith("image/")
                     || "application/octet-stream".equals(contentType)) {
                 requestBody = body;
-            } else if ("multipart/form-data".equals(contentType) && body instanceof Map<?, ?> multipartFields) {
-                /* allowReserved has no effect on a multipart part: send the value unchanged. */
+            } else if (contentType.toLowerCase(java.util.Locale.ROOT).startsWith("multipart/")
+                    && body instanceof Map<?, ?> multipartFields) {
+                /* Every multipart subtype is built by the transport from the form fields.
+                 * allowReserved has no effect on a multipart part: send the value unchanged.
+                 * A declared part encoding (ObjectSerializer.EncodedPart) stays for the transport. */
                 requestBody = withoutAllowReserved(multipartFields);
             } else if ("text/plain".equals(contentType)) {
                 requestBody = body.toString();
@@ -955,7 +958,8 @@ public abstract class BaseApi {
                  *     %2A and '~' is '~' (see formEncode). */
                 StringJoiner joiner = new StringJoiner("&");
                 for (Map.Entry<?, ?> entry : formParams.entrySet()) {
-                    Object value = entry.getValue();
+                    /* A multipart part encoding has no effect on a form-urlencoded field. */
+                    Object value = ObjectSerializer.withoutPartEncoding(entry.getValue());
                     if (value == null) {
                         continue;
                     }
@@ -1232,7 +1236,8 @@ public abstract class BaseApi {
      * @throws IllegalArgumentException if no binary part is present
      */
     private static Object extractBinaryPart(Map<?, ?> formBody) {
-        for (Object value : formBody.values()) {
+        for (Object field : formBody.values()) {
+            Object value = ObjectSerializer.withoutPartEncoding(field);
             if (value instanceof InputStream
                     || value instanceof BodySource
                     || value instanceof byte[]

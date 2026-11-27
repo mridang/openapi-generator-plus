@@ -1393,6 +1393,21 @@ fn append_multipart_field(
     name: &str,
     value: &MultipartValue,
 ) -> Result<(), ConfigurationError> {
+    append_multipart_part(out, boundary, name, value, None, &[])
+}
+
+/// Writes one part. `content_type` and `headers` come from an
+/// `MultipartValue::Encoded` wrapper (D166): the declared Content-Type
+/// replaces the one the part would get (a text part that had none gets it),
+/// and each header follows it as `Name: value`, in order.
+fn append_multipart_part(
+    out: &mut Vec<u8>,
+    boundary: &str,
+    name: &str,
+    value: &MultipartValue,
+    content_type: Option<&str>,
+    headers: &[(String, String)],
+) -> Result<(), ConfigurationError> {
     /* W-new-2: validate the field name on every branch (text and bytes)
      * before it lands in Content-Disposition. The name is interpolated
      * directly into `Content-Disposition: form-data; name="..."`, so
@@ -1414,9 +1429,7 @@ fn append_multipart_field(
             out.extend_from_slice(b"\"; ");
             out.extend_from_slice(filename_directive.as_bytes());
             out.extend_from_slice(b"\r\n");
-            out.extend_from_slice(b"Content-Type: ");
-            out.extend_from_slice(mime.as_bytes());
-            out.extend_from_slice(b"\r\n\r\n");
+            write_part_headers(out, Some(content_type.unwrap_or(mime)), headers);
             out.extend_from_slice(bytes);
             out.extend_from_slice(b"\r\n");
         }
@@ -1426,7 +1439,8 @@ fn append_multipart_field(
             out.extend_from_slice(b"\r\n");
             out.extend_from_slice(b"Content-Disposition: form-data; name=\"");
             out.extend_from_slice(safe_name.as_bytes());
-            out.extend_from_slice(b"\"\r\n\r\n");
+            out.extend_from_slice(b"\"\r\n");
+            write_part_headers(out, content_type, headers);
             out.extend_from_slice(text.as_bytes());
             out.extend_from_slice(b"\r\n");
         }
@@ -1441,15 +1455,58 @@ fn append_multipart_field(
             out.extend_from_slice(b"Content-Disposition: form-data; name=\"");
             out.extend_from_slice(safe_name.as_bytes());
             out.extend_from_slice(b"\"\r\n");
-            out.extend_from_slice(b"Content-Type: application/json\r\n\r\n");
+            write_part_headers(out, Some(content_type.unwrap_or("application/json")), headers);
             out.extend_from_slice(json.as_bytes());
             out.extend_from_slice(b"\r\n");
         }
         MultipartValue::List(items) => {
             for item in items {
-                append_multipart_field(out, boundary, name, item)?;
+                append_multipart_part(out, boundary, name, item, content_type, headers)?;
             }
         }
+        MultipartValue::Encoded {
+            value,
+            content_type: declared,
+            headers: declared_headers,
+        } => {
+            /* The declared values come from the document, but they still land
+             * in the part head, so CR, LF and NUL are refused like a name. */
+            for text in declared
+                .iter()
+                .chain(declared_headers.iter().flat_map(|(n, v)| [n, v]))
+            {
+                validate_multipart_header_text(text)?;
+            }
+            append_multipart_part(out, boundary, name, value, declared.as_deref(), declared_headers)?;
+        }
+    }
+    Ok(())
+}
+
+/// Writes the part `Content-Type` (when there is one), then each declared
+/// part header, then the blank line that ends the part head.
+fn write_part_headers(out: &mut Vec<u8>, content_type: Option<&str>, headers: &[(String, String)]) {
+    if let Some(content_type) = content_type {
+        out.extend_from_slice(b"Content-Type: ");
+        out.extend_from_slice(content_type.as_bytes());
+        out.extend_from_slice(b"\r\n");
+    }
+    for (header, text) in headers {
+        out.extend_from_slice(header.as_bytes());
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(text.as_bytes());
+        out.extend_from_slice(b"\r\n");
+    }
+    out.extend_from_slice(b"\r\n");
+}
+
+/// Rejects a declared part Content-Type, header name or header value holding
+/// CR, LF or NUL, which would end the part head early.
+fn validate_multipart_header_text(text: &str) -> Result<(), ConfigurationError> {
+    if text.contains(['\r', '\n', '\0']) {
+        return Err(ConfigurationError::InvalidArgument(
+            "multipart part header must not contain CR, LF, or NUL characters".to_string(),
+        ));
     }
     Ok(())
 }

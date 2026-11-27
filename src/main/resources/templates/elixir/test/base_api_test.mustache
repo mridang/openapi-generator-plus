@@ -2393,6 +2393,36 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv serializationwire 502 a form field whose encoding declares a style is written with that style" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(BodyCapturingApiClient, config)
+
+    options = %{{moduleName}}.Api.Options.SetPetPreferencesOptions{nickname: "rex", aliases: ["a b", "c"]}
+    _result = {{moduleName}}.Api.PetApi.set_pet_preferences(api, 1, options)
+
+    assert BodyCapturingApiClient.captured_body(name) == "nickname=rex&aliases=a+b%7Cc"
+
+    Agent.stop(name)
+  end
+
+  test "bhv serializationwire 503 a multipart part carries the content type and headers its encoding declares" do
+    state = capture_state()
+    api = {{moduleName}}.Api.PetApi.new(state.api_client, state.config)
+
+    options = %{{moduleName}}.Api.Options.AttachPetFilesOptions{file: <<1, 2, 3>>, caption: "hello"}
+    _result = {{moduleName}}.Api.PetApi.attach_pet_files(api, 1, options)
+    wire = captured_body()
+
+    assert wire =~
+             "Content-Disposition: form-data; name=\"caption\"\r\n" <>
+               "Content-Type: text/markdown\r\nX-Caption-Format: commonmark\r\n\r\nhello"
+
+    assert wire =~
+             "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" <>
+               "Content-Type: application/octet-stream\r\n\r\n" <> <<1, 2, 3>>
+  end
+
   # Behavior #3: a space in a form-body value encodes as `+`, not %20
   # (form-urlencoded media type).
   test "bhv serializationwire 012 form body encodes space as plus, not percent-20" do

@@ -151,6 +151,53 @@ internal object ValueSerializer {
     }
 
     /**
+     * Wraps a multipart field value whose Encoding Object declares the part's
+     * Content-Type or fixed part headers. Produced by [encodedPart] and
+     * unwrapped by the multipart writer, which sends [contentType] in place of
+     * the Content-Type it would choose and then each of [headers] in order. A
+     * list value applies the encoding to every item.
+     *
+     * @property value the field value (a scalar, a file's bytes or a list of them)
+     * @property contentType the declared part Content-Type, or null to keep the SDK's choice
+     * @property headers the declared part headers, in declaration order
+     */
+    data class EncodedPart(
+        val value: Any,
+        val contentType: String?,
+        val headers: Map<String, String>,
+    )
+
+    /**
+     * Wraps [value] in an [EncodedPart]; a null value stays null so the field is omitted.
+     *
+     * @param value the multipart field value
+     * @param contentType the declared part Content-Type, or null
+     * @param headers the declared part headers, in declaration order
+     * @return the wrapped value, or null
+     */
+    @JvmStatic
+    fun encodedPart(
+        value: Any?,
+        contentType: String?,
+        headers: Map<String, String>,
+    ): Any? = if (value == null) null else EncodedPart(value, contentType, headers)
+
+    /**
+     * Returns the value inside an [AllowReservedValue] or [EncodedPart]
+     * wrapper, or [value] itself when it is not wrapped.
+     *
+     * @param value a form field value
+     * @return the unwrapped value
+     */
+    @JvmStatic
+    fun unwrapFormValue(value: Any?): Any? =
+        when (value) {
+            is AllowReservedValue -> value.value
+            is EncodedPart -> value.value
+            else -> value
+        }
+
+    /**
      * Percent-encodes a query value while leaving RFC 3986 reserved characters
      * literal (OAS `allowReserved: true`).
      *

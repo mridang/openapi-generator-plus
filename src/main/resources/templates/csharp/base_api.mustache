@@ -697,7 +697,10 @@ public abstract class BaseApi
                  *     rules, so a space becomes '+';
                  *   - a field wrapped in AllowReservedValue (its Encoding
                  *     Object sets allowReserved: true) keeps RFC 3986 reserved
-                 *     characters literal, like an allowReserved query value. */
+                 *     characters literal, like an allowReserved query value;
+                 *   - a field whose Encoding Object sets style or explode
+                 *     arrives already styled (a joined string, a list of
+                 *     items or ExplodedFields) and is form-encoded as is. */
                 List<string> parts = [];
                 foreach (KeyValuePair<string, object> kv in formParams)
                 {
@@ -705,7 +708,9 @@ public abstract class BaseApi
                     {
                         continue;
                     }
-                    object fieldValue = kv.Value;
+                    object fieldValue = kv.Value is ValueSerializer.EncodedPart encodedField
+                        ? encodedField.Value
+                        : kv.Value;
                     bool allowReserved = false;
                     if (fieldValue is ValueSerializer.AllowReservedValue reservedField)
                     {
@@ -713,7 +718,18 @@ public abstract class BaseApi
                         allowReserved = true;
                     }
                     string key = FormUrlEncode(kv.Key);
-                    if (
+                    if (fieldValue is ValueSerializer.ExplodedFields explodedField)
+                    {
+                        /* An exploded object field styled by its Encoding
+                         * Object: each property is its own form field. */
+                        foreach (KeyValuePair<string, string> field in explodedField.Fields)
+                        {
+                            parts.Add(
+                                FormUrlEncode(field.Key) + "=" + FormValueEncode(field.Value, allowReserved)
+                            );
+                        }
+                    }
+                    else if (
                         fieldValue is System.Collections.IEnumerable enumerable
                         && !ObjectSerializer.IsScalar(fieldValue)
                     )
@@ -1436,9 +1452,10 @@ public abstract class BaseApi
     /// <exception cref="ApiException">Thrown when no binary part is present.</exception>
     private static object ExtractBinaryPart(Dictionary<string, object> formBody)
     {
-        foreach (object value in formBody.Values)
+        foreach (object wrapped in formBody.Values)
         {
-            if (value is System.IO.Stream || value is byte[] || value is BodySource)
+            if (ValueSerializer.UnwrapFormValue(wrapped) is { } value
+                && (value is System.IO.Stream || value is byte[] || value is BodySource))
             {
                 return value;
             }

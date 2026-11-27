@@ -196,10 +196,36 @@
         request_body = {}
 {{#formParams}}
 {{#required}}
-        request_body['{{baseName}}'] = {{#vendorExtensions.param.formAllowReserved}}::{{moduleName}}::ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}
+{{#vendorExtensions.param.formStyled}}
+        # The field's Encoding Object sets style or explode, so the value is
+        # written with the query-parameter styling and then form-encoded.
+        request_body.merge!(
+          ::{{moduleName}}::ValueSerializer.query_entries(
+            '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', nil, '{{style}}', {{isExplode}},
+            {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}
+          )
+        )
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+        request_body['{{baseName}}'] = {{#vendorExtensions.param.partEncoded}}::{{moduleName}}::ValueSerializer.encoded_part({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}::{{moduleName}}::ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}'{{{vendorExtensions.param.partContentType}}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}['{{{name}}}', '{{{value}}}']{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{^required}}
-        request_body['{{baseName}}'] = {{#vendorExtensions.param.formAllowReserved}}::{{moduleName}}::ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}} unless options.{{paramName}}.nil?
+{{#vendorExtensions.param.formStyled}}
+        # The field's Encoding Object sets style or explode, so the value is
+        # written with the query-parameter styling and then form-encoded.
+        unless options.{{paramName}}.nil?
+          request_body.merge!(
+            ::{{moduleName}}::ValueSerializer.query_entries(
+              '{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}, '{{{dataType}}}', nil, '{{style}}', {{isExplode}},
+              {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}}
+            )
+          )
+        end
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+        request_body['{{baseName}}'] = {{#vendorExtensions.param.partEncoded}}::{{moduleName}}::ValueSerializer.encoded_part({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}::{{moduleName}}::ValueSerializer.maybe_allow_reserved({{/vendorExtensions.param.formAllowReserved}}{{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}{{#isUuid}}::{{moduleName}}::ObjectSerializer.validate_uuid(options.{{paramName}}){{/isUuid}}{{^isUuid}}options.{{paramName}}{{/isUuid}}{{/isByteArray}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, {{#vendorExtensions.param.partContentType}}'{{{vendorExtensions.param.partContentType}}}'{{/vendorExtensions.param.partContentType}}{{^vendorExtensions.param.partContentType}}nil{{/vendorExtensions.param.partContentType}}, [{{#vendorExtensions.param.partHeaders}}['{{{name}}}', '{{{value}}}']{{^-last}}, {{/-last}}{{/vendorExtensions.param.partHeaders}}]){{/vendorExtensions.param.partEncoded}} unless options.{{paramName}}.nil?
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}

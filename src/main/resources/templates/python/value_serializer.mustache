@@ -33,6 +33,26 @@ class AllowReservedValue:
         self.value = value
 
 
+class EncodedPart:
+    """Wraps a multipart part value with the ``Content-Type`` and part headers
+    its Encoding Object declares. Produced by
+    :meth:`ValueSerializer.encoded_part` and unwrapped by the multipart
+    encoder, which writes the declared ``Content-Type`` in place of the one it
+    would choose and then each header, in declaration order. Every other
+    consumer of the form fields sees the plain value.
+
+    Holds the part value untouched (for a list, the multipart encoder applies
+    the encoding to each item).
+    """
+
+    __slots__ = ('value', 'content_type', 'headers')
+
+    def __init__(self, value: Any, content_type: Optional[str], headers: Dict[str, str]) -> None:
+        self.value = value
+        self.content_type = content_type
+        self.headers = headers
+
+
 class ValueSerializer:
     """Serializes parameter values for HTTP requests based on their location and format.
 
@@ -187,6 +207,23 @@ class ValueSerializer:
         if isinstance(value, dict):
             return {key: AllowReservedValue(item) for key, item in value.items()}
         return AllowReservedValue(value)
+
+    @staticmethod
+    def encoded_part(value: Any, content_type: Optional[str], headers: Dict[str, str]) -> Any:
+        """Wrap a multipart field in :class:`EncodedPart` with the
+        ``Content-Type`` and part headers its Encoding Object declares.
+
+        Args:
+            value: The field value.
+            content_type: The declared part ``Content-Type``, or ``None``.
+            headers: The declared part headers, in declaration order.
+
+        Returns:
+            The wrapped value, or ``None`` when ``value`` is ``None``.
+        """
+        if value is None:
+            return None
+        return EncodedPart(value, content_type, headers)
 
     @staticmethod
     def query_entries(

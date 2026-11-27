@@ -123,6 +123,40 @@ Object? maybeAllowReserved(Object? value, bool allowReserved) {
   return AllowReservedValue(value);
 }
 
+/// Wraps a multipart form field whose OAS Encoding Object declares the part's
+/// Content-Type and part headers. Produced by [encodedPart] and unwrapped by
+/// the multipart body builder, which writes [contentType] in place of the
+/// Content-Type it would choose and then each of [headers] in order; every
+/// other consumer of the form map uses [value] unchanged.
+class EncodedPart {
+  /// Creates the wrapper for the field [value] (a list applies the encoding
+  /// to each item), its declared [contentType] (null keeps the chosen one)
+  /// and its part [headers] in declaration order.
+  const EncodedPart(this.value, this.contentType, this.headers);
+
+  /// The field value the part carries.
+  final Object value;
+
+  /// The declared part Content-Type, or null when the encoding has none.
+  final String? contentType;
+
+  /// The part headers written after the Content-Type, in declaration order.
+  final Map<String, String> headers;
+}
+
+/// Wraps [value] in an [EncodedPart] carrying the part [contentType] (or null)
+/// and the ordered part [headers].
+///
+/// Returns null for a null value (the field is omitted), the wrapper
+/// otherwise.
+Object? encodedPart(
+    Object? value, String? contentType, Map<String, String> headers) {
+  if (value == null) {
+    return null;
+  }
+  return EncodedPart(value, contentType, headers);
+}
+
 /// The RFC 6265 cookie-octet set, the same grammar the operation cookie block
 /// applies to a cookie value.
 final RegExp _cookieOctets = RegExp(r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$');

@@ -117,6 +117,31 @@ final class ValueSerializer
     }
 
     /**
+     * Wraps a multipart field value in the Content-Type and part headers its
+     * OAS Encoding Object declares. A list is wrapped item by item, so every
+     * part of a repeated field carries the encoding; null stays null.
+     *
+     * @param mixed                 $value       the field value
+     * @param string|null           $contentType the declared part Content-Type, or null
+     * @param array<string, string> $headers     the declared part headers, in declaration order
+     * @return mixed the wrapped value, a list of wrapped items, or null
+     */
+    public static function encodedPart(mixed $value, ?string $contentType, array $headers): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (is_array($value)) {
+            return array_map(
+                static fn (mixed $item): EncodedPart => new EncodedPart($item, $contentType, $headers),
+                $value
+            );
+        }
+
+        return new EncodedPart($value, $contentType, $headers);
+    }
+
+    /**
      * Percent-encodes the JSON text of a `content:` cookie parameter. Only
      * A-Za-z0-9 - _ ~ stay literal: rawurlencode keeps the dot, so it is encoded too.
      */

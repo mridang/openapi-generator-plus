@@ -281,6 +281,46 @@ pub fn serialize_array_value(
     }
 }
 
+/// Styles one field of an `application/x-www-form-urlencoded` body whose
+/// Encoding Object declares `style` and/or `explode` (D165), with the same
+/// rules a query parameter of that style uses.
+///
+/// `items` holds the stringified elements of an array field and is `None`
+/// for any other value. The result is the `(key, value)` pairs to write into
+/// the form body, not yet encoded: a joined array (`a b|c`) is one pair, an
+/// exploded array repeats the key, and an object in exploded `form` style is
+/// one pair per property. The form encoder applies the form rules afterwards.
+///
+/// # Errors
+///
+/// Returns a `SerializationError` when a property of an object is itself a
+/// nested value.
+pub fn styled_form_pairs<T: serde::Serialize + 'static>(
+    name: &str,
+    value: &T,
+    items: Option<&[String]>,
+    style: &str,
+    explode: bool,
+) -> Result<Vec<(String, String)>, crate::errors::serialization_error::SerializationError> {
+    let text = if items.is_some() {
+        None
+    } else {
+        if let Some(pairs) = crate::object_serializer::object_query_pairs(value, style, explode)? {
+            return Ok(pairs);
+        }
+        Some(crate::object_serializer::stringify_param(value, style, explode)?)
+    };
+    Ok(
+        match serialize_styled(name, text.as_deref(), items, "query", "", "", style, explode) {
+            Some(SerializedValue::Single(v)) => vec![(name.to_string(), v)],
+            Some(SerializedValue::Multi(values)) => {
+                values.into_iter().map(|v| (name.to_string(), v)).collect()
+            }
+            None => Vec::new(),
+        },
+    )
+}
+
 /// Serializes a deepObject-style query parameter.
 ///
 /// Produces a list of flattened `(param_name[key], value)` pairs. A hash map

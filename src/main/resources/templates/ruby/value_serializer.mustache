@@ -125,6 +125,31 @@ module {{moduleName}}
       AllowReservedValue.new(value)
     end
 
+    # Wraps a multipart part value whose Encoding Object declares the part
+    # Content-Type and/or part headers. The multipart encoder unwraps it: the
+    # declared Content-Type replaces the one the SDK would choose, and each
+    # header is written after it in declaration order. A list value applies
+    # the encoding to each item.
+    class EncodedPart
+      attr_reader :value, :content_type, :headers
+
+      def initialize(value, content_type, headers)
+        @value = value
+        @content_type = content_type
+        @headers = headers
+      end
+    end
+
+    # Wrap +value+ in an {EncodedPart} carrying the declared part
+    # Content-Type (or nil) and the ordered part headers, given as
+    # +[name, value]+ pairs. A nil value is never wrapped so the body
+    # builder still omits it.
+    def self.encoded_part(value, content_type, headers)
+      return value if value.nil?
+
+      EncodedPart.new(value, content_type, headers.to_h)
+    end
+
     # Percent-encode a query value while leaving RFC 3986 reserved characters
     # literal (OAS +allowReserved: true+). A space is illegal in a URL and is
     # still encoded as +%20+; only the reserved set is restored.

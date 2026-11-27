@@ -374,17 +374,45 @@
 	if options != nil {
 {{#formParams}}
 {{#required}}
-		formBody["{{baseName}}"] = {{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}options.{{nameInPascalCase}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}
+{{#vendorExtensions.param.formStyled}}
+		{
+			/* The field's Encoding Object declares style or explode: the value is
+			 * styled exactly as a query parameter, and the form encoder writes the
+			 * result (a joined string, or a list that repeats the key). */
+			styledValue, styledErr := serializeStyledChecked("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "", "{{style}}", {{isExplode}})
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			formBody["{{baseName}}"] = maybeAllowReserved(styledValue, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}})
+		}
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+		formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}newEncodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}options.{{nameInPascalCase}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, "{{#vendorExtensions.param.partContentType}}{{{.}}}{{/vendorExtensions.param.partContentType}}"{{#vendorExtensions.param.partHeaders}}, [2]string{"{{{name}}}", "{{{value}}}"}{{/vendorExtensions.param.partHeaders}}){{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
 {{/required}}
 {{^required}}
 {{#isFile}}
 		if options.{{nameInPascalCase}} != nil {
-			formBody["{{baseName}}"] = options.{{nameInPascalCase}}
+			formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}newEncodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}options.{{nameInPascalCase}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, "{{#vendorExtensions.param.partContentType}}{{{.}}}{{/vendorExtensions.param.partContentType}}"{{#vendorExtensions.param.partHeaders}}, [2]string{"{{{name}}}", "{{{value}}}"}{{/vendorExtensions.param.partHeaders}}){{/vendorExtensions.param.partEncoded}}
 		}
 {{/isFile}}
 {{^isFile}}
 		if options.{{nameInPascalCase}} != nil {
-			formBody["{{baseName}}"] = {{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}*options.{{nameInPascalCase}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}
+{{#vendorExtensions.param.formStyled}}
+			{
+				/* The field's Encoding Object declares style or explode: the value is
+				 * styled exactly as a query parameter, and the form encoder writes the
+				 * result (a joined string, or a list that repeats the key). */
+				styledValue, styledErr := serializeStyledChecked("{{baseName}}", *options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "", "{{style}}", {{isExplode}})
+				if styledErr != nil {
+					return nil, styledErr
+				}
+				formBody["{{baseName}}"] = maybeAllowReserved(styledValue, {{#vendorExtensions.param.formAllowReserved}}true{{/vendorExtensions.param.formAllowReserved}}{{^vendorExtensions.param.formAllowReserved}}false{{/vendorExtensions.param.formAllowReserved}})
+			}
+{{/vendorExtensions.param.formStyled}}
+{{^vendorExtensions.param.formStyled}}
+			formBody["{{baseName}}"] = {{#vendorExtensions.param.partEncoded}}newEncodedPart({{/vendorExtensions.param.partEncoded}}{{#vendorExtensions.param.formAllowReserved}}maybeAllowReserved({{/vendorExtensions.param.formAllowReserved}}*options.{{nameInPascalCase}}{{#vendorExtensions.param.formAllowReserved}}, true){{/vendorExtensions.param.formAllowReserved}}{{#vendorExtensions.param.partEncoded}}, "{{#vendorExtensions.param.partContentType}}{{{.}}}{{/vendorExtensions.param.partContentType}}"{{#vendorExtensions.param.partHeaders}}, [2]string{"{{{name}}}", "{{{value}}}"}{{/vendorExtensions.param.partHeaders}}){{/vendorExtensions.param.partEncoded}}
+{{/vendorExtensions.param.formStyled}}
 		}
 {{/isFile}}
 {{/required}}

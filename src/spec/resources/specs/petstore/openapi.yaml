@@ -651,9 +651,16 @@ paths:
                 # reserved characters of this field are sent literally.
                 route:
                   type: string
+                # D165: the Encoding Object below writes this field pipe-delimited.
+                aliases:
+                  type: array
+                  items:
+                    type: string
             encoding:
               route:
                 allowReserved: true
+              aliases:
+                style: pipeDelimited
       responses:
         '200':
           description: Successful operation
@@ -692,6 +699,16 @@ paths:
                   format: binary
                 caption:
                   type: string
+            # D166: the caption part carries its declared Content-Type and the
+            # part header whose schema fixes its value.
+            encoding:
+              caption:
+                contentType: text/markdown
+                headers:
+                  X-Caption-Format:
+                    schema:
+                      type: string
+                      default: commonmark
       responses:
         '200':
           description: Successful operation
