@@ -80,7 +80,7 @@ HTTP is the standard library. Other requirements in the manifest are for the gen
 - **OpenTelemetry adapter.** `otelhook.New(opts...)` in `pkg/otelhook` (options `WithTracerProvider`, `WithMeterProvider`, `WithPropagator`) is a `CallHook` that records one span (named with the operation id, kind client), the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) per call, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` and `error.type`. It uses the OpenTelemetry API only and writes `traceparent` itself.
 - Initialisms are upper case (`URL`, `ID`, `HTTP`).
 - A model struct can be created without its required properties. Decoding enforces them.
-- Every model has `Equal(other *<Model>) bool`, a structural comparison of every field, nested models, slices, maps and additional properties included (D133). It never panics, a nil receiver equals only a nil argument, and there is no hash method, because a model with a slice or map field cannot be a Go map key.
+- Every model has `Equal(other *<Model>) bool`, a structural comparison of every field, nested models, slices, maps and additional properties included (D144). It never panics, a nil receiver equals only a nil argument, and there is no hash method, because a model with a slice or map field cannot be a Go map key.
 - With `generateExamples` on, the module ships `examples/quickstart/main.go`, a `package main` that builds a client from `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN`, calls the example operation and closes the client; `make examples` vets and builds everything under `examples/` and `make examples-run` runs the quickstart. `go vet ./...` and `staticcheck ./...` cover it, and `make docs` skips it.
 
 ## Recipes
@@ -187,7 +187,7 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on.
 - Whether the duration wire form should stay protobuf-JSON or move to ISO 8601, across all languages.
 
-Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `InjectTraceContext(ctx, headers)` hands the call context to the propagator; Go has no ambient context.
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `InjectTraceContext(ctx, headers)` hands the call context to the propagator; Go has no ambient context. The `otelhook` adapter records the request count and duration in the same call context, so a metric exemplar names the caller's span.
 
 ## Behaviour notes
 

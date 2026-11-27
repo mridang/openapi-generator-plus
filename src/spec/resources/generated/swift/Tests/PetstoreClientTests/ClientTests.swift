@@ -2581,6 +2581,28 @@ private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func getMemo(memoId: String, server: (any GetMemoServer)?, options: GetMemoOptions?)
+    async throws -> Memo
+  {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "getMemo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getMemoWithHTTPInfo(
+    memoId: String, server: (any GetMemoServer)?, options: GetMemoOptions?
+  ) async throws -> ApiResult<Memo> {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "getMemoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
   public func getNativeValues(options: GetNativeValuesOptions?) async throws -> NativeValues {
     var parts: [String] = []
     var call = "getNativeValues(" + parts.joined(separator: ",") + ")"
@@ -2729,6 +2751,67 @@ private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func headMemo(memoId: String, options: HeadMemoOptions?) async throws {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "headMemo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func headMemoWithHTTPInfo(memoId: String, options: HeadMemoOptions?) async throws
+    -> ApiResult<Void>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "headMemoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func optionsMemo(memoId: String, options: OptionsMemoOptions?) async throws {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "optionsMemo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func optionsMemoWithHTTPInfo(memoId: String, options: OptionsMemoOptions?) async throws
+    -> ApiResult<Void>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "optionsMemoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func patchMemo(memoId: String, memo: Memo, options: PatchMemoOptions?) async throws -> Memo
+  {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "patchMemo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func patchMemoWithHTTPInfo(memoId: String, memo: Memo, options: PatchMemoOptions?)
+    async throws -> ApiResult<Memo>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "patchMemoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
   public func placeOrder(order: Order?, options: PlaceOrderOptions?) async throws -> Order {
     var parts: [String] = []
     var call = "placeOrder(" + parts.joined(separator: ",") + ")"
@@ -2778,6 +2861,26 @@ private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
   > {
     var parts: [String] = []
     var call = "searchStoreWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func traceMemo(memoId: String, options: TraceMemoOptions?) async throws {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "traceMemo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func traceMemoWithHTTPInfo(memoId: String, options: TraceMemoOptions?) async throws
+    -> ApiResult<Void>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: memoId))
+    var call = "traceMemoWithHTTPInfo(" + parts.joined(separator: ",") + ")"
     call += options == nil ? " options=none" : " options=set"
     record(call)
     throw NotFoundError(message: "missing")
@@ -3002,6 +3105,8 @@ private func environmentClient(
     #expect(storeListed.contains("getInventoryWithHTTPInfo"))
     #expect(storeListed.contains("getMatrix"))
     #expect(storeListed.contains("getMatrixWithHTTPInfo"))
+    #expect(storeListed.contains("getMemo"))
+    #expect(storeListed.contains("getMemoWithHTTPInfo"))
     #expect(storeListed.contains("getNativeValues"))
     #expect(storeListed.contains("getNativeValuesWithHTTPInfo"))
     #expect(storeListed.contains("getOrderById"))
@@ -3018,12 +3123,20 @@ private func environmentClient(
     #expect(storeListed.contains("getTimestampGroupsWithHTTPInfo"))
     #expect(storeListed.contains("getTree"))
     #expect(storeListed.contains("getTreeWithHTTPInfo"))
+    #expect(storeListed.contains("headMemo"))
+    #expect(storeListed.contains("headMemoWithHTTPInfo"))
+    #expect(storeListed.contains("optionsMemo"))
+    #expect(storeListed.contains("optionsMemoWithHTTPInfo"))
+    #expect(storeListed.contains("patchMemo"))
+    #expect(storeListed.contains("patchMemoWithHTTPInfo"))
     #expect(storeListed.contains("placeOrder"))
     #expect(storeListed.contains("placeOrderWithHTTPInfo"))
     #expect(storeListed.contains("reserveStock"))
     #expect(storeListed.contains("reserveStockWithHTTPInfo"))
     #expect(storeListed.contains("searchStore"))
     #expect(storeListed.contains("searchStoreWithHTTPInfo"))
+    #expect(storeListed.contains("traceMemo"))
+    #expect(storeListed.contains("traceMemoWithHTTPInfo"))
     #expect(storeListed.contains("watchNoticesStream"))
     #expect(storeListed.contains("watchOrdersStream"))
   }

@@ -26,6 +26,7 @@ import com.example.petstore.api.options.GetDepartmentOptions
 import com.example.petstore.api.options.GetGroupedCategoriesOptions
 import com.example.petstore.api.options.GetInventoryOptions
 import com.example.petstore.api.options.GetMatrixOptions
+import com.example.petstore.api.options.GetMemoOptions
 import com.example.petstore.api.options.GetNativeValuesOptions
 import com.example.petstore.api.options.GetOrderByIdOptions
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions
@@ -34,9 +35,13 @@ import com.example.petstore.api.options.GetSwatchGroupsOptions
 import com.example.petstore.api.options.GetSwatchOptions
 import com.example.petstore.api.options.GetTimestampGroupsOptions
 import com.example.petstore.api.options.GetTreeOptions
+import com.example.petstore.api.options.HeadMemoOptions
+import com.example.petstore.api.options.OptionsMemoOptions
+import com.example.petstore.api.options.PatchMemoOptions
 import com.example.petstore.api.options.PlaceOrderOptions
 import com.example.petstore.api.options.ReserveStockOptions
 import com.example.petstore.api.options.SearchStoreOptions
+import com.example.petstore.api.options.TraceMemoOptions
 import com.example.petstore.api.options.WatchNoticesOptions
 import com.example.petstore.api.options.WatchOrdersOptions
 import com.example.petstore.auth.Authenticator
@@ -47,6 +52,7 @@ import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
+import com.example.petstore.models.Memo
 import com.example.petstore.models.NativeValues
 import com.example.petstore.models.Order
 import com.example.petstore.models.Reservation
@@ -67,6 +73,18 @@ import kotlin.uuid.Uuid
 class StoreApi :
     BaseApi,
     StoreApiInterface {
+    /**
+     * Server type for the getMemo operation.
+     */
+    sealed interface GetMemoServer {
+        fun getUrl(): String
+
+        /** Memos */
+        object Memos : GetMemoServer {
+            override fun getUrl(): String = "https://memos.example.com/v1"
+        }
+    }
+
     constructor() : super()
 
     constructor(apiClient: ApiClient, config: Configuration) : super(apiClient, config)
@@ -571,6 +589,77 @@ class StoreApi :
     }
 
     /**
+     * Reads a memo from the server its path declares
+     * @param memoId The memo to address (required)
+     * @param options the per-call timeout, headers and maxRetries
+     * @param server the server to send the request to; when null the default server is used
+
+     * @return Memo
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun getMemo(
+        memoId: String,
+        server: GetMemoServer?,
+        options: GetMemoOptions?,
+    ): Memo =
+        getMemoWithHttpInfo(memoId, server, options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getMemo but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [getMemo] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun getMemoWithHttpInfo(
+        memoId: String,
+        server: GetMemoServer?,
+        options: GetMemoOptions?,
+    ): ApiResult<Memo> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        requireNotNull(memoId) {
+            "Missing the required parameter 'memoId' when calling StoreApi.getMemo"
+        }
+        require(memoId.isNotEmpty()) {
+            "Missing the required parameter 'memoId' when calling StoreApi.getMemo"
+        }
+        var path =
+            "/store/memos/{memoId}"
+                .replace(
+                    "{" + "memoId" + "}",
+                    ValueSerializer.serializeStyled("memoId", memoId, "path", "String", null, "simple", false) as String,
+                )
+        if (server != null) {
+            val serverUrl = server.getUrl()
+            if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+                path = serverUrl + path
+            }
+        }
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<Memo>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            NoAuth,
+            "StoreApi.getMemo",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "getMemo",
+            urlTemplate = "/store/memos/{memoId}",
+        )
+    }
+
+    /**
      * Reads values of the formats the SDKs type natively.
      * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
 
@@ -991,6 +1080,184 @@ class StoreApi :
     }
 
     /**
+     * Checks that a memo exists with a HEAD request
+     * @param memoId The memo to address (required)
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun headMemo(
+        memoId: String,
+        options: HeadMemoOptions?,
+    ) {
+        headMemoWithHttpInfo(memoId, options)
+    }
+
+    /** Same as [headMemo] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun headMemoWithHttpInfo(
+        memoId: String,
+        options: HeadMemoOptions?,
+    ): ApiResult<Unit> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        requireNotNull(memoId) {
+            "Missing the required parameter 'memoId' when calling StoreApi.headMemo"
+        }
+        require(memoId.isNotEmpty()) {
+            "Missing the required parameter 'memoId' when calling StoreApi.headMemo"
+        }
+        var path =
+            "/store/memos/{memoId}/revisions"
+                .replace(
+                    "{" + "memoId" + "}",
+                    ValueSerializer.serializeStyled("memoId", memoId, "path", "String", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<Unit>(
+            "HEAD",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf(),
+            "application/json",
+            NoAuth,
+            "StoreApi.headMemo",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "headMemo",
+            urlTemplate = "/store/memos/{memoId}/revisions",
+        )
+    }
+
+    /**
+     * Lists the methods a memo accepts with an OPTIONS request
+     * @param memoId The memo to address (required)
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun optionsMemo(
+        memoId: String,
+        options: OptionsMemoOptions?,
+    ) {
+        optionsMemoWithHttpInfo(memoId, options)
+    }
+
+    /** Same as [optionsMemo] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun optionsMemoWithHttpInfo(
+        memoId: String,
+        options: OptionsMemoOptions?,
+    ): ApiResult<Unit> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        requireNotNull(memoId) {
+            "Missing the required parameter 'memoId' when calling StoreApi.optionsMemo"
+        }
+        require(memoId.isNotEmpty()) {
+            "Missing the required parameter 'memoId' when calling StoreApi.optionsMemo"
+        }
+        var path =
+            "/store/memos/{memoId}/revisions"
+                .replace(
+                    "{" + "memoId" + "}",
+                    ValueSerializer.serializeStyled("memoId", memoId, "path", "String", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<Unit>(
+            "OPTIONS",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf(),
+            "application/json",
+            NoAuth,
+            "StoreApi.optionsMemo",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "optionsMemo",
+            urlTemplate = "/store/memos/{memoId}/revisions",
+        )
+    }
+
+    /**
+     * Changes a memo with a PATCH request
+     * @param memoId The memo to address (required)
+     * @param memo The fields of the memo to change (required)
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @return Memo
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun patchMemo(
+        memoId: String,
+        memo: Memo,
+        options: PatchMemoOptions?,
+    ): Memo =
+        patchMemoWithHttpInfo(memoId, memo, options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for patchMemo but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [patchMemo] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun patchMemoWithHttpInfo(
+        memoId: String,
+        memo: Memo,
+        options: PatchMemoOptions?,
+    ): ApiResult<Memo> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        requireNotNull(memoId) {
+            "Missing the required parameter 'memoId' when calling StoreApi.patchMemo"
+        }
+        require(memoId.isNotEmpty()) {
+            "Missing the required parameter 'memoId' when calling StoreApi.patchMemo"
+        }
+        requireNotNull(memo) {
+            "Missing the required parameter 'memo' when calling StoreApi.patchMemo"
+        }
+        var path =
+            "/store/memos/{memoId}/revisions"
+                .replace(
+                    "{" + "memoId" + "}",
+                    ValueSerializer.serializeStyled("memoId", memoId, "path", "String", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<Memo>(
+            "PATCH",
+            path,
+            queryParams,
+            headerParams,
+            memo,
+            arrayOf("application/json"),
+            "application/json",
+            NoAuth,
+            "StoreApi.patchMemo",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "patchMemo",
+            urlTemplate = "/store/memos/{memoId}/revisions",
+        )
+    }
+
+    /**
      * Place an order for a pet
      * @param order  (optional)
      * @param options the per-call timeout, headers and maxRetries
@@ -1160,6 +1427,61 @@ class StoreApi :
             callMaxRetries = callMaxRetries,
             operationId = "searchStore",
             urlTemplate = "/store/search",
+        )
+    }
+
+    /**
+     * Echoes a memo request with a TRACE request
+     * @param memoId The memo to address (required)
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun traceMemo(
+        memoId: String,
+        options: TraceMemoOptions?,
+    ) {
+        traceMemoWithHttpInfo(memoId, options)
+    }
+
+    /** Same as [traceMemo] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun traceMemoWithHttpInfo(
+        memoId: String,
+        options: TraceMemoOptions?,
+    ): ApiResult<Unit> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        requireNotNull(memoId) {
+            "Missing the required parameter 'memoId' when calling StoreApi.traceMemo"
+        }
+        require(memoId.isNotEmpty()) {
+            "Missing the required parameter 'memoId' when calling StoreApi.traceMemo"
+        }
+        var path =
+            "/store/memos/{memoId}/revisions"
+                .replace(
+                    "{" + "memoId" + "}",
+                    ValueSerializer.serializeStyled("memoId", memoId, "path", "String", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<Unit>(
+            "TRACE",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf(),
+            "application/json",
+            NoAuth,
+            "StoreApi.traceMemo",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "traceMemo",
+            urlTemplate = "/store/memos/{memoId}/revisions",
         )
     }
 

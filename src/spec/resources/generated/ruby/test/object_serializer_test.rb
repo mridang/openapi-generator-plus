@@ -2481,6 +2481,11 @@ describe Petstore::Client::ObjectSerializer do
       _(deserialize.call('{"rank":1}').tier).must_equal(Petstore::Client::Models::Tier::MEDIUM)
     end
 
+    it 'bhv_enums_013 a referenced enum property whose enum component declares a default starts at that member when it is absent' do
+      _(Petstore::Client::Models::Defaults.new.swatch).must_equal(Petstore::Client::Models::Swatch::GREEN)
+      _(Petstore::Client::ObjectSerializer.deserialize('{}', 'Defaults').swatch).must_equal(Petstore::Client::Models::Swatch::GREEN)
+    end
+
     it 'bhv_enums_008 encoding writes the wire value and decoding a supplied name gives the catch-all member' do
       _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(Petstore::Client::Models::Tier::MEDIUM))).must_equal('m')
       _(deserialize.call('{"rank":1,"tier":"Medium"}').tier).must_equal(Petstore::Client::Models::Tier::UNKNOWN_DEFAULT_OPEN_API)

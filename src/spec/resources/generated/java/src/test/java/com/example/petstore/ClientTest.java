@@ -563,6 +563,8 @@ class ClientTest {
     assertTrue(storeListed.contains("getInventoryWithHttpInfo"));
     assertTrue(storeListed.contains("getMatrix"));
     assertTrue(storeListed.contains("getMatrixWithHttpInfo"));
+    assertTrue(storeListed.contains("getMemo"));
+    assertTrue(storeListed.contains("getMemoWithHttpInfo"));
     assertTrue(storeListed.contains("getNativeValues"));
     assertTrue(storeListed.contains("getNativeValuesWithHttpInfo"));
     assertTrue(storeListed.contains("getOrderById"));
@@ -579,12 +581,20 @@ class ClientTest {
     assertTrue(storeListed.contains("getTimestampGroupsWithHttpInfo"));
     assertTrue(storeListed.contains("getTree"));
     assertTrue(storeListed.contains("getTreeWithHttpInfo"));
+    assertTrue(storeListed.contains("headMemo"));
+    assertTrue(storeListed.contains("headMemoWithHttpInfo"));
+    assertTrue(storeListed.contains("optionsMemo"));
+    assertTrue(storeListed.contains("optionsMemoWithHttpInfo"));
+    assertTrue(storeListed.contains("patchMemo"));
+    assertTrue(storeListed.contains("patchMemoWithHttpInfo"));
     assertTrue(storeListed.contains("placeOrder"));
     assertTrue(storeListed.contains("placeOrderWithHttpInfo"));
     assertTrue(storeListed.contains("reserveStock"));
     assertTrue(storeListed.contains("reserveStockWithHttpInfo"));
     assertTrue(storeListed.contains("searchStore"));
     assertTrue(storeListed.contains("searchStoreWithHttpInfo"));
+    assertTrue(storeListed.contains("traceMemo"));
+    assertTrue(storeListed.contains("traceMemoWithHttpInfo"));
     assertTrue(storeListed.contains("watchNoticesStream"));
     assertTrue(storeListed.contains("watchOrdersStream"));
   }

@@ -119,4 +119,9 @@ class FileRoleNormaliserTest {
     assertThat(SPEC.tags).contains("pet", "store");
     assertThat(SPEC.operations).contains("addpet", "getpetbyid");
   }
+
+  @Test
+  void readsTheOperationsOfAPathItemReference() {
+    assertThat(SPEC.operations).contains("patchmemo", "headmemo", "optionsmemo", "tracememo");
+  }
 }

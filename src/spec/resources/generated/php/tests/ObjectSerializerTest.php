@@ -2760,6 +2760,13 @@ test('bhv enums 007 a default on a referenced enum property starts at the member
     expect($item->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
 });
 
+test('bhv enums 013 a referenced enum property whose enum component declares a default starts at that member when it is absent', function (): void {
+    expect((new \PetstoreClient\Models\Defaults())->swatch)->toBe(\PetstoreClient\Models\Swatch::GREEN);
+    $item = ObjectSerializer::deserialize('{}', \PetstoreClient\Models\Defaults::class);
+    \assert($item instanceof \PetstoreClient\Models\Defaults);
+    expect($item->swatch)->toBe(\PetstoreClient\Models\Swatch::GREEN);
+});
+
 test('bhv enums 008 encoding writes the wire value and decoding a supplied name gives the catch-all case', function (): void {
     expect(ObjectSerializer::serialize(\PetstoreClient\Models\Tier::MEDIUM))->toBe('"m"');
     $subscription = ObjectSerializer::deserialize('{"rank":1,"tier":"Medium"}', \PetstoreClient\Models\Subscription::class);

@@ -132,7 +132,7 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Decision.** Go operations take `ctx` first, before the path parameters, the body and the options. No code changes were needed; the issue is answered by S7 and this record.
 
-**Consequences.** A caller that has no context passes `context.Background()`. The trace context comes from the same argument (D101).
+**Consequences.** A caller that has no context passes `context.Background()`. The trace context comes from the same argument (D101), and the `otelhook` adapter records its request count and duration in it too, so a metric exemplar names the caller's span, as the ambient context does in the other SDKs.
 
 ## D115: Header parameters named Accept, Content-Type or Authorization are ignored
 
@@ -289,7 +289,19 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** Some Swift and Elixir property names carry an escape that is not strictly required. This is not a defect: do not raise it in reviews or audits, and do not open an issue for it.
 
-## D133: Every model has structural value equality
+## D133: A referenced enum starts at the default its component declares
+
+**Decision.** A property that is a `$ref` to an enum starts at a typed enum member when it is absent: the `default` written next to the `$ref` if there is one, otherwise the `default` the enum component declares itself. The default beside the `$ref` wins. This completes D60 for the component case, which Java, Kotlin, Python and PHP had left at null.
+
+**Consequences.** A model built without the property, or decoded from a body that leaves it out, holds that member in all twelve SDKs. A `$ref` to a schema that is not an enum takes no default from the component.
+
+## D134: A document without servers defaults to `http://localhost`
+
+**Decision.** OpenAPI says a document with no `servers` has the single server `/`, relative to the location of the document. The parser adds that server, and each SDK exposes it, but a generated SDK is not served from the document's location and cannot resolve a relative base, so the default base URL of every SDK for such a document is `http://localhost`, and the caller sets the real one.
+
+**Consequences.** A server-less document still generates a working SDK, and a call goes nowhere unexpected until the caller configures the base URL. A document without `paths` generates its models and no operations.
+
+## D144: Every model has structural value equality
 
 **Decision.** Two models with the same contents compare as equal in all twelve SDKs, each in its language's idiom: `equals` in Java and Kotlin, `Equals` and `==` on a C# record, `==` in Python (pydantic), Ruby (`Dry::Struct`), Dart, Swift (`Equatable`), Rust (`PartialEq`) and Elixir (struct equality), `Equal(other *Model)` in Go, and an `equals()` method in Node and PHP, where `==` compares by identity or loosely. Equality covers every field, nested models, lists, sets, maps, byte arrays and additional properties included, and it never throws: comparing with `null` or a value of another type returns false. Wrappers of `oneOf` and `anyOf` follow the same rule (D24). No hash method is added for this: Go and Node have no use for one, and the languages that hash already provide it (#154).
 

@@ -935,3 +935,93 @@ func TestBhvMisc214_StoreApi_SearchStoreRefusesAnInfiniteNumberInTheContentQuery
 		t.Errorf("expected no request, got %d", requests)
 	}
 }
+
+// memoRecordingRoundTripper answers every request locally and reports the method and URL it was sent with.
+type memoRecordingRoundTripper struct {
+	methods chan string
+	urls    chan string
+}
+
+func newMemoRecordingRoundTripper() *memoRecordingRoundTripper {
+	return &memoRecordingRoundTripper{methods: make(chan string, 8), urls: make(chan string, 8)}
+}
+
+func (rt *memoRecordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.methods <- req.Method
+	rt.urls <- req.URL.String()
+	if req.Method == http.MethodGet || req.Method == http.MethodPatch {
+		return &http.Response{
+			StatusCode: 200,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"memoId":"m1"}`)),
+			Request:    req,
+		}, nil
+	}
+	status := 204
+	if req.Method == http.MethodHead {
+		status = 200
+	}
+	return &http.Response{
+		StatusCode: status,
+		Header:     http.Header{},
+		Body:       http.NoBody,
+		Request:    req,
+	}, nil
+}
+
+func newMemoRecordingClient(t *testing.T, rt *memoRecordingRoundTripper) *petstore.Client {
+	t.Helper()
+	opts, err := petstore.NewTransportOptionsBuilder().RoundTripper(rt).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := petstore.NewClientWithToken("https://api.example.com", "test-token", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	return client
+}
+
+// An operation under a path item that declares its own servers is sent to the server chosen from them.
+func TestBhvServers031_StoreApi_APathItemServerSendsTheCallToItsUrl(t *testing.T) {
+	t.Parallel()
+	rt := newMemoRecordingRoundTripper()
+	client := newMemoRecordingClient(t, rt)
+
+	if _, err := client.Store.GetMemo(context.Background(), "m1", petstore.GetMemoServerMemos{}); err != nil {
+		t.Fatalf("GetMemo failed: %v", err)
+	}
+	if got := <-rt.urls; !strings.HasPrefix(got, "https://memos.example.com/v1/store/memos/m1") {
+		t.Errorf("expected the request sent to the memos server, got %q", got)
+	}
+}
+
+// A PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method.
+func TestBhvOperations166_StoreApi_EachMethodIsSentAsItself(t *testing.T) {
+	t.Parallel()
+	rt := newMemoRecordingRoundTripper()
+	client := newMemoRecordingClient(t, rt)
+	ctx := context.Background()
+
+	if _, err := client.Store.PatchMemo(ctx, "m1", *models.NewMemo("m1")); err != nil {
+		t.Fatalf("PatchMemo failed: %v", err)
+	}
+	if err := client.Store.HeadMemo(ctx, "m1"); err != nil {
+		t.Fatalf("HeadMemo failed: %v", err)
+	}
+	if err := client.Store.OptionsMemo(ctx, "m1"); err != nil {
+		t.Fatalf("OptionsMemo failed: %v", err)
+	}
+	if err := client.Store.TraceMemo(ctx, "m1"); err != nil {
+		t.Fatalf("TraceMemo failed: %v", err)
+	}
+	close(rt.methods)
+	var got []string
+	for method := range rt.methods {
+		got = append(got, method)
+	}
+	if want := []string{"PATCH", "HEAD", "OPTIONS", "TRACE"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("expected methods %v, got %v", want, got)
+	}
+}

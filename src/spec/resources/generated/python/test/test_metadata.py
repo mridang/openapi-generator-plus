@@ -1019,6 +1019,13 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
+            "get_memo",
+            "GetMemoOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
             "get_native_values",
             "GetNativeValuesOptions",
             False,
@@ -1075,6 +1082,27 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
+            "head_memo",
+            "HeadMemoOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "options_memo",
+            "OptionsMemoOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "patch_memo",
+            "PatchMemoOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
             "place_order",
             "PlaceOrderOptions",
             True,
@@ -1092,6 +1120,13 @@ class TestEveryOperationTakesOptions:
             "search_store",
             "SearchStoreOptions",
             False,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "trace_memo",
+            "TraceMemoOptions",
+            True,
         ),
         (
             "petstore_client.api.store_api",

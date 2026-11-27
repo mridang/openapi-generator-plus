@@ -512,17 +512,17 @@ import Testing
     let models: [String] = [
       "Account", "ApiResponse", "AttachPetFilesRequest", "Availability", "BinaryVault", "Blobs",
       "Car", "Category", "Circle", "Color", "Counters", "Defaults", "Department", "DryFood",
-      "EdgeCases", "Employee", "Freeform", "Ledger", "Medication", "MemberNotFound", "Metadata",
-      "ModelError", "ModelResult", "Moments", "NativeValues", "Order", "Pet", "PetAfterPage",
-      "PetArchivePage", "PetCatalogPage", "PetCriteria", "PetEventPage", "PetFood", "PetMatchPage",
-      "PetNextUrlPage", "PetNotePage", "PetOffsetPage", "PetPageNumberPage", "PetPassport",
-      "PetTreatment", "PetWithOwner", "Photo", "PhotoMetadata", "PhotoMetadataLocation", "Priority",
-      "ProjectNotFound", "Rank", "RejectedRequest", "RequiredNullable", "Reservation",
-      "ReservationReceipt", "ReserveStockResponse", "Roster", "Separator", "SetPetAvatarRequest",
-      "SetPetAvatarThumbnailRequest", "Shape", "Sparse", "Square", "Stage", "StateConflict",
-      "StockItem", "StrictTag", "Subscription", "Surgery", "Swatch", "Tag", "Tier",
-      "TreatmentRecord", "TreeNode", "Truck", "UnexpectedFailure", "UpstreamFailure", "Vehicle",
-      "WetFood",
+      "EdgeCases", "Employee", "Freeform", "Ledger", "Medication", "MemberNotFound", "Memo",
+      "Metadata", "ModelError", "ModelResult", "Moments", "NativeValues", "Order", "Pet",
+      "PetAfterPage", "PetArchivePage", "PetCatalogPage", "PetCriteria", "PetEventPage", "PetFood",
+      "PetMatchPage", "PetNextUrlPage", "PetNotePage", "PetOffsetPage", "PetPageNumberPage",
+      "PetPassport", "PetTreatment", "PetWithOwner", "Photo", "PhotoMetadata",
+      "PhotoMetadataLocation", "Priority", "ProjectNotFound", "Rank", "RejectedRequest",
+      "RequiredNullable", "Reservation", "ReservationReceipt", "ReserveStockResponse", "Roster",
+      "Separator", "SetPetAvatarRequest", "SetPetAvatarThumbnailRequest", "Shape", "Sparse",
+      "Square", "Stage", "StateConflict", "StockItem", "StrictTag", "Subscription", "Surgery",
+      "Swatch", "Tag", "Tier", "TreatmentRecord", "TreeNode", "Truck", "UnexpectedFailure",
+      "UpstreamFailure", "Vehicle", "WetFood",
     ]
     for name in ["README.md", "SKILLS.md"] {
       for fence in swiftFences(try rootFile(name)) {

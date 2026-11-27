@@ -2944,6 +2944,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert item.tier == :medium
     end
 
+    test "bhv enums 013 a referenced enum property whose enum declares a default starts at that member when absent" do
+      assert %PetstoreClient.Models.Defaults{}.swatch == :green
+      item = PetstoreClient.ObjectSerializer.deserialize("{}", "Defaults")
+      assert item.swatch == :green
+    end
+
     test "bhv enums 008 encoding writes the wire value and decoding a supplied name gives the catch-all member" do
       item = %PetstoreClient.Models.Subscription{rank: :low, tier: :medium}
       assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))["tier"] == "m"

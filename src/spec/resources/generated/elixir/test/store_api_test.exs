@@ -636,6 +636,52 @@ defmodule PetstoreClient.Api.StoreApiTest do
     Agent.stop(name)
   end
 
+  test "bhv servers 031 an operation under a path item with its own servers is sent to the server chosen from them" do
+    {:ok, name} = StubApiClient.start(~s({"memoId":"m1"}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, _result} =
+             PetstoreClient.Api.StoreApi.get_memo(
+               api,
+               "m1",
+               nil,
+               server: PetstoreClient.Api.GetMemoServer.Memos
+             )
+
+    assert String.starts_with?(
+             StubApiClient.captured(name).url,
+             "https://memos.example.com/v1/store/memos/m1"
+           )
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 166 a PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method" do
+    {:ok, name} = StubApiClient.start(~s({"memoId":"m1"}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+    memo = %PetstoreClient.Models.Memo{memo_id: "m1"}
+
+    assert {:ok, %PetstoreClient.Models.Memo{memo_id: "m1"}} =
+             PetstoreClient.Api.StoreApi.patch_memo(api, "m1", memo)
+
+    assert StubApiClient.captured(name).method == :patch
+
+    Agent.update(name, &%{&1 | body: ""})
+
+    assert {:ok, _} = PetstoreClient.Api.StoreApi.head_memo(api, "m1")
+    assert StubApiClient.captured(name).method == :head
+
+    assert {:ok, _} = PetstoreClient.Api.StoreApi.options_memo(api, "m1")
+    assert StubApiClient.captured(name).method == :options
+
+    assert {:ok, _} = PetstoreClient.Api.StoreApi.trace_memo(api, "m1")
+    assert StubApiClient.captured(name).method == :trace
+
+    Agent.stop(name)
+  end
+
   # The response-shape operations: each return type is decoded by the
   # generated function itself, so a wrong return type or a decoder that cannot
   # handle a bare enum, a map-of-array or a recursive model fails here.

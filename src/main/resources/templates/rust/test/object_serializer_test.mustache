@@ -1257,6 +1257,15 @@ fn test_bhv_enums_007_a_default_starts_at_the_supplied_member() {
 }
 
 #[test]
+fn test_bhv_enums_013_a_referenced_enum_default_starts_at_that_member_when_absent() {
+    use {{packageName}}::models::{Defaults, Swatch};
+
+    assert_eq!(Defaults::new().swatch, Some(Swatch::Green));
+    let item: Defaults = serde_json::from_str("{}").expect("decode");
+    assert_eq!(item.swatch, Some(Swatch::Green));
+}
+
+#[test]
 fn test_bhv_enums_008_only_the_wire_value_is_on_the_wire() {
     use {{packageName}}::models::{Rank, Subscription, Tier};
 

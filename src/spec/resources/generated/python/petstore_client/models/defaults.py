@@ -42,7 +42,9 @@ class Defaults(ApiModel):
     greeting: Optional[StrictStr] = Field(
         default='it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b', alias="greeting"
     )
-    swatch: Optional[Swatch] = Field(default=None, alias="swatch")
+    swatch: Optional[Swatch] = Field(
+        default_factory=lambda: Swatch("green"), alias="swatch"
+    )
     ratio: Optional[JsonNumber] = Field(default=Decimal("1.5"), alias="ratio")
     scale: Optional[LaxFloat] = Field(default=0.25, alias="scale")
     weight: Optional[LaxFloat] = Field(default=2, alias="weight")

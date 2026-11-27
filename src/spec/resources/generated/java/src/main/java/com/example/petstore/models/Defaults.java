@@ -180,7 +180,7 @@ public class Defaults {
     @Nullable private ModeEnum mode = ModeEnum.MEDIUM;
     @Nullable private String label = "untitled";
     @Nullable private String greeting = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b";
-    @Nullable private Swatch swatch;
+    @Nullable private Swatch swatch = Swatch.GREEN;
     @Nullable private BigDecimal ratio = new java.math.BigDecimal("1.5");
     @Nullable private Float scale = 0.25F;
     @Nullable private Double weight = 2D;

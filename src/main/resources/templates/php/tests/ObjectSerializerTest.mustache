@@ -2819,6 +2819,13 @@ test('bhv enums 007 a default on a referenced enum property starts at the member
     expect($item->tier)->toBe(\{{invokerPackage}}\Models\Tier::MEDIUM);
 });
 
+test('bhv enums 013 a referenced enum property whose enum component declares a default starts at that member when it is absent', function (): void {
+    expect((new \{{invokerPackage}}\Models\Defaults())->swatch)->toBe(\{{invokerPackage}}\Models\Swatch::GREEN);
+    $item = ObjectSerializer::deserialize('{}', \{{invokerPackage}}\Models\Defaults::class);
+    \assert($item instanceof \{{invokerPackage}}\Models\Defaults);
+    expect($item->swatch)->toBe(\{{invokerPackage}}\Models\Swatch::GREEN);
+});
+
 test('bhv enums 008 encoding writes the wire value and decoding a supplied name gives the catch-all case', function (): void {
     expect(ObjectSerializer::serialize(\{{invokerPackage}}\Models\Tier::MEDIUM))->toBe('"m"');
     $subscription = ObjectSerializer::deserialize('{"rank":1,"tier":"Medium"}', \{{invokerPackage}}\Models\Subscription::class);

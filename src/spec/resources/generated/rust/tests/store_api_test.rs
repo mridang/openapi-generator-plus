@@ -1261,3 +1261,91 @@ async fn test_bhv_misc_114_a_success_response_is_decoded_for_the_status_actually
         "{created:?}"
     );
 }
+
+/// servers031: an operation under a path item that declares its own servers is sent to the one chosen.
+#[tokio::test]
+async fn test_bhv_servers_031_a_path_item_server_operation_is_sent_to_the_chosen_server() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let _ = api
+        .get_memo("m1".to_string(), Some(&GetMemoServerMemos {}), None)
+        .await;
+    let url = client.url.lock().unwrap();
+    assert!(
+        url.starts_with("https://memos.example.com/v1/store/memos/m1"),
+        "{}",
+        url
+    );
+}
+
+/// Records the HTTP method of every request it is asked to send.
+struct MethodRecordingApiClient {
+    methods: Mutex<Vec<String>>,
+}
+
+impl petstore::api_client::ApiClient for MethodRecordingApiClient {
+    fn send_request(
+        &self,
+        method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&petstore::api_client::RequestBody>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::api_http_response::ApiHttpResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        self.methods.lock().unwrap().push(method.to_string());
+        let response = if method == "PATCH" {
+            let mut headers = HashMap::new();
+            headers.insert("Content-Type".to_string(), "application/json".to_string());
+            petstore::api_http_response::ApiHttpResponse::new(
+                200,
+                r#"{"memoId":"m1"}"#.to_string(),
+                headers,
+            )
+        } else {
+            let status = if method == "HEAD" { 200 } else { 204 };
+            petstore::api_http_response::ApiHttpResponse::new(status, String::new(), HashMap::new())
+        };
+        Box::pin(async move { Ok(response) })
+    }
+}
+
+/// operations166: a PATCH, HEAD, OPTIONS or TRACE operation is sent with its own HTTP method.
+#[tokio::test]
+async fn test_bhv_operations_166_patch_head_options_and_trace_are_sent_with_their_own_method() {
+    let client = Arc::new(MethodRecordingApiClient {
+        methods: Mutex::new(Vec::new()),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let patched = api
+        .patch_memo("m1".to_string(), Memo::new("m1".to_string()), None)
+        .await;
+    assert_eq!(patched.expect("a PATCH answer decodes").memo_id, "m1");
+    api.head_memo("m1".to_string(), None)
+        .await
+        .expect("HEAD succeeds");
+    api.options_memo("m1".to_string(), None)
+        .await
+        .expect("OPTIONS succeeds");
+    api.trace_memo("m1".to_string(), None)
+        .await
+        .expect("TRACE succeeds");
+    assert_eq!(
+        *client.methods.lock().unwrap(),
+        vec!["PATCH", "HEAD", "OPTIONS", "TRACE"]
+    );
+}

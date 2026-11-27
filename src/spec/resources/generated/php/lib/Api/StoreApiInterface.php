@@ -26,6 +26,7 @@ use PetstoreClient\Api\Options\GetDepartmentOptions;
 use PetstoreClient\Api\Options\GetGroupedCategoriesOptions;
 use PetstoreClient\Api\Options\GetInventoryOptions;
 use PetstoreClient\Api\Options\GetMatrixOptions;
+use PetstoreClient\Api\Options\GetMemoOptions;
 use PetstoreClient\Api\Options\GetNativeValuesOptions;
 use PetstoreClient\Api\Options\GetOrderByIdOptions;
 use PetstoreClient\Api\Options\GetOrderByTrackingIdOptions;
@@ -34,9 +35,13 @@ use PetstoreClient\Api\Options\GetSwatchOptions;
 use PetstoreClient\Api\Options\GetSwatchGroupsOptions;
 use PetstoreClient\Api\Options\GetTimestampGroupsOptions;
 use PetstoreClient\Api\Options\GetTreeOptions;
+use PetstoreClient\Api\Options\HeadMemoOptions;
+use PetstoreClient\Api\Options\OptionsMemoOptions;
+use PetstoreClient\Api\Options\PatchMemoOptions;
 use PetstoreClient\Api\Options\PlaceOrderOptions;
 use PetstoreClient\Api\Options\ReserveStockOptions;
 use PetstoreClient\Api\Options\SearchStoreOptions;
+use PetstoreClient\Api\Options\TraceMemoOptions;
 use PetstoreClient\Api\Options\WatchNoticesOptions;
 use PetstoreClient\Api\Options\WatchOrdersOptions;
 use PetstoreClient\Models\Swatch;
@@ -194,6 +199,22 @@ interface StoreApiInterface
     public function getMatrixWithHttpInfo(?GetMatrixOptions $options = null): ApiResult;
 
     /**
+     * Reads a memo from the server its path declares
+     * @param string $memoId The memo to address
+     * @param GetMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getMemo(string $memoId, ?GetMemoServer $server = null, ?GetMemoOptions $options = null): \PetstoreClient\Models\Memo;
+
+    /**
+     * @param string $memoId The memo to address
+     * @param GetMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\PetstoreClient\Models\Memo>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getMemoWithHttpInfo(string $memoId, ?GetMemoServer $server = null, ?GetMemoOptions $options = null): ApiResult;
+
+    /**
      * Reads values of the formats the SDKs type natively.
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -314,6 +335,56 @@ interface StoreApiInterface
     public function getTreeWithHttpInfo(?GetTreeOptions $options = null): ApiResult;
 
     /**
+     * Checks that a memo exists with a HEAD request
+     * @param string $memoId The memo to address
+     * @param HeadMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function headMemo(string $memoId, ?HeadMemoOptions $options = null): void;
+
+    /**
+     * @param string $memoId The memo to address
+     * @param HeadMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<null>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function headMemoWithHttpInfo(string $memoId, ?HeadMemoOptions $options = null): ApiResult;
+
+    /**
+     * Lists the methods a memo accepts with an OPTIONS request
+     * @param string $memoId The memo to address
+     * @param OptionsMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function optionsMemo(string $memoId, ?OptionsMemoOptions $options = null): void;
+
+    /**
+     * @param string $memoId The memo to address
+     * @param OptionsMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<null>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function optionsMemoWithHttpInfo(string $memoId, ?OptionsMemoOptions $options = null): ApiResult;
+
+    /**
+     * Changes a memo with a PATCH request
+     * @param string $memoId The memo to address
+     * @param \PetstoreClient\Models\Memo $memo The fields of the memo to change
+     * @param PatchMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function patchMemo(string $memoId, \PetstoreClient\Models\Memo $memo, ?PatchMemoOptions $options = null): \PetstoreClient\Models\Memo;
+
+    /**
+     * @param string $memoId The memo to address
+     * @param \PetstoreClient\Models\Memo $memo The fields of the memo to change
+     * @param PatchMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\PetstoreClient\Models\Memo>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function patchMemoWithHttpInfo(string $memoId, \PetstoreClient\Models\Memo $memo, ?PatchMemoOptions $options = null): ApiResult;
+
+    /**
      * Place an order for a pet
      * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
@@ -360,6 +431,22 @@ interface StoreApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function searchStoreWithHttpInfo(?SearchStoreOptions $options = null): ApiResult;
+
+    /**
+     * Echoes a memo request with a TRACE request
+     * @param string $memoId The memo to address
+     * @param TraceMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function traceMemo(string $memoId, ?TraceMemoOptions $options = null): void;
+
+    /**
+     * @param string $memoId The memo to address
+     * @param TraceMemoOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<null>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function traceMemoWithHttpInfo(string $memoId, ?TraceMemoOptions $options = null): ApiResult;
 
     /**
      * Streams plain text notices as server-sent events

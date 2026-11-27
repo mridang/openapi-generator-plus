@@ -4829,6 +4829,21 @@ func TestBhvEnums007_ObjectSerializer_ADefaultStartsAtTheSuppliedMember(t *testi
 	}
 }
 
+// A referenced enum property whose enum component declares a default starts at that member when it is absent.
+func TestBhvEnums013_ObjectSerializer_AnEnumComponentDefaultStartsAtThatMember(t *testing.T) {
+	t.Parallel()
+	if built := models.NewDefaults(); built.Swatch == nil || *built.Swatch != models.SwatchGreen {
+		t.Errorf("expected the constructed model to start at Green, got %v", built.Swatch)
+	}
+	var decoded models.Defaults
+	if err := deserialize([]byte(`{}`), &decoded); err != nil {
+		t.Fatalf("unexpected error decoding {}: %v", err)
+	}
+	if decoded.Swatch == nil || *decoded.Swatch != models.SwatchGreen {
+		t.Errorf("expected the decoded model to start at Green, got %v", decoded.Swatch)
+	}
+}
+
 func TestBhvEnums008_ObjectSerializer_OnlyTheWireValueIsOnTheWire(t *testing.T) {
 	t.Parallel()
 	data, err := serialize(models.TierMedium)

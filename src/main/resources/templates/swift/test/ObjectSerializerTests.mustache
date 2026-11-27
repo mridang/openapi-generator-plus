@@ -2800,6 +2800,12 @@ import Testing
         #expect(item?.tier == .medium)
     }
 
+    @Test func testBhvEnums013AReferencedEnumDefaultStartsAtThatMemberWhenAbsent() throws {
+        #expect(Defaults().swatch == .green)
+        let item = try ObjectSerializer.deserialize("{}", as: Defaults.self)
+        #expect(item?.swatch == .green)
+    }
+
     @Test func testBhvEnums008OnlyTheWireValueIsOnTheWire() throws {
         let json = try ObjectSerializer.serialize(Subscription(rank: .low, tier: .medium))
         #expect(json.contains("\"tier\":\"m\""))

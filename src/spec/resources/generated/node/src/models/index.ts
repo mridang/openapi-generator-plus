@@ -25,6 +25,7 @@ export * from "./freeform.js";
 export * from "./ledger.js";
 export * from "./medication.js";
 export * from "./member-not-found.js";
+export * from "./memo.js";
 export * from "./metadata.js";
 export * from "./model-error.js";
 export * from "./model-result.js";

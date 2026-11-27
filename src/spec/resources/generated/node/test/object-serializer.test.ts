@@ -59,6 +59,7 @@ import {
   Stage,
   Subscription,
   SubscriptionIntervalEnum,
+  Swatch,
 } from "../src/models/index.js";
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
@@ -4128,6 +4129,13 @@ describe("toBinary", () => {
       expect(
         ObjectSerializer.deserialize({ rank: 1 }, Subscription)!.tier,
       ).toBe(Tier.Medium);
+    });
+
+    test("bhv enums 013 a referenced enum property whose enum component declares a default starts at that member when it is absent", () => {
+      expect(new Defaults().swatch).toBe(Swatch.Green);
+      expect(ObjectSerializer.deserialize({}, Defaults)!.swatch).toBe(
+        Swatch.Green,
+      );
     });
 
     test("bhv enums 008 encoding writes the wire value and decoding rejects a supplied name", () => {

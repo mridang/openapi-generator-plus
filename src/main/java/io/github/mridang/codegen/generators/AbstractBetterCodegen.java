@@ -797,7 +797,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
         putInfoMetadata(openAPI.getInfo());
         responseSummaries = RawSpecReader.responseSummaries(getInputSpec());
-        System.err.println("DBG76 spec=" + getInputSpec() + " n=" + responseSummaries.size());
         computeSchemeEnvVars(openAPI);
         // Webhooks are out of scope (S11); the stock generator would write each one into an API
         // class as an ordinary operation and overwrite the untagged operations of the document.
@@ -6304,19 +6303,21 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
 
     /**
-     * Carries a {@code default} written next to a {@code $ref} (an OAS 3.1
-     * sibling keyword, D60) onto the property, which the base class loses
-     * because it resolves the reference first. Surfaces
+     * Carries the default of a {@code $ref}'d property onto it, which the base
+     * class loses because it resolves the reference first (D60). The default
+     * is the one written next to the {@code $ref} (an OAS 3.1 sibling keyword)
+     * or, when there is none and the target is an enum, the default the enum
+     * component declares itself; the property's own default wins. Surfaces
      * {@code vendorExtensions["siblingDefault"]} (the wire value as text),
      * {@code ["siblingDefaultIsEnum"]} and, for a referenced string enum,
      * {@code ["siblingDefaultEnumType"]} (the model name) and
      * {@code ["siblingDefaultEnumVar"]} (the generated member name). The
-     * property's own {@code defaultValue} is left alone so no output changes
-     * until a template reads these.
+     * property's own {@code defaultValue} is left alone, so a template uses
+     * these only where the base class left no default.
      */
     @SuppressWarnings("rawtypes")
     private void captureRefSiblingDefault(CodegenProperty property, Schema p) {
-        if (property == null || p == null || p.getDefault() == null) {
+        if (property == null || p == null) {
             return;
         }
         // By the time a property reaches here the parser and normaliser have usually moved the
@@ -6332,11 +6333,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (ref == null) {
             return;
         }
-        final String wire = String.valueOf(p.getDefault());
-        property.vendorExtensions.put("siblingDefault", wire);
         final String refName = ModelUtils.getSimpleRef(ref);
         final Schema target = this.openAPI == null ? null : ModelUtils.getSchema(this.openAPI, refName);
         final boolean isEnum = target != null && target.getEnum() != null && !target.getEnum().isEmpty();
+        Object declared = p.getDefault();
+        if (declared == null && isEnum && target != null) {
+            declared = target.getDefault();
+        }
+        if (declared == null) {
+            return;
+        }
+        final String wire = String.valueOf(declared);
+        property.vendorExtensions.put("siblingDefault", wire);
         property.vendorExtensions.put("siblingDefaultIsEnum", isEnum);
         if (isEnum) {
             property.vendorExtensions.put("siblingDefaultEnumType", toModelName(refName));
@@ -7035,7 +7043,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (operation.getSecurity() == null) {
             globalAuthOperationIds.add(op.operationId);
         }
-        System.err.println("DBG76 key=" + httpMethod + " " + path + " known=" + responseSummaries.keySet());
         final Map<String, String> summaries =
                 responseSummaries.get(httpMethod.toUpperCase(Locale.ROOT) + " " + path);
         if (summaries != null) {

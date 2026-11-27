@@ -903,4 +903,52 @@ public class StoreApiTest
 
         await Assert.ThrowsAsync<{{packageName}}.Errors.SerializationException>(() => api.ReserveStockAsync());
     }
+
+    [Fact]
+    public async Task BhvServers031AnOperationUnderAPathItemWithItsOwnServersGoesToTheChosenOne()
+    {
+        var client = new MethodRecordingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        _ = await api.GetMemoAsync("m1", new GetMemoServerMemos());
+
+        var requested = Assert.Single(client.Urls);
+        Assert.StartsWith("https://memos.example.com/v1/store/memos/m1", requested.ToString(), StringComparison.Ordinal);
+    }
+
+    private static readonly string[] MemoMethods = { "PATCH", "HEAD", "OPTIONS", "TRACE" };
+
+    [Fact]
+    public async Task BhvOperations166PatchHeadOptionsAndTraceAreSentWithTheirOwnMethod()
+    {
+        var client = new MethodRecordingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        _ = await api.PatchMemoAsync("m1", new Memo("m1"));
+        await api.HeadMemoAsync("m1");
+        await api.OptionsMemoAsync("m1");
+        await api.TraceMemoAsync("m1");
+
+        Assert.Equal(MemoMethods, client.Methods);
+    }
+
+    private sealed class MethodRecordingApiClient : IApiClient
+    {
+        public List<string> Methods { get; } = new();
+        public List<Uri> Urls { get; } = new();
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            Methods.Add(method);
+            Urls.Add(url);
+            if (method == "PATCH" || method == "GET")
+            {
+                return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "{\"memoId\":\"m1\"}",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+            }
+
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(204, "", new Dictionary<string, string>()));
+        }
+    }
 }

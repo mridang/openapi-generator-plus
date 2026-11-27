@@ -3606,6 +3606,23 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName(
+            "bhvEnums013 a referenced enum property whose enum component declares a default starts at that member when it is absent",
+        )
+        fun bhvEnums013ComponentDefaultStartsAtThatMember() {
+            assertEquals(
+                com.example.petstore.models.Swatch.GREEN,
+                com.example.petstore.models
+                    .Defaults()
+                    .swatch,
+            )
+            assertEquals(
+                com.example.petstore.models.Swatch.GREEN,
+                serializer.deserialize<com.example.petstore.models.Defaults>("{}")!!.swatch,
+            )
+        }
+
+        @Test
         @DisplayName("bhvEnums008 encoding writes the wire value and decoding a supplied name gives the catch-all member")
         fun wireValueOnlyOnTheWire() {
             assertEquals("\"m\"", serializer.serialize(com.example.petstore.models.Tier.MEDIUM))

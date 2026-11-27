@@ -33,6 +33,7 @@
         <type fullname="PetstoreClient.Models.Ledger" preserve="all" />
         <type fullname="PetstoreClient.Models.Medication" preserve="all" />
         <type fullname="PetstoreClient.Models.MemberNotFound" preserve="all" />
+        <type fullname="PetstoreClient.Models.Memo" preserve="all" />
         <type fullname="PetstoreClient.Models.Metadata" preserve="all" />
         <type fullname="PetstoreClient.Models.Moments" preserve="all" />
         <type fullname="PetstoreClient.Models.NativeValues" preserve="all" />

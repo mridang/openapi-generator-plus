@@ -12,12 +12,30 @@ package petstore
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
 	. "petstore/pkg/models"
 	opts "petstore/pkg/options"
 )
+
+// GetMemoServer is the interface for per-operation server URLs for GetMemo.
+type GetMemoServer interface {
+	/* GetUrl returns the server URL. */
+	GetUrl() string
+}
+
+// GetMemoServerMemos is a server variant for GetMemoServer.
+// Memos
+type GetMemoServerMemos struct {
+}
+
+// GetUrl returns the server URL.
+func (s GetMemoServerMemos) GetUrl() string {
+	url := "https://memos.example.com/v1"
+	return url
+}
 
 // StoreApi provides methods for the Store API group.
 // Access to Petstore orders
@@ -60,6 +78,8 @@ type StoreApiInterface interface {
 	GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[map[string]int32], error)
 	GetMatrix(ctx context.Context, callOptions ...RequestOption) ([][]int32, error)
 	GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[[][]int32], error)
+	GetMemo(ctx context.Context, memoId string, server GetMemoServer, callOptions ...RequestOption) (*Memo, error)
+	GetMemoWithHTTPInfo(ctx context.Context, memoId string, server GetMemoServer, callOptions ...RequestOption) (*ApiResult[Memo], error)
 	GetNativeValues(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (*NativeValues, error)
 	GetNativeValuesWithHTTPInfo(ctx context.Context, options *opts.GetNativeValuesOptions, callOptions ...RequestOption) (*ApiResult[NativeValues], error)
 	GetOrderById(ctx context.Context, orderId int64, callOptions ...RequestOption) (*Order, error)
@@ -76,12 +96,20 @@ type StoreApiInterface interface {
 	GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[[]map[string]DateTime], error)
 	GetTree(ctx context.Context, callOptions ...RequestOption) (*TreeNode, error)
 	GetTreeWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[TreeNode], error)
+	HeadMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error
+	HeadMemoWithHTTPInfo(ctx context.Context, memoId string, callOptions ...RequestOption) (*ApiResult[any], error)
+	OptionsMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error
+	OptionsMemoWithHTTPInfo(ctx context.Context, memoId string, callOptions ...RequestOption) (*ApiResult[any], error)
+	PatchMemo(ctx context.Context, memoId string, memo Memo, callOptions ...RequestOption) (*Memo, error)
+	PatchMemoWithHTTPInfo(ctx context.Context, memoId string, memo Memo, callOptions ...RequestOption) (*ApiResult[Memo], error)
 	PlaceOrder(ctx context.Context, order *Order, callOptions ...RequestOption) (*Order, error)
 	PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, callOptions ...RequestOption) (*ApiResult[Order], error)
 	ReserveStock(ctx context.Context, callOptions ...RequestOption) (*ReserveStockResponse, error)
 	ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[ReserveStockResponse], error)
 	SearchStore(ctx context.Context, options *opts.SearchStoreOptions, callOptions ...RequestOption) ([]Order, error)
 	SearchStoreWithHTTPInfo(ctx context.Context, options *opts.SearchStoreOptions, callOptions ...RequestOption) (*ApiResult[[]Order], error)
+	TraceMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error
+	TraceMemoWithHTTPInfo(ctx context.Context, memoId string, callOptions ...RequestOption) (*ApiResult[any], error)
 	WatchNoticesStream(ctx context.Context, callOptions ...RequestOption) (*SseStream[string], error)
 	WatchOrdersStream(ctx context.Context, options *opts.WatchOrdersOptions, callOptions ...RequestOption) (*SseStream[Order], error)
 }
@@ -1322,6 +1350,160 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 	}, nil
 }
 
+// GetMemo Reads a memo from the server its path declares
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param memoId: The memo to address
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /store/memos/{memoId}
+func (a *StoreApi) GetMemo(ctx context.Context, memoId string, server GetMemoServer, callOptions ...RequestOption) (*Memo, error) {
+	result, err := a.GetMemoWithHTTPInfo(ctx, memoId, server, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetMemo", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetMemoWithHTTPInfo performs the GetMemo operation and returns the full API result.
+func (a *StoreApi) GetMemoWithHTTPInfo(ctx context.Context, memoId string, server GetMemoServer, callOptions ...RequestOption) (_ *ApiResult[Memo], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+	if err := requirePathParam("memoId", memoId); err != nil {
+		return nil, fmt.Errorf("%w when calling StoreApi.GetMemo", err)
+	}
+
+	path := "/store/memos/{memoId}"
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	{
+		styledValue, styledErr := serializeStyledChecked("memoId", memoId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "memoId", fmt.Sprintf("%v", styledValue))
+	}
+	if server != nil {
+		serverUrl := server.GetUrl()
+		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
+			path = serverUrl + path
+		}
+	}
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "getMemo",
+		urlTemplate:  "/store/memos/{memoId}",
+		call:         call,
+		order:        []string{},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "Memo",
+		auth:         noAuth,
+		schemes:      []string{},
+		schemeGroups: [][]string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data Memo
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Memo
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Memo]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetMemo: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[Memo]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // GetNativeValues Reads values of the formats the SDKs type natively.
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
@@ -2468,6 +2650,315 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 	}, nil
 }
 
+// HeadMemo Checks that a memo exists with a HEAD request
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param memoId: The memo to address
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// HEAD /store/memos/{memoId}/revisions
+func (a *StoreApi) HeadMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error {
+	result, err := a.HeadMemoWithHTTPInfo(ctx, memoId, callOptions...)
+	if err != nil {
+		return err
+	}
+	_ = result
+	return nil
+}
+
+// HeadMemoWithHTTPInfo performs the HeadMemo operation and returns the full API result.
+func (a *StoreApi) HeadMemoWithHTTPInfo(ctx context.Context, memoId string, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+	if err := requirePathParam("memoId", memoId); err != nil {
+		return nil, fmt.Errorf("%w when calling StoreApi.HeadMemo", err)
+	}
+
+	path := "/store/memos/{memoId}/revisions"
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	{
+		styledValue, styledErr := serializeStyledChecked("memoId", memoId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "memoId", fmt.Sprintf("%v", styledValue))
+	}
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "headMemo",
+		urlTemplate:  "/store/memos/{memoId}/revisions",
+		call:         call,
+		order:        []string{},
+		method:       "HEAD",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{},
+		contentType:  "application/json",
+		returnType:   "",
+		auth:         noAuth,
+		schemes:      []string{},
+		schemeGroups: [][]string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ApiResult[any]{
+		StatusCode: response.StatusCode,
+		Data:       nil,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// OptionsMemo Lists the methods a memo accepts with an OPTIONS request
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param memoId: The memo to address
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// OPTIONS /store/memos/{memoId}/revisions
+func (a *StoreApi) OptionsMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error {
+	result, err := a.OptionsMemoWithHTTPInfo(ctx, memoId, callOptions...)
+	if err != nil {
+		return err
+	}
+	_ = result
+	return nil
+}
+
+// OptionsMemoWithHTTPInfo performs the OptionsMemo operation and returns the full API result.
+func (a *StoreApi) OptionsMemoWithHTTPInfo(ctx context.Context, memoId string, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+	if err := requirePathParam("memoId", memoId); err != nil {
+		return nil, fmt.Errorf("%w when calling StoreApi.OptionsMemo", err)
+	}
+
+	path := "/store/memos/{memoId}/revisions"
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	{
+		styledValue, styledErr := serializeStyledChecked("memoId", memoId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "memoId", fmt.Sprintf("%v", styledValue))
+	}
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "optionsMemo",
+		urlTemplate:  "/store/memos/{memoId}/revisions",
+		call:         call,
+		order:        []string{},
+		method:       "OPTIONS",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{},
+		contentType:  "application/json",
+		returnType:   "",
+		auth:         noAuth,
+		schemes:      []string{},
+		schemeGroups: [][]string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ApiResult[any]{
+		StatusCode: response.StatusCode,
+		Data:       nil,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// PatchMemo Changes a memo with a PATCH request
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param memoId: The memo to address
+// param memo: The fields of the memo to change
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// PATCH /store/memos/{memoId}/revisions
+func (a *StoreApi) PatchMemo(ctx context.Context, memoId string, memo Memo, callOptions ...RequestOption) (*Memo, error) {
+	result, err := a.PatchMemoWithHTTPInfo(ctx, memoId, memo, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("PatchMemo", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// PatchMemoWithHTTPInfo performs the PatchMemo operation and returns the full API result.
+func (a *StoreApi) PatchMemoWithHTTPInfo(ctx context.Context, memoId string, memo Memo, callOptions ...RequestOption) (_ *ApiResult[Memo], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+	if err := requirePathParam("memoId", memoId); err != nil {
+		return nil, fmt.Errorf("%w when calling StoreApi.PatchMemo", err)
+	}
+
+	path := "/store/memos/{memoId}/revisions"
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	{
+		styledValue, styledErr := serializeStyledChecked("memoId", memoId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "memoId", fmt.Sprintf("%v", styledValue))
+	}
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any = memo
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "patchMemo",
+		urlTemplate:  "/store/memos/{memoId}/revisions",
+		call:         call,
+		order:        []string{},
+		method:       "PATCH",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "Memo",
+		auth:         noAuth,
+		schemes:      []string{},
+		schemeGroups: [][]string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data Memo
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *Memo
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Memo]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "PATCH", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "PATCH", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "PATCH", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.PatchMemo: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "PATCH", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[Memo]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // PlaceOrder Place an order for a pet
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
@@ -2929,6 +3420,86 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 	return &ApiResult[[]Order]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// TraceMemo Echoes a memo request with a TRACE request
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param memoId: The memo to address
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// TRACE /store/memos/{memoId}/revisions
+func (a *StoreApi) TraceMemo(ctx context.Context, memoId string, callOptions ...RequestOption) error {
+	result, err := a.TraceMemoWithHTTPInfo(ctx, memoId, callOptions...)
+	if err != nil {
+		return err
+	}
+	_ = result
+	return nil
+}
+
+// TraceMemoWithHTTPInfo performs the TraceMemo operation and returns the full API result.
+func (a *StoreApi) TraceMemoWithHTTPInfo(ctx context.Context, memoId string, callOptions ...RequestOption) (_ *ApiResult[any], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+	if err := requirePathParam("memoId", memoId); err != nil {
+		return nil, fmt.Errorf("%w when calling StoreApi.TraceMemo", err)
+	}
+
+	path := "/store/memos/{memoId}/revisions"
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	{
+		styledValue, styledErr := serializeStyledChecked("memoId", memoId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "memoId", fmt.Sprintf("%v", styledValue))
+	}
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "traceMemo",
+		urlTemplate:  "/store/memos/{memoId}/revisions",
+		call:         call,
+		order:        []string{},
+		method:       "TRACE",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{},
+		contentType:  "application/json",
+		returnType:   "",
+		auth:         noAuth,
+		schemes:      []string{},
+		schemeGroups: [][]string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ApiResult[any]{
+		StatusCode: response.StatusCode,
+		Data:       nil,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil

@@ -51,7 +51,7 @@ class Defaults implements \Ds\Hashable, \Stringable
         DefaultsModeEnum $mode = DefaultsModeEnum::MEDIUM,
         ?string $label = 'untitled',
         string $greeting = "it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b",
-        ?\PetstoreClient\Models\Swatch $swatch = null,
+        ?\PetstoreClient\Models\Swatch $swatch = \PetstoreClient\Models\Swatch::GREEN,
         float $ratio = 1.5,
         float $scale = 0.25,
         float $weight = 2,
