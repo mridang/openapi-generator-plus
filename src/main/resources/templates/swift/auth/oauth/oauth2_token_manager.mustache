@@ -284,13 +284,20 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// session is marked exchanged; on any failure the previous session is
     /// kept unchanged and the error is rethrown, so a mistyped authorization
     /// code does not log the user out.
+    ///
+    /// `idTokenCheck`, when given, receives the response's `id_token` (nil when
+    /// it carried none, an empty string when it was not a JSON string) before
+    /// the session is replaced; when it throws, the previous session is kept
+    /// and the error propagates. OpenID Connect uses it to validate the id_token.
     public func exchange(
         tokenURL: String,
         params: [String: String],
-        extraHeaders: [String: String] = [:]
+        extraHeaders: [String: String] = [:],
+        idTokenCheck: ((String?) throws -> Void)? = nil
     ) async throws {
         try requireRunning()
         let result = try await requestToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
+        try idTokenCheck?(result.idToken)
         lock.withLock {
             self.accessToken = result.accessToken
             self._refreshToken = result.refreshToken ?? ""
@@ -331,6 +338,8 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         let refreshToken: String?
         let hasExpiresIn: Bool
         let expiresIn: Int
+        /// The `id_token`: nil when absent or null, empty when not a JSON string.
+        let idToken: String?
     }
 
     /// Merges a grant response into the cached session (caller holds `lock`):
@@ -481,11 +490,16 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         let expiresIn = Self.parseExpiresIn(rawExpiresIn)
 
         let refreshTokenValue = (rawJson["refresh_token"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        var idTokenValue: String? = nil
+        if let rawIdToken = rawJson["id_token"], !(rawIdToken is NSNull) {
+            idTokenValue = (rawIdToken as? String) ?? ""
+        }
         return TokenResult(
             accessToken: accessTokenValue,
             refreshToken: refreshTokenValue,
             hasExpiresIn: hasExpiresIn,
-            expiresIn: expiresIn
+            expiresIn: expiresIn,
+            idToken: idTokenValue
         )
     }
 
