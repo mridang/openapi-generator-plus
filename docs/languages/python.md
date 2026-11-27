@@ -39,7 +39,7 @@ The mapping in the table comes from `BetterPythonCodegen.java` and the aliases i
 
 ## Dependencies
 
-Runtime dependencies are `urllib3` (2.2 or newer, below 3), `python_dateutil` (2.8.2 or newer) and `pydantic` (2.11 or newer, below 3). The HTTP transport is a synchronous urllib3 `PoolManager`, called from the async API through `asyncio.to_thread`.
+Runtime dependencies are `urllib3` (2.8 or newer, below 3), `python_dateutil` (2.8.2 or newer) and `pydantic` (2.11 or newer, below 3). The HTTP transport is a synchronous urllib3 `PoolManager`, called from the async API through `asyncio.to_thread`.
 
 Response decompression for `br` and `zstd` is an optional extra: `pip install <project-name>[compression]` installs `brotli` (1.0.0 or newer) and `zstandard` (0.23.0 or newer). The client imports them inside `try`/`except ImportError` and offers a codec in `Accept-Encoding` only when its package is installed. Without them the client still handles gzip and deflate.
 
