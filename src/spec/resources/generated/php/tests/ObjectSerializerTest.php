@@ -1627,6 +1627,21 @@ test('bhv serializationobject 222 serializing an array of byte values encodes ea
     expect($data['scans'])->toBe([base64_encode("scan-A\x00\xff"), base64_encode('scan-B')]);
 });
 
+test('bhv serializationobject 232 a format byte field holding malformed base64 throws SerializationException', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"seal":"not*base64!"}', BinaryVault::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serializationobject 233 a format byte list element holding malformed base64 throws SerializationException', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"shards":["aGVsbG8","****"]}', BinaryVault::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serializationobject 234 a format byte field holding url-safe base64 throws SerializationException', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"seal":"-_-_"}', BinaryVault::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
 test('bhv serializationobject 115 a contentEncoding base64 property holds raw bytes and is base64 on the wire', function (): void {
     $passport = new PetPassport(biometricChip: "chip\x00\xff");
 

@@ -57,8 +57,7 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
   protected boolean includeFileForInlineCommentCheck(Path file) {
     String path = file.toString();
     // Exclude MSBuild-generated /obj/ (AssemblyInfo.cs etc) — not source.
-    return !path.contains("/Models/")
-        && !path.contains("/obj/")
+    return !path.contains("/obj/")
         && path.contains("/src/PetstoreClient/");
   }
 
