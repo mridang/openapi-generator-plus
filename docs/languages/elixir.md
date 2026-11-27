@@ -21,7 +21,7 @@ Types are the typespecs that appear in the generated modules.
 | `string` / `uuid` | `String.t()` | Neither Elixir nor Erlang has a UUID type. Written in lower case and validated when sent as a parameter. |
 | `string` / `byte` | `binary()` | Base64 with `Base`. |
 | `string` / `binary`, file bodies | `BodySource` for a raw binary request body (a multipart file part stays `binary()`); `ByteStream` (an `Enumerable` of binaries) for a response | The response body is read as you consume it, and a raw upload is sent as it is read, see Streaming. |
-| `string` / `uri` | `String.t()` | |
+| `string` / `uri` | `String.t()` | Checked as an absolute URI on decode. Not `URI.t()`, because `URI.to_string/1` lowercases the scheme and drops a default port, and `URI.new/1` refuses a square bracket in a path, so the text would not round-trip (D134). |
 | `integer` (any format) | `integer()` | BEAM integers are unbounded. `int32` and `int64` are not range checked. |
 | `number` / `float`, `double`, and no format | `float()` | |
 | `number` / `decimal` | `float()` | Lossy for exact decimal values such as money. Parse the body with the `Decimal` package if you need exactness. |
@@ -161,7 +161,6 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - Check that `DateTime` and `Time` decoding does not silently convert a value such as `+05:30` to UTC where the generated README claims a round trip, and add a test for it.
 - Tighten typespecs: `number()` instead of `float()` for a bare `number`, because Jason decodes `1` as an integer, and `%{optional(String.t()) => T}` for `additionalProperties`.
 - A documentation-only `@type uuid :: String.t()` alias in the models module. The review advises against adding a UUID dependency.
-- `URI.t()` for `uri`, once it is shown to keep the text unchanged.
 - `Decimal.t()` for `decimal` would need the `decimal` package as a dependency, so the README guidance stays unless that is accepted.
 - No floor change is required by any of these ideas.
 

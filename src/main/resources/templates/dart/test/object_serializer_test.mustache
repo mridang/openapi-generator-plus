@@ -2677,6 +2677,26 @@ void main() {
         }
       });
 
+      test('bhv serializationobject 407 a malformed ipv4 or ipv6 address fails the decode', () {
+        for (final entry in <List<Object>>[
+          ['address4', '01.2.3.4'],
+          ['address4', '192.0.2.1/24'],
+          ['address4', ' 192.0.2.1'],
+          ['address4', '[::1]'],
+          ['address4', '2001:db8::1'],
+          ['address6', 'fe80::1%eth0'],
+          ['address6', '[::1]'],
+          ['address6', '2001:db8::/64'],
+          ['address6', ' ::1'],
+          ['address6', '192.0.2.1'],
+          ['addresses', ['1:2:3:4:5:6:7:8:9']],
+        ]) {
+          final json = jsonEncode({entry[0] as String: entry[1]});
+
+          expect(() => decode(json), throwsA(isA<SerializationException>()), reason: json);
+        }
+      });
+
       test('bhv serializationobject 408 every absolute URI of the corpus round-trips byte for byte', () {
         for (final text in [
           'https://example.com',

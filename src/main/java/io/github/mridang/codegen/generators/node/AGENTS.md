@@ -35,6 +35,7 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 | Topic | What this language does | Why |
 |---|---|---|
 | Format types | `UUID`, `URI`, `Email`, `Decimal` are branded string aliases; unions of primitives (`Array<Buffer> \| Buffer`) are plain aliases with no wrapper class; enums of some operations are literal unions | TypeScript has no nominal types. |
+| `format: ipv4`, `ipv6` (D134) | plain `string`, checked in `__validate` with `isIpv4Address`/`isIpv6Address` from the object serializer, list elements included; a malformed address fails the decode | the standard library has no address type |
 | Construction | `Configuration` and `TransportOptions` take one options object plus a fluent builder | named-argument idiom of TypeScript |
 | Error construction | every `*Error` takes the ES2022 `{ cause }` bag as its last argument | that is the signature of `Error` itself |
 | Auth header accessor | a distinct `...Async` method beside the sync one; `isNoAuth` and `isHttpAwareAuthenticator` type guards | value-wrapped async (`Promise`) like csharp and dart; no interface check at runtime |

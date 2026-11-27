@@ -2153,6 +2153,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (model.vars.stream().anyMatch(BetterNodeCodegen::isPlainDate)) {
                     serializerImports.add("plainDate");
                 }
+                if (model.vars.stream().anyMatch(BetterNodeCodegen::holdsIpAddress)) {
+                    serializerImports.add("isIpv4Address");
+                    serializerImports.add("isIpv6Address");
+                }
                 modelMap.put("serializerImports", String.join(", ", serializerImports));
                 modelMap.put("hasSerializerImports", !serializerImports.isEmpty());
                 modelMap.put("hasUuidImport", namesType(model, "UUID"));
@@ -2167,6 +2171,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     /** Whether the property is a bare {@code type: number} carried as a branded Decimal. */
     private static boolean isPlainNumberDecimal(CodegenProperty prop) {
         return Boolean.TRUE.equals(prop.vendorExtensions.get("isPlainNumberDecimal"));
+    }
+
+    /** Whether the property is a {@code format: ipv4} or {@code ipv6} string, or an array of them. */
+    private static boolean holdsIpAddress(CodegenProperty prop) {
+        return Boolean.TRUE.equals(prop.vendorExtensions.get("isIpv4"))
+                || Boolean.TRUE.equals(prop.vendorExtensions.get("isIpv6"))
+                || Boolean.TRUE.equals(prop.vendorExtensions.get("isIpv4Items"))
+                || Boolean.TRUE.equals(prop.vendorExtensions.get("isIpv6Items"));
     }
 
     /** Whether the property is a {@code format: date}, or an array of them, held as a plain string. */

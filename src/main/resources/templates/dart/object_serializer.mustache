@@ -503,6 +503,70 @@ String parseUri(String text) {
   return text;
 }
 
+final RegExp _ipv4Address = RegExp(
+    r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$');
+
+final RegExp _ipv6Characters = RegExp(r'^[0-9A-Fa-f:.]+$');
+
+/// Validates a `format: ipv4` value.
+///
+/// The value stays the text as given, because `InternetAddress` lives in
+/// `dart:io`, which the models cannot import when the SDK builds for the web.
+/// Anything but four dotted decimal parts from 0 to 255 with no leading zero
+/// raises a [SerializationException].
+String parseIpv4Address(String text) {
+  if (!_ipv4Address.hasMatch(text)) {
+    throw SerializationException('Invalid IPv4 address: $text');
+  }
+  return text;
+}
+
+/// Validates a `format: ipv6` value.
+///
+/// The value stays the text as given. It must be an IPv6 address in an RFC
+/// 4291 text form: hexadecimal groups of up to four digits, at most one `::`
+/// and an optional trailing dotted IPv4 part. A zone id, brackets, a prefix
+/// length or whitespace raises a [SerializationException].
+String parseIpv6Address(String text) {
+  if (!_isIpv6Address(text)) {
+    throw SerializationException('Invalid IPv6 address: $text');
+  }
+  return text;
+}
+
+bool _isIpv6Address(String text) {
+  if (!_ipv6Characters.hasMatch(text)) {
+    return false;
+  }
+  final gap = text.indexOf('::');
+  if (gap >= 0 && text.indexOf('::', gap + 1) >= 0) {
+    return false;
+  }
+  final halves = gap >= 0 ? [text.substring(0, gap), text.substring(gap + 2)] : [text];
+  var groups = 0;
+  for (var half = 0; half < halves.length; half++) {
+    if (halves[half].isEmpty) {
+      continue;
+    }
+    final parts = halves[half].split(':');
+    for (var index = 0; index < parts.length; index++) {
+      final part = parts[index];
+      final last = half == halves.length - 1 && index == parts.length - 1;
+      if (part.contains('.')) {
+        if (!last || !_ipv4Address.hasMatch(part)) {
+          return false;
+        }
+        groups += 2;
+      } else if (part.isEmpty || part.length > 4) {
+        return false;
+      } else {
+        groups += 1;
+      }
+    }
+  }
+  return gap >= 0 ? groups <= 7 : groups == 8;
+}
+
 /// Convert a scalar value to its canonical string representation.
 ///
 /// This is the canonical type-conversion method used by all parameter encoding

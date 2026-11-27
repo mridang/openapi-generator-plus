@@ -668,6 +668,62 @@ export function plainDate(value: unknown, name = 'date'): string {
   throw new TypeError(`${name} must be a YYYY-MM-DD date, got ${typeof value === 'string' ? JSON.stringify(value) : String(value)}`);
 }
 
+const IPV4_ADDRESS = /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$/;
+
+/**
+ * Whether a `format: ipv4` value is exactly a dotted decimal address: four
+ * parts from 0 to 255 with no leading zero. The value stays a string, because
+ * the standard library has no address type.
+ *
+ * @param text the text to check
+ * @returns true for an IPv4 address
+ */
+export function isIpv4Address(text: string): boolean {
+  return IPV4_ADDRESS.test(text);
+}
+
+/**
+ * Whether a `format: ipv6` value is exactly an IPv6 address in any RFC 4291
+ * text form: hexadecimal groups of up to four digits, at most one `::` and an
+ * optional trailing dotted IPv4 part. A zone id, brackets, a prefix length or
+ * whitespace is refused.
+ *
+ * @param text the text to check
+ * @returns true for an IPv6 address
+ */
+export function isIpv6Address(text: string): boolean {
+  if (!/^[0-9A-Fa-f:.]+$/.test(text)) {
+    return false;
+  }
+  const gap = text.indexOf('::');
+  if (gap >= 0 && text.indexOf('::', gap + 1) >= 0) {
+    return false;
+  }
+  const halves = gap >= 0 ? [text.slice(0, gap), text.slice(gap + 2)] : [text];
+  let groups = 0;
+  for (let half = 0; half < halves.length; half++) {
+    if (halves[half] === '') {
+      continue;
+    }
+    const parts = halves[half].split(':');
+    for (let index = 0; index < parts.length; index++) {
+      const part = parts[index];
+      const last = half === halves.length - 1 && index === parts.length - 1;
+      if (part.includes('.')) {
+        if (!last || !isIpv4Address(part)) {
+          return false;
+        }
+        groups += 2;
+      } else if (part === '' || part.length > 4) {
+        return false;
+      } else {
+        groups += 1;
+      }
+    }
+  }
+  return gap >= 0 ? groups <= 7 : groups === 8;
+}
+
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
  *

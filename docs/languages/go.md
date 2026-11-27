@@ -21,7 +21,7 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 | `string` / `uuid` | `uuid.UUID` | From `github.com/google/uuid`. Written in lower case. |
 | `string` / `byte` | `[]byte` | `encoding/json` encodes it as padded standard base64. |
 | `string` / `binary`, file bodies | `*ByteStream` (an `io.ReadCloser`) for downloads, `*BodySource` for a raw upload (a multipart file part stays `io.Reader`) | The response body is read as you consume it and the request body is sent as it is read, see Streaming. |
-| `string` / `uri` | `string` | |
+| `string` / `uri` | `string` | Checked as an absolute URI on decode. Not `url.URL`, because `url.Parse` lowercases the scheme, so the text would not round-trip (D134). |
 | `integer` / `int32` | `int32` | |
 | `integer` / `int64` | `int64` | |
 | `integer` with no format | `int64` | |
@@ -181,7 +181,6 @@ An operation whose success response is `application/x-ndjson`, `application/json
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
 
 - Add an SDK-owned `models.TimeOfDay` type so `time` is validated. This needs agreement with the other SDKs because it adds public API.
-- `url.URL` for `uri`, once it is shown to keep the text unchanged.
 - Replace `google/uuid` with the `uuid` package the review says Go 1.27 adds. The review could not confirm its API, and using it would raise the floor to 1.27, so it is not before Go 1.26 reaches end of life.
 - Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on.
 

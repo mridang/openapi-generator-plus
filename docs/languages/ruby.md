@@ -23,8 +23,8 @@ A review of the type mapping (see "Under review") found that Ruby 3.2 reached en
 | `string` with `format: time` | `Tod::TimeOfDay` | From the `tod` gem. |
 | `string` with `format: duration` | `ISO8601::Duration` | From the `iso8601` gem, the documented fallback: Ruby's standard library has no duration type (D133). The wire form is the protobuf-JSON form such as `3600s`. |
 | `string` with `format: uuid` | `String` | Validated against the canonical 8-4-4-4-12 form and written in lowercase. Ruby has no UUID class. |
-| `string` with `format: uri` | `String` | Validated, not parsed into a `URI` object. |
-| `string` with `format: email`, `hostname`, `ipv4`, `ipv6` | `String` | |
+| `string` with `format: uri` | `String` | Validated, not parsed into a `URI` object: `URI.parse` lowercases the scheme, drops a default port and refuses a square bracket in a path, so the text would not round-trip (D134). |
+| `string` with `format: email`, `hostname` | `String` | |
 | `string` with `format: byte` | `String` in binary encoding | Strictly base64-decoded on read. |
 | `string` with `format: binary` | `BodySource` for a raw request body; `ByteStream` for a response | The request is sent as it is read and the response body is read as you consume it, see Streaming. |
 | file upload and download | `File` or `StringIO` part of a multipart upload, `BodySource` for a raw body, `ByteStream` download | Same as `binary`. |

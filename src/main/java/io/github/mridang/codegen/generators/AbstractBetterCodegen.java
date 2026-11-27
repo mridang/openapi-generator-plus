@@ -2683,11 +2683,22 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * generator-owned flags {@code isIpv4}, {@code isIpv6} and
      * {@code isDecimalString} (a {@code type: string} carrying
      * {@code format: decimal}, which travels as a JSON string). A template reads one
-     * flag instead of every language recomputing the format test.
+     * flag instead of every language recomputing the format test. An array whose
+     * items are {@code ipv4} or {@code ipv6} is marked {@code isIpv4Items} or
+     * {@code isIpv6Items}, so a language that keeps addresses as strings can still
+     * check every element.
      *
      * @param property the property to mark
      */
     protected static void markNativeFormats(CodegenProperty property) {
+        if (property.isArray && property.items != null) {
+            final String itemFormat = property.items.dataFormat;
+            if (property.vendorExtensions == null) {
+                property.vendorExtensions = new java.util.HashMap<>();
+            }
+            property.vendorExtensions.put("isIpv4Items", "ipv4".equals(itemFormat));
+            property.vendorExtensions.put("isIpv6Items", "ipv6".equals(itemFormat));
+        }
         final String fmt = property.dataFormat;
         if (fmt == null || property.isContainer) {
             return;

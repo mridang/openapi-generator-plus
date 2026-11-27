@@ -25,7 +25,8 @@ The package runs on Node and on runtimes that have only `fetch`: Deno, Bun, Clou
 | `string` with `format: uuid` | `UUID` (a branded string) | Decoding validates the canonical 8-4-4-4-12 form. |
 | `string` with `format: uri` | `URI` (a branded string) | Absolute URIs only. `uri-reference` and `uri-template` stay `string`. |
 | `string` with `format: email` | `Email` (a branded string) | |
-| `string` with `format: hostname`, `ipv4`, `ipv6` | `string` | |
+| `string` with `format: hostname` | `string` | |
+| `string` with `format: ipv4`, `ipv6` | `string` | No standard library address type. The text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D134). |
 | `string` with `format: byte` | `Buffer` | Base64 on the wire, converted by the serializer. |
 | `string` with `format: binary`, file upload and download | `BodySource` for a raw request body, `ByteStream` for a download | A multipart file part is a `Buffer` or a `Blob`. A download is read as you consume it and a raw upload is sent as it is read, see Streaming. |
 | `array` | `Array<T>` | |

@@ -547,7 +547,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       {{! depth instead of one level deep. A primitive `Map<String, X>` value }}
       {{! that is itself primitive still casts; deserializeArray returns a }}
       {{! List which `.toSet()` narrows for uniqueItems. }}
-      {{name}}: deserializeArray(json['{{baseName}}'] as List, {{#items}}{{>deserialize_arg}}{{/items}}){{#uniqueItems}}.toSet(){{/uniqueItems}},
+      {{name}}: deserializeArray(json['{{baseName}}'] as List, {{#vendorExtensions.isIpv4Items}}(e) => parseIpv4Address(e as String){{/vendorExtensions.isIpv4Items}}{{#vendorExtensions.isIpv6Items}}(e) => parseIpv6Address(e as String){{/vendorExtensions.isIpv6Items}}{{^vendorExtensions.isIpv4Items}}{{^vendorExtensions.isIpv6Items}}{{#items}}{{>deserialize_arg}}{{/items}}{{/vendorExtensions.isIpv6Items}}{{/vendorExtensions.isIpv4Items}}){{#uniqueItems}}.toSet(){{/uniqueItems}},
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
@@ -617,7 +617,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       {{name}}: readInt64(json['{{baseName}}']),
 {{/isLong}}
 {{^isLong}}
-      {{name}}: json['{{baseName}}'] as {{{dataType}}},
+      {{name}}: {{#vendorExtensions.isIpv4}}parseIpv4Address({{/vendorExtensions.isIpv4}}{{#vendorExtensions.isIpv6}}parseIpv6Address({{/vendorExtensions.isIpv6}}json['{{baseName}}'] as {{{dataType}}}{{#vendorExtensions.isIpv4}}){{/vendorExtensions.isIpv4}}{{#vendorExtensions.isIpv6}}){{/vendorExtensions.isIpv6}},
 {{/isLong}}
 {{/isInteger}}
 {{/isUri}}
@@ -681,7 +681,7 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#isArray}}
       {{! recursive-container-deserialize (optional): same recursive descent as }}
       {{! the required branch, guarded for an absent/null key. }}
-      {{name}}: json['{{baseName}}'] != null ? deserializeArray(json['{{baseName}}'] as List, {{#items}}{{>deserialize_arg}}{{/items}}){{#uniqueItems}}.toSet(){{/uniqueItems}} : null,
+      {{name}}: json['{{baseName}}'] != null ? deserializeArray(json['{{baseName}}'] as List, {{#vendorExtensions.isIpv4Items}}(e) => parseIpv4Address(e as String){{/vendorExtensions.isIpv4Items}}{{#vendorExtensions.isIpv6Items}}(e) => parseIpv6Address(e as String){{/vendorExtensions.isIpv6Items}}{{^vendorExtensions.isIpv4Items}}{{^vendorExtensions.isIpv6Items}}{{#items}}{{>deserialize_arg}}{{/items}}{{/vendorExtensions.isIpv6Items}}{{/vendorExtensions.isIpv4Items}}){{#uniqueItems}}.toSet(){{/uniqueItems}} : null,
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
@@ -758,7 +758,17 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
       {{name}}: readInt64OrNull(json['{{baseName}}']),
 {{/isLong}}
 {{^isLong}}
+{{#vendorExtensions.isIpv4}}
+      {{name}}: json['{{baseName}}'] != null ? parseIpv4Address(json['{{baseName}}'] as String) : null,
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+      {{name}}: json['{{baseName}}'] != null ? parseIpv6Address(json['{{baseName}}'] as String) : null,
+{{/vendorExtensions.isIpv6}}
+{{^vendorExtensions.isIpv4}}
+{{^vendorExtensions.isIpv6}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
+{{/vendorExtensions.isIpv6}}
+{{/vendorExtensions.isIpv4}}
 {{/isLong}}
 {{/isInteger}}
 {{/isUri}}

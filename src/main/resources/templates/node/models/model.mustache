@@ -981,11 +981,39 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       throw new TypeError(`{{name}} must be an absolute URI, got ${JSON.stringify(this.{{name}})}`);
     }
 {{/isUri}}
+{{#vendorExtensions.isIpv4}}
+    /* `format: ipv4` stays the text as given, read strictly. */
+    if (this.{{name}} != null && !isIpv4Address(this.{{name}})) {
+      throw new TypeError(`{{name}} must be an IPv4 address, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+    /* `format: ipv6` stays the text as given, read strictly. */
+    if (this.{{name}} != null && !isIpv6Address(this.{{name}})) {
+      throw new TypeError(`{{name}} must be an IPv6 address, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/vendorExtensions.isIpv6}}
 {{/vendorExtensions.isDurationFormat}}
 {{/vendorExtensions.isTimeFormat}}
 {{/isUuid}}
 {{/isByteArray}}
 {{/isString}}
+{{#vendorExtensions.isIpv4Items}}
+    if (
+      Array.isArray(this.{{name}}) &&
+      this.{{name}}.some((item: unknown) => typeof item !== 'string' || !isIpv4Address(item))
+    ) {
+      throw new TypeError(`{{name}} must hold IPv4 addresses, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/vendorExtensions.isIpv4Items}}
+{{#vendorExtensions.isIpv6Items}}
+    if (
+      Array.isArray(this.{{name}}) &&
+      this.{{name}}.some((item: unknown) => typeof item !== 'string' || !isIpv6Address(item))
+    ) {
+      throw new TypeError(`{{name}} must hold IPv6 addresses, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/vendorExtensions.isIpv6Items}}
 {{#isByteArray}}
     /**
      * 2.1 — format: byte. The wire form is base64; the model field is a

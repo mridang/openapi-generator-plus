@@ -24,7 +24,8 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 | `string` with `format: duration` | `Duration` | The wire form is the protobuf-JSON form such as `3600s`, limited to +-315576000000 seconds (a value beyond that is refused). Helper functions in `iso8601_duration.dart` convert between the two, even though the file name says ISO 8601. |
 | `string` with `format: uuid` | `UuidValue` | A class the SDK defines itself, which validates on construction. It deliberately shadows the type of the same name in `package:uuid`, whose `fromString` does not validate. |
 | `string` with `format: uri` | `String` | Checked as an absolute RFC 3986 URI when decoded. Not `Uri`, because `dart:core` `Uri` rewrites `[`, `]` and the apostrophe, which would change the text on a round trip. |
-| `string` with `format: email`, `hostname`, `ipv4`, `ipv6` | `String` | |
+| `string` with `format: email`, `hostname` | `String` | |
+| `string` with `format: ipv4`, `ipv6` | `String` | `InternetAddress` is in `dart:io`, which the models cannot import when the SDK builds for the web. The text is kept as given and read strictly: a leading zero, a prefix length, a zone id, brackets, whitespace or the wrong family fails the decode (D134). |
 | `string` with `format: byte`, and a `format: binary` multipart file part | `Uint8List` | The body is held in memory. |
 | `string` with `format: binary` as a raw request body | `BodySource` | The body is sent as it is read, see Streaming. |
 | `string` with `format: binary` in a success response | `ByteStream`, a `Stream<List<int>>` | The body is read as you consume it, see Streaming. |
@@ -180,7 +181,6 @@ These are ideas from a review of the type mapping against current Dart. None is 
 
 - Keep the floor at 3.11. The review found that no Dart release from 3.10 to 3.14 added a date, time, UUID, decimal or duration type to `dart:core`. Using the 3.10 dot shorthands or the 3.13 primary constructors in generated code would need a higher floor and is not a type improvement, so the review recommends against it.
 - Decide what `format: date` should be. One option is to keep `DateTime` and document that it is UTC midnight, with a test that a host in a non-UTC zone never shifts the day. Another is an SDK-owned `LocalDate` class, which would be a public API addition that has to match the other eleven SDKs.
-- Optionally map `format: uri` to `dart:core` `Uri`, if the rewriting of `[`, `]` and the apostrophe is acceptable. Otherwise record the decision to keep `String`.
 - Move the `oneOf` wrappers to sealed classes with pattern matching, which Dart has had since 3.0. The current wrapper cannot be switched exhaustively. This is a public API change.
 - The `iso8601_duration.dart` file name is misleading, since it holds protobuf-JSON helpers around `Duration`. The generator's AGENTS file also describes an SDK-owned duration class that does not exist.
 

@@ -178,6 +178,7 @@ Test: `value_serializer_test.mustache`, `test/api/*`.
 
 ### Parameter value rules (D47, D51, D81, D82, D62, D63)
 Rule: `format: byte` parameters are base64-encoded (`Uint8List` in `stringify` and before the `List` branch); `format: time` stays a `String` (no change); `Set` parameters expand like arrays; `format: uri` is checked as an absolute RFC 3986 URI in `fromJson`; an additionalProperties key colliding with a declared property is skipped so the declared value wins. D51, D62 and D63 are landed; D47 (object-valued query/header parameters converted through `jsonDecode(serialize(v))` instead of the `as Map<String, Object?>?` cast in `api/api.mustache`) and the `Set` normalisation in D82 are intended.
+Rule (D134): `format: ipv4` and `ipv6` stay `String` and are checked in `fromJson` through `parseIpv4Address`/`parseIpv6Address` (list elements included); a malformed address is a `SerializationException`.
 Why: one rule per wire form across all twelve.
 Where: `value_serializer.mustache`, `object_serializer.mustache`, `models/model.mustache`, `api/api.mustache`.
 Test: `value_serializer_test.mustache`, `object_serializer_test.mustache`.

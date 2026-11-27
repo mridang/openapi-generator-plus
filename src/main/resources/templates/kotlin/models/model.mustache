@@ -940,7 +940,11 @@ data class {{classname}}(
 {{/isFloat}}{{^isFloat}}{{#isDouble}}  @Serializable(with = {{invokerPackage}}.StrictDoubleSerializer::class)
 {{/isDouble}}{{/isFloat}}{{#isBoolean}}  @Serializable(with = {{invokerPackage}}.StrictBooleanSerializer::class)
 {{/isBoolean}}{{/isEnum}}{{#vendorExtensions.isDecimalString}}  @Serializable(with = {{invokerPackage}}.StringDecimalSerializer::class)
-{{/vendorExtensions.isDecimalString}}{{#isDateTime}}  @Contextual
+{{/vendorExtensions.isDecimalString}}{{#vendorExtensions.isIpv4}}  @Serializable(with = {{invokerPackage}}.Ipv4StringSerializer::class)
+{{/vendorExtensions.isIpv4}}{{#vendorExtensions.isIpv6}}  @Serializable(with = {{invokerPackage}}.Ipv6StringSerializer::class)
+{{/vendorExtensions.isIpv6}}{{^uniqueItems}}{{^items.isNullable}}{{#vendorExtensions.isIpv4Items}}  @Serializable(with = {{invokerPackage}}.Ipv4StringListSerializer::class)
+{{/vendorExtensions.isIpv4Items}}{{#vendorExtensions.isIpv6Items}}  @Serializable(with = {{invokerPackage}}.Ipv6StringListSerializer::class)
+{{/vendorExtensions.isIpv6Items}}{{/items.isNullable}}{{/uniqueItems}}{{#isDateTime}}  @Contextual
 {{/isDateTime}}{{#isDate}}  @Contextual
 {{/isDate}}{{#isUuid}}  @Contextual
 {{/isUuid}}{{#isUri}}  @Contextual
