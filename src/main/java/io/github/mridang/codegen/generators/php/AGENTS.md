@@ -185,6 +185,12 @@ Why: `parse_url()` accepts `http://[bad`, and the Symfony transport then reporte
 Where: `abstract_api_client.mustache` (`isUsableWebUrl`, `hasUsableHost`, `loggableUrl`, shared with `resolveUrl`).
 Test: `DefaultApiClientUnitTest` (`bhv errors 040`, rows for `http://[bad` and a scheme-less `not a url`).
 
+### Response size cap (D138)
+Rule: `TransportOptions::$maxResponseBytes` (builder `maxResponseBytes()`, default `null`; the constructor, which `build()` runs, throws `\InvalidArgumentException('Invalid maxResponseBytes: must be a positive number of bytes (got N)')` for `<= 0`, like `timeout`) bounds a buffered body of the bundled Symfony transport only: `AbstractApiClient::maxResponseBytes()` returns null and `DefaultApiClient` overrides it, so `Psr18ApiClient` and a custom transport are untouched. `DefaultApiClient::execute` then sends with `buffer => false` and `readWithin` reads the chunks of `HttpClientInterface::stream()`: a `Content-Length` over the limit fails before reading and a body that passes it cancels the response (the connection is dropped, not drained), every redirect hop included. `AbstractApiClient::decompressWithin` inflates gzip and deflate with `inflate_add` 256 input bytes at a time and stops when the output passes the limit; br and zstd (optional extensions with no typed incremental API) are decoded whole and then checked. The failure is `Errors\ResponseTooLargeException`, a direct `ApiException` with the real status, lower-cased headers, an empty body and the public readonly `limit`; `isRetryable()` returns false and `attemptLoop` retries only `NetworkException`. Streams are not capped.
+Why: issue #112, owner decision.
+Where: `transport_options.mustache`, `transport_options_builder.mustache`, `abstract_api_client.mustache`, `default_api_client.mustache`, `errors/ResponseTooLargeException.mustache`, `BetterPHPCodegen` (supporting file).
+Test: `TransportOptionsTest` (options069), `DefaultApiClientUnitTest` (transport095, transport096), `ApiExceptionTest` (errors type table row).
+
 ### Timeout must be a positive millisecond count or null (D77)
 Rule: the `TransportOptions` constructor (which `build()` runs) throws `\InvalidArgumentException('Invalid timeout: must be a positive number of milliseconds (got N)')` for `<= 0` (templates done in batch 6, golden regeneration pending).
 Why: zero or negative is ambiguous across transports.

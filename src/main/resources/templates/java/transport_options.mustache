@@ -39,6 +39,7 @@ public final class TransportOptions {
     @Nullable private final java.net.http.HttpClient httpClient;
     private final int             maxRetries;
     @Nullable private final Integer         idleTimeout;
+    @Nullable private final Long            maxResponseBytes;
 
     TransportOptions(
             boolean         verifySsl,
@@ -52,8 +53,10 @@ public final class TransportOptions {
             boolean         injectRequestId,
             @Nullable java.net.http.HttpClient httpClient,
             int             maxRetries,
-            @Nullable Integer         idleTimeout) {
+            @Nullable Integer         idleTimeout,
+            @Nullable Long            maxResponseBytes) {
         Builder.validateProxy(proxy);
+        Builder.validateMaxResponseBytes(maxResponseBytes);
         this.verifySsl       = verifySsl;
         this.caCertPath      = caCertPath;
         this.proxy           = proxy;
@@ -66,6 +69,7 @@ public final class TransportOptions {
         this.httpClient      = httpClient;
         this.maxRetries      = maxRetries;
         this.idleTimeout     = idleTimeout == null || idleTimeout == 0 ? null : idleTimeout;
+        this.maxResponseBytes = maxResponseBytes;
     }
 
     /**
@@ -92,6 +96,7 @@ public final class TransportOptions {
                 + ", injectRequestId=" + injectRequestId
                 + ", maxRetries=" + maxRetries
                 + ", idleTimeout=" + idleTimeout
+                + ", maxResponseBytes=" + maxResponseBytes
                 + "}";
     }
 
@@ -273,6 +278,22 @@ public final class TransportOptions {
     }
 
     /**
+     * The most bytes the default client reads for a buffered response body.
+     *
+     * <p>Both the bytes on the wire and the decompressed bytes (gzip, deflate, br, zstd) count
+     * against it, for a success or an error body and for every redirect hop that is read. A body
+     * that passes it fails with {@link {{invokerPackage}}.errors.ResponseTooLargeException} as
+     * soon as the limit is crossed, and the connection is dropped. A streamed response is read
+     * by the caller and is not bounded by it.
+     *
+     * @return the limit in bytes, or {@code null} for no limit (default)
+     */
+    @Nullable
+    public Long getMaxResponseBytes() {
+        return maxResponseBytes;
+    }
+
+    /**
      * Builder for creating immutable {@link TransportOptions} instances.
      *
      * <p>All fields have sensible defaults:
@@ -283,6 +304,7 @@ public final class TransportOptions {
      *   <li>{@code timeout} — {@code 60000} (60 seconds)</li>
      *   <li>{@code maxRetries} — {@code 2}</li>
      *   <li>{@code idleTimeout} — {@code 60000} (60 seconds)</li>
+     *   <li>{@code maxResponseBytes} — {@code null} (no limit)</li>
      *   <li>{@code userAgent} — a package-specific default string</li>
      *   <li>All other fields — {@code null} or empty</li>
      * </ul>
@@ -301,6 +323,7 @@ public final class TransportOptions {
         @Nullable private java.net.http.HttpClient httpClient = null;
         private int                    maxRetries      = 2;
         @Nullable private Integer      idleTimeout     = 60000;
+        @Nullable private Long         maxResponseBytes = null;
 
         Builder() {}
 
@@ -410,6 +433,35 @@ public final class TransportOptions {
             }
             this.timeout = timeout;
             return this;
+        }
+
+        /**
+         * Set the most bytes the default client reads for a buffered response body.
+         *
+         * <p>See {@link TransportOptions#getMaxResponseBytes()} for what is counted.
+         *
+         * @param maxResponseBytes the limit in bytes (positive), or {@code null} for no limit
+         * @return this builder
+         * @throws IllegalArgumentException if {@code maxResponseBytes} is not positive
+         */
+        public Builder maxResponseBytes(@Nullable Long maxResponseBytes) {
+            validateMaxResponseBytes(maxResponseBytes);
+            this.maxResponseBytes = maxResponseBytes;
+            return this;
+        }
+
+        /**
+         * Check a response size limit: {@code null} or a positive number of bytes.
+         *
+         * @param maxResponseBytes the limit as supplied
+         * @throws IllegalArgumentException if the limit is not positive
+         */
+        private static void validateMaxResponseBytes(@Nullable Long maxResponseBytes) {
+            if (maxResponseBytes != null && maxResponseBytes <= 0) {
+                throw new IllegalArgumentException(
+                        "Invalid maxResponseBytes: must be a positive number of bytes (got "
+                                + maxResponseBytes + ")");
+            }
         }
 
         /**
@@ -547,7 +599,8 @@ public final class TransportOptions {
                     injectRequestId,
                     httpClient,
                     maxRetries,
-                    idleTimeout);
+                    idleTimeout,
+                    maxResponseBytes);
         }
     }
 }

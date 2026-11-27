@@ -1,0 +1,46 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+/**
+ * Exception for a buffered response whose body passed
+ * {@see \{{invokerPackage}}\TransportOptions::$maxResponseBytes}, counting either the bytes on
+ * the wire or the decompressed bytes. A response came back, so the status code and the
+ * lower-cased headers are the real ones; the body is empty because it was not read to the end.
+ * Only the SDK's own transport raises it, and it is never retried.
+ */
+class ResponseTooLargeException extends ApiException
+{
+    /**
+     * @param int                        $statusCode      the status code of the response
+     * @param int                        $limit           the limit in bytes that the body passed
+     * @param array<string, string>|null $responseHeaders the lower-cased response headers
+     * @param string|null                $requestMethod   HTTP method of the request
+     * @param string|null                $requestPath     path (or URL) of the request; the query string is dropped
+     */
+    public function __construct(
+        int $statusCode,
+        public readonly int $limit,
+        ?array $responseHeaders = null,
+        ?string $requestMethod = null,
+        ?string $requestPath = null,
+    ) {
+        parent::__construct(
+            $statusCode,
+            "Response body exceeds the limit of $limit bytes",
+            $responseHeaders,
+            '',
+            null,
+            null,
+            $requestMethod,
+            $requestPath
+        );
+    }
+
+    /**
+     * A body that passed the limit passes it again, so the request is never repeated.
+     */
+    public function isRetryable(): bool
+    {
+        return false;
+    }
+}

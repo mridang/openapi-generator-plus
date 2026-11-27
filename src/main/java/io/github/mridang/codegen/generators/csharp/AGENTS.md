@@ -193,6 +193,12 @@ Why: HTTP `deflate` is RFC 1950; the other eleven decode it that way. A raw RFC 
 Where: `default_api_client.mustache` (`DecodeContentEncoding`).
 Test: `DefaultApiClientUnitTest.mustache` (`ZlibWrappedDeflateBodyIsDecoded`, `RawDeflateBodySurfaces...`, `AdvertisesGzipDeflateAndBrotliByDefault`, `DecodesBareUtf16BodyWithLittleEndianBom...`).
 
+### Response size cap (D138)
+Rule: `TransportOptionsBuilder.MaxResponseBytes(long?)` (off by default; zero or negative is `ArgumentException` `Invalid maxResponseBytes: must be a positive number of bytes (got N)` from the setter, like `Timeout`) bounds a buffered body. With a limit, `SendAttemptAsync` opens the response with `ResponseHeadersRead` and `ReadBoundedAsync` reads it in 16 KiB chunks: a `Content-Length` over the limit fails before reading, a body that passes it drops the connection (`DropUnreadBody`, the cancelled-read trick of `HttpBodyStream`) instead of draining it; `DecodeContentEncoding` inflates in chunks with the same cap on the output. The failure is `Errors.ResponseTooLargeException`, a direct `ApiException` with the real status, lower-cased headers, an empty body and `Limit`; `IsRetryable` is virtual and overridden to false, and the retry loop retries only `NetworkException`. Streams are not capped. The limit applies to every request `DefaultApiClient` sends, including one carried by a supplied `HttpClient` or `HttpMessageHandler`, because the SDK reads the body itself; an injected `IApiClient` is untouched.
+Why: issue #112, owner decision.
+Where: `transport_options.mustache`, `default_api_client.mustache`, `errors/ResponseTooLargeException.mustache`, `api_error.mustache`, `BetterCSharpCodegen` (supporting file).
+Test: `TransportOptionsTest.mustache` (`BhvOptions069`), `DefaultApiClientUnitTest.mustache` (`BhvTransport095`, `BhvTransport096`), `ApiExceptionTest.mustache` (`BhvErrors044` row).
+
 ### Request content types (T1-7)
 Rule: an unrecognised multi-consumes content type throws `ArgumentException` before dispatch, and a text, JSON or form body is sent with the bare declared Content-Type, no `; charset=utf-8` (`CreateStringContent`).
 Why: a typo must never ride the wire as an undeclared type; the other eleven send no charset and no ruling forced one.

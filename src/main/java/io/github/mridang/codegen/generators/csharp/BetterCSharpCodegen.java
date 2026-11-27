@@ -467,6 +467,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.cs"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.cs"),
             new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.cs"),
+            new SupportingFileSpec("errors/ResponseTooLargeException.mustache", errorsFolder, "ResponseTooLargeException.cs"),
             new SupportingFileSpec("errors/PaginationException.mustache", errorsFolder, "PaginationException.cs"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiHttpResponse.cs"),
             new SupportingFileSpec("api_stream_response.mustache", invokerFolder, "ApiStreamResponse.cs"),

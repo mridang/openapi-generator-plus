@@ -533,6 +533,11 @@ Rule: the body is a private `StreamBody` over a `WireGuard` (counts the wire byt
 Where: `default_api_client.mustache`, `transport_options.mustache`, `errors/StreamException.mustache`.
 Test: `DefaultApiClientUnitTest` (`bhvStreaming011`, `012`, `013`, `015`, `019`, `020`, `031`, `032`, `033`), `TransportOptionsTest` (constructor rows).
 
+### Response size cap (D138)
+Rule: `TransportOptions.maxResponseBytes` is a `Long`, `null` (no limit) by default, validated in the builder setter and the constructor (`Invalid maxResponseBytes: must be a positive number of bytes (got N)`). With it set, the buffered call's `BodyHandler` is a private `CappedBodySubscriber` that fails before reading when a declared `Content-Length` passes the limit (not for HEAD, 204 or 304) and otherwise cancels the subscription, which drops the connection, as soon as the running count passes it; the failure is a private `BodyTooLarge` `IOException` that `sendWithBackoff` never retries and `sendRequestInFlight` turns into `ResponseTooLargeException` (a direct `ApiException`, real status and lower-cased headers, empty body, `getLimit()`, `isRetryable()` false). `decompressBody` reads every decoder through `readCapped`, so a body that inflates past the limit stops there. It applies to every hop the buffered call reads; streams are untouched.
+Where: `default_api_client.mustache`, `transport_options.mustache`, `errors/ResponseTooLargeException.mustache`.
+Test: `TransportOptionsTest` (`bhvOptions069`), `DefaultApiClientUnitTest` (`bhvTransport095`, `096`), `ApiExceptionTest` (`bhvErrors044`, `094`).
+
 ### Closing the client cancels open streams
 Rule: `DefaultApiClient` counts an open stream as an in-flight request until it is closed or ends, and tracks it. `close()` marks the client closed, cancels every open stream (each frees its count, the last one releases the `HttpClient`), and returns; requests in flight that are not streams finish as before. A stream whose headers arrive after `close()` is closed and raises the closed-client error. The next read of a cancelled stream raises `IllegalStateException("ApiClient has been closed and can no longer send requests")`.
 Where: `default_api_client.mustache`, `client.mustache`.

@@ -443,3 +443,13 @@ test('bhv misc 134 a zero timeout is refused when the configuration is built, wi
     expect(fn () => TransportOptions::builder()->timeout(0)->build())
         ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
 });
+
+test('bhv options 069 maxResponseBytes defaults to no limit, round trips through the builder and refuses zero and a negative value', function (): void {
+    expect(TransportOptions::builder()->build()->maxResponseBytes)->toBeNull();
+    expect(TransportOptions::builder()->maxResponseBytes(1024)->build()->maxResponseBytes)->toBe(1024);
+    expect(print_r(TransportOptions::builder()->maxResponseBytes(2048)->build(), true))->toContain('[maxResponseBytes] => 2048');
+    expect(fn () => TransportOptions::builder()->maxResponseBytes(0)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxResponseBytes: must be a positive number of bytes (got 0)');
+    expect(fn () => TransportOptions::builder()->maxResponseBytes(-5)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxResponseBytes: must be a positive number of bytes (got -5)');
+});

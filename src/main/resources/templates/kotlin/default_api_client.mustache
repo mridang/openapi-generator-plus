@@ -14,6 +14,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import {{invokerPackage}}.errors.NetworkException
 import {{invokerPackage}}.errors.NetworkTimeoutException
+import {{invokerPackage}}.errors.ResponseTooLargeException
 import {{invokerPackage}}.errors.StreamException
 import io.ktor.http.content.OutgoingContent
 import io.ktor.utils.io.ByteReadChannel
@@ -580,8 +581,13 @@ class DefaultApiClient internal constructor(
         // I/O failure (connection reset, read timeout, truncated transfer)
         // surfaces as the SDK's own error type rather than a raw Ktor
         // exception, matching how send-phase failures are wrapped.
+        val maxResponseBytes = transportOptions.maxResponseBytes
         val wireBytes = try {
-            hop.response.bodyAsBytes()
+            if (maxResponseBytes != null) {
+                readCappedBody(method, url, hop, responseHeaders, maxResponseBytes, budget)
+            } else {
+                hop.response.bodyAsBytes()
+            }
         } catch (e: Exception) {
             throw transportFailure(e)
         }
@@ -591,7 +597,16 @@ class DefaultApiClient internal constructor(
         // status, never a NetworkException.
         val contentEncoding = responseHeaders["content-encoding"] ?: ""
         val rawBytes = try {
-            decodeContentEncoding(wireBytes, contentEncoding)
+            decodeContentEncoding(wireBytes, contentEncoding, maxResponseBytes ?: Long.MAX_VALUE)
+        } catch (e: BodyTooLarge) {
+            /* D138: the decoded body passed the limit, and decoding stopped there. */
+            throw ResponseTooLargeException(
+                hop.response.status.value,
+                responseHeaders,
+                e.limit,
+                method,
+                requestPathOf(url),
+            )
         } catch (e: java.io.IOException) {
             throw ApiException(
                 hop.response.status.value,
@@ -624,6 +639,70 @@ class DefaultApiClient internal constructor(
             ),
             null,
         )
+    }
+
+    /**
+     * Reads a buffered body held open by [execute], counting the bytes as they arrive (D138). A
+     * declared Content-Length over [limit] fails before anything is read; otherwise the read stops
+     * the moment the count passes [limit]. Either way the connection is dropped, never drained,
+     * and the call fails with [ResponseTooLargeException]. The read draws on the end-to-end budget.
+     */
+    private suspend fun readCappedBody(
+        method: String,
+        url: String,
+        hop: Hop,
+        responseHeaders: Map<String, String>,
+        limit: Long,
+        budget: TimeoutBudget,
+    ): ByteArray {
+        val handle = hop.handle!!
+        val status = hop.response.status.value
+        var complete = false
+        try {
+            val tooLarge = {
+                ResponseTooLargeException(status, responseHeaders, limit, method, requestPathOf(url))
+            }
+            val hasBody = !method.equals("HEAD", ignoreCase = true) && status != 204 && status != 304
+            val declared = responseHeaders["content-length"]?.trim()?.toLongOrNull()
+            if (hasBody && declared != null && declared > limit) {
+                throw tooLarge()
+            }
+            val channel = hop.response.bodyAsChannel()
+            val collected = java.io.ByteArrayOutputStream()
+            val chunk = ByteArray(8192)
+            val drain: suspend () -> Unit = {
+                var total = 0L
+                while (true) {
+                    val count = channel.readAvailable(chunk, 0, chunk.size)
+                    if (count < 0) {
+                        break
+                    }
+                    total += count
+                    if (total > limit) {
+                        throw tooLarge()
+                    }
+                    collected.write(chunk, 0, count)
+                }
+            }
+            val remaining = budget.remainingMillis()
+            if (remaining == null) {
+                drain()
+            } else {
+                try {
+                    kotlinx.coroutines.withTimeout(maxOf(remaining, 1L)) { drain() }
+                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                    throw budget.bodyExpired(e)
+                }
+            }
+            complete = true
+            return collected.toByteArray()
+        } finally {
+            if (complete) {
+                handle.finish()
+            } else {
+                handle.abort()
+            }
+        }
     }
 
     /**
@@ -790,7 +869,10 @@ class DefaultApiClient internal constructor(
         budget: TimeoutBudget,
         configure: HttpRequestBuilder.() -> Unit,
     ): Hop {
-        if (!stream) {
+        /* D138: with maxResponseBytes the buffered body is read here, counted as it arrives, so
+         * the response is held open like a stream's instead of being read whole by Ktor. */
+        val capped = !stream && transportOptions.maxResponseBytes != null
+        if (!stream && !capped) {
             return Hop(
                 httpClient.request(url) {
                     budget.applyTo(this)
@@ -806,7 +888,11 @@ class DefaultApiClient internal constructor(
                 try {
                     httpClient
                         .prepareRequest(url) {
-                            budget.applyToStream(this, httpClient)
+                            if (capped) {
+                                budget.applyTo(this)
+                            } else {
+                                budget.applyToStream(this, httpClient)
+                            }
                             configure()
                         }.execute { response ->
                             ready.complete(response)
@@ -1128,6 +1214,11 @@ private class StreamHandle(
         release.complete(Unit)
         job.cancel()
     }
+
+    /** Lets a response whose body was read to its end go, so Ktor can release its connection. */
+    fun finish() {
+        release.complete(Unit)
+    }
 }
 
 /** The outcome of one send: a buffered response, or a stream whose body has not been read. */
@@ -1236,6 +1327,13 @@ internal class TimeoutBudget(private val timeoutMillis: Long?) {
     fun expired(cause: Throwable): NetworkTimeoutException =
         NetworkTimeoutException(
             "Request timed out: no response headers within the $timeoutMillis ms timeout",
+            java.net.SocketTimeoutException("end-to-end timeout of $timeoutMillis ms exhausted").also { it.initCause(cause) },
+        )
+
+    /** The error of an end-to-end timeout that ran out while a buffered body was being read. */
+    fun bodyExpired(cause: Throwable): NetworkTimeoutException =
+        NetworkTimeoutException(
+            "Request timed out: the response body was not read within the $timeoutMillis ms timeout",
             java.net.SocketTimeoutException("end-to-end timeout of $timeoutMillis ms exhausted").also { it.initCause(cause) },
         )
 
@@ -1446,16 +1544,23 @@ internal fun supportedEncodings(): String = buildString {
  * through reflection so the optional libraries can be `compileOnly` — an absent
  * library raises [java.io.IOException] rather than returning the body still
  * encoded (the codec is never advertised, so only a non-conformant server sends it).
+ * The decoded bytes are counted as they are produced, and decoding stops with [BodyTooLarge]
+ * as soon as they pass [limit] (D138), so a small body that inflates past it is never decoded
+ * in full.
  */
-internal fun decodeContentEncoding(data: ByteArray, contentEncoding: String): ByteArray {
+internal fun decodeContentEncoding(
+    data: ByteArray,
+    contentEncoding: String,
+    limit: Long = Long.MAX_VALUE,
+): ByteArray {
     if (data.isEmpty()) return data
     return when (contentEncoding.trim().lowercase()) {
         "gzip", "x-gzip" ->
-            java.util.zip.GZIPInputStream(data.inputStream()).use { it.readBytes() }
+            java.util.zip.GZIPInputStream(data.inputStream()).use { readCapped(it, limit) }
         "deflate" ->
-            java.util.zip.InflaterInputStream(data.inputStream()).use { it.readBytes() }
-        "br" -> decodeViaInputStream(data, "br", "org.brotli.dec.BrotliInputStream")
-        "zstd" -> decodeViaInputStream(data, "zstd", "com.github.luben.zstd.ZstdInputStream")
+            java.util.zip.InflaterInputStream(data.inputStream()).use { readCapped(it, limit) }
+        "br" -> decodeViaInputStream(data, "br", "org.brotli.dec.BrotliInputStream", limit)
+        "zstd" -> decodeViaInputStream(data, "zstd", "com.github.luben.zstd.ZstdInputStream", limit)
         "", "identity" -> data
         // An unrecognised (or multi-value) Content-Encoding is a response the
         // client cannot honour; raise so the caller surfaces an ApiException
@@ -1471,7 +1576,12 @@ internal fun decodeContentEncoding(data: ByteArray, contentEncoding: String): By
  * [java.io.IOException] when the class is absent or fails to load, never returning
  * the still-encoded bytes.
  */
-internal fun decodeViaInputStream(data: ByteArray, encoding: String, className: String): ByteArray {
+internal fun decodeViaInputStream(
+    data: ByteArray,
+    encoding: String,
+    className: String,
+    limit: Long = Long.MAX_VALUE,
+): ByteArray {
     val unavailable = "Received a $encoding-encoded response but the $encoding library is unavailable"
     val cls = try {
         Class.forName(className)
@@ -1481,10 +1591,43 @@ internal fun decodeViaInputStream(data: ByteArray, encoding: String, className: 
     return try {
         val stream = cls.getConstructor(java.io.InputStream::class.java)
             .newInstance(data.inputStream()) as java.io.InputStream
-        stream.use { it.readBytes() }
+        stream.use { readCapped(it, limit) }
     } catch (e: ReflectiveOperationException) {
         throw java.io.IOException(unavailable, e)
     }
+}
+
+/**
+ * Raised by [readCapped] when the decoded bytes pass `maxResponseBytes`; the client turns it into
+ * [ResponseTooLargeException] with the response's status and headers.
+ */
+internal class BodyTooLarge(
+    val limit: Long,
+) : java.io.IOException("Response body exceeds the limit of $limit bytes")
+
+/** Reads [input] to its end, failing with [BodyTooLarge] as soon as the bytes read pass [limit]. */
+internal fun readCapped(
+    input: java.io.InputStream,
+    limit: Long,
+): ByteArray {
+    if (limit == Long.MAX_VALUE) {
+        return input.readBytes()
+    }
+    val collected = java.io.ByteArrayOutputStream()
+    val chunk = ByteArray(8192)
+    var total = 0L
+    while (true) {
+        val count = input.read(chunk)
+        if (count < 0) {
+            break
+        }
+        total += count
+        if (total > limit) {
+            throw BodyTooLarge(limit)
+        }
+        collected.write(chunk, 0, count)
+    }
+    return collected.toByteArray()
 }
 
 /**

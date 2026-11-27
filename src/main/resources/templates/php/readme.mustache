@@ -83,7 +83,7 @@ Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with th
 
 `TransportOptions::builder()->timeout(5000)` sets one end-to-end budget in milliseconds for the whole call, redirects and retries included. A call that exceeds it fails with `NetworkTimeoutException`; the default is 60 000 ms and `null` waits indefinitely.
 
-`TransportOptions::builder()->maxResponseBytes(n)` caps the bytes read for a buffered response body (off by default): a body that passes it, raw or decompressed, fails with `ResponseTooLargeException`. Streamed responses are not capped.
+`TransportOptions::builder()->maxResponseBytes(n)` bounds a buffered response body to `n` bytes (off by default): a body that passes it, on the wire or once decompressed, fails with `ResponseTooLargeException` and is never retried. A streamed response is not bounded by it.
 
 ### Automatic retries
 

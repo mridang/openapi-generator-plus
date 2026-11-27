@@ -463,6 +463,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/NetworkException.mustache", errorsFolder, "NetworkException.php"),
             new SupportingFileSpec("errors/NetworkTimeoutException.mustache", errorsFolder, "NetworkTimeoutException.php"),
             new SupportingFileSpec("errors/StreamException.mustache", errorsFolder, "StreamException.php"),
+            new SupportingFileSpec("errors/ResponseTooLargeException.mustache", errorsFolder, "ResponseTooLargeException.php"),
             new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.php"),
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"),
             new SupportingFileSpec("call_hook.mustache", invokerFolder, "CallHook.php"),
