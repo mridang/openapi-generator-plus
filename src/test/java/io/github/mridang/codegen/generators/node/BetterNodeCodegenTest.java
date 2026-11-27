@@ -16,6 +16,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.CodegenServer;
 
 /**
@@ -467,5 +468,57 @@ class BetterNodeCodegenTest {
         assertFalse(
                 Files.exists(out.resolve("src/api/options/list-invoices-options.ts")),
                 "an operation with no parameters of its own has no Options file");
+    }
+
+    private static CodegenProperty leaf(String openApiType, String format) {
+        CodegenProperty leaf = new CodegenProperty();
+        leaf.openApiType = openApiType;
+        leaf.dataFormat = format;
+        leaf.isNumber = "number".equals(openApiType);
+        leaf.dataType = "number".equals(openApiType) ? "number" : "string";
+        return leaf;
+    }
+
+    /* A decimal response body is typed Decimal and its leaf is read from the exact text (#187). */
+    @Test
+    void aBareDecimalResponseIsTypedDecimal() {
+        CodegenOperation op = new CodegenOperation();
+        op.returnProperty = leaf("number", "decimal");
+        op.returnType = "number";
+        op.returnBaseType = "number";
+        BetterNodeCodegen.markDecimalReturn(op);
+        assertEquals("Decimal", op.returnType);
+        assertEquals("Decimal", op.returnBaseType);
+        assertEquals(true, op.returnProperty.vendorExtensions.get("isDecimalLeaf"));
+        assertEquals(false, op.returnProperty.vendorExtensions.get("isStringDecimalLeaf"));
+    }
+
+    @Test
+    void anArrayOfDecimalsIsAnArrayOfDecimal() {
+        CodegenProperty array = new CodegenProperty();
+        array.isArray = true;
+        array.isContainer = true;
+        array.items = leaf("string", "decimal");
+        CodegenOperation op = new CodegenOperation();
+        op.returnProperty = array;
+        op.returnType = "Array<string>";
+        op.returnBaseType = "string";
+        BetterNodeCodegen.markDecimalReturn(op);
+        assertEquals("Array<Decimal>", op.returnType);
+        assertEquals(true, array.items.vendorExtensions.get("isStringDecimalLeaf"));
+    }
+
+    @Test
+    void anArrayOfDoublesKeepsItsType() {
+        CodegenProperty array = new CodegenProperty();
+        array.isArray = true;
+        array.isContainer = true;
+        array.items = leaf("number", "double");
+        CodegenOperation op = new CodegenOperation();
+        op.returnProperty = array;
+        op.returnType = "Array<number>";
+        BetterNodeCodegen.markDecimalReturn(op);
+        assertEquals("Array<number>", op.returnType);
+        assertEquals(null, array.items.vendorExtensions.get("isDecimalLeaf"));
     }
 }
