@@ -14,8 +14,11 @@ Gem::Specification.new do |s|
   s.authors     = [{{#authorList}}'{{{name}}}'{{^-last}}, {{/-last}}{{/authorList}}]
 {{/hasAuthorList}}
 {{^hasAuthorList}}
-  s.authors     = ['{{#infoName}}{{infoName}}{{/infoName}}{{^infoName}}{{appNameBase}}{{/infoName}}']
+  s.authors     = ['{{#infoContactName}}{{infoContactName}}{{/infoContactName}}{{^infoContactName}}{{appNameBase}}{{/infoContactName}}']
 {{/hasAuthorList}}
+{{#infoContactEmail}}
+  s.email       = '{{infoContactEmail}}'
+{{/infoContactEmail}}
   s.summary     = '{{appNameBase}} Ruby Gem'
   s.description = '{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}{{appNameBase}} Ruby Gem{{/appDescription}}'
   s.license     = '{{licenseId}}'

@@ -25,6 +25,14 @@ publishing {
                         url.set("{{licenseUrl}}")
                     }
                 }
+{{#infoContactName}}
+                organization {
+                    name.set("{{#lambda.kotlinString}}{{{infoContactName}}}{{/lambda.kotlinString}}")
+{{#infoContactUrl}}
+                    url.set("{{#lambda.kotlinString}}{{{infoContactUrl}}}{{/lambda.kotlinString}}")
+{{/infoContactUrl}}
+                }
+{{/infoContactName}}
 {{#homepageUrl}}
                 url.set("{{#lambda.kotlinString}}{{{homepageUrl}}}{{/lambda.kotlinString}}")
 {{/homepageUrl}}

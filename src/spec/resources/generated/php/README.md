@@ -2,6 +2,16 @@
 
 Auto-generated PHP SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
+## API information
+
+Pets, owners and orders for integration tests
+
+- **Contact:** Petstore API support
+- **Contact email:** support@example.com
+- **Contact URL:** https://example.com/support
+- **License:** Apache 2.0 (https://www.apache.org/licenses/LICENSE-2.0.html)
+- **Terms of service:** https://example.com/terms
+
 ## Requirements
 
 - PHP 8.3 or newer
@@ -392,7 +402,7 @@ vendor/bin/pest
 - Name: `openapi/petstoreclient`
 - Namespace: `PetstoreClient`
 - Version: `1.0.0`
-- License: MIT
+- License: Apache-2.0
 - Authors: 
 
 ### Versioning
@@ -510,7 +520,7 @@ fails with `NetworkTimeoutException`.
 
 ### `LICENSE` file is not auto-emitted
 
-The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file
+The package manifest declares Apache-2.0, but no `LICENSE` / `LICENSE.md` file
 is generated alongside the sources. Drop the appropriate license text
 into the generated tree as part of your release pipeline before
 publishing to a registry — most registries warn or block on a missing

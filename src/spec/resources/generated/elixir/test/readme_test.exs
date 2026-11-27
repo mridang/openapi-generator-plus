@@ -11,6 +11,10 @@ defmodule PetstoreClient.ReadmeTest do
     assert section =~ "@behaviour"
   end
 
+  test "the README has an API information section" do
+    assert File.read!("README.md") =~ "\n## API information\n"
+  end
+
   # Every fence of a markdown file whose info string starts with the word elixir, as the
   # info string and the body; the bodies of other fences are skipped.
   defp elixir_fences(text) do

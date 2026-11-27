@@ -134,6 +134,7 @@ void main() {
           '${Directory.current.path}/README.md',
         ).readAsStringSync();
         for (final heading in [
+          '## API information',
           '### Per-call options',
           '### Errors',
           '### Credentials',
