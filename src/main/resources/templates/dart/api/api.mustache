@@ -380,10 +380,19 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
       deserialize: (body) => deserializeMapFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
 {{/items}}{{/returnProperty}}
 {{/isMap}}
+{{#isArray}}
+{{! A container of primitives is read element by element through the same }}
+{{! per-element deserializer a nested container uses, so a decimal element is }}
+{{! read from its recorded source text and a wrong-typed element is refused. }}
+{{#returnProperty}}{{#items}}
+      deserialize: (body) => deserializeArrayFromJson(body, {{>deserialize_arg}}) as {{{returnType}}},
+{{/items}}{{/returnProperty}}
+{{/isArray}}
 {{^isMap}}
+{{^isArray}}
 {{#returnProperty}}
 {{#vendorExtensions.isDecimalNumber}}
-      deserialize: (body) => readDecimalValue(deserializeRaw(body)),
+      deserialize: (body) => readDecimalBody(body),
 {{/vendorExtensions.isDecimalNumber}}
 {{#vendorExtensions.isDecimalString}}
       deserialize: (body) => parseDecimalString(deserializeRaw(body)),
@@ -392,6 +401,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
       deserialize: (body) => deserializeRaw(body) as {{{returnType}}},
 {{/vendorExtensions.isDecimal}}
 {{/returnProperty}}
+{{/isArray}}
 {{/isMap}}
 {{/returnTypeIsPrimitive}}
 {{^returnTypeIsPrimitive}}

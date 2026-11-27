@@ -982,7 +982,10 @@ export abstract class BaseApi {
       if (json === null) {
         return null as unknown as T;
       }
-      return returnType(json, statusCode);
+      /* A body that is one bare number is decoded with its own text as the
+       * number source, so a decimal body keeps every digit. */
+      const source = typeof json === 'number' ? cleaned.trim() : undefined;
+      return ObjectSerializer.withNumberSource(source, () => returnType(json, statusCode));
     }
   }
 

@@ -533,6 +533,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * float coercion) and rejects a quoted string. */
   @Transform(({ obj }) => decodePlainNumber(obj, '{{baseName}}'), { toClassOnly: true })
 {{/vendorExtensions.isPlainNumberDecimal}}
+{{#vendorExtensions.isPlainNumberDecimalArray}}
+  /* Each element of an array of decimals is a JSON number: decode keeps its
+   * exact text (no float coercion) and rejects a quoted string. */
+  @Transform(({ obj }) => decodePlainNumberArray(obj, '{{baseName}}'{{#items.isNullable}}, true{{/items.isNullable}}), { toClassOnly: true })
+{{/vendorExtensions.isPlainNumberDecimalArray}}
 {{#vendorExtensions.isStringDecimal}}
   /* A `type: string` decimal is a JSON string: decode keeps its text and
    * rejects a bare number. */
@@ -1380,7 +1385,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 {{/parent}}
 {{#vars}}
-    if (!{{classname}}.__deepEquals(this.{{name}}, (other as {{classname}}).{{name}}{{#vendorExtensions.isDecimalFormat}}, true{{/vendorExtensions.isDecimalFormat}})) {
+    if (!{{classname}}.__deepEquals(this.{{name}}, (other as {{classname}}).{{name}}{{#vendorExtensions.isDecimalFormat}}, true{{/vendorExtensions.isDecimalFormat}}{{#vendorExtensions.isPlainNumberDecimalArray}}, true{{/vendorExtensions.isPlainNumberDecimalArray}})) {
       return false;
     }
 {{/vars}}
@@ -1447,7 +1452,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       if (a.length !== b.length) {
         return false;
       }
-      return a.every((v, i) => {{classname}}.__deepEquals(v, b[i]));
+      return a.every((v, i) => {{classname}}.__deepEquals(v, b[i], decimal));
     }
     if (a instanceof Set && b instanceof Set) {
       if (a.size !== b.size) {

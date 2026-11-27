@@ -1934,6 +1934,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/NativeValues'
 
+  # A format: decimal number as the whole response body and as the items of an
+  # array body: each decodes with every digit, never through a binary float.
+  /store/native-values/amount:
+    get:
+      tags:
+        - store
+      summary: Reads one exact decimal as the whole response body.
+      operationId: getNativeAmount
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: number
+                format: decimal
+                example: 12.5
+  /store/native-values/amounts:
+    get:
+      tags:
+        - store
+      summary: Reads a list of exact decimals as the whole response body.
+      operationId: listNativeAmounts
+      security: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: number
+                  format: decimal
+                example: [12.5, 0.1]
+
   # ─── Memos: path-item servers, every HTTP method, reusable components ─────────
   # Servers declared on a path item apply to every operation under it that
   # declares none of its own (#62). The parameter, response and request body
@@ -3204,6 +3241,11 @@ components:
           type: number
           format: decimal
           example: 12.345678901234567890123
+        amounts:
+          type: array
+          items:
+            type: number
+            format: decimal
         ledger:
           type: string
           format: decimal

@@ -2756,6 +2756,18 @@ void main() {
         expect(values.amount, isA<Decimal>());
         expect(values.ledger, isA<Decimal>());
         expect(values.amount! + values.ledger!, equals(Decimal.parse('0.3')));
+
+        const listed = '{"amounts":[12.345678901234567890123,1.50]}';
+        expect(decode(listed).amounts!.first, equals(Decimal.parse('12.345678901234567890123')));
+        expect(serialize(decode(listed)), equals(listed));
+
+        // The two response shapes StoreApi.getNativeAmount and listNativeAmounts decode.
+        expect(readDecimalBody(' 12.345678901234567890123 '), equals(Decimal.parse('12.345678901234567890123')));
+        expect(
+          deserializeArrayFromJson('[12.345678901234567890123,0.1]', (e) => readDecimalValue(e)),
+          equals([Decimal.parse('12.345678901234567890123'), Decimal.parse('0.1')]),
+        );
+        expect(() => readDecimalBody('"12.5"'), throwsA(isA<SerializationException>()));
       });
     });
   });
