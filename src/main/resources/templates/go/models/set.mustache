@@ -2,7 +2,6 @@
 package models
 
 import (
-	"encoding/json"
 	"reflect"
 	"sort"
 )
@@ -51,10 +50,12 @@ func sortScalarMembers[T comparable](items []T) {
 	})
 }
 
-// UnmarshalJSON decodes a JSON array and deduplicates entries.
+// UnmarshalJSON decodes a JSON array and deduplicates entries. The members
+// decode with the model decode options, so a model member is checked exactly
+// as on its own.
 func (s *Set[T]) UnmarshalJSON(data []byte) error {
 	var items []T
-	if err := json.Unmarshal(data, &items); err != nil {
+	if err := unmarshalValue(data, &items); err != nil {
 		return err
 	}
 	seen := make(map[T]bool, len(items))

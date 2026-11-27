@@ -3137,6 +3137,8 @@ langgo129 | The README Usage fence and the quickstart hold the same statements, 
 langgo130 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
 langgo131 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
 langgo132 | The SDK Makefile has an examples target that builds every file under examples
+langgo133 | A model decoded through JSON v2 reports a missing required key with the same error as encoding/json
+langgo134 | A model decoded through JSON v2 matches keys exactly, so a mis-cased key does not fill the declared field
 langelixir001 | A server variable keeps its declared enum values after construction, so they can be checked later.
 langelixir002 | A server variable must declare a default value, and omitting it is an error.
 langelixir003 | An array body where an object is expected raises a serialization error rather than an access error.

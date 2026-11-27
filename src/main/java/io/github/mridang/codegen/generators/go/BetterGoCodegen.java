@@ -1610,9 +1610,101 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     }
                     model.oneOf = variants;
                 }
+                markDecodeFields(modelsMap, modelMap, model);
             }
         }
         return result;
+    }
+
+    /**
+     * Prepares the one-pass decode of a struct model (#107). Each model reads
+     * its JSON object once through {@code UnmarshalJSONFrom} on a JSON v2
+     * {@code jsontext.Decoder}, so the template needs to know per property what
+     * to do while reading and after the object ends. Logic-less Mustache cannot
+     * combine the required, nullable and default flags, so they are combined
+     * here:
+     *
+     * <ul>
+     *   <li>{@code decodeRejectsNull}: required and not nullable, so a null fails
+     *   <li>{@code decodeRequiresKey}: required with no default, so a missing key fails
+     *   <li>{@code decodeRequiredDefault}: required, not nullable, with a default
+     *       that fills a missing key
+     *   <li>{@code decodeOptionalDefault}: optional with a default that fills a
+     *       missing key; only on a model that neither keeps nor rejects
+     *       undeclared keys, as before
+     *   <li>{@code decodeTracksPresence}: any of the three above, so the decode
+     *       records whether the key was read
+     *   <li>{@code hasDecodeCheck} and {@code decodeCheck}: the check that sees
+     *       the value's JSON text before it is decoded (absolute URI, IPv4,
+     *       IPv6, canonical UUID, decimal shape)
+     * </ul>
+     *
+     * <p>The file then imports {@code jsontext}, flagged as {@code
+     * hasJsontextImport}. Enums and unions decode through {@code UnmarshalJSON}
+     * and are left unmarked.
+     *
+     * @param modelsMap the file context of the model
+     * @param modelMap the model context, which carries the unevaluatedProperties flag
+     * @param model the model to mark
+     */
+    private static void markDecodeFields(
+            final ModelsMap modelsMap, final ModelMap modelMap, final CodegenModel model) {
+        if (model.isEnum
+                || (model.oneOf != null && !model.oneOf.isEmpty())
+                || (model.anyOf != null && !model.anyOf.isEmpty())) {
+            return;
+        }
+        final boolean keepsOrRejectsExtras =
+                model.isAdditionalPropertiesTrue
+                        || Boolean.TRUE.equals(modelMap.get("isUnevaluatedPropertiesFalse"));
+        for (final CodegenProperty property : model.vars) {
+            final boolean hasDefault =
+                    property.defaultValue != null && !property.defaultValue.isEmpty();
+            final boolean rejectsNull = property.required && !property.isNullable;
+            final boolean requiresKey = property.required && !hasDefault;
+            final boolean requiredDefault = rejectsNull && hasDefault;
+            final boolean optionalDefault =
+                    !property.required && hasDefault && !keepsOrRejectsExtras;
+            property.vendorExtensions.put("decodeRejectsNull", rejectsNull);
+            property.vendorExtensions.put("decodeRequiresKey", requiresKey);
+            property.vendorExtensions.put("decodeRequiredDefault", requiredDefault);
+            property.vendorExtensions.put("decodeOptionalDefault", optionalDefault);
+            property.vendorExtensions.put(
+                    "decodeTracksPresence", requiresKey || requiredDefault || optionalDefault);
+            final String check = decodeCheck(property);
+            property.vendorExtensions.put("hasDecodeCheck", !check.isEmpty());
+            property.vendorExtensions.put("decodeCheck", check);
+        }
+        modelsMap.put("hasJsontextImport", true);
+    }
+
+    /**
+     * The models-package function that checks a property's JSON text before it
+     * is decoded, or the empty string when its type needs no check beyond the
+     * decode.
+     *
+     * @param property the property
+     * @return the check function name, or the empty string
+     */
+    private static String decodeCheck(final CodegenProperty property) {
+        if (Boolean.TRUE.equals(property.vendorExtensions.get("isDecimalField"))) {
+            return Boolean.TRUE.equals(property.vendorExtensions.get("isDecimalString"))
+                    ? "checkDecimalString"
+                    : "checkDecimalNumber";
+        }
+        if (property.isUri) {
+            return "checkAbsoluteURI";
+        }
+        if (Boolean.TRUE.equals(property.vendorExtensions.get("isIpv4"))) {
+            return "checkIPv4";
+        }
+        if (Boolean.TRUE.equals(property.vendorExtensions.get("isIpv6"))) {
+            return "checkIPv6";
+        }
+        if (property.isUuid) {
+            return "checkUuid";
+        }
+        return "";
     }
 
     /**

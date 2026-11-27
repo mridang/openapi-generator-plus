@@ -1,0 +1,108 @@
+// UnmarshalJSON implements the encoding/json Unmarshaler by decoding through
+// UnmarshalJSONFrom, so both JSON packages apply the same checks.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	return unmarshalModel(data, o)
+}
+
+// UnmarshalJSONFrom implements the JSON v2 UnmarshalerFrom. It decodes the
+// model in one pass over the stream: each key is matched exactly against the
+// declared wire names, so a key that differs only in letter case is an
+// undeclared key, and each value is checked and decoded as it is read.
+{{#isAdditionalPropertiesTrue}}
+// An undeclared key is kept in AdditionalProperties.
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+// An undeclared key is rejected (unevaluatedProperties:false).
+{{/isUnevaluatedPropertiesFalse}}
+{{^isAdditionalPropertiesTrue}}
+{{^isUnevaluatedPropertiesFalse}}
+// An undeclared key is skipped.
+{{/isUnevaluatedPropertiesFalse}}
+{{/isAdditionalPropertiesTrue}}
+// A required key that is missing, or null where null is not allowed, is an
+// error; an absent key that declares a default takes that default.
+func (o *{{classname}}) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var out {{classname}}
+{{#vars}}
+{{#vendorExtensions.decodeTracksPresence}}
+	seen{{name}} := false
+{{/vendorExtensions.decodeTracksPresence}}
+{{/vars}}
+	err := readObject(dec, "{{classname}}", func(key string) error {
+{{#hasVars}}
+		switch key {
+{{#vars}}
+		case "{{baseName}}":
+{{#vendorExtensions.decodeRejectsNull}}
+			if dec.PeekKind() == 'n' {
+				return fmt.Errorf("required field '{{baseName}}' must not be null in {{classname}}")
+			}
+{{/vendorExtensions.decodeRejectsNull}}
+{{#vendorExtensions.decodeTracksPresence}}
+			seen{{name}} = true
+{{/vendorExtensions.decodeTracksPresence}}
+{{#vendorExtensions.hasDecodeCheck}}
+			return decodeChecked(dec, &out.{{name}}, key, {{vendorExtensions.decodeCheck}})
+{{/vendorExtensions.hasDecodeCheck}}
+{{^vendorExtensions.hasDecodeCheck}}
+			return decodeValue(dec, &out.{{name}})
+{{/vendorExtensions.hasDecodeCheck}}
+{{/vars}}
+		}
+{{/hasVars}}
+{{#isAdditionalPropertiesTrue}}
+{{#vendorExtensions.hasTypedAdditionalProperties}}
+{{^vendorExtensions.additionalPropertiesValue.isNullable}}
+		/* A typed extra decodes like an element of a map of the same type:
+		 * a null is rejected unless the value schema is nullable. */
+		if dec.PeekKind() == 'n' {
+			return fmt.Errorf("additional property '%s' must not be null in {{classname}}", key)
+		}
+{{/vendorExtensions.additionalPropertiesValue.isNullable}}
+{{/vendorExtensions.hasTypedAdditionalProperties}}
+		var extra {{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}
+		if err := decodeValue(dec, &extra); err != nil {
+			return err
+		}
+		if out.AdditionalProperties == nil {
+			out.AdditionalProperties = make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}})
+		}
+		out.AdditionalProperties[key] = extra
+		return nil
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+		return fmt.Errorf("unknown property '%s' on {{classname}} (unevaluatedProperties:false)", key)
+{{/isUnevaluatedPropertiesFalse}}
+{{^isAdditionalPropertiesTrue}}
+{{^isUnevaluatedPropertiesFalse}}
+		return dec.SkipValue()
+{{/isUnevaluatedPropertiesFalse}}
+{{/isAdditionalPropertiesTrue}}
+	})
+	if err != nil {
+		return err
+	}
+{{#vars}}
+{{#vendorExtensions.decodeRequiresKey}}
+	if !seen{{name}} {
+		return fmt.Errorf("required field '{{baseName}}' is missing in {{classname}}")
+	}
+{{/vendorExtensions.decodeRequiresKey}}
+{{#vendorExtensions.decodeRequiredDefault}}
+	if !seen{{name}} {
+		/* A required property that carries a default (the synthetic discriminator
+		 * default, or a schema default) is satisfied by that default when absent. */
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		out.{{name}} = default{{name}}
+	}
+{{/vendorExtensions.decodeRequiredDefault}}
+{{#vendorExtensions.decodeOptionalDefault}}
+	if !seen{{name}} {
+		var default{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} = {{{defaultValue}}}
+		out.{{name}} = &default{{name}}
+	}
+{{/vendorExtensions.decodeOptionalDefault}}
+{{/vars}}
+	*o = out
+	return nil
+}

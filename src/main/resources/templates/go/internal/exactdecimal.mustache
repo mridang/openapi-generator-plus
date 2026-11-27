@@ -6,7 +6,7 @@
 // sent. shopspring reads a decimal from its text, never through a float64, but
 // it writes one as a quoted string without its trailing zeros and reads a
 // number and a string alike. The models therefore check the JSON shape of
-// their decimal keys on the way in and write the exact text on the way out.
+// each decimal value as they read it and write the exact text on the way out.
 package exactdecimal
 
 import (
@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/shopspring/decimal"
 )
 
@@ -96,63 +97,40 @@ func EncodeFields(data []byte, fields ...Field) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// CheckField rejects a decimal under key whose JSON shape is not the declared
+// CheckValue rejects a decimal under key whose JSON shape is not the declared
 // one: a `type: number` decimal (quoted false) must be a bare JSON number, and a
 // `type: string` decimal (quoted true) a JSON string holding a plain decimal
-// number. Items of a list or map are checked the same way, and a null passes. A
-// missing key, or a document that is not a JSON object, is left to
-// json.Unmarshal.
-func CheckField(data []byte, key string, quoted bool) error {
-	var raw map[string]json.RawMessage
-	if json.Unmarshal(data, &raw) != nil {
-		return nil
-	}
-	value, ok := raw[key]
-	if !ok {
-		return nil
-	}
-	dec := json.NewDecoder(bytes.NewReader(value))
-	dec.UseNumber()
-	var decoded any
-	if err := dec.Decode(&decoded); err != nil {
-		return nil
-	}
-	return checkValue(key, decoded, quoted)
-}
-
-func checkValue(key string, value any, quoted bool) error {
-	switch v := value.(type) {
-	case nil:
-		return nil
-	case []any:
-		for _, item := range v {
-			if err := checkValue(key, item, quoted); err != nil {
-				return err
+// number. value is the one JSON value the model read for key; the items of a
+// list or map are checked the same way, and a null passes. A value that is not
+// well-formed JSON is left to the decode that follows.
+func CheckValue(key string, value []byte, quoted bool) error {
+	dec := jsontext.NewDecoder(bytes.NewReader(value), jsontext.AllowDuplicateNames(true), jsontext.AllowInvalidUTF8(true))
+	for {
+		token, err := dec.ReadToken()
+		if err != nil {
+			return nil
+		}
+		switch token.Kind() {
+		case '0':
+			if quoted {
+				return fmt.Errorf("field %q is a decimal written as a JSON string, not the bare number %s", key, token.String())
 			}
-		}
-		return nil
-	case map[string]any:
-		for _, item := range v {
-			if err := checkValue(key, item, quoted); err != nil {
-				return err
+		case '"':
+			/* A string read right after the opening brace or a value is an object
+			 * key, not a decimal: the object then holds an odd number of tokens. */
+			if kind, length := dec.StackIndex(dec.StackDepth()); kind == '{' && length%2 == 1 {
+				continue
 			}
+			text := token.String()
+			if !quoted {
+				return fmt.Errorf("field %q is a decimal written as a bare JSON number, not the string %q", key, text)
+			}
+			if !plainDecimal.MatchString(text) {
+				return fmt.Errorf("field %q is not a plain decimal number: %q", key, text)
+			}
+		case 't', 'f':
+			return fmt.Errorf("field %q is a decimal, not %v", key, token.Bool())
 		}
-		return nil
-	case json.Number:
-		if quoted {
-			return fmt.Errorf("field %q is a decimal written as a JSON string, not the bare number %s", key, v)
-		}
-		return nil
-	case string:
-		if !quoted {
-			return fmt.Errorf("field %q is a decimal written as a bare JSON number, not the string %q", key, v)
-		}
-		if !plainDecimal.MatchString(v) {
-			return fmt.Errorf("field %q is not a plain decimal number: %q", key, v)
-		}
-		return nil
-	default:
-		return fmt.Errorf("field %q is a decimal, not %v", key, v)
 	}
 }
 
